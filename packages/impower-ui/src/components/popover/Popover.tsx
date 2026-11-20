@@ -66,6 +66,7 @@ export function PopoverAnchor({
 
 export type PopoverContentProps = PopoverVariantProps & {
   class?: string;
+  container?: HTMLElement | null;
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
   sideOffset?: number;
@@ -82,6 +83,7 @@ export type PopoverContentProps = PopoverVariantProps & {
 
 export function PopoverContent({
   class: className,
+  container,
   size,
   frame,
   sideOffset = 8,
@@ -90,7 +92,7 @@ export function PopoverContent({
   ...rest
 }: PopoverContentProps) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}

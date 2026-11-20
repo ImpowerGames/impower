@@ -362,7 +362,7 @@ describe("the Starting values tab", () => {
     const p = await onValuesTab();
     const badge = p.badge("param:hour")!;
     const popup = () =>
-      document.querySelector<HTMLElement>('[role="dialog"].sv-popup');
+      document.querySelector<HTMLElement>('[role="dialog"].sv-badge-popup');
     expect(badge.tagName).toBe("BUTTON");
     expect(popup()).toBeNull();
     badge.focus();
@@ -389,6 +389,24 @@ describe("the Starting values tab", () => {
     expect(document.activeElement).toBe(badge);
   });
 
+  test("in a player element, each value row is an impower-ui island and the badge popup opens inside the player, clear of its tooltip styles", async () => {
+    const p = await onValuesTab();
+    const player = document.createElement("spark-web-player");
+    document.body.append(player);
+    player.append(p.routeList.parentElement!.parentElement!);
+    for (const r of p.rows()) {
+      expect(r.hasAttribute("data-impower-ui")).toBe(true);
+    }
+    await act(async () => {
+      p.badge("param:hour")!.click();
+    });
+    const popup = document.querySelector<HTMLElement>('[role="dialog"]');
+    expect(popup).not.toBeNull();
+    expect(player.contains(popup)).toBe(true);
+    expect(popup!.hasAttribute("data-impower-ui")).toBe(true);
+    expect(popup!.classList.contains("sv-popup")).toBe(false);
+  });
+
   test("hovering a badge while a value is being typed leaves the typing where it is", async () => {
     const p = await onValuesTab();
     const field = p.input("store:trust");
@@ -403,7 +421,7 @@ describe("the Starting values tab", () => {
       return event;
     };
     const popup = () =>
-      document.querySelector<HTMLElement>('[role="dialog"].sv-popup');
+      document.querySelector<HTMLElement>('[role="dialog"].sv-badge-popup');
     await act(async () => {
       badge.dispatchEvent(pointer("pointerenter"));
     });

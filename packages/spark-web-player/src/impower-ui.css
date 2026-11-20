@@ -48,3 +48,18 @@ spark-web-player {
   --warning: var(--swp-route-warning-color);
   --error: var(--swp-route-error-color);
 }
+
+spark-web-player .sv-tab {
+  --list-row-compact-height: var(--swp-route-row-height);
+  --list-row-compact-padding-x: 8px;
+  --list-row-compact-gap: 8px;
+}
+
+spark-web-player .sv-badge-popup {
+  --ink: var(--swp-toolbar-color, #fff);
+  --panel: var(--swp-route-popup-background-color);
+  --edge: var(--swp-route-popup-border-color);
+  --radius: 6px;
+  --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+  --popover-width: 280px;
+}

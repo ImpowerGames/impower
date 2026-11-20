@@ -116,6 +116,7 @@ function StatusBadge({ badge }: { badge: NonNullable<ValueRow["badge"]> }) {
   const { status, message } = badge;
   const [open, setOpen] = useState(false);
   const hovering = useRef(false);
+  const trigger = useRef<HTMLButtonElement>(null);
   return (
     <Popover
       open={open}
@@ -126,6 +127,7 @@ function StatusBadge({ badge }: { badge: NonNullable<ValueRow["badge"]> }) {
     >
       <PopoverTrigger asChild>
         <button
+          ref={trigger}
           type="button"
           class="sv-badge"
           data-status={status}
@@ -153,12 +155,14 @@ function StatusBadge({ badge }: { badge: NonNullable<ValueRow["badge"]> }) {
         </button>
       </PopoverTrigger>
       <PopoverContent
+        data-impower-ui
+        container={trigger.current?.closest<HTMLElement>("spark-web-player")}
         side="top"
         align="end"
         sideOffset={6}
         alignOffset={-4}
         aria-label={message}
-        class="sv-popup w-max max-w-[min(var(--popover-width),calc(100vw-24px))] flex-row items-start gap-1.5 px-2 py-1.5 text-[12px]/[1.4] [&>svg]:size-3.5 [&>svg]:flex-none"
+        class="sv-badge-popup w-max max-w-[min(var(--popover-width),calc(100vw-24px))] flex-row items-start gap-1.5 px-2 py-1.5 text-[length:var(--list-row-compact-font-size)]/[1.4] [&>svg]:size-3.5 [&>svg]:flex-none"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
@@ -202,6 +206,7 @@ export function StartingValuesTab({ state, events }: StartingValuesTabProps) {
               <div
                 key={row.key}
                 class="sv-row"
+                data-impower-ui
                 data-key={row.key}
                 data-set={row.set && !row.unresolved ? "" : undefined}
                 data-field={row.field ? "" : undefined}

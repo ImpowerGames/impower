@@ -48,7 +48,7 @@
   --list-row-compact-gap: 8px;
 }
 
-:root .sv-popup[role="dialog"] {
+:root .sv-badge-popup {
   --radius: 6px;
   --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
   --popover-width: 280px;
