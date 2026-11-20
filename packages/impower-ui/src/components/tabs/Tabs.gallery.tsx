@@ -162,6 +162,6 @@ function TabsDemo() {
 
 export const tabsGallery: GalleryEntry = {
   title: "Tabs",
-  exports: ["Tabs", "Tab"],
+  exports: ["Tabs", "Tab", "TabPanel"],
   Demo: TabsDemo,
 };
