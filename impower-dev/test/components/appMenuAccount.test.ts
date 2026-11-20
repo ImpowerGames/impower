@@ -149,3 +149,92 @@ describe("the app menu's edge", () => {
     );
   });
 });
+
+const ALLOWED_IN_MENU = new Set([
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "group",
+  "separator",
+  "none",
+  "presentation",
+]);
+
+const IMPLICIT_ROLE: Record<string, string> = {
+  BUTTON: "button",
+  INPUT: "textbox",
+  SELECT: "combobox",
+  TEXTAREA: "textbox",
+};
+
+const roleOf = (el: Element) =>
+  el.getAttribute("role") ??
+  (el.tagName === "A" && el.hasAttribute("href") ? "link" : IMPLICIT_ROLE[el.tagName]);
+
+const disallowedInMenu = (menu: Element) =>
+  Array.from(menu.querySelectorAll("*"))
+    .filter((el) => !el.closest('[role^="menuitem"]') || el.matches('[role^="menuitem"]'))
+    .map((el) => ({ el, role: roleOf(el) }))
+    .filter(({ role }) => role !== undefined && !ALLOWED_IN_MENU.has(role))
+    .map(({ el, role }) => `${role}: ${el.getAttribute("aria-label") ?? el.textContent?.trim()}`);
+
+const tapTrigger = async () => {
+  const trigger = host!.querySelector("button")!;
+  await act(async () => {
+    for (const type of ["pointerdown", "pointerup"]) {
+      trigger.dispatchEvent(
+        new PointerEvent(type, { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }),
+      );
+    }
+    trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
+  });
+};
+
+describe("the app menu's children", () => {
+  it.each([["signed out"], ["signed in"]])(
+    "holds only menu items, groups and separators when opened as a menu, %s",
+    async (state) => {
+      if (state === "signed in") workspace.account.value = account;
+      await mountOpen("drive-file", "synced", "Settings");
+      const menu = await waitFor("menu", () => document.querySelector('[role="menu"]'));
+      expect(disallowedInMenu(menu)).toEqual([]);
+    },
+  );
+
+  it("holds only menu items, groups and separators when opened as a sheet by touch", async () => {
+    workspace.account.value = account;
+    actions.setAppMenuOpen.mockImplementation((open: boolean) => {
+      workspace.current = {
+        ...workspace.current,
+        screen: { ...workspace.current.screen, appMenuOpen: open },
+      };
+    });
+    workspace.current = {
+      ...workspace.current,
+      screen: { ...workspace.current.screen, appMenuOpen: false },
+    };
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(AppMenu, null), host!));
+    await tapTrigger();
+    const menu = await waitFor("sheet menu", () =>
+      document.querySelector('[role="dialog"] [role="menu"]'),
+    );
+    await menuItem("Settings");
+    expect(disallowedInMenu(menu)).toEqual([]);
+  });
+
+  it("closes from its Close app menu item", async () => {
+    await mountOpen("local", "cached", "Settings");
+    const close = await waitFor("close item", () =>
+      document.querySelector<HTMLElement>('[role="menuitem"][aria-label="Close app menu"]'),
+    );
+    await act(async () => {
+      close.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      close.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+      close.click();
+    });
+    await vi.waitFor(() => {
+      expect(actions.setAppMenuOpen).toHaveBeenCalledWith(false);
+    }, WAIT);
+  });
+});
