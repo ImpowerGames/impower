@@ -57,6 +57,16 @@ export interface MorphTiming {
   direction: "normal" | "reverse" | "alternate" | "alternate-reverse";
   iteration_delay_min?: number;
   iteration_delay_max?: number;
+  replay?: MorphReplay[];
+}
+
+export interface MorphReplay {
+  start: number;
+  end: number;
+  chance: number;
+  count: number;
+  delay_min?: number;
+  delay_max?: number;
 }
 
 export interface MorphConditions {

@@ -98,7 +98,7 @@ onEnterRules:
 indentationRules:
   increaseIndentPattern: ^{{LUAU_CODE_TOKEN}}*((\b(else|then|do|repeat)\b\s*(--.*)?$)|(\bfunction\b(?:(?!\bend\b).)*$)|((\{|(?<!\()\(|(?<!\[)\[)\s*(--.*)?$))
 
-  decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)(?!\))|\](?!\]))'
+  decreaseIndentPattern: '^\s*((\b(elseif|else|until)\b)|\bend\b(?!\s*=(?!=))|\}|\)(?!\))|\](?!\]))'
 
   indentNextLinePattern: ^{{LUAU_CODE_TOKEN}}*(?<![=<>!~])=\s*(--.*)?$
 

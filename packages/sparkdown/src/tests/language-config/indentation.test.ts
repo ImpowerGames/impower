@@ -91,11 +91,10 @@ describe.each([
     });
 
     it("still dedents on block-closing keywords", () => {
-      for (const line of ["  end", "  until x", "  else", "  elseif a then"]) {
+      for (const line of ["  end", "  until x", "  else", "  elseif a then", "  end -- done", "  end)"]) {
         expect(decrease.test(line), line).toBe(true);
       }
-    });
-  });
+    });  });
 
   describe("bracket onEnterRules", () => {
     it("guards both bracket kinds", () => {
@@ -456,5 +455,21 @@ describe("the story define onEnterRule", () => {
     expect(before.test("define x with a = 1 end")).toBe(false);
     expect(before.test("define Hero, with")).toBe(false);
     expect(before.test("define end with")).toBe(false);
+  });
+});
+
+describe("sparkdown.language-config.json decreaseIndentPattern and a field named `end` (#2580)", () => {
+  const decrease = new RegExp((STORY_LANGUAGE_CONFIG as { indentationRules: { decreaseIndentPattern: string } }).indentationRules.decreaseIndentPattern);
+
+  it("does not dedent a line that assigns a field named `end`", () => {
+    for (const line of ["    end = 66.667%", "    end=1", "  end  = 0.5"]) {
+      expect(decrease.test(line), line).toBe(false);
+    }
+  });
+
+  it("still dedents a block-closing `end`, and an `end` compared rather than assigned", () => {
+    for (const line of ["  end", "  end -- done", "  end)", "  end == x"]) {
+      expect(decrease.test(line), line).toBe(true);
+    }
   });
 });

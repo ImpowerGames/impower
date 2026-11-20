@@ -1,6 +1,6 @@
-import { parseMorphEasing, type MorphEasing } from "./easing";
+import { firstMorphEasingReach, parseMorphEasing, type MorphEasing } from "./easing";
 import { hashText } from "./hash";
-import type { MorphTiming } from "./types";
+import type { MorphReplay, MorphTiming } from "./types";
 
 export type MorphPlayhead =
   | { phase: "off" }
@@ -21,16 +21,36 @@ export function morphRandom(seed: string): () => number {
 
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
+export function morphReplayStretch(easing: string, start: number, end: number): { from: number; to: number } | undefined {
+  const from = firstMorphEasingReach(easing, start);
+  const to = firstMorphEasingReach(easing, end);
+  return to > from ? { from, to } : undefined;
+}
+
+interface Play {
+  start: number;
+  pauses: number[];
+  settled: number;
+  gap: number;
+}
+
+interface Stretch {
+  from: number;
+  to: number;
+  hold: number;
+  replay: MorphReplay;
+}
+
 export class MorphTimeline {
   protected easing: MorphEasing;
   protected duration: number;
   protected delay: number;
   protected plays: number;
   protected gap?: { min: number; max: number };
-  protected starts: number[] = [];
+  protected stretch?: Stretch;
+  protected runs: Play[] = [];
   protected spans: [number, number][] = [];
   protected beeps?: number[];
-  protected ready = -Infinity;
 
   constructor(
     protected timing: MorphTiming,
@@ -50,7 +70,12 @@ export class MorphTimeline {
     if (typeof min === "number" && typeof max === "number" && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max >= min) {
       this.gap = { min, max };
     }
-    if (timing.trigger !== "speech" && this.duration > 0 && this.plays > 0) this.starts.push(this.delay);
+    const replay = timing.replay?.[0];
+    if (replay && replay.chance > 0 && replay.count >= 1) {
+      const found = morphReplayStretch(timing.easing, replay.start, replay.end);
+      if (found) this.stretch = { ...found, hold: replay.end, replay };
+    }
+    if (timing.trigger !== "speech" && this.duration > 0 && this.plays > 0) this.schedule(this.delay);
   }
 
   get start(): number {
@@ -60,6 +85,26 @@ export class MorphTimeline {
   protected gapAfter(): number {
     if (!this.gap) return 0;
     return this.gap.min + (this.gap.max - this.gap.min) * this.random();
+  }
+
+  protected drawPauses(): number[] {
+    const pauses: number[] = [];
+    const replay = this.stretch?.replay;
+    if (!replay) return pauses;
+    const { chance, count, delay_min: min, delay_max: max } = replay;
+    while (pauses.length < count) {
+      if (chance < 1 && !(this.random() < chance)) break;
+      pauses.push(min !== undefined && max !== undefined ? min + (max - min) * this.random() : 0);
+    }
+    return pauses;
+  }
+
+  protected schedule(start: number): Play {
+    const pauses = this.drawPauses();
+    if (this.directed(this.runs.length, 0) === 1) pauses.reverse();
+    const play: Play = { start, pauses, settled: 0, gap: 0 };
+    this.runs.push(play);
+    return play;
   }
 
   protected directed(play: number, p: number): number {
@@ -77,6 +122,58 @@ export class MorphTimeline {
 
   protected offset(play: number, p: number): number {
     return clamp01(this.easing(this.directed(play, p)));
+  }
+
+  protected length(play: Play): number {
+    const stretch = this.stretch;
+    if (!stretch || play.pauses.length === 0) return this.duration;
+    const rerun = (stretch.to - stretch.from) * this.duration;
+    return play.pauses.reduce((total, pause) => total + pause + rerun, this.duration);
+  }
+
+  protected turn(index: number, play: Play, i: number): number {
+    const stretch = this.stretch!;
+    const reversed = this.directed(index, 0) === 1;
+    const rerun = (stretch.to - stretch.from) * this.duration;
+    let at = play.start + (reversed ? 1 - stretch.from : stretch.to) * this.duration;
+    for (let j = 0; j < i; j++) at += play.pauses[j]! + rerun;
+    return at;
+  }
+
+  protected playingAt(index: number, play: Play, elapsed: number): number {
+    const stretch = this.stretch;
+    if (!stretch || play.pauses.length === 0) return this.offset(index, elapsed / this.duration);
+    const reversed = this.directed(index, 0) === 1;
+    const eased = (x: number) => clamp01(this.easing(x));
+    const first = (reversed ? 1 - stretch.from : stretch.to) * this.duration;
+    if (elapsed < first) return eased(reversed ? 1 - elapsed / this.duration : elapsed / this.duration);
+    let left = elapsed - first;
+    const rerun = (stretch.to - stretch.from) * this.duration;
+    for (let i = 0; i < play.pauses.length; i++) {
+      const pause = play.pauses[i]!;
+      if (left < pause) return stretch.hold;
+      left -= pause;
+      if (left < rerun || i === play.pauses.length - 1) {
+        return eased(reversed ? stretch.to - left / this.duration : stretch.from + left / this.duration);
+      }
+      left -= rerun;
+    }
+    return eased(reversed ? 0 : 1);
+  }
+
+  protected speaking(t: number): boolean {
+    return this.spans.some(([start, end]) => start <= t && t < end);
+  }
+
+  protected settle(index: number, t: number) {
+    const play = this.runs[index];
+    if (!play || !this.stretch) return;
+    while (play.settled < play.pauses.length) {
+      const at = this.turn(index, play, play.settled);
+      if (at > t) return;
+      if (this.speaking(at)) play.settled += 1;
+      else play.pauses.length = play.settled;
+    }
   }
 
   speak(spans: readonly (readonly [number, number])[], now: number, beeps?: readonly number[]) {
@@ -98,43 +195,50 @@ export class MorphTimeline {
   protected spoken(t: number): MorphPlayhead {
     if (!(this.duration > 0)) return { phase: "off" };
     for (;;) {
-      const last = this.starts[this.starts.length - 1];
-      if (last !== undefined && last + this.duration > t) break;
-      const next = this.nextStart(last === undefined ? -Infinity : this.ready, last);
-      if (next === undefined || next > t || (last !== undefined && !(next > last))) break;
-      this.starts.push(next);
-      this.ready = next + this.duration + (this.beeps ? 0 : this.gapAfter());
+      const index = this.runs.length - 1;
+      const last = this.runs[index];
+      if (last) {
+        this.settle(index, t);
+        if (last.start + this.length(last) > t) break;
+      }
+      const ready = last ? last.start + this.length(last) + last.gap : -Infinity;
+      const next = this.nextStart(ready, last?.start);
+      if (next === undefined || next > t || (last !== undefined && !(next > last.start))) break;
+      const play = this.schedule(next);
+      play.gap = this.beeps ? 0 : this.gapAfter();
     }
-    const play = this.starts.length - 1;
-    if (play < 0) return { phase: "off" };
-    const elapsed = t - this.starts[play]!;
-    if (elapsed < this.duration) return { phase: "playing", play, offset: this.offset(play, elapsed / this.duration) };
-    if (this.spans.some(([start, end]) => start <= t && t < end)) return { phase: "between", play, offset: this.offset(play, 1) };
+    const index = this.runs.length - 1;
+    const play = this.runs[index];
+    if (!play) return { phase: "off" };
+    const elapsed = t - play.start;
+    if (elapsed < this.length(play)) return { phase: "playing", play: index, offset: this.playingAt(index, play, elapsed) };
+    if (this.speaking(t)) return { phase: "between", play: index, offset: this.offset(index, 1) };
     return { phase: "off" };
   }
 
   at(t: number): MorphPlayhead {
     if (this.timing.trigger === "speech") return this.spoken(t);
-    if (!this.starts.length) return { phase: "off" };
+    if (!this.runs.length) return { phase: "off" };
     if (t < this.delay) return { phase: "waiting", play: 0, offset: this.start };
-    const starts = this.starts;
-    while (starts.length < this.plays && starts[starts.length - 1]! + this.duration <= t) {
-      const last = starts[starts.length - 1]!;
-      const next = last + this.duration + this.gapAfter();
-      if (!(next > last)) break;
-      starts.push(next);
+    const runs = this.runs;
+    for (;;) {
+      const last = runs[runs.length - 1]!;
+      if (!(runs.length < this.plays && last.start + this.length(last) <= t)) break;
+      const next = last.start + this.length(last) + this.gapAfter();
+      if (!(next > last.start)) break;
+      this.schedule(next);
     }
     let lo = 0;
-    let hi = starts.length - 1;
+    let hi = runs.length - 1;
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1;
-      if (starts[mid]! <= t) lo = mid;
+      if (runs[mid]!.start <= t) lo = mid;
       else hi = mid - 1;
     }
-    const play = lo;
-    const elapsed = t - starts[play]!;
-    if (elapsed < this.duration) return { phase: "playing", play, offset: this.offset(play, elapsed / this.duration) };
-    const end = this.offset(play, 1);
-    return play + 1 >= this.plays ? { phase: "done", play, offset: end } : { phase: "between", play, offset: end };
+    const play = runs[lo]!;
+    const elapsed = t - play.start;
+    if (elapsed < this.length(play)) return { phase: "playing", play: lo, offset: this.playingAt(lo, play, elapsed) };
+    const end = this.offset(lo, 1);
+    return lo + 1 >= this.plays ? { phase: "done", play: lo, offset: end } : { phase: "between", play: lo, offset: end };
   }
 }

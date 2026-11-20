@@ -1,4 +1,6 @@
 import { buildSVGAttributeVocabulary } from "@impower/sparkdown/src/attributes";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { MORPH_FIELD_DOCS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { describe, expect, test } from "vitest";
 import {
   accept,
@@ -8,6 +10,7 @@ import {
   insideBraces,
 } from "./braceCompletionHarness";
 import { compileProject } from "./completionHarness";
+import { getHover } from "../../utils/providers/getHover";
 
 const BUNNY = `<svg xmlns="http://www.w3.org/2000/svg">
 <g data-name="eyelash-left eyes.open default" id="la"/>
@@ -632,5 +635,32 @@ describe("a drawing's `spread` in brace bodies", () => {
 }
 `, "spread");
     expect(clip.documentation).toEqual(expect.objectContaining({ value: expect.stringContaining("How far this clip's opening reaches past its outline") }));
+  });
+});
+
+describe("the replay block in completions and hover (#2580)", () => {
+  test("replay is offered at the morph root as a block, and its six fields inside it", () => {
+    expectBlockInserted(`morph blink {\n  timing { duration = 0.25 }\n  |\n}\n`, "replay");
+    expect(labelsAt(`morph blink {\n  replay {\n    |\n  }\n}\n`)).toEqual(["start", "end", "chance", "count", "delay_min", "delay_max"]);
+    expect(labelsAt(`morph blink {\n  replay { chance = 50%; | }\n}\n`)).toEqual(["start", "end", "chance", "count", "delay_min", "delay_max"]);
+    expect(itemAt(`morph blink {\n  replay {\n    |\n  }\n}\n`, "chance").documentation).toEqual(
+      expect.objectContaining({ value: expect.stringContaining("How likely each replay is") }),
+    );
+  });
+
+  test("hovering a replay field shows its text", async () => {
+    const text = `morph blink {\n  replay {\n    start = 0%\n    end = 66.667%\n    chance = 50%\n    count = 2\n    delay_min = 0.17\n    delay_max = 0.35\n  }\n}\n`;
+    const uri = "file:///replay2580.sd";
+    const documents = new SparkdownDocumentRegistry(["references"]);
+    documents.set({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
+    const document = documents.get(uri)!;
+    const hover = async (needle: string) => {
+      const found = await getHover(document, documents.tree(uri), documents.annotations(uri), undefined, undefined, document.positionAt(text.indexOf(needle) + 1));
+      return found ? { value: (found.contents as { value: string }).value, marked: document.getText(found.range) } : null;
+    };
+    expect(await hover("replay")).toEqual({ value: MORPH_FIELD_DOCS["replay"], marked: "replay" });
+    for (const field of ["start", "end", "chance", "count", "delay_min", "delay_max"]) {
+      expect(await hover(`${field} =`), field).toEqual({ value: MORPH_FIELD_DOCS[`replay.${field}`], marked: field });
+    }
   });
 });
