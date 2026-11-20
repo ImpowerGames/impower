@@ -261,6 +261,45 @@ describe("ScriptEditorController select", () => {
     expect(events).toEqual(["select", undefined]);
     expect(view.state.selection.main.head).toBe(0);
   });
+
+  it("reports Go to line's and a revealed range's caret to the preview as the author's selection", async () => {
+    const { controller, view, host, config } = await loadedEditor();
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "second\nthird\n" } });
+    controller["handleIdle"]();
+    const { onSelectionChanged } = config as unknown as {
+      onSelectionChanged: (update: ViewUpdate, anchor: number, head: number) => void;
+    };
+    view.dispatch({
+      effects: StateEffect.appendConfig.of(
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet) {
+            const { anchor, head } = update.state.selection.main;
+            onSelectionChanged(update, anchor, head);
+          }
+        }),
+      ),
+    });
+    const reported: { line: number; userEvent?: boolean }[] = [];
+    host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (DidSelectTextDocumentMessage.type.isNotification(message)) {
+        reported.push({
+          line: message.params.selectedRange.start.line,
+          userEvent: message.params.userEvent,
+        });
+      }
+    });
+    openCustomGotoLinePanel(view);
+    host.querySelector<HTMLElement>(".cm-gotoLine [contenteditable]")!.textContent = "3";
+    host.querySelector<HTMLFormElement>(".cm-gotoLine")!.requestSubmit();
+    select(controller, 1, true);
+    await vi.waitFor(() =>
+      expect(reported).toEqual([
+        { line: 2, userEvent: true },
+        { line: 1, userEvent: true },
+      ]),
+    );
+  });
 });
 
 describe("ScriptEditorController initial selection", () => {
