@@ -1,6 +1,7 @@
 import { useComputed } from "@preact/signals";
-import { useEffect } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import { storyScriptOf } from "../../workspace/useActiveEditor";
+import { withWindow } from "../desktop-shell/workspaceWindow";
 import workspace from "../../workspace/WorkspaceStore";
 import { ToolPanel, ToolPanelRoot } from "../tool-panel";
 import PhoneFindBar from "./PhoneFindBar";
@@ -21,11 +22,21 @@ function PanelSearch() {
   const { open, view } = snapshot;
   const story = useComputed(() => storyScriptOf() !== undefined).value;
 
+  const finding = open && view === "find";
+  const wasFinding = useRef(finding);
+
   useEffect(() => {
-    if (open && view === "find" && !story) {
+    const opened = finding && !wasFinding.current;
+    wasFinding.current = finding;
+    if (!finding || story) {
+      return;
+    }
+    if (opened) {
+      void withWindow((win) => win.navigateTo("story"));
+    } else {
       close();
     }
-  }, [open, view, story]);
+  }, [finding, story]);
 
   if (!open) {
     return null;

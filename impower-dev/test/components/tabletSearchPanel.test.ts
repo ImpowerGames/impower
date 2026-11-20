@@ -3,6 +3,12 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const layout = vi.hoisted(() => ({ current: "compact" as string }));
+const search = vi.hoisted(() => ({ close: vi.fn(), dismiss: vi.fn() }));
+const win = vi.hoisted(() => ({ navigateTo: vi.fn(), finishEditing: vi.fn() }));
+
+vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
+  Workspace: { search, window: win },
+}));
 
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -47,6 +53,10 @@ const flush = () =>
 
 let host: HTMLElement;
 
+const showAssets = () => {
+  workspace.current = stateForRoute({ ...workspace.current, screen: {} }, "assets");
+};
+
 const showStory = (railCompactWidth?: number) => {
   const story = stateForRoute(
     {
@@ -73,8 +83,8 @@ const showStory = (railCompactWidth?: number) => {
   workspace.current = { ...story, shell: { ...story.shell, railCompactWidth } };
 };
 
-const mount = async () => {
-  workspace.search.value = FIND;
+const mount = async (snapshot = FIND) => {
+  workspace.search.value = snapshot;
   await act(async () =>
     render(h(WorkspaceShell, { phone: false }, h("div", {})), host),
   );
@@ -86,6 +96,7 @@ const findBar = () => host.querySelector<HTMLElement>("[data-find-bar]");
 const railSearch = () => sidebar().querySelector<HTMLElement>("section[data-view]");
 
 beforeEach(() => {
+  vi.clearAllMocks();
   layout.current = "compact";
   host = document.body.appendChild(document.createElement("div"));
   workspace.search.value = INITIAL_SEARCH;
@@ -109,6 +120,40 @@ describe("search at tablet width", () => {
     expect(bar).not.toBeNull();
     expect(sidebar().contains(bar)).toBe(false);
     expect(bar!.closest(".col-span-2")).not.toBeNull();
+  });
+
+  it("goes to the Story route when Find opens off it, and closes Find when the author leaves Story", async () => {
+    showAssets();
+    await mount(INITIAL_SEARCH);
+    await act(async () => {
+      workspace.search.value = FIND;
+    });
+    await flush();
+    expect(win.navigateTo).toHaveBeenCalledWith("story");
+    expect(search.close).not.toHaveBeenCalled();
+
+    showStory();
+    await flush();
+    expect(findBar()).not.toBeNull();
+    await act(async () => {
+      showAssets();
+    });
+    await flush();
+    expect(search.close).toHaveBeenCalledTimes(1);
+    expect(win.navigateTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes a Find that was open in the rail when the rail narrows to its icons off Story", async () => {
+    showAssets();
+    workspace.current = { ...workspace.current, shell: { ...workspace.current.shell, railCompactWidth: RAIL_COMPACT_WIDTH.full } };
+    await mount();
+    expect(railSearch()).not.toBeNull();
+    await act(async () => {
+      workspace.current = { ...workspace.current, shell: { ...workspace.current.shell, railCompactWidth: RAIL_COMPACT_WIDTH.collapsed } };
+    });
+    await flush();
+    expect(search.close).toHaveBeenCalledTimes(1);
+    expect(win.navigateTo).not.toHaveBeenCalled();
   });
 
   it("keeps search in the rail when the author widened it", async () => {
