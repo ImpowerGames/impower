@@ -925,6 +925,17 @@ describe("WorkspaceWindow store transitions", () => {
       expect(window.location.hash).toBe("#assets");
     });
 
+    const withStoreRestored = async (run: () => void | Promise<void>) => {
+      const before = workspace.current;
+      try {
+        await run();
+      } finally {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        workspace.current = before;
+        localStorage.clear();
+      }
+    };
+
     it.each([
       ["#write", "#story"],
       ["#logic", "#story"],
@@ -932,28 +943,27 @@ describe("WorkspaceWindow store transitions", () => {
       ["#collection", "#assets"],
       ["#project", "#settings"],
       ["#project?section=save-settings", "#settings?section=save-settings"],
-    ])("opens the old name %s on load and rewrites the address bar to %s", (old, current) => {
-      win.dispose();
-      window.history.replaceState(null, "", old);
-      win = new WorkspaceWindow(Workspace);
-      expect(window.location.hash).toBe(current);
-      expect(workspace.current.screen.settingsOpen).toBe(current.startsWith("#settings"));
-    });
+    ])("opens the old name %s on load and rewrites the address bar to %s", (old, current) =>
+      withStoreRestored(() => {
+        win.dispose();
+        window.history.replaceState(null, "", old);
+        win = new WorkspaceWindow(Workspace);
+        expect(window.location.hash).toBe(current);
+        expect(workspace.current.screen.settingsOpen).toBe(current.startsWith("#settings"));
+      }),
+    );
 
     it.each([
       ["#collection", "#assets"],
       ["#project?section=file-types", "#settings?section=file-types"],
       ["#write", "#story"],
-    ])("follows the old name %s typed into the address bar and rewrites it to %s", async (old, current) => {
-      const before = workspace.current;
-      try {
+    ])("follows the old name %s typed into the address bar and rewrites it to %s", (old, current) =>
+      withStoreRestored(async () => {
         window.history.pushState(null, "", old);
         window.dispatchEvent(new HashChangeEvent("hashchange"));
         await vi.waitFor(() => expect(window.location.hash).toBe(current));
-      } finally {
-        workspace.current = before;
-      }
-    });
+      }),
+    );
 
     it("keeps a settings deep link's section in the hash while it opens the page", () => {
       win.dispose();
