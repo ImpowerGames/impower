@@ -488,82 +488,69 @@ describe("the Saves menu", () => {
     expect(document.activeElement).toBe(p.moreOf("saved-1"));
   });
 
+  const focusOnPress = <T extends HTMLElement>(element: T): T => {
+    element.addEventListener("pointerdown", () => element.focus());
+    return element;
+  };
+
   test.each([
-    ["elsewhere in the Saves menu", (p: ReturnType<typeof player>) => p.menu()!.querySelector(".saves-group-head")!],
-    ["outside both menus", () => document.body.appendChild(document.createElement("div"))],
+    [
+      "on the Saves menu's group heading",
+      (p: ReturnType<typeof player>) => p.menu()!.querySelector<HTMLElement>(".saves-group-head")!,
+      false,
+    ],
+    ["on empty space outside both menus", () => document.body.appendChild(document.createElement("div")), false],
     [
       "on a text field outside both menus",
-      () => {
-        const field = document.body.appendChild(document.createElement("input"));
-        field.addEventListener("pointerdown", () => field.focus());
-        return field;
-      },
+      () => focusOnPress(document.body.appendChild(document.createElement("input"))),
+      true,
     ],
-  ])("closes only the row menu on a press %s and gives focus back to the More button", async (_where, target) => {
+    [
+      "on a button outside both menus",
+      () => focusOnPress(document.body.appendChild(document.createElement("button"))),
+      true,
+    ],
+  ])(
+    "closes only the row menu on a press %s and leaves focus where the press put it",
+    async (_where, target, focusable) => {
+      const p = player();
+      await p.withSaves([saved()]);
+      p.openMenu();
+      await p.openRowMenu("saved-1");
+      p.rowMenuItems()[0]!.focus();
+      const pressed = target(p);
+      await act(async () => {
+        pressed.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+        pressed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+      });
+      await act(settle);
+      await settle();
+      expect(p.rowMenu()).toBeNull();
+      expect(p.menu()).not.toBeNull();
+      expect(document.activeElement).not.toBe(p.moreOf("saved-1"));
+      if (focusable) {
+        expect(document.activeElement).toBe(pressed);
+      }
+    },
+  );
+
+  test("moves focus into the rename field when Rename is chosen with the keyboard", async () => {
     const p = player();
     await p.withSaves([saved()]);
     p.openMenu();
     await p.openRowMenu("saved-1");
-    p.rowMenuItems()[0]!.focus();
-    const pressed = target(p);
+    const rename = p.rowMenuItems().find((item) => item.textContent === "Rename")!;
+    rename.focus();
     await act(async () => {
-      pressed.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
-      pressed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      rename.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      rename.click();
       await settle();
     });
     await act(settle);
     await settle();
     expect(p.rowMenu()).toBeNull();
-    expect(p.menu()).not.toBeNull();
-    expect(document.activeElement).toBe(p.moreOf("saved-1"));
-  });
-
-  test("gives focus back to More after a later outside press once a Rename was chosen and cancelled", async () => {
-    const p = player();
-    await p.withSaves([saved()]);
-    p.openMenu();
-    await p.choose("saved-1", "Rename");
-    await settle();
-    const field = p.rowOf("saved-1").querySelector<HTMLInputElement>(".saves-rename")!;
-    await act(async () => {
-      field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-      await settle();
-    });
-    await settle();
-    await p.openRowMenu("saved-1");
-    const outside = document.body.appendChild(document.createElement("input"));
-    outside.addEventListener("pointerdown", () => outside.focus());
-    await act(async () => {
-      outside.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
-      outside.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await settle();
-    });
-    await act(settle);
-    await settle();
-    expect(p.rowMenu()).toBeNull();
-    expect(document.activeElement).toBe(p.moreOf("saved-1"));
-  });
-
-  test("gives focus back to More without scrolling it into view", async () => {
-    const p = player();
-    await p.withSaves([saved()]);
-    p.openMenu();
-    await p.openRowMenu("saved-1");
-    const more = p.moreOf("saved-1");
-    const options: (FocusOptions | undefined)[] = [];
-    const focus = more.focus.bind(more);
-    more.focus = (option?: FocusOptions) => {
-      options.push(option);
-      focus(option);
-    };
-    await act(async () => {
-      document.activeElement!.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
-      );
-    });
-    await settle();
-    expect(document.activeElement).toBe(more);
-    expect(options).toEqual([{ preventScroll: true }]);
+    expect(document.activeElement).toBe(p.rowOf("saved-1").querySelector(".saves-rename"));
   });
 
   test("opens another row's menu with one press on its More button while a row menu is open", async () => {
@@ -608,6 +595,7 @@ describe("the Saves menu", () => {
     const rename = p.rowMenuItems().find((item) => item.textContent === "Rename")!;
     rename.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
     rename.click();
+    await act(settle);
     await settle();
     expect(p.menu()).not.toBeNull();
     expect(document.activeElement).toBe(p.rowOf("saved-1").querySelector(".saves-rename"));

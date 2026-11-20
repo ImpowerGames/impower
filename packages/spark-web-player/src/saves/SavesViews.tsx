@@ -199,18 +199,11 @@ function SaveRowMenu({
   row,
   events,
   trigger,
-  requested,
 }: {
   row: SaveRow;
   events: SavesEvents;
   trigger: { current: HTMLButtonElement | null };
-  requested: { current: string | undefined };
 }) {
-  const chosen = useRef(false);
-  const choose = (action: () => void) => () => {
-    chosen.current = true;
-    action();
-  };
   return (
     <PopoverContent
       data-impower-ui
@@ -223,22 +216,12 @@ function SaveRowMenu({
       class="min-w-[120px] py-1 text-[length:var(--list-row-compact-font-size)]"
       {...{ [SAVE_ROW_MENU_ATTRIBUTE]: "" }}
       onKeyDown={moveThroughMenu}
-      onOpenAutoFocus={() => {
-        chosen.current = false;
-      }}
-      onCloseAutoFocus={(e) => {
-        e.preventDefault();
-        const another = requested.current !== undefined && requested.current !== row.id;
-        if (!chosen.current && !another && trigger.current?.isConnected) {
-          trigger.current.focus({ preventScroll: true });
-        }
-      }}
     >
       <button
         type="button"
         role="menuitem"
         class={rowMenuItemClass}
-        onClick={choose(() => events.onEditValues(row.id))}
+        onClick={() => events.onEditValues(row.id)}
       >
         {SAVE_TEXT.editValues}
       </button>
@@ -246,7 +229,7 @@ function SaveRowMenu({
         type="button"
         role="menuitem"
         class={rowMenuItemClass}
-        onClick={choose(() => events.onRenaming(row.id))}
+        onClick={() => events.onRenaming(row.id)}
       >
         {SAVE_TEXT.rename}
       </button>
@@ -254,7 +237,7 @@ function SaveRowMenu({
         type="button"
         role="menuitem"
         class={rowMenuItemClass}
-        onClick={choose(() => events.onDelete(row.id))}
+        onClick={() => events.onDelete(row.id)}
       >
         {SAVE_TEXT.delete}
       </button>
@@ -357,7 +340,7 @@ function SaveListRow({
           />
         </li>
       </PopoverAnchor>
-      <SaveRowMenu row={row} events={events} trigger={trigger} requested={requested} />
+      <SaveRowMenu row={row} events={events} trigger={trigger} />
     </Popover>
   );
 }
