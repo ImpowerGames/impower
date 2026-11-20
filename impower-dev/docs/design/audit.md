@@ -13,10 +13,73 @@ node .agents/skills/drive-web-editor/driver.mjs audit --out <dir> --doc impower-
 
 The second command rewrites everything between the two markers below and nothing else.
 
+## Triage
+
+The first run measured main at `b969caf645`, before any fix; its tables are in this file at commit `385df05f1a`. Against that starting point:
+
+- Charcoal and Chalk had no text or icon below its contrast threshold. Their one failure is the boundary of the bordered text fields (Search scripts, Search assets), 1.27 to 1.85:1 against 3:1.
+- Sepia had 20 text failures (muted and warning text at 4.19 to 4.35:1 on its raised surface, tint and preview mat). The other themes had only the field boundary.
+- axe-core found an untitled game frame on every desktop route, plus the failures filed below.
+- Under a coarse pointer the Settings section chips were 36px tall, and the phone title bar's three controls took taps in a 25 to 27px strip.
+- Under reduced motion the Settings page's script sample still animated its line numbers (180ms).
+- Every Tab stop on every route showed a focus edge, none was focusable without a role, and every menu, sheet and inspector closed with Escape.
+
+### Fixed in this change
+
+| Finding | Fix | Where |
+|---|---|---|
+| The game frame had no accessible name | Titled "*story title* game preview", the glossary's frame title | `PreviewGame.tsx` |
+| Sepia's muted and warning text under 4.5:1 | `--muted` `#64615a`, `--warning` `#8f5400` | `theme.css`, `tokens.md` |
+| Settings section chips 36px under touch | 44px under a coarse pointer; a mouse keeps 36px | `JumpChips.tsx` |
+| The Settings sample's gutter moved under reduced motion | The editor theme turns its transitions off under reduced motion, declared after the rules it overrides | `EDITOR_THEME.ts` |
+
+### Filed
+
+| Bug | Finding |
+|---|---|
+| #2636 | The tab crashes when a script is opened from the Scripts page after the project name was clicked (found by the keyboard pass) |
+| #2639 | No banner landmark on any route: the whole page is one `main` |
+| #2640 | The script editor's text box and its loading bar have no accessible name |
+| #2641 | Every tab's `aria-controls` points at a panel that does not exist |
+| #2642 | The page cannot be zoomed on a phone (`maximum-scale=1`, `user-scalable=no`) |
+| #2643 | Text field borders reach 1.3 to 1.9:1 against the page, the one Charcoal and Chalk contrast failure left |
+| #2644 | The phone title bar's project name, save status and problem count take taps in a 25 to 27px strip |
+| #2646 | Script rows, asset rows and the aspect-ratio button are labelled with words other than the ones they show |
+| #2647 | The app menu is an ARIA menu holding children a menu may not contain |
+
+### Known, owned by open tickets
+
+Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls become a floating toolbar; the Step menu and the settings sheet's Step group were audited only lightly), #2592 (Replay beat icon), #2593 (Stop and the preview thumbnail), #2594 (on-screen keyboard layout), #2595 (URL names), #2596 (starting chip), #2597 (Settings sample scroll trap), #2531 and #2532 (player bar pressed colour and focus indicator), #2538, #2546, #2548, #2557.
+
+### Decisions and readings
+
+- Other themes. Ink, Graphite, Warm Folio and Dusk fail only the field boundary, which #2643 covers for every theme. Midnight keeps today's values by decision; its only failure is the same field boundary.
+- Token pairs that no screen draws. Chalk's `--warning` reaches 4.19:1 on `--tint` and 4.23:1 on `--elevated`. No audited view draws warning text on either surface, so both are accepted as recorded; a component that puts warning text there needs another colour.
+- The Add panel returns focus to the script, at the caret it inserts at, rather than to its Add button. Its close handler does this on purpose (`AddPanel.tsx`), so the behaviour is kept and recorded here.
+- Copy. No old word appears. The glossary quotes four prototype strings in title case that the editor shows in sentence case ("Editor & project preferences", and the Settings names "Play from here", "Step into" and "Step out"). The sentence-case rule is kept over the glossary's capitals. The preview's play button keeps the glossary's "Play From Here".
+- Shortcuts. Every editor row of the keymap table had an effect except the three parameter-hint rows, which need a function call that the fixture does not have. Reindent changes the text when the lines are selected, as the setup does.
+- Touch on the emulator. Download PDF on Share has a 143×44 box. Its measured hit area is shorter, probably because the bottom navigation covers part of it at the scroll position the audit leaves. This was not confirmed by a screenshot.
+- On-screen keyboard. On the emulator no tapped field was covered once the keyboard was up. The script name field only shows in the phone layout's edit mode, so it was not tapped, and toasts were not raised. Both belong to #2594.
+- Forced colors. No Tab stop lost its focus edge, and the screenshots show every control drawn in system colours. The rail's current route stays marked only by bold text. The current script row and the current outline scene lose their tint and accent bar. This is an observation from the screenshots, not measured, and not filed.
+- Live regions. The save status is a `status` ("Draft saved"). Each page ends with an empty `status` that receives toasts. Settings announces through an `output`. The caret position readout is a button with `aria-live="off"`, so it does not announce caret moves; whether it should is for the screen-reader pass below. The Outline ("Scene outline in main") and the Scripts rows ("Scripts and folders") are lists.
+
+### Screen-reader pass
+
+To be done with NVDA on Windows, in Chrome, on the editor with a project open:
+
+1. Press Insert+F7 and choose Landmarks: expect banner, navigation, main and, on desktop, complementary (#2639 is open for the missing banner).
+2. Tab through Story: every button names what it does; the script editor names itself (#2640 is open for it).
+3. Type in the script and watch the title bar: the save status announces "Saving locally…" then "Saved locally".
+4. Trigger a toast (for example add a file on Assets): NVDA reads it once.
+5. Move the caret with the arrow keys: note whether the line and column are announced, and whether that is wanted.
+6. In the Outline and on the Scripts page, press L to move between list items: each row reads its name.
+7. Open the app menu, the Add panel and the asset inspector: NVDA reads each one's name on opening, and Escape returns to where you were.
+8. On Settings, change a toggle: its new state is announced.
+
 ## Results
 
 <!-- audit:begin -->
-Generated by `node .agents/skills/drive-web-editor/driver.mjs audit` on 2026-11-20 (UTC) at commit `b969caf645`, in headless Chromium 149.0.7827.55.
+Generated by `node .agents/skills/drive-web-editor/driver.mjs audit` on 2026-11-20 (UTC) at commit `b02a8b3dc0`, in headless Chromium 149.0.7827.55.
 
 ### Token pairs
 
@@ -31,11 +94,13 @@ WCAG 2 contrast of each theme's semantic colour pairs, alpha composited over the
 | `--ink` | `--elevated` | 10.52 | 12.46 | 11.30 | 11.69 | 10.52 | 11.30 | 13.82 | 13.96 |
 | `--ink` | `--tint` | 11.11 | 12.33 | 10.49 | 12.16 | 11.04 | 10.49 | 11.98 | 12.05 |
 | `--ink` | `--selection` | 9.08 | 11.88 | 7.07 | 11.14 | 8.41 | 7.07 | 8.50 | 8.50 |
-| `--muted` | `--bg` | 8.24 | 5.07 | 8.34 | 4.59 | 8.24 | 8.34 | 5.89 | 5.97 |
-| `--muted` | `--panel` | 7.36 | 5.49 | 7.57 | 4.93 | 7.36 | 7.57 | 6.91 | 6.94 |
-| `--muted` | `--paper` | 7.94 | 5.73 | 7.94 | 5.10 | 7.94 | 7.94 | 7.17 | 7.17 |
-| `--muted` | `--workspace` | 8.24 | 5.73 | 8.34 | 5.10 | 8.24 | 8.34 | 7.17 | 7.17 |
-| `--muted` | `--elevated` | 6.19 | 4.62 | 6.48 | **4.19** | 6.19 | 6.48 | 5.89 | 5.97 |
+| `--muted` | `--bg` | 8.24 | 5.07 | 8.34 | 5.11 | 8.24 | 8.34 | 5.89 | 5.97 |
+| `--muted` | `--panel` | 7.36 | 5.49 | 7.57 | 5.48 | 7.36 | 7.57 | 6.91 | 6.94 |
+| `--muted` | `--paper` | 7.94 | 5.73 | 7.94 | 5.67 | 7.94 | 7.94 | 7.17 | 7.17 |
+| `--muted` | `--workspace` | 8.24 | 5.73 | 8.34 | 5.67 | 8.24 | 8.34 | 7.17 | 7.17 |
+| `--muted` | `--elevated` | 6.19 | 4.62 | 6.48 | 4.65 | 6.19 | 6.48 | 5.89 | 5.97 |
+| `--muted` | `--tint` | 6.54 | 4.58 | 6.01 | 4.84 | 6.50 | 6.01 | 5.37 | 5.42 |
+| `--muted` | `--preview-mat` | 8.24 | 5.73 | 8.34 | 4.79 | 8.24 | 8.34 | 6.91 | 6.94 |
 | `--accent` | `--bg` | 8.80 | 5.43 | 9.16 | 5.29 | 6.15 | 9.16 | 6.48 | 6.54 |
 | `--accent` | `--panel` | 7.86 | 5.88 | 8.31 | 5.69 | 5.49 | 8.31 | 8.29 | 8.31 |
 | `--accent` | `--workspace` | 8.80 | 6.14 | 9.16 | 5.88 | 6.15 | 9.16 | 8.90 | 8.85 |
@@ -43,8 +108,11 @@ WCAG 2 contrast of each theme's semantic colour pairs, alpha composited over the
 | `--accent-ink` | `--accent` | 8.53 | 6.07 | 8.53 | 6.07 | 5.96 | 8.53 | 8.90 | 8.90 |
 | `--error` | `--panel` | 7.19 | 6.00 | 7.60 | 5.80 | 7.19 | 7.60 | 6.13 | 6.14 |
 | `--error` | `--workspace` | 8.05 | 6.26 | 8.38 | 6.00 | 8.05 | 8.38 | 6.58 | 6.54 |
-| `--warning` | `--panel` | 9.33 | 5.02 | 9.86 | 4.86 | 9.33 | 9.86 | 10.27 | 10.29 |
-| `--warning` | `--workspace` | 10.44 | 5.24 | 10.87 | 5.02 | 10.44 | 10.87 | 11.03 | 10.96 |
+| `--warning` | `--panel` | 9.33 | 5.02 | 9.86 | 5.43 | 9.33 | 9.86 | 10.27 | 10.29 |
+| `--warning` | `--workspace` | 10.44 | 5.24 | 10.87 | 5.61 | 10.44 | 10.87 | 11.03 | 10.96 |
+| `--warning` | `--tint` | 8.29 | **4.19** | 7.83 | 4.79 | 8.24 | 7.83 | 6.96 | 7.00 |
+| `--warning` | `--elevated` | 7.85 | **4.23** | 8.44 | 4.60 | 7.85 | 8.44 | 8.02 | 8.11 |
+| `--warning` | `--preview-mat` | 10.44 | 5.24 | 10.87 | 4.74 | 10.44 | 10.87 | 10.27 | 10.29 |
 | `--success` | `--panel` | 8.50 | 5.51 | 8.98 | 5.33 | 8.50 | 8.98 | 9.95 | 9.96 |
 | `--success` | `--workspace` | 9.52 | 5.75 | 9.91 | 5.51 | 9.52 | 9.91 | 10.68 | 10.61 |
 | `--bg` | `--ink` | 14.00 | 13.66 | 14.56 | 12.83 | 14.00 | 14.56 | 13.82 | 13.96 |
@@ -58,7 +126,7 @@ Every visible text, icon and form-control boundary on each route and opened surf
 | Charcoal | desktop | 285 | 3 | 0 | 8 |
 | Chalk | desktop | 285 | 3 | 0 | 8 |
 | Ink | desktop | 154 | 2 | 0 | 5 |
-| Sepia | desktop | 154 | 20 | 0 | 5 |
+| Sepia | desktop | 154 | 2 | 0 | 5 |
 | Graphite | desktop | 154 | 2 | 0 | 5 |
 | Warm Folio | desktop | 154 | 2 | 0 | 5 |
 | Midnight | desktop | 154 | 2 | 0 | 5 |
@@ -66,7 +134,7 @@ Every visible text, icon and form-control boundary on each route and opened surf
 | Charcoal | phone 360 | 113 | 2 | 0 | 4 |
 | Chalk | phone 360 | 113 | 2 | 0 | 4 |
 | Ink | phone 360 | 76 | 2 | 0 | 4 |
-| Sepia | phone 360 | 76 | 4 | 0 | 4 |
+| Sepia | phone 360 | 76 | 2 | 0 | 4 |
 | Graphite | phone 360 | 76 | 2 | 0 | 4 |
 | Warm Folio | phone 360 | 76 | 2 | 0 | 4 |
 | Midnight | phone 360 | 76 | 2 | 0 | 4 |
@@ -76,17 +144,10 @@ Failures, one row per element and colour pair:
 
 | Theme | Viewport | Surface | Kind | Element | Sample | Colours | Ratio | Needs |
 |---|---|---|---|---|---|---|---|---|
-| Sepia | desktop | Story | text | main: button[aria-label="HARBOR (7 → 17). Route from the top of s"] > span | HARBOR | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Story | text | main: button[aria-label="Game aspect ratio: Auto, shown at 544×49"] > span > span | Auto · 544×496 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Story | text | main: button[aria-label="2 warnings. Hide warnings"] > span | 2 warnings | `#9a5a00` on `#e9e2d3` | 4.24 | 4.5 |
 | Charcoal | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#232427` | 1.78 | 3 |
 | Chalk | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
 | Ink | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#25211e` | 1.79 | 3 |
 | Sepia | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Sepia | desktop | Scripts | text | main: button[aria-label="Open script Main, entry script · modifie"] > span > small | Entry script · Modified just now · 323 B | `#6b6861` on `#f1e1d3` | 4.35 | 4.5 |
-| Sepia | desktop | Scripts | text | main: button[aria-label="HARBOR (7 → 17). Route from the top of s"] > span | HARBOR | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Scripts | text | main: button[aria-label="Game aspect ratio: Auto, shown at 544×49"] > span > span | Auto · 544×496 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Scripts | text | main: button[aria-label="2 warnings. Hide warnings"] > span | 2 warnings | `#9a5a00` on `#e9e2d3` | 4.24 | 4.5 |
 | Graphite | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#232427` | 1.78 | 3 |
 | Warm Folio | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#25211e` | 1.79 | 3 |
 | Midnight | desktop | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#1f2e3f` on `#001124` | 1.37 | 3 |
@@ -95,28 +156,16 @@ Failures, one row per element and colour pair:
 | Chalk | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
 | Ink | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#25211e` | 1.79 | 3 |
 | Sepia | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#d6cdbb` on `#f9f5ea` | 1.45 | 3 |
-| Sepia | desktop | Assets | text | main: button[aria-label="HARBOR (7 → 17). Route from the top of s"] > span | HARBOR | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Assets | text | main: button[aria-label="Game aspect ratio: Auto, shown at 544×49"] > span > span | Auto · 544×496 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Assets | text | main: button[aria-label="2 warnings. Hide warnings"] > span | 2 warnings | `#9a5a00` on `#e9e2d3` | 4.24 | 4.5 |
 | Graphite | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#232427` | 1.78 | 3 |
 | Warm Folio | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#25211e` | 1.79 | 3 |
 | Midnight | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#1f2e3f` on `#001124` | 1.37 | 3 |
 | Dusk | desktop | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#232f3b` on `#041220` | 1.38 | 3 |
 | Charcoal | desktop | Assets: asset-inspector | control | main: input[aria-label="Search assets"] | Search assets | `#494b50` on `#232427` | 1.78 | 3 |
 | Chalk | desktop | Assets: asset-inspector | control | main: input[aria-label="Search assets"] | Search assets | `#d3d3d7` on `#fafafa` | 1.43 | 3 |
-| Sepia | desktop | Share | text | main: div > div > article > span | Coming soon | `#6b6861` on `#e6dfcf` | 4.19 | 4.5 |
-| Sepia | desktop | Share | text | main: div[role=group][aria-label="Problems and playback messages"] > div > button > span | main : 17 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Share | text | main: button[aria-label="Game aspect ratio: Auto, shown at 544×49"] > span > span | Auto · 544×496 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Share | text | main: button[aria-label="2 warnings. Hide warnings"] > span | 2 warnings | `#9a5a00` on `#e9e2d3` | 4.24 | 4.5 |
-| Sepia | desktop | Settings | text | main: div[role=group][aria-label="Problems and playback messages"] > button > span | No problems | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Settings | text | main: div[role=group][aria-label="Problems and playback messages"] > div > button > span | main : 17 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Settings | text | main: button[aria-label="Game aspect ratio: Auto, shown at 544×49"] > span > span | Auto · 544×496 | `#6b6861` on `#e9e2d3` | 4.31 | 4.5 |
-| Sepia | desktop | Settings | text | main: button[aria-label="0 warnings. Hide warnings"] > span | 0 warnings | `#9a5a00` on `#e9e2d3` | 4.24 | 4.5 |
 | Charcoal | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#202123` | 1.85 | 3 |
 | Chalk | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d3d3d7` on `#ececee` | 1.27 | 3 |
 | Ink | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#201d1a` | 1.88 | 3 |
 | Sepia | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#d6cdbb` on `#efe9dc` | 1.30 | 3 |
-| Sepia | phone 360 | Scripts | text | main: button[aria-label="Open script Main, entry script · modifie"] > span > small | Entry script · Modified just now · 323 B | `#6b6861` on `#f1e1d3` | 4.35 | 4.5 |
 | Graphite | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#494b50` on `#202123` | 1.85 | 3 |
 | Warm Folio | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#51483f` on `#201d1a` | 1.88 | 3 |
 | Midnight | phone 360 | Scripts | control | main: input[aria-label="Search scripts"] | Search scripts | `#23476b` on `#052d57` | 1.43 | 3 |
@@ -129,7 +178,6 @@ Failures, one row per element and colour pair:
 | Warm Folio | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#51483f` on `#201d1a` | 1.88 | 3 |
 | Midnight | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#23476b` on `#052d57` | 1.43 | 3 |
 | Dusk | phone 360 | Assets | control | main: input[aria-label="Search assets"] | Search assets | `#2b4764` on `#0e2d4e` | 1.45 | 3 |
-| Sepia | phone 360 | Share | text | main: div > div > article > span | Coming soon | `#6b6861` on `#e6dfcf` | 4.19 | 4.5 |
 
 Not measured in Charcoal and Chalk, because no boundary is drawn or the backdrop is an image:
 
@@ -142,140 +190,124 @@ Not measured in Charcoal and Chalk, because no boundary is drawn or the backdrop
 
 axe-core 4.14.1, WCAG 2.0 and 2.1 A and AA rules, on every route and surface in Charcoal and Chalk.
 
-| Theme | Viewport | Surface | Rule | Impact | Nodes |
-|---|---|---|---|---|---|
-| Charcoal | desktop | Story | `aria-input-field-name` | serious | 1 |
-| Charcoal | desktop | Story | `aria-progressbar-name` | serious | 1 |
-| Charcoal | desktop | Story | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | desktop | Story | `frame-title` | serious | 1 |
-| Charcoal | desktop | Story | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | desktop | Story | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Story | `aria-input-field-name` | serious | 1 |
-| Chalk | desktop | Story | `aria-progressbar-name` | serious | 1 |
-| Chalk | desktop | Story | `aria-valid-attr-value` | critical | 1 |
-| Chalk | desktop | Story | `frame-title` | serious | 1 |
-| Chalk | desktop | Story | `label-content-name-mismatch` | serious | 1 |
-| Chalk | desktop | Story | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Story: app-menu | `aria-required-children` | critical | 1 |
-| Charcoal | desktop | Story: app-menu | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Story: app-menu | `aria-required-children` | critical | 1 |
-| Chalk | desktop | Story: app-menu | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Story: add-menu | `aria-input-field-name` | serious | 1 |
-| Charcoal | desktop | Story: add-menu | `aria-progressbar-name` | serious | 1 |
-| Charcoal | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | desktop | Story: add-menu | `frame-title` | serious | 1 |
-| Charcoal | desktop | Story: add-menu | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | desktop | Story: add-menu | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Story: add-menu | `aria-input-field-name` | serious | 1 |
-| Chalk | desktop | Story: add-menu | `aria-progressbar-name` | serious | 1 |
-| Chalk | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 |
-| Chalk | desktop | Story: add-menu | `frame-title` | serious | 1 |
-| Chalk | desktop | Story: add-menu | `label-content-name-mismatch` | serious | 1 |
-| Chalk | desktop | Story: add-menu | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Story: preview-settings | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Story: preview-settings | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Story: problems | `aria-input-field-name` | serious | 1 |
-| Charcoal | desktop | Story: problems | `aria-progressbar-name` | serious | 1 |
-| Charcoal | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | desktop | Story: problems | `frame-title` | serious | 1 |
-| Charcoal | desktop | Story: problems | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | desktop | Story: problems | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Story: problems | `aria-input-field-name` | serious | 1 |
-| Chalk | desktop | Story: problems | `aria-progressbar-name` | serious | 1 |
-| Chalk | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 |
-| Chalk | desktop | Story: problems | `frame-title` | serious | 1 |
-| Chalk | desktop | Story: problems | `label-content-name-mismatch` | serious | 1 |
-| Chalk | desktop | Story: problems | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Scripts | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | desktop | Scripts | `frame-title` | serious | 1 |
-| Charcoal | desktop | Scripts | `label-content-name-mismatch` | serious | 3 |
-| Charcoal | desktop | Scripts | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Scripts | `aria-valid-attr-value` | critical | 1 |
-| Chalk | desktop | Scripts | `frame-title` | serious | 1 |
-| Chalk | desktop | Scripts | `label-content-name-mismatch` | serious | 3 |
-| Chalk | desktop | Scripts | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Scripts: file-menu | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Scripts: file-menu | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Assets | `aria-valid-attr-value` | critical | 2 |
-| Charcoal | desktop | Assets | `frame-title` | serious | 1 |
-| Charcoal | desktop | Assets | `label-content-name-mismatch` | serious | 3 |
-| Charcoal | desktop | Assets | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Assets | `aria-valid-attr-value` | critical | 2 |
-| Chalk | desktop | Assets | `frame-title` | serious | 1 |
-| Chalk | desktop | Assets | `label-content-name-mismatch` | serious | 3 |
-| Chalk | desktop | Assets | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 |
-| Charcoal | desktop | Assets: asset-inspector | `frame-title` | serious | 1 |
-| Charcoal | desktop | Assets: asset-inspector | `label-content-name-mismatch` | serious | 4 |
-| Charcoal | desktop | Assets: asset-inspector | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 |
-| Chalk | desktop | Assets: asset-inspector | `frame-title` | serious | 1 |
-| Chalk | desktop | Assets: asset-inspector | `label-content-name-mismatch` | serious | 4 |
-| Chalk | desktop | Assets: asset-inspector | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Share | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | desktop | Share | `frame-title` | serious | 1 |
-| Charcoal | desktop | Share | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | desktop | Share | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Share | `aria-valid-attr-value` | critical | 1 |
-| Chalk | desktop | Share | `frame-title` | serious | 1 |
-| Chalk | desktop | Share | `label-content-name-mismatch` | serious | 1 |
-| Chalk | desktop | Share | `meta-viewport` | moderate | 1 |
-| Charcoal | desktop | Settings | `aria-input-field-name` | serious | 1 |
-| Charcoal | desktop | Settings | `frame-title` | serious | 1 |
-| Charcoal | desktop | Settings | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | desktop | Settings | `meta-viewport` | moderate | 1 |
-| Chalk | desktop | Settings | `aria-input-field-name` | serious | 1 |
-| Chalk | desktop | Settings | `frame-title` | serious | 1 |
-| Chalk | desktop | Settings | `label-content-name-mismatch` | serious | 1 |
-| Chalk | desktop | Settings | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Story | `aria-input-field-name` | serious | 1 |
-| Charcoal | phone 360 | Story | `aria-progressbar-name` | serious | 1 |
-| Charcoal | phone 360 | Story | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | phone 360 | Story | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Story | `aria-input-field-name` | serious | 1 |
-| Chalk | phone 360 | Story | `aria-progressbar-name` | serious | 1 |
-| Chalk | phone 360 | Story | `aria-valid-attr-value` | critical | 1 |
-| Chalk | phone 360 | Story | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Story: app-menu | `aria-required-children` | critical | 1 |
-| Charcoal | phone 360 | Story: app-menu | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Story: app-menu | `aria-required-children` | critical | 1 |
-| Chalk | phone 360 | Story: app-menu | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Story: add-menu | `aria-input-field-name` | serious | 1 |
-| Charcoal | phone 360 | Story: add-menu | `aria-progressbar-name` | serious | 1 |
-| Charcoal | phone 360 | Story: add-menu | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Story: add-menu | `aria-input-field-name` | serious | 1 |
-| Chalk | phone 360 | Story: add-menu | `aria-progressbar-name` | serious | 1 |
-| Chalk | phone 360 | Story: add-menu | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | phone 360 | Scripts | `label-content-name-mismatch` | serious | 2 |
-| Charcoal | phone 360 | Scripts | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 |
-| Chalk | phone 360 | Scripts | `label-content-name-mismatch` | serious | 2 |
-| Chalk | phone 360 | Scripts | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Scripts: file-menu | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Scripts: file-menu | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 |
-| Charcoal | phone 360 | Assets | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | phone 360 | Assets | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 |
-| Chalk | phone 360 | Assets | `label-content-name-mismatch` | serious | 1 |
-| Chalk | phone 360 | Assets | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Assets: asset-inspector | `label-content-name-mismatch` | serious | 1 |
-| Charcoal | phone 360 | Assets: asset-inspector | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Assets: asset-inspector | `label-content-name-mismatch` | serious | 1 |
-| Chalk | phone 360 | Assets: asset-inspector | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Share | `aria-valid-attr-value` | critical | 1 |
-| Charcoal | phone 360 | Share | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Share | `aria-valid-attr-value` | critical | 1 |
-| Chalk | phone 360 | Share | `meta-viewport` | moderate | 1 |
-| Charcoal | phone 360 | Settings | `aria-input-field-name` | serious | 1 |
-| Charcoal | phone 360 | Settings | `meta-viewport` | moderate | 1 |
-| Chalk | phone 360 | Settings | `aria-input-field-name` | serious | 1 |
-| Chalk | phone 360 | Settings | `meta-viewport` | moderate | 1 |
+| Theme | Viewport | Surface | Rule | Impact | Nodes | First element |
+|---|---|---|---|---|---|---|
+| Charcoal | desktop | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | desktop | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Charcoal | desktop | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Story | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
+| Charcoal | desktop | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | desktop | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Chalk | desktop | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Story | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
+| Chalk | desktop | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Story: app-menu | `aria-required-children` | critical | 1 | `<div data-side="top" data-align="start" role="menu" aria-orientation="vertical" data-state="open" data-radix-menu-cont..` |
+| Charcoal | desktop | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Story: app-menu | `aria-required-children` | critical | 1 | `<div data-side="top" data-align="start" role="menu" aria-orientation="vertical" data-state="open" data-radix-menu-cont..` |
+| Chalk | desktop | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | desktop | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Charcoal | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Story: add-menu | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
+| Charcoal | desktop | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | desktop | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Chalk | desktop | Story: add-menu | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Story: add-menu | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
+| Chalk | desktop | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Story: preview-settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Story: preview-settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Story: problems | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | desktop | Story: problems | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Charcoal | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Story: problems | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
+| Charcoal | desktop | Story: problems | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Story: problems | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | desktop | Story: problems | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Chalk | desktop | Story: problems | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Story: problems | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-13" aria-haspopu` |
+| Chalk | desktop | Story: problems | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Charcoal | desktop | Scripts | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
+| Charcoal | desktop | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-l..." data-state="active" id="ra` |
+| Chalk | desktop | Scripts | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
+| Chalk | desktop | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
+| Charcoal | desktop | Assets | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true">` |
+| Charcoal | desktop | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
+| Chalk | desktop | Assets | `label-content-name-mismatch` | serious | 3 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true">` |
+| Chalk | desktop | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
+| Charcoal | desktop | Assets: asset-inspector | `label-content-name-mismatch` | serious | 4 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true" ar` |
+| Charcoal | desktop | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Assets: asset-inspector | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-a..." data-state="active" id="ra` |
+| Chalk | desktop | Assets: asset-inspector | `label-content-name-mismatch` | serious | 4 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="true" ar` |
+| Chalk | desktop | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-s..." data-state="active" id="ra` |
+| Charcoal | desktop | Share | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-22" aria-haspopu` |
+| Charcoal | desktop | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-0-content-s..." data-state="active" id="ra` |
+| Chalk | desktop | Share | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-22" aria-haspopu` |
+| Chalk | desktop | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | desktop | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | desktop | Settings | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
+| Charcoal | desktop | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | desktop | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | desktop | Settings | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Game aspect ratio: A..." title="Game aspect ratio: A..." id="radix-P0-12" aria-haspopu` |
+| Chalk | desktop | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | phone 360 | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Charcoal | phone 360 | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-l..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Story | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | phone 360 | Story | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Chalk | phone 360 | Story | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-l..." data-state="active" id="ra` |
+| Chalk | phone 360 | Story | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Story: app-menu | `aria-required-children` | critical | 1 | `<div role="menu">` |
+| Charcoal | phone 360 | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Story: app-menu | `aria-required-children` | critical | 1 | `<div role="menu">` |
+| Chalk | phone 360 | Story: app-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | phone 360 | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Charcoal | phone 360 | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Story: add-menu | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | phone 360 | Story: add-menu | `aria-progressbar-name` | serious | 1 | `<div role="progressbar" aria-busy="true" style="top: -2px; z-index: 20; opacity:` |
+| Chalk | phone 360 | Story: add-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-23-content-..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Scripts | `label-content-name-mismatch` | serious | 2 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
+| Charcoal | phone 360 | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Scripts | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-23-content-..." data-state="active" id="ra` |
+| Chalk | phone 360 | Scripts | `label-content-name-mismatch` | serious | 2 | `<button type="button" aria-current="true" data-script-path="main.sd" aria-label="Open script Main, en...">` |
+| Chalk | phone 360 | Scripts | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Scripts: file-menu | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-44-content-..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Assets | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="false">` |
+| Charcoal | phone 360 | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Assets | `aria-valid-attr-value` | critical | 2 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-44-content-..." data-state="active" id="ra` |
+| Chalk | phone 360 | Assets | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open image harbor, m..." data-asset-path="Assets/Images/harbor..." draggable="false">` |
+| Chalk | phone 360 | Assets | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Assets: asset-inspector | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open main at line 8">` |
+| Charcoal | phone 360 | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Assets: asset-inspector | `label-content-name-mismatch` | serious | 1 | `<button type="button" aria-label="Open main at line 8">` |
+| Chalk | phone 360 | Assets: asset-inspector | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-s..." data-state="active" id="ra` |
+| Charcoal | phone 360 | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Share | `aria-valid-attr-value` | critical | 1 | `<button type="button" role="tab" aria-selected="true" aria-controls="radix-P0-2-content-s..." data-state="active" id="ra` |
+| Chalk | phone 360 | Share | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Charcoal | phone 360 | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Charcoal | phone 360 | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
+| Chalk | phone 360 | Settings | `aria-input-field-name` | serious | 1 | `<div spellcheck="false" autocorrect="off" autocapitalize="off" writingsuggestions="false" translate="no" contenteditable` |
+| Chalk | phone 360 | Settings | `meta-viewport` | moderate | 1 | `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-w` |
 
 ### Touch targets
 
-Every visible control under a coarse pointer, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to 44px each way. Chromium's phone preset at 360×780 with touch; and the Android emulator at its own width of 430px (sdk_gphone64_x86_64 emulator-5554, Chrome 124.0.6367.219), run on 2026-11-20 at commit `b969caf645` with `audit --device android`.
+Every visible control under a coarse pointer, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to 44px each way. Chromium's phone preset at 360×780 with touch; and the Android emulator at its own width of 430px (sdk_gphone64_x86_64 emulator-5554, Chrome 124.0.6367.219), run on 2026-11-20 at commit `b02a8b3dc0` with `audit --device android`.
 
 | Viewport | Surface | Controls | Under 44×44 |
 |---|---|---|---|
@@ -287,14 +319,14 @@ Every visible control under a coarse pointer, measured by hit testing outward fr
 | phone 360 | Assets | 16 | 3 |
 | phone 360 | Assets: asset-inspector | 6 | 0 |
 | phone 360 | Share | 7 | 3 |
-| phone 360 | Settings | 8 | 4 |
+| phone 360 | Settings | 8 | 3 |
 | emulator 430 | Story | 12 | 3 |
 | emulator 430 | Story: add-menu | 5 | 0 |
 | emulator 430 | Scripts | 15 | 0 |
 | emulator 430 | Assets | 16 | 3 |
 | emulator 430 | Assets: asset-inspector | 6 | 0 |
 | emulator 430 | Share | 8 | 4 |
-| emulator 430 | Settings | 7 | 4 |
+| emulator 430 | Settings | 7 | 3 |
 
 | Viewport | Surface | Control | Name | Box | Hit area |
 |---|---|---|---|---|---|
@@ -310,7 +342,6 @@ Every visible control under a coarse pointer, measured by hit testing outward fr
 | phone 360 | Settings | header: input[aria-label="Project name"] | Project name | 187x16 | 44x25 |
 | phone 360 | Settings | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
 | phone 360 | Settings | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| phone 360 | Settings | Settings sections: div[role=group][aria-label="Editor preferences"] > button | Appearance | 101x36 | 44x36 |
 | emulator 430 | Story | header: input[aria-label="Project name"] | Project name | 282x16 | 44x26 |
 | emulator 430 | Story | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
 | emulator 430 | Story | header: div > span > label > button | Show problems | 68x15 | 44x27 |
@@ -324,7 +355,6 @@ Every visible control under a coarse pointer, measured by hit testing outward fr
 | emulator 430 | Settings | header: input[aria-label="Project name"] | Project name | 257x16 | 44x26 |
 | emulator 430 | Settings | header: div > div[role=status] > label > button | Saved in this browser. | 59x15 | 44x27 |
 | emulator 430 | Settings | header: div > span > label > button | Show problems | 68x15 | 44x27 |
-| emulator 430 | Settings | Settings sections: div[role=group][aria-label="Editor preferences"] > button | Appearance | 101x36 | 44x36 |
 
 ### On-screen keyboard
 
@@ -372,7 +402,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 25. button “Skip forward”
 26. button “Saves”
 27. button “Preview settings”
-28. frame
+28. frame “Untitled story game preview”
 29. separator “Resize game and panel”
 30. button “Collapse the panel”
 31. button “HARBOR (7 → 17). Route from the top of scene HARBO”
@@ -426,7 +456,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 29. button “Skip forward”
 30. button “Saves”
 31. button “Preview settings”
-32. frame
+32. frame “Untitled story game preview”
 33. separator “Resize game and panel”
 34. button “Collapse the panel”
 35. button “HARBOR (7 → 17). Route from the top of scene HARBO”
@@ -480,7 +510,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 29. button “Skip forward”
 30. button “Saves”
 31. button “Preview settings”
-32. frame
+32. frame “Untitled story game preview”
 33. separator “Resize game and panel”
 34. button “Collapse the panel”
 35. button “HARBOR (7 → 17). Route from the top of scene HARBO”
@@ -525,7 +555,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 20. button “Skip forward”
 21. button “Saves”
 22. button “Preview settings”
-23. frame
+23. frame “Untitled story game preview”
 24. separator “Resize game and panel”
 25. button “Collapse the panel”
 26. button “Caret on line 17 of main”
@@ -666,7 +696,7 @@ Tab from the page start until the order repeats, on the desktop layout in Charco
 116. button “Skip forward”
 117. button “Saves”
 118. button “Preview settings”
-119. frame
+119. frame “Untitled story game preview”
 120. separator “Resize game and panel”
 121. button “Collapse the panel”
 122. button “Caret on line 17 of main”
@@ -709,18 +739,18 @@ Each editor row of the keymap table pressed in the script with the caret on line
 | Undo | `Mod+Z` | expanded a panel, text, selection |
 | Redo | `Mod+Y` | text, selection |
 | Format script | `Mod+S` | text, selection |
-| Rename | `F2` | focus |
+| Rename | `F2` | opened Rename HARBOR, focus |
 | Show suggestions | `Ctrl+Space` | opened cm-suggestions-empty cm-tooltip cm-tooltip-below |
 | Fold a block | `Mod+Shift+[` | expanded a panel, text, selection |
 | Open a folded block | `Mod+Shift+]` | text, selection |
-| Search | `Mod+F` | focus |
+| Search | `Mod+F` | opened Search, focus |
 | Go to definition | `F12` | expanded a panel, selection |
-| Find references | `Shift+F12` | **none seen** |
+| Find references | `Shift+F12` | opened References to HARBOR, Main |
 | Undo a selection change | `Mod+U` | selection |
 | Redo a selection change | `Alt+U` | selection |
 | Indent | `Mod+]` | text, selection |
 | Dedent | `Mod+[` | text, selection |
-| Reindent the selection | `Mod+Alt+\` | **none seen** |
+| Reindent the selection | `Mod+Alt+\` | text |
 | Toggle comment | `Mod+/` | text, selection |
 | Toggle block comment | `Shift+Alt+A` | text |
 | Move line up | `Alt+Up` | expanded a panel, text, selection |
@@ -733,17 +763,17 @@ Each editor row of the keymap table pressed in the script with the caret on line
 | Select line | `Alt+L` | expanded a panel, selection |
 | Expand the selection | `Mod+I` | selection |
 | Add a caret above | `Mod+Alt+Up` | selection, carets |
-| Add a caret below | `Mod+Alt+Down` | selection, carets |
+| Add a caret below | `Mod+Alt+Down` | selection |
 | Go to the matching bracket | `Mod+Shift+\` | expanded a panel, selection |
 | Fold every block | `Ctrl+Alt+[` | folds |
 | Open every folded block | `Ctrl+Alt+]` | folds |
 | Let Tab move focus | `Ctrl+M` | Tab then left the editor |
-| Next match | `F3` | focus |
+| Next match | `F3` | opened Search, focus |
 | Previous match | `Shift+F3` | focus |
 | Select every match | `Mod+Shift+L` | expanded a panel |
 | Add the next match to the selection | `Mod+D` | selection |
-| Go to line | `Mod+G` | opened cm-gotoLine cm-panel, focus |
-| Show problems | `Mod+Shift+M` | **none seen** |
+| Go to line | `Mod+G` | selection, opened cm-gotoLine cm-panel, focus |
+| Show problems | `Mod+Shift+M` | expanded a panel |
 | Next problem | `F8` | selection |
 | Show parameter hints | `Mod+Shift+Space` | **none seen** |
 | Previous parameter hint | `Mod+Shift+Up` | **none seen** |
@@ -757,12 +787,9 @@ With `prefers-reduced-motion: reduce` emulated, every CSS transition and animati
 
 | Viewport | Kind | Name | Element | Duration | Route |
 |---|---|---|---|---|---|
-| desktop | transition | opacity | div > div > div.cm-gutterElement | 180ms | #project |
-| desktop | transition | transform | div > div > div.cm-gutterElement | 180ms | #project |
-| phone 360 | transition | opacity | div > div > div.cm-gutterElement | 180ms | #project |
-| phone 360 | transition | transform | div > div > div.cm-gutterElement | 180ms | #project |
+| all | none | | | | |
 
-Recordings: C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\base2\reduced-motion-desktop\page@99653800409a4344471d48a900b1c107.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\base2\reduced-motion-desktop\page@b64069e5c597e56961eabbb36c09d27c.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\base2\reduced-motion-phone\page@22cf6988161f19a5778fcb993775ebc6.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\base2\reduced-motion-phone\page@4c8305b7cf7bd38acefdaf2108647883.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\base2\reduced-motion-phone\page@5c031c90c13272fc8de0934fd1783888.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\base2\reduced-motion-phone\page@d3cf41af0571d16f88b3da204b71382e.webm (kept out of the repository).
+Recordings: C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\final5\reduced-motion-desktop\page@c2410701e6f17deeac59695dc0540d26.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\final5\reduced-motion-phone\page@2a5b5382199bd31ca6b49460e1da3ea5.webm, C:\Users\Lovelle\AppData\Local\Temp\claude\e87ebce098f3bdba\2f5ec7a2-3da1-4609-aca7-fc1c60365c3a\scratchpad\writer-1046-XBG9Xe\final5\reduced-motion-phone\page@35f031032daf88e3266a37a20b2aa110.webm (kept out of the repository).
 
 ### Forced colors
 
@@ -793,7 +820,7 @@ With `forced-colors: active` emulated on the desktop layout, the first stops of 
 
 ### Copy
 
-586 distinct strings read from every route and surface (text, aria-label, title, placeholder, alt). 300 of the glossary's 975 strings appeared as written; the rest belong to surfaces the audit does not open.
+587 distinct strings read from every route and surface (text, aria-label, title, placeholder, alt). 300 of the glossary's 975 strings appeared as written; the rest belong to surfaces the audit does not open.
 
 | Check | String | Where |
 |---|---|---|
