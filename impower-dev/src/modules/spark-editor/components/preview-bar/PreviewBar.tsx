@@ -101,10 +101,10 @@ const READOUT_ICONS = {
   stopped: <StopSignIcon data-icon="stop-sign" class="text-warning" />,
 };
 
-export const STARTING_DELAY_MS = 300;
-export const STARTING_LABEL = "Loading";
-export const STARTING_ANNOUNCEMENT = "Starting the game…";
-export const STARTED_ANNOUNCEMENT = "The game has started.";
+const STARTING_DELAY_MS = 300;
+const STARTING_LABEL = "Loading";
+const STARTING_ANNOUNCEMENT = "Starting the game…";
+const STARTED_ANNOUNCEMENT = "The game has started.";
 
 function useShowsStarting(): boolean {
   const starting = useComputed(
