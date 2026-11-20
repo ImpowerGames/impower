@@ -23,7 +23,8 @@ const { default: workspace } = await import("../../src/modules/spark-editor/work
 const { applyFix } = await import("../../src/modules/spark-editor/workspace/problems/applyFix");
 const { fixChoiceOf } = await import("../../src/modules/spark-editor/workspace/problems/problemEntries");
 const { runEditorCommand } = await import("../../src/modules/spark-editor/workspace/problems/runEditorCommand");
-const { addNamedAssetFile, namedAs } = await import("../../src/modules/spark-editor/workspace/addAssetFiles");
+const { addAssetFiles, addNamedAssetFile, namedAs } = await import("../../src/modules/spark-editor/workspace/addAssetFiles");
+const { reasonSentence } = await import("../../src/modules/spark-editor/workspace/uploadSession");
 const { snackbar } = await import("../../src/modules/spark-editor/utils/snackbar");
 
 const ADD_BOOM = { command: "sparkdown.addAsset", arguments: [{ name: "boom", type: "audio" }] };
@@ -92,28 +93,57 @@ describe("the web editor's sparkdown.addAsset", () => {
   });
 });
 
+describe("an upload whose name some computers cannot hold", () => {
+  const notAdded = () =>
+    workspace.uploads.value.flatMap((row) => (row.state === "failed" ? [[row.name, reasonSentence(row.reason, row.name)]] : []));
+
+  it("is not added and says why, while names with # % ! spaces and accents are added unchanged", async () => {
+    await addAssetFiles(
+      [file("q?mark.png"), file("a:b.wav"), file('say "hi".png'), file("back\\slash.png"), file("hash#mark.png"), file("per%41cent.png"), file("door knock! café.wav")],
+      "",
+    );
+    expect(mocks.upload).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: "hash#mark.png" }), expect.objectContaining({ name: "per%41cent.png" }), expect.objectContaining({ name: "door knock! café.wav" })],
+      "",
+    );
+    const because = "Not added: some computers cannot hold this name. Use a name without slashes or special file characters.";
+    expect(notAdded()).toEqual([
+      ["q?mark.png", because],
+      ["a:b.wav", because],
+      ['say "hi".png', because],
+      ["back\\slash.png", because],
+    ]);
+  });
+
+  it("refuses a dropped file inside a folder whose name some computers cannot hold", async () => {
+    await addAssetFiles([file("odd?folder/hero.png"), file("fine folder/villain.png")], "");
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "fine folder/villain.png" })], "");
+    expect(notAdded().map(([name]) => name)).toEqual(["hero.png"]);
+  });
+
+  it("adds nothing when every name is refused", async () => {
+    expect(await addAssetFiles([file("CON.png"), file("trailing.")], "")).toEqual([]);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(notAdded().map(([name]) => name)).toEqual(["CON.png", "trailing."]);
+  });
+});
+
 describe("the named upload", () => {
   it("adds the chosen file under the reference's name, keeping its extension, in its type's folder", async () => {
     const landed = await addNamedAssetFile(file("Explosion 2.WAV"), { name: "boom", type: "audio" });
-    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "boom.WAV", size: 10 })], "Assets/Audio", {
-      keepNames: true,
-    });
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "boom.WAV", size: 10 })], "Assets/Audio");
     expect(landed).toEqual(["Assets/Audio/boom.WAV"]);
   });
 
-  it("asks the upload to keep a name the script wrote with a hyphen", async () => {
+  it("passes a name the script wrote with a hyphen to the upload unchanged", async () => {
     await addNamedAssetFile(file("Door Bell.wav"), { name: "door-bell", type: "audio" });
-    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "door-bell.wav" })], "Assets/Audio", {
-      keepNames: true,
-    });
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "door-bell.wav" })], "Assets/Audio");
   });
 
   it("uses the project's own spelling of the type's folder", async () => {
     workspace.assetListing.value = { projectId: "p", files: {}, folders: ["assets", "assets/images"] };
     await addNamedAssetFile(file("a.png"), { name: "alice", type: "image" });
-    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "alice.png" })], "assets/images", {
-      keepNames: true,
-    });
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "alice.png" })], "assets/images");
   });
 
   it.each([
@@ -121,7 +151,7 @@ describe("the named upload", () => {
     ["folder/take.mp3", "boom", "boom.mp3"],
     ["noext", "boom", "boom"],
     [".hidden", "boom", "boom"],
-    ["take.o-g g", "door-bell", "door-bell.o_g_g"],
+    ["take.o-g g!", "door-bell", "door-bell.o-g g!"],
   ])("names %s as %s: %s", (from, name, expected) => {
     expect(namedAs(file(from), name).name).toBe(expected);
   });

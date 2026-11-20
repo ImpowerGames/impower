@@ -58,6 +58,12 @@ describe("the asset type table", () => {
     expect(assetTypeOf("no-extension", ENDINGS)).toBe("other");
   });
 
+  it("reads a stored file's ending after a # or % in its name, and a link's ending before its address's query", () => {
+    expect(assetTypeOf("Assets/Images/track #2.png", ENDINGS)).toBe("image");
+    expect(assetTypeOf("Assets/Audio/per%41cent.wav", ENDINGS)).toBe("audio");
+    expect(assetTypeOf("Assets/Audio/horn.url", ENDINGS, "https://cdn.example.com/horn.mp3?v=2#t=1")).toBe("audio");
+  });
+
   it("follows an ending the project added to a type", () => {
     const endings = assetEndingsOf({
       imageFiles: "*.{png,avif}",
