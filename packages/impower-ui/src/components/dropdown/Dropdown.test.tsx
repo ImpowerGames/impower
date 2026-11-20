@@ -933,7 +933,7 @@ describe("a Dropdown that opens at its top", () => {
 });
 
 describe("a Dropdown opened from the keyboard", () => {
-  const mountMenu = async (opensAt: "top" | "chosen", checked?: string) => {
+  const mountMenu = async (opensAt: "top" | "chosen", checked?: string, darkDisabled = false) => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
       render(
@@ -946,7 +946,7 @@ describe("a Dropdown opened from the keyboard", () => {
             <DropdownItem>Duplicate</DropdownItem>
             <DropdownRadioGroup label="Scheme" value={checked}>
               <DropdownRadioItem value="light">Light</DropdownRadioItem>
-              <DropdownRadioItem value="dark">Dark</DropdownRadioItem>
+              <DropdownRadioItem value="dark" disabled={darkDisabled}>Dark</DropdownRadioItem>
             </DropdownRadioGroup>
           </DropdownContent>
         </DropdownRoot>,
@@ -957,6 +957,22 @@ describe("a Dropdown opened from the keyboard", () => {
     trigger.focus();
     return trigger;
   };
+
+  it("passes over a checked radio item that is disabled and focuses the first enabled entry", async () => {
+    const trigger = await mountMenu("chosen", "dark", true);
+    await key(trigger, "Enter");
+    await settle(50);
+    expect(sheetMenu()).toBeNull();
+    expect(document.activeElement?.textContent).toBe("Duplicate");
+  });
+
+  it("does not open a finger-opened sheet on a checked radio item that is disabled", async () => {
+    await setPhone(true);
+    await tap(await mountMenu("chosen", "dark", true));
+    await settle(50);
+    expect(sheetMenu()).not.toBeNull();
+    expect(document.activeElement?.textContent).not.toBe("Dark");
+  });
 
   const focusCalls = () => vi.spyOn(HTMLElement.prototype, "focus");
 

@@ -350,7 +350,7 @@ type MenuAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align"
 export type DropdownOpensAt = "chosen" | "top";
 
 const FIRST_ENTRY = '[role^="menuitem"]:not([disabled]):not([data-disabled])';
-const CHOSEN_ENTRY = '[role="menuitemradio"][aria-checked="true"]';
+const CHOSEN_ENTRY = '[role="menuitemradio"][aria-checked="true"]:not([disabled]):not([data-disabled])';
 
 const openingEntry = (content: HTMLElement, opensAt: DropdownOpensAt) =>
   (opensAt === "chosen" ? content.querySelector<HTMLElement>(CHOSEN_ENTRY) : null) ??
