@@ -132,8 +132,6 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
-  top: number;
-  bottom: number;
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
   breakpointLineNumbers?: number[];
@@ -202,8 +200,6 @@ const createEditorView = (
   const serverInitializeResult = config.serverInitializeResult;
   const serverWorkspace = config.serverWorkspace;
   const scrollMargin = config?.scrollMargin;
-  const top = config?.top;
-  const bottom = config?.bottom;
   const defaultState = config?.defaultState;
   const stabilizationDuration = config?.stabilizationDuration ?? 50;
   const breakpointLineNumbers = config?.breakpointLineNumbers;
@@ -280,9 +276,6 @@ const createEditorView = (
         { y: "start" },
       )
     : undefined;
-
-  document.body.style.setProperty("--cm-top-offset", `${top}px`);
-  document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
   const root = parent.getRootNode() as Document | ShadowRoot;
 

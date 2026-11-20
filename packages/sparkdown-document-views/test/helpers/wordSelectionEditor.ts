@@ -47,8 +47,6 @@ export const liveEditor = (lines: string[]) => {
         applyWorkspaceEdit: async () => ({ applied: false }),
       } as never),
     textDocument: { uri: "file:///main.sd", version: 0, text: lines.join("\n") },
-    top: 0,
-    bottom: 0,
   } as never) as unknown as [EditorView];
   return withPointer(view);
 };

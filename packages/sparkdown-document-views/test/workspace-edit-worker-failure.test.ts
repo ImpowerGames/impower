@@ -46,8 +46,6 @@ const mountEditor = (result: { applied: boolean; failureReason?: string }) => {
         applyWorkspaceEdit,
       }),
     textDocument: { uri: MAIN, version: 0, text: "old\n" },
-    top: 0,
-    bottom: 0,
   } as never) as unknown as [EditorView];
   const workspace = LSPPlugin.get(view)!.client.workspace as SparkdownCodemirrorWorkspace;
   return { view, workspace, applyWorkspaceEdit };

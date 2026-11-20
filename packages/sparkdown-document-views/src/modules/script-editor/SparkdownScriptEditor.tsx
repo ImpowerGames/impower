@@ -25,8 +25,6 @@ export const propDefaults = {
   readonly: false,
   coarsePointer: false,
   scrollMargin: "",
-  top: "",
-  bottom: "",
 };
 
 export type SparkdownScriptEditorProps = Partial<typeof propDefaults> & {
@@ -58,8 +56,6 @@ export default function SparkdownScriptEditor({
   appearance,
   shortcuts,
   scrollMargin,
-  top,
-  bottom,
   onPasteRefused,
   scriptMode = null,
   keyboardHold,
@@ -134,8 +130,6 @@ export default function SparkdownScriptEditor({
                 onChangeColorRef.current?.(range, value, color)
             : undefined,
           scrollMargin: scrollMargin ?? "",
-          top: top ?? "",
-          bottom: bottom ?? "",
           languageServerWorker,
           languageServerConnection,
         },
@@ -149,7 +143,7 @@ export default function SparkdownScriptEditor({
       controllerRef.current?.dispose();
       controllerRef.current = null;
     };
-  }, [scrollMargin, top, bottom, hostsColorView]);
+  }, [scrollMargin, hostsColorView]);
 
   useEffect(() => {
     controllerRef.current?.setReadonly(!!readonly);

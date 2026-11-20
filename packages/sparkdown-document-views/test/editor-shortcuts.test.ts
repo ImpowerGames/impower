@@ -50,8 +50,6 @@ const liveEditor = (coarsePointer = false) => {
         applyWorkspaceEdit: async () => ({ applied: false }),
       } as never),
     textDocument: { uri: "file:///main.sd", version: 0, text: "scene start\n" },
-    top: 0,
-    bottom: 0,
   } as never) as unknown as [EditorView];
   views.push(view);
   return view;
