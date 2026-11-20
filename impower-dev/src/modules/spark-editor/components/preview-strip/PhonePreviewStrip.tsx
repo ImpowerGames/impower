@@ -8,6 +8,11 @@ import {
 } from "@impower/impower-ui/components";
 import { routeIcon } from "@impower/spark-web-player/src/route/routeView";
 import problems from "../../workspace/problems/ProblemsStore";
+import {
+  playRefusalLink,
+  playRefusalTarget,
+  playRefusalText,
+} from "../../workspace/playRefusal";
 import route from "../../workspace/route/RouteStore";
 import { storyScriptOf } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
@@ -40,8 +45,21 @@ export default function PhonePreviewStrip() {
   const view = route.view.value;
   const forced = !!view && routeIcon(view) === "forced";
 
+  const refusal =
+    game?.running || game?.starting ? undefined : game?.playRefusal;
   const statuses: PreviewStripStatus[] = [];
-  if (problem) {
+  if (refusal) {
+    const text = playRefusalText(refusal);
+    statuses.push({
+      key: "refusal",
+      tone: "error",
+      icon: SEVERITY_ICONS.error,
+      text,
+      label: `${text}. ${playRefusalLink(playRefusalTarget(problems.problems.value, refusal))}`,
+      onPress: () => void withWorkspace((win) => win.revealPlayRefusal()),
+    });
+  }
+  if (problem && problem.title !== refusal) {
     const tone = problem.severity === "error" ? "error" : problem.severity === "warning" ? "warning" : "info";
     statuses.push({
       key: "problem",

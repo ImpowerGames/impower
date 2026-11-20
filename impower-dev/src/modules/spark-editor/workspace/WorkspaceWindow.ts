@@ -209,6 +209,8 @@ import {
   type LaunchEvent,
 } from "./launchMachine";
 import statuses from "./statuses/StatusesStore";
+import problems from "./problems/ProblemsStore";
+import { ENTRY_SCRIPT, playRefusalTarget } from "./playRefusal";
 
 export const LAUNCH_LIMIT_MS = 15_000;
 
@@ -2001,6 +2003,20 @@ export default class WorkspaceWindow {
       this.launch("press");
     }
     this.expandPreviewPane();
+  }
+
+  async revealPlayRefusal() {
+    const refusal = this.store.preview.modes.game.playRefusal;
+    const projectId = this.store.project.id;
+    if (!refusal || !projectId) {
+      return;
+    }
+    const target = playRefusalTarget(problems.problems.peek(), refusal);
+    await problems.jump({
+      uri: target.uri ?? this._workspace.fs.getFileUri(projectId, ENTRY_SCRIPT),
+      line: target.line,
+      character: target.character,
+    });
   }
 
   collapsePreviewPane() {
