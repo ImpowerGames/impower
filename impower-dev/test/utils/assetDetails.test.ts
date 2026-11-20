@@ -148,11 +148,11 @@ describe("the inspector's head", () => {
     expect(NOT_USED_NOTES.font).toBe("No style uses it yet.");
     expect(NOT_USED_NOTES.other).toBe("Nothing in the story refers to it.");
     expect(UNWRITABLE_NAME_NOTE).toBe(
-      "Nothing shows it yet. A script can't write this name: an @ must sit between two letters, digits or _, and a name can't hold ~. Rename the file to use it.",
+      "Nothing shows it yet. A script can't write this name: it must start with a letter or _, hold only letters, digits, _, - and @, not end with -, and put each @ between two letters, digits or _. Rename the file to use it.",
     );
   });
 
-  it.each(["@foo", "foo@", "@", "~foo", "foo~bar", "a@@b", "a@-b", "é@", "@é"])(
+  it.each(["@foo", "foo@", "@", "~foo", "foo~bar", "a@@b", "a@-b", "é@", "@é", "my!pic", "my,pic", "1pic", "pic-", "-pic"])(
     "tells the author to rename an unused image named %s, which no script can write",
     (name) => {
       const target = asset(`Assets/Images/${name}.png`, "image", { name });
@@ -171,6 +171,10 @@ describe("the inspector's head", () => {
     );
     expect(notUsedNote(asset("Assets/Images/é@x.png", "image", { name: "é@x" }), false)).toBe(NOT_USED_NOTES.image);
     expect(notUsedNote(asset("Assets/Images/x@é.png", "image", { name: "x@é" }), false)).toBe(NOT_USED_NOTES.image);
+    expect(notUsedNote(asset("Assets/Images/café.png", "image", { name: "café" }), false)).toBe(NOT_USED_NOTES.image);
+    expect(notUsedNote(asset("Assets/Images/my-pic.png", "image", { name: "my-pic" }), false)).toBe(
+      NOT_USED_NOTES.image,
+    );
     expect(notUsedNote(asset("Assets/Images/ava.png", "image", { name: "ava" }), true)).toBe(NOT_USED_VARIANTS_NOTE);
     expect(notUsedNote(asset("Assets/Music/@foo.mp3", "audio", { name: "@foo" }), false)).toBe(NOT_USED_NOTES.audio);
   });
@@ -184,7 +188,7 @@ describe("the inspector's head", () => {
     return notUsedNote(target, isStacked(row!));
   };
 
-  it.each([["a@-b.png"], ["a@@b.png"], ["@foo.png"], ["~foo.png"], ["foo~bar.png"], ["@foo~face.png"], ["@foo face.png"]])(
+  it.each([["a@-b.png"], ["a@@b.png"], ["@foo.png"], ["~foo.png"], ["foo~bar.png"], ["@foo~face.png"], ["@foo face.png"], ["my!pic.png"], ["1pic.png"], ["1pic face.png"]])(
     "tells the author to rename the Assets row the page builds from %s alone",
     (file) => {
       expect(noteOfRow(file)).toBe(UNWRITABLE_NAME_NOTE);
@@ -196,6 +200,8 @@ describe("the inspector's head", () => {
     expect(noteOfRow("ava.png", "ava@night.png")).toBe(NOT_USED_VARIANTS_NOTE);
     expect(noteOfRow("a.png", "a@-b.png")).toBe(NOT_USED_VARIANTS_NOTE);
     expect(noteOfRow("é@x.png")).not.toBe(UNWRITABLE_NAME_NOTE);
+    expect(noteOfRow("my pic.png")).not.toBe(UNWRITABLE_NAME_NOTE);
+    expect(noteOfRow("café.png")).toBe(NOT_USED_NOTES.image);
   });
 });
 

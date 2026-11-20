@@ -58,9 +58,28 @@ const NAMES = [
   "a@-b",
   "é@",
   "@é",
+  "café",
+  "my pic",
+  "a b c",
+  "my-pic",
+  "my'pic",
+  "my!pic",
+  "my(pic)",
+  "my,pic",
+  "my+pic",
+  "my#pic",
+  "my$pic",
+  "my&pic",
+  "my_pic",
+  "-pic",
+  "pic-",
+  "my--pic",
+  "1pic",
+  "ava@night-sky",
+  "日本",
 ];
 
-describe("an image name is writable exactly when the compiler shows that file for its image tag (#2557)", () => {
+describe("an image name is writable exactly when the compiler shows that file for its image tag (#2557, #2611)", () => {
   it.each(NAMES.flatMap((name) => [`[[${name}]]`, `[[show portrait ${name}]]`].map((line) => [name, line])))(
     "%s in %s",
     (name, line) => {
