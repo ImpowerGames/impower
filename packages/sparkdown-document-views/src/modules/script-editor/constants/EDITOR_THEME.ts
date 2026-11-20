@@ -172,6 +172,11 @@ const THEME: {
         borderColor: "Highlight",
       },
   },
+  "@media (prefers-reduced-motion: reduce)": {
+    ".cm-lineNumbers .cm-gutterElement, .cm-foldGutter .cm-fold-marker": {
+      transition: "none",
+    },
+  },
   "& .cm-textfield": {
     minHeight: "32px",
     width: "225px",

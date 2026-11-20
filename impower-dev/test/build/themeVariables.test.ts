@@ -508,3 +508,41 @@ describe("Lighter navigation", () => {
     }
   });
 });
+
+describe("Sepia's muted and warning text", () => {
+  const SURFACES: Record<string, string[]> = {
+    "--muted": ["--bg", "--panel", "--paper", "--elevated", "--tint", "--preview-mat"],
+    "--warning": ["--bg", "--panel", "--paper", "--tint", "--preview-mat"],
+  };
+  const luminance = (hex: string) => {
+    const channel = (offset: number) => {
+      const c = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  };
+  const ratio = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+
+  it.each(["paper"])(
+    "reaches 4.5:1 on the surfaces %s draws it on, the preview mat and the raised surface included",
+    (theme) => {
+      const declared = themeDeclarations({ theme });
+      const resolve = (name: string): string => {
+        const value = declared.get(name) ?? "";
+        const alias = /^var\((--[\w-]+)\)$/.exec(value);
+        return alias ? resolve(alias[1]!) : value;
+      };
+      for (const [text, surfaces] of Object.entries(SURFACES)) {
+        for (const surface of surfaces) {
+          const [fg, bg] = [resolve(text), resolve(surface)];
+          expect(fg, text).toMatch(/^#[0-9a-f]{6}$/);
+          expect(bg, surface).toMatch(/^#[0-9a-f]{6}$/);
+          expect(ratio(fg, bg), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    },
+  );
+});

@@ -1,6 +1,7 @@
 import { render, type ComponentChild } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { hitArea } from "../../../test/hitArea";
 import type { RailIndexGroup } from "../rail-index/RailIndex";
 import JumpChips from "./JumpChips";
 
@@ -42,6 +43,13 @@ describe("JumpChips", () => {
     expect(groups.map((group) => group.querySelectorAll("button").length)).toEqual([2, 1]);
     await act(async () => host!.querySelector<HTMLButtonElement>('[data-index-jump="editor"]')!.click());
     expect(onJump).toHaveBeenCalledWith("editor");
+  });
+
+  it("gives every chip a 44px tall target under a coarse pointer", async () => {
+    await mount(<JumpChips label="Settings sections" groups={GROUPS} onJump={() => {}} />);
+    for (const chip of Array.from(host!.querySelectorAll("button"))) {
+      expect((await hitArea(chip)).height, chip.textContent ?? "").toBeGreaterThanOrEqual(44);
+    }
   });
 
   it("scrolls its strip sideways as a scroller-x, so a swipe starting on a chip pans it", async () => {
