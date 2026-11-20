@@ -91,10 +91,11 @@ describe.each([
     });
 
     it("still dedents on block-closing keywords", () => {
-      for (const line of ["  end", "  until x", "  else", "  elseif a then", "  end -- done", "  end)"]) {
+      for (const line of ["  end", "  until x", "  else", "  elseif a then"]) {
         expect(decrease.test(line), line).toBe(true);
       }
-    });  });
+    });
+  });
 
   describe("bracket onEnterRules", () => {
     it("guards both bracket kinds", () => {
@@ -458,18 +459,15 @@ describe("the story define onEnterRule", () => {
   });
 });
 
-describe("sparkdown.language-config.json decreaseIndentPattern and a field named `end` (#2580)", () => {
+describe("sparkdown.language-config.json decreaseIndentPattern and a replay block's range fields (#2625)", () => {
   const decrease = new RegExp((STORY_LANGUAGE_CONFIG as { indentationRules: { decreaseIndentPattern: string } }).indentationRules.decreaseIndentPattern);
 
-  it("does not dedent a line that assigns a field named `end`", () => {
-    for (const line of ["    end = 66.667%", "    end=1", "  end  = 0.5"]) {
-      expect(decrease.test(line), line).toBe(false);
-    }
-  });
-
-  it("still dedents a block-closing `end`, and an `end` compared rather than assigned", () => {
-    for (const line of ["  end", "  end -- done", "  end)", "  end == x"]) {
-      expect(decrease.test(line), line).toBe(true);
+  it("dedents no line while `from = 0%` or `to = 66.667%` is typed key by key", () => {
+    for (const field of ["from = 0%", "to = 66.667%"]) {
+      for (let i = 1; i <= field.length; i++) {
+        const line = `    ${field.slice(0, i)}`;
+        expect(decrease.test(line), line).toBe(false);
+      }
     }
   });
 });

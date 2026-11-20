@@ -444,7 +444,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const ownReplay = isRecord(replay) && !("$type" in replay) && !("$name" in replay) ? replay : undefined;
   if (replay !== undefined) {
     if (Array.isArray(replay)) {
-      push(replaySpan, "`replay` holds one range's fields, such as `replay { start = 0%; end = 66.667%; chance = 50% }`, not `{ … }` entries.");
+      push(replaySpan, "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, not `{ … }` entries.");
     } else if (!ownReplay) {
       push(valueSpan(own, "replay") ?? replaySpan, REPLAY_BLOCK);
     } else {
@@ -867,16 +867,16 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       }
     }
     for (const { field, message } of replayPairProblems(effectiveReplay)) {
-      report(field === "end" ? ["end", "start"] : [field, field === "delay_min" ? "delay_max" : "delay_min"], message);
+      report(field === "to" ? ["to", "from"] : [field, field === "delay_min" ? "delay_max" : "delay_min"], message);
     }
     const playable = readMorphReplay(effectiveReplay)?.[0];
     if (playable && playable.chance > 0) {
       const easingText =
         isRecord(effectiveTiming) && typeof effectiveTiming["easing"] === "string" ? effectiveTiming["easing"] : MORPH_TIMING_DEFAULTS.easing;
-      if (parseMorphEasing(easingText) && !morphReplayStretch(easingText, playable.start, playable.end)) {
+      if (parseMorphEasing(easingText) && !morphReplayStretch(easingText, playable.from, playable.to)) {
         report(
           [],
-          `Under \`easing = ${easingText}\` this play reaches \`end\` at the same moment as \`start\`, so the stretch between them takes no time and the play never replays. Move \`start\` and \`end\` onto different steps.`,
+          `Under \`easing = ${easingText}\` this play reaches \`to\` at the same moment as \`from\`, so the stretch between them takes no time and the play never replays. Move \`from\` and \`to\` onto different steps.`,
           "warning",
         );
       }
@@ -910,15 +910,15 @@ function secondsProblem(field: string, value: unknown, positive: boolean): strin
 const REPLAY_POSITION_PROBLEM = (field: string, example: string) =>
   `\`${field}\` is a percentage from \`0%\` to \`100%\` or a number from 0 to 1, such as \`${field} = ${example}\`.`;
 
-const REPLAY_EXAMPLES: Record<string, string> = { start: "0%", end: "66.667%", chance: "50%" };
+const REPLAY_EXAMPLES: Record<string, string> = { from: "0%", to: "66.667%", chance: "50%" };
 
 const REPLAY_BLOCK =
-  "`replay` is a block of fields: `replay { start = 0%; end = 66.667%; chance = 50% }`.";
+  "`replay` is a block of fields: `replay { from = 0%; to = 66.667%; chance = 50% }`.";
 
 function replayFieldProblem(field: string, value: unknown): string | null {
   switch (field) {
-    case "start":
-    case "end":
+    case "from":
+    case "to":
     case "chance":
       return parseMorphSpan(value) === undefined ? REPLAY_POSITION_PROBLEM(field, REPLAY_EXAMPLES[field]!) : null;
     case "count":
@@ -935,12 +935,12 @@ function replayFieldProblem(field: string, value: unknown): string | null {
 
 function replayPairProblems(replay: Record<string, unknown>): { field: string; message: string }[] {
   const problems: { field: string; message: string }[] = [];
-  const start = replay["start"] === undefined ? 0 : parseMorphSpan(replay["start"]);
-  const end = replay["end"] === undefined ? 1 : parseMorphSpan(replay["end"]);
-  if (start !== undefined && end !== undefined && start >= end) {
+  const from = replay["from"] === undefined ? 0 : parseMorphSpan(replay["from"]);
+  const to = replay["to"] === undefined ? 1 : parseMorphSpan(replay["to"]);
+  if (from !== undefined && to !== undefined && from >= to) {
     problems.push({
-      field: "end",
-      message: `\`replay\` turns back at \`end\` and resumes from \`start\`, so \`start\` must be below \`end\`: \`start\` is ${describeValue(replay["start"] ?? "0%")} and \`end\` is ${describeValue(replay["end"] ?? "100%")}.`,
+      field: "to",
+      message: `\`replay\` turns back at \`to\` and resumes from \`from\`, so \`from\` must be below \`to\`: \`from\` is ${describeValue(replay["from"] ?? "0%")} and \`to\` is ${describeValue(replay["to"] ?? "100%")}.`,
     });
   }
   const min = replay["delay_min"];

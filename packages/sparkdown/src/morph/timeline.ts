@@ -72,8 +72,8 @@ export class MorphTimeline {
     }
     const replay = timing.replay?.[0];
     if (replay && replay.chance > 0 && replay.count >= 1) {
-      const found = morphReplayStretch(timing.easing, replay.start, replay.end);
-      if (found) this.stretch = { ...found, hold: replay.end, replay };
+      const found = morphReplayStretch(timing.easing, replay.from, replay.to);
+      if (found) this.stretch = { ...found, hold: replay.to, replay };
     }
     if (timing.trigger !== "speech" && this.duration > 0 && this.plays > 0) this.schedule(this.delay);
   }

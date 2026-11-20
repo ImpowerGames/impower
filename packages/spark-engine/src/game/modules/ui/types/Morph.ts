@@ -23,8 +23,8 @@ export interface MorphTiming {
 }
 
 export interface MorphReplayBlock {
-  start?: string | number;
-  end?: string | number;
+  from?: string | number;
+  to?: string | number;
   chance?: string | number;
   count?: number;
   delay_min?: number;

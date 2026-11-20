@@ -32,8 +32,8 @@ const TALK = `morph talk {
   }
 
   replay {
-    start = 0%
-    end = 66.667%
+    from = 0%
+    to = 66.667%
     chance = 50%
   }
 }
@@ -114,12 +114,12 @@ const reported = (text: string) => morphDiagnostics(text).map((d) => ({ text: d.
 describe("the replay block's checks (#2580)", () => {
   test("`replay` written as a value is reported at the value", () => {
     expect(reported(withReplay("  replay = 50%\n"))).toEqual([
-      { text: "50%", message: "`replay` is a block of fields: `replay { start = 0%; end = 66.667%; chance = 50% }`.", severity: 1 },
+      { text: "50%", message: "`replay` is a block of fields: `replay { from = 0%; to = 66.667%; chance = 50% }`.", severity: 1 },
     ]);
   });
 
   test("a block with no chance is reported on the block", () => {
-    expect(reported(withReplay("  replay {\n    end = 50%\n  }\n"))).toEqual([
+    expect(reported(withReplay("  replay {\n    to = 50%\n  }\n"))).toEqual([
       { text: "replay", message: "This `replay` block needs a `chance`: how likely each replay is, such as `chance = 50%`.", severity: 1 },
     ]);
   });
@@ -127,8 +127,8 @@ describe("the replay block's checks (#2580)", () => {
   test.each([
     ["chance", "150%", "`chance` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `chance = 50%`."],
     ["chance", "fast", "`chance` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `chance = 50%`."],
-    ["start", "-5%", "`start` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `start = 0%`."],
-    ["end", "2", "`end` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `end = 66.667%`."],
+    ["from", "-5%", "`from` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `from = 0%`."],
+    ["to", "2", "`to` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `to = 66.667%`."],
     ["count", "0", "`count` is the most replays one play makes: a whole number of at least 1."],
     ["count", "1.5", "`count` is the most replays one play makes: a whole number of at least 1."],
   ])("`%s = %s` is reported at the value", (field, value, message) => {
@@ -136,11 +136,11 @@ describe("the replay block's checks (#2580)", () => {
     expect(reported(withReplay(block))).toEqual([{ text: value, message, severity: 1 }]);
   });
 
-  test("a start at or past its end is reported on end", () => {
-    expect(reported(withReplay("  replay {\n    start = 50%\n    end = 40%\n    chance = 50%\n  }\n"))).toEqual([
+  test("a `from` at or past its `to` is reported on `to`", () => {
+    expect(reported(withReplay("  replay {\n    from = 50%\n    to = 40%\n    chance = 50%\n  }\n"))).toEqual([
       {
         text: "40%",
-        message: "`replay` turns back at `end` and resumes from `start`, so `start` must be below `end`: `start` is `50%` and `end` is `40%`.",
+        message: "`replay` turns back at `to` and resumes from `from`, so `from` must be below `to`: `from` is `50%` and `to` is `40%`.",
         severity: 1,
       },
     ]);
@@ -172,18 +172,24 @@ describe("the replay block's checks (#2580)", () => {
     ]);
   });
 
+  test.each(["start", "end"])("`%s` in the block is an unknown field", (field) => {
+    expect(reported(withReplay(`  replay {\n    chance = 50%\n    ${field} = 50%\n  }\n`))).toEqual([
+      { text: field, message: `Unknown morph field \`${field}\`.`, severity: 1 },
+    ]);
+  });
+
   test("a block of entries is an error on the block", () => {
     expect(reported(withReplay("  replay {\n    { chance = 50% }\n  }\n"))).toEqual([
       {
         text: "replay",
-        message: "`replay` holds one range's fields, such as `replay { start = 0%; end = 66.667%; chance = 50% }`, not `{ … }` entries.",
+        message: "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, not `{ … }` entries.",
         severity: 1,
       },
     ]);
   });
 
-  test("a curve whose early peak falls far short of `end` is not taken to reach it, so no zero-time warning", () => {
-    const text = withReplay("  replay {\n    start = 20%\n    end = 80%\n    chance = 50%\n  }\n").replace(
+  test("a curve whose early peak falls far short of `to` is not taken to reach it, so no zero-time warning", () => {
+    const text = withReplay("  replay {\n    from = 20%\n    to = 80%\n    chance = 50%\n  }\n").replace(
       "easing = linear",
       "easing = cubic-bezier(0.3333333333333333, 1, 0.6666666666666666, -100000000000000)",
     );
@@ -191,12 +197,12 @@ describe("the replay block's checks (#2580)", () => {
   });
 
   test("a stretch that takes no time under the easing is a warning on the block", () => {
-    const text = withReplay("  replay {\n    start = 40%\n    end = 60%\n    chance = 50%\n  }\n").replace("easing = linear", "easing = steps(3)");
+    const text = withReplay("  replay {\n    from = 40%\n    to = 60%\n    chance = 50%\n  }\n").replace("easing = linear", "easing = steps(3)");
     expect(reported(text)).toEqual([
       {
         text: "replay",
         message:
-          "Under `easing = steps(3)` this play reaches `end` at the same moment as `start`, so the stretch between them takes no time and the play never replays. Move `start` and `end` onto different steps.",
+          "Under `easing = steps(3)` this play reaches `to` at the same moment as `from`, so the stretch between them takes no time and the play never replays. Move `from` and `to` onto different steps.",
         severity: 2,
       },
     ]);
@@ -208,7 +214,7 @@ describe("an inherited replay (#2580)", () => {
 
   test("a child's block overrides its parent's field by field", () => {
     const program = compile(CHILD);
-    expect(program.context?.["morph"]?.["quiet"]?.replay).toEqual({ start: "0%", end: "66.667%", chance: "0%" });
+    expect(program.context?.["morph"]?.["quiet"]?.replay).toEqual({ from: "0%", to: "66.667%", chance: "0%" });
     expect(morphDiagnostics(CHILD)).toEqual([]);
   });
 

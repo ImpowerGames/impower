@@ -34,10 +34,10 @@ async function play(source: string) {
 
 describe("the play an image write carries for a morph with a replay (#2580)", () => {
   test("carries the replay in its timing, and its definition follows the replay's values", async () => {
-    const half = await play(scene(withReplay("    start = 0%\n    end = 33.333%\n    chance = 50%\n    delay_min = 0.17\n    delay_max = 0.35\n")));
+    const half = await play(scene(withReplay("    from = 0%\n    to = 33.333%\n    chance = 50%\n    delay_min = 0.17\n    delay_max = 0.35\n")));
     expect(half.morph).toBe("blink");
-    expect(half.timing.replay).toEqual([{ start: 0, end: 33.333 / 100, chance: 0.5, count: 1, delay_min: 0.17, delay_max: 0.35 }]);
-    const quarter = await play(scene(withReplay("    start = 0%\n    end = 33.333%\n    chance = 25%\n    delay_min = 0.17\n    delay_max = 0.35\n")));
+    expect(half.timing.replay).toEqual([{ from: 0, to: 33.333 / 100, chance: 0.5, count: 1, delay_min: 0.17, delay_max: 0.35 }]);
+    const quarter = await play(scene(withReplay("    from = 0%\n    to = 33.333%\n    chance = 25%\n    delay_min = 0.17\n    delay_max = 0.35\n")));
     expect(quarter.timing.replay[0].chance).toBe(0.25);
     expect(quarter.definition).not.toBe(half.definition);
     const none = await play(scene(blinkScript()));
