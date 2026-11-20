@@ -1,3 +1,4 @@
+import { setLoadingBarActive } from "@impower/impower-ui/loading-bar";
 import { scrollCaretIntoView } from "./utils/extensions/caretScrollMargin";
 import {
   copyLineDown,
@@ -1451,7 +1452,7 @@ export class ScriptEditorController {
       this.publishHistory(state);
     } else {
       this.refs.editor.style.visibility = "hidden";
-      this.refs.loading.style.opacity = "1";
+      setLoadingBarActive(this.refs.loading, true);
       if (this._revealTimeout) {
         clearTimeout(this._revealTimeout);
       }
@@ -1919,7 +1920,7 @@ export class ScriptEditorController {
       return;
     }
     if (this.refs.loading) {
-      this.refs.loading.style.opacity = "0";
+      setLoadingBarActive(this.refs.loading, false);
     }
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
