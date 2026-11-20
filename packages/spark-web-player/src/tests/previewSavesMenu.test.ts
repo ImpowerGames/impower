@@ -1,5 +1,6 @@
 import "./resizeObserverStub";
 import { pickTab, routeTabs } from "./routeListQueries";
+import { act } from "preact/test-utils";
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
@@ -152,7 +153,7 @@ const saved = () =>
 
 const controllers: GamePlayerController[] = [];
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 function player(
   options: {
@@ -263,15 +264,30 @@ function player(
     savesButton.querySelector<HTMLButtonElement>(".saves-button")!.click();
   const menu = () => savesMenu.querySelector<HTMLElement>(".saves-menu");
   const shape = () =>
-    [...(menu()?.querySelectorAll<HTMLElement>(".saves-here, .saves-group-head, .saves-row, .saves-none") ?? [])].map(
+    [...(menu()?.querySelectorAll<HTMLElement>(".saves-here, .saves-group-head, [data-save-row], .saves-none") ?? [])].map(
       (element) =>
-        element.classList.contains("saves-row")
-          ? `row:${element.querySelector(".saves-row-name")?.textContent}`
+        element.hasAttribute("data-save-row")
+          ? `row:${element.querySelector("[data-save-name]")?.textContent}`
           : element.textContent,
     );
   const saveHere = () => menu()!.querySelector<HTMLButtonElement>(".saves-here")!;
   const rowOf = (id: string) =>
-    menu()!.querySelector<HTMLElement>(`.saves-row[data-id="${id}"]`)!;
+    menu()!.querySelector<HTMLElement>(`li[data-id="${id}"]`)!;
+  const moreOf = (id: string) => rowOf(id).querySelector<HTMLButtonElement>('[aria-label^="More for"]')!;
+  const rowMenu = () =>
+    [...document.querySelectorAll<HTMLElement>('[role="menu"]')].find((menu) => !menu.classList.contains("saves-menu")) ?? null;
+  const rowMenuItems = () => [...(rowMenu()?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+  const openRowMenu = async (id: string) => {
+    await act(async () => {
+      moreOf(id).click();
+      await settle();
+    });
+    await settle();
+  };
+  const choose = async (id: string, label: string) => {
+    await openRowMenu(id);
+    rowMenuItems().find((item) => item.textContent === label)!.click();
+  };
   const play = (playing: boolean) => {
     (controller as any)._workerPlay = playing
       ? { state: "running", run: 1, stepped: 0 }
@@ -295,6 +311,11 @@ function player(
     shape,
     saveHere,
     rowOf,
+    moreOf,
+    rowMenu,
+    rowMenuItems,
+    openRowMenu,
+    choose,
     play,
   };
 }
@@ -363,6 +384,9 @@ describe("the Saves menu", () => {
       p.rowOf("saved-1")
         .querySelector(".saves-play")!
         .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      await p.openRowMenu("saved-1");
+      p.rowMenuItems()[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      p.rowMenuItems()[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
     } finally {
       window.removeEventListener("keydown", hear);
     }
@@ -382,10 +406,8 @@ describe("the Saves menu", () => {
     p.openMenu();
     const row = p.rowOf("saved-1");
     expect(row.querySelector(".saves-play")!.textContent).toBe("Play from here");
-    row.querySelector<HTMLButtonElement>(".saves-more")!.click();
-    expect(
-      [...p.rowOf("saved-1").querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
-    ).toEqual(["Edit values", "Rename", "Delete"]);
+    await p.openRowMenu("saved-1");
+    expect(p.rowMenuItems().map((item) => item.textContent)).toEqual(["Edit values", "Rename", "Delete"]);
   });
 
   test("shows Its line is gone with Play from here off for a save the program cannot place", async () => {
@@ -393,7 +415,7 @@ describe("the Saves menu", () => {
     await p.withSaves([saved()]);
     p.openMenu();
     const row = p.rowOf("saved-1");
-    expect(row.querySelector(".saves-row-detail")!.textContent).toBe("Its line is gone");
+    expect(row.querySelector("[data-save-detail]")!.textContent).toBe("Its line is gone");
     expect(row.querySelector<HTMLButtonElement>(".saves-play")!.disabled).toBe(true);
   });
 
@@ -401,10 +423,7 @@ describe("the Saves menu", () => {
     const p = player();
     await p.withSaves([saved()]);
     p.openMenu();
-    p.rowOf("saved-1").querySelector<HTMLButtonElement>(".saves-more")!.click();
-    [...p.rowOf("saved-1").querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === "Rename")!
-      .click();
+    await p.choose("saved-1", "Rename");
     const field = p.rowOf("saved-1").querySelector<HTMLInputElement>(".saves-rename")!;
     field.value = "Before the lie";
     field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
@@ -415,9 +434,171 @@ describe("the Saves menu", () => {
     });
     p.hostAnswers("preview/renameSave");
     await settle();
-    expect(p.rowOf("saved-1").querySelector(".saves-row-name")!.textContent).toBe(
+    expect(p.rowOf("saved-1").querySelector("[data-save-name]")!.textContent).toBe(
       "Before the lie",
     );
+  });
+
+  test("announces its row menu on the More button and moves through the items with the arrow keys", async () => {
+    const p = player();
+    await p.withSaves([entering(), saved()]);
+    p.openMenu();
+    const more = p.moreOf("saved-1");
+    expect(more.getAttribute("aria-haspopup")).toBe("menu");
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    await p.openRowMenu("saved-1");
+    expect(p.moreOf("saved-1").getAttribute("aria-expanded")).toBe("true");
+    expect(p.moreOf("last-1").getAttribute("aria-expanded")).toBe("false");
+    expect(p.rowMenu()!.getAttribute("role")).toBe("menu");
+    const focused = () => (document.activeElement as HTMLElement | null)?.textContent;
+    const press = (key: string) =>
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+    p.rowMenuItems()[0]!.focus();
+    press("ArrowDown");
+    expect(focused()).toBe("Rename");
+    press("ArrowDown");
+    expect(focused()).toBe("Delete");
+    press("ArrowDown");
+    expect(focused()).toBe("Edit values");
+    press("ArrowUp");
+    expect(focused()).toBe("Delete");
+    press("Home");
+    expect(focused()).toBe("Edit values");
+    press("End");
+    expect(focused()).toBe("Delete");
+  });
+
+  test("closes the row menu on Escape, keeps the Saves menu open and gives focus back to the More button", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    await p.openRowMenu("saved-1");
+    p.rowMenuItems()[1]!.focus();
+    await act(async () => {
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+    await settle();
+    expect(p.rowMenu()).toBeNull();
+    expect(p.menu()).not.toBeNull();
+    expect(p.moreOf("saved-1").getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(p.moreOf("saved-1"));
+  });
+
+  const focusOnPress = <T extends HTMLElement>(element: T): T => {
+    element.addEventListener("pointerdown", () => element.focus());
+    return element;
+  };
+
+  test.each([
+    [
+      "on the Saves menu's group heading",
+      (p: ReturnType<typeof player>) => p.menu()!.querySelector<HTMLElement>(".saves-group-head")!,
+      false,
+    ],
+    ["on empty space outside both menus", () => document.body.appendChild(document.createElement("div")), false],
+    [
+      "on a text field outside both menus",
+      () => focusOnPress(document.body.appendChild(document.createElement("input"))),
+      true,
+    ],
+    [
+      "on a button outside both menus",
+      () => focusOnPress(document.body.appendChild(document.createElement("button"))),
+      true,
+    ],
+  ])(
+    "closes only the row menu on a press %s and leaves focus where the press put it",
+    async (_where, target, focusable) => {
+      const p = player();
+      await p.withSaves([saved()]);
+      p.openMenu();
+      await p.openRowMenu("saved-1");
+      p.rowMenuItems()[0]!.focus();
+      const pressed = target(p);
+      await act(async () => {
+        pressed.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+        pressed.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+      });
+      await act(settle);
+      await settle();
+      expect(p.rowMenu()).toBeNull();
+      expect(p.menu()).not.toBeNull();
+      expect(document.activeElement).not.toBe(p.moreOf("saved-1"));
+      if (focusable) {
+        expect(document.activeElement).toBe(pressed);
+      }
+    },
+  );
+
+  test("moves focus into the rename field when Rename is chosen with the keyboard", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    await p.openRowMenu("saved-1");
+    const rename = p.rowMenuItems().find((item) => item.textContent === "Rename")!;
+    rename.focus();
+    await act(async () => {
+      rename.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      rename.click();
+      await settle();
+    });
+    await act(settle);
+    await settle();
+    expect(p.rowMenu()).toBeNull();
+    expect(document.activeElement).toBe(p.rowOf("saved-1").querySelector(".saves-rename"));
+  });
+
+  test("opens another row's menu with one press on its More button while a row menu is open", async () => {
+    const p = player();
+    await p.withSaves([entering(), saved()]);
+    p.openMenu();
+    await p.openRowMenu("last-1");
+    const other = p.moreOf("saved-1");
+    await act(async () => {
+      other.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+      other.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await settle();
+    });
+    await act(settle);
+    await settle();
+    expect(p.moreOf("saved-1").getAttribute("aria-expanded")).toBe("true");
+    expect(p.moreOf("last-1").getAttribute("aria-expanded")).toBe("false");
+    expect(p.rowMenu()?.getAttribute("aria-label")).toBe("More for interrogation, line 11");
+    expect(p.rowMenu()!.contains(document.activeElement)).toBe(true);
+    expect(p.menu()).not.toBeNull();
+  });
+
+  test("leaves a press outside the Saves menu to an open row menu instead of closing the Saves menu", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    const outside = document.body.appendChild(document.createElement("div"));
+    const press = () => (p.controller as any).handleSavesPointerDown({ target: outside });
+    await p.openRowMenu("saved-1");
+    press();
+    expect(p.menu()).not.toBeNull();
+    (p.controller as any)._saves.events.onRowMenu(null);
+    press();
+    expect(p.menu()).toBeNull();
+  });
+
+  test("keeps the Saves menu open while a row menu item is pressed", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    await p.openRowMenu("saved-1");
+    const rename = p.rowMenuItems().find((item) => item.textContent === "Rename")!;
+    rename.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+    rename.click();
+    await act(settle);
+    await settle();
+    expect(p.menu()).not.toBeNull();
+    expect(document.activeElement).toBe(p.rowOf("saved-1").querySelector(".saves-rename"));
   });
 });
 
@@ -426,10 +607,7 @@ describe("a save's values", () => {
     const p = player();
     await p.withSaves([saved()]);
     p.openMenu();
-    p.rowOf("saved-1").querySelector<HTMLButtonElement>(".saves-more")!.click();
-    [...p.rowOf("saved-1").querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === "Edit values")!
-      .click();
+    await p.choose("saved-1", "Edit values");
     await settle();
     const panel = p.menu()!.querySelector<HTMLElement>(".saves-values")!;
     expect(panel.querySelector(".saves-values-title")!.textContent).toBe(
@@ -468,10 +646,7 @@ describe("a save's values", () => {
     const p = player();
     await p.withSaves([saved()]);
     p.openMenu();
-    p.rowOf("saved-1").querySelector<HTMLButtonElement>(".saves-more")!.click();
-    [...p.rowOf("saved-1").querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
-      .find((item) => item.textContent === "Edit values")!
-      .click();
+    await p.choose("saved-1", "Edit values");
     await settle();
     const field = p.menu()!.querySelector<HTMLInputElement>('.sv-row[data-key="store:trust"] .sv-input')!;
     field.value = "5";

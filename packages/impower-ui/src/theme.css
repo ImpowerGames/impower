@@ -23,6 +23,7 @@
   --list-row-compact-padding-y: 0.25rem;
   --list-row-compact-gap: 0.625rem;
   --list-row-compact-font-size: 12px;
+  --list-row-compact-description-font-size: 11px;
   --control-size: 2.75rem;
   --popover-width: 360px;
 }

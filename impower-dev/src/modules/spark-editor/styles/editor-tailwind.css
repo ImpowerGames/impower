@@ -9,3 +9,4 @@
 @source not "../../../../../packages/impower-ui/src/main.tsx";
 @source not "../../../../../packages/spark-web-player/src/components/**/*.test.{ts,tsx}";
 @source not "../../../../../packages/spark-web-player/src/route/**/*.test.{ts,tsx}";
+@source not "../../../../../packages/spark-web-player/src/saves/**/*.test.{ts,tsx}";
