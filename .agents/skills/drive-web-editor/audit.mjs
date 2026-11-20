@@ -426,7 +426,15 @@ async function goRoute(page, route, deps) {
   } else {
     await page.evaluate((r) => { location.hash = `#${r}`; }, route);
   }
-  await bounded("waiting for the page to settle", deps.waitForDomQuiet(page, { quiet: 600, timeout: 10_000 }), 20_000);
+  const navigated = (error) => /Execution context was destroyed|navigation/i.test(String(error?.message ?? error));
+  try {
+    await bounded("waiting for the page to settle", deps.waitForDomQuiet(page, { quiet: 600, timeout: 10_000 }), 20_000);
+  } catch (error) {
+    if (!navigated(error)) throw error;
+    progress(`the page navigated on the way to #${route}; waiting for the app again`);
+    await deps.waitForApp(page);
+    await bounded("waiting for the page to settle", deps.waitForDomQuiet(page, { quiet: 600, timeout: 10_000 }), 20_000);
+  }
   await bounded("waiting for view transitions", deps.settleViewTransitions(page), 10_000).catch(() => {});
   return page.evaluate(() => location.hash);
 }
