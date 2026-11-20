@@ -1,0 +1,3977 @@
+[
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "general_case_table_literal_blocks",
+    "check": 0,
+    "source": "\n--!strict\nfunction f(x : {[any]: number})\n   return x\nend\n\nlocal Foo = {bar = \"$$$\"}\n\nf({[Foo.bar] = 0})\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_resolution",
+    "check": 0,
+    "source": "\n        type A = (number) -> string\n        type B = (string) -> number\n\n        local function foo(f: A & B)\n            return f(1), f(\"five\")\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "tc_function",
+    "check": 0,
+    "source": "function five() return 5 end",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "check_function_bodies",
+    "check": 0,
+    "source": "\n        function myFunction(): number\n            local a = 0\n            a = true\n            return a\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "cannot_hoist_interior_defns_into_signature",
+    "check": 0,
+    "source": "\n        local function f(x: T)\n            type T = number\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_return_type",
+    "check": 0,
+    "source": "function take_five() return 5 end",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_from_function_return_type",
+    "check": 0,
+    "source": "function take_five() return 5 end    local five = take_five()",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_that_function_does_not_return_a_table",
+    "check": 0,
+    "source": "\n        function take_five()\n            return 5\n        end\n\n        take_five().prop = 888\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "generalize_table_property",
+    "check": 0,
+    "source": "\n        local T = {}\n\n        T.foo = function(x)\n            return x\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "vararg_functions_should_allow_calls_of_any_types_and_size",
+    "check": 0,
+    "source": "\n        function f(...) end\n\n        f(1)\n        f(\"foo\", 2)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "vararg_function_is_quantified",
+    "check": 0,
+    "source": "\n        local T = {}\n        function T.f(...)\n            local result = {}\n\n            for i = 1, select(\"#\", ...) do\n                local dictionary = select(i, ...)\n                for key, value in pairs(dictionary) do\n                    result[key] = value\n                end\n            end\n\n            return result\n        end\n\n        return T\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "list_only_alternative_overloads_that_match_argument_count",
+    "check": 0,
+    "source": "\n        local multiply: ((number)->number) & ((number)->string) & ((number, number)->number)\n        multiply(\"\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "list_all_overloads_if_no_overload_takes_given_argument_count",
+    "check": 0,
+    "source": "\n        local multiply: ((number)->number) & ((number)->string) & ((number, number)->number)\n        multiply()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "dont_give_other_overloads_message_if_only_one_argument_matching_overload_exists",
+    "check": 0,
+    "source": "\n        local multiply: ((number)->number) & ((number)->string) & ((number, number)->number)\n        multiply(1, \"\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_return_type_from_selected_overload",
+    "check": 0,
+    "source": "\n        type T = {method: ((T, number) -> number) & ((number) -> string)}\n        local T: T\n\n        local a = T.method(T, 4)\n        local b = T.method(5)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_many_arguments",
+    "check": 0,
+    "source": "\n        --!nonstrict\n\n        function g(a: number) end\n\n        g()\n\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_many_arguments_error_location",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function myfunction(a: number, b:number) end\n        myfunction(1)\n\n        function getmyfunction()\n            return myfunction\n        end\n        getmyfunction()()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "recursive_function",
+    "check": 0,
+    "source": "\n        function count(n: number)\n            if n == 0 then\n                return 0\n            else\n                return count(n - 1)\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "lambda_form_of_local_function_cannot_be_recursive",
+    "check": 0,
+    "source": "\n        local f = function() return f() end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "recursive_local_function",
+    "check": 0,
+    "source": "\n        local function count(n: number)\n            if n == 0 then\n                return 0\n            else\n                return count(n - 1)\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "another_recursive_local_function",
+    "check": 0,
+    "source": "\n        local count\n        function count(n: number)\n            if n == 0 then\n                return 0\n            else\n                return count(n - 1)\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "recursive_calls_must_refer_to_the_ungeneralized_type",
+    "check": 0,
+    "source": "\n        function foo()\n            string.format('%s: %s', \"51\", foo())\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "cyclic_function_type_in_rets",
+    "check": 0,
+    "source": "\n        function f()\n            return f\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "another_higher_order_function",
+    "check": 0,
+    "source": "\n        local Get_des\n        function Get_des(func)\n            Get_des(func)\n        end\n\n        local function f(d)\n            d:IsA(\"BasePart\")\n            d.Parent:FindFirstChild(\"Humanoid\")\n            d:IsA(\"Decal\")\n        end\n        Get_des(f)\n\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "another_other_higher_order_function",
+    "check": 0,
+    "source": "\n            local function f(d)\n                d:foo()\n                d:foo()\n            end\n        ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "local_function",
+    "check": 0,
+    "source": "\n        function f()\n            return 8\n        end\n\n        function g()\n            local function f()\n                return 'hello'\n            end\n            return f\n        end\n\n        local h = g()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "func_expr_doesnt_leak_free",
+    "check": 0,
+    "source": "\n        local p = function(x) return x end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "first_argument_can_be_optional",
+    "check": 0,
+    "source": "\n        local T = {}\n        function T.new(a: number?, b: number?, c: number?) return 5 end\n        local m = T.new()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "it_is_ok_not_to_supply_enough_retvals",
+    "check": 0,
+    "source": "\n        function get_two() return 5, 6 end\n\n        local a = get_two()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "duplicate_functions2",
+    "check": 0,
+    "source": "\n        function foo() end\n\n        function bar()\n            local function foo() end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "duplicate_functions_allowed_in_nonstrict",
+    "check": 0,
+    "source": "\n        --!nonstrict\n        function foo() end\n\n        function foo() end\n\n        function bar()\n            local function foo() end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "duplicate_functions_with_different_signatures_not_allowed_in_nonstrict",
+    "check": 0,
+    "source": "\n        --!nonstrict\n        function foo(): number\n            return 1\n        end\n        foo()\n\n        function foo(n: number): number\n            return 2\n        end\n        foo()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "complicated_return_types_require_an_explicit_annotation",
+    "check": 0,
+    "source": "\n        local i = 0\n        function most_of_the_natural_numbers(): number?\n            if i < 10 then\n                i += 1\n                return i\n            else\n                return nil\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_higher_order_function",
+    "check": 0,
+    "source": "\n        function apply(f, x)\n            return f(x)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "higher_order_function_2",
+    "check": 0,
+    "source": "\n        function bottomupmerge(comp, a, b, left, mid, right)\n            local i, j = left, mid\n            for k = left, right do\n                if i < mid and (j > right or not comp(a[j], a[i])) then\n                    b[k] = a[i]\n                    i = i + 1\n                else\n                    b[k] = a[j]\n                    j = j + 1\n                end\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "higher_order_function_3",
+    "check": 0,
+    "source": "\n        function swap(p)\n            local t = p[0]\n            p[0] = p[1]\n            p[1] = t\n            return nil\n        end\n\n        function swapTwice(p)\n            swap(p)\n            swap(p)\n            return p\n        end\n\n        function swapTwiceOn(t: { number })\n            swapTwice(t)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "higher_order_function_4",
+    "check": 0,
+    "source": "\n        function bottomupmerge(comp, a, b, left, mid, right)\n            local i, j = left, mid\n            for k = left, right do\n                if i < mid and (j > right or not comp(a[j], a[i])) then\n                    b[k] = a[i]\n                    i = i + 1\n                else\n                    b[k] = a[j]\n                    j = j + 1\n                end\n            end\n        end\n\n        function mergesort<T>(arr: {T}, comp: (T, T) -> boolean)\n            local work = {}\n            for i = 1, #arr do\n                work[i] = arr[i]\n            end\n            local width = 1\n            while width < #arr do\n                for i = 1, #arr, 2*width do\n                    bottomupmerge(comp, arr, work, i, math.min(i+width, #arr), math.min(i+2*width-1, #arr))\n                end\n                local temp = work\n                work = arr\n                arr = temp\n                width = width * 2\n            end\n            return arr\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "mutual_recursion",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function newPlayerCharacter()\n            startGui() -- Unknown symbol 'startGui'\n        end\n\n        local characterAddedConnection: any\n        function startGui()\n            characterAddedConnection = game:GetService(\"Players\").LocalPlayer.CharacterAdded:connect(newPlayerCharacter)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "toposort_doesnt_break_mutual_recursion",
+    "check": 0,
+    "source": "\n        --!strict\n        local x = nil\n        function f() g() end\n        -- make sure print(x) doesn't get toposorted here, breaking the mutual block\n        function g() x = f end\n        print(x)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "check_function_before_lambda_that_uses_it",
+    "check": 0,
+    "source": "\n        --!nonstrict\n\n        function f()\n            return 114\n        end\n\n        return function()\n            return f():andThen()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "it_is_ok_to_oversaturate_a_higher_order_function_argument",
+    "check": 0,
+    "source": "\n        function onerror() end\n        function foo() end\n        xpcall(foo, onerror)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "another_indirect_function_case_where_it_is_ok_to_provide_too_many_arguments",
+    "check": 0,
+    "source": "\n        local mycb: (number, number) -> ()\n\n        function f() end\n\n        mycb = f\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "report_exiting_without_return_nonstrict",
+    "check": 0,
+    "source": "\n        --!nonstrict\n\n        local function f1(v): number?\n            if v then\n                return 1\n            end\n        end\n\n        local function f2(v)\n            if v then\n                return 1\n            end\n        end\n\n        local function f3(v): ()\n            if v then\n                return\n            end\n        end\n\n        local function f4(v)\n            if v then\n                return\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "report_exiting_without_return_strict",
+    "check": 0,
+    "source": "\n        --!strict\n\n        local function f1(v): number?\n            if v then\n                return 1\n            end\n        end\n\n        local function f2(v)\n            if v then\n                return 1\n            end\n        end\n\n        local function f3(v): ()\n            if v then\n                return\n            end\n        end\n\n        local function f4(v)\n            if v then\n                return\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "calling_function_with_incorrect_argument_type_yields_errors_spanning_argument",
+    "check": 0,
+    "source": "\n        function foo(a: number, b: string) end\n\n        foo(\"Test\", 123)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "calling_function_with_anytypepack_doesnt_leak_free_types",
+    "check": 0,
+    "source": "\n        --!nonstrict\n\n        function Test(a)\n            return 1, \"\"\n        end\n\n\n        local tab = {}\n        table.insert(tab, Test(1));\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_many_return_values",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function f()\n            return 55\n        end\n\n        local a, b = f()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_many_return_values_in_parentheses",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function f()\n            return 55\n        end\n\n        local a, b = (f())\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_many_return_values_no_function",
+    "check": 0,
+    "source": "\n        --!strict\n\n        local a, b = 55\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "ignored_return_values",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function f()\n            return 55, \"\"\n        end\n\n        local a = f()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_does_not_return_enough_values",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function f(): (number, string)\n            return 55\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_cast_error_uses_correct_language",
+    "check": 0,
+    "source": "\n        function foo(a, b): number\n            return 0\n        end\n\n        local a: (string)->number = foo\n        local b: (number, number)->(number, number) = foo\n\n        local c: (string, number)->number = foo -- no error\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "no_lossy_function_type",
+    "check": 0,
+    "source": "\n        --!strict\n        local tbl = {}\n        function tbl:abc(a: number, b: number)\n            return a\n        end\n        tbl:abc(1, 2) -- Line 6\n        --   | Column 14\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "record_matching_overload",
+    "check": 0,
+    "source": "\n        type Overload = ((string) -> string) & ((number) -> number)\n        local abc: Overload\n        abc(1)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "return_type_by_overload",
+    "check": 0,
+    "source": "\n        type Overload = ((string) -> string) & ((number, number) -> number)\n        local abc: Overload\n        local x = abc(true)\n        local y = abc(true,true)\n        local z = abc(true,true,true)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 0,
+    "source": "\ntype Table = { x: number, y: number }\nlocal function f(a: (Table) -> number) return a({x = 1, y = 2}) end\nf(function(a) return a.x + a.y end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 1,
+    "source": "\ntype Table = { x: number, y: number }\nlocal function f(a: ((Table) -> number)?) if a then return a({x = 1, y = 2}) else return 0 end end\nf(function(a) return a.x + a.y end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 2,
+    "source": "\ntype Table = { x: number, y: number }\nlocal x = {}\nx.b = {x = 1, y = 2}\nfunction x:f(a: (Table) -> number) return a(self.b) end\nx:f(function(a) return a.x + a.y end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 3,
+    "source": "\nfunction f(a: (a: number, b: number, c: boolean) -> number) return a(1, 2, true) end\nf(function(a: number, b, c) return c and a + b or b - a end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 4,
+    "source": "\ntype Table = { x: number, y: number }\nlocal function f(a: (Table) -> number) return a({x = 1, y = 2}) end\nf(function(...) return select(1, ...).z end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 5,
+    "source": "\nfunction f(a: (a: number, b: number) -> number) return a(1, 2) end\nf(function(a, b, c, ...) return a + b end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 6,
+    "source": "\nfunction f(a: (...number) -> number) return a(1, 2) end\nf(function(a, b) return a + b end)\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 15,
+        "endLine": 1,
+        "endColumn": 16,
+        "message": "Sparkdown could not finish reading the Luau before \"...number) -> number) return a(1, 2) end\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 26,
+        "endLine": 1,
+        "endColumn": 28,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 29,
+        "endLine": 1,
+        "endColumn": 35,
+        "message": "Sparkdown read \"number\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 35,
+        "endLine": 3,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \") return a(1, 2) end\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 35,
+        "endLine": 1,
+        "endColumn": 36,
+        "message": "Sparkdown could not finish reading the Luau before \") return a(1, 2) end\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 7,
+    "source": "\ntype Table = { x: number, y: number }\nfunction f(a: (...Table) -> number) return a({x = 1, y = 2}, {x = 3, y = 4}) end\nf(function(a, ...) local b = ... return b.z end)\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 2,
+        "column": 15,
+        "endLine": 2,
+        "endColumn": 16,
+        "message": "Sparkdown could not finish reading the Luau before \"...Table) -> number) return a({x = 1, y = 2}, {x = 3, y = 4}...\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 25,
+        "endLine": 2,
+        "endColumn": 27,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 28,
+        "endLine": 2,
+        "endColumn": 34,
+        "message": "Sparkdown read \"number\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 34,
+        "endLine": 4,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \") return a({x = 1, y = 2}, {x = 3, y = 4}) end\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 34,
+        "endLine": 2,
+        "endColumn": 35,
+        "message": "Sparkdown could not finish reading the Luau before \") return a({x = 1, y = 2}, {x = 3, y = 4}) end\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 45,
+        "endLine": 2,
+        "endColumn": 51,
+        "message": "Malformed interpolated string; did you forget to add a `}`?",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 61,
+        "endLine": 2,
+        "endColumn": 67,
+        "message": "Malformed interpolated string; did you forget to add a `}`?",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 8,
+    "source": "\ntype Table = { x: number, y: number }\nfunction f(a: (number) -> Table) return a(4) end\nf(function(x) return x * 2 end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments",
+    "check": 9,
+    "source": "\n        function f(a: (number) -> nil) return a(4) end\n        f(function(x) print(x) end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_generic_function_function_argument",
+    "check": 0,
+    "source": "\nlocal function sum<a>(x: a, y: a, f: (a, a) -> a) return f(x, y) end\nreturn sum(2, 3, function(a, b) return a + b end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_generic_function_function_argument",
+    "check": 1,
+    "source": "\nlocal function map<a, b>(arr: {a}, f: (a) -> b) local r = {} for i,v in ipairs(arr) do table.insert(r, f(v)) end return r end\nlocal a = {1, 2, 3}\nlocal r = map(a, function(a) return a + a > 100 end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_generic_function_function_argument",
+    "check": 2,
+    "source": "\nlocal function foldl<a, b>(arr: {a}, init: b, f: (b, a) -> b) local r = init for i,v in ipairs(arr) do r = f(r, v) end return r end\nlocal a = {1, 2, 3}\nlocal r = foldl(a, {s=0,c=0}, function(a, b) return {s = a.s + b, c = a.c + 1} end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_generic_function_function_argument_overloaded",
+    "check": 0,
+    "source": "\nlocal function g1<T>(a: T, f: (T) -> T) return f(a) end\nlocal function g2<T>(a: T, b: T, f: (T, T) -> T) return f(a, b) end\n\nlocal g12: typeof(g1) & typeof(g2)\n\ng12(1, function(x) return x + x end)\ng12(1, 2, function(x, y) return x + y end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_generic_function_function_argument_overloaded",
+    "check": 1,
+    "source": "\nlocal function g1<T>(a: T, f: (T) -> T) return f(a) end\nlocal function g2<T>(a: T, b: T, f: (T, T) -> T) return f(a, b) end\n\nlocal g12: typeof(g1) & typeof(g2)\n\ng12({x=1}, function(x) return {x=-x.x} end)\ng12({x=1}, {x=2}, function(x, y) return {x=x.x + y.x} end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_generic_lib_function_function_argument",
+    "check": 0,
+    "source": "\n        local a = {{x=4}, {x=7}, {x=1}}\n        table.sort(a, function(x, y) return x.x < y.x end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "variadic_any_is_compatible_with_a_generic_TypePack",
+    "check": 0,
+    "source": "\n        --!strict\n        local function f(...) return ... end\n        local g = function(...) return f(...) end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "variadic_any_is_compatible_with_a_generic_TypePack_2",
+    "check": 0,
+    "source": "\n        local function somethingThatsAny(...: any)\n            print(...)\n        end\n\n        local function x<T...>(...: T...)\n            somethingThatsAny(...) -- Failed to unify variadic type packs\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_anonymous_function_arguments_outside_call",
+    "check": 0,
+    "source": "\ntype Table = { x: number, y: number }\nlocal f: (Table) -> number = function(t) return t.x + t.y end\n\ntype TableWithFunc = { x: number, y: number, f: (number, number) -> number }\nlocal a: TableWithFunc = { x = 3, y = 4, f = function(a, b) return a + b end }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "infer_return_value_type",
+    "check": 0,
+    "source": "\nlocal function f(): {string|number}\n    return {1, \"b\", 3}\nend\n\nlocal function g(): (number, {string|number})\n    return 4, {1, \"b\", 3}\nend\n\nlocal function h(): ...{string|number}\n    return {4}, {1, \"b\", 3}, {\"s\"}\nend\n\nlocal function i(): ...{string|number}\n    return {1, \"b\", 3}, h()\nend\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 9,
+        "column": 20,
+        "endLine": 9,
+        "endColumn": 21,
+        "message": "Sparkdown could not finish reading the Luau before \"...{string|number}\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 9,
+        "column": 30,
+        "endLine": 16,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"|number}\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 9,
+        "column": 30,
+        "endLine": 9,
+        "endColumn": 31,
+        "message": "Sparkdown could not finish reading the Luau before \"|number}\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "error_detailed_function_mismatch_arg_count",
+    "check": 0,
+    "source": "\ntype A = (number, number) -> string\ntype B = (number) -> string\n\nlocal a: A\nlocal b: B = a\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "error_detailed_function_mismatch_arg",
+    "check": 0,
+    "source": "\ntype A = (number, number) -> string\ntype B = (number, string) -> string\n\nlocal a: A\nlocal b: B = a\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "error_detailed_function_mismatch_ret_count",
+    "check": 0,
+    "source": "\ntype A = (number, number) -> (number)\ntype B = (number, number) -> (number, boolean)\n\nlocal a: A\nlocal b: B = a\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "error_detailed_function_mismatch_ret",
+    "check": 0,
+    "source": "\ntype A = (number, number) -> string\ntype B = (number, number) -> number\n\nlocal a: A\nlocal b: B = a\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "error_detailed_function_mismatch_ret_mult",
+    "check": 0,
+    "source": "\ntype A = (number, number) -> (number, string)\ntype B = (number, number) -> (number, boolean)\n\nlocal a: A\nlocal b: B = a\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_decl_quantify_right_type",
+    "check": 0,
+    "source": "\n--!nonstrict\nreturn function(value)\n    return false\nend\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_decl_quantify_right_type",
+    "check": 1,
+    "source": "\n--!nonstrict\nlocal MagicMock = {}\nMagicMock.is = require(game.isAMagicMock)\n\nfunction MagicMock.is(value)\n    return false\nend\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 3,
+        "column": 15,
+        "endLine": 8,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"require(game.isAMagicMock)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 3,
+        "column": 15,
+        "endLine": 3,
+        "endColumn": 16,
+        "message": "Sparkdown could not finish reading the Luau before \"require(game.isAMagicMock)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_decl_non_self_sealed_overwrite",
+    "check": 0,
+    "source": "\n        function string.len(): number\n            return 1\n        end\n\n        local s = string\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_decl_non_self_sealed_overwrite",
+    "check": 1,
+    "source": "\n        print(string.len('hello'))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_decl_non_self_sealed_overwrite_2",
+    "check": 0,
+    "source": "\nlocal t: { f: ((x: number) -> number)? } = {}\n\nfunction t.f(x)\n    print(x + 5)\n    return x .. \"asd\" -- 1st error: we know that return type is a number, not a string\nend\n\nt.f = function(x)\n    print(x + 5)\n    return x .. \"asd\" -- 2nd error: we know that return type is a number, not a string\nend\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "inferred_higher_order_functions_are_quantified_at_the_right_time2",
+    "check": 0,
+    "source": "\n        --!strict\n\n        local function resolveDispatcher()\n            return (nil :: any) :: {useContext: (number?) -> any}\n        end\n\n        local useContext\n        useContext = function(unstable_observedBits: number?)\n            resolveDispatcher().useContext(unstable_observedBits)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "inferred_higher_order_functions_are_quantified_at_the_right_time3",
+    "check": 0,
+    "source": "\n        local foo\n\n        foo():bar(function()\n            return foo()\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_decl_non_self_unsealed_overwrite",
+    "check": 0,
+    "source": "\nlocal t = { f = nil :: ((x: number) -> number)? }\n\nfunction t.f(x: string): string -- 1st error: new function value type is incompatible\n    return x .. \"asd\"\nend\n\nt.f = function(x)\n    print(x + 5)\n    return x .. \"asd\" -- 2nd error: we know that return type is a number, not a string\nend\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "strict_mode_ok_with_missing_arguments",
+    "check": 0,
+    "source": "\n        local function f(x: any) end\n        f()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_statement_sealed_table_assignment_through_indexer",
+    "check": 0,
+    "source": "\nlocal t: {[string]: () -> number} = {}\n\nfunction t.a() return 1 end -- OK\nfunction t:b() return 2 end -- not OK\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_few_arguments_variadic",
+    "check": 0,
+    "source": "\n    function test(a: number, b: string, ...)\n    end\n\n    test(1)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_few_arguments_variadic_generic",
+    "check": 0,
+    "source": "\nfunction test(a: number, b: string, ...)\n    return 1\nend\n\nfunction wrapper<A...>(f: (A...) -> number, ...: A...)\nend\n\nwrapper(test)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "too_few_arguments_variadic_generic2",
+    "check": 0,
+    "source": "\nfunction test(a: number, b: string, ...)\n    return 1\nend\n\nfunction wrapper<A...>(f: (A...) -> number, ...: A...)\nend\n\npcall(wrapper, test)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "occurs_check_failure_in_function_return_type",
+    "check": 0,
+    "source": "\n        function f()\n            return 5, f()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "free_is_not_bound_to_unknown",
+    "check": 0,
+    "source": "\n        local function foo(f: (unknown) -> (), x)\n            f(x)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "dont_infer_parameter_types_for_functions_from_their_call_site",
+    "check": 0,
+    "source": "\n        local t = {}\n\n        function t.f(x)\n            return x\n        end\n\n        t.__index = t\n\n        function g(s)\n            local q = s.p and s.p.q or nil\n            return q and t.f(q) or nil\n        end\n\n        local f = t.f\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "dont_mutate_the_underlying_head_of_typepack_when_calling_with_self",
+    "check": 0,
+    "source": "\n        local t = {}\n        function t:m(x) end\n        function f(): never return 5 :: never end\n        t:m(f())\n        t:m(f())\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "improved_function_arg_mismatch_errors",
+    "check": 0,
+    "source": "\nlocal function foo1(a: number) end\nfoo1()\n\nlocal function foo2(a: number, b: string?) end\nfoo2()\n\nlocal function foo3(a: number, b: string?, c: any) end -- any is optional\nfoo3()\n\nstring.find()\n\nlocal t = {}\nfunction t.foo(x: number, y: string?, ...: any) return 1 end\nfunction t:bar(x: number, y: string?) end\nt.foo()\n\nt:bar()\n\nlocal u = { a = t, b = function() return t end }\nu.a.foo()\nlocal x = (u.a).foo()\n\nu.b().foo()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "improved_function_arg_mismatch_error_nonstrict",
+    "check": 0,
+    "source": "\n        --!nonstrict\n        local function foo(a, b) end\n        foo(string.find(\"hello\", \"e\"))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "luau_subtyping_is_np_hard",
+    "check": 0,
+    "source": "\n--!strict\n\n-- An example of coding up graph coloring in the Luau type system.\n-- This codes a three-node, two color problem.\n-- A three-node triangle is uncolorable,\n-- but a three-node line is colorable.\n\ntype Red = \"red\"\ntype Blue = \"blue\"\ntype Color = Red | Blue\ntype Coloring = (Color) -> (Color) -> (Color) -> boolean\ntype Uncolorable = (Color) -> (Color) -> (Color) -> false\n\ntype Line = Coloring\n  & ((Red) -> (Red) -> (Color) -> false)\n  & ((Blue) -> (Blue) -> (Color) -> false)\n  & ((Color) -> (Red) -> (Red) -> false)\n  & ((Color) -> (Blue) -> (Blue) -> false)\n\ntype Triangle = Line\n  & ((Red) -> (Color) -> (Red) -> false)\n  & ((Blue) -> (Color) -> (Blue) -> false)\n\nlocal x : Triangle\nlocal y : Line\nlocal z : Uncolorable\nz = x -- OK, so the triangle is uncolorable\nz = y -- Not OK, so the line is colorable\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 15,
+        "column": 12,
+        "endLine": 15,
+        "endColumn": 13,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 15,
+        "column": 21,
+        "endLine": 15,
+        "endColumn": 22,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 15,
+        "column": 31,
+        "endLine": 15,
+        "endColumn": 33,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 15,
+        "column": 34,
+        "endLine": 15,
+        "endColumn": 39,
+        "message": "Sparkdown read \"false\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 16,
+        "column": 13,
+        "endLine": 16,
+        "endColumn": 14,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 16,
+        "column": 23,
+        "endLine": 16,
+        "endColumn": 24,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 16,
+        "column": 33,
+        "endLine": 16,
+        "endColumn": 35,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 16,
+        "column": 36,
+        "endLine": 16,
+        "endColumn": 41,
+        "message": "Sparkdown read \"false\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 17,
+        "column": 14,
+        "endLine": 17,
+        "endColumn": 15,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 17,
+        "column": 23,
+        "endLine": 17,
+        "endColumn": 24,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 17,
+        "column": 31,
+        "endLine": 17,
+        "endColumn": 33,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 17,
+        "column": 34,
+        "endLine": 17,
+        "endColumn": 39,
+        "message": "Sparkdown read \"false\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 18,
+        "column": 14,
+        "endLine": 18,
+        "endColumn": 15,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 18,
+        "column": 24,
+        "endLine": 18,
+        "endColumn": 25,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 18,
+        "column": 33,
+        "endLine": 18,
+        "endColumn": 35,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 18,
+        "column": 36,
+        "endLine": 18,
+        "endColumn": 41,
+        "message": "Sparkdown read \"false\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 21,
+        "column": 12,
+        "endLine": 21,
+        "endColumn": 13,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 21,
+        "column": 23,
+        "endLine": 21,
+        "endColumn": 24,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 21,
+        "column": 31,
+        "endLine": 21,
+        "endColumn": 33,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 21,
+        "column": 34,
+        "endLine": 21,
+        "endColumn": 39,
+        "message": "Sparkdown read \"false\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 22,
+        "column": 13,
+        "endLine": 22,
+        "endColumn": 14,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 22,
+        "column": 24,
+        "endLine": 22,
+        "endColumn": 25,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 22,
+        "column": 33,
+        "endLine": 22,
+        "endColumn": 35,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 22,
+        "column": 36,
+        "endLine": 22,
+        "endColumn": 41,
+        "message": "Sparkdown read \"false\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_is_supertype_of_concrete_functions",
+    "check": 0,
+    "source": "\n        function foo(f: fun) end\n\n        function a() end\n        function id(x) return x end\n\n        foo(a)\n        foo(id)\n        foo(foo)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "concrete_functions_are_not_supertypes_of_function",
+    "check": 0,
+    "source": "\n        local a: fun = function() end\n\n        function one(arg: () -> ()) end\n        function two(arg: <T>(T) -> T) end\n\n        one(a)\n        two(a)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "other_things_are_not_related_to_function",
+    "check": 0,
+    "source": "\n        local a: fun = function() end\n        local b: {} = a\n        local c: boolean = a\n        local d: fun = true\n        local e: fun = {}\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "fuzz_must_follow_in_overload_resolution",
+    "check": 0,
+    "source": "\nfor _ in function<t0>():(t0)&((()->())&(()->()))\nend do\n_(_(_,_,_),_)\nend\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "dont_assert_when_the_tarjan_limit_is_exceeded_during_generalization",
+    "check": 0,
+    "source": "\n        function f(t)\n            t.x.y.z = 441\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "instantiated_type_packs_must_have_a_non_null_scope",
+    "check": 0,
+    "source": "\n        function pcall<A..., R...>(...: (A...) -> R...): (boolean, R...)\n            return nil :: any\n        end\n\n        type Dispatch<A> = (A) -> ()\n\n        function mountReducer()\n            dispatchAction()\n            return nil :: any\n        end\n\n        function dispatchAction()\n        end\n\n        function useReducer(): Dispatch<any>\n            local result, setResult = pcall(mountReducer)\n            return setResult\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "inner_frees_become_generic_in_dcr",
+    "check": 0,
+    "source": "\n        function f(x)\n            local z = x\n            return x\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_exprs_are_generalized_at_signature_scope_not_enclosing",
+    "check": 0,
+    "source": "\n        local foo\n        local bar\n\n        -- foo being a function expression is deliberate: the bug we're testing\n        -- only existed for function expressions, not for function statements.\n        foo = function(a)\n            return bar\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "param_1_and_2_both_takes_the_same_generic_but_their_arguments_are_incompatible",
+    "check": 0,
+    "source": "\n        local function foo<a>(x: a, y: a?)\n            return x\n        end\n        local vec2 = { x = 5, y = 7 }\n        local ret: number = foo(vec2, { x = 5 })\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "param_1_and_2_both_takes_the_same_generic_but_their_arguments_are_incompatible_2",
+    "check": 0,
+    "source": "\n        local function f<a>(x: a, y: a): a\n            return if math.random() > 0.5 then x else y\n        end\n\n        local z: boolean = f(5, \"five\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "attempt_to_call_an_intersection_of_tables",
+    "check": 0,
+    "source": "\n        local function f(t: { x: number } & { y: string })\n            t()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "attempt_to_call_an_intersection_of_tables_with_call_metamethod",
+    "check": 0,
+    "source": "\n        type Callable = typeof(setmetatable({}, {\n            __call = function(self, ...) return ... end\n        }))\n\n        local function f(t: Callable & { x: number })\n            t()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "call_metamethod_checks_argument_types",
+    "check": 0,
+    "source": "\n        type Callable = typeof(setmetatable({}, {} :: { __call: (Callable, number) -> string }))\n        local f = (nil :: any) :: Callable\n\n        local ok: string = f(1)\n        local bad: string = f(\"wrong\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "call_metamethod_checks_variadic_argument_types",
+    "check": 0,
+    "source": "\n        type Callable = typeof(setmetatable({}, {} :: { __call: (Callable, ...number) -> () }))\n        local f = (nil :: any) :: Callable\n\n        f(1, 2, 3)\n        f(1, \"wrong\")\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 75,
+        "endLine": 1,
+        "endColumn": 76,
+        "message": "Sparkdown could not finish reading the Luau before \"...number) -> () }))\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 85,
+        "endLine": 1,
+        "endColumn": 87,
+        "message": "Expected type, got '-'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 92,
+        "endLine": 6,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"}))\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 92,
+        "endLine": 1,
+        "endColumn": 93,
+        "message": "Sparkdown could not finish reading the Luau before \"}))\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "call_metamethod_variadic_blames_the_offending_argument",
+    "check": 0,
+    "source": "\n        type Callable = typeof(setmetatable({}, {} :: { __call: (Callable, ...number) -> () }))\n        local f = (nil :: any) :: Callable\n\n        f(1, \"wrong\", 3)\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 75,
+        "endLine": 1,
+        "endColumn": 76,
+        "message": "Sparkdown could not finish reading the Luau before \"...number) -> () }))\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 85,
+        "endLine": 1,
+        "endColumn": 87,
+        "message": "Expected type, got '-'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 92,
+        "endLine": 5,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"}))\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 92,
+        "endLine": 1,
+        "endColumn": 93,
+        "message": "Sparkdown could not finish reading the Luau before \"}))\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "call_metamethod_variadic_blames_each_offending_argument",
+    "check": 0,
+    "source": "\n        type Callable = typeof(setmetatable({}, {} :: { __call: (Callable, ...number) -> () }))\n        local f = (nil :: any) :: Callable\n\n        f(\"a\", 2, \"b\")\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 75,
+        "endLine": 1,
+        "endColumn": 76,
+        "message": "Sparkdown could not finish reading the Luau before \"...number) -> () }))\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 85,
+        "endLine": 1,
+        "endColumn": 87,
+        "message": "Expected type, got '-'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 92,
+        "endLine": 5,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"}))\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 92,
+        "endLine": 1,
+        "endColumn": 93,
+        "message": "Sparkdown could not finish reading the Luau before \"}))\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "generic_packs_are_not_variadic",
+    "check": 0,
+    "source": "\n        local function apply<a, b..., c...>(f: (a, b...) -> c..., x: a)\n            return f(x)\n        end\n\n        local function add(x: number, y: number)\n            return x + y\n        end\n\n        local function addToSix(x: number)\n            return x + 6\n        end\n\n        apply(addToSix, 7)\n        apply(add, 5)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "num_is_solved_before_num_or_str",
+    "check": 0,
+    "source": "\n        function num()\n            return 5\n        end\n\n        local function num_or_str()\n            if math.random() > 0.5 then\n                return num()\n            else\n                return \"some string\"\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "num_is_solved_after_num_or_str",
+    "check": 0,
+    "source": "\n        local function num_or_str()\n            if math.random() > 0.5 then\n                return num()\n            else\n                return \"some string\"\n            end\n        end\n\n        function num()\n            return 5\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "apply_of_lambda_with_inferred_and_explicit_types",
+    "check": 0,
+    "source": "\n        local function apply(f, x) return f(x) end\n        local x = apply(function(x: string): number return 5 end, \"hello!\")\n\n        local function apply_explicit<A, B...>(f: (A) -> B..., x: A): B... return f(x) end\n        local x = apply_explicit(function(x: string): number return 5 end, \"hello!\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "regex_benchmark_string_format_minimization",
+    "check": 0,
+    "source": "\n        (nil :: any)(function(n)\n            if tonumber(n) then\n                n = tonumber(n)\n            elseif n ~= nil then\n                string.format(\"invalid argument #4 to 'sub': number expected, got %s\", typeof(n))\n            end\n        end);\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "subgeneric_type_function_super_monomorphic",
+    "check": 0,
+    "source": "\nlocal a: (number, number) -> number = function(a, b) return a - b end\n\na = function(a, b) return a + b end\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "simple_unannotated_mutual_recursion",
+    "check": 0,
+    "source": "\nfunction even(n)\n    if n == 0 then\n        return true\n    else\n        return odd(n - 1)\n    end\nend\n\nfunction odd(n)\n    if n == 0 then\n        return false\n    elseif n == 1 then\n        return true\n    else\n        return even(n - 1)\n    end\nend\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "simple_lightly_annotated_mutual_recursion",
+    "check": 0,
+    "source": "\nfunction even(n: number)\n    if n == 0 then\n        return true\n    else\n        return odd(n - 1)\n    end\nend\n\nfunction odd(n: number)\n    if n == 0 then\n        return false\n    elseif n == 1 then\n        return true\n    else\n        return even(n - 1)\n    end\nend\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "tf_suggest_return_type",
+    "check": 0,
+    "source": "\n        function fib(n)\n            return n < 2 and 1 or fib(n-1) + fib(n-2)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "tf_suggest_arg_type",
+    "check": 0,
+    "source": "\n        function fib(n, u)\n            return (n or u) and (n < u and n + fib(n,u))\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "tf_suggest_arg_type_2",
+    "check": 0,
+    "source": "\n        local function escape_fslash(pre)\n            return (#pre % 2 == 0 and '\\\\' or '') .. pre .. '.'\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "local_function_fwd_decl_doesnt_crash",
+    "check": 0,
+    "source": "\n        local foo\n\n        local function bar()\n            foo()\n        end\n\n        function foo()\n        end\n\n        bar()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_checking_of_callback_property",
+    "check": 0,
+    "source": "\n        function print(x: number) end\n\n        type Point = {x: number, y: number}\n        local T : {callback: ((Point) -> ())?} = {}\n\n        T.callback = function(p) -- No error here\n            print(p.z)           -- error here.  Point has no property z\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_inference_of_class_methods",
+    "check": 0,
+    "source": "\n        local c = ChildClass.New()\n\n        -- Instead of reporting that the lambda is the wrong type, report that we are using its argument improperly.\n        c.Touched:Connect(function(other)\n            print(other.ThisDoesNotExist)\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "pass_table_literal_to_function_expecting_optional_prop",
+    "check": 0,
+    "source": "\n        type T = {prop: number?}\n\n        function f(t: T) end\n\n        f({prop=5})\n        f({})\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_inference_notes_generic_return",
+    "check": 0,
+    "source": "\n        local function get(model)\n            model:Find(\"leg\")\n        end\n\n        type T = { read Find: (T, string) -> number }\n\n        type U = { read Find: (U, string) -> boolean }\n\n        local t: T\n        local u: U\n\n        get(t)\n        get(u)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "dont_infer_overloaded_functions",
+    "check": 0,
+    "source": "\n        function getR6Attachments(model)\n            model:FindFirstChild(\"Right Leg\")\n            model:FindFirstChild(\"Left Leg\")\n            model:FindFirstChild(\"Torso\")\n            model:FindFirstChild(\"Torso\")\n            model:FindFirstChild(\"Head\")\n            model:FindFirstChild(\"Left Arm\")\n            model:FindFirstChild(\"Right Arm\")\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "param_y_is_bounded_by_x_of_type_string",
+    "check": 0,
+    "source": "\n        local function f(x: string, y)\n            x = y\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_that_could_return_anything_is_compatible_with_function_that_is_expected_to_return_nothing",
+    "check": 0,
+    "source": "\n        -- We infer foo : (g: (number) -> (...unknown)) -> ()\n        function foo(g)\n            g(0)\n        end\n\n        -- a requires a function that returns no values\n        function a(f: ((number) -> ()) -> ())\n        end\n\n        -- \"Returns an unknown number of values\" is close enough to \"returns no values.\"\n        a(foo)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "self_application_does_not_segfault",
+    "check": 0,
+    "source": "\n        function f(a)\n            f(f)\n            return f(), a\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_definition_in_a_do_block",
+    "check": 0,
+    "source": "\n        local f\n        do\n            function f()\n            end\n        end\n        f()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_definition_in_a_do_block_with_global",
+    "check": 0,
+    "source": "\n        function f() print(\"a\") end\n        do\n            function f()\n                print(\"b\")\n            end\n        end\n        f()\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "fuzzer_alias_global_function_doesnt_hit_nil_assert",
+    "check": 0,
+    "source": "\nfunction _()\nend\nlocal function l0()\n    function _()\n    end\nend\n_ = _\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "fuzzer_bug_missing_follow_causes_assertion",
+    "check": 0,
+    "source": "\nlocal _ = ({_=function()\nreturn _\nend,}),true,_[_()]\nfor l0=_[_[_[`{function(l0)\nend}`]]],_[_.n6[_[_.n6]]],_[_[_.n6[_[_.n6]]]] do\n_ += if _ then \"\"\nend\nreturn _\n",
+    "official": [
+      {
+        "message": "Expected 'else' when parsing if then else expression, got 'end'",
+        "location": {
+          "begin": {
+            "line": 7,
+            "column": 0
+          },
+          "end": {
+            "line": 7,
+            "column": 3
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 6,
+        "column": 5,
+        "endLine": 6,
+        "endColumn": 7,
+        "message": "Expected 'else' when parsing if then else expression",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "cannot_call_union_of_functions",
+    "check": 0,
+    "source": "\n         local f: (() -> ()) | (() -> () -> ()) = nil :: any\n         f()\n     ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "fuzzer_missing_follow_in_ast_stat_fun",
+    "check": 0,
+    "source": "\n        local _ = function<t0...>()\n        end ~= _\n\n        while (_) do\n            _,_,_,_,_,_,_,_,_,_._,_ = nil\n            function _(...):<t0...>()->()\n            end\n            function _<t0...>(...):any\n                _ ..= ...\n            end\n            _,_,_,_,_,_,_,_,_,_,_ = nil\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "unifier_should_not_bind_free_types",
+    "check": 0,
+    "source": "\n        function foo(player)\n            local success,result = player:thing()\n            if(success) then\n                return \"Successfully posted message.\";\n            elseif(not result) then\n                return false;\n            else\n                return result;\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "captured_local_is_assigned_a_function",
+    "check": 0,
+    "source": "\n        local f\n\n        local function g()\n            f()\n        end\n\n        function f()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "error_suppression_propagates_through_function_calls",
+    "check": 0,
+    "source": "\n        function first(x: any)\n            return pairs(x)(x)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "fuzzer_normalizer_out_of_resources",
+    "check": 0,
+    "source": "\n Module 'l0':\nlocal _ = true,...,_\nif ... then\nwhile _:_(_._G) do\ndo end\n_ = _ and _\n_ = 0 and {# _,}\nlocal _ = \"CCCCCCCCCCCCCCCCCCCCCCCCCCC\"\nlocal l0 = require(module0)\nend\nlocal function l0()\nend\nelseif _ then\nl0 = _\nend\ndo end\nwhile _ do\n_ = if _ then _ elseif _ then _,if _ then _ else _\n_ = _()\ndo end\ndo end\nif _ then\nend\nend\n_ = _,{}\n\n    ",
+    "official": [
+      {
+        "message": "Expected identifier when parsing method name, got 'local'",
+        "location": {
+          "begin": {
+            "line": 2,
+            "column": 0
+          },
+          "end": {
+            "line": 2,
+            "column": 5
+          }
+        }
+      },
+      {
+        "message": "Expected '(', '{' or <string> when parsing function call, got 'local'",
+        "location": {
+          "begin": {
+            "line": 1,
+            "column": 1
+          },
+          "end": {
+            "line": 2,
+            "column": 0
+          }
+        }
+      },
+      {
+        "message": "Expected 'else' when parsing if then else expression, got ','",
+        "location": {
+          "begin": {
+            "line": 18,
+            "column": 31
+          },
+          "end": {
+            "line": 18,
+            "column": 32
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 2,
+        "column": 0,
+        "endLine": 2,
+        "endColumn": 5,
+        "message": "Expected identifier when parsing method name, got 'local'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 9,
+        "column": 11,
+        "endLine": 27,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"require(module0)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 9,
+        "column": 11,
+        "endLine": 9,
+        "endColumn": 12,
+        "message": "Sparkdown could not finish reading the Luau before \"require(module0)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 18,
+        "column": 16,
+        "endLine": 18,
+        "endColumn": 22,
+        "message": "Expected 'else' when parsing if then else expression",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_resolution_crash_when_argExprs_is_smaller_than_type_args",
+    "check": 0,
+    "source": "\n--!strict\nlocal parseError\ntype Set<T> = {[T]: any}\nlocal function captureDependencies(\n\tsaveToSet: Set<PubTypes.Dependency>,\n\tcallback: (...any) -> any,\n\t...\n)\n\tlocal data = table.pack(xpcall(callback, parseError, ...))\n    end\n",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 6,
+        "column": 12,
+        "endLine": 6,
+        "endColumn": 13,
+        "message": "Sparkdown could not finish reading the Luau before \"...any) -> any,\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 6,
+        "column": 20,
+        "endLine": 6,
+        "endColumn": 22,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 6,
+        "column": 23,
+        "endLine": 6,
+        "endColumn": 26,
+        "message": "Sparkdown read \"any\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 7,
+        "column": 1,
+        "endLine": 7,
+        "endColumn": 4,
+        "message": "Expected identifier when parsing expression, got '...'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 8,
+        "column": 0,
+        "endLine": 11,
+        "endColumn": 0,
+        "message": "Sparkdown ended the snippet's function before \")\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 8,
+        "column": 0,
+        "endLine": 8,
+        "endColumn": 1,
+        "message": "Sparkdown could not finish reading the Luau before \")\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "unpack_depends_on_rhs_pack_to_be_fully_resolved",
+    "check": 0,
+    "source": "\n--!strict\nlocal function id(x)\n    return x\nend\nlocal u,v = id(3), id(id(44))\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "hidden_variadics_should_not_break_subtyping",
+    "check": 0,
+    "source": "\n        --!strict\n        type FooType = {\n            SetValue: (Value: number) -> ()\n        }\n\n        local Foo: FooType = {\n            SetValue = function(Value: number)\n\n            end\n        }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "coroutine_wrap_result_call",
+    "check": 0,
+    "source": "\n        function foo(a, b)\n            coroutine.wrap(a)(b)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "recursive_function_calls_should_not_use_the_generalized_type",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function random()\n            return true -- chosen by fair coin toss\n        end\n\n        local f\n        f = 5\n        function f()\n            if random() then f() end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "recursive_function_calls_should_not_use_the_generalized_type_2",
+    "check": 0,
+    "source": "\n        --!strict\n\n        function random()\n            return true -- chosen by fair coin toss\n        end\n\n        local function f()\n            if random() then f() end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "fuzz_unwind_mutually_recursive_union_type_func",
+    "check": 0,
+    "source": "\n        local _ = ...\n        function _()\n            _ = _\n        end\n        _[function(...) repeat until _(_[l100]) _ = _ end] += _\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 47,
+        "endLine": 5,
+        "endColumn": 48,
+        "message": "Sparkdown could not finish reading the Luau before \"_ = _ end] += _\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "string_format_pack",
+    "check": 0,
+    "source": "\n        local function foo(): (string, string, string)\n            return \"\", \"\", \"\"\n        end\n        print(string.format(\"%s %s %s\", foo()))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "string_format_pack_variadic",
+    "check": 0,
+    "source": "\n        local foo : () -> (...string) = (nil :: any)\n        print(string.format(\"%s %s %s\", foo()))\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 27,
+        "endLine": 1,
+        "endColumn": 28,
+        "message": "Sparkdown could not finish reading the Luau before \"...string) = (nil :: any)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 36,
+        "endLine": 3,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \") = (nil :: any)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 36,
+        "endLine": 1,
+        "endColumn": 37,
+        "message": "Sparkdown could not finish reading the Luau before \") = (nil :: any)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "table_annotated_explicit_self",
+    "check": 0,
+    "source": "\n        type MyObject = {\n            fn: (self: MyObject) -> number,\n            field: number\n        }\n\n        local Foo = {} :: MyObject\n\n        function Foo:fn()\n            local _ = self\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_1871",
+    "check": 0,
+    "source": "\n        export type Test = {\n            [string]: (string) -> ()\n        }\n\n        local TestTbl: Test = {}\n\n        function TestTbl.Hello(Param)\n            local _ = Param\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "io_manager_oop_ish",
+    "check": 0,
+    "source": "\n        type IIOManager = {\n            __index: IIOManager,\n            write: (self: IOManager, text: string, label: string?) -> number,\n        }\n\n        export type IOManager = setmetatable<{\n            buffer: {string},\n            memory: { [string]: number }\n        }, IIOManager>;\n\n        local IO = {} :: IIOManager\n        IO.__index = IO\n\n        function IO:write(text, label)\n            local _ = self\n            local _ = text\n            local _ = label\n            return 42\n        end\n\n        return IO\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "generic_function_statement",
+    "check": 0,
+    "source": "\n        type Object = {\n            foobar: <T>(number, string, T) -> T\n        }\n\n        local Obj = {} :: Object\n        function Obj.foobar(bing, quxx, dunno)\n            local _ = bing\n            local _ = quxx\n            return dunno\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_calls_should_not_crash",
+    "check": 0,
+    "source": "\n        return {\n            StartAPI = function()\n                local pointers = {}\n                local API = {}\n                local function getRealEnvResult(PointerOrPath)\n                    if pointers[PointerOrPath] then\n                        return pointers[PointerOrPath]\n                    end\n                end\n                API.OnInvoke = function()\n                    local realEnvResult, isResultPointer = getRealEnvResult(FunctionInEnvToRunPath)\n                    return realEnvResult(table.unpack(args, 2, args.n))\n                    if TableInEnvPath and type(TableInEnvPath) == 'string' then\n                        local realEnvResult, isResultPointer = getRealEnvResult(TableInEnvPath)\n                        return getmetatable(realEnvResult)\n                    end\n                    local realEnvResult, isResultPointer = getRealEnvResult(TableInEnvPath)\n                    local metaTableInEnv = getmetatable(realEnvResult)\n                    local result = metaTableInEnv[FuncToRun](realEnvResult,table.unpack(args, 3, args.n))\n                end\n            end\n        }\n    ",
+    "official": [
+      {
+        "message": "Expected 'end' (to close 'function' at line 11), got 'if'",
+        "location": {
+          "begin": {
+            "line": 13,
+            "column": 20
+          },
+          "end": {
+            "line": 13,
+            "column": 22
+          }
+        }
+      },
+      {
+        "message": "Expected '}' (to close '{' at line 2), got 'end'",
+        "location": {
+          "begin": {
+            "line": 21,
+            "column": 12
+          },
+          "end": {
+            "line": 21,
+            "column": 15
+          }
+        }
+      }
+    ],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "unnecessary_nil_in_lower_bound_of_generic",
+    "check": 0,
+    "source": "\n        function isAnArray(value)\n            if type(value) == \"table\" then\n                for index, _ in next, value do\n                    -- assert index is not nil\n                    math.max(0, index)\n                end\n                return true\n            else\n                return false\n            end\n        end\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "call_function_with_nothing_but_nil",
+    "check": 0,
+    "source": "\n        local function f(n: number, x: string?, y: string?, z: string?) end\n\n        local function g(n)\n            f(n)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_1640",
+    "check": 0,
+    "source": "\n        --!strict\n        table.create(1) -- top function call\n\n        local function f(): string\n            if true then\n                table.create(1) -- middle function call\n            end\n\n            return table.concat({})\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_1854",
+    "check": 0,
+    "source": "\n        --!strict\n        local function bug()\n            local counter = 1\n            local work = buffer.create(64)\n            local function get_block()\n                buffer.writeu32(work, 48, counter)\n                counter = (counter + 1) % 0x100000000\n                return work\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "cli_119545_pass_lambda_inside_table",
+    "check": 0,
+    "source": "\n        --!strict\n        type foo1 = { foo: (number) -> () }\n        type foo2 = { read foo: (number) -> () }\n        local function bar1(foo: foo1) end\n        local function bar2(foo: foo2) end\n\n        local baz = { foo = function(number: number) end, }\n        bar1(baz)\n        bar2(baz)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2065_bidirectional_inference_function_call",
+    "check": 0,
+    "source": "\n        local function foo(callback: () -> (() -> ())?)\n        end\n\n        local someCondition: boolean = true\n\n        foo(function()\n            if someCondition then\n                return nil\n            end\n            return function() end\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectionally_infer_lambda_with_partially_resolved_generic",
+    "check": 0,
+    "source": "\n        local function foo<T>(value: T)\n            return function<R>(callback: (T) -> R)\n            end\n        end\n\n        foo(3)(function (data)\n            local _ = data\n            return 42\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_inference_goes_through_ifelse",
+    "check": 0,
+    "source": "\n        type Input = \"1\" | \"2\" | \"3\" | \"4\" | \"5\" | \"6\" | \"7\" | \"8\" | \"9\"\n        local function getInputs(isDragonPunch: boolean): { Input }\n            return if isDragonPunch then { \"6\", \"8\", \"7\" } else { \"8\", \"7\", \"6\" }\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_one_ok_one_potential",
+    "check": 0,
+    "source": "\n        local f: ((number) -> \"one\") & ((string) -> \"two\")\n\n        local g = f(42)\n        local h = f(\"huh\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_ambiguous_call",
+    "check": 0,
+    "source": "\n        local f: ((number | string) -> \"one\") & ((number | boolean) -> \"two\")\n        local g = f(42)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_pick_better_arity",
+    "check": 0,
+    "source": "\n        local f: ((number) -> \"one\") & ((number, number) -> \"two\")\n        -- Casting here so that we always hit the case in overload selection\n        -- where one part has the correct arity but incorrect argument types,\n        -- and the other has the incorrect arity.\n        local g = f(\"s\" :: string)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_no_compatible_option",
+    "check": 0,
+    "source": "\n        local f: ((number) -> \"one\") & ((boolean) -> \"two\")\n        local g = f(\"s\" :: string)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_bad_arity",
+    "check": 0,
+    "source": "\n        local function foo<T>(f: ((number, number) -> \"one\") & T)\n            local huh = f(42)\n            local _ = huh\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_union_of_functions",
+    "check": 0,
+    "source": "\n        local function foo(f: (() -> (number)) | (() -> (string)))\n            return f()\n        end\n\n        local g = foo(nil :: any)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_needs_to_retry",
+    "check": 0,
+    "source": "\n        type RGB = { r: number, b: number, g: number }\n        local BrickColor: ((number) -> RGB) & ((number, number, number) -> RGB) & ((string) -> RGB)\n        function Lightning(li, Color)\n            li.BrickColor = BrickColor(Color)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "overload_selection_unambiguous_with_constraint",
+    "check": 0,
+    "source": "\n        local f: ((string, number) -> string) & ((number, boolean) -> number)\n        local function g(x)\n            -- When selecting an overload at this point, we'll reject the\n            -- second overload, and claim that this is the only possible\n            -- overload with a constraint of `x <: string`.\n            f(x, 42)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2118",
+    "check": 0,
+    "source": "\n        local foo: <P>(constructor: (P) -> any) -> (P) -> any = (nil :: any)\n        local fn = foo(function (value: { test: true })\n            return value.test\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2125",
+    "check": 0,
+    "source": "\n        export type function CombineTableAndSetIndexer(a: type, b: type, c: type)\n            local t = {}\n\n            for key, value in a:properties() do\n                t[key] = value.read\n            end\n\n            if b.tag == \"table\" then\n                for key, value in b:properties() do\n                    t[key] = value.read\n                end\n            end\n\n            return types.newtable(t :: any, { index = types.number, readresult = c, writeresult = c })\n        end\n\n        type SpecialProperties = {\n            test: string?,\n        }\n\n        local function component<Properties>(\n            constructor: (props: Properties) -> ()\n        ): (\n            CombineTableAndSetIndexer<SpecialProperties, Properties, any>\n        ) -> ()\n            return function(props: Properties) end\n        end\n\n        local mrrp = component(function(thing: {\n            meow: number,\n        }) end)\n\n        mrrp({\n            meow = 5,\n        })\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 29,
+        "column": 30,
+        "endLine": 29,
+        "endColumn": 31,
+        "message": "Sparkdown could not finish reading the Luau before \"(function(thing: {\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_argument_error_suppression",
+    "check": 0,
+    "source": "\n        local functions: {[any]: (any) -> ()} = {}\n        functions.func1 = function(value: string) end\n        functions.func2 = function(value: boolean) end\n        functions.func3 = function(value: number) end\n        functions.func4 = function(value: any) end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_lambda_inference_applies_nilable_functions",
+    "check": 0,
+    "source": "\n        local listdir: (string, ((string) -> boolean)?) -> { string } = nil :: any\n        listdir(\"my_directory\", function (path)\n            print(path)\n            return true\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_statement_with_incorrect_function_type",
+    "check": 0,
+    "source": "\n        local Library: { isnan: (number) -> number } = {} :: any\n\n        function Library.isnan(s: string): boolean\n            return s == \"NaN\"\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_inference_allow_internal_generics",
+    "check": 0,
+    "source": "\n        type testsuite = { case: (self: testsuite, <T>(T) -> T) -> () }\n\n        local test1: { suite: (string, (testsuite) -> ()) -> () } = nil :: any\n\n        test1.suite(\"LuteTestCommand\", function(suite)\n            suite:case(42)\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2143",
+    "check": 0,
+    "source": "\n        local function call<A..., R...>(c: (A...) -> R..., ...: A...): R...\n            return c(...)\n        end\n\n        local function fn(a: number): { number }\n            return nil :: any\n        end\n\n        local function fn2<T>(b: { T }, x: (T) -> ())\n            return b\n        end\n\n        local values = call(fn, 2)\n\n        fn2(values, function(x: number)\n        end)\n\n        local a = values[1]\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "apply_example_from_oss",
+    "check": 0,
+    "source": "\n        type something = { Something: number }\n        type example = { Example: number }\n        local function test(a: something): example\n            return nil :: any\n        end\n        local function apply<T..., U...>(func: (T...) -> U..., ...: T...): (boolean, U...)\n            return nil :: any\n        end\n        local b, result = apply(test, {\n            Something = 1\n        })\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2109",
+    "check": 0,
+    "source": "\n        local function Retry<T..., K...>(\n            MaxRetries: number,\n            RetryInterval: number,\n            Function: (T...) -> (K...),\n            ...: T...\n        ): K...\n            local Results\n            local CurrentRetry = 0\n\n            repeat\n                Results = {pcall(Function, ...)}\n\n                if not Results[1] then\n                    CurrentRetry += 1\n                end\n            until Results[1] or CurrentRetry == MaxRetries\n\n            return unpack(Results :: any, 2)\n        end\n\n        local function Test(a: number, b: number): number\n            return a + b\n        end\n\n        local a = Retry(5, 1, Test, 5, 10)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "pcall_example",
+    "check": 0,
+    "source": "\n        local function makestr(n: number): string\n            return tostring(n)\n        end\n\n        -- `s` now has type `string` and not `unknown`\n        local success, s = pcall(makestr, 42)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_function_statement_inference_with_extern",
+    "check": 0,
+    "source": "\n        type HasClass = { f: (ClassWithGenericMethod) -> () }\n        local t = {} :: HasClass\n        function t.f(cls)\n            local _ = cls\n            local foobar = cls.identity(42)\n            local _ = foobar\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "table_containing_factorial_standalone",
+    "check": 0,
+    "source": "\n        local coolmath = {}\n        function coolmath.factorial(n: number)\n            if n <= 1 then\n                return 1\n            end\n            return coolmath.factorial(n - 1) * n\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "table_containing_factorial_assign_later",
+    "check": 0,
+    "source": "\n        local coolmath = {}\n        function coolmath.factorial(n: number)\n            if n <= 1 then\n                return 1\n            end\n            return coolmath.factorial(n - 1) * n\n        end\n\n        coolmath.factorial = function (s: string) end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "table_containing_factorial_assign_with_correct_typing",
+    "check": 0,
+    "source": "\n        local coolmath = {}\n        function coolmath.factorial(n: number)\n            if n <= 1 then\n                return 1\n            end\n            return coolmath.factorial(n - 1) * n\n        end\n\n        coolmath.factorial = function (n: number) return n end\n        coolmath.factorial = \"not a function\"\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "recursive_static_method_must_refer_to_the_ungeneralized_type",
+    "check": 0,
+    "source": "\n        local lexer = {}\n        local subContent: string = \"\"\n        function lexer.scan(s: string)\n            for innerToken, innerContent in lexer.scan(subContent) do\n                table.insert(innerToken, innerContent)\n            end\n            return {}, nil, nil\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2216_recursive_global_function_works_as_expected",
+    "check": 0,
+    "source": "\n        type tb_any = {[any]:any}\n        function flatten(... : tb_any) : tb_any\n            local out = {}\n            local par = {...}\n            for i = 1,#par do\n                if par[i] and typeof(par[i]) == \"table\" then\n                    for n,v in par[i] do\n                        if typeof(n) == \"number\" then\n                            for m,u in flatten(v) do\n                                out[m] = u -- type error\n                            end\n                        else\n                            out[n] = v\n                        end\n                    end\n                end\n            end\n            return out\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "cli_187542_recursive_call_in_loop",
+    "check": 0,
+    "source": "\n        function a(b)\n            if true then return b end\n            while false do\n                b = a(b)\n            end\n\n            if true then return b end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "global_function_redefinition",
+    "check": 0,
+    "source": "\n        function fact(n: number)\n            return if n < 1 then 1 else n * fact(n - 1)\n        end\n\n        fact = \"huh\"\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2061_modify_visited_generic_ice",
+    "check": 0,
+    "source": "\ntype actions<T=unknown, A...=...unknown> = { [string]: (state: T, A...) -> (T) }\ntype disconnect = () -> ()\n\ntype producer<state, actions = actions> = {\n\tget:\n\t\t& (() -> state)\n\t\t& (<T>(selector: (state) -> T) -> T),\n} & actions\n\ntype interface = {\n\tcreate: <state>(default: state) -> <actions>(actions: actions) -> producer<state, actions>,\n}\n\nlocal a: interface\na.create()\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 29,
+        "endLine": 1,
+        "endColumn": 30,
+        "message": "Sparkdown could not finish reading the Luau before \"...unknown> = { [string]: (state: T, A...) -> (T) }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 11,
+        "column": 36,
+        "endLine": 11,
+        "endColumn": 37,
+        "message": "Sparkdown could not finish reading the Luau before \"<actions>(actions: actions) -> producer<state, actions>,\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 11,
+        "column": 64,
+        "endLine": 11,
+        "endColumn": 66,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 11,
+        "column": 67,
+        "endLine": 11,
+        "endColumn": 75,
+        "message": "Sparkdown read \"producer\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 12,
+        "column": 0,
+        "endLine": 16,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"}\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 12,
+        "column": 0,
+        "endLine": 12,
+        "endColumn": 1,
+        "message": "Sparkdown could not finish reading the Luau before \"}\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "unify_type_pack_stack_overflow",
+    "check": 0,
+    "source": "\n        local function a(): ...string\n            return \"hello\", \"world\"\n        end\n\n        local function g<T...>()\n            local function f(... : T...)\n            end\n            f(\"what\", \"is\", \"going\", a())\n        end\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 28,
+        "endLine": 1,
+        "endColumn": 29,
+        "message": "Sparkdown could not finish reading the Luau before \"...string\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "global_function_blocked",
+    "check": 0,
+    "source": "\n        --!strict\n        local addInstanceToState: any = nil\n        local inst: any = nil\n\n        function ingestAllInstances(...): ()\n            local id: number = addInstanceToState()\n            local child: any = nil\n            ingestAllInstances(child)\n        end\n\n        function handleDmQuery()\n            ingestAllInstances()\n        end\n\n        return {}\n\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "generic_polarity_of_annotated_code",
+    "check": 0,
+    "source": "\n        local f: <T>(T) -> T = nil :: any\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "lute_tasklib_createtask",
+    "check": 0,
+    "source": "\n        local function createtask(f, ...)\n            local data = {}\n\n            data.co = coroutine.create(function(...)\n                local success, result = pcall(f, ...)\n\n                data.success = success\n                data.result = result\n            end)\n\n            coroutine.resume(data.co, ...)\n            return data\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "global_emplacing_steals_type_from_elsewhere",
+    "check": 0,
+    "source": "\n        local function f()\n            return 42\n        end\n        local a = f()\n        b = a\n        local c = b\n        function b()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "are_we_in_the_new_solver",
+    "check": 0,
+    "source": "\n        -- This file should fail the old solver\n        function add(a, b)\n            return a + b\n        end\n        local vec2 = {}\n        function vec2.new(x, y)\n            return setmetatable({ x = x or 0, y = y or 0 }, {\n                __add = function(v1, v2)\n                    return { x = v1.x + v2.x, y = v1.y + v2.y }\n                end,\n            })\n        end\n        local a = add(1, 1)\n        local b = add(vec2.new(0, 0), vec2.new(1, 1))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "dont_leak_generics_keyof",
+    "check": 0,
+    "source": "\n        local function makeOtherThing(template)\n            return {\n                Stuff = template\n            }\n        end\n\n        local function makeThing(tbl)\n            local returnThis = { Input = makeOtherThing(tbl) }\n\n            function returnThis.Test(key: keyof<typeof(returnThis.Input.Stuff)>) end\n\n            return returnThis\n        end\n\n        local thing = makeThing({a=1})\n        thing.Test(\"a\")\n\n        local otherthing = makeThing({b = 42, c = 13})\n        otherthing.Test(\"b\")\n        otherthing.Test(\"c\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_functions_complete_ex",
+    "check": 0,
+    "source": "\n        --!strict\n        type Player = {}\n\n        export type RemoteEventWrapper<T...> = {\n            connect:( self: RemoteEventWrapper<T...>, callback: ((T...) -> ()) | ((player: Player, T...) -> ()) ) -> () -> (),\n        }\n\n        local function useRemoteEvent<T...>(remoteEventName: string, isUnreliable: boolean?): RemoteEventWrapper<T...>\n            return nil :: any\n        end\n\n        type Payload = {\n            name: string,\n            time: number,\n            data: { [string]: any },\n        }\n\n        local payload = useRemoteEvent<<(Payload)>>(\"initial-payload\")\n\n        -- We expect bidirectional inference to kick in here and ensure that\n        -- player and payload have non-unknown types.\n        payload:connect(function(player, payload)\n            local _ = player\n            local _ = payload\n        end)\n\n        return useRemoteEvent\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_union_of_functions_1",
+    "check": 0,
+    "source": "\n        local function f(_: ((string) -> ()) | ((number, number) -> ()))\n        end\n\n        f(function (one, two)\n            local _ = one\n            local _ = two\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_union_of_functions_2",
+    "check": 0,
+    "source": "\n        local function f(_: ((string) -> ()) | ((number, number) -> ()))\n        end\n\n        f(function (one)\n            local _ = one\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_union_of_functions_3",
+    "check": 0,
+    "source": "\n        local function f(_: ((string) -> ()) | ((number) -> ()))\n        end\n\n        f(function (one)\n            local _ = one\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_union_of_functions_4",
+    "check": 0,
+    "source": "\n        local function f(_: ((string) -> ())?)\n        end\n\n        f(function (one)\n            local _ = one\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_variadic_inner_lambda",
+    "check": 0,
+    "source": "\n        local f: ({ (number, ...string) -> () }) -> () = nil :: any\n        f(\n            {\n                function (alpha, beta, gamma)\n                    print(alpha, beta, gamma)\n                end\n            }\n        )\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 29,
+        "endLine": 1,
+        "endColumn": 30,
+        "message": "Sparkdown could not finish reading the Luau before \"...string) -> () }) -> () = nil :: any\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 38,
+        "endLine": 9,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \") -> () }) -> () = nil :: any\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 38,
+        "endLine": 1,
+        "endColumn": 39,
+        "message": "Sparkdown could not finish reading the Luau before \") -> () }) -> () = nil :: any\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_variadic_top_level",
+    "check": 0,
+    "source": "\n        local Context = {}\n        Context.__index = Context\n        type ContextData = {}\n        type Context = setmetatable<ContextData, typeof(Context)>\n        function Context.text(self: Context, text: string): string\n            return text\n        end\n        type Handler = (Context) -> string\n        local function post(path: string, first: Handler, ...: Handler)\n        end\n        post(\n            \"/validate\",\n            function(c)\n                return c:text(\"ok\")\n            end,\n            function(c)\n                return c:text(`not ok`)\n            end\n        )\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_inference_variadic_type_pack_read_only_prop",
+    "check": 0,
+    "source": "\n        local foo: { read bar: (...string) -> () } = {\n            bar = function (foobar)\n                print(foobar)\n            end\n        }\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 32,
+        "endLine": 1,
+        "endColumn": 33,
+        "message": "Sparkdown could not finish reading the Luau before \"...string) -> () } = {\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 41,
+        "endLine": 6,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \") -> () } = {\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 41,
+        "endLine": 1,
+        "endColumn": 42,
+        "message": "Sparkdown could not finish reading the Luau before \") -> () } = {\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidi_inference_union_of_functions_distinguished_by_return_type",
+    "check": 0,
+    "source": "\n        local function useEffect(callback: (() -> ()) | (() -> () -> ()), deps: {any}?): ()\n        end\n\n        useEffect(function()\n            return function()\n            end\n        end)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "pass_generic_function_to_pcall",
+    "check": 0,
+    "source": "\n        local function identity<T>(t: T)\n            return t\n        end\n\n        local ok, result = pcall(identity, 42)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "call_with_any_arg_and_optional_return_arg",
+    "check": 0,
+    "source": "\n        --!strict\n        local hrp : any = true\n        local boo : () -> number? = (nil ::any)\n        local bad : (x : number, y : number) -> () = (nil :: any)\n        bad(hrp, boo())\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "methods_of_exported_tables_require_annotations",
+    "check": 0,
+    "source": "\n        function abs(a: number): number\n            return if a < 0 then -a else a\n        end\n\n        export local T = {}\n\n        function T.foo(argumentOne)\n            return function(y) -- No warning here\n                return abs(argumentOne), abs(y)\n            end\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 5,
+            "column": 8
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 12,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export local T = {}\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 5,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export local T = {}\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "indicate_an_inferred_generic",
+    "check": 0,
+    "source": "\n        export function id(x)\n            return x\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 1,
+            "column": 8
+          },
+          "end": {
+            "line": 1,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 8,
+        "endLine": 4,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export function id(x)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 8,
+        "endLine": 1,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export function id(x)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "inner_functions_dont_require_annotations",
+    "check": 0,
+    "source": "\n        function abs(a: number): number\n            return if a < 0 then -a else a\n        end\n\n        export function foo(argumentOne): (number) -> (number, number)\n            return function(y) -- No warning here\n                return abs(argumentOne), abs(y)\n            end\n        end\n\n        function inner() -- no warning here\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 5,
+            "column": 8
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 13,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export function foo(argumentOne): (number) -> (number, numbe...\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 5,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export function foo(argumentOne): (number) -> (number, numbe...\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "function_return_types_might_require_annotations",
+    "check": 0,
+    "source": "\n        function abs(a: number)\n            return if a < 0 then -a else a\n        end\n\n        export function foo(argumentOne)\n            return function(y) -- No warning here\n                return abs(argumentOne), abs(y)\n            end\n        end\n\n        function take_five()\n            return 5\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 5,
+            "column": 8
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 14,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export function foo(argumentOne)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 5,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export function foo(argumentOne)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "non_exported_functions_might_also_require_annotations",
+    "check": 0,
+    "source": "\n        function abs(a: number): number\n            return if a < 0 then -a else a\n        end\n\n        export function foo(argumentOne): (number) -> (number, number)\n            return function(y)\n                return abs(argumentOne), abs(y)\n            end\n        end\n\n        function inner(_x)\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 5,
+            "column": 8
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 13,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export function foo(argumentOne): (number) -> (number, numbe...\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 5,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export function foo(argumentOne): (number) -> (number, numbe...\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "vararg_needs_annotation",
+    "check": 0,
+    "source": "\n        export function sum(a, ...): number\n            if a == nil then\n                return 0\n            else\n                return a + sum(...)\n            end\n        end\n\n        export function sum2(a: number?, ...: number): number\n            if a == nil then\n                return 0\n            else\n                return a + sum(...)\n            end\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 1,
+            "column": 8
+          },
+          "end": {
+            "line": 1,
+            "column": 14
+          }
+        }
+      },
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 9,
+            "column": 8
+          },
+          "end": {
+            "line": 9,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 8,
+        "endLine": 16,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export function sum(a, ...): number\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 8,
+        "endLine": 1,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export function sum(a, ...): number\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "vararg_specified_but_inferred_empty",
+    "check": 0,
+    "source": "\n        local abs: (number) -> number = function(a: number)\n            return if a < 0 then -a else a\n        end\n\n        export function abs2(a: number, ...)\n            return abs(a, ...)\n        end\n    ",
+    "official": [
+      {
+        "message": "Incomplete statement: expected assignment or a function call",
+        "location": {
+          "begin": {
+            "line": 5,
+            "column": 8
+          },
+          "end": {
+            "line": 5,
+            "column": 14
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 8,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"export function abs2(a: number, ...)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 8,
+        "endLine": 5,
+        "endColumn": 9,
+        "message": "Sparkdown could not finish reading the Luau before \"export function abs2(a: number, ...)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "semantic_subtyping_not_working",
+    "check": 0,
+    "source": "\n        --!strict\n        local function s(x: string | boolean | nil) end\n        local function f(a) return a end\n        local function g(a) s(f(a)) end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2623_double_negate_string",
+    "check": 0,
+    "source": "\n        type function negate(ty)\n            return types.negationof(ty)\n        end\n\n        type Foo = { tag: negate<negate<\"str\">> }\n\n        local node: Foo = { tag = \"str\" }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2670_generic_leaking_indexer_1",
+    "check": 0,
+    "source": "\n        local function setDefault<K, V>(t: { [K]: V? }): V\n            return nil :: any\n        end\n\n        local t = {hello = \"world\"}\n        setDefault(t, \"green\", \"42\")\n\n        local x = t[\"h\"]\n\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "oss_2670_generic_leaking_indexer_2",
+    "check": 0,
+    "source": "\n        local set: <K, V>({ [K | number]: V | string }) -> V\n\n        local t = {hello = \"world\"}\n        set(t)\n\n        local k, v = next(t)\n\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "bidirectional_inference_callback_in_array",
+    "check": 0,
+    "source": "\n        type Callback = (string) -> ()\n\n        local t: { Callback } = {\n            function (s)\n                s.uper(\"hello\")\n            end\n        }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_direct",
+    "check": 0,
+    "source": "\n        local Func = function(x, y)\n            return x * y\n        end\n        local result1 = Func(42, 13)\n        local result2 = Func(42, vector.create(1, 2, 3))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_direct_one_level",
+    "check": 0,
+    "source": "\n        local tbl = {\n            Func = function(x, y)\n                return x * y\n            end\n        }\n        local result1 = tbl.Func(42, 13)\n        local result2 = tbl.Func(42, vector.create(1, 2, 3))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_return_not_generalized",
+    "check": 0,
+    "source": "\n        local f = function()\n            return function(x) return x end\n        end\n        local g = f()\n        local r1 = g(42)\n        local r2 = g(\"hello\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_forin_iterator",
+    "check": 0,
+    "source": "\n        local makeIter = function(arr)\n            local i = 0\n            return function()\n                i = i + 1\n                return arr[i]\n            end\n        end\n        local nums = makeIter({1, 2, 3})\n        local strs = makeIter({\"a\", \"b\", \"c\"})\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_assign_statement",
+    "check": 0,
+    "source": "\n        local Func\n        Func = function(x, y)\n            return x * y\n        end\n        local result1 = Func(42, 13)\n        local result2 = Func(42, vector.create(1, 2, 3))\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_multiple_values",
+    "check": 0,
+    "source": "\n        local a, b = function(x) return x end, function(y) return y end\n        local r1 = a(42)\n        local r2 = a(\"hello\")\n        local r3 = b(3.14)\n        local r4 = b(\"world\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "let_generalization_second_layer",
+    "check": 0,
+    "source": "\n        --!strict\n        local function id(x)\n          return x\n        end\n\n        local f = id(function (x)\n          return x\n        end)\n\n        local g = f(42)\n        local h = f(\"hmmm\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "setmetatable_lambda_generalizes_across_calls",
+    "check": 0,
+    "source": "\n        local a = setmetatable({}, {\n            __call = function(self, x) return x end,\n        })\n        local r1 = a(42)\n        local r2 = a(\"hello\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "weakoptional_reduces_over_generic",
+    "check": 0,
+    "source": "\n        local function id(x)\n            return x\n        end\n\n        local function f(g)\n            local x = id(g())\n            local r = if x then x else nil\n            return r\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "generalize_type_in_if_body_scope",
+    "check": 0,
+    "source": "\n        local function f(cond)\n            if cond then\n                local g = function(x) return x end\n                local r1 = g(42)\n                local r2 = g(\"hello\")\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.functions.test.cpp",
+    "name": "extend_typepack_bound_indirection_preserves_references",
+    "check": 0,
+    "source": "\n        local function f(g)\n            local a, b = g()\n            local c, d = g()\n            local n: number? = g()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "infer_multi_return",
+    "check": 0,
+    "source": "\n        function take_two()\n            return 2, 2\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "empty_varargs_should_return_nil_when_not_in_tail_position",
+    "check": 0,
+    "source": "\n        local a, b = ..., 1\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "self_and_varargs_should_work",
+    "check": 0,
+    "source": "\n        local t = {}\n        function t:f(...) end\n        t:f(1)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "last_element_of_return_statement_can_itself_be_a_pack",
+    "check": 0,
+    "source": "\n        function take_two()\n            return 2, 2\n        end\n\n        function take_three()\n            return 1, take_two()\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "higher_order_function",
+    "check": 0,
+    "source": "\n        function apply(f, g, x)\n            return f(g(x))\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "return_type_should_be_empty_if_nothing_is_returned",
+    "check": 0,
+    "source": "\n        function f() end\n        function g() return end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "no_return_size_should_be_zero",
+    "check": 0,
+    "source": "\n        function f(a:any) return a end\n        function g() return end\n        function h() end\n\n        g(h())\n        f(g(),h())\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "varargs_inference_through_multiple_scopes",
+    "check": 0,
+    "source": "\n        local function f(...)\n            do\n                local a: string = ...\n                local b: number = ...\n            end\n        end\n\n        f(\"foo\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "multiple_varargs_inference_are_not_confused",
+    "check": 0,
+    "source": "\n        local function f(...)\n            local a: string = ...\n\n            return function(...)\n                local b: number = ...\n            end\n        end\n\n        f(\"foo\", \"bar\")(1, 2)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "parenthesized_varargs_returns_any",
+    "check": 0,
+    "source": "\n        --!strict\n        local value\n\n        local function f(...)\n            value = ...\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "variadic_packs",
+    "check": 0,
+    "source": "\n        --!strict\n\n        foo(1, 2, 3, \"foo\")\n        bar(1, \"foo\", \"bar\", 3)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "variadic_pack_syntax",
+    "check": 0,
+    "source": "\n        --!strict\n\n        local function foo(...: number)\n        end\n\n        foo(1, 2, 3, 4, 5, 6)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_pack_hidden_free_tail_infinite_growth",
+    "check": 0,
+    "source": "\n--!nonstrict\nif _ then\n    _[function(l0)end],l0 = _\nelseif _ then\n    return l0(nil)\nelseif 1 / l0(nil) then\nelseif _ then\n    return #_,l0()\nend\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "variadic_argument_tail",
+    "check": 0,
+    "source": "\nlocal _ = function():((...any)->(...any),()->())\n    return function() end, function() end\nend\nfor y in _() do\nend\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 23,
+        "endLine": 1,
+        "endColumn": 24,
+        "message": "Sparkdown could not finish reading the Luau before \"...any)->(...any),()->())\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 29,
+        "endLine": 6,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \")->(...any),()->())\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 29,
+        "endLine": 1,
+        "endColumn": 30,
+        "message": "Sparkdown could not finish reading the Luau before \")->(...any),()->())\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs",
+    "check": 0,
+    "source": "\ntype Packed<T...> = (T...) -> T...\nlocal a: Packed<>\nlocal b: Packed<number>\nlocal c: Packed<string, number>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs",
+    "check": 1,
+    "source": "\n-- (U..., T) cannot be parsed right now\ntype Packed<T, U...> = { f: (a: T, U...) -> (T, U...) }\nlocal a: Packed<number>\nlocal b: Packed<string, number>\nlocal c: Packed<string, number, boolean>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_import",
+    "check": 0,
+    "source": "\nexport type Packed<T, U...> = { a: T, b: (U...) -> () }\nreturn {}\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_import",
+    "check": 1,
+    "source": "\nlocal Import = require(game.A)\nlocal a: Import.Packed<number>\nlocal b: Import.Packed<string, number>\nlocal c: Import.Packed<string, number, boolean>\nlocal d: { a: typeof(c) }\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 15,
+        "endLine": 6,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"require(game.A)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 15,
+        "endLine": 1,
+        "endColumn": 16,
+        "message": "Sparkdown could not finish reading the Luau before \"require(game.A)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_pack_type_parameters",
+    "check": 0,
+    "source": "\nexport type Packed<T, U...> = { a: T, b: (U...) -> () }\nreturn {}\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_pack_type_parameters",
+    "check": 1,
+    "source": "\nlocal Import = require(game.A)\ntype Alias<S, T, R...> = Import.Packed<S, (T, R...)>\nlocal a: Alias<string, number, boolean>\n\ntype B<X...> = Import.Packed<string, X...>\ntype C<X...> = Import.Packed<string, (number, X...)>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 15,
+        "endLine": 7,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"require(game.A)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 15,
+        "endLine": 1,
+        "endColumn": 16,
+        "message": "Sparkdown could not finish reading the Luau before \"require(game.A)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_nested",
+    "check": 0,
+    "source": "\ntype Packed1<T...> = (T...) -> (T...)\ntype Packed2<T...> = (Packed1<T...>, T...) -> (Packed1<T...>, T...)\ntype Packed3<T...> = (Packed2<T...>, T...) -> (Packed2<T...>, T...)\ntype Packed4<T...> = (Packed3<T...>, T...) -> (Packed3<T...>, T...)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_pack_variadic",
+    "check": 0,
+    "source": "\ntype X<T...> = (T...) -> (string, T...)\n\ntype D = X<...number>\ntype E = X<(number, ...string)>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 3,
+        "column": 11,
+        "endLine": 3,
+        "endColumn": 12,
+        "message": "Sparkdown could not finish reading the Luau before \"...number>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 4,
+        "column": 20,
+        "endLine": 4,
+        "endColumn": 21,
+        "message": "Sparkdown could not finish reading the Luau before \"...string)>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 4,
+        "column": 29,
+        "endLine": 5,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \")>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 4,
+        "column": 29,
+        "endLine": 4,
+        "endColumn": 30,
+        "message": "Sparkdown could not finish reading the Luau before \")>\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_pack_multi",
+    "check": 0,
+    "source": "\ntype Y<T..., U...> = (T...) -> (U...)\ntype A<S...> = Y<S..., S...>\ntype B<S...> = Y<(number, ...string), S...>\n\ntype Z<T, U...> = (T) -> (U...)\ntype E<S...> = Z<number, S...>\ntype F<S...> = Z<number, (string, S...)>\n\ntype W<T, U..., V...> = (T, U...) -> (T, V...)\ntype H<S..., R...> = W<number, S..., R...>\ntype I<S..., R...> = W<number, (string, S...), R...>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 3,
+        "column": 26,
+        "endLine": 3,
+        "endColumn": 27,
+        "message": "Sparkdown could not finish reading the Luau before \"...string), S...>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 3,
+        "column": 35,
+        "endLine": 12,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"), S...>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 3,
+        "column": 35,
+        "endLine": 3,
+        "endColumn": 36,
+        "message": "Sparkdown could not finish reading the Luau before \"), S...>\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_pack_explicit",
+    "check": 0,
+    "source": "\ntype X<T...> = (T...) -> (T...)\n\ntype A<S...> = X<(S...)>\ntype B = X<()>\ntype C = X<(number)>\ntype D = X<(number, string)>\ntype E = X<(...number)>\ntype F = X<(string, ...number)>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 7,
+        "column": 12,
+        "endLine": 7,
+        "endColumn": 13,
+        "message": "Sparkdown could not finish reading the Luau before \"...number)>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 7,
+        "column": 21,
+        "endLine": 9,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \")>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 7,
+        "column": 21,
+        "endLine": 7,
+        "endColumn": 22,
+        "message": "Sparkdown could not finish reading the Luau before \")>\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_pack_explicit_multi",
+    "check": 0,
+    "source": "\ntype Y<T..., U...> = (T...) -> (U...)\n\ntype A = Y<(number, string), (boolean)>\ntype B = Y<(), ()>\ntype C<S...> = Y<...string, (number, S...)>\ntype D<X...> = Y<X..., (number, string, X...)>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 5,
+        "column": 17,
+        "endLine": 5,
+        "endColumn": 18,
+        "message": "Sparkdown could not finish reading the Luau before \"...string, (number, S...)>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 38,
+        "endLine": 5,
+        "endColumn": 39,
+        "message": "Sparkdown could not finish reading the Luau before \"...)>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 7,
+        "column": 4,
+        "endLine": 7,
+        "endColumn": 4,
+        "message": "Sparkdown could not finish reading the Luau before the end of the snippet",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_pack_explicit_multi_tostring",
+    "check": 0,
+    "source": "\ntype Y<T..., U...> = { f: (T...) -> (U...) }\n\nlocal a: Y<(number, string), (boolean)>\nlocal b: Y<(), ()>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_backwards_compatible",
+    "check": 0,
+    "source": "\n        type X<T> = () -> T\n        type Y<T, U> = (T) -> U\n\n        type A = X<(number)>\n        type B = Y<(number), (boolean)>\n        type C = Y<(number), boolean>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_errors",
+    "check": 0,
+    "source": "\ntype Packed<T, U, V...> = (T, U) -> (V...)\nlocal b: Packed<number>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_errors",
+    "check": 1,
+    "source": "\ntype Packed<T, U> = (T, U) -> ()\ntype B<X...> = Packed<number, string, X...>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_errors",
+    "check": 2,
+    "source": "\ntype Packed<T..., U...> = (T...) -> (U...)\ntype Other<S...> = Packed<S..., string>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_errors",
+    "check": 3,
+    "source": "\ntype Packed<T, U> = (T) -> U\ntype Other<S...> = Packed<number, S...>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_errors",
+    "check": 4,
+    "source": "\ntype Packed<T..., U...> = (T...) -> (U...)\ntype Other = Packed<>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_type_packs_errors",
+    "check": 5,
+    "source": "\ntype Packed<T..., U...> = (T...) -> (U...)\ntype Other = Packed<number, string>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_instantiated_but_missing_parameter_list",
+    "check": 0,
+    "source": "\ntype Packed<T...> = (T...) -> T...\nlocal a: Packed\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_explicit",
+    "check": 0,
+    "source": "\ntype Y<T, U = string> = { a: T, b: U }\n\nlocal a: Y<number, number> = { a = 2, b = 3 }\nlocal b: Y<number> = { a = 2, b = \"s\" }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_explicit",
+    "check": 1,
+    "source": "\ntype Y<T = string> = { a: T }\n\nlocal a: Y<number> = { a = 2 }\nlocal b: Y<> = { a = \"s\" }\nlocal c: Y = { a = \"s\" }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_self",
+    "check": 0,
+    "source": "\ntype Y<T, U = T> = { a: T, b: U }\n\nlocal a: Y<number> = { a = 2, b = 3 }\nlocal b: Y<string> = { a = \"h\", b = \"s\" }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_self",
+    "check": 1,
+    "source": "\ntype Y<T, U = (T, T) -> string> = { a: T, b: U }\n\nlocal a: Y<number>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_chained",
+    "check": 0,
+    "source": "\ntype Y<T, U = T, V = U> = { a: T, b: U, c: V }\n\nlocal a: Y<number>\nlocal b: Y<number, string>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_pack_explicit",
+    "check": 0,
+    "source": "\ntype Y<T... = (string, number)> = { a: (T...) -> () }\nlocal a: Y<>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_pack_self_ty",
+    "check": 0,
+    "source": "\ntype Y<T, U... = ...T> = { a: T, b: (U...) -> T }\n\nlocal a: Y<number>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 17,
+        "endLine": 1,
+        "endColumn": 18,
+        "message": "Sparkdown could not finish reading the Luau before \"...T> = { a: T, b: (U...) -> T }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 34,
+        "endLine": 1,
+        "endColumn": 35,
+        "message": "Sparkdown could not finish reading the Luau before \": (U...) -> T }\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_pack_self_tp",
+    "check": 0,
+    "source": "\ntype Y<T..., U... = T...> = { a: (T...) -> U... }\nlocal a: Y<number, string>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_pack_self_chained_tp",
+    "check": 0,
+    "source": "\ntype Y<T..., U... = T..., V... = U...> = { a: (T...) -> U..., b: (T...) -> V... }\nlocal a: Y<number, string>\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_mixed_self",
+    "check": 0,
+    "source": "\ntype Y<T, U = T, V... = ...number, W... = (T, U, V...)> = { a: (T, U, V...) -> W... }\nlocal a: Y<number>\nlocal b: Y<number, string>\nlocal c: Y<number, string, ...boolean>\nlocal d: Y<number, string, ...boolean, ...() -> ()>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 24,
+        "endLine": 1,
+        "endColumn": 25,
+        "message": "Sparkdown could not finish reading the Luau before \"...number, W... = (T, U, V...)> = { a: (T, U, V...) -> W... ...\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 36,
+        "endLine": 1,
+        "endColumn": 37,
+        "message": "Sparkdown could not finish reading the Luau before \"... = (T, U, V...)> = { a: (T, U, V...) -> W... }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 50,
+        "endLine": 1,
+        "endColumn": 51,
+        "message": "Sparkdown could not finish reading the Luau before \"...)> = { a: (T, U, V...) -> W... }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 61,
+        "endLine": 1,
+        "endColumn": 62,
+        "message": "Sparkdown could not finish reading the Luau before \": (T, U, V...) -> W... }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 4,
+        "column": 27,
+        "endLine": 4,
+        "endColumn": 28,
+        "message": "Sparkdown could not finish reading the Luau before \"...boolean>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 27,
+        "endLine": 5,
+        "endColumn": 28,
+        "message": "Sparkdown could not finish reading the Luau before \"...boolean, ...() -> ()>\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 49,
+        "endLine": 5,
+        "endColumn": 50,
+        "message": "Expected identifier when parsing expression, got ')'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 5,
+        "column": 50,
+        "endLine": 5,
+        "endColumn": 51,
+        "message": "Expected identifier when parsing expression, got '>'",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors",
+    "check": 0,
+    "source": "\n            type Y<T = T> = { a: T }\n            local a: Y = { a = 2 }\n        ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors",
+    "check": 1,
+    "source": "\n            type Y<T = T> = { a: T }\n            local a: Y = { a = 2 }\n        ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors2",
+    "check": 0,
+    "source": "\n            type Y<T... = T...> = { a: (T...) -> () }\n            local a: Y<>\n        ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors2",
+    "check": 1,
+    "source": "\n            type Y<T... = T...> = { a: (T...) -> () }\n            local a: Y<>\n        ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors3",
+    "check": 0,
+    "source": "\n        type Y<T = string, U... = ...string> = { a: (T) -> U... }\n        local a: Y<...number>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 34,
+        "endLine": 1,
+        "endColumn": 35,
+        "message": "Sparkdown could not finish reading the Luau before \"...string> = { a: (T) -> U... }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 50,
+        "endLine": 1,
+        "endColumn": 51,
+        "message": "Sparkdown could not finish reading the Luau before \": (T) -> U... }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 2,
+        "column": 19,
+        "endLine": 2,
+        "endColumn": 20,
+        "message": "Sparkdown could not finish reading the Luau before \"...number>\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors4",
+    "check": 0,
+    "source": "\n        type Packed<T> = (T) -> T\n        local a: Packed\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors5",
+    "check": 0,
+    "source": "\n        type Y<T, U = T, V> = { a: T }\n        local a: Y<number>\n    ",
+    "official": [
+      {
+        "message": "Expected default type after type name",
+        "location": {
+          "begin": {
+            "line": 1,
+            "column": 26
+          },
+          "end": {
+            "line": 1,
+            "column": 27
+          }
+        }
+      }
+    ],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_errors6",
+    "check": 0,
+    "source": "\n        type Y<T..., U... = T..., V...> = { a: T }\n        local a: Y<...number>\n    ",
+    "official": [
+      {
+        "message": "Expected default type pack after type pack name",
+        "location": {
+          "begin": {
+            "line": 1,
+            "column": 38
+          },
+          "end": {
+            "line": 1,
+            "column": 39
+          }
+        }
+      }
+    ],
+    "sparkdown": [
+      {
+        "line": 2,
+        "column": 19,
+        "endLine": 2,
+        "endColumn": 20,
+        "message": "Sparkdown could not finish reading the Luau before \"...number>\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_export",
+    "check": 0,
+    "source": "\nexport type A<T, U = string> = { a: T, b: U }\nexport type B<T, U = T> = { a: T, b: U }\nexport type C<T, U = (T, T) -> string> = { a: T, b: U }\nexport type D<T, U = T, V = U> = { a: T, b: U, c: V }\nexport type E<T... = (string, number)> = { a: (T...) -> () }\nexport type F<T, U... = ...T> = { a: T, b: (U...) -> T }\nexport type G<T..., U... = ()> = { b: (U...) -> T... }\nexport type H<T... = ()> = { b: (T...) -> T... }\nreturn {}\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 6,
+        "column": 24,
+        "endLine": 6,
+        "endColumn": 25,
+        "message": "Sparkdown could not finish reading the Luau before \"...T> = { a: T, b: (U...) -> T }\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 6,
+        "column": 41,
+        "endLine": 6,
+        "endColumn": 42,
+        "message": "Sparkdown could not finish reading the Luau before \": (U...) -> T }\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_export",
+    "check": 1,
+    "source": "\nlocal Types = require(script.Parent.Types)\n\nlocal a: Types.A<number>\nlocal b: Types.B<number>\nlocal c: Types.C<number>\nlocal d: Types.D<number>\nlocal e: Types.E<>\nlocal eVoid: Types.E<()>\nlocal f: Types.F<number>\nlocal g: Types.G<...number>\nlocal h: Types.H<>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 14,
+        "endLine": 12,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"require(script.Parent.Types)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 14,
+        "endLine": 1,
+        "endColumn": 15,
+        "message": "Sparkdown could not finish reading the Luau before \"require(script.Parent.Types)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_default_type_skip_brackets",
+    "check": 0,
+    "source": "\ntype Y<T... = ...string> = (T...) -> number\nlocal a: Y\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 14,
+        "endLine": 1,
+        "endColumn": 15,
+        "message": "Sparkdown could not finish reading the Luau before \"...string> = (T...) -> number\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 29,
+        "endLine": 1,
+        "endColumn": 30,
+        "message": "Sparkdown could not finish reading the Luau before \"...) -> number\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 34,
+        "endLine": 1,
+        "endColumn": 36,
+        "message": "Sparkdown read \"->\" as DivertMark, not Luau",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 37,
+        "endLine": 1,
+        "endColumn": 43,
+        "message": "Sparkdown read \"number\" as DivertPath, not Luau",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_defaults_confusing_types",
+    "check": 0,
+    "source": "\ntype A<T, U = T, V... = ...any, W... = V...> = (T, V...) -> (U, W...)\ntype B = A<string, (number)>\ntype C = A<string, (number), (boolean)>\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 24,
+        "endLine": 1,
+        "endColumn": 25,
+        "message": "Sparkdown could not finish reading the Luau before \"...any, W... = V...> = (T, V...) -> (U, W...)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 33,
+        "endLine": 1,
+        "endColumn": 34,
+        "message": "Sparkdown could not finish reading the Luau before \"... = V...> = (T, V...) -> (U, W...)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 40,
+        "endLine": 1,
+        "endColumn": 41,
+        "message": "Sparkdown could not finish reading the Luau before \"...> = (T, V...) -> (U, W...)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 52,
+        "endLine": 1,
+        "endColumn": 53,
+        "message": "Sparkdown could not finish reading the Luau before \"...) -> (U, W...)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 56,
+        "endLine": 1,
+        "endColumn": 58,
+        "message": "Expected type, got '-'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 65,
+        "endLine": 1,
+        "endColumn": 66,
+        "message": "Sparkdown could not finish reading the Luau before \"...)\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_alias_defaults_recursive_type",
+    "check": 0,
+    "source": "\ntype F<K = string, V = (K) -> ()> = (K) -> V\ntype R = { m: F<R> }\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "pack_tail_unification_check",
+    "check": 0,
+    "source": "\nlocal a: () -> (number, ...string)\nlocal b: () -> (number, ...boolean)\na = b\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 24,
+        "endLine": 1,
+        "endColumn": 25,
+        "message": "Sparkdown could not finish reading the Luau before \"...string)\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 33,
+        "endLine": 4,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \")\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 33,
+        "endLine": 1,
+        "endColumn": 34,
+        "message": "Sparkdown could not finish reading the Luau before \")\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "function_return_count_mismatch_reports_expected_return_pack",
+    "check": 0,
+    "source": "\nlocal x: () -> number\nlocal y: () -> (string, boolean) = x\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "function_return_count_mismatch_through_union_reports_expected_return_pack",
+    "check": 0,
+    "source": "\nlocal x: ((number) -> number) | ((number) -> string)\nlocal y: ((number) -> (boolean, boolean)) | ((number) -> (boolean, string)) = x\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "function_return_count_mismatch_through_intersection_reports_expected_return_pack",
+    "check": 0,
+    "source": "\nlocal x: ((number) -> number) & ((number) -> string)\nlocal y: ((number) -> (boolean, boolean)) & ((number) -> (boolean, string)) = x\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "nested_function_return_count_mismatch_preserves_the_function_context",
+    "check": 0,
+    "source": "\nlocal x: () -> (() -> number)\nlocal y: () -> (() -> (string, boolean)) = x\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "unifying_vararg_pack_with_fixed_length_pack_produces_fixed_length_pack",
+    "check": 0,
+    "source": "\n        function a(x) return 1 end\n        a(...)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "dont_ice_if_a_TypePack_is_an_error",
+    "check": 0,
+    "source": "\n        --!strict\n        function f(s)\n            print(s)\n            return f\n        end\n\n        f(\"foo\")(\"bar\")\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "cyclic_type_packs",
+    "check": 0,
+    "source": "\n--!nonstrict\n_ += _(_,...)\nrepeat\n_ += _(...)\nuntil ... + _\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "cyclic_type_packs",
+    "check": 1,
+    "source": "\n--!nonstrict\n_ += _(_(...,...),_(...))\nrepeat\nuntil _\n",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "detect_cyclic_typepacks",
+    "check": 0,
+    "source": "\n        type ( ... ) ( ) ;\n        ( ... ) ( - - ... ) ( - ... )\n        type = ( ... ) ;\n        ( ... ) (  ) ( ... ) ;\n        ( ... ) \"\"\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "detect_cyclic_typepacks2",
+    "check": 0,
+    "source": "\n        function _(l0:((typeof((pcall)))|((((t0)->())|(typeof(-67108864)))|(any)))|(any),...):(((typeof(0))|(any))|(any),typeof(-67108864),any)\n            xpcall(_,_,_)\n            _(_,_,_)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "unify_variadic_tails_in_arguments",
+    "check": 0,
+    "source": "\n        function foo(...: string): number\n            return 1\n        end\n\n        function bar(...: number): number\n            return foo(...)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "unify_variadic_tails_in_arguments_free",
+    "check": 0,
+    "source": "\n        function foo<T...>(...: T...): T...\n            return ...\n        end\n\n        function bar(...: number): boolean\n            return foo(...)\n        end\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_packs_with_tails_in_vararg_adjustment",
+    "check": 0,
+    "source": "\n        local function wrapReject<TArg, TResult>(fn: (self: any, ...TArg) -> ...TResult): (self: any, ...TArg) -> ...TResult\n            return function(self, ...)\n                local arguments = { ... }\n                local ok, result = pcall(function()\n                    return fn(self, table.unpack(arguments))\n                end)\n                return result\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 65,
+        "endLine": 1,
+        "endColumn": 66,
+        "message": "Sparkdown could not finish reading the Luau before \"...TArg) -> ...TResult): (self: any, ...TArg) -> ...TResult\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 73,
+        "endLine": 1,
+        "endColumn": 75,
+        "message": "Expected type, got '-'",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 87,
+        "endLine": 10,
+        "endColumn": 4,
+        "message": "Sparkdown ended the snippet's function before \"): (self: any, ...TArg) -> ...TResult\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 87,
+        "endLine": 1,
+        "endColumn": 88,
+        "message": "Sparkdown could not finish reading the Luau before \"): (self: any, ...TArg) -> ...TResult\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "generalize_expectedTypes_with_proper_scope",
+    "check": 0,
+    "source": "\n        local function f<TResult>(fn: () -> ...TResult): () -> ...TResult\n            return function()\n            end\n        end\n    ",
+    "official": [],
+    "sparkdown": [
+      {
+        "line": 1,
+        "column": 44,
+        "endLine": 1,
+        "endColumn": 45,
+        "message": "Sparkdown could not finish reading the Luau before \"...TResult): () -> ...TResult\"",
+        "code": "SyntaxError"
+      },
+      {
+        "line": 1,
+        "column": 63,
+        "endLine": 1,
+        "endColumn": 64,
+        "message": "Sparkdown could not finish reading the Luau before \"...TResult\"",
+        "code": "SyntaxError"
+      }
+    ]
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "fuzz_typepack_iter_follow",
+    "check": 0,
+    "source": "\nlocal _\nlocal _ = _,_(),_(_)\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "fuzz_typepack_iter_follow_2",
+    "check": 0,
+    "source": "\nfunction test(name, searchTerm)\n    local found = string.find(name:lower(), searchTerm:lower())\nend\n    ",
+    "official": [],
+    "sparkdown": []
+  },
+  {
+    "file": "TypeInfer.typePacks.test.cpp",
+    "name": "type_param_overflow",
+    "check": 0,
+    "source": "\n        type Two<T,U> = { a: T, b: U }\n        local x: Two<number, string, number> = { a = 1, b = 'c' }\n    ",
+    "official": [],
+    "sparkdown": []
+  }
+]
