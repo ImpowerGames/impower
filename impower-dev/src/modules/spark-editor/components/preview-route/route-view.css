@@ -12,7 +12,7 @@
   --swp-route-warning-color: var(--warning);
   --swp-route-muted-color: var(--muted);
   --swp-route-field-background-color: var(--control-hover);
-  --swp-route-field-border-color: var(--edge);
+  --swp-route-field-border-color: var(--field-edge);
   --swp-route-popup-background-color: var(--panel);
   --swp-route-popup-border-color: var(--edge);
   --swp-saves-menu-max-height: var(

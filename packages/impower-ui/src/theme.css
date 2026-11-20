@@ -53,6 +53,7 @@
   --warning: oklch(82.8% 0.189 84.429);
   --success: oklch(79.2% 0.209 151.711);
   --edge: rgb(255 255 255 / 0.12);
+  --field-edge: rgb(255 255 255 / 0.4);
   --selection: #264f78;
   --syntax-active: #0d263d;
   --scrollbar: rgb(255 255 255 / 0.15);
@@ -80,6 +81,7 @@
   --warning: oklch(82.8% 0.189 84.429);
   --success: oklch(79.2% 0.209 151.711);
   --edge: rgb(255 255 255 / 0.12);
+  --field-edge: rgb(255 255 255 / 0.4);
   --selection: #264f78;
   --syntax-active: #0d263d;
   --scrollbar: rgb(255 255 255 / 0.15);
@@ -117,8 +119,8 @@
   --editor-line-number-active: #99d9ff;
   --editor-indent-guide: #1a293a;
   --editor-indent-guide-active: #4d5866;
-  --editor-field-edge: hsl(210.6 30% 20%);
-  --editor-field-edge-hover: hsl(210.6 30% 30%);
+  --editor-field-edge: var(--field-edge);
+  --editor-field-edge-hover: var(--muted);
   --editor-focus: #0da2e7;
   --editor-selection-match: #62331599;
   --editor-panel-edge: hsl(210.6 70% 15%);
@@ -136,7 +138,7 @@
   --editor-lens-ink: #999999;
   --editor-link: #4e94ce;
   --editor-link-active: #4daafc;
-  --editor-rename-edge: #3c3c3c;
+  --editor-rename-edge: var(--field-edge);
   --editor-rename-submit: #0078d4;
   --editor-sticky-shadow: rgb(0 0 0 / 0.7);
   --editor-breakpoint: #3abff8;
@@ -216,6 +218,7 @@
   --warning: #edcc8b;
   --success: #b4ceb1;
   --edge: #494b50;
+  --field-edge: #747579;
   --selection: #4a3d35;
   --syntax-active: #242427;
   --scrollbar: #73757c;
@@ -279,6 +282,7 @@
   --warning: #9a5a00;
   --success: #33702f;
   --edge: #d3d3d7;
+  --field-edge: #84858b;
   --selection: #dcdde2;
   --syntax-active: #f0f0f2;
   --scrollbar: #c0c0c5;
@@ -342,6 +346,7 @@
   --warning: #edcc8b;
   --success: #b4ceb1;
   --edge: #51483f;
+  --field-edge: #7a6f64;
   --selection: #634a3e;
   --syntax-active: #2b2622;
   --scrollbar: #8b7969;
@@ -405,6 +410,7 @@
   --warning: #9a5a00;
   --success: #33702f;
   --edge: #d6cdbb;
+  --field-edge: #888379;
   --selection: #efd6c2;
   --syntax-active: #f0ebdd;
   --scrollbar: #c4bba9;
@@ -468,6 +474,7 @@
   --warning: #edcc8b;
   --success: #b4ceb1;
   --edge: #494b50;
+  --field-edge: #747579;
   --selection: #51413b;
   --syntax-active: #242427;
   --scrollbar: #73757c;
@@ -494,6 +501,7 @@
   --warning: #edcc8b;
   --success: #b4ceb1;
   --edge: #51483f;
+  --field-edge: #7a6f64;
   --selection: #634a3e;
   --syntax-active: #2b2622;
   --scrollbar: #8b7969;
@@ -575,7 +583,7 @@
   --editor-line-number-active: var(--ink);
   --editor-indent-guide: color-mix(in srgb, var(--muted) 22%, transparent);
   --editor-indent-guide-active: color-mix(in srgb, var(--accent) 55%, transparent);
-  --editor-field-edge: var(--edge);
+  --editor-field-edge: var(--field-edge);
   --editor-field-edge-hover: var(--muted);
   --editor-focus: var(--accent);
   --editor-selection-match: color-mix(in srgb, var(--accent) 25%, transparent);
@@ -594,7 +602,7 @@
   --editor-lens-ink: var(--muted);
   --editor-link: var(--accent);
   --editor-link-active: var(--accent);
-  --editor-rename-edge: var(--edge);
+  --editor-rename-edge: var(--field-edge);
   --editor-rename-submit: var(--tint);
   --editor-sticky-shadow: rgb(0 0 0 / 0.33);
   --editor-breakpoint: var(--accent);
