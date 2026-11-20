@@ -344,42 +344,46 @@ export function RouteList({
                   const choice = decision.options != null;
                   const open = choice && isExpanded(decision);
                   return (
-                    <li
-                      key={key}
-                      data-route-entry
-                      data-kind={decision.kind}
-                    >
-                      <ListRow
-                        size="compact"
-                        leading={lineLink(decision.location)}
-                        icon={
-                          <span
-                            class={`flex flex-none forced-colors:text-[CanvasText] ${ROUTE_KIND_COLOURS[decision.kind]}`}
-                          >
-                            <RouteIconSvg icon={decision.kind} />
-                          </span>
-                        }
-                        label={
-                          <span data-route-text class={choice ? "pl-1" : undefined}>
-                            {decisionText(decision)}
-                          </span>
-                        }
-                        trailing={
-                          <span data-route-badge class="ml-auto flex-none pl-2 text-muted">
-                            {ROUTE_KIND_LABELS[decision.kind]}
-                          </span>
-                        }
-                        {...(choice
-                          ? {
-                              "aria-expanded": open,
-                              title: open
-                                ? "Hide the pin control"
-                                : "Pin the option taken here",
-                              onClick: () =>
-                                setExpanded({ ...expanded, [key]: !open }),
-                            }
-                          : {})}
-                      />
+                    <li key={key} data-route-entry data-kind={decision.kind}>
+                      <div data-impower-ui>
+                        <ListRow
+                          size="compact"
+                          leading={lineLink(decision.location)}
+                          icon={
+                            <span
+                              class={`flex flex-none forced-colors:text-[CanvasText] ${ROUTE_KIND_COLOURS[decision.kind]}`}
+                            >
+                              <RouteIconSvg icon={decision.kind} />
+                            </span>
+                          }
+                          label={
+                            <span
+                              data-route-text
+                              class={choice ? "pl-1" : undefined}
+                            >
+                              {decisionText(decision)}
+                            </span>
+                          }
+                          trailing={
+                            <span
+                              data-route-badge
+                              class="ml-auto flex-none pl-2 text-muted"
+                            >
+                              {ROUTE_KIND_LABELS[decision.kind]}
+                            </span>
+                          }
+                          {...(choice
+                            ? {
+                                "aria-expanded": open,
+                                title: open
+                                  ? "Hide the pin control"
+                                  : "Pin the option taken here",
+                                onClick: () =>
+                                  setExpanded({ ...expanded, [key]: !open }),
+                              }
+                            : {})}
+                        />
+                      </div>
                       {open ? (
                         <PinControl
                           decision={decision}
@@ -392,28 +396,35 @@ export function RouteList({
                   );
                 })}
                 <li data-route-entry>
-                  <ListRow
-                    size="compact"
-                    leading={lineLink(route.target)}
-                    label={
-                      <span data-route-text>
-                        {route.tunnelEnds
-                          ? "Tunnel ends here, with nothing to return to in the preview"
-                          : "Target line"}
-                      </span>
-                    }
-                  />
+                  <div data-impower-ui>
+                    <ListRow
+                      size="compact"
+                      leading={lineLink(route.target)}
+                      label={
+                        <span data-route-text>
+                          {route.tunnelEnds
+                            ? "Tunnel ends here, with nothing to return to in the preview"
+                            : "Target line"}
+                        </span>
+                      }
+                    />
+                  </div>
                 </li>
               </ol>
               {unresolved.length > 0 ? (
-                <ul class="route-unresolved-pins" aria-label="Pins with no option">
+                <ul
+                  class="route-unresolved-pins"
+                  aria-label="Pins with no option"
+                >
                   {unresolved.map((pin) => (
                     <li
                       key={`${pin.uri}:${pin.line}:${pin.offer}`}
                       class="route-unresolved-pin"
                     >
                       <RouteIconSvg icon="pinned" />
-                      <span class="route-text">{unresolvedPinText(pin, nameOf)}</span>
+                      <span class="route-text">
+                        {unresolvedPinText(pin, nameOf)}
+                      </span>
                       <button
                         type="button"
                         class="route-pin-remove"
@@ -426,7 +437,9 @@ export function RouteList({
                 </ul>
               ) : null}
               {decisions.length === 0 ? (
-                <p class="route-list-note">The preview runs this line as the game does</p>
+                <p class="route-list-note">
+                  The preview runs this line as the game does
+                </p>
               ) : null}
             </>
           )}
@@ -437,7 +450,9 @@ export function RouteList({
           ) : null}
           {hidden > 0 || state.pins.length > 0 || lastRun > 0 ? (
             <footer class="route-list-foot">
-              {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
+              {hidden > 0 ? (
+                <span>{`${hidden} hidden by the toggles`}</span>
+              ) : null}
               {lastRun > 0 ? (
                 <button
                   type="button"
