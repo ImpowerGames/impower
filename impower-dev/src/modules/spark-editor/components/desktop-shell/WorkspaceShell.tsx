@@ -153,7 +153,7 @@ export default function WorkspaceShell({
           ) : null
         }
       >
-        <div
+        <main
           class="relative flex h-full min-h-0 w-full"
           onScrollCapture={
             phone
@@ -165,7 +165,7 @@ export default function WorkspaceShell({
           }
         >
           {children}
-        </div>
+        </main>
       </SidebarLayout>
     </div>
   );

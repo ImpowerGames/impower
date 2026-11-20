@@ -2399,10 +2399,10 @@ export function wheelProbe([op, index, tops]) {
     }
     const layer = [...document.querySelectorAll('[role="dialog"]')].filter(shown).at(-1) ?? null;
     const root = layer ?? document.body;
-    const roots = [document.documentElement, document.body, document.querySelector("main")].filter(Boolean);
+    const roots = [document.documentElement, document.body, document.getElementById("app")].filter(Boolean);
     [...roots, ...document.querySelectorAll("*")]
       .filter((el, i, all) => all.indexOf(el) === i && (roots.includes(el) || (getComputedStyle(el).overflowY !== "visible" && el.scrollHeight > el.clientHeight + 1)))
-      .forEach((el, i) => el.setAttribute("data-driver-scroll", roots.includes(el) ? `page:${el.tagName.toLowerCase()}` : String(i)));
+      .forEach((el, i) => el.setAttribute("data-driver-scroll", roots.includes(el) ? `page:${el.id || el.tagName.toLowerCase()}` : String(i)));
     const lists = [root, ...root.querySelectorAll("*")].filter((el) => el instanceof HTMLElement && !el.closest(".cm-editor") && shown(el) && overflowsY(el));
     lists.forEach((el, i) => el.setAttribute("data-driver-wheel", String(i)));
     return { layer: layer ? describe(layer) : null, lists: lists.map((el, i) => ({ index: i, list: describe(el), scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })) };

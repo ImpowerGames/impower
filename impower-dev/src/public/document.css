@@ -193,7 +193,7 @@ html:has([data-keyboard-panel]) [data-phone-shell][data-editing] .sparkdown-scri
   display: flex;
 }
 
-main {
+#app {
   position: absolute;
   top: 0;
   left: 0;
