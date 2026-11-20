@@ -1,0 +1,26 @@
+style card {
+  @media (min-width: sm) and (max-width: md) {
+    color = red
+  }
+  @supports (display: grid) and selector(icon) {
+    color = red
+  }
+  @container style(--shape: selector(card)) {
+    color = red
+  }
+  @scope (card) to (icon) {
+    color = red
+  }
+  @layer base, theme {
+    color = red
+  }
+  &:where(label) {
+    color = red
+  }
+  &::-webkit-slider-thumb {
+    color = red
+  }
+  @container style(--label: 'width: sm )') {
+    color = red
+  }
+}
