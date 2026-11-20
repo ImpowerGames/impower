@@ -61,8 +61,8 @@ export interface MorphTiming {
 }
 
 export interface MorphReplay {
-  start: number;
-  end: number;
+  from: number;
+  to: number;
   chance: number;
   count: number;
   delay_min?: number;

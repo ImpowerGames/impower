@@ -101,6 +101,7 @@ vi.mock("@impower/impower-ui/components", async () => {
     "CheckIcon",
     "ChevronDownIcon",
     "CogIcon",
+    "ContinueIcon",
     "NextIcon",
     "PauseIcon",
     "PlayIcon",
@@ -229,6 +230,7 @@ import {
   playerUrl,
 } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewTopBar from "../../src/modules/spark-editor/components/preview-top-bar/PreviewTopBar";
+import PreviewDebugToolbar from "../../src/modules/spark-editor/components/preview-debug-toolbar/PreviewDebugToolbar";
 import Preview from "../../src/modules/spark-editor/components/preview/Preview";
 import PreviewScreenplay from "../../src/modules/spark-editor/components/preview-screenplay/PreviewScreenplay";
 import WorkspacePrint from "../../src/modules/spark-editor/workspace/WorkspacePrint";
@@ -281,6 +283,41 @@ describe("WorkspaceWindow store transitions", () => {
 
   afterEach(() => {
     win.dispose();
+  });
+
+  const selectText = () => {
+    const text = document.body.appendChild(document.createElement("p"));
+    text.textContent = "Untitled story";
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    return text;
+  };
+
+  it("drops the page's text selection when a route change opens the script editor", async () => {
+    await win.navigateTo("scripts");
+    const text = selectText();
+    try {
+      expect(document.getSelection()!.type).toBe("Range");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#story");
+      expect(document.getSelection()!.type).toBe("None");
+    } finally {
+      text.remove();
+    }
+  });
+
+  it("keeps the text selection when navigating to the route already open", async () => {
+    await win.navigateTo("story");
+    const text = selectText();
+    try {
+      await win.navigateTo("story");
+      expect(document.getSelection()!.type).toBe("Range");
+    } finally {
+      document.getSelection()!.removeAllRanges();
+      text.remove();
+    }
   });
 
   it("openPane sets the active pane", () => {
@@ -2843,7 +2880,7 @@ describe("The preview's top bar", () => {
         modes: { ...workspace.current.preview.modes, game },
       },
     };
-    render(h(PreviewTopBar, {}), container);
+    render(h("div", {}, h(PreviewTopBar, {}), h(PreviewDebugToolbar, {})), container);
   };
 
   const control = (label: string) =>
@@ -2918,7 +2955,8 @@ describe("The preview's top bar", () => {
     expect(sizeOf(control("Pause"))).toBe(stopped);
     expect(slotOf("Pause")).toBe("left");
     show({ running: true, paused: true });
-    expect(sizeOf(control("Resume"))).toBe(stopped);
+    expect(control("Pause")).toBeNull();
+    expect(control("Resume")).toBeNull();
     show({ running: true, ended: true });
     expect(control("Replay beat")).toBeNull();
     expect(sizeOf(control("Play Again"))).toBe(stopped);
@@ -3002,21 +3040,13 @@ describe("The preview's top bar", () => {
       expect(labels()).toEqual([
         "Viewing mode: Visual Novel",
         "Pause",
-        "Step",
-        "Step Over",
-        "Step Into",
         "Skip back",
         "Stop",
         "Skip forward",
-        "Step Out",
-        "Toggle breakpoint",
         "Saves",
         "Preview settings",
       ]);
-      for (const step of ["Step Over", "Step Into", "Step Out"]) {
-        expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
-        expect(control(step)?.title).toBe("Pause the story to step through it");
-      }
+      expect(container.querySelector('[role="toolbar"]')).toBeNull();
       control("Pause")!.click();
       await vi.waitFor(() =>
         expect(workspace.current.preview.modes.game.paused).toBe(true),
@@ -3027,7 +3057,19 @@ describe("The preview's top bar", () => {
       );
       expect(workspace.current.preview.modes.game.position).toEqual({ uri, line: 3 });
       show(workspace.current.preview.modes.game);
-      expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
+      expect(labels()).toEqual([
+        "Viewing mode: Visual Novel",
+        "Skip back",
+        "Stop",
+        "Skip forward",
+        "Saves",
+        "Preview settings",
+        "Continue",
+        "Step Over",
+        "Step Into",
+        "Step Out",
+        "Toggle breakpoint",
+      ]);
       expect(control("Step Over")?.hasAttribute("aria-disabled")).toBe(false);
       expect(control("Step Over")?.title).toBe("Step Over (F10)");
       expect(control("Step Into")?.hasAttribute("aria-disabled")).toBe(false);
@@ -3053,71 +3095,72 @@ describe("The preview's top bar", () => {
       await vi.waitFor(() =>
         expect(requests.filter((method) => method === "game/step")).toHaveLength(2),
       );
-      control("Resume")!.click();
+      control("Continue")!.click();
       await vi.waitFor(() =>
         expect(workspace.current.preview.modes.game.paused).toBe(false),
       );
       expect(requests).toContain("game/continue");
+      show(workspace.current.preview.modes.game);
+      expect(container.querySelector('[role="toolbar"]')).toBeNull();
+      expect(control("Pause")).not.toBeNull();
     } finally {
       window.removeEventListener(MessageProtocol.event, player);
     }
   });
 
-  it("puts the steps in one Step menu on phones, each with its refusal", async () => {
+  it("keeps the steps out of the bar on phones and steps from the toolbar with one tap each, each with its refusal", async () => {
     layoutMock.value = "phone";
     try {
       show({ running: true, paused: true });
       expect(labels()).toEqual([
         "Viewing mode: Visual Novel",
-        "Resume",
-        "Step",
         "Skip back",
         "Stop",
         "Skip forward",
         "Saves",
         "Preview settings",
+        "Continue",
+        "Step Over",
+        "Step Into",
+        "Step Out",
+        "Toggle breakpoint",
       ]);
       expect(
-        rows("menuitem").slice(0, 3).map((row) => [
-          row.querySelector("strong")?.textContent,
-          row.querySelector("small")?.textContent ?? null,
-          (row as HTMLButtonElement).disabled,
+        rows("menuitem").filter((row) => /Step|breakpoint/.test(row.textContent ?? "")),
+      ).toEqual([]);
+      expect(
+        ["Step Over", "Step Into", "Step Out"].map((label) => [
+          label,
+          control(label)?.getAttribute("aria-disabled") ?? null,
+          control(label)?.title,
         ]),
       ).toEqual([
-        ["Step Over", null, false],
-        ["Step Into", null, false],
-        ["Step Out", "Nothing is calling, so there is nothing to step out of.", true],
+        ["Step Over", null, "Step Over (F10)"],
+        ["Step Into", null, expect.stringMatching(/^Step Into/)],
+        ["Step Out", "true", "Nothing is calling, so there is nothing to step out of."],
       ]);
       const stepGame = vi.spyOn(win, "stepGame").mockResolvedValue(true);
-      rows("menuitem")[0]!.click();
+      control("Step Over")!.click();
       await vi.waitFor(() => expect(stepGame).toHaveBeenCalledWith("over"));
+      control("Step Over")!.click();
+      await vi.waitFor(() => expect(stepGame).toHaveBeenCalledTimes(2));
     } finally {
       layoutMock.value = "desktop";
     }
   });
 
-  it("offers Play Again instead of Pause once the story has ended, with the Steps disabled", () => {
-    show({ running: true, ended: true });
+  it("offers Play Again instead of Pause once the story has ended, with no debug toolbar", () => {
+    show({ running: true, ended: true, paused: true });
     expect(labels()).toEqual([
       "Viewing mode: Visual Novel",
       "Play Again",
-      "Step",
-      "Step Over",
-      "Step Into",
       "Skip back",
       "Stop",
       "Skip forward",
-      "Step Out",
-      "Toggle breakpoint",
       "Saves",
       "Preview settings",
     ]);
-    for (const step of ["Step Over", "Step Into", "Step Out"]) {
-      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
-      expect(control(step)?.title).toBe(
-        "The story is over, so there is nothing to step to.",
-      );
-    }
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
   });
 
   it("runs no step the bar refuses, so a key cannot get past a disabled button", async () => {
@@ -3336,14 +3379,9 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode: Screenplay",
       "Pause",
-      "Step",
-      "Step Over",
-      "Step Into",
       "Skip back",
       "Stop",
       "Skip forward",
-      "Step Out",
-      "Toggle breakpoint",
       "Preview settings",
     ]);
   });
@@ -3518,7 +3556,7 @@ describe("The preview's top bar", () => {
       expect(requests).not.toContain(ToggleEditorBreakpointMessage.method);
     });
 
-    it("sits in the Step menu on phones, so the bar does not grow, and runs the same toggle", async () => {
+    it("sits in the toolbar on phones, outside the settings menu, and runs the same toggle", async () => {
       layoutMock.value = "phone";
       const toggle = vi
         .spyOn(win, "toggleBreakpointAtCaret")
@@ -3526,20 +3564,20 @@ describe("The preview's top bar", () => {
       try {
         caretIn("main.sd", 2);
         show({ running: true, paused: true });
-        expect(labels()).not.toContain("Toggle breakpoint");
-        const row = rows("menuitem").find(
-          (r) => r.querySelector("strong")?.textContent === "Toggle breakpoint",
-        );
-        expect((row as HTMLButtonElement).disabled).toBe(false);
-        row!.click();
+        const button = container.querySelector<HTMLButtonElement>(
+          '[role="toolbar"] button[aria-label="Toggle breakpoint"]',
+        )!;
+        expect(button.hasAttribute("aria-disabled")).toBe(false);
+        expect(
+          rows("menuitem").some((r) => r.textContent?.includes("Toggle breakpoint")),
+        ).toBe(false);
+        button.click();
         await vi.waitFor(() => expect(toggle).toHaveBeenCalledWith("main.sd"));
         caretIn("main.sd");
         show({ running: true, paused: true });
-        const refused = rows("menuitem").find(
-          (r) => r.querySelector("strong")?.textContent === "Toggle breakpoint",
-        );
-        expect((refused as HTMLButtonElement).disabled).toBe(true);
-        expect(refused!.querySelector("small")?.textContent).toBe(
+        const refused = control("Toggle breakpoint")!;
+        expect(refused.getAttribute("aria-disabled")).toBe("true");
+        expect(refused.title).toBe(
           "Put the caret on a script line to toggle its breakpoint.",
         );
       } finally {

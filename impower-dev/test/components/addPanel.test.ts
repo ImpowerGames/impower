@@ -410,11 +410,14 @@ describe("the pickers on desktop", () => {
     expect(calls.auditions).toEqual(["show beach", "revert", "show imani", "revert"]);
   });
 
-  it("offer a portrait once, drawn with its default layers under the portrait crop, and a sound with its length", async () => {
+  it("offer a portrait drawn with its default layers under the portrait crop, then each option of its first layer group, and a sound with its length", async () => {
     workspaceSettings.setPreference("portraitCrop", 75);
     await openPicker("portrait", "Portrait");
-    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani"]);
-    expect(calls.pictures).toEqual([["assets/Portraits/imani.png", { image: "imani", attributes: [] }, 512]]);
+    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "imani:happy"]);
+    expect(calls.pictures).toEqual([
+      ["assets/Portraits/imani.png", { image: "imani", attributes: [] }, 512],
+      ["assets/Portraits/imani mood.happy.png", { image: "imani", attributes: ["happy"] }, 512],
+    ]);
     const thumbnail = cards("Portrait")[0]!.querySelector<HTMLElement>("[data-portrait-thumbnail]")!;
     expect(thumbnail.querySelector("img")!.getAttribute("src")).toBe("data:image/png;drawn,imani");
     expect(thumbnail.dataset["visiblePercent"]).toBe("75");
@@ -423,8 +426,8 @@ describe("the pickers on desktop", () => {
     await act(async () => button("Portrait", "Back to add options").click());
     await act(async () => row("portrait").click());
     await settle();
-    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "kai"]);
-    expect(cards("Portrait")[1]!.querySelector("img")).toBeNull();
+    expect(cards("Portrait").map((card) => card.dataset["pickerItem"])).toEqual(["imani", "imani:happy", "kai", "kai:hat"]);
+    expect(cards("Portrait")[2]!.querySelector("img")).toBeNull();
     listAssets(FILES);
     calls.auditions.length = 0;
     await act(async () => button("Portrait", "Back to add options").click());

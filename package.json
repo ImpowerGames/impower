@@ -26,6 +26,7 @@
   "devDependencies": {
     "@typescript-eslint/parser": "^8.72.1",
     "ajv": "^8.17.1",
+    "axe-core": "^4.14.1",
     "eslint": "^9.18.0",
     "eslint-plugin-yml": "^1.14.0",
     "playwright": "^1.61.0",

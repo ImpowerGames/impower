@@ -641,15 +641,15 @@ describe("a drawing's `spread` in brace bodies", () => {
 describe("the replay block in completions and hover (#2580)", () => {
   test("replay is offered at the morph root as a block, and its six fields inside it", () => {
     expectBlockInserted(`morph blink {\n  timing { duration = 0.25 }\n  |\n}\n`, "replay");
-    expect(labelsAt(`morph blink {\n  replay {\n    |\n  }\n}\n`)).toEqual(["start", "end", "chance", "count", "delay_min", "delay_max"]);
-    expect(labelsAt(`morph blink {\n  replay { chance = 50%; | }\n}\n`)).toEqual(["start", "end", "chance", "count", "delay_min", "delay_max"]);
+    expect(labelsAt(`morph blink {\n  replay {\n    |\n  }\n}\n`)).toEqual(["from", "to", "chance", "count", "delay_min", "delay_max"]);
+    expect(labelsAt(`morph blink {\n  replay { chance = 50%; | }\n}\n`)).toEqual(["from", "to", "chance", "count", "delay_min", "delay_max"]);
     expect(itemAt(`morph blink {\n  replay {\n    |\n  }\n}\n`, "chance").documentation).toEqual(
       expect.objectContaining({ value: expect.stringContaining("How likely each replay is") }),
     );
   });
 
   test("hovering a replay field shows its text", async () => {
-    const text = `morph blink {\n  replay {\n    start = 0%\n    end = 66.667%\n    chance = 50%\n    count = 2\n    delay_min = 0.17\n    delay_max = 0.35\n  }\n}\n`;
+    const text = `morph blink {\n  replay {\n    from = 0%\n    to = 66.667%\n    chance = 50%\n    count = 2\n    delay_min = 0.17\n    delay_max = 0.35\n  }\n}\n`;
     const uri = "file:///replay2580.sd";
     const documents = new SparkdownDocumentRegistry(["references"]);
     documents.set({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
@@ -659,7 +659,7 @@ describe("the replay block in completions and hover (#2580)", () => {
       return found ? { value: (found.contents as { value: string }).value, marked: document.getText(found.range) } : null;
     };
     expect(await hover("replay")).toEqual({ value: MORPH_FIELD_DOCS["replay"], marked: "replay" });
-    for (const field of ["start", "end", "chance", "count", "delay_min", "delay_max"]) {
+    for (const field of ["from", "to", "chance", "count", "delay_min", "delay_max"]) {
       expect(await hover(`${field} =`), field).toEqual({ value: MORPH_FIELD_DOCS[`replay.${field}`], marked: field });
     }
   });

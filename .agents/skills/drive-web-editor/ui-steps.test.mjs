@@ -1327,7 +1327,7 @@ function assetsPageStub({ hash = "#story", levels = [["Open folder Backdrops, 3 
     },
     locator: (selector) => {
       if (selector === '[data-assets-action="add"]') return { first: () => ({ waitFor: state.hash === "#assets" ? async () => {} : timeout }) };
-      if (selector === '[role="listitem"] button[aria-label^="Open "]') {
+      if (selector === '[role="listitem"] button[aria-label^="Open "]:not([aria-label="Problems and playback messages"] *)') {
         return {
           first: () => ({ waitFor: async () => { if (!labels().length) throw new Error("timeout"); } }),
           evaluateAll: async (fn) => fn(labels().map((label) => ({ getAttribute: () => label }))),

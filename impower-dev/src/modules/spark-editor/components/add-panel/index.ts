@@ -3,4 +3,4 @@ export {
   toggleAddPanel,
   type AddPanelProps,
 } from "./AddPanel";
-export { pickerItems } from "./pickerItems";
+export { pickerItems, pickerPictureCount } from "./pickerItems";
