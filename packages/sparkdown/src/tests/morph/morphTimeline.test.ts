@@ -697,7 +697,7 @@ describe("a play that replays several ranges (#2581)", () => {
 });
 
 describe("a speech replay whose turning point falls in the gap an unvoiced character leaves (#2698)", () => {
-  const talk = (direction: MorphTiming["direction"] = "normal") =>
+  const talk = (direction: MorphTiming["direction"] = "normal", pause?: number) =>
     new MorphTimeline(
       timing({
         trigger: "speech",
@@ -705,18 +705,33 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
         direction,
         iteration_delay_min: 0.1,
         iteration_delay_max: 0.233333,
-        replay: [{ from: 0, to: 0.66667, chance: 1, count: 1 }],
+        replay: [{ from: 0, to: 0.66667, chance: 1, count: 1, ...(pause === undefined ? {} : { delay_min: pause, delay_max: pause }) }],
       }),
       () => 0.5,
     );
   const turn = 0.66667 * 0.35;
   const gap = 0.025;
+  const resumes = turn + gap / 2;
 
-  test("going forward, the replay is taken at once while a later span exists", () => {
+  test("going forward, the replay holds at its end until the next span begins, then runs", () => {
     const timeline = talk();
-    timeline.speak([[0, turn - gap / 2], [turn + gap / 2, 0.6]], 0);
-    expect(offsetAt(timeline, 0.24)).toBeCloseTo((0.24 - turn) / 0.35, 6);
-    expect(timeline.at(turn + 0.35 - 0.001)).toMatchObject({ phase: "playing", play: 0 });
+    timeline.speak([[0, turn - gap / 2], [resumes, 0.6]], 0);
+    expect(timeline.at(turn + 0.001)).toEqual({ phase: "playing", play: 0, offset: 0.66667 });
+    expect(timeline.at(resumes - 0.001)).toEqual({ phase: "playing", play: 0, offset: 0.66667 });
+    expect(offsetAt(timeline, resumes + 0.005)).toBeCloseTo(0.005 / 0.35, 6);
+    expect(timeline.at(resumes + 0.35 - 0.001)).toMatchObject({ phase: "playing", play: 0 });
+    expect(offsetAt(timeline, resumes + 0.35 - 0.001)).toBeCloseTo(1 - 0.001 / 0.35, 6);
+  });
+
+  test("a written pause counts from the turning point, and the replay begins at the later of its end and the next span's start", () => {
+    const longer = talk("normal", 0.05);
+    longer.speak([[0, turn - gap / 2], [resumes, 0.6]], 0);
+    expect(longer.at(turn + 0.049)).toEqual({ phase: "playing", play: 0, offset: 0.66667 });
+    expect(offsetAt(longer, turn + 0.06)).toBeCloseTo(0.01 / 0.35, 6);
+    const shorter = talk("normal", 0.005);
+    shorter.speak([[0, turn - gap / 2], [resumes, 0.6]], 0);
+    expect(shorter.at(turn + 0.01)).toEqual({ phase: "playing", play: 0, offset: 0.66667 });
+    expect(offsetAt(shorter, resumes + 0.005)).toBeCloseTo(0.005 / 0.35, 6);
   });
 
   test("going forward, the replay is refused when no span remains after the turning point", () => {
@@ -726,11 +741,12 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
     expect(timeline.at(0.351)).toEqual({ phase: "off" });
   });
 
-  test("a reversed play takes its replay in a gap while a later span exists, and refuses it after the last span", () => {
+  test("a reversed play holds its replay in a gap until the next span begins, and refuses it after the last span", () => {
     const spoken = talk("reverse");
     spoken.speak([[0, 0.35 - gap / 2], [0.35 + gap / 2, 0.8]], 0);
-    expect(offsetAt(spoken, 0.36)).toBeCloseTo(0.66667 - 0.01 / 0.35, 6);
-    expect(spoken.at(0.35 + turn - 0.001)).toMatchObject({ phase: "playing", play: 0 });
+    expect(spoken.at(0.36)).toEqual({ phase: "playing", play: 0, offset: 0.66667 });
+    expect(offsetAt(spoken, 0.35 + gap / 2 + 0.01)).toBeCloseTo(0.66667 - 0.01 / 0.35, 6);
+    expect(spoken.at(0.35 + gap / 2 + turn - 0.001)).toMatchObject({ phase: "playing", play: 0 });
     const ended = talk("reverse");
     ended.speak([[0, 0.35 - gap / 2]], 0);
     expect(offsetAt(ended, 0.34)).toBeCloseTo(1 - 0.34 / 0.35, 6);
