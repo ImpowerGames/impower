@@ -283,6 +283,41 @@ describe("WorkspaceWindow store transitions", () => {
     win.dispose();
   });
 
+  const selectText = () => {
+    const text = document.body.appendChild(document.createElement("p"));
+    text.textContent = "Untitled story";
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    return text;
+  };
+
+  it("drops the page's text selection when a route change opens the script editor", async () => {
+    await win.navigateTo("scripts");
+    const text = selectText();
+    try {
+      expect(document.getSelection()!.type).toBe("Range");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#write");
+      expect(document.getSelection()!.type).toBe("None");
+    } finally {
+      text.remove();
+    }
+  });
+
+  it("keeps the text selection when navigating to the route already open", async () => {
+    await win.navigateTo("write");
+    const text = selectText();
+    try {
+      await win.navigateTo("write");
+      expect(document.getSelection()!.type).toBe("Range");
+    } finally {
+      document.getSelection()!.removeAllRanges();
+      text.remove();
+    }
+  });
+
   it("openPane sets the active pane", () => {
     win.openPane("assets");
     expect(workspace.current.pane).toBe("assets");
