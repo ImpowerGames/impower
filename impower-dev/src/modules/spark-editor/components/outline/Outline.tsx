@@ -12,7 +12,11 @@ import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolPr
 import { projectPath } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
-import { openFind, SearchRail } from "../find-references-rename";
+import {
+  openFind,
+  SearchRail,
+  useSearchInPanel,
+} from "../find-references-rename";
 import OutlineListRow from "./OutlineListRow";
 import { problemSummary, type OutlineRow } from "./outlineRows";
 import { OUTLINE_RAIL_ROW, railRowAfter, railRowExtent } from "./railLayout";
@@ -43,7 +47,8 @@ function Heading({
 
 export default function Outline() {
   const { uri, model } = useOutlineModel();
-  const searching = workspace.search.value.open;
+  const inPanel = useSearchInPanel();
+  const searching = workspace.search.value.open && !inPanel;
   const rows = model.rows;
   const extent = useCallback(
     (_row: OutlineRow, index: number) => railRowExtent(rows, index),

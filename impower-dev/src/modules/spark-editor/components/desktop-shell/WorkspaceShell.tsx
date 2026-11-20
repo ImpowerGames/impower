@@ -150,6 +150,8 @@ export default function WorkspaceShell({
               <PhoneSearch />
               <BottomNavigation />
             </>
+          ) : compact ? (
+            <PhoneSearch />
           ) : null
         }
       >
