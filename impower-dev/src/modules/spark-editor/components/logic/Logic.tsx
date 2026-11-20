@@ -17,10 +17,7 @@ export default function Logic(_props: LogicProps) {
     return <LogicScriptsEditor />;
   }
   return (
-    <div
-      class="relative flex flex-1 flex-col min-h-0"
-      style="--loading-indicator-width:50%"
-    >
+    <div class="relative flex flex-1 flex-col min-h-0">
       <LogicScriptEditor filename="main.sd" />
     </div>
   );

@@ -14,6 +14,7 @@ type FakeAnimation = {
   options: KeyframeAnimationOptions;
   currentTime: number;
   cancelled: boolean;
+  finished: boolean;
   onfinish: (() => void) | null;
   cancel: () => void;
 };
@@ -47,7 +48,12 @@ const setActive = async (bar: HTMLElement, active: boolean) => {
 };
 
 const live = (target: Element) =>
-  animations.filter((a) => a.target === target && !a.cancelled);
+  animations.filter((a) => a.target === target && !a.cancelled && !a.finished);
+
+const end = (animation: FakeAnimation | undefined) => {
+  animation!.finished = true;
+  animation!.onfinish!();
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -69,6 +75,7 @@ beforeEach(() => {
       options,
       currentTime: 0,
       cancelled: false,
+      finished: false,
       onfinish: null,
       cancel() {
         animation.cancelled = true;
@@ -127,10 +134,10 @@ describe("LoadingBar", () => {
     );
     expect(bar.style.opacity).toBe("1");
     expect(live(bar)).toHaveLength(0);
-    runOut!.onfinish!();
+    end(runOut);
     const [fade] = live(bar);
     expect(fade?.keyframes).toEqual([{ opacity: 1 }, { opacity: 0 }]);
-    fade!.onfinish!();
+    end(fade);
     expect(bar.style.opacity).toBe("0");
   });
 
@@ -140,13 +147,38 @@ describe("LoadingBar", () => {
     vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS);
     live(segment)[0]!.currentTime = LOADING_BAR_CROSSING_MS / 2;
     await setActive(bar, false);
-    live(segment)[0]!.onfinish!();
-    live(bar)[0]!.onfinish!();
+    end(live(segment)[0]);
+    end(live(bar)[0]);
     await setActive(bar, true);
     vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS);
     const [sweep] = live(segment);
     expect(sweep?.keyframes[0]?.transform).toBe("translateX(-50%) scaleX(0.5)");
     expect(sweep?.currentTime).toBe(0);
+  });
+
+  it("lets a run-out reach the right edge when the next load starts before it finishes", async () => {
+    const { bar, segment } = await mount(false);
+    await setActive(bar, true);
+    vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS);
+    live(segment)[0]!.currentTime = LOADING_BAR_CROSSING_MS / 3;
+    await setActive(bar, false);
+    const [runOut] = live(segment);
+    await setActive(bar, true);
+    vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS);
+    expect(runOut!.cancelled).toBe(false);
+    expect(live(segment)).toEqual([runOut]);
+    end(runOut);
+    expect(live(bar)).toHaveLength(0);
+    expect(bar.style.opacity).toBe("1");
+    const [sweep] = live(segment);
+    expect(sweep?.options.iterations).toBe(Infinity);
+    expect(sweep?.keyframes[0]?.transform).toBe("translateX(-50%) scaleX(0.5)");
+  });
+
+  it("spans its container's full width", async () => {
+    const { bar } = await mount(false);
+    expect(bar.classList.contains("w-full")).toBe(true);
+    expect(bar.className).not.toContain("--loading-indicator-width");
   });
 
   it("shows a static full-width bar with no sweep under reduced motion", async () => {

@@ -22,7 +22,7 @@ const segmentTransform = (position: number) =>
   `translateX(${position * 100}%) scaleX(0.5)`;
 
 const loadingBar = cva([
-  "relative h-0.5 min-w-20 overflow-hidden text-primary pointer-events-none w-[var(--loading-indicator-width,100%)]",
+  "relative h-0.5 min-w-20 overflow-hidden text-primary pointer-events-none w-full",
 ]);
 
 export function setLoadingBarActive(
@@ -103,16 +103,23 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
       ],
       { duration: (1 - progress) * LOADING_BAR_CROSSING_MS },
     );
-    finish.onfinish = fadeOut;
+    finish.onfinish = () => {
+      finish = undefined;
+      if (bar.getAttribute("data-active") === "false") {
+        fadeOut();
+      } else {
+        show();
+      }
+    };
   };
 
   const apply = (active: boolean) => {
     bar.setAttribute("aria-busy", String(active));
     if (active) {
-      if (showTimer || sweep || (shown && !finish && !fade)) {
+      if (showTimer || sweep || finish || (shown && !fade)) {
         return;
       }
-      if (shown) {
+      if (fade) {
         show();
         return;
       }
