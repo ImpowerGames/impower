@@ -145,7 +145,7 @@ export default function NameRow({
       label={
         <span
           ref={box}
-          class="flex h-[26px] min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within:border-accent"
+          class="flex h-[26px] pointer-coarse:h-11 min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within:border-accent"
         >
           <TextField
             ref={input}
@@ -157,7 +157,7 @@ export default function NameRow({
             aria-describedby={error ? "scripts-name-error" : undefined}
             maxLength={200}
             value={value}
-            class="px-2 text-[14px]"
+            class="self-stretch px-2 text-[14px]"
             onValueChange={(next) => {
               setValue(next);
               reject("");
