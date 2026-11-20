@@ -602,7 +602,23 @@ describe("a play that replays several ranges (#2581)", () => {
     expect(timeline.at(1.11)).toMatchObject({ play: 1 });
   });
 
-  test("on a reversed speech play, the first turning point outside the speech ends the play's replays, as for one range", () => {
+  test("on a reversed speech play, each replay outside the speech is skipped and spent, and another entry's replay inside resumed speech is still taken", () => {
+    const resumed = new MorphTimeline(
+      timing({ trigger: "speech", duration: 1, direction: "reverse", replay: [range(0.1, 0.2), range(0.6, 0.8)] }),
+      () => 0.5,
+    );
+    resumed.speak([[0, 0.3], [0.8, 1.05]], 0);
+    expectPositions(resumed, [
+      [0.39, 0.61],
+      [0.41, 0.59],
+      [0.89, 0.11],
+      [0.95, 0.15],
+      [1.09, 0.01],
+    ]);
+    expect(resumed.at(1.11)).toEqual({ phase: "off" });
+  });
+
+  test("on a reversed speech play with speech throughout, the play is the forward play read backwards, and a skipped replay spends every replay due at that moment", () => {
     const replay = [range(0, 0.4), range(0.4, 0.8, { count: 2 })];
     const spoken = (spans: [number, number][]) => {
       const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 1, direction: "reverse", replay }), () => 0.5);

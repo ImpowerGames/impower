@@ -47,6 +47,7 @@ interface Turn {
   end: number;
   resume: number;
   next: number;
+  range: number;
 }
 
 interface Path {
@@ -171,7 +172,7 @@ export class MorphTimeline {
           continue;
         }
         const pause = left[i]!.shift()!;
-        const turn: Turn = { at, end: at, resume: stretch.from, next: segments.length };
+        const turn: Turn = { at, end: at, resume: stretch.from, next: segments.length, range: i };
         turns.push(turn);
         if (!taken(turns.length - 1)) continue;
         if (pause > 0) segments.push({ start: at, length: pause, from: x, to: x, hold: stretch.hold });
@@ -193,17 +194,59 @@ export class MorphTimeline {
       .map(({ start, length, from, to, hold }): Segment => ({ start: total - start - length, length, from: to, to: from, hold }))
       .reverse();
     const turns = ahead.turns
-      .map(({ at, end, resume, next }): Turn => ({ at: total - end, end: total - at, resume, next: ahead.segments.length - next }))
+      .map(({ at, end, resume, next, range }): Turn => ({ at: total - end, end: total - at, resume, next: ahead.segments.length - next, range }))
       .reverse();
     for (let i = 0; i < turns.length; i++) {
       if (taken(i)) continue;
+      const left = pauses.map((list) => list.slice());
+      for (const { range } of turns.slice(0, i + 1)) left[range]!.pop();
       const turn = turns[i]!;
-      const kept = segments.slice(0, turn.next);
-      const length = turn.resume * this.duration;
-      if (length > 0) kept.push({ start: turn.at, length, from: turn.resume, to: 0 });
-      return { segments: kept, turns: turns.slice(0, i + 1), length: turn.at + length };
+      return this.downward(segments.slice(0, turn.next), turns.slice(0, i + 1), turn.at, turn.resume, left, taken);
     }
     return { segments, turns, length: total };
+  }
+
+  protected downward(
+    segments: Segment[],
+    turns: Turn[],
+    at: number,
+    x: number,
+    left: number[][],
+    taken: (turn: number) => boolean,
+  ): Path {
+    const run = (to: number) => {
+      const length = (x - to) * this.duration;
+      if (length > 0) segments.push({ start: at, length, from: x, to });
+      at += Math.max(0, length);
+      x = to;
+    };
+    for (let reached = true; ; reached = false) {
+      let next = -Infinity;
+      this.stretches.forEach((stretch, i) => {
+        if (left[i]!.length && (stretch.from < x || (reached && stretch.from === x)) && stretch.from > next) next = stretch.from;
+      });
+      if (next === -Infinity) break;
+      run(next);
+      for (let i = 0; i < this.stretches.length; ) {
+        const stretch = this.stretches[i]!;
+        if (stretch.from !== next || !left[i]!.length) {
+          i += 1;
+          continue;
+        }
+        const pause = left[i]!.pop()!;
+        const turn: Turn = { at, end: at, resume: stretch.to, next: segments.length, range: i };
+        turns.push(turn);
+        if (!taken(turns.length - 1)) continue;
+        if (pause > 0) segments.push({ start: at, length: pause, from: stretch.to, to: stretch.to, hold: stretch.hold });
+        at += pause;
+        x = stretch.to;
+        turn.end = at;
+        turn.next = segments.length;
+        break;
+      }
+    }
+    run(0);
+    return { segments, turns, length: at };
   }
 
   protected path(play: Play): Path {
