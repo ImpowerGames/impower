@@ -221,11 +221,14 @@ function SaveRowMenu({
       class="min-w-[120px] py-1 text-[length:var(--list-row-compact-font-size)]"
       {...{ [SAVE_ROW_MENU_ATTRIBUTE]: "" }}
       onKeyDown={moveThroughMenu}
+      onOpenAutoFocus={() => {
+        chosen.current = false;
+      }}
       onCloseAutoFocus={(e) => {
         e.preventDefault();
         const another = requested.current !== undefined && requested.current !== row.id;
         if (!chosen.current && !another && trigger.current?.isConnected) {
-          trigger.current.focus();
+          trigger.current.focus({ preventScroll: true });
         }
       }}
     >

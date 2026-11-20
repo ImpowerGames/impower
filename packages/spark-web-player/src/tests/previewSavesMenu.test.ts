@@ -516,6 +516,54 @@ describe("the Saves menu", () => {
     expect(document.activeElement).toBe(p.moreOf("saved-1"));
   });
 
+  test("gives focus back to More after a later outside press once a Rename was chosen and cancelled", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    await p.choose("saved-1", "Rename");
+    await settle();
+    const field = p.rowOf("saved-1").querySelector<HTMLInputElement>(".saves-rename")!;
+    await act(async () => {
+      field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await settle();
+    });
+    await settle();
+    await p.openRowMenu("saved-1");
+    const outside = document.body.appendChild(document.createElement("input"));
+    outside.addEventListener("pointerdown", () => outside.focus());
+    await act(async () => {
+      outside.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+      outside.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await settle();
+    });
+    await act(settle);
+    await settle();
+    expect(p.rowMenu()).toBeNull();
+    expect(document.activeElement).toBe(p.moreOf("saved-1"));
+  });
+
+  test("gives focus back to More without scrolling it into view", async () => {
+    const p = player();
+    await p.withSaves([saved()]);
+    p.openMenu();
+    await p.openRowMenu("saved-1");
+    const more = p.moreOf("saved-1");
+    const options: (FocusOptions | undefined)[] = [];
+    const focus = more.focus.bind(more);
+    more.focus = (option?: FocusOptions) => {
+      options.push(option);
+      focus(option);
+    };
+    await act(async () => {
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      );
+    });
+    await settle();
+    expect(document.activeElement).toBe(more);
+    expect(options).toEqual([{ preventScroll: true }]);
+  });
+
   test("opens another row's menu with one press on its More button while a row menu is open", async () => {
     const p = player();
     await p.withSaves([entering(), saved()]);
