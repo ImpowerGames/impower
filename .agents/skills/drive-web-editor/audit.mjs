@@ -356,7 +356,7 @@ export function renderMarkdown(report) {
     push("| Viewport | Kind | Name | Element | Duration | Route |", "|---|---|---|---|---|---|");
     for (const m of report.motion.moving) push(`| ${m.viewport} | ${m.kind} | ${cell(m.name)} | ${cell(m.target)} | ${m.ms == null ? "?" : `${m.ms}ms`} | ${cell(m.route)} |`);
     if (!report.motion.moving.length) push("| all | none | | | | |");
-    push("", `Recordings: ${report.motion.videos.join(", ") || "none"} (kept out of the repository).`, "");
+    push("", `Recordings: ${report.motion.videos.map((v) => `${path.basename(path.dirname(v))}/${path.basename(v)}`).join(", ") || "none"} under the run's \`--out\` folder (kept out of the repository).`, "");
   }
   if (report.forced) {
     push("### Forced colors", "", "With `forced-colors: active` emulated on the desktop layout, the first stops of each route's Tab order and a screenshot of each route and surface, inspected by eye.", "");
