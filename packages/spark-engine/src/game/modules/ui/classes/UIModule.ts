@@ -1598,8 +1598,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected morphTiming(morph: string): MorphTiming {
     const written = this.context.morph?.[morph];
-    const replay = readMorphReplay(written?.replay);
-    return { ...default_morph().timing, ...(written?.timing ?? {}), ...(replay ? { replay } : {}) } as MorphTiming;
+    return {
+      ...default_morph().timing,
+      ...(written?.timing ?? {}),
+      replay: readMorphReplay(written?.replay),
+    } as MorphTiming;
   }
 
   getFontNamesForLayout(layoutName: string): string[] {
