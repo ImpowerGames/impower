@@ -1,0 +1,27 @@
+{
+  "cases": 239,
+  "checks": 264,
+  "definitions": 29,
+  "moduleSources": 120,
+  "assertionRecords": 588,
+  "sourceMismatches": [],
+  "manifestMismatches": [],
+  "macroKinds": {
+    "LUAU_REQUIRE_ERROR_COUNT(": 83,
+    "REQUIRE(": 127,
+    "CHECK_EQ(": 177,
+    "LUAU_REQUIRE_NO_ERRORS(": 145,
+    "LUAU_CHECK_NO_ERRORS(": 3,
+    "CHECK(": 108,
+    "LUAU_REQUIRE_ERROR(": 3,
+    "LUAU_REQUIRE_ERRORS(": 8,
+    "CHECK_ERROR_IS(": 3,
+    "CHECK_GE(": 1,
+    "LUAU_CHECK_ERROR_COUNT(": 1,
+    "REQUIRE_MESSAGE(": 2,
+    "CHECK_MESSAGE(": 5,
+    "REQUIRE_EQ(": 15,
+    "CHECK_LONG_STRINGS_EQ(": 2,
+    "LUAU_CHECK_ERROR(": 3
+  }
+}
