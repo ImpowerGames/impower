@@ -17,11 +17,16 @@ const findCharacterNameValue = (
   const contentNode = stack.find(
     (n) =>
       n.name === "LuauDoubleQuotedString_content" ||
-      n.name === "LuauSingleQuotedString_content",
+      n.name === "LuauSingleQuotedString_content" ||
+      n.name === "LuauMultilineString_content" ||
+      n.name === "LuauInterpolatedString_content",
   );
-  if (!contentNode) {
+  if (!contentNode || getDescendent("LuauBacktickStringInterpolation", contentNode)) {
     return undefined;
   }
+  const quoted =
+    contentNode.name === "LuauDoubleQuotedString_content" ||
+    contentNode.name === "LuauSingleQuotedString_content";
   const propertyDefinition = stack.find(
     (n) => n.name === "LuauPropertyDefinition",
   );
@@ -32,7 +37,7 @@ const findCharacterNameValue = (
   const propertyName = propertyNameNode
     ? document.read(propertyNameNode.from, propertyNameNode.to).trim()
     : "";
-  if (propertyName !== "aliases" && propertyName !== "name") {
+  if (propertyName !== "name" && !(propertyName === "aliases" && quoted)) {
     return undefined;
   }
   const defineNode = stack.find((n) => n.name === "LuauDefine");

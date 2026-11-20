@@ -223,6 +223,25 @@ describe("duplicating a script renames the declarations the copy would repeat", 
     expect([speaker("Ada"), speaker("Ada_copy")]).toEqual(["companion", "companion_copy"]);
   });
 
+  test.each([
+    ["a long-bracket string", ["  name = [[Ada]]"], ["  name = [[Ada_copy]]"]],
+    ["a long-bracket string with level signs", ["  name = [==[Ada]==]"], ["  name = [==[Ada_copy]==]"]],
+    ["a long-bracket string opening on its own line", ["  name = [[", "Ada]]"], ["  name = [[", "Ada_copy]]"]],
+    ["a backtick string", ["  name = `Ada`"], ["  name = `Ada_copy`"]],
+  ])("a display name written as %s takes the suffix with its cues, so the original's cue keeps its speaker", (_form, name, renamed) => {
+    const script = (header: string, scene: string, cue: string, nameLines: string[]) =>
+      lines(header, ...nameLines, "end", "", scene, `  ${cue}: Hi.`, "end");
+    const { before, after, copy, speaker } = copyOne(
+      script("define companion as character with", "scene chapter_1", "Ada", name),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      script("define companion_copy as character with", "scene chapter_1_copy", "Ada_copy", renamed),
+    );
+    expect([speaker("Ada"), speaker("Ada_copy")]).toEqual(["companion", "companion_copy"]);
+  });
+
   test("an escaped display name keeps its spelling, takes the suffix, and its cues follow it", () => {
     const { before, after, copy, speaker } = copyOne(
       lines(
