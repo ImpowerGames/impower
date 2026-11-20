@@ -1,3 +1,10 @@
+import {
+  ListRow,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+} from "@impower/impower-ui/components";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { checkStartingValue } from "@impower/sparkdown/src/program/startingValueLiterals";
 import { useStylesheet } from "../utils/useStylesheet";
@@ -159,6 +166,105 @@ export function SaveRowLabel({ row }: { row: SaveRow }) {
   );
 }
 
+const MENU_KEYS: Record<string, (index: number, count: number) => number> = {
+  ArrowDown: (index, count) => (index + 1) % count,
+  ArrowUp: (index, count) => (index <= 0 ? count : index) - 1,
+  Home: () => 0,
+  End: (_, count) => count - 1,
+};
+
+const moveThroughMenu = (e: KeyboardEvent) => {
+  e.stopPropagation();
+  const step = MENU_KEYS[e.key];
+  if (!step) {
+    return;
+  }
+  const items = [
+    ...(e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(
+      '[role="menuitem"]:not(:disabled)',
+    ),
+  ];
+  if (items.length === 0) {
+    return;
+  }
+  e.preventDefault();
+  items[step(items.indexOf(document.activeElement as HTMLElement), items.length)]?.focus();
+};
+
+export const SAVE_ROW_MENU_ATTRIBUTE = "data-saves-row-menu";
+
+const rowMenuItemClass =
+  "relative control-overlay flex w-full cursor-pointer items-center px-2 py-[5px] text-left focus-inset";
+
+function SaveRowMenu({
+  row,
+  events,
+  trigger,
+}: {
+  row: SaveRow;
+  events: SavesEvents;
+  trigger: { current: HTMLButtonElement | null };
+}) {
+  return (
+    <PopoverContent
+      role="menu"
+      aria-label={`More for ${row.name}`}
+      align="end"
+      sideOffset={-2}
+      alignOffset={4}
+      class="min-w-[120px] py-1 text-[length:var(--list-row-compact-font-size)]"
+      {...{ [SAVE_ROW_MENU_ATTRIBUTE]: "" }}
+      onKeyDown={moveThroughMenu}
+      onCloseAutoFocus={(e) => {
+        e.preventDefault();
+        const focused = document.activeElement;
+        if (
+          trigger.current?.isConnected &&
+          (!focused || focused.contains(trigger.current))
+        ) {
+          trigger.current.focus();
+        }
+      }}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        class={rowMenuItemClass}
+        onClick={() => events.onEditValues(row.id)}
+      >
+        {SAVE_TEXT.editValues}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class={rowMenuItemClass}
+        onClick={() => events.onRenaming(row.id)}
+      >
+        {SAVE_TEXT.rename}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class={rowMenuItemClass}
+        onClick={() => events.onDelete(row.id)}
+      >
+        {SAVE_TEXT.delete}
+      </button>
+    </PopoverContent>
+  );
+}
+
+function SaveDetail({ row }: { row: SaveRow }) {
+  return row.gone ? (
+    <span class="inline-flex items-center gap-1 text-warning [&>svg]:size-3">
+      <RouteIconSvg icon="warning" />
+      <span>{SAVE_TEXT.gone}</span>
+    </span>
+  ) : (
+    saveDetail(row)
+  );
+}
+
 function SaveListRow({
   row,
   state,
@@ -168,64 +274,69 @@ function SaveListRow({
   state: SavesViewState;
   events: SavesEvents;
 }) {
+  const renaming = state.renaming === row.id;
   const menuOpen = state.rowMenu === row.id;
+  const trigger = useRef<HTMLButtonElement>(null);
   return (
-    <li class="saves-row" data-id={row.id} data-gone={row.gone ? "" : undefined}>
-      {state.renaming === row.id ? (
-        <span class="saves-row-text">
-          <RenameField
-            row={row}
-            onRename={(name) => events.onRename(row.id, name)}
-            onCancel={() => events.onRenaming(null)}
+    <Popover
+      open={menuOpen}
+      onOpenChange={(next) =>
+        queueMicrotask(() => events.onRowMenu(next ? row.id : null))
+      }
+    >
+      <PopoverAnchor asChild>
+        <li data-save-row data-id={row.id} data-gone={row.gone ? "" : undefined}>
+          <ListRow
+            size="compact"
+            overflow={renaming ? "self" : "fade"}
+            label={
+              renaming ? (
+                <RenameField
+                  row={row}
+                  onRename={(name) => events.onRename(row.id, name)}
+                  onCancel={() => events.onRenaming(null)}
+                />
+              ) : (
+                <span data-save-name>{row.name}</span>
+              )
+            }
+            description={
+              renaming ? undefined : (
+                <span data-save-detail>
+                  <SaveDetail row={row} />
+                </span>
+              )
+            }
+            actions={
+              <span class="flex flex-none items-center gap-1.5 pr-1">
+                <button
+                  type="button"
+                  class="saves-play"
+                  disabled={row.gone}
+                  onClick={() => events.onPlay(row.id)}
+                >
+                  {SAVE_TEXT.playFromHere}
+                </button>
+                <PopoverTrigger asChild>
+                  <button
+                    ref={trigger}
+                    type="button"
+                    class="relative control-overlay flex size-[var(--control-size)] flex-none cursor-pointer items-center justify-center rounded-control focus-inset aria-expanded:bg-tint"
+                    data-save-more
+                    aria-label={`More for ${row.name}`}
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                  >
+                    <SaveIcon icon="more" />
+                  </button>
+                </PopoverTrigger>
+              </span>
+            }
           />
-        </span>
-      ) : (
-        <SaveRowLabel row={row} />
-      )}
-      <button
-        type="button"
-        class="saves-play"
-        disabled={row.gone}
-        onClick={() => events.onPlay(row.id)}
-      >
-        {SAVE_TEXT.playFromHere}
-      </button>
-      <button
-        type="button"
-        class="saves-more"
-        aria-label={`More for ${row.name}`}
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        onClick={() => events.onRowMenu(menuOpen ? null : row.id)}
-      >
-        <SaveIcon icon="more" />
-      </button>
-      {menuOpen ? (
-        <div class="saves-row-menu" role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => events.onEditValues(row.id)}
-          >
-            {SAVE_TEXT.editValues}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => events.onRenaming(row.id)}
-          >
-            {SAVE_TEXT.rename}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => events.onDelete(row.id)}
-          >
-            {SAVE_TEXT.delete}
-          </button>
-        </div>
-      ) : null}
-    </li>
+        </li>
+      </PopoverAnchor>
+      <SaveRowMenu row={row} events={events} trigger={trigger} />
+    </Popover>
   );
 }
 

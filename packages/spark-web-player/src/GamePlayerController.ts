@@ -186,6 +186,7 @@ import {
 import type { StartingValuesEvents } from "./route/StartingValuesViews";
 import { SavesController } from "./saves/SavesController";
 import { renderSavesViews } from "./saves/renderSavesViews";
+import { SAVE_ROW_MENU_ATTRIBUTE } from "./saves/SavesViews";
 import { draftKeyOf, savesEscape } from "./saves/savesView";
 import {
   DidChangeSavesViewMessage,
@@ -1145,7 +1146,8 @@ export class GamePlayerController {
     if (
       this._saves.open &&
       !inside(this.refs.savesMenu) &&
-      !inside(this.refs.savesButton)
+      !inside(this.refs.savesButton) &&
+      !(target instanceof Element && target.closest(`[${SAVE_ROW_MENU_ATTRIBUTE}]`))
     ) {
       this._saves.events.onOpen(false);
     }

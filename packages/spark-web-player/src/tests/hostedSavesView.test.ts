@@ -200,6 +200,7 @@ describe("Escape in the Saves menu", () => {
     expect(savesEscape(open, null)).toBe("close");
     expect(savesEscape({ ...open, open: false }, null)).toBeNull();
     expect(savesEscape({ ...open, renaming: "s1" }, null)).toBeNull();
+    expect(savesEscape({ ...open, rowMenu: "s1" }, null)).toBeNull();
     expect(savesEscape(values, null)).toBe("back");
     expect(savesEscape(values, "suspect")).toBe("back");
     expect(savesEscape(values, "trust")).toBeNull();

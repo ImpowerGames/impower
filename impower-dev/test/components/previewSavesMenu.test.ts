@@ -162,7 +162,7 @@ describe("the top bar's Saves button", () => {
     expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
     expect(menu()!.querySelector(".saves-here")!.textContent).toBe("Save here");
     expect(
-      Array.from(menu()!.querySelectorAll(".saves-row-name")).map((n) => n.textContent),
+      Array.from(menu()!.querySelectorAll("[data-save-name]")).map((n) => n.textContent),
     ).toEqual(["Entering interrogation", "Before the confession"]);
   });
 
@@ -181,7 +181,7 @@ describe("the top bar's Saves button", () => {
     await act(async () => menu()!.querySelector<HTMLButtonElement>(".saves-here")!.click());
     expect(sentActions()).toContainEqual({ kind: "saveHere" });
     await act(async () =>
-      menu()!.querySelector<HTMLButtonElement>('.saves-row[data-id="s1"] .saves-play')!.click(),
+      menu()!.querySelector<HTMLButtonElement>('[data-save-row][data-id="s1"] .saves-play')!.click(),
     );
     expect(sentActions()).toContainEqual({ kind: "play", id: "s1" });
   });

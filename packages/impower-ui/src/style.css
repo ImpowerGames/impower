@@ -3,6 +3,8 @@
 @import "./theme.css";
 @source ".";
 @source "../../spark-web-player/src/components";
+@source "../../spark-web-player/src/route";
+@source "../../spark-web-player/src/saves";
 
 @custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
 @custom-variant compact (&:where([data-layout="compact"], [data-layout="compact"] *));

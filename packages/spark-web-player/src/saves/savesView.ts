@@ -81,7 +81,7 @@ export const savesEscape = (
   state: SavesViewState,
   draftKey: string | null,
 ): "back" | "close" | null => {
-  if (!state.open || state.renaming) {
+  if (!state.open || state.renaming || state.rowMenu) {
     return null;
   }
   if (state.values) {
