@@ -12,7 +12,7 @@ export const TOAST_SWIPE_DISMISS_PX = 24;
 
 export const toastVariants = cva(
   [
-    "pointer-events-auto flex max-w-[calc(var(--toast-width,100vw)-var(--toast-inset))] min-h-11 touch-none flex-row items-center gap-2",
+    "pointer-events-auto flex max-w-[max(calc(var(--toast-width,100vw)-var(--toast-inset)),min(calc(var(--toast-width,100vw)-28px),320px))] min-h-11 touch-none flex-row items-center gap-2",
     "rounded-toast bg-ink py-0 pl-4 pr-1 text-[12px]/[1.5] text-bg shadow-float",
   ],
   {
