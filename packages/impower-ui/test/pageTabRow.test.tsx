@@ -88,7 +88,7 @@ const mountAt = async (layout: "phone" | "compact" | "desktop") => {
   host.dataset.layout = layout;
   await act(async () =>
     render(
-      <Tabs variant="page" iconLayout="beside" value="all" onChange={() => {}}>
+      <Tabs panel="panel" variant="page" iconLayout="beside" value="all" onChange={() => {}}>
         <Tab value="all">All scripts</Tab>
         <Tab value="outline">In this script</Tab>
       </Tabs>,
@@ -151,7 +151,7 @@ describe("Tabs page variant underline", () => {
     host.dataset.layout = "phone";
     await act(async () =>
       render(
-        <Tabs variant={variant} iconLayout="beside" value={value} onChange={() => {}}>
+        <Tabs panel="panel" variant={variant} iconLayout="beside" value={value} onChange={() => {}}>
           <Tab value="all">All scripts</Tab>
           <Tab value="outline">In this script</Tab>
         </Tabs>,

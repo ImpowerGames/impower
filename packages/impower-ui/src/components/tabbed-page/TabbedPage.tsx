@@ -1,9 +1,10 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
+import { useId } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import Button from "../button/Button";
 import { BackIcon } from "../icon/icons.generated";
-import Tabs, { Tab } from "../tabs/Tabs";
+import Tabs, { Tab, TabPanel } from "../tabs/Tabs";
 
 export const tabbedPageVariants = cva(
   "flex min-h-0 flex-1 flex-col bg-bg [:root[data-layout=desktop]_&]:bg-paper",
@@ -65,6 +66,7 @@ export default function TabbedPage({
   children,
   ...rest
 }: TabbedPageProps) {
+  const panel = useId();
   const tabbed = showTabs && tabs.length > 1;
   const current = tabbed
     ? (tabs.find((tab) => tab.value === value) ?? tabs[0])
@@ -85,6 +87,7 @@ export default function TabbedPage({
         <Tabs
           variant="page"
           iconLayout="beside"
+          panel={panel}
           value={current?.value ?? null}
           onChange={onValueChange}
           class="mx-[18px] w-auto flex-none border-b border-edge phone:mx-4 compact:mx-4"
@@ -97,14 +100,14 @@ export default function TabbedPage({
         </Tabs>
       )}
       {current && (
-        <div
+        <TabPanel
           key={current.value}
-          role={tabbed ? "tabpanel" : undefined}
-          aria-label={tabbed ? current.label : undefined}
+          panel={panel}
+          value={tabbed ? current.value : null}
           class="flex min-h-0 flex-1 flex-col"
         >
           {current.content}
-        </div>
+        </TabPanel>
       )}
       {children}
     </section>

@@ -1,64 +1,88 @@
-import { useState } from "preact/hooks";
+import { useId, useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
 import {
   ArtIcon,
   BookIcon,
   ShareIcon,
 } from "../icon/icons.generated";
-import Tabs, { Tab, type TabsProps } from "./Tabs";
+import Tabs, { Tab, TabPanel, type TabsProps } from "./Tabs";
 
-function IconTabs(props: Omit<TabsProps, "value" | "onChange" | "children">) {
-  const [value, setValue] = useState("logic");
+function DemoPanel({ panel, value }: { panel: string; value: string | null }) {
   return (
-    <Tabs value={value} onChange={setValue} {...props}>
-      <Tab value="logic" icon={BookIcon} activeIcon={BookIcon}>
-        Logic
-      </Tab>
-      <Tab value="assets" icon={ArtIcon} activeIcon={ArtIcon}>
-        Assets
-      </Tab>
-      <Tab value="share" icon={ShareIcon} activeIcon={ShareIcon} disabled>
-        Share (disabled)
-      </Tab>
-    </Tabs>
+    <TabPanel panel={panel} value={value} class="px-3 py-2 text-xs text-muted">
+      {value ?? "No tab selected"}
+    </TabPanel>
   );
 }
 
-function LabelTabs(props: Omit<TabsProps, "value" | "onChange" | "children">) {
-  const [value, setValue] = useState<string | null>("main");
+function IconTabs(props: Omit<TabsProps, "panel" | "value" | "onChange" | "children">) {
+  const [value, setValue] = useState("logic");
+  const panel = useId();
   return (
-    <Tabs value={value} onChange={setValue} {...props}>
-      <Tab value="main">Main</Tab>
-      <Tab value="scripts">Scripts</Tab>
-      <Tab value="locked" disabled>
-        Locked (disabled)
-      </Tab>
-    </Tabs>
+    <>
+      <Tabs panel={panel} value={value} onChange={setValue} {...props}>
+        <Tab value="logic" icon={BookIcon} activeIcon={BookIcon}>
+          Logic
+        </Tab>
+        <Tab value="assets" icon={ArtIcon} activeIcon={ArtIcon}>
+          Assets
+        </Tab>
+        <Tab value="share" icon={ShareIcon} activeIcon={ShareIcon} disabled>
+          Share (disabled)
+        </Tab>
+      </Tabs>
+      <DemoPanel panel={panel} value={value} />
+    </>
+  );
+}
+
+function LabelTabs(props: Omit<TabsProps, "panel" | "value" | "onChange" | "children">) {
+  const [value, setValue] = useState<string | null>("main");
+  const panel = useId();
+  return (
+    <>
+      <Tabs panel={panel} value={value} onChange={setValue} {...props}>
+        <Tab value="main">Main</Tab>
+        <Tab value="scripts">Scripts</Tab>
+        <Tab value="locked" disabled>
+          Locked (disabled)
+        </Tab>
+      </Tabs>
+      <DemoPanel panel={panel} value={value} />
+    </>
   );
 }
 
 function NoSelectionTabs() {
   const [value, setValue] = useState<string | null>(null);
+  const panel = useId();
   return (
-    <Tabs value={value} onChange={setValue}>
-      <Tab value="main">Main</Tab>
-      <Tab value="scripts">Scripts</Tab>
-    </Tabs>
+    <>
+      <Tabs panel={panel} value={value} onChange={setValue}>
+        <Tab value="main">Main</Tab>
+        <Tab value="scripts">Scripts</Tab>
+      </Tabs>
+      <DemoPanel panel={panel} value={value} />
+    </>
   );
 }
 
 const TYPE_TABS = ["Images", "Audio", "Video", "Text", "Fonts", "Other"];
 
-function TypeTabs(props: Omit<TabsProps, "value" | "onChange" | "children">) {
+function TypeTabs(props: Omit<TabsProps, "panel" | "value" | "onChange" | "children">) {
   const [value, setValue] = useState<string | null>("Audio");
+  const panel = useId();
   return (
-    <Tabs value={value} onChange={setValue} variant="inline" iconLayout="beside" {...props}>
-      {TYPE_TABS.map((label) => (
-        <Tab key={label} value={label}>
-          {label}
-        </Tab>
-      ))}
-    </Tabs>
+    <>
+      <Tabs panel={panel} value={value} onChange={setValue} variant="inline" iconLayout="beside" {...props}>
+        {TYPE_TABS.map((label) => (
+          <Tab key={label} value={label}>
+            {label}
+          </Tab>
+        ))}
+      </Tabs>
+      <DemoPanel panel={panel} value={value} />
+    </>
   );
 }
 

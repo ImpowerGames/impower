@@ -1,6 +1,6 @@
 import * as RadixTabs from "@radix-ui/react-tabs";
 import { cva, type VariantProps } from "class-variance-authority";
-import { type ComponentChildren, type Ref } from "preact";
+import { type ComponentChildren, type JSX, type Ref } from "preact";
 import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
@@ -93,7 +93,10 @@ export type TabsVariant = NonNullable<
   VariantProps<typeof tabTrigger>["variant"]
 >;
 
+export const tabId = (panel: string, value: string) => `${panel}-trigger-${value}`;
+
 type TabsContextValue = {
+  panel: string;
   variant: TabsVariant;
   indicator: "underline" | "none";
   vertical: boolean;
@@ -101,6 +104,7 @@ type TabsContextValue = {
   iconSize: number;
 };
 const TabsContext = createContext<TabsContextValue>({
+  panel: "",
   variant: "default",
   indicator: "underline",
   vertical: false,
@@ -109,6 +113,7 @@ const TabsContext = createContext<TabsContextValue>({
 });
 
 export type TabsProps = {
+  panel: string;
   value: string | null;
   onChange: (value: string) => void;
   variant?: TabsVariant;
@@ -122,6 +127,7 @@ export type TabsProps = {
 };
 
 export default function Tabs({
+  panel,
   value,
   onChange,
   variant = "default",
@@ -189,7 +195,7 @@ export default function Tabs({
 
   return (
     <TabsContext.Provider
-      value={{ variant, indicator, vertical, iconLayout, iconSize }}
+      value={{ panel, variant, indicator, vertical, iconLayout, iconSize }}
     >
       <RadixTabs.Root
         value={value ?? undefined}
@@ -282,6 +288,8 @@ export function Tab({
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       <button
         type="button"
+        id={tabId(ctx.panel, value)}
+        aria-controls={ctx.panel}
         class={cn(
           tabTrigger({
             orientation: ctx.vertical ? "vertical" : "horizontal",
@@ -367,5 +375,21 @@ export function Tab({
         </span>
       </button>
     </RadixTabs.Trigger>
+  );
+}
+
+export type TabPanelProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "id" | "role"> & {
+  panel: string;
+  value: string | null;
+};
+
+export function TabPanel({ panel, value, ...rest }: TabPanelProps) {
+  return (
+    <div
+      {...rest}
+      id={panel}
+      role={value ? "tabpanel" : undefined}
+      aria-labelledby={value ? tabId(panel, value) : undefined}
+    />
   );
 }

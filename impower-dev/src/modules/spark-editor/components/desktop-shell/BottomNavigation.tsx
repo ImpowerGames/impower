@@ -12,6 +12,7 @@ import { routeOfPane, routeOfState } from "../../workspace/routes";
 import { useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import { useNaming } from "./naming";
+import { SCREEN_PANEL_ID } from "./screenPanel";
 import { withWindow } from "./workspaceWindow";
 
 export default function BottomNavigation() {
@@ -39,6 +40,7 @@ export default function BottomNavigation() {
     >
       {typeof window !== "undefined" && (
         <Tabs
+          panel={SCREEN_PANEL_ID}
           value={current}
           onChange={onChange}
           variant="bar"

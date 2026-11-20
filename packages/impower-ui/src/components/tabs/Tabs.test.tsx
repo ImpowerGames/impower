@@ -2,7 +2,7 @@ import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArtIcon, BookIcon, ShareIcon } from "../icon/icons.generated";
-import Tabs, { Tab, type TabsProps } from "./Tabs";
+import Tabs, { Tab, TabPanel, type TabsProps } from "./Tabs";
 
 let host: HTMLDivElement | undefined;
 
@@ -19,7 +19,7 @@ const mount = async (props: Partial<TabsProps> = {}) => {
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
     render(
-      <Tabs value="logic" onChange={onChange} {...props}>
+      <Tabs panel="pane" value="logic" onChange={onChange} {...props}>
         <Tab value="logic" icon={BookIcon}>
           Story
         </Tab>
@@ -49,6 +49,34 @@ const exposedText = (element: Element) => {
   }
   return text.trim();
 };
+
+describe("Tabs panel", () => {
+  it("points every tab at the panel and names the panel by the selected tab", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const tree = (value: string | null) => (
+      <>
+        <Tabs panel="pane" value={value} onChange={() => {}}>
+          <Tab value="logic">Story</Tab>
+          <Tab value="assets">Assets</Tab>
+        </Tabs>
+        <TabPanel panel="pane" value={value}>
+          body
+        </TabPanel>
+      </>
+    );
+    await act(async () => render(tree("assets"), host!));
+    const panel = document.getElementById("pane")!;
+    const tabs = Array.from(host.querySelectorAll<HTMLElement>('[role="tab"]'));
+    expect(tabs.map((tab) => document.getElementById(tab.getAttribute("aria-controls")!))).toEqual([panel, panel]);
+    expect(panel.getAttribute("role")).toBe("tabpanel");
+    expect(document.getElementById(panel.getAttribute("aria-labelledby")!)).toBe(tabs[1]);
+    for (const none of ["", null]) {
+      await act(async () => render(tree(none), host!));
+      expect(panel.hasAttribute("role")).toBe(false);
+      expect(panel.hasAttribute("aria-labelledby")).toBe(false);
+    }
+  });
+});
 
 describe("Tabs accessible name", () => {
   it.each(["default", "rail", "bar", "inline"] as const)(
@@ -183,7 +211,7 @@ describe("Tabs scroll reveal", () => {
   const VIEWPORT = 180;
 
   const strip = (value: string) => (
-    <Tabs value={value} onChange={() => {}} variant="inline" iconLayout="beside" scroll>
+    <Tabs panel="pane" value={value} onChange={() => {}} variant="inline" iconLayout="beside" scroll>
       {values.map((v) => (
         <Tab key={v} value={v}>
           {v}

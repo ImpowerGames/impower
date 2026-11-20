@@ -192,8 +192,11 @@ export {
 export {
   default as Tabs,
   Tab,
+  TabPanel,
+  tabId,
   type TabsProps,
   type TabProps,
+  type TabPanelProps,
   type TabsVariant,
 } from "./tabs/Tabs";
 export {

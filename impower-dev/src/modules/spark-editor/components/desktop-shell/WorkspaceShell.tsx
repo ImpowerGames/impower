@@ -1,4 +1,4 @@
-import { SidebarLayout } from "@impower/impower-ui/components";
+import { SidebarLayout, TabPanel } from "@impower/impower-ui/components";
 import { useLayout, useRailDefault } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
@@ -11,6 +11,7 @@ import { PhoneSearch } from "../find-references-rename";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
+import { SCREEN_PANEL_ID } from "./screenPanel";
 import ShellRail from "./ShellRail";
 import TopBar from "./TopBar";
 import { withWindow, workspaceWindow } from "./workspaceWindow";
@@ -45,6 +46,7 @@ export default function WorkspaceShell({
   const shell = useComputed(() => workspace.state.value.shell).value;
   const railWidth = compact ? shell?.railCompactWidth : shell?.railWidth;
   const route = useComputed(() => routeOfState(workspace.state.value)).value;
+  const pane = useComputed(() => workspace.signals.pane.value).value;
   const naming = useNaming();
   const writing = useComputed(() => storyScriptOf() !== undefined).value;
   const previewRevealed = useComputed(
@@ -153,7 +155,9 @@ export default function WorkspaceShell({
           ) : null
         }
       >
-        <div
+        <TabPanel
+          panel={SCREEN_PANEL_ID}
+          value={route === "settings" ? null : pane}
           class="relative flex h-full min-h-0 w-full"
           onScrollCapture={
             phone
@@ -165,7 +169,7 @@ export default function WorkspaceShell({
           }
         >
           {children}
-        </div>
+        </TabPanel>
       </SidebarLayout>
     </div>
   );
