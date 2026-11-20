@@ -2,7 +2,6 @@ import {
   Button,
   ClockIcon,
   DropdownContent,
-  DropdownItemText,
   DropdownLabel,
   DropdownRadioGroup,
   DropdownRadioItem,
@@ -37,13 +36,12 @@ const ALL_FIELDS = SORT_FIELDS.map((spec) => spec.field);
 export type SortMenuProps = {
   value: string | undefined;
   fields?: readonly SortField[];
-  usesHint?: string;
   note?: string;
   separatorSpacing?: DropdownSeparatorSpacing;
   onChange: (key: string) => void;
 };
 
-export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, separatorSpacing, onChange }: SortMenuProps) {
+export default function SortMenu({ value, fields = ALL_FIELDS, note, separatorSpacing, onChange }: SortMenuProps) {
   const label = sortLabel(value);
   const menu = sortMenu(value);
   const fieldKey = menu.fields.find((f) => f.checked)!.key;
@@ -70,7 +68,7 @@ export default function SortMenu({ value, fields = ALL_FIELDS, usesHint, note, s
             return (
               <DropdownRadioItem key={field.field} value={field.key} indicator="end" chosenWeight="normal">
                 <Icon class="text-muted" />
-                <DropdownItemText hint={field.field === "uses" ? usesHint : undefined}>{field.label}</DropdownItemText>
+                {field.label}
               </DropdownRadioItem>
             );
           })}
