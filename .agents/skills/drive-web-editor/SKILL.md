@@ -32,7 +32,7 @@ Select only the references needed for this run:
 
 The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the [Android emulator](#android-emulator) route is the bar.
 
-`screenshot <name> [--project <dir>] [--sd <file>] [--scrub <line>] [--step <name>]... [--out-dir <dir>]` loads the editor, seeds and scrubs as `ui` does (every `--sd` after the last `--project`), runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
+`screenshot <name> [--project <dir>] [--sd <file>] [--scrub <line>] [--step <name>]... [--out-dir <dir>]` loads the editor, runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
 
 ## Android emulator
 
@@ -40,7 +40,7 @@ Phone layouts are verified on an emulator, because the on-screen keyboard and na
 
 ## Named steps
 
-`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device. At phone widths, `play`, `preview-settings` and `problems` reveal the preview pane through the strip's Play, which needs a script with a story and the caret on one of its lines: pass `--sd <file> --scrub <line>` on the same `screenshot` or `ui` run. Each step and the surface it opens:
+`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device. At phone widths, `play`, `preview-settings` and `problems` need `--sd <file> --scrub <line>` on the same run. Each step and the surface it opens:
 
 | Step | Surface |
 |---|---|
