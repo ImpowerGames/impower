@@ -95,25 +95,19 @@ describe("the web editor's sparkdown.addAsset", () => {
 describe("the named upload", () => {
   it("adds the chosen file under the reference's name, keeping its extension, in its type's folder", async () => {
     const landed = await addNamedAssetFile(file("Explosion 2.WAV"), { name: "boom", type: "audio" });
-    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "boom.WAV", size: 10 })], "Assets/Audio", {
-      keepNames: true,
-    });
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "boom.WAV", size: 10 })], "Assets/Audio");
     expect(landed).toEqual(["Assets/Audio/boom.WAV"]);
   });
 
-  it("asks the upload to keep a name the script wrote with a hyphen", async () => {
+  it("passes a name the script wrote with a hyphen to the upload unchanged", async () => {
     await addNamedAssetFile(file("Door Bell.wav"), { name: "door-bell", type: "audio" });
-    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "door-bell.wav" })], "Assets/Audio", {
-      keepNames: true,
-    });
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "door-bell.wav" })], "Assets/Audio");
   });
 
   it("uses the project's own spelling of the type's folder", async () => {
     workspace.assetListing.value = { projectId: "p", files: {}, folders: ["assets", "assets/images"] };
     await addNamedAssetFile(file("a.png"), { name: "alice", type: "image" });
-    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "alice.png" })], "assets/images", {
-      keepNames: true,
-    });
+    expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "alice.png" })], "assets/images");
   });
 
   it.each([
@@ -121,7 +115,7 @@ describe("the named upload", () => {
     ["folder/take.mp3", "boom", "boom.mp3"],
     ["noext", "boom", "boom"],
     [".hidden", "boom", "boom"],
-    ["take.o-g g", "door-bell", "door-bell.o_g_g"],
+    ["take.o-g g!", "door-bell", "door-bell.o-g g!"],
   ])("names %s as %s: %s", (from, name, expected) => {
     expect(namedAs(file(from), name).name).toBe(expected);
   });

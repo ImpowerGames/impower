@@ -8,7 +8,7 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural, validName } from "../utils/fileListModel";
 import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
-import { storageSegments } from "../utils/storageName";
+import { storageLeaf, storageSegments } from "../utils/storageName";
 import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";
 import { reasonOf, type FileMove } from "../utils/fileMoves";
@@ -17,7 +17,6 @@ import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSourc
 import { imageFileNameOf, imageThingsOf, stackNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
 import { variantOf, type ImageVariant } from "../utils/imageVariants";
-import getValidFileName from "../utils/getValidFileName";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameFailureMessage, renameOrReport } from "../utils/renameOrReport";
 import { showSnackbar } from "../utils/snackbar";
@@ -95,11 +94,6 @@ const extensionOf = (path: string) => {
 const renameFailure = (error: unknown) => {
   const rollback = (error as { rollback?: WorkspaceEditRollback } | null)?.rollback;
   return Object.assign(new NameError(reasonOf(error)), rollback && { rollback });
-};
-
-const validImageFileName = (leaf: string) => {
-  const [picture = "", ...layer] = leaf.split(" ");
-  return [getValidFileName(picture), ...layer.map((word) => word.replace(/[^\w.@~-]/g, "_"))].join(" ");
 };
 
 const MEASURE_BATCH = 8;
@@ -346,22 +340,13 @@ export default class WorkspaceAssets {
     return path;
   }
 
-  async upload(
-    files: readonly DroppedFile[],
-    folder: string,
-    { keepNames = false }: { keepNames?: boolean } = {},
-  ): Promise<string[]> {
+  async upload(files: readonly DroppedFile[], folder: string): Promise<string[]> {
     const listing = this.listing;
     const endings = assetEndings.peek();
     const scripts = scriptsHome(listing);
     return this.importAt(files, (file) => {
       const folders = storageSegments(file.name);
-      const leaf = folders.pop() ?? "";
-      const name = keepNames
-        ? leaf
-        : assetTypeOf(leaf, endings) === "image"
-          ? validImageFileName(leaf)
-          : getValidFileName(leaf);
+      const name = folders.pop() ?? "";
       const home = isScriptPath(name) ? scripts : landingFolder(listing, assetTypeOf(name, endings), folder);
       return [home, ...folders, name].filter(Boolean).join("/");
     });
@@ -386,7 +371,7 @@ export default class WorkspaceAssets {
 
   async addLink(url: string, name: string, folder: string): Promise<string | undefined> {
     const projectId = this.requireProject();
-    const filename = `${getValidFileName(name) || "asset"}.url`;
+    const filename = `${storageLeaf(name) || "asset"}.url`;
     const type = assetTypeOf(filename, assetEndings.peek(), url);
     const [path] = await importFiles(projectId, [
       {

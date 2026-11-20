@@ -122,9 +122,9 @@ describe("the Assets page's file intents", () => {
     await assets.load();
     const landed = await assets.upload([dropped("Mono Regular.ttf")], "Assets/Fonts");
     expect(mocks.importFiles).toHaveBeenCalledWith(PROJECT, [
-      expect.objectContaining({ rel: "Assets/Fonts/Mono_Regular.ttf" }),
+      expect.objectContaining({ rel: "Assets/Fonts/Mono Regular.ttf" }),
     ]);
-    expect(landed).toEqual(["Assets/Fonts/Mono_Regular.ttf"]);
+    expect(landed).toEqual(["Assets/Fonts/Mono Regular.ttf"]);
   });
 
   it("lands each upload in the folder in view when it is under the file's type folder, else in that type folder", async () => {
@@ -162,25 +162,13 @@ describe("the Assets page's file intents", () => {
       "Assets/Audio/sfx/rain.wav",
       "scripts/story/intro.sd",
       "Assets/Images/Portraits/escape/bo.png",
-      "Assets/Audio/win_style_door_knock.wav",
+      "Assets/Audio/win_style_door knock.wav",
       "Assets/Images/Portraits/Old_Cast/ada.png",
       "Assets/Other/inner.zip",
     ]);
   });
 
-  it("keeps a named upload's name exactly as the script wrote it, where an ordinary upload cleans it", async () => {
-    const { assets } = fakeWorkspace({ "Assets/Audio/rain.ogg": "ogg" });
-    await assets.load();
-    mocks.importFiles.mockClear();
-    await assets.upload([dropped("door-bell.wav"), dropped("café.ogg")], "Assets/Audio", { keepNames: true });
-    await assets.upload([dropped("door-bell.wav"), dropped("café.ogg")], "Assets/Audio");
-    expect(mocks.importFiles.mock.calls.map((call) => call[1].map((item: { rel: string }) => item.rel))).toEqual([
-      ["Assets/Audio/door-bell.wav", "Assets/Audio/café.ogg"],
-      ["Assets/Audio/door_bell.wav", "Assets/Audio/caf_.ogg"],
-    ]);
-  });
-
-  it("keeps the @ and the spaces of an uploaded or dropped alternate or layer image, and cleans other characters", async () => {
+  it("stores an uploaded or dropped file under the name it was uploaded with", async () => {
     const { assets } = fakeWorkspace({ "Assets/Images/imani.png": "png" });
     await assets.load();
     mocks.importFiles.mockClear();
@@ -190,7 +178,11 @@ describe("the Assets page's file intents", () => {
         dropped("imani@night.png"),
         dropped("imani 20 hair-top hat.off.png"),
         dropped("imani-alt face.look-left!.png"),
+        dropped("café ñame.png"),
         dropped("door knock.wav"),
+        dropped("door-bell!.wav"),
+        dropped("café ñame.ogg"),
+        dropped("scene two.sd"),
       ],
       "",
     );
@@ -198,9 +190,35 @@ describe("the Assets page's file intents", () => {
       "Assets/Images/imani face.happy.png",
       "Assets/Images/imani@night.png",
       "Assets/Images/imani 20 hair-top hat.off.png",
-      "Assets/Images/imani_alt face.look-left_.png",
-      "Assets/Audio/door_knock.wav",
+      "Assets/Images/imani-alt face.look-left!.png",
+      "Assets/Images/café ñame.png",
+      "Assets/Audio/door knock.wav",
+      "Assets/Audio/door-bell!.wav",
+      "Assets/Audio/café ñame.ogg",
+      "Scripts/scene two.sd",
     ]);
+  });
+
+  it("keeps the names of a dropped folder's files and replaces only a backslash, which the file store cannot hold", async () => {
+    const { assets } = fakeWorkspace({});
+    await assets.load();
+    mocks.importFiles.mockClear();
+    await assets.upload([dropped("cast/imani-alt face.look-left!.png"), dropped("sfx/door knock.wav"), dropped("a\\b.wav")], "");
+    expect(mocks.importFiles.mock.calls[0]![1].map((item: { rel: string }) => item.rel)).toEqual([
+      "Assets/Images/cast/imani-alt face.look-left!.png",
+      "Assets/Audio/sfx/door knock.wav",
+      "Assets/Audio/a_b.wav",
+    ]);
+  });
+
+  it("names a link as it was typed, replacing only a folder separator", async () => {
+    const { assets } = fakeWorkspace({});
+    await assets.load();
+    mocks.importFiles.mockClear();
+    expect(await assets.addLink("https://cdn.example.com/knock.mp3", "door knock! café", "Assets/Audio")).toBe(
+      "Assets/Audio/door knock! café.url",
+    );
+    expect(await assets.addLink("https://cdn.example.com/knock.mp3", "a/b\\c", "Assets/Audio")).toBe("Assets/Audio/a_b_c.url");
   });
 
   it("adds a link under the type its address names through the upload conflict check", async () => {
