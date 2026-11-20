@@ -626,6 +626,15 @@ describe("a play that replays several ranges (#2581)", () => {
     expect(run(direct).calls.length).toBeGreaterThan(3);
   });
 
+  test("a range whose count is above 1000 reaches no player, and one of 1000 does", () => {
+    expect(readMorphReplay({ chance: "100%", count: 1000 })).toEqual([{ from: 0, to: 1, chance: 1, count: 1000 }]);
+    expect(readMorphReplay({ chance: "100%", count: 1001 })).toBeUndefined();
+    expect(readMorphReplay({ chance: "100%", count: 100000000 })).toBeUndefined();
+    expect(readMorphReplay([{ chance: "100%", count: 100000000 }, { chance: "50%", count: 2 }])).toEqual([
+      { from: 0, to: 1, chance: 0.5, count: 2 },
+    ]);
+  });
+
   test("a reversed play runs the whole path backwards, pauses included", () => {
     const replay = [range(0, 0.4, { delay_min: 0.1, delay_max: 0.3 }), range(0.3, 0.8, { count: 2, delay_min: 0.1, delay_max: 0.3 })];
     const values = [0.1, 0.5, 0.9];

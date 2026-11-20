@@ -26,7 +26,9 @@ import {
   MORPH_SYNCS,
   MORPH_TIMING_FIELDS,
   MORPH_TRIGGERS,
+  MORPH_REPLAY_COUNT_MAX,
   easingProblem,
+  isMorphReplayCount,
   parseMorphDepth,
   parseMorphPartner,
   parseMorphQualifiedState,
@@ -949,9 +951,9 @@ function replayFieldProblem(field: string, value: unknown): string | null {
     case "chance":
       return parseMorphSpan(value) === undefined ? REPLAY_POSITION_PROBLEM(field, REPLAY_EXAMPLES[field]!) : null;
     case "count":
-      return typeof value === "number" && Number.isInteger(value) && value >= 1
+      return isMorphReplayCount(value)
         ? null
-        : "`count` is the most replays this range makes in one play: a whole number of at least 1.";
+        : `\`count\` is the most replays this range makes in one play: a whole number from 1 to ${MORPH_REPLAY_COUNT_MAX}.`;
     case "delay_min":
     case "delay_max":
       return secondsProblem(field, value, false);

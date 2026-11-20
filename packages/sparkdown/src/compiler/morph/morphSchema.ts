@@ -123,6 +123,11 @@ export const MORPH_TIMING_FIELDS = [
 
 export const MORPH_REPLAY_FIELDS = ["from", "to", "chance", "count", "delay_min", "delay_max"] as const;
 
+export const MORPH_REPLAY_COUNT_MAX = 1000;
+
+export const isMorphReplayCount = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= MORPH_REPLAY_COUNT_MAX;
+
 export function readMorphReplay(value: unknown): MorphReplay[] | undefined {
   if (Array.isArray(value)) {
     const ranges = value.map(readMorphReplayRange).filter((range) => range !== undefined);
@@ -141,7 +146,7 @@ export function readMorphReplayRange(value: unknown): MorphReplay | undefined {
   const chance = block["chance"] === undefined ? undefined : parseMorphSpan(block["chance"]);
   const count = block["count"] ?? 1;
   if (from === undefined || to === undefined || chance === undefined || !(from < to)) return undefined;
-  if (typeof count !== "number" || !Number.isInteger(count) || count < 1) return undefined;
+  if (!isMorphReplayCount(count)) return undefined;
   const min = block["delay_min"];
   const max = block["delay_max"];
   const seconds = (s: unknown): s is number => typeof s === "number" && Number.isFinite(s) && s >= 0;
@@ -234,7 +239,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "The keyframe position a play turns back at: a percentage from `0%` to `100%`, or a number from 0 to 1, above `from`. Default `100%`, the end of the play.",
   "replay.chance":
     "How likely each replay is: a percentage from `0%` to `100%`, or a number from 0 to 1. When a play starts it rolls `chance` up to `count` times and stops at the first roll that fails. `0%` never replays. Required.",
-  "replay.count": "The most replays this range makes in one play: a whole number of at least 1. Default 1. In a block of several `{ … }` entries each entry has its own `count`, so a play makes at most their total.",
+  "replay.count": "The most replays this range makes in one play: a whole number from 1 to 1000. Default 1. In a block of several `{ … }` entries each entry has its own `count`, so a play makes at most their total.",
   "replay.delay_min": "Shortest pause, in seconds, before a replay starts, holding the pose at `to`. Needs `delay_max`. Without both, a replay starts at once.",
   "replay.delay_max": "Longest pause, in seconds, before a replay starts. Each pause is drawn uniformly between the two bounds. Needs `delay_min`.",
   clips:
