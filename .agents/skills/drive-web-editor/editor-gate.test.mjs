@@ -216,7 +216,7 @@ await check("a page that never mounts a pane is told to re-run, not to switch sc
 const MAIN_URI = "file://local/main.sd";
 const CHAPTER_URI = "file://local/Scripts/chapter_1.sd";
 
-const logicPage = ({ uri = null, hash = "#write", opens = MAIN_URI, inFolder = false } = {}) => {
+const logicPage = ({ uri = null, hash = "#story", opens = MAIN_URI, inFolder = false } = {}) => {
   const state = { uri, hash, clicks: [], inFolder };
   const answers = () => state.uri != null && state.hash !== "#scripts";
   const rootCrumb = (selector) => selector.endsWith('button[aria-label="Scripts"]');
@@ -234,7 +234,7 @@ const logicPage = ({ uri = null, hash = "#write", opens = MAIN_URI, inFolder = f
           state.clicks.push(selector);
           if (rootCrumb(selector)) state.inFolder = false;
           if (selector.includes("Open script Main")) {
-            state.hash = "#write";
+            state.hash = "#story";
             state.uri = opens;
           }
         },
@@ -291,7 +291,7 @@ await check("--screen main from another script goes to the Scripts page, presses
   const page = logicPage({ uri: CHAPTER_URI });
   const switched = await switchScreen(page, "main");
   assert.deepEqual(switched, { screen: "main", active: true, opened: true, settled: true, editorHere: true, editorView: "main", editorSettled: true });
-  assert.equal(page.state.hash, "#write");
+  assert.equal(page.state.hash, "#story");
   assert.equal(page.state.clicks.length, 1);
   assert.match(page.state.clicks[0], /Open script Main/);
   const already = logicPage({ uri: MAIN_URI });

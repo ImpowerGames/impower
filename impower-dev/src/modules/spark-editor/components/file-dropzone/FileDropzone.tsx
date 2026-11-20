@@ -30,14 +30,14 @@ export const deliverDrop = async (items: DropItem[]): Promise<void> => {
   if (!items.length || !workspace.signals.projectId.peek()) {
     return;
   }
-  const onAssets = routeOfState(workspace.state.peek()) === "collection";
+  const onAssets = routeOfState(workspace.state.peek()) === "assets";
   const folder = onAssets ? viewedFolder() : "";
   const { Workspace } = await import("../../workspace/Workspace");
   try {
     const landed = await addAssetFiles(items, folder, {
       showUploads: () => {
         if (!onAssets) {
-          Workspace.window.navigateTo("collection");
+          Workspace.window.navigateTo("assets");
         }
       },
     });

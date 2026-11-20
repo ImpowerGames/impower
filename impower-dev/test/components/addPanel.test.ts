@@ -450,7 +450,7 @@ describe("the pickers on desktop", () => {
     await settle();
     expect(calls.navigated).toEqual([
       ["setListState", { assetsType: "audio" }],
-      ["navigateTo", "collection"],
+      ["navigateTo", "assets"],
     ]);
     expect(panel()).toBeNull();
     await setOpen(true);
@@ -509,7 +509,7 @@ describe("the pickers on a phone", () => {
     await settle();
     await act(async () => button("Portrait", "Portrait thumbnail preferences").click());
     await settle();
-    expect(calls.navigated).toEqual([["navigateTo", "project", "add-folder-preferences"]]);
+    expect(calls.navigated).toEqual([["navigateTo", "settings", "add-folder-preferences"]]);
     expect(panel()).toBeNull();
   });
 });
@@ -527,7 +527,7 @@ describe("the files a picker leaves out", () => {
     await settle();
     expect(calls.navigated).toEqual([
       ["setListState", { assetsType: "audio" }],
-      ["navigateTo", "collection"],
+      ["navigateTo", "assets"],
     ]);
   });
 

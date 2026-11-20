@@ -290,7 +290,7 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
   });
 
   const topBarAt = async (collapsed: boolean) => {
-    const state = stateForRoute(workspace.state.value as WorkspaceCache, "collection");
+    const state = stateForRoute(workspace.state.value as WorkspaceCache, "assets");
     workspace.state.value = {
       ...state,
       project: { ...state.project, name: "The Midnight Jukebox" },

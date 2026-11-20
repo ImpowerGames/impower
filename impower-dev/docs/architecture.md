@@ -47,15 +47,20 @@ draws the frame every page shares; the page inside it is chosen by the route.
 
 | Route | Hash | Page | Shown by |
 |---|---|---|---|
-| Story | `#write` | The script editor, its header and the Outline | `components/logic/Logic.tsx` with `components/script-header/`, `components/outline/` |
+| Story | `#story` | The script editor, its header and the Outline | `components/logic/Logic.tsx` with `components/script-header/`, `components/outline/` |
 | Scripts | `#scripts` | Every script of the project, in folders | `components/scripts-page/ScriptsPage.tsx` |
-| Assets | `#collection` | Images, sounds, fonts and links, in folders, with the asset inspector | `components/assets/Assets.tsx`, `components/asset-inspector/` |
+| Assets | `#assets` | Images, sounds, fonts and links, in folders, with the asset inspector | `components/assets/Assets.tsx`, `components/asset-inspector/` |
 | Share | `#share` | Exports of the game and the screenplay | `components/share/SharePage.tsx` |
-| Settings | `#project` | Editor and project preferences; `#project?section=<id>` opens one section | `components/settings/SettingsPage.tsx` |
+| Settings | `#settings` | Editor and project preferences; `#settings?section=<id>` opens one section | `components/settings/SettingsPage.tsx` |
 
 The route is derived from the store (`routeOfState`), never kept beside it: the
 open pane, the Story pane's view and `screen.settingsOpen` decide it, and
 `stateForRoute` is the one function that changes them for a route.
+
+The old names `#write`, `#logic`, `#main`, `#collection` and `#project` open
+their page through `LEGACY_ROUTES` and the address bar is rewritten to the
+current name, keeping a Settings `?section=`. `LEGACY_ROUTES_REMOVAL_DATE`
+(2027-02-18) is when the redirects go.
 
 ### Layouts
 

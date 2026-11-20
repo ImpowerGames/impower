@@ -174,7 +174,7 @@ describe("the preview top bar against the prototype", () => {
     expect(last.classList).toContain("mt-1");
     await act(async () => last.click());
     await settle(50);
-    expect(window.location.hash).toBe("#project?section=preview-preferences");
+    expect(window.location.hash).toBe("#settings?section=preview-preferences");
     expect(document.querySelector('[role="menu"]')).toBeNull();
   });
 

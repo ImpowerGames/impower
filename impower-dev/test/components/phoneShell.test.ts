@@ -200,7 +200,7 @@ beforeEach(() => {
         },
       },
     },
-    "write",
+    "story",
   );
 });
 
@@ -272,9 +272,9 @@ describe("the phone shell", () => {
     await mount();
     expect(host!.querySelector('[data-route="logic"]')).not.toBeNull();
     for (const [route, pane] of [
-      ["collection", "assets"],
+      ["assets", "assets"],
       ["share", "share"],
-      ["write", "logic"],
+      ["story", "logic"],
     ] as const) {
       await go(route);
       expect(host!.querySelector(`[data-route="${pane}"]`)).not.toBeNull();
@@ -305,14 +305,14 @@ describe("the phone shell", () => {
       );
     });
     await settle();
-    expect(calls.routes).toEqual(["collection"]);
+    expect(calls.routes).toEqual(["assets"]);
     expect(workspace.current.preview.revealed).toBe(false);
 
-    await go("write");
+    await go("story");
     await act(async () => button("Play from this line")!.click());
     await settle();
     expect(workspace.current.preview.revealed).toBe(true);
-    await go("project");
+    await go("settings");
     expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
     expect(workspace.current.preview.revealed).toBe(false);
   });
@@ -408,19 +408,19 @@ describe("the phone shell", () => {
     await settle();
     expect(calls.commands).toEqual([["main.sd", "undo"]]);
     expect(calls.finds).toBe(1);
-    await go("collection");
+    await go("assets");
     expect(button("Undo edit")).toBeNull();
     expect(button("App menu")).not.toBeNull();
     calls.routes.length = 0;
     await act(async () => button("Search")!.click());
     await settle();
-    expect(calls.routes).toEqual(["write"]);
+    expect(calls.routes).toEqual(["story"]);
     expect(calls.finds).toBe(2);
   });
 
   it("opens Settings in place of the route with no tab current, returns to Story from its tab, and closes the full view on Escape", async () => {
     await mount();
-    await go("project");
+    await go("settings");
     expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
     expect(host!.querySelector('[data-route="logic"]')).toBeNull();
     expect(navigation().hidden).toBe(false);
@@ -436,7 +436,7 @@ describe("the phone shell", () => {
       );
     });
     await settle();
-    expect(calls.routes).toEqual(["write"]);
+    expect(calls.routes).toEqual(["story"]);
     expect(host!.querySelector("[data-settings-page]")).toBeNull();
 
     await act(async () => button("Play from this line")!.click());
@@ -486,7 +486,7 @@ describe("the phone's preview strip", () => {
     await settle();
     expect(strip().hidden).toBe(false);
     expect(strip().querySelector("[data-preview-strip]")).toBe(reading);
-    for (const route of ["collection", "share", "project", "scripts"]) {
+    for (const route of ["assets", "share", "settings", "scripts"]) {
       await go(route);
       expect(strip().hidden, route).toBe(true);
     }
@@ -679,7 +679,7 @@ describe("the phone's reading and editing modes", () => {
   it("ends editing when the route leaves the story", async () => {
     await mount();
     await edit();
-    await go("collection");
+    await go("assets");
     await settle();
     expect(workspace.scriptMode.value).toBe("reading");
   });
@@ -890,7 +890,7 @@ describe("the app menu on a phone", () => {
     ).find((item) => item.textContent?.includes("Settings"))!;
     await act(async () => settings.click());
     await settle(250);
-    expect(calls.routes).toEqual(["project"]);
+    expect(calls.routes).toEqual(["settings"]);
     expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
     expect(navigation().hidden).toBe(false);
   });

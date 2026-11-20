@@ -6,11 +6,11 @@ import { openFind } from "../find-references-rename";
 import { withWindow } from "./workspaceWindow";
 
 const searchStory = () =>
-  void withWindow((win) => win.navigateTo("write")).then(openFind);
+  void withWindow((win) => win.navigateTo("story")).then(openFind);
 
 export default function TitleBarSearch() {
   const writing = useComputed(
-    () => routeOfState(workspace.state.value) === "write",
+    () => routeOfState(workspace.state.value) === "story",
   ).value;
   return (
     <Button

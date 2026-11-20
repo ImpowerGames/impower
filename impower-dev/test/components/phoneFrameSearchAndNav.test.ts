@@ -91,24 +91,24 @@ describe("the phone frame", () => {
     document.body.innerHTML = "";
   });
 
-  it.each(["scripts", "collection", "share", "project"] as const)(
+  it.each(["scripts", "assets", "share", "settings"] as const)(
     "on the %s page, Search goes to the Story first and opens find there",
     async (route) => {
       showRoute(route);
       const search = await tapSearch(await mount(PhoneTitleBar));
-      expect(calls).toEqual(["navigate:write", "find"]);
+      expect(calls).toEqual(["navigate:story", "find"]);
       expect(search.classList).toContain("text-muted");
     },
   );
 
   it("on the Story, Search opens find where the author is", async () => {
-    showRoute("write");
+    showRoute("story");
     await tapSearch(await mount(PhoneTitleBar));
     expect(calls).toEqual(["find"]);
   });
 
   it("draws the App menu button in ink", async () => {
-    showRoute("collection");
+    showRoute("assets");
     const menu = (await mount(PhoneTitleBar)).querySelector(
       'button[aria-label="App menu"]',
     )!;
@@ -117,7 +117,7 @@ describe("the phone frame", () => {
   });
 
   it("draws the bottom navigation on the page background", async () => {
-    showRoute("collection");
+    showRoute("assets");
     const nav = (await mount(BottomNavigation)).querySelector(
       "[data-bottom-navigation]",
     )!;

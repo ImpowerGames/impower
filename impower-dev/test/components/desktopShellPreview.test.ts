@@ -43,7 +43,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
           workspace.current = stateForRoute(workspace.current, route);
         },
         closeSettings: () => {
-          workspace.current = stateForRoute(workspace.current, "write");
+          workspace.current = stateForRoute(workspace.current, "story");
         },
       }),
     },

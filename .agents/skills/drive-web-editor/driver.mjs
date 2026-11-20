@@ -2088,12 +2088,12 @@ const ASSET_FOLDER_DEPTH = 4;
 export async function openAssetInspector(page, { timeout = 10_000 } = {}) {
   const fail = (reason, extra = {}) => ({ step: "asset-inspector", ran: false, ...extra, reason });
   await page.evaluate(() => {
-    if (!/^#collection(?:[?&]|$)/i.test(location.hash)) location.hash = "#collection";
+    if (!/^#assets(?:[?&]|$)/i.test(location.hash)) location.hash = "#assets";
   });
   try {
     await page.locator(SCREENS.assets).first().waitFor({ state: "visible", timeout });
   } catch {
-    return fail(`the Assets page did not appear within ${timeout / 1000} s of going to #collection`);
+    return fail(`the Assets page did not appear within ${timeout / 1000} s of going to #assets`);
   }
   const rows = page.locator(ASSET_ROW_SELECTOR);
   for (let depth = 0; depth <= ASSET_FOLDER_DEPTH; depth += 1) {
@@ -2515,7 +2515,7 @@ export async function wheelList(page, { delta = 400, settleMs = 700 } = {}) {
 
 export async function openSettings(page, section, { timeout = 10000 } = {}) {
   await page.evaluate((id) => {
-    window.location.hash = `#project?section=${id}`;
+    window.location.hash = `#settings?section=${id}`;
   }, section);
   try {
     await page.waitForFunction(
@@ -2534,7 +2534,7 @@ export async function openSettings(page, section, { timeout = 10000 } = {}) {
       ran: false,
       reason: known.length
         ? `no Settings section "${section}" took focus within ${timeout / 1000} s; the page has: ${known.join(", ")}`
-        : `the Settings page did not open within ${timeout / 1000} s of going to #project?section=${section}`,
+        : `the Settings page did not open within ${timeout / 1000} s of going to #settings?section=${section}`,
     };
   }
   await page
@@ -2875,7 +2875,7 @@ export function editorAbsentReason({ screen, panelTab = null, scriptsPage = fals
 }
 
 async function editorExpectedHere(page) {
-  if (await page.evaluate(() => /^#project(?:$|[?&])/i.test(location.hash))) return false;
+  if (await page.evaluate(() => /^#settings(?:$|[?&])/i.test(location.hash))) return false;
   await page.waitForSelector(SELECTED_SCREEN_TAB, { state: "attached", timeout: 5_000 }).catch(() => {});
   const screen = await activeScreen(page);
   if (screen == null) return null;

@@ -87,7 +87,7 @@ beforeEach(() => {
   localStorage.clear();
   observers.length = 0;
   navigation.routes.length = 0;
-  window.history.replaceState(null, "", "#project");
+  window.history.replaceState(null, "", "#settings");
 });
 
 afterEach(async () => {
@@ -101,7 +101,7 @@ afterEach(async () => {
 
 describe("the Settings page", () => {
   it("lands on the section a deep link names, focusing its heading and marking it in the index", async () => {
-    window.history.replaceState(null, "", "#project?section=save-settings");
+    window.history.replaceState(null, "", "#settings?section=save-settings");
     await mount(h(SettingsPage, null), h(SettingsIndex, null));
     expect(document.activeElement?.id).toBe("save-settings-title");
     expect(document.getElementById("settings-page")!.scrollTo).toHaveBeenCalled();
@@ -111,7 +111,7 @@ describe("the Settings page", () => {
   it("jumps again when the hash names another section", async () => {
     await mount(h(SettingsPage, null), h(SettingsIndex, null));
     await act(async () => {
-      window.history.replaceState(null, "", "#project?section=file-types");
+      window.history.replaceState(null, "", "#settings?section=file-types");
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     });
     expect(document.activeElement?.id).toBe("file-types-title");
@@ -215,7 +215,7 @@ describe("the Settings page", () => {
     const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
     await act(async () => back.click());
     await pause(0);
-    expect(navigation.routes).toEqual(["write"]);
+    expect(navigation.routes).toEqual(["story"]);
   });
 
   it("takes its frame, heading, intro and Back to story action from PageFrame", async () => {
@@ -236,7 +236,7 @@ describe("the Settings page", () => {
     expect(back.parentElement!.className).toBe(pageFrameBackVariants());
     await act(async () => back.click());
     await pause(0);
-    expect(navigation.routes).toEqual(["write"]);
+    expect(navigation.routes).toEqual(["story"]);
   });
 });
 

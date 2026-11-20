@@ -1197,7 +1197,7 @@ await asyncCheck("the app-menu, settings, add-menu and preview-settings steps se
     };
     const saved = { getComputedStyle: globalThis.getComputedStyle, window: globalThis.window, location: globalThis.location };
     globalThis.getComputedStyle = () => ({ opacity: "1" });
-    globalThis.location = { hash: "#project?section=save-settings" };
+    globalThis.location = { hash: "#settings?section=save-settings" };
     globalThis.window = { innerHeight: 900, location: globalThis.location };
     try {
       return await inFakeDocument(fakeDocument, () =>
@@ -1253,7 +1253,7 @@ check("the editor view comes from the open document's URI: the project's own mai
   assert.equal(editorViewOf(null), null);
 });
 
-function scriptsPageStub({ hash = "#write", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true, touch = false, tapSupported = true } = {}) {
+function scriptsPageStub({ hash = "#story", rows = ["Main", "Definitions", "chapter_1.sd"], showsPage = true, menuOpens = true, touch = false, tapSupported = true } = {}) {
   const state = { hash, clicked: [], tapped: [], touched: [], touches: [], menuOpen: false };
   const timeout = async () => { throw new Error("timeout"); };
   const page = {
@@ -1311,7 +1311,7 @@ await asyncCheck("--step file-menu fails by name when the Scripts page, a row me
   assert.deepEqual(await openFileMenu(stuck, { timeout: 1000 }), { step: "file-menu", ran: false, row: "Definitions", reason: "the menu for Definitions did not open within 1 s of pressing Options for Definitions" });
 });
 
-function assetsPageStub({ hash = "#write", levels = [["Open folder Backdrops, 3 images", "Open folder Portraits, 1 image"], ["Open image harbor, modified just now · 5 kB"]], showsPage = true, opens = true, host = "dock" } = {}) {
+function assetsPageStub({ hash = "#story", levels = [["Open folder Backdrops, 3 images", "Open folder Portraits, 1 image"], ["Open image harbor, modified just now · 5 kB"]], showsPage = true, opens = true, host = "dock" } = {}) {
   const state = { hash, level: 0, clicked: [] };
   const timeout = async () => { throw new Error("timeout"); };
   const labels = () => levels[state.level] ?? [];
@@ -1319,14 +1319,14 @@ function assetsPageStub({ hash = "#write", levels = [["Open folder Backdrops, 3 
     state,
     evaluate: async (fn) => {
       const src = String(fn);
-      if (src.includes('location.hash = "#collection"')) { if (showsPage) state.hash = "#collection"; return; }
+      if (src.includes('location.hash = "#assets"')) { if (showsPage) state.hash = "#assets"; return; }
       throw new Error(`stub page asked something it has no answer for: ${src.slice(0, 80)}`);
     },
     waitForFunction: async () => {
       if (!labels().length) throw new Error("timeout");
     },
     locator: (selector) => {
-      if (selector === '[data-assets-action="add"]') return { first: () => ({ waitFor: state.hash === "#collection" ? async () => {} : timeout }) };
+      if (selector === '[data-assets-action="add"]') return { first: () => ({ waitFor: state.hash === "#assets" ? async () => {} : timeout }) };
       if (selector === '[role="listitem"] button[aria-label^="Open "]') {
         return {
           first: () => ({ waitFor: async () => { if (!labels().length) throw new Error("timeout"); } }),
@@ -1349,10 +1349,10 @@ function assetsPageStub({ hash = "#write", levels = [["Open folder Backdrops, 3 
   };
 }
 
-await asyncCheck("--step asset-inspector goes to #collection, opens folders until a file row shows, presses it and reports the inspector's host", async () => {
+await asyncCheck("--step asset-inspector goes to #assets, opens folders until a file row shows, presses it and reports the inspector's host", async () => {
   const page = assetsPageStub();
   assert.deepEqual(await openAssetInspector(page), { step: "asset-inspector", ran: true, asset: "harbor", host: "dock" });
-  assert.equal(page.state.hash, "#collection");
+  assert.equal(page.state.hash, "#assets");
   assert.deepEqual(page.state.clicked, ["Open folder Backdrops", "Open image harbor"]);
   const phone = assetsPageStub({ levels: [["Open audio chime, modified just now · 22 kB"]], host: "sheet" });
   assert.deepEqual(await openAssetInspector(phone), { step: "asset-inspector", ran: true, asset: "chime", host: "sheet" });
@@ -1362,7 +1362,7 @@ await asyncCheck("--step asset-inspector fails by name when the Assets page, a f
   assert.deepEqual(await openAssetInspector(assetsPageStub({ showsPage: false }), { timeout: 1000 }), {
     step: "asset-inspector",
     ran: false,
-    reason: "the Assets page did not appear within 1 s of going to #collection",
+    reason: "the Assets page did not appear within 1 s of going to #assets",
   });
   assert.deepEqual(await openAssetInspector(assetsPageStub({ levels: [["Open folder Empty, empty"], []] }), { timeout: 2000 }), {
     step: "asset-inspector",
@@ -1382,7 +1382,7 @@ await asyncCheck("--step asset-inspector fails by name when the Assets page, a f
   });
 });
 
-await asyncCheck("--step settings=<section> goes to #project?section=<section>, waits for its heading to take focus and reports the index mark, or names the sections it found", async () => {
+await asyncCheck("--step settings=<section> goes to #settings?section=<section>, waits for its heading to take focus and reports the index mark, or names the sections it found", async () => {
   const page = ({ focuses, sections = [] }) => {
     const calls = [];
     return {
@@ -1391,7 +1391,7 @@ await asyncCheck("--step settings=<section> goes to #project?section=<section>, 
         calls.push(arg ?? null);
         if (arg !== undefined) return undefined;
         if (String(fn).includes("data-settings-section")) return sections;
-        return { hash: "#project?section=save-settings", marked: "save-settings" };
+        return { hash: "#settings?section=save-settings", marked: "save-settings" };
       },
       waitForFunction: async () => {
         if (!focuses) throw new Error("timeout");
@@ -1399,7 +1399,7 @@ await asyncCheck("--step settings=<section> goes to #project?section=<section>, 
     };
   };
   const landed = page({ focuses: true });
-  assert.deepEqual(await openSettings(landed, "save-settings"), { step: "settings", section: "save-settings", ran: true, hash: "#project?section=save-settings", marked: "save-settings" });
+  assert.deepEqual(await openSettings(landed, "save-settings"), { step: "settings", section: "save-settings", ran: true, hash: "#settings?section=save-settings", marked: "save-settings" });
   assert.equal(landed.calls[0], "save-settings");
   assert.match(
     (await openSettings(page({ focuses: false, sections: ["theme-preferences", "save-settings"] }), "appearance", { timeout: 2000 })).reason,
