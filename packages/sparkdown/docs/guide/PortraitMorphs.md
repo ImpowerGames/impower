@@ -676,6 +676,46 @@ morph talk {
 
 The replay goes back from `teeth` to `teeth`, so the jump does not show. A flap lasts 0.35 seconds without a replay and about 0.58 seconds with one. When the flap reaches `to` after the speech has stopped, the replay is skipped and the flap runs on to `closed`, so no replay starts after the line's last voiced letter. A flap in progress still always finishes. With `sync = beep` a flap that replays lasts longer, so it skips the beeps that land during it.
 
+#### Several ranges
+
+A morph with more poses can have more than one stretch worth repeating, each with its own chance. Write each range as a `{ … }` entry inside `replay`, with the same fields and defaults as a single block. In this talk morph `wide` is a mouth state the art draws:
+
+```sparkdown
+morph talk {
+  blend = cut
+
+  keyframes {
+    0%   { mouth { state = mouth.teeth } }
+    20%  { mouth { state = mouth.open } }
+    40%  { mouth { state = mouth.teeth } }
+    60%  { mouth { state = mouth.wide } }
+    80%  { mouth { state = mouth.teeth } }
+    100% { mouth { state = mouth.closed } }
+  }
+
+  timing {
+    trigger = speech
+    duration = 0.5
+    easing = linear
+  }
+
+  replay {
+    { from = 0%; to = 40%; chance = 50% }
+    { from = 40%; to = 80%; chance = 25%; count = 2 }
+  }
+}
+```
+
+Half the flaps repeat the small teeth, open, teeth flap once, and a quarter repeat the wide one up to twice.
+
+- When a play starts, each entry rolls its own chance up to its own `count` and draws its own pauses, in the order the entries are written. Each time the play reaches an entry's `to` with one of that entry's replays still to make, it pauses and goes back to that entry's `from`.
+- An entry's `count` covers the whole play. When another entry carries the play back over an entry's stretch, that entry makes no more replays than it has left, so a play makes at most the total of its entries' counts.
+- When two entries turn back at the same position, the one written first makes all of its replays before the next makes any.
+- Ranges may overlap, sit one inside another, or repeat.
+- A `replay` holding one entry plays exactly as the same fields written directly in the block.
+- A block holds either fields or entries. Writing both in one block is an error, and so is anything in it that is neither a field nor a `{ … }` entry.
+- A child morph's list of entries replaces its parent's `replay`, and a child's single block replaces a parent's list. Only a single block over a single block overrides field by field.
+
 ## Talking
 
 A morph marked `trigger = speech` plays while its portrait's character speaks, so a mouth flaps through a line and rests between lines. This script gives Raffles three ways of talking and blinks his eyes throughout:

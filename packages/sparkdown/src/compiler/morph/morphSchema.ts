@@ -124,6 +124,15 @@ export const MORPH_TIMING_FIELDS = [
 export const MORPH_REPLAY_FIELDS = ["from", "to", "chance", "count", "delay_min", "delay_max"] as const;
 
 export function readMorphReplay(value: unknown): MorphReplay[] | undefined {
+  if (Array.isArray(value)) {
+    const ranges = value.map(readMorphReplayRange).filter((range) => range !== undefined);
+    return ranges.length ? ranges : undefined;
+  }
+  const range = readMorphReplayRange(value);
+  return range && [range];
+}
+
+export function readMorphReplayRange(value: unknown): MorphReplay | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const block = value as Record<string, unknown>;
   const span = (field: string, fallback: number) => (block[field] === undefined ? fallback : parseMorphSpan(block[field]));
@@ -136,9 +145,9 @@ export function readMorphReplay(value: unknown): MorphReplay[] | undefined {
   const min = block["delay_min"];
   const max = block["delay_max"];
   const seconds = (s: unknown): s is number => typeof s === "number" && Number.isFinite(s) && s >= 0;
-  if (min === undefined && max === undefined) return [{ from, to, chance, count }];
+  if (min === undefined && max === undefined) return { from, to, chance, count };
   if (!seconds(min) || !seconds(max) || max < min) return undefined;
-  return [{ from, to, chance, count, delay_min: min, delay_max: max }];
+  return { from, to, chance, count, delay_min: min, delay_max: max };
 }
 
 export const MORPH_LAYER_PROPERTIES = [
@@ -219,7 +228,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. Every group the morph drives needs its `state` in the first pose. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it; a last pose that leaves a group out holds the morph's rest there, and a first or last pose that leaves a layer property out uses its resting value (no movement, opacity 1). Each group rests in the state `rest` gives it, or else in the state of the last pose that names it.",
   timing: "When and how often the morph plays.",
   replay:
-    "A chance for each play to go back over part of its keyframes before it finishes: `replay { from = 0%; to = 66.667%; chance = 50% }`. Each time the play reaches `to` with a replay still to make, it holds the pose at `to` for a pause drawn between `delay_min` and `delay_max`, then continues from `from`. A replay lengthens its play by the time between `from` and `to` plus its pause; `duration` stays the time of one straight pass.",
+    "A chance for each play to go back over part of its keyframes before it finishes: `replay { from = 0%; to = 66.667%; chance = 50% }`. Each time the play reaches `to` with a replay still to make, it holds the pose at `to` for a pause drawn between `delay_min` and `delay_max`, then continues from `from`. A replay lengthens its play by the time between `from` and `to` plus its pause; `duration` stays the time of one straight pass. To repeat more than one stretch, write each range inside the block as a `{ … }` entry on its own line, such as `{ from = 40%; to = 80%; chance = 25% }`, each with its own fields and its own rolls.",
   "replay.from": "The keyframe position a replay resumes from: a percentage from `0%` to `100%`, or a number from 0 to 1, below `to`. Default `0%`.",
   "replay.to":
     "The keyframe position a play turns back at: a percentage from `0%` to `100%`, or a number from 0 to 1, above `from`. Default `100%`, the end of the play.",

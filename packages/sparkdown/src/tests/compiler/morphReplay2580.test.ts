@@ -178,16 +178,6 @@ describe("the replay block's checks (#2580)", () => {
     ]);
   });
 
-  test("a block of entries is an error on the block", () => {
-    expect(reported(withReplay("  replay {\n    { chance = 50% }\n  }\n"))).toEqual([
-      {
-        text: "replay",
-        message: "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, not `{ … }` entries.",
-        severity: 1,
-      },
-    ]);
-  });
-
   test("a curve whose early peak falls far short of `to` is not taken to reach it, so no zero-time warning", () => {
     const text = withReplay("  replay {\n    from = 20%\n    to = 80%\n    chance = 50%\n  }\n").replace(
       "easing = linear",

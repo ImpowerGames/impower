@@ -27,18 +27,41 @@ export function morphReplayStretch(easing: string, start: number, end: number): 
   return to > from ? { from, to } : undefined;
 }
 
-interface Play {
-  start: number;
-  pauses: number[];
-  settled: number;
-  gap: number;
-}
-
 interface Stretch {
   from: number;
   to: number;
   hold: number;
   replay: MorphReplay;
+}
+
+interface Segment {
+  start: number;
+  length: number;
+  from: number;
+  to: number;
+  hold?: number;
+}
+
+interface Turn {
+  at: number;
+  end: number;
+  resume: number;
+  next: number;
+}
+
+interface Path {
+  segments: Segment[];
+  turns: Turn[];
+  length: number;
+}
+
+interface Play {
+  start: number;
+  pauses: number[][];
+  taken: boolean[];
+  reversed: boolean;
+  path?: Path;
+  gap: number;
 }
 
 export class MorphTimeline {
@@ -47,7 +70,7 @@ export class MorphTimeline {
   protected delay: number;
   protected plays: number;
   protected gap?: { min: number; max: number };
-  protected stretch?: Stretch;
+  protected stretches: Stretch[] = [];
   protected runs: Play[] = [];
   protected spans: [number, number][] = [];
   protected beeps?: number[];
@@ -70,10 +93,10 @@ export class MorphTimeline {
     if (typeof min === "number" && typeof max === "number" && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max >= min) {
       this.gap = { min, max };
     }
-    const replay = timing.replay?.[0];
-    if (replay && replay.chance > 0 && replay.count >= 1) {
+    for (const replay of timing.replay ?? []) {
+      if (!(replay.chance > 0 && replay.count >= 1)) continue;
       const found = morphReplayStretch(timing.easing, replay.from, replay.to);
-      if (found) this.stretch = { ...found, hold: replay.to, replay };
+      if (found) this.stretches.push({ ...found, hold: replay.to, replay });
     }
     if (timing.trigger !== "speech" && this.duration > 0 && this.plays > 0) this.schedule(this.delay);
   }
@@ -87,22 +110,20 @@ export class MorphTimeline {
     return this.gap.min + (this.gap.max - this.gap.min) * this.random();
   }
 
-  protected drawPauses(): number[] {
-    const pauses: number[] = [];
-    const replay = this.stretch?.replay;
-    if (!replay) return pauses;
-    const { chance, count, delay_min: min, delay_max: max } = replay;
-    while (pauses.length < count) {
-      if (chance < 1 && !(this.random() < chance)) break;
-      pauses.push(min !== undefined && max !== undefined ? min + (max - min) * this.random() : 0);
-    }
-    return pauses;
+  protected drawPauses(): number[][] {
+    return this.stretches.map(({ replay }) => {
+      const pauses: number[] = [];
+      const { chance, count, delay_min: min, delay_max: max } = replay;
+      while (pauses.length < count) {
+        if (chance < 1 && !(this.random() < chance)) break;
+        pauses.push(min !== undefined && max !== undefined ? min + (max - min) * this.random() : 0);
+      }
+      return pauses;
+    });
   }
 
   protected schedule(start: number): Play {
-    const pauses = this.drawPauses();
-    if (this.directed(this.runs.length, 0) === 1) pauses.reverse();
-    const play: Play = { start, pauses, settled: 0, gap: 0 };
+    const play: Play = { start, pauses: this.drawPauses(), taken: [], reversed: this.directed(this.runs.length, 0) === 1, gap: 0 };
     this.runs.push(play);
     return play;
   }
@@ -124,41 +145,83 @@ export class MorphTimeline {
     return clamp01(this.easing(this.directed(play, p)));
   }
 
-  protected length(play: Play): number {
-    const stretch = this.stretch;
-    if (!stretch || play.pauses.length === 0) return this.duration;
-    const rerun = (stretch.to - stretch.from) * this.duration;
-    return play.pauses.reduce((total, pause) => total + pause + rerun, this.duration);
-  }
-
-  protected turn(index: number, play: Play, i: number): number {
-    const stretch = this.stretch!;
-    const reversed = this.directed(index, 0) === 1;
-    const rerun = (stretch.to - stretch.from) * this.duration;
-    let at = play.start + (reversed ? 1 - stretch.from : stretch.to) * this.duration;
-    for (let j = 0; j < i; j++) at += play.pauses[j]! + rerun;
-    return at;
-  }
-
-  protected playingAt(index: number, play: Play, elapsed: number): number {
-    const stretch = this.stretch;
-    if (!stretch || play.pauses.length === 0) return this.offset(index, elapsed / this.duration);
-    const reversed = this.directed(index, 0) === 1;
-    const eased = (x: number) => clamp01(this.easing(x));
-    const first = (reversed ? 1 - stretch.from : stretch.to) * this.duration;
-    if (elapsed < first) return eased(reversed ? 1 - elapsed / this.duration : elapsed / this.duration);
-    let left = elapsed - first;
-    const rerun = (stretch.to - stretch.from) * this.duration;
-    for (let i = 0; i < play.pauses.length; i++) {
-      const pause = play.pauses[i]!;
-      if (left < pause) return stretch.hold;
-      left -= pause;
-      if (left < rerun || i === play.pauses.length - 1) {
-        return eased(reversed ? stretch.to - left / this.duration : stretch.from + left / this.duration);
+  protected forward(pauses: number[][], taken: (turn: number) => boolean): Path {
+    const left = pauses.map((list) => list.slice());
+    const segments: Segment[] = [];
+    const turns: Turn[] = [];
+    let at = 0;
+    let x = 0;
+    const run = (to: number) => {
+      const length = (to - x) * this.duration;
+      if (length > 0) segments.push({ start: at, length, from: x, to });
+      at += Math.max(0, length);
+      x = to;
+    };
+    for (;;) {
+      let next = Infinity;
+      this.stretches.forEach((stretch, i) => {
+        if (left[i]!.length && stretch.to > x && stretch.to < next) next = stretch.to;
+      });
+      if (next === Infinity) break;
+      run(next);
+      for (let i = 0; i < this.stretches.length; ) {
+        const stretch = this.stretches[i]!;
+        if (stretch.to !== next || !left[i]!.length) {
+          i += 1;
+          continue;
+        }
+        const pause = left[i]!.shift()!;
+        const turn: Turn = { at, end: at, resume: stretch.from, next: segments.length };
+        turns.push(turn);
+        if (!taken(turns.length - 1)) continue;
+        if (pause > 0) segments.push({ start: at, length: pause, from: x, to: x, hold: stretch.hold });
+        at += pause;
+        x = stretch.from;
+        turn.end = at;
+        turn.next = segments.length;
+        break;
       }
-      left -= rerun;
     }
-    return eased(reversed ? 0 : 1);
+    run(1);
+    return { segments, turns, length: at };
+  }
+
+  protected backward(pauses: number[][], taken: (turn: number) => boolean): Path {
+    const ahead = this.forward(pauses, () => true);
+    const total = ahead.length;
+    const segments = ahead.segments
+      .map(({ start, length, from, to, hold }): Segment => ({ start: total - start - length, length, from: to, to: from, hold }))
+      .reverse();
+    const turns = ahead.turns
+      .map(({ at, end, resume, next }): Turn => ({ at: total - end, end: total - at, resume, next: ahead.segments.length - next }))
+      .reverse();
+    for (let i = 0; i < turns.length; i++) {
+      if (taken(i)) continue;
+      const turn = turns[i]!;
+      const kept = segments.slice(0, turn.next);
+      const length = turn.resume * this.duration;
+      if (length > 0) kept.push({ start: turn.at, length, from: turn.resume, to: 0 });
+      return { segments: kept, turns: turns.slice(0, i + 1), length: turn.at + length };
+    }
+    return { segments, turns, length: total };
+  }
+
+  protected path(play: Play): Path {
+    const taken = (turn: number) => play.taken[turn] ?? true;
+    return (play.path ??= play.reversed ? this.backward(play.pauses, taken) : this.forward(play.pauses, taken));
+  }
+
+  protected length(play: Play): number {
+    return this.path(play).length;
+  }
+
+  protected playingAt(play: Play, elapsed: number): number {
+    const { segments } = this.path(play);
+    const segment = segments.find(({ start, length }) => elapsed < start + length) ?? segments[segments.length - 1];
+    if (!segment) return clamp01(this.easing(play.reversed ? 0 : 1));
+    if (segment.hold !== undefined) return segment.hold;
+    const along = Math.min(1, Math.max(0, (elapsed - segment.start) / segment.length));
+    return clamp01(this.easing(segment.from + (segment.to - segment.from) * along));
   }
 
   protected speaking(t: number): boolean {
@@ -167,12 +230,12 @@ export class MorphTimeline {
 
   protected settle(index: number, t: number) {
     const play = this.runs[index];
-    if (!play || !this.stretch) return;
-    while (play.settled < play.pauses.length) {
-      const at = this.turn(index, play, play.settled);
-      if (at > t) return;
-      if (this.speaking(at)) play.settled += 1;
-      else play.pauses.length = play.settled;
+    if (!play || !this.stretches.length) return;
+    for (;;) {
+      const turn = this.path(play).turns[play.taken.length];
+      if (!turn || play.start + turn.at > t) return;
+      play.taken.push(this.speaking(play.start + turn.at));
+      play.path = undefined;
     }
   }
 
@@ -211,7 +274,7 @@ export class MorphTimeline {
     const play = this.runs[index];
     if (!play) return { phase: "off" };
     const elapsed = t - play.start;
-    if (elapsed < this.length(play)) return { phase: "playing", play: index, offset: this.playingAt(index, play, elapsed) };
+    if (elapsed < this.length(play)) return { phase: "playing", play: index, offset: this.playingAt(play, elapsed) };
     if (this.speaking(t)) return { phase: "between", play: index, offset: this.offset(index, 1) };
     return { phase: "off" };
   }
@@ -237,7 +300,7 @@ export class MorphTimeline {
     }
     const play = runs[lo]!;
     const elapsed = t - play.start;
-    if (elapsed < this.length(play)) return { phase: "playing", play: lo, offset: this.playingAt(lo, play, elapsed) };
+    if (elapsed < this.length(play)) return { phase: "playing", play: lo, offset: this.playingAt(play, elapsed) };
     const end = this.offset(lo, 1);
     return lo + 1 >= this.plays ? { phase: "done", play: lo, offset: end } : { phase: "between", play: lo, offset: end };
   }

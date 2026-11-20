@@ -360,7 +360,7 @@ export function getMorphCompletions(
     addField("state");
   } else if (first === "timing" && path.length === 1) {
     MORPH_TIMING_FIELDS.forEach(addField);
-  } else if (first === "replay" && path.length === 1) {
+  } else if (first === "replay" && (path.length === 1 || (path.length === 2 && second === "-"))) {
     MORPH_REPLAY_FIELDS.forEach(addField);
   } else if (first === "layers" && path.length === 1) {
     for (const label of labels) addLabel(label, containerSuffix, "layer label");

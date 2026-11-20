@@ -3,6 +3,7 @@ import { bakeMorphArtifact } from "../../morph/bake";
 import { firstMorphEasingReach, parseMorphEasing } from "../../morph/easing";
 import { morphFrameState, morphPosesAt, renderMorphAt, renderMorphFrame } from "../../morph/render";
 import { MorphTimeline, morphRandom, morphReplayStretch } from "../../morph/timeline";
+import { readMorphReplay } from "../../compiler/morph/morphSchema";
 import type { MorphReplay, MorphTiming } from "../../morph/types";
 import { blink, CLOSED, portrait } from "./fixtures";
 
@@ -487,5 +488,117 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     );
     expect(timeline.at(0.31)).toEqual({ phase: "done", play: 0, offset: 1 });
     expect(calls).toEqual([]);
+  });
+});
+
+describe("a play that replays several ranges (#2581)", () => {
+  const range = (from: number, to: number, overrides: Partial<MorphReplay> = {}): MorphReplay => ({ from, to, chance: 1, count: 1, ...overrides });
+  const scripted = (values: number[]) => {
+    const calls: number[] = [];
+    const random = () => {
+      const value = values[calls.length] ?? 0.5;
+      calls.push(value);
+      return value;
+    };
+    return { random, calls };
+  };
+  const positions = (timeline: MorphTimeline, times: number[]) => times.map((t) => offsetAt(timeline, t) as number);
+  const expectPositions = (timeline: MorphTimeline, expected: [number, number][]) => {
+    for (const [t, offset] of expected) expect(offsetAt(timeline, t), `${t} s`).toBeCloseTo(offset, 9);
+  };
+
+  test("each entry replays its own stretch in turn, and the play's length adds every stretch it replays", () => {
+    const timeline = new MorphTimeline(timing({ duration: 1, replay: [range(0, 0.4), range(0.4, 0.8, { count: 2 })] }), () => 0.5);
+    expectPositions(timeline, [
+      [0.2, 0.2],
+      [0.39, 0.39],
+      [0.41, 0.01],
+      [0.8, 0.4],
+      [1.19, 0.79],
+      [1.21, 0.41],
+      [1.59, 0.79],
+      [1.61, 0.41],
+      [2.19, 0.99],
+    ]);
+    expect(timeline.at(2.2 - 1e-9)).toMatchObject({ phase: "playing", play: 0 });
+    expect(timeline.at(2.2 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
+  });
+
+  test("a nested entry replays when the play first reaches its end, and not when the outer entry carries the play back over it", () => {
+    const timeline = new MorphTimeline(timing({ duration: 1, replay: [range(0, 0.8), range(0.2, 0.4)] }), () => 0.5);
+    expectPositions(timeline, [
+      [0.39, 0.39],
+      [0.41, 0.21],
+      [0.99, 0.79],
+      [1.01, 0.01],
+      [1.45, 0.45],
+      [1.99, 0.99],
+    ]);
+    expect(timeline.at(2 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
+  });
+
+  test("of two entries sharing an end, the first written makes all of its replays before the second makes any", () => {
+    const timeline = new MorphTimeline(timing({ duration: 1, replay: [range(0, 0.5, { count: 2 }), range(0.25, 0.5)] }), () => 0.5);
+    expectPositions(timeline, [
+      [0.51, 0.01],
+      [1.01, 0.01],
+      [1.51, 0.26],
+      [1.76, 0.51],
+      [2.24, 0.99],
+    ]);
+    expect(timeline.at(2.25 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
+    const swapped = new MorphTimeline(timing({ duration: 1, replay: [range(0.25, 0.5), range(0, 0.5, { count: 2 })] }), () => 0.5);
+    expectPositions(swapped, [
+      [0.51, 0.26],
+      [0.76, 0.01],
+      [1.26, 0.01],
+    ]);
+  });
+
+  test("a block of one entry plays, and draws, exactly as the same fields written directly", () => {
+    const fields = { from: "20%", to: "70%", chance: "50%", count: 3, delay_min: 0.05, delay_max: 0.2 };
+    const values = [0.1, 0.4, 0.2, 0.8, 0.3, 0.6, 0.9, 0.2];
+    const run = (replay: MorphReplay[] | undefined) => {
+      const { random, calls } = scripted(values);
+      const timeline = new MorphTimeline(
+        timing({ duration: 0.5, iterations: 3, iteration_delay_min: 0.1, iteration_delay_max: 0.3, replay }),
+        random,
+      );
+      const heads = Array.from({ length: 800 }, (_, ms) => timeline.at(ms * 0.005));
+      return { heads, calls };
+    };
+    const direct = readMorphReplay(fields);
+    const listed = readMorphReplay([fields]);
+    expect(listed).toEqual(direct);
+    expect(run(listed)).toEqual(run(direct));
+    expect(run(direct).calls.length).toBeGreaterThan(3);
+  });
+
+  test("a reversed play runs the whole path backwards, pauses included", () => {
+    const replay = [range(0, 0.4, { delay_min: 0.1, delay_max: 0.3 }), range(0.3, 0.8, { count: 2, delay_min: 0.1, delay_max: 0.3 })];
+    const values = [0.1, 0.5, 0.9];
+    const forward = new MorphTimeline(timing({ duration: 1, replay }), scripted(values).random);
+    const reverse = new MorphTimeline(timing({ duration: 1, replay, direction: "reverse" }), scripted(values).random);
+    const length = 1 + 0.4 + 2 * 0.5 + 0.12 + 0.2 + 0.28;
+    expect(reverse.at(length - 1e-9)).toMatchObject({ phase: "playing" });
+    expect(reverse.at(length + 1e-9)).toEqual({ phase: "done", play: 0, offset: 0 });
+    for (let ms = 4; ms < length * 1000; ms += 7) {
+      expect(offsetAt(reverse, ms / 1000), `${ms} ms`).toBeCloseTo(offsetAt(forward, length - ms / 1000) as number, 9);
+    }
+  });
+
+  test("on a speech morph, replays of any entry whose turning points lie outside the speech are skipped, and one inside is taken", () => {
+    const timeline = new MorphTimeline(
+      timing({ trigger: "speech", duration: 1, replay: [range(0.3, 0.4), range(0.45, 0.5), range(0.8, 0.9)] }),
+      () => 0.5,
+    );
+    timeline.speak([[0, 0.25], [0.85, 3]], 0);
+    expect(positions(timeline, [0.41, 0.51, 0.89])).toEqual([0.41, 0.51, 0.89].map((t) => expect.closeTo(t, 9)));
+    expectPositions(timeline, [
+      [0.91, 0.81],
+      [1.09, 0.99],
+    ]);
+    expect(timeline.at(1.09)).toMatchObject({ phase: "playing", play: 0 });
+    expect(timeline.at(1.11)).toMatchObject({ play: 1 });
   });
 });
