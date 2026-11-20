@@ -626,22 +626,22 @@ About one blink in eight is double, with the eyes held open for 0.17 to 0.35 sec
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `start` | `0%` | The keyframe position a replay resumes from. |
-| `end` | `100%` | The keyframe position a play turns back at. |
+| `from` | `0%` | The keyframe position a replay resumes from. |
+| `to` | `100%` | The keyframe position a play turns back at. |
 | `chance` | required | How likely each replay is: a percentage from `0%` to `100%`, or a number from 0 to 1. `0%` never replays. |
 | `count` | `1` | The most replays one play makes: a whole number of at least 1. |
 | `delay_min` | none | Shortest pause, in seconds, before a replay starts. |
 | `delay_max` | none | Longest such pause. |
 
-`start` and `end` are percentages from `0%` to `100%` or numbers from 0 to 1, and `start` is below `end`. `delay_min` and `delay_max` are written together, as `iteration_delay_min` and `iteration_delay_max` are.
+`from` and `to` are percentages from `0%` to `100%` or numbers from 0 to 1, and `from` is below `to`. `delay_min` and `delay_max` are written together, as `iteration_delay_min` and `iteration_delay_max` are.
 
 - When a play starts, it rolls `chance` up to `count` times and stops at the first roll that fails. With `chance = 50%` and `count = 2` a play makes no replay half the time, one a quarter of the time and two a quarter of the time. `chance = 100%` makes exactly `count` replays.
-- Each time the play reaches `end` with a replay still to make, it holds the pose at `end` for a pause drawn evenly between `delay_min` and `delay_max` (no pause without them), then continues from `start`. With no replay left it runs on to its end.
-- `start` and `end` are the positions the keyframes are written at, whatever the easing. The play reaches `end` at the first moment its eased position is at or past it, and resumes at the first moment its eased position is at or past `start`. `end = 100%` is the end of the play. Under `steps(3)` a replay of the whole play shows the three frames twice, each for its full time.
-- A replay makes its play longer by the time the play took from `start` to `end`, plus its pause. `duration` stays the time of one straight pass, so the morph moves at the speed you tuned.
-- Where the poses at `end` and `start` differ, the portrait cuts between them, whatever the morph's `blend`.
+- Each time the play reaches `to` with a replay still to make, it holds the pose at `to` for a pause drawn evenly between `delay_min` and `delay_max` (no pause without them), then continues from `from`. With no replay left it runs on to its end.
+- `from` and `to` are the positions the keyframes are written at, whatever the easing. The play reaches `to` at the first moment its eased position is at or past it, and resumes at the first moment its eased position is at or past `from`. `to = 100%` is the end of the play. Under `steps(3)` a replay of the whole play shows the three frames twice, each for its full time.
+- A replay makes its play longer by the time the play took between `from` and `to`, plus its pause. `duration` stays the time of one straight pass, so the morph moves at the speed you tuned.
+- Where the poses at `to` and `from` differ, the portrait cuts between them, whatever the morph's `blend`.
 - A replay is part of its play: `iterations` counts plays, and the gap before the next play runs from the play's actual end.
-- A play that `direction` runs backwards runs the same path backwards: from 100% back to `start`, a cut to `end`, the pause holding `end`, then from `end` back to 0%.
+- A play that `direction` runs backwards runs the same path backwards: from 100% back to `from`, a cut to `to`, the pause holding `to`, then back from `to` to 0%.
 - A child morph's `replay` overrides its parent's field by field, as `timing` does, so `replay { chance = 0% }` switches an inherited replay off.
 - Adding or changing a `replay` prepares nothing again: the portrait's movement is the same, and the morph's plays restart from its rest, as a timing change does.
 
@@ -667,14 +667,14 @@ morph talk {
   }
 
   replay {
-    start = 0%
-    end = 66.667%
+    from = 0%
+    to = 66.667%
     chance = 50%
   }
 }
 ```
 
-The replay goes back from `teeth` to `teeth`, so the jump does not show. A flap lasts 0.35 seconds without a replay and about 0.58 seconds with one. When the flap reaches `end` after the speech has stopped, the replay is skipped and the flap runs on to `closed`, so no replay starts after the line's last voiced letter. A flap in progress still always finishes. With `sync = beep` a flap that replays lasts longer, so it skips the beeps that land during it.
+The replay goes back from `teeth` to `teeth`, so the jump does not show. A flap lasts 0.35 seconds without a replay and about 0.58 seconds with one. When the flap reaches `to` after the speech has stopped, the replay is skipped and the flap runs on to `closed`, so no replay starts after the line's last voiced letter. A flap in progress still always finishes. With `sync = beep` a flap that replays lasts longer, so it skips the beeps that land during it.
 
 ## Talking
 
@@ -981,13 +981,12 @@ For a speech morph:
 
 For a `replay` block:
 
-- `replay` written as a value, a block with no `chance`, and a `chance`, `start` or `end` that is not a percentage from `0%` to `100%` or a number from 0 to 1 are errors. A block with no `chance` is reported on the block, the rest on the field.
-- A `start` at or past its `end` is an error on `end`. A `count` that is not a whole number of at least 1 is an error on `count`.
+- `replay` written as a value, a block with no `chance`, and a `chance`, `from` or `to` that is not a percentage from `0%` to `100%` or a number from 0 to 1 are errors. A block with no `chance` is reported on the block, the rest on the field.
+- A `from` at or past its `to` is an error on `to`. A `count` that is not a whole number of at least 1 is an error on `count`.
 - `delay_min` without `delay_max`, or the other way round, or a `delay_max` below its `delay_min`, is an error on the field, worded as for `iteration_delay_min` and `iteration_delay_max`.
 - A field the block does not take, and a `replay` field written outside the block, are told where they belong.
 - A value a child morph inherits from its parent's `replay` is reported where the child names its parent.
-- A line that jumps left as you type `end = …` inside the block: the editor reads a line starting with `end` as the end of a declaration while you are still typing it, and moves it out one level (to the left margin in the web editor). The block still reads correctly. Format Document (Shift+Alt+F) puts the line back.
-- A warning on the block that its stretch takes no time: under a step easing, `start` and `end` can fall on the same step, so the play gets from one to the other in no time and never replays. Move them onto different steps.
+- A warning on the block that its stretch takes no time: under a step easing, `from` and `to` can fall on the same step, so the play gets from one to the other in no time and never replays. Move them onto different steps.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
 

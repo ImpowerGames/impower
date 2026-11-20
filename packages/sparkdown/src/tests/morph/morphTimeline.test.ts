@@ -222,7 +222,7 @@ describe("a speech morph's plays (#2111)", () => {
 });
 
 describe("a play that replays part of its keyframes (#2580)", () => {
-  const replay = (overrides: Partial<MorphReplay> = {}): MorphReplay[] => [{ start: 0, end: 1, chance: 1, count: 1, ...overrides }];
+  const replay = (overrides: Partial<MorphReplay> = {}): MorphReplay[] => [{ from: 0, to: 1, chance: 1, count: 1, ...overrides }];
   const scripted = (values: number[]) => {
     const calls: number[] = [];
     const random = () => {
@@ -235,7 +235,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
 
   test("a replay runs to end, cuts back to start and runs on; the play lasts longer and the next one waits for its end", () => {
     const timeline = new MorphTimeline(
-      timing({ duration: 0.35, replay: replay({ end: 2 / 3 }), iterations: 2, iteration_delay_min: 0.1, iteration_delay_max: 0.1 }),
+      timing({ duration: 0.35, replay: replay({ to: 2 / 3 }), iterations: 2, iteration_delay_min: 0.1, iteration_delay_max: 0.1 }),
       morphRandom("a"),
     );
     const length = 0.35 * (5 / 3);
@@ -252,7 +252,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
   test("each replay is rolled for, and the first failure ends the rolls for that play", () => {
     const lengthOf = (values: number[]) => {
       const { random, calls } = scripted(values);
-      const timeline = new MorphTimeline(timing({ duration: 0.3, replay: replay({ end: 0.5, chance: 0.5, count: 2 }) }), random);
+      const timeline = new MorphTimeline(timing({ duration: 0.3, replay: replay({ to: 0.5, chance: 0.5, count: 2 }) }), random);
       let t = 0;
       while (timeline.at(t).phase === "playing") t = Math.round((t + 0.001) * 1000) / 1000;
       return { length: Math.round(t * 100) / 100, calls: calls.length };
@@ -265,7 +265,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
   test("a replay's pause holds the pose at end, still playing, before the play resumes from start", () => {
     const { random } = scripted([0.5]);
     const timeline = new MorphTimeline(
-      timing({ duration: 0.3, replay: replay({ start: 0.25, end: 0.75, delay_min: 0.1, delay_max: 0.3 }) }),
+      timing({ duration: 0.3, replay: replay({ from: 0.25, to: 0.75, delay_min: 0.1, delay_max: 0.3 }) }),
       random,
     );
     expect(timeline.at(0.225 + 0.01)).toEqual({ phase: "playing", play: 0, offset: 0.75 });
@@ -290,7 +290,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
   });
 
   test("a reversed play reads the forward play backwards in time, and alternate plays alternate", () => {
-    const path = replay({ start: 0.2, end: 0.7, count: 2, delay_min: 0.05, delay_max: 0.05 });
+    const path = replay({ from: 0.2, to: 0.7, count: 2, delay_min: 0.05, delay_max: 0.05 });
     const forward = new MorphTimeline(timing({ duration: 0.4, replay: path }), () => 0.5);
     const reverse = new MorphTimeline(timing({ duration: 0.4, replay: path, direction: "reverse" }), () => 0.5);
     const length = 0.4 + 2 * (0.5 * 0.4 + 0.05);
@@ -308,14 +308,14 @@ describe("a play that replays part of its keyframes (#2580)", () => {
   });
 
   test("with one iteration the playhead is done after the lengthened play, on the pose the play ended on", () => {
-    const timeline = new MorphTimeline(timing({ duration: 0.3, replay: replay({ end: 0.5 }) }), morphRandom("a"));
+    const timeline = new MorphTimeline(timing({ duration: 0.3, replay: replay({ to: 0.5 }) }), morphRandom("a"));
     expect(timeline.at(0.449)).toMatchObject({ phase: "playing", play: 0 });
     expect(timeline.at(0.45)).toEqual({ phase: "done", play: 0, offset: 1 });
   });
 
   test("on a speech morph a replay is taken only when its turning point lies inside the speech", () => {
     const speech = () =>
-      new MorphTimeline(timing({ trigger: "speech", duration: 0.3, replay: replay({ end: 0.5 }) }), () => 0.5);
+      new MorphTimeline(timing({ trigger: "speech", duration: 0.3, replay: replay({ to: 0.5 }) }), () => 0.5);
     const inside = speech();
     inside.speak([[0, 1]], 0);
     expect(offsetAt(inside, 0.16)).toBeCloseTo(0.01 / 0.3, 9);
@@ -334,7 +334,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
 
   test("with sync = beep, beeps during the lengthened play start nothing and a beep at its end starts the next", () => {
     const timeline = new MorphTimeline(
-      timing({ trigger: "speech", sync: "beep", duration: 0.3, replay: replay({ end: 0.5 }) }),
+      timing({ trigger: "speech", sync: "beep", duration: 0.3, replay: replay({ to: 0.5 }) }),
       () => 0.5,
     );
     timeline.speak([[0, 2]], 0, [0, 0.2, 0.4, 0.45]);
@@ -345,7 +345,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
   });
 
   test("a reversed play meets its pauses in the reverse of the order a forward play meets them", () => {
-    const path = replay({ start: 0.2, end: 0.7, count: 2, delay_min: 0.1, delay_max: 0.3 });
+    const path = replay({ from: 0.2, to: 0.7, count: 2, delay_min: 0.1, delay_max: 0.3 });
     const forward = new MorphTimeline(timing({ duration: 1, replay: path }), scripted([0.1, 0.9]).random);
     const reverse = new MorphTimeline(timing({ duration: 1, replay: path, direction: "reverse" }), scripted([0.1, 0.9]).random);
     const length = 1 + 2 * 0.5 + 0.12 + 0.28;
@@ -366,18 +366,18 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     const found = morphReplayStretch(spike, 0.2, 0.8)!;
     expect(found.from).toBeCloseTo(0.25002, 9);
     expect(found.to).toBeCloseTo(0.25008, 9);
-    const timeline = new MorphTimeline(timing({ duration: 1, easing: spike, replay: replay({ start: 0.2, end: 0.8, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    const timeline = new MorphTimeline(timing({ duration: 1, easing: spike, replay: replay({ from: 0.2, to: 0.8, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(timeline.at(0.27)).toEqual({ phase: "playing", play: 0, offset: 0.8 });
     const drop = "linear(0 0%, 1 25%, 0 25%, 1 100%)";
     expect(morphReplayStretch(drop, 0.2, 0.8)).toEqual({ from: 0.05, to: 0.2 });
-    const dropping = new MorphTimeline(timing({ duration: 1, easing: drop, replay: replay({ start: 0.2, end: 0.8 }) }), () => 0.5);
+    const dropping = new MorphTimeline(timing({ duration: 1, easing: drop, replay: replay({ from: 0.2, to: 0.8 }) }), () => 0.5);
     expect(offsetAt(dropping, 0.21)).toBeCloseTo(0.24, 9);
     const rise = "linear(0 0%, 0 25%, 1 25%, 0 100%)";
     expect(firstMorphEasingReach(rise, 0.5)).toBe(0.25);
     const stationary = "cubic-bezier(1, 1.51, 0, 0.5)";
     const turn = firstMorphEasingReach(stationary, 0.878755);
     expect(Math.abs(turn - 0.5)).toBeLessThan(1e-6);
-    const held = new MorphTimeline(timing({ duration: 1, easing: stationary, replay: replay({ start: 0.2, end: 0.878755, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    const held = new MorphTimeline(timing({ duration: 1, easing: stationary, replay: replay({ from: 0.2, to: 0.878755, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(held.at(0.55)).toEqual({ phase: "playing", play: 0, offset: 0.878755 });
     const touching = "cubic-bezier(0.3333333333333333, 0.3333333333333333, 0.6666666666666666, -0.4)";
     const touch = firstMorphEasingReach(touching, 0.1);
@@ -388,13 +388,13 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     const steep = "cubic-bezier(0.3333333333333333, 1, 0.6666666666666666, -100000000000000)";
     expect(firstMorphEasingReach(steep, 0.8)).toBeGreaterThan(0.99);
     expect(morphReplayStretch(steep, 0.2, 0.8)).toBeDefined();
-    const steeply = new MorphTimeline(timing({ duration: 1, easing: steep, replay: replay({ end: 0.8, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    const steeply = new MorphTimeline(timing({ duration: 1, easing: steep, replay: replay({ to: 0.8, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(steeply.at(0.05)).toEqual({ phase: "playing", play: 0, offset: 0 });
-    const peaked = new MorphTimeline(timing({ duration: 1, easing: touching, replay: replay({ end: 0.1, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    const peaked = new MorphTimeline(timing({ duration: 1, easing: touching, replay: replay({ to: 0.1, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(peaked.at(0.3)).toEqual({ phase: "playing", play: 0, offset: 0.1 });
     const edge = "linear(0.2 0%, 0.3 25%, 0 25%, 1 100%)";
     expect(firstMorphEasingReach(edge, 0.3)).toBe(0.24999999999999997);
-    const edged = new MorphTimeline(timing({ duration: 1, easing: edge, replay: replay({ end: 0.3, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    const edged = new MorphTimeline(timing({ duration: 1, easing: edge, replay: replay({ to: 0.3, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(edged.at(0.3)).toEqual({ phase: "playing", play: 0, offset: 0.3 });
     const controls = (easing: string): [number, number, number, number] | undefined => {
       if (easing === "ease-in-out") return [0.42, 0, 0.58, 1];
@@ -482,7 +482,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
   test("a stretch that takes no time under the easing makes no replay and draws nothing", () => {
     const { random, calls } = scripted([]);
     const timeline = new MorphTimeline(
-      timing({ duration: 0.3, easing: "steps(3)", replay: replay({ start: 0.4, end: 0.6, chance: 0.5 }) }),
+      timing({ duration: 0.3, easing: "steps(3)", replay: replay({ from: 0.4, to: 0.6, chance: 0.5 }) }),
       random,
     );
     expect(timeline.at(0.31)).toEqual({ phase: "done", play: 0, offset: 1 });
