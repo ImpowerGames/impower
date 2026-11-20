@@ -31,7 +31,13 @@ const session = (
       emit: async (message: { method: string; params: unknown }) => {
         sent.push({ method: message.method, params: message.params });
         if (message.method === "game/threads") {
-          return { threads: [{ id: 0, name: "main" }], stopped: true, run: 1 };
+          return (
+            answers["game/threads"] ?? {
+              threads: [{ id: 0, name: "main" }],
+              stopped: true,
+              run: 1,
+            }
+          );
         }
         return answers[message.method] ?? moved(0, true);
       },
@@ -61,8 +67,32 @@ const session = (
   const requests = () => sent.filter((m) => m.method !== "game/threads");
   const stops = () =>
     events.filter((e) => e.event === "stopped").map((e) => e.body.reason);
-  return { debug, following, response, responses, settle, requests, stops };
+  const timeline = () =>
+    events
+      .filter((e) => e.event === "stopped" || e.event === "capabilities")
+      .map((e) =>
+        e.event === "stopped"
+          ? `stopped ${e.body.reason}`
+          : `stepBack ${e.body.capabilities.supportsStepBack}`,
+      );
+  return {
+    debug,
+    following,
+    response,
+    responses,
+    settle,
+    requests,
+    stops,
+    timeline,
+  };
 };
+
+const threadsAt = (canRollBack: boolean) => ({
+  threads: [{ id: 0, name: "main" }],
+  stopped: true,
+  run: 1,
+  canRollBack,
+});
 
 describe("rolling a debug run back and forward", () => {
   it("offers Step Back in its capabilities", () => {
@@ -239,5 +269,37 @@ describe("rolling a debug run back and forward", () => {
       params: moved(1, true),
     });
     expect(stops()).toEqual([]);
+  });
+
+  it("withdraws Step Back before a stop at the first beat and offers it again before a later stop", async () => {
+    const answers: Record<string, unknown> = {
+      "game/threads": threadsAt(false),
+    };
+    const { debug, following, response, timeline } = session(answers);
+    await following();
+    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    answers["game/threads"] = threadsAt(true);
+    await debug.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "game/stepped",
+      params: { run: 1 },
+    });
+    expect(timeline()).toEqual([
+      "stepBack false",
+      "stopped step",
+      "stopped step",
+      "stepBack true",
+      "stopped step",
+    ]);
+  });
+
+  it("keeps Step Back offered at a stop after the first beat", async () => {
+    const { debug, following, response, timeline } = session({
+      "game/threads": threadsAt(true),
+    });
+    await following();
+    await debug.stepBackRequest(response("stepBack"), { threadId: 0 });
+    expect(timeline()).toEqual(["stopped step"]);
   });
 });

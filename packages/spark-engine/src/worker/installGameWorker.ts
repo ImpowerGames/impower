@@ -522,7 +522,11 @@ export function installGameWorker(connection: MessageConnection) {
           throw new NoGameError();
         }
         const threads = game.getThreads();
-        return { threads, stopped: game.paused || game.awaitingResume };
+        return {
+          threads,
+          stopped: game.paused || game.awaitingResume,
+          canRollBack: game.history.canRollBack,
+        };
       });
       return;
     }
