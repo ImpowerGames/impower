@@ -91,7 +91,7 @@ export default function MainWindow(_props: MainWindowProps) {
             <SplitPane
               orientation={strip ? "vertical" : "horizontal"}
               reverse={strip}
-              solo={scriptOnly}
+              solo={scriptOnly || (strip && route === "share")}
               label={strip ? "Resize preview" : PANE_DIVIDER_LABELS[route]}
               class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"
               pinned={

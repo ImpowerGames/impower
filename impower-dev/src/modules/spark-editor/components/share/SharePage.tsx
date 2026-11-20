@@ -120,7 +120,7 @@ export default function SharePage() {
       line="Export a shareable game or screenplay. Collaborate with others. Publish it online."
       onBack={() => void backToStory()}
     >
-      <div class="grid grid-cols-2 gap-5 phone:grid-cols-1 phone:gap-3.5">
+      <div class="grid grid-cols-2 gap-5 compact:grid-cols-1 phone:grid-cols-1 phone:gap-3.5">
         <FeatureCard
           icon={PlayIcon}
           title="Export a game"

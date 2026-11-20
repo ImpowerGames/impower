@@ -318,6 +318,59 @@ describe("the compact layout", () => {
     expect(workspace.current.shell?.stripHeight).toBe(raised);
   });
 
+  it("gives Share the whole workspace at 768 and keeps the player and the strip height for the other pages", async () => {
+    players.mounted = 0;
+    players.unmounted = 0;
+    await mount(768);
+    await act(async () => {
+      workspace.current = {
+        ...workspace.current,
+        pane: "assets",
+        shell: { stripHeight: 320 },
+      };
+    });
+    await settle();
+    const endPanel = () => host!.querySelector<HTMLElement>('[data-panel="end"]')!;
+    const handle = () =>
+      host!.querySelector<HTMLElement>('[role="separator"][aria-label="Resize preview"]')!;
+    const player = host!.querySelector("[data-player]");
+    expect(endPanel().style.display).not.toBe("none");
+    expect(handle().getAttribute("aria-valuenow")).toBe("320");
+
+    stripHeights.length = 0;
+    await act(async () => {
+      workspace.current = { ...workspace.current, pane: "share" };
+    });
+    await settle();
+    expect(endPanel().style.display).toBe("none");
+    expect(handle().className).toContain("hidden");
+    expect(host!.querySelector('[data-panel="start"] [data-route="share"]')).not.toBeNull();
+    expect(host!.querySelector("[data-player]")).toBe(player);
+
+    await act(async () => {
+      workspace.current = { ...workspace.current, pane: "assets" };
+    });
+    await settle();
+    expect(endPanel().style.display).not.toBe("none");
+    expect(handle().getAttribute("aria-valuenow")).toBe("320");
+    expect(handle().className).not.toContain("hidden");
+    expect(host!.querySelector("[data-player]")).toBe(player);
+    expect(stripHeights).toEqual([]);
+    expect(workspace.current.shell?.stripHeight).toBe(320);
+    expect(players.mounted).toBe(1);
+    expect(players.unmounted).toBe(0);
+  });
+
+  it("keeps the preview beside Share on the desktop layout", async () => {
+    await mount(1440);
+    await act(async () => {
+      workspace.current = { ...workspace.current, pane: "share" };
+    });
+    await settle();
+    expect(host!.querySelector<HTMLElement>('[data-panel="end"]')!.style.display).not.toBe("none");
+    expect(host!.querySelector("[data-player]")).not.toBeNull();
+  });
+
   it("draws the strip above the script while the player stays the last panel", async () => {
     await mount(900);
     const panels = host!.querySelectorAll("[data-panel]");
