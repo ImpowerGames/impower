@@ -92,7 +92,7 @@ export default function AddMenuSection({ section }: { section: SettingsSectionIn
       onReset={reset.onReset}
       actions={
         <Button variant="quiet" asChild>
-          <a href="#write?insert=backdrop" data-try-add>
+          <a href="#story?insert=backdrop" data-try-add>
             Try in Add
             <ArrowIcon />
           </a>

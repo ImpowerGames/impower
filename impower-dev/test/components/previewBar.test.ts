@@ -707,7 +707,7 @@ describe("the bar under the game", () => {
     const link = bar().querySelector<HTMLAnchorElement>("a")!;
     expect(link.getAttribute("aria-label")).toBe("Screenplay settings");
     expect(link.textContent).toBe("US Letter");
-    expect(routeOfHash(link.getAttribute("href")!)).toBe("project");
+    expect(routeOfHash(link.getAttribute("href")!)).toBe("settings");
     expect(sectionOfHash(link.getAttribute("href")!)).toBe("screenplay-settings");
     expect(SETTINGS_SECTION_IDS).toContain(sectionOfHash(link.getAttribute("href")!));
     expect(bar().querySelector('[aria-label^="Game aspect ratio"]')).toBeNull();

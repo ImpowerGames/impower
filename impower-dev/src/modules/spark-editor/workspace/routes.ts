@@ -4,19 +4,23 @@ import type {
 } from "@impower/spark-editor-protocol/src/types";
 
 export const ROUTES = [
-  "write",
+  "story",
   "scripts",
-  "collection",
+  "assets",
   "share",
-  "project",
+  "settings",
 ] as const;
 
 export type Route = (typeof ROUTES)[number];
 
-const LEGACY_ROUTES: Record<string, Route> = {
-  logic: "write",
-  main: "write",
-  assets: "collection",
+export const LEGACY_ROUTES_REMOVAL_DATE = "2027-02-18";
+
+export const LEGACY_ROUTES: Record<string, Route> = {
+  write: "story",
+  logic: "story",
+  main: "story",
+  collection: "assets",
+  project: "settings",
 };
 
 export const hashOfRoute = (route: Route, section?: string): string =>
@@ -37,7 +41,7 @@ export const hashNamesRoute = (hash: string, route: Route): boolean =>
   nameOfHash(hash) === route;
 
 export const sectionOfHash = (hash: string): string | undefined => {
-  if (routeOfHash(hash) !== "project") {
+  if (routeOfHash(hash) !== "settings") {
     return undefined;
   }
   const query = hash.replace(/^#[^?&]*[?&]?/, "");
@@ -45,11 +49,11 @@ export const sectionOfHash = (hash: string): string | undefined => {
 };
 
 export const routeOfPane = (pane: PaneType): Route =>
-  pane === "assets" ? "collection" : pane === "share" ? "share" : "write";
+  pane === "assets" ? "assets" : pane === "share" ? "share" : "story";
 
 export const routeOfState = (state: WorkspaceCache): Route => {
   if (state.screen?.settingsOpen) {
-    return "project";
+    return "settings";
   }
   if (state.pane === "logic" && state.panes.logic.view === SCRIPTS_VIEW) {
     return "scripts";
@@ -65,15 +69,15 @@ export const stateForRoute = (
   route: Route,
 ): WorkspaceCache => {
   const writingTools =
-    route === "write" ? state.screen.writingTools : undefined;
-  if (route === "project") {
+    route === "story" ? state.screen.writingTools : undefined;
+  if (route === "settings") {
     return {
       ...state,
       screen: { ...state.screen, settingsOpen: true, writingTools },
     };
   }
   const screen = { ...state.screen, settingsOpen: false, writingTools };
-  if (route === "collection") {
+  if (route === "assets") {
     return { ...state, screen, pane: "assets" };
   }
   if (route === "share") {

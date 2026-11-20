@@ -90,7 +90,7 @@ beforeEach(() => {
         },
       },
     },
-    "write",
+    "story",
   );
 });
 
@@ -216,7 +216,7 @@ describe("the phone's find bar", () => {
     await mount();
     expect(search.close).not.toHaveBeenCalled();
     await act(async () => {
-      workspace.current = stateForRoute(workspace.current, "collection");
+      workspace.current = stateForRoute(workspace.current, "assets");
     });
     await flush();
     expect(bar()).toBeNull();

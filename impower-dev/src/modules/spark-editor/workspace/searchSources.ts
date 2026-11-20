@@ -79,7 +79,7 @@ export const searchSources = (parts: {
       if (!projectId) {
         return;
       }
-      window.navigateTo("collection");
+      window.navigateTo("assets");
       workspace.assetsInspect.value = fs.getRelativePath(projectId, uri);
     },
     setMatches: (uri, ranges) => {

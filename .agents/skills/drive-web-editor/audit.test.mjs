@@ -24,7 +24,7 @@ await check("arguments default to every part, theme and route, and --out is requ
   const all = parseAuditArgs(["--out", "x"]);
   assert.deepEqual(all.parts, AUDIT_PARTS);
   assert.equal(all.themes.length, 8);
-  assert.deepEqual(all.routes, ["write", "scripts", "collection", "share", "project"]);
+  assert.deepEqual(all.routes, ["story", "scripts", "assets", "share", "settings"]);
   const some = parseAuditArgs(["--out", "x", "--parts", "contrast,copy", "--themes", "chalk", "--routes", "scripts"]);
   assert.deepEqual([some.parts, some.themes, some.routes], [["contrast", "copy"], ["chalk"], ["scripts"]]);
   assert.throws(() => parseAuditArgs(["--out", "x", "--themes", "auto"]), /--themes takes/);

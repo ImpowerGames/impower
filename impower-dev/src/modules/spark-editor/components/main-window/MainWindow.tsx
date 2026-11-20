@@ -35,11 +35,11 @@ function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) 
 const STRIP_HEIGHT = WorkspaceConstants.PREVIEW_STRIP_HEIGHT;
 
 const PANE_DIVIDER_LABELS: Record<Route, string> = {
-  write: "Resize script and preview panes",
+  story: "Resize script and preview panes",
   scripts: "Resize scripts and preview panes",
-  collection: "Resize page and preview panes",
+  assets: "Resize page and preview panes",
   share: "Resize page and preview panes",
-  project: "Resize page and preview panes",
+  settings: "Resize page and preview panes",
 };
 
 export default function MainWindow(_props: MainWindowProps) {

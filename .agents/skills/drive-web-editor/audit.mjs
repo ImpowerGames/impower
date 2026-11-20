@@ -20,9 +20,9 @@ export const AUDIT_THEMES = [
   { id: "dusk", name: "Dusk" },
 ];
 
-export const AUDIT_ROUTES = ["write", "scripts", "collection", "share", "project"];
+export const AUDIT_ROUTES = ["story", "scripts", "assets", "share", "settings"];
 
-export const ROUTE_NAMES = { write: "Story", scripts: "Scripts", collection: "Assets", share: "Share", project: "Settings" };
+export const ROUTE_NAMES = { story: "Story", scripts: "Scripts", assets: "Assets", share: "Share", settings: "Settings" };
 
 export const AUDIT_PARTS = ["contrast", "axe", "targets", "keyboard", "escape", "shortcuts", "motion", "forced", "copy", "structure"];
 
@@ -35,12 +35,12 @@ export const TOKEN_PAIRS = [
 ];
 
 export const SURFACES = [
-  { step: "app-menu", route: "write", selector: '[role="menu"], [role="dialog"]' },
-  { step: "add-menu", route: "write", selector: '[role="dialog"][aria-label="Add to script"]' },
-  { step: "preview-settings", route: "write", selector: '[role="menu"]' },
-  { step: "problems", route: "write", selector: '[role="dialog"]' },
+  { step: "app-menu", route: "story", selector: '[role="menu"], [role="dialog"]' },
+  { step: "add-menu", route: "story", selector: '[role="dialog"][aria-label="Add to script"]' },
+  { step: "preview-settings", route: "story", selector: '[role="menu"]' },
+  { step: "problems", route: "story", selector: '[role="dialog"]' },
   { step: "file-menu", route: "scripts", selector: '[role="menu"]' },
-  { step: "asset-inspector", route: "collection", selector: 'section[aria-label="Asset details"]' },
+  { step: "asset-inspector", route: "assets", selector: 'section[aria-label="Asset details"]' },
 ];
 
 export const BANNED_WORDS = [
@@ -402,10 +402,10 @@ async function goRoute(page, route, deps) {
   progress(`go to #${route}`);
   const bounded = (what, promise, ms = 45_000) =>
     Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`${what} did not finish within ${ms / 1000} s on the way to #${route}`)), ms))]);
-  if (route === "write") {
+  if (route === "story") {
     const shown = await bounded("opening Main", deps.switchScreen(page, "main"));
     progress(`opened Main: ${shown.active ? "yes" : shown.reason}`);
-    if (!shown.active) await page.evaluate(() => { location.hash = "#write"; });
+    if (!shown.active) await page.evaluate(() => { location.hash = "#story"; });
   } else {
     await page.evaluate((r) => { location.hash = `#${r}`; }, route);
   }
@@ -631,16 +631,16 @@ async function shortcutPass(page, deps) {
       if (!now || now.textDocument.text === original) break;
       await deps.pressInEditor(page, "Control+z").catch(() => {});
     }
-    if (after.hash !== before.hash) await goRoute(page, "write", deps);
+    if (after.hash !== before.hash) await goRoute(page, "story", deps);
   }
   return out;
 }
 
 export const KEYBOARD_FIELDS = [
   { route: "scripts", name: "Search scripts", selector: 'input[aria-label="Search scripts"]' },
-  { route: "collection", name: "Search assets", selector: 'input[aria-label="Search assets"]' },
-  { route: "write", name: "Script name", selector: "input[data-script-name]" },
-  { route: "write", name: "Project name", selector: 'input[aria-label="Project name"]' },
+  { route: "assets", name: "Search assets", selector: 'input[aria-label="Search assets"]' },
+  { route: "story", name: "Script name", selector: "input[data-script-name]" },
+  { route: "story", name: "Project name", selector: 'input[aria-label="Project name"]' },
 ];
 
 async function devicePass({ deps, record, fixtureDir, outDir, report }) {
@@ -822,7 +822,7 @@ export async function audit(args, deps) {
           const surface = ROUTE_NAMES[route];
           progress(`${vp.name} ${surface}`);
           await goRoute(page, route, deps);
-          if (route === "write") await deps.scriptEditorPresent(page, 60_000).then(() => deps.settleEditor(page, 60_000)).catch(() => {});
+          if (route === "story") await deps.scriptEditorPresent(page, 60_000).then(() => deps.settleEditor(page, 60_000)).catch(() => {});
           await shoot(page, `${route}-${vp.viewport}-charcoal`);
           if (has("contrast") || has("axe")) await scanContrast(page, vp.name, surface, has("contrast") ? themes : barThemes);
           const scan = await scanOthers(page, vp.name, surface, vp.coarse);
@@ -855,8 +855,8 @@ export async function audit(args, deps) {
           }
         }
         if (keyboard.length) report.keyboard = { routes: keyboard };
-        if (has("shortcuts") && !vp.coarse && options.routes.includes("write")) {
-          await goRoute(page, "write", deps);
+        if (has("shortcuts") && !vp.coarse && options.routes.includes("story")) {
+          await goRoute(page, "story", deps);
           await deps.scriptEditorPresent(page, 60_000);
           report.shortcuts = await shortcutPass(page, deps);
         }
@@ -912,7 +912,7 @@ export async function audit(args, deps) {
       for (const route of options.routes) {
         progress(`forced colors ${ROUTE_NAMES[route]}`);
         await goRoute(page, route, deps);
-        if (route === "write") await deps.scriptEditorPresent(page, 60_000).catch(() => {});
+        if (route === "story") await deps.scriptEditorPresent(page, 60_000).catch(() => {});
         await shoot(page, `forced-${route}`);
         const order = await tabOrder(page, { limit: 40, deps });
         routes.push({ route, name: ROUTE_NAMES[route], checked: order.stops.length, invisible: order.stops.filter((s) => s.visible === false).map((s) => `${s.role} “${s.name}”`) });

@@ -190,6 +190,7 @@ import {
   hashNamesRoute,
   routeOfHash,
   routeOfState,
+  sectionOfHash,
   stateForRoute,
   transitionRoute,
   type Route,
@@ -295,6 +296,8 @@ export default class WorkspaceWindow {
       }
       if (route !== routeOfState(this.store)) {
         transitionRoute(() => this.openRoute(route));
+      } else {
+        this.syncRouteHash();
       }
     };
     const onPopState = () => {
@@ -322,13 +325,19 @@ export default class WorkspaceWindow {
       return;
     }
     const route = routeOfState(this.store);
-    const hash = hashOfRoute(route);
-    if (route === this._route && routeOfHash(window.location.hash)) {
+    const hashRoute = routeOfHash(window.location.hash);
+    if (route === this._route && hashRoute && hashRoute !== route) {
       return;
     }
     this._route = route;
     if (!hashNamesRoute(window.location.hash, route)) {
-      window.history.replaceState(window.history.state, "", hash);
+      const section =
+        route === "settings" ? sectionOfHash(window.location.hash) : undefined;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        hashOfRoute(route, section),
+      );
     }
   }
 
@@ -376,7 +385,7 @@ export default class WorkspaceWindow {
     }
     this.openPanel("logic", panel);
     this.openFileEditor(filename);
-    this.navigateTo("write");
+    this.navigateTo("story");
   }
 
   async writeScript(filename: string) {
@@ -674,8 +683,8 @@ export default class WorkspaceWindow {
   }
 
   openSparkdownGuide() {
-    if (this._route !== "write") {
-      this.navigateTo("write");
+    if (this._route !== "story") {
+      this.navigateTo("story");
     }
     this.openWritingTools("guide");
   }
@@ -707,7 +716,7 @@ export default class WorkspaceWindow {
 
   async openOutlineLocation(uri: string, range: Range) {
     if (this.store.pane !== "logic" || this.store.screen.settingsOpen) {
-      this.navigateTo("write");
+      this.navigateTo("story");
     }
     await this.showDocument(uri, range, true, true);
   }
@@ -1771,7 +1780,7 @@ export default class WorkspaceWindow {
       { start: position, end: position },
       true,
     );
-    this.navigateTo("write");
+    this.navigateTo("story");
   }
 
   protected requestEditor<M extends string, P, R>(
@@ -2356,8 +2365,8 @@ export default class WorkspaceWindow {
       this.collapsePreviewPane();
     }
     const result = await this.showDocument(uri, range, takeFocus);
-    if (routeOfState(this.store) !== "write") {
-      this.navigateTo("write");
+    if (routeOfState(this.store) !== "story") {
+      this.navigateTo("story");
     }
     return result;
   }

@@ -47,7 +47,7 @@ A switch in Settings, Script editor, Script appearance:
 
 A section is added the same way: its id, label and title in
 `components/settings/sections.ts`, its component beside the others, and its entry in
-`SECTION_BODIES` in `SettingsPage.tsx`. `#project?section=<id>` opens it.
+`SECTION_BODIES` in `SettingsPage.tsx`. `#settings?section=<id>` opens it.
 
 ## Rows and lists
 

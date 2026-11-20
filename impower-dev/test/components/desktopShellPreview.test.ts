@@ -43,7 +43,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
           workspace.current = stateForRoute(workspace.current, route);
         },
         closeSettings: () => {
-          workspace.current = stateForRoute(workspace.current, "write");
+          workspace.current = stateForRoute(workspace.current, "story");
         },
       }),
     },
@@ -148,7 +148,7 @@ describe("the desktop shell's docked preview", () => {
     const { stateForRoute } =
       await import("../../src/modules/spark-editor/workspace/routes");
     host = document.body.appendChild(document.createElement("div"));
-    workspace.current = stateForRoute(workspace.current, "write");
+    workspace.current = stateForRoute(workspace.current, "story");
     await act(async () => render(h(MainWindow, null), host!));
     await settle();
     const dividers = () =>
@@ -156,7 +156,7 @@ describe("the desktop shell's docked preview", () => {
         .map((el) => el.getAttribute("aria-label"))
         .filter((label) => label !== "Resize sidebar");
     const seen: Record<string, (string | null)[]> = {};
-    for (const route of ["write", "scripts", "collection", "share", "project"] as const) {
+    for (const route of ["story", "scripts", "assets", "share", "settings"] as const) {
       await act(async () => {
         workspace.current = stateForRoute(workspace.current, route);
       });
@@ -164,11 +164,11 @@ describe("the desktop shell's docked preview", () => {
       seen[route] = dividers();
     }
     expect(seen).toEqual({
-      write: ["Resize script and preview panes"],
+      story: ["Resize script and preview panes"],
       scripts: ["Resize scripts and preview panes"],
-      collection: ["Resize page and preview panes"],
+      assets: ["Resize page and preview panes"],
       share: ["Resize page and preview panes"],
-      project: ["Resize page and preview panes"],
+      settings: ["Resize page and preview panes"],
     });
   });
 });

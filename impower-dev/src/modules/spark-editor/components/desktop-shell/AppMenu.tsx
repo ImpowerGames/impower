@@ -152,7 +152,7 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           </DropdownItem>
         )}
         <DropdownItem
-          onSelect={() => void withWindow((win) => win.navigateTo("project"))}
+          onSelect={() => void withWindow((win) => win.navigateTo("settings"))}
         >
           <SettingsIcon />
           Settings

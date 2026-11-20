@@ -83,7 +83,7 @@ vi.mock("../../src/modules/spark-editor/components/problems", () => ({
 }));
 
 vi.mock("../../src/modules/spark-editor/components/settings", () => ({
-  settingsSectionHref: (id: string) => `#project?section=${id}`,
+  settingsSectionHref: (id: string) => `#settings?section=${id}`,
 }));
 
 vi.mock("@impower/impower-ui/components", async () => {
@@ -300,7 +300,7 @@ describe("WorkspaceWindow store transitions", () => {
     try {
       expect(document.getSelection()!.type).toBe("Range");
       win.openScript("main.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       expect(document.getSelection()!.type).toBe("None");
     } finally {
       text.remove();
@@ -308,10 +308,10 @@ describe("WorkspaceWindow store transitions", () => {
   });
 
   it("keeps the text selection when navigating to the route already open", async () => {
-    await win.navigateTo("write");
+    await win.navigateTo("story");
     const text = selectText();
     try {
-      await win.navigateTo("write");
+      await win.navigateTo("story");
       expect(document.getSelection()!.type).toBe("Range");
     } finally {
       document.getSelection()!.removeAllRanges();
@@ -400,7 +400,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   it("showDocument opens the script it shows, so going to a definition in an unopened script renders it", () => {
     const projectId = workspace.current.project.id;
-    win.openRoute("write");
+    win.openRoute("story");
     win.closeFileEditor("Scripts/never-opened.sd");
     expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(false);
     void win.showDocument(`file://${projectId}/Scripts/never-opened.sd`);
@@ -496,7 +496,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   it("brings the script on screen for a window/showDocument request made from another route", async () => {
     const projectId = workspace.current.project.id;
-    win.navigateTo("collection");
+    win.navigateTo("assets");
     expect(workspace.current.pane).toBe("assets");
     const at = { line: 4, character: 0 };
     const request = ShowDocumentMessage.type.request({
@@ -504,7 +504,7 @@ describe("WorkspaceWindow store transitions", () => {
       selection: { start: at, end: at },
     });
     sendProtocolMessage(request);
-    await vi.waitFor(() => expect(window.location.hash).toBe("#write"));
+    await vi.waitFor(() => expect(window.location.hash).toBe("#story"));
     expect(workspace.current.pane).toBe("logic");
     expect(win.getActiveEditorForPane("logic")?.filename).toBe(
       "scripts/chapter.sd",
@@ -778,9 +778,9 @@ describe("WorkspaceWindow store transitions", () => {
       win.openView("logic", "list");
       win.openPanel("logic", "main");
       win.openPane("logic");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       win.openPane("assets");
-      expect(window.location.hash).toBe("#collection");
+      expect(window.location.hash).toBe("#assets");
       win.openPane("share");
       expect(window.location.hash).toBe("#share");
       win.openView("logic", "scripts");
@@ -791,7 +791,7 @@ describe("WorkspaceWindow store transitions", () => {
     it("opens a script from the Scripts page on write, and Main as the main editor", () => {
       win.navigateTo("scripts");
       win.openScript("Scripts/intro.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       const logic = workspace.current.panes.logic;
       expect(logic.view).toBe("logic-editor");
       expect(logic.panel).toBe("scripts");
@@ -801,7 +801,7 @@ describe("WorkspaceWindow store transitions", () => {
       });
       win.navigateTo("scripts");
       win.openScript("main.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       expect(workspace.current.panes.logic.view).toBe("list");
       expect(workspace.current.panes.logic.panel).toBe("main");
     });
@@ -819,7 +819,7 @@ describe("WorkspaceWindow store transitions", () => {
         workspace.scriptMode.value = "reading";
         win.navigateTo("scripts");
         const writing = win.writeScript("Scripts/Untitled script.sd");
-        expect(window.location.hash).toBe("#write");
+        expect(window.location.hash).toBe("#story");
         expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
           open: true,
           filename: "Scripts/Untitled script.sd",
@@ -838,16 +838,16 @@ describe("WorkspaceWindow store transitions", () => {
     });
 
     it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {
-      win.navigateTo("write");
+      win.navigateTo("story");
       win.browseScripts();
       expect(window.location.hash).toBe("#scripts");
       expect(workspace.current.panes.logic.view).toBe("scripts");
       win.openScript("Scripts/intro.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       win.browseScripts();
       expect(window.location.hash).toBe("#scripts");
       expect(workspace.current.panes.logic.view).toBe("scripts");
-      win.navigateTo("write");
+      win.navigateTo("story");
       expect(workspace.current.panes.logic.view).toBe("logic-editor");
       expect(workspace.current.panes.logic.panel).toBe("scripts");
       expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
@@ -877,8 +877,8 @@ describe("WorkspaceWindow store transitions", () => {
 
     it("navigates by pushing a history entry, and follows the hash back", async () => {
       const length = window.history.length;
-      win.navigateTo("collection");
-      expect(window.location.hash).toBe("#collection");
+      win.navigateTo("assets");
+      expect(window.location.hash).toBe("#assets");
       expect(window.history.length).toBe(length + 1);
       expect(workspace.current.pane).toBe("assets");
       window.history.replaceState(null, "", "#share");
@@ -886,22 +886,22 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.pane).toBe("share");
     });
 
-    it("opens settings on #project over the current pane and returns on close", () => {
+    it("opens settings on #settings over the current pane and returns on close", () => {
       win.openPane("assets");
-      win.navigateTo("project");
+      win.navigateTo("settings");
       expect(workspace.current.screen.settingsOpen).toBe(true);
       expect(workspace.current.pane).toBe("assets");
-      expect(window.location.hash).toBe("#project");
+      expect(window.location.hash).toBe("#settings");
       win.closeSettings();
       expect(workspace.current.screen.settingsOpen).toBe(false);
-      expect(window.location.hash).toBe("#collection");
+      expect(window.location.hash).toBe("#assets");
     });
 
     it("leaves the hash alone for a change that does not move the route", () => {
-      window.history.pushState(null, "", "#project");
+      window.history.pushState(null, "", "#settings");
       win.setAppMenuOpen(true);
       win.setAppMenuOpen(false);
-      expect(window.location.hash).toBe("#project");
+      expect(window.location.hash).toBe("#settings");
     });
 
     it("opens the writing tools, moves between their views and closes them", () => {
@@ -944,9 +944,9 @@ describe("WorkspaceWindow store transitions", () => {
     });
 
     it("opens the Sparkdown guide on its own from another route, and closes it on leaving Write", () => {
-      win.navigateTo("collection");
+      win.navigateTo("assets");
       win.openSparkdownGuide();
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       expect(workspace.current.pane).toBe("logic");
       expect(workspace.current.screen.writingTools).toEqual({ view: "guide", fromMenu: false });
       win.navigateTo("share");
@@ -958,15 +958,55 @@ describe("WorkspaceWindow store transitions", () => {
       window.history.replaceState(null, "", "#assets");
       win = new WorkspaceWindow(Workspace);
       expect(workspace.current.pane).toBe("assets");
-      expect(window.location.hash).toBe("#collection");
+      expect(window.location.hash).toBe("#assets");
     });
+
+    const withStoreRestored = async (run: () => void | Promise<void>) => {
+      const before = workspace.current;
+      try {
+        await run();
+      } finally {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        workspace.current = before;
+        localStorage.clear();
+      }
+    };
+
+    it.each([
+      ["#write", "#story"],
+      ["#logic", "#story"],
+      ["#main", "#story"],
+      ["#collection", "#assets"],
+      ["#project", "#settings"],
+      ["#project?section=save-settings", "#settings?section=save-settings"],
+    ])("opens the old name %s on load and rewrites the address bar to %s", (old, current) =>
+      withStoreRestored(() => {
+        win.dispose();
+        window.history.replaceState(null, "", old);
+        win = new WorkspaceWindow(Workspace);
+        expect(window.location.hash).toBe(current);
+        expect(workspace.current.screen.settingsOpen).toBe(current.startsWith("#settings"));
+      }),
+    );
+
+    it.each([
+      ["#collection", "#assets"],
+      ["#project?section=file-types", "#settings?section=file-types"],
+      ["#write", "#story"],
+    ])("follows the old name %s typed into the address bar and rewrites it to %s", (old, current) =>
+      withStoreRestored(async () => {
+        window.history.pushState(null, "", old);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        await vi.waitFor(() => expect(window.location.hash).toBe(current));
+      }),
+    );
 
     it("keeps a settings deep link's section in the hash while it opens the page", () => {
       win.dispose();
-      window.history.replaceState(null, "", "#project?section=save-settings");
+      window.history.replaceState(null, "", "#settings?section=save-settings");
       win = new WorkspaceWindow(Workspace);
       expect(workspace.current.screen.settingsOpen).toBe(true);
-      expect(window.location.hash).toBe("#project?section=save-settings");
+      expect(window.location.hash).toBe("#settings?section=save-settings");
     });
 
     it("navigates to a settings section, telling an open settings page to land on it", () => {
@@ -974,13 +1014,13 @@ describe("WorkspaceWindow store transitions", () => {
       window.addEventListener("hashchange", landed);
       try {
         win.closeSettings();
-        win.navigateTo("project", "save-settings");
+        win.navigateTo("settings", "save-settings");
         expect(workspace.current.screen.settingsOpen).toBe(true);
-        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(window.location.hash).toBe("#settings?section=save-settings");
         expect(landed).not.toHaveBeenCalled();
-        window.history.replaceState(null, "", "#project");
-        win.navigateTo("project", "save-settings");
-        expect(window.location.hash).toBe("#project?section=save-settings");
+        window.history.replaceState(null, "", "#settings");
+        win.navigateTo("settings", "save-settings");
+        expect(window.location.hash).toBe("#settings?section=save-settings");
         expect(landed).toHaveBeenCalledTimes(1);
       } finally {
         window.removeEventListener("hashchange", landed);
@@ -2707,8 +2747,8 @@ describe("Revealing a script from the bar under the game", () => {
 
   const uriOf = (path: string) => `file://${workspace.current.project.id}/${path}`;
 
-  it("opens the script on the write route from another route", async () => {
-    win.navigateTo("collection");
+  it("opens the script on the story route from another route", async () => {
+    win.navigateTo("assets");
     expect(workspace.current.pane).toBe("assets");
     const at = { line: 11, character: 0 };
     await win.revealDocument(uriOf("scripts/intro.sd"), { start: at, end: at });
@@ -2718,7 +2758,7 @@ describe("Revealing a script from the bar under the game", () => {
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
     expect(editor?.filename).toBe("scripts/intro.sd");
     expect(editor?.selectedRange).toEqual({ start: at, end: at });
-    expect(window.location.hash).toBe("#write");
+    expect(window.location.hash).toBe("#story");
   });
 
   it("makes an unopened script the active editor, so the stopped readout and the toggle follow it", async () => {
@@ -2746,7 +2786,7 @@ describe("Revealing a script from the bar under the game", () => {
     const at = { line: 2, character: 0 };
     await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
     expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(true);
-    win.navigateTo("collection");
+    win.navigateTo("assets");
     await win.revealDocument(uriOf("main.sd"), { start: at, end: at });
     expect(workspace.current.panes.logic.panel).toBe("main");
     expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(false);
@@ -2754,7 +2794,7 @@ describe("Revealing a script from the bar under the game", () => {
       "scripts/chapter.sd",
     );
     expect(win.getActiveEditorForPane("logic")?.filename).toBe("main.sd");
-    expect(window.location.hash).toBe("#write");
+    expect(window.location.hash).toBe("#story");
   });
 
   it("collapses the phone's revealed preview so the script shows", async () => {
