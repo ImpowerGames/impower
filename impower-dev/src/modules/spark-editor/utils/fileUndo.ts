@@ -198,9 +198,11 @@ export function recordCreate(
   projectId: string,
   createdUris: string[],
   label: string,
+  { folders: createdFolders = [], message }: { folders?: string[]; message?: string } = {},
 ) {
   let batchIds: string[] = [];
   let uris = createdUris;
+  let folders = createdFolders;
   const trashing = trashAttempts(reportKept);
   pushUndo({
     label: `Create ${label}`,
@@ -210,18 +212,36 @@ export function recordCreate(
         (batchKey) =>
           Workspace.fs.deleteFiles({
             files: uris.map((uri) => ({ uri })),
+            folders: folders.map((f) => ({ uri: Workspace.fs.getFileUri(projectId, f) })),
             mode: "trash",
             batchKey,
           }),
         keyedIn(projectId),
       );
+      if (folders.length > 0) {
+        await Workspace.fs.deleteFolders(projectId, folders);
+      }
       await markProjectDirty();
     },
     redo: async () => {
-      uris = (await restoreBatches(projectId, batchIds)).uris;
+      const { Workspace } = await import("../workspace/Workspace");
+      const restored = await restoreBatches(projectId, batchIds);
+      uris = restored.uris;
+      if (restored.folders.length > 0) {
+        folders = restored.folders;
+      } else if (folders.length > 0) {
+        await Workspace.fs.createFolders(projectId, folders);
+      }
       await markProjectDirty();
     },
   });
+  if (message) {
+    showSnackbar({
+      message,
+      actionLabel: "Undo",
+      onAction: () => void undo(),
+    });
+  }
 }
 
 export const REPLACED_MESSAGE = "Replaced. Every line that shows it now uses the new file.";
