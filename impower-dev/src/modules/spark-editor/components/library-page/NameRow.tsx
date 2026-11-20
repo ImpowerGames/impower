@@ -5,23 +5,24 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { showSnackbar } from "../../utils/snackbar";
 import { closeWatcher } from "../desktop-shell";
 
-export type NameRowProps = {
-  icon: ComponentChildren;
+export type NameFieldOptions = {
   label: string;
   initial?: string;
   suffix?: string;
-  wrapError?: boolean;
-  size?: ListRowSize;
   returnFocus?: () => HTMLElement | null;
   onCommit: (name: string) => Promise<void>;
   onCancel: () => void;
 };
 
+export type NameRowProps = NameFieldOptions & {
+  icon: ComponentChildren;
+  size?: ListRowSize;
+};
+
 const REVEAL_MARGIN = 8;
 
 const scrolls = (element: Element) =>
-  element.scrollHeight > element.clientHeight &&
-  !["visible", "clip"].includes(getComputedStyle(element).overflowY);
+  element.scrollHeight > element.clientHeight && !["visible", "clip"].includes(getComputedStyle(element).overflowY);
 
 function keepInView(first: Element, last: Element) {
   for (let scroller = first.parentElement; scroller; scroller = scroller.parentElement) {
@@ -41,17 +42,7 @@ function keepInView(first: Element, last: Element) {
   }
 }
 
-export default function NameRow({
-  icon,
-  label,
-  initial = "",
-  suffix,
-  wrapError = false,
-  size,
-  returnFocus,
-  onCommit,
-  onCancel,
-}: NameRowProps) {
+export function useNameField({ label, initial = "", suffix, returnFocus, onCommit, onCancel }: NameFieldOptions) {
   const input = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(initial);
   const [error, setError] = useState("");
@@ -67,7 +58,9 @@ export default function NameRow({
     if (!box.current || input.current !== document.activeElement) {
       return;
     }
-    keepInView(box.current, message.current ?? box.current);
+    const notice = message.current ?? box.current;
+    const above = notice.getBoundingClientRect().top < box.current.getBoundingClientRect().top;
+    keepInView(above ? notice : box.current, above ? box.current : notice);
   };
 
   useLayoutEffect(() => {
@@ -105,7 +98,11 @@ export default function NameRow({
 
   useEffect(() => (coarse ? fitToKeyboard(reveal) : undefined), [coarse]);
 
-  useLayoutEffect(reveal, [error]);
+  useLayoutEffect(() => {
+    reveal();
+    const frame = requestAnimationFrame(reveal);
+    return () => cancelAnimationFrame(frame);
+  }, [error]);
 
   const commit = async (submitted: boolean) => {
     if (busy.current || cancelled.current) {
@@ -136,64 +133,61 @@ export default function NameRow({
     }
   };
 
-  return (
-    <ListRow
-      size={size}
-      icon={icon}
-      descriptionFit={wrapError ? "wrap" : undefined}
-      overflow="self"
-      label={
-        <span
-          ref={box}
-          class="flex h-[26px] pointer-coarse:h-11 min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within:border-accent"
-        >
-          <TextField
-            ref={input}
-            data-name-field="row"
-            frame="inset"
-            purpose="literal"
-            aria-label={label}
-            aria-invalid={error ? "true" : undefined}
-            aria-describedby={error ? "scripts-name-error" : undefined}
-            maxLength={200}
-            value={value}
-            class="self-stretch px-2 text-[14px]"
-            onValueChange={(next) => {
-              setValue(next);
-              reject("");
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (e.isComposing || e.keyCode === 229) {
-                  return;
-                }
-                void commit(true);
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                e.stopPropagation();
-                cancel();
-              }
-            }}
-            onBlur={() => {
-              if (cancelled.current) {
+  return {
+    field: (
+      <span
+        ref={box}
+        class="flex h-[26px] pointer-coarse:h-11 min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within:border-accent"
+      >
+        <TextField
+          ref={input}
+          data-name-field="row"
+          frame="inset"
+          purpose="literal"
+          aria-label={label}
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={error ? "scripts-name-error" : undefined}
+          maxLength={200}
+          value={value}
+          class="self-stretch px-2 text-[14px]"
+          onValueChange={(next) => {
+            setValue(next);
+            reject("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (e.isComposing || e.keyCode === 229) {
                 return;
               }
-              if (!error) {
-                void commit(false);
-              }
-            }}
-          />
-          {suffix && <span class="pr-2 text-[14px] text-muted">{suffix}</span>}
-        </span>
-      }
-      description={
-        error ? (
-          <span ref={message} id="scripts-name-error" role="alert" class="text-error">
-            {error}
-          </span>
-        ) : undefined
-      }
-    />
-  );
+              void commit(true);
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              cancel();
+            }
+          }}
+          onBlur={() => {
+            if (cancelled.current) {
+              return;
+            }
+            if (!error) {
+              void commit(false);
+            }
+          }}
+        />
+        {suffix && <span class="pr-2 text-[14px] text-muted">{suffix}</span>}
+      </span>
+    ),
+    message: error ? (
+      <span ref={message} id="scripts-name-error" role="alert" class="text-error">
+        {error}
+      </span>
+    ) : undefined,
+  };
+}
+
+export default function NameRow({ icon, size, ...options }: NameRowProps) {
+  const { field, message } = useNameField(options);
+  return <ListRow size={size} icon={icon} overflow="self" label={field} description={message} />;
 }

@@ -254,6 +254,34 @@ describe("Tile", () => {
   });
 });
 
+describe("Tile editor", () => {
+  it("keeps the framed picture without the open button, selection mark or actions, and draws the editor and notice over the frame", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Tile
+          size="small"
+          media={<img alt="" src="/imani.png" />}
+          label="imani"
+          selection="available"
+          selectLabel="Select imani"
+          actions={<button type="button" aria-label="Options for imani" />}
+          editor={<input aria-label="Rename imani" />}
+          notice={<span role="alert">Use a name without @ or ~.</span>}
+        />,
+        host!,
+      ),
+    );
+    const frame = host.querySelector<HTMLElement>("[data-tile] > div")!;
+    expect(host.querySelector("button")).toBeNull();
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(frame.className.split(" ")).toEqual(expect.arrayContaining(["border", "border-edge", "relative"]));
+    expect(frame.querySelector("img")).not.toBeNull();
+    expect(frame.querySelector('input[aria-label="Rename imani"]')).not.toBeNull();
+    expect(frame.querySelector('[role="alert"]')!.parentElement!.className.split(" ")).toEqual(expect.arrayContaining(["text-[10px]/[1.3]", "shrink-0", "bg-bg"]));
+  });
+});
+
 describe("Tile edge", () => {
   it("fades a long label and description at their edge with no ellipsis under the mask", async () => {
     host = document.body.appendChild(document.createElement("div"));
