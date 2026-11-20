@@ -186,6 +186,7 @@ export {
 } from "./split-pane/SplitPane";
 export {
   default as Toast,
+  TOAST_TRANSITION_MS,
   toastVariants,
   type ToastProps,
 } from "./toast/Toast";

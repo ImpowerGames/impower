@@ -1,4 +1,4 @@
-import { Toast } from "@impower/impower-ui/components";
+import { Toast, TOAST_TRANSITION_MS } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useState } from "preact/hooks";
 import { dismissSnackbar, snackbar, type Snackbar } from "../../utils/snackbar";
@@ -50,7 +50,10 @@ export default function SnackbarHost() {
   useEffect(() => {
     if (current) {
       setShown(current);
+      return;
     }
+    const left = setTimeout(() => setShown(null), TOAST_TRANSITION_MS);
+    return () => clearTimeout(left);
   }, [current]);
   usePaneAnchor(!!shown);
 
