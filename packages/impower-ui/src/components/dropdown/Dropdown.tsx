@@ -531,12 +531,10 @@ export function DropdownContent({
         onEntryFocus={(event: Event) => event.preventDefault()}
         onFocus={(event: FocusEvent) => {
           onFocus?.(event as JSX.TargetedFocusEvent<HTMLDivElement>);
-          if (entered.current) {
-            return;
-          }
+          const first = !entered.current;
           entered.current = true;
           const content = event.currentTarget as HTMLElement;
-          if (event.target === content && (opensAt === "top" || lastInputWasKeyboard())) {
+          if (event.target === content && ((first && opensAt === "top") || lastInputWasKeyboard())) {
             const entry = openingEntry(content, opensAt);
             if (entry) {
               focusAsInput(entry);

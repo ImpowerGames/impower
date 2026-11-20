@@ -1003,6 +1003,21 @@ describe("a Dropdown opened from the keyboard", () => {
     expect(call?.[0]).toEqual({ focusVisible: true });
   });
 
+  it("moves focus back to an entry with the ring when the keyboard returns focus to the menu itself", async () => {
+    const trigger = await mountMenu("chosen", "dark");
+    await key(trigger, "Enter");
+    await settle(50);
+    expect(document.activeElement?.textContent).toBe("Dark");
+    await key(document.activeElement!, "Shift");
+    const focus = focusCalls();
+    await act(async () => menu()!.focus());
+    await settle(50);
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Dark");
+    const call = focus.mock.calls.filter((_, index) => focus.mock.contexts[index] === active).at(-1);
+    expect(call?.[0]).toEqual({ focusVisible: true });
+  });
+
   it("returns focus to the trigger on Escape", async () => {
     const trigger = await mountMenu("chosen");
     await key(trigger, "Enter");
