@@ -325,7 +325,7 @@ export function renderMarkdown(report) {
     const device = report.device;
     const summary = [...report.targets.summary, ...(device?.targets.summary ?? [])];
     const failures = [...report.targets.failures, ...(device?.targets.failures ?? [])];
-    push("### Touch targets", "", `Every rendered control under a coarse pointer, scrolled into view when it is off screen, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to ${report.targets.min}px each way. ${report.targets.viewports}${device ? `; and the Android emulator at its own width of ${device.width}px (${device.device}), run on ${device.date} at commit \`${device.commit}\` with \`audit --device android\`` : "; the Android emulator was not run"}.`, "");
+    push("### Touch targets", "", `Every rendered control under a coarse pointer, scrolled to the centre of its scroller first, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to ${report.targets.min}px each way. ${report.targets.viewports}${device ? `; and the Android emulator at its own width of ${device.width}px (${device.device}), run on ${device.date} at commit \`${device.commit}\` with \`audit --device android\`` : "; the Android emulator was not run"}.`, "");
     push("| Viewport | Surface | Controls | Under 44×44 |", "|---|---|---|---|");
     for (const row of summary) push(`| ${row.viewport} | ${cell(row.surface)} | ${row.controls} | ${row.failures} |`);
     push("");

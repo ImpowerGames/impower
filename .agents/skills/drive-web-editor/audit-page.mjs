@@ -151,11 +151,9 @@ export function auditScan({ parts, coarse, minTarget }) {
       if (!shown(el)) continue;
       let rect = el.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
-      if (!inViewport(rect) || rect.top < 0 || rect.bottom > innerHeight) {
-        el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
-        rect = el.getBoundingClientRect();
-        if (!inViewport(rect)) continue;
-      }
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+      rect = el.getBoundingClientRect();
+      if (!inViewport(rect)) continue;
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
       const label = el.closest("label") ?? el.labels?.[0] ?? null;
