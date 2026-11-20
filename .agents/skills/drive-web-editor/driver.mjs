@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
@@ -703,7 +703,7 @@ async function importPlaywright() {
 const themeLine = (display) =>
   display.theme ? `theme: ${display.theme}, set as the theme preference before the page loads` : "theme: Automatic, the theme preference is cleared before the page loads";
 
-export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY }) {
+export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY, extra = {} }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
   if (dir === path.join(SESSION_DIR, "profile")) recordCheckoutOwner(REPO_ROOT);
@@ -715,6 +715,7 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   const ctx = await chromium.launchPersistentContext(dir, {
     headless,
     ...contextOptions(display),
+    ...extra,
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
@@ -2066,7 +2067,7 @@ const SCREENS = {
   assets: '[data-assets-action="add"]',
   share: "#share-page",
 };
-const ASSET_ROW_SELECTOR = '[role="listitem"] button[aria-label^="Open "]';
+const ASSET_ROW_SELECTOR = '[role="listitem"] button[aria-label^="Open "]:not([aria-label="Problems and playback messages"] *)';
 const ASSET_INSPECTOR_SELECTOR = SURFACE_SELECTORS.assetInspector;
 const ASSET_FOLDER_DEPTH = 4;
 
@@ -4233,8 +4234,11 @@ const runAsCli =
   fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 
 const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
-if (runAsCli && (hasDisplayFlags(DISPLAY) || DEVICE) && !DISPLAY_COMMANDS.includes(cmd)) {
-  die(`--device, --viewport, --color-scheme and --theme apply to ${DISPLAY_COMMANDS.join(", ")} only, not ${cmd ?? "a missing command"}`);
+if (runAsCli && cmd === "audit" && hasDisplayFlags(DISPLAY)) {
+  die("audit chooses its own viewports and themes; --viewport, --color-scheme and --theme do not apply to it (--device android does)");
+}
+if (runAsCli && (hasDisplayFlags(DISPLAY) || DEVICE) && !DISPLAY_COMMANDS.includes(cmd) && cmd !== "audit") {
+  die(`--device, --viewport, --color-scheme and --theme apply to ${DISPLAY_COMMANDS.join(", ")} only, not ${cmd ?? "a missing command"}; --device also applies to audit`);
 }
 if (runAsCli && DEVICE && !findAdb()) die(adbMissingMessage());
 switch (cmd) {
@@ -4290,6 +4294,38 @@ switch (cmd) {
     });
     break;
   }
+  case "audit": {
+    const { audit } = await import("./audit.mjs");
+    await audit(rest, {
+      device: DEVICE,
+      withEditor,
+      readState,
+      headCommit: () => execFileSync("git", ["rev-parse", "--short=10", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8" }).trim(),
+      launchEditorBrowser,
+      grantDurableStorage,
+      openEditorPage,
+      reloadEditorPage,
+      waitForApp,
+      seedProject,
+      switchScreen,
+      scriptEditorPresent,
+      settleEditor,
+      waitForDomQuiet,
+      settleViewTransitions,
+      protocolRequest,
+      placeCaret,
+      pressInEditor,
+      openAppMenu,
+      openAddMenu,
+      openPreviewSettings,
+      openProblems,
+      openFileMenu,
+      openAssetInspector,
+      log,
+      die,
+    });
+    break;
+  }
   case "timing": {
     const { timing } = await import("./timing.mjs");
     await timing(rest, {
@@ -4329,6 +4365,7 @@ switch (cmd) {
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "  measure [options]     time key press to painted preview at one line, in a browser profile of its own",
         "  timing input|metronome [options]  time input and audio against the running game, in a browser profile of its own",
+        "  audit --out <dir> [--doc <file>] [options]  measure contrast, targets, keyboard, motion, forced colors and copy on every route",
         "",
         "verify options:",
         "  --fresh-sw       unregister and reload; report the controlling worker's script hash and console",
@@ -4384,6 +4421,7 @@ switch (cmd) {
         "",
         "measure: see references/performance.md; `measure --help` lists its options.",
         "timing: see references/performance.md; `timing --help` lists its options.",
+        "audit: see references/audit.md; `audit` without --out lists its options.",
       ].join("\n"),
     );
 }
