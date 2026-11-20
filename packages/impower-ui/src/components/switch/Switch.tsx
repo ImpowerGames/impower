@@ -8,7 +8,7 @@ import { cn } from "../../utils/cn";
 export const switchVariants = cva(
   [
     "relative m-0 shrink-0 cursor-pointer appearance-none",
-    "rounded-full border border-solid border-edge bg-elevated control-wash",
+    "rounded-full border border-solid border-field-edge bg-elevated control-wash",
     "before:absolute before:rounded-full before:bg-muted before:content-['']",
     "after:absolute after:content-['']",
     "checked:border-accent checked:bg-accent checked:before:bg-accent-ink checked:focus-inset",

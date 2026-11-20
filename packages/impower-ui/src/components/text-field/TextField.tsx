@@ -15,7 +15,7 @@ export const textFieldVariants = cva(
     variants: {
       frame: {
         own: [
-          "rounded-control border border-solid border-edge bg-bg control-wash",
+          "rounded-control border border-solid border-field-edge bg-bg control-wash",
           "motion-safe:transition-[border-color] motion-safe:duration-140",
         ],
         inset: "h-full border-0 bg-transparent outline-none",

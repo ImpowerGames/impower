@@ -55,6 +55,7 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
   --color-edge: var(--edge);
+  --color-field-edge: var(--field-edge);
   --color-swatch-edge: var(--swatch-edge);
   --color-selection: var(--selection);
   --color-syntax-active: var(--syntax-active);

@@ -7,7 +7,7 @@ import { ChevronDownIcon } from "../icon/icons.generated";
 export const selectVariants = cva(
   [
     "relative m-0 min-w-0 cursor-pointer appearance-none truncate",
-    "rounded-control border border-solid border-edge bg-bg text-ink control-wash",
+    "rounded-control border border-solid border-field-edge bg-bg text-ink control-wash",
     "motion-safe:transition-[border-color] motion-safe:duration-140",
     "disabled:cursor-default disabled:opacity-40",
     "forced-colors:appearance-auto",

@@ -20,7 +20,7 @@ import {
 import { withSearch } from "./withSearch";
 
 const FIELD =
-  "flex min-h-11 min-w-0 items-center rounded-control border border-edge bg-bg focus-within-edge";
+  "flex min-h-11 min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within-edge";
 
 const INPUT =
   "min-h-0 flex-1 shrink border-0 bg-transparent text-[15px]/[1.4] focus-visible:outline-none";
