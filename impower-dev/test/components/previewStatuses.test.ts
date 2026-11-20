@@ -178,7 +178,8 @@ describe("the statuses over the game", () => {
     expect(badges().map((badge) => badge.dataset["status"])).toEqual(["completion"]);
   });
 
-  it("says the game is starting while a PLAY waits for the player, and drops it once the game runs", async () => {
+  it("puts nothing over the game while a PLAY waits for the player, however long it takes", async () => {
+    vi.useFakeTimers();
     const before = workspace.current;
     const setGame = (game: Record<string, unknown>) =>
       act(() => {
@@ -193,14 +194,15 @@ describe("the statuses over the game", () => {
     try {
       await mount();
       await setGame({ starting: true });
-      const [badge] = badges();
-      expect(badge!.textContent).toBe("Starting the game…");
-      expect(badge!.dataset["status"]).toBe("starting");
-      expect(badge!.dataset["statusBadge"]).toBe("default");
+      expect(badges()).toEqual([]);
+      await act(() => vi.advanceTimersByTime(5000));
+      expect(badges()).toEqual([]);
+      expect(document.querySelector("[data-preview-statuses]")).toBeNull();
       await setGame({ running: true });
       expect(badges()).toEqual([]);
     } finally {
       workspace.current = before;
+      vi.useRealTimers();
     }
   });
 

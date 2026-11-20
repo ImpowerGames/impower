@@ -256,7 +256,6 @@ import {
 } from "../../src/modules/spark-editor/workspace/launchMachine";
 import statuses, {
   NO_GAME_STATUSES,
-  shownStatuses,
 } from "../../src/modules/spark-editor/workspace/statuses/StatusesStore";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
@@ -2282,16 +2281,12 @@ describe("PLAY pressed before the game player has connected", () => {
       ended: "Stop",
     };
 
-    const showsBadge = (p: LaunchPhase) => p === "awaiting" || p === "starting";
+    const startsGame = (p: LaunchPhase) => p === "awaiting" || p === "starting";
 
     const expectBar = (p: LaunchPhase) => {
       expect(phase()).toBe(p);
       expect(transport().getAttribute("aria-label")).toBe(CONTROL[p]);
-      expect(
-        shownStatuses(statuses.statuses.value, "game", Boolean(game().starting)).some(
-          (status) => status.key === "starting",
-        ),
-      ).toBe(showsBadge(p));
+      expect(Boolean(game().starting)).toBe(startsGame(p));
     };
 
     const cases = (Object.keys(EXPECTED) as Setup[]).flatMap((setup) =>
