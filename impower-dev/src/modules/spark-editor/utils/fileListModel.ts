@@ -218,7 +218,7 @@ export const copyName = (
 
 export const renameCopiedScenes = (text: string, suffix: string): string =>
   text.replace(
-    /^([ \t]*)scene([ \t]+)([A-Za-z_][A-Za-z0-9_]*)/gm,
+    /^([ \t]*)scene([ \t]+)([_\p{L}][0-9_\p{L}-]*(?:@[0-9_\p{L}][0-9_\p{L}-]*)*(?<!-))/gmu,
     (_, indent: string, gap: string, name: string) => `${indent}scene${gap}${name}${suffix}`,
   );
 

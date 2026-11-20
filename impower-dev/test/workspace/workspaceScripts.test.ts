@@ -296,6 +296,14 @@ describe("Scripts through the workspace", () => {
     expect(files.get("Scripts/intro.sd")).toBe(original);
   });
 
+  it("renames the scenes of a script whose extension is written in capitals", async () => {
+    const { scripts, files } = fakeWorkspace([...PATHS, "Scripts/chapter.SD"], FOLDERS);
+    files.set("Scripts/chapter.SD", "scene chapter\nend\n");
+    await scripts.load();
+    expect(await scripts.duplicate("Scripts/chapter.SD")).toBe("Scripts/chapter_copy.SD");
+    expect(files.get("Scripts/chapter_copy.SD")).toBe("scene chapter_copy\nend\n");
+  });
+
   it("duplicates a folder as '<name>_copy' with its subfolders and scripts", async () => {
     const { scripts, files, dirs } = fakeWorkspace(
       [...PATHS, "Scripts/Drafts/Old/older.sd"],

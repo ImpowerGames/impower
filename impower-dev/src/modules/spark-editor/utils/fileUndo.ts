@@ -218,6 +218,9 @@ export function recordCreate(
           }),
         keyedIn(projectId),
       );
+      if (folders.length > 0) {
+        await Workspace.fs.deleteFolders(projectId, folders);
+      }
       await markProjectDirty();
     },
     redo: async () => {

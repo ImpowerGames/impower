@@ -374,7 +374,7 @@ export default class WorkspaceScripts {
         const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, source) } });
         return {
           uri: fs.getFileUri(projectId, to + source.slice(path.length)),
-          data: source.endsWith(".sd")
+          data: isScriptPath(source)
             ? new TextEncoder().encode(
                 renameCopiedScenes(new TextDecoder().decode(data), suffix),
               ).buffer
