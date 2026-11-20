@@ -8,9 +8,11 @@ import {
   DialogActions,
   DialogDescription,
   DialogTitle,
+  DockedDialog,
   Lightbox,
   Sheet,
   type DialogProps,
+  type DockedDialogProps,
   type SheetSize,
 } from "./Dialog";
 import {
@@ -771,3 +773,82 @@ describe("a padded dialog or sheet body", () => {
     expect(sheetVariants({ flush: true }).split(/\s+/)).not.toContain("pr-gutter-5");
   });
 });
+
+describe("DockedDialog", () => {
+  const mountDocked = async (props: Partial<DockedDialogProps> = {}) => {
+    if (host) {
+      await act(async () => render(null, host!));
+      host.remove();
+    }
+    host = document.body.appendChild(document.createElement("div"));
+    const before = document.body.appendChild(document.createElement("button"));
+    before.textContent = "Before";
+    before.focus();
+    await act(async () =>
+      render(
+        <div data-dock>
+          <DockedDialog label="Tools" onDismiss={() => {}} data-docked class="h-10" {...props}>
+            <button type="button">Inside</button>
+          </DockedDialog>
+        </div>,
+        host!,
+      ),
+    );
+    await settle(10);
+    return before;
+  };
+
+  const pointerDown = (target: Element) =>
+    act(async () => {
+      target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
+    });
+
+  it("renders a labelled non-modal section in place, with only the caller's classes, and leaves focus where it was", async () => {
+    const before = await mountDocked();
+    const panel = dialog()!;
+    expect(panel.tagName).toBe("SECTION");
+    expect(panel.parentElement!.hasAttribute("data-dock")).toBe(true);
+    expect(panel.hasAttribute("data-docked")).toBe(true);
+    expect(panel.getAttribute("class")).toBe("h-10");
+    expect(panel.getAttribute("aria-label")).toBe("Tools");
+    expect(panel.hasAttribute("aria-modal")).toBe(false);
+    expect(document.body.style.pointerEvents).toBe("");
+    expect(document.activeElement).toBe(before);
+  });
+
+  it("dismisses on Escape unless the caller prevents it", async () => {
+    const onDismiss = vi.fn();
+    await mountDocked({ onDismiss });
+    await pressEscape();
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    const kept = vi.fn();
+    await mountDocked({ onDismiss: kept, onEscapeKeyDown: (event) => event.preventDefault() });
+    await pressEscape();
+    expect(kept).not.toHaveBeenCalled();
+  });
+
+  it("dismisses on the press outside itself, with no click after it, but not on a press inside", async () => {
+    const onDismiss = vi.fn();
+    const before = await mountDocked({ onDismiss });
+    await pointerDown(dialog()!.querySelector("button")!);
+    expect(onDismiss).not.toHaveBeenCalled();
+    await pointerDown(before);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays open on a press outside the caller prevents", async () => {
+    const kept = vi.fn();
+    const before = await mountDocked({ onDismiss: kept, onPointerDownOutside: (event) => event.preventDefault() });
+    await pointerDown(before);
+    expect(kept).not.toHaveBeenCalled();
+  });
+
+  it("stays open when focus moves outside", async () => {
+    const onDismiss = vi.fn();
+    const before = await mountDocked({ onDismiss });
+    await act(async () => dialog()!.querySelector("button")!.focus());
+    await act(async () => before.focus());
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+});
+
