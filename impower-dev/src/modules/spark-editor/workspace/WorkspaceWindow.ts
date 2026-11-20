@@ -115,6 +115,7 @@ import {
   type ShowDocumentResult,
 } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
+import { focusedElement } from "../utils/focusedElement";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import WorkspaceDebugClient from "./WorkspaceDebugClient";
@@ -654,6 +655,13 @@ export default class WorkspaceWindow {
   finishEditing() {
     if (workspace.scriptMode.peek() !== "editing") {
       return;
+    }
+    const focused = focusedElement();
+    if (
+      focused instanceof HTMLElement &&
+      focused.closest(".sparkdown-script-editor-root .cm-content")
+    ) {
+      focused.blur();
     }
     workspace.scriptMode.value = "reading";
   }
