@@ -268,7 +268,7 @@ export class MorphTimeline {
       if (!turn) return;
       const at = this.turnAt(path, turn, play.start);
       if (at > t) return;
-      const taken = this.speaking(at);
+      const taken = this.spanFrom(at) !== undefined;
       play.taken.push(taken);
       if (!taken) play.path = undefined;
     }
@@ -286,8 +286,12 @@ export class MorphTimeline {
 
   protected nextStart(from: number, last: number | undefined): number | undefined {
     if (this.beeps) return this.beeps.find((beep) => beep >= from - 1e-9 && (last === undefined || beep > last));
-    const span = this.spans.find(([, end]) => end > from);
+    const span = this.spanFrom(from);
     return span && Math.max(from, span[0]);
+  }
+
+  protected spanFrom(t: number): readonly [number, number] | undefined {
+    return this.spans.find(([, end]) => end > t);
   }
 
   protected spoken(t: number): MorphPlayhead {
