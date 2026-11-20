@@ -1321,6 +1321,24 @@ describe("insertConstruct command", () => {
     expect(editor.state.doc.toString()).toContain(lines("  Hello.", "  ((play sound door))"));
   });
 
+  it("writes the placeholder, selected, for a picked name a script cannot write", () => {
+    const source = lines("scene start", "  Hello.", "end", "");
+    const caret = caretAt(source, "Hello.");
+    const written = (
+      [
+        ["backdrop", "beach night", "[[show backdrop backdrop_name]]", "backdrop_name"],
+        ["portrait", "with", "[[show portrait portrait_name]]", "portrait_name"],
+        ["sound", "door:loud", "((sound_name))", "sound_name"],
+        ["music", "none", "((play music music_name loop))", "music_name"],
+      ] as const
+    ).map(([construct, name, line, placeholder]) => {
+      const plan = planInsertion(source, caret, construct, structureOf(source), name)!;
+      const text = source.slice(0, plan.from) + plan.insert + source.slice(plan.to);
+      return [text.includes(lines("  Hello.", `  ${line}`, "end")), text.slice(plan.anchor, plan.head) === placeholder];
+    });
+    expect(written).toEqual(Array(4).fill([true, true]));
+  });
+
   it("writes a whole reference as it is given, where the construct goes, with the caret after it, in one undo step", () => {
     const source = lines("scene start", "  Hello.", "end", "");
     const caret = caretAt(source, "Hello.");

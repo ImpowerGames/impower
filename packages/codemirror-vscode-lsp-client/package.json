@@ -3,6 +3,9 @@
   "displayName": "Codemirror VSCode LSP Client",
   "description": "Use vscode .language-grammar.json and .language-config.json files to power codemirror 6 syntax highlighting, indentation, bracket matching, on-enter rules, and more.",
   "version": "1.0.0",
+  "dependencies": {
+    "@impower/sparkdown": "file:../sparkdown"
+  },
   "peerDependencies": {
     "@codemirror/autocomplete": "^6.20.0",
     "@codemirror/commands": "^6.10.3",
