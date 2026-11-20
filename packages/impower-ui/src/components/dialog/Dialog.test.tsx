@@ -279,6 +279,42 @@ describe("Dialog under preact/compat", () => {
     expect(document.activeElement?.getAttribute("aria-label")).toBe("name");
   });
 
+  it.each([
+    ["pointerdown", false],
+    ["keydown", true],
+  ] as const)(
+    "focuses a sheet's first button with focusVisible following the last input (%s)",
+    async (input, focusVisible) => {
+      const calls: [Element, unknown][] = [];
+      const focus = HTMLElement.prototype.focus;
+      const spy = vi
+        .spyOn(HTMLElement.prototype, "focus")
+        .mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+          calls.push([this, options]);
+          focus.call(this, options);
+        });
+      document.dispatchEvent(new Event(input));
+      host = document.body.appendChild(document.createElement("div"));
+      await act(async () =>
+        render(
+          <Sheet open onOpenChange={() => {}}>
+            <DialogTitle>Menu</DialogTitle>
+            <button type="button">First</button>
+            <button type="button">Second</button>
+          </Sheet>,
+          host!,
+        ),
+      );
+      await settle(50);
+      spy.mockRestore();
+      const active = document.activeElement as HTMLElement;
+      expect(dialog()!.contains(active)).toBe(true);
+      expect(active.tagName).toBe("BUTTON");
+      const last = calls.filter(([element]) => element === active).at(-1);
+      expect(last?.[1]).toEqual({ focusVisible });
+    },
+  );
+
   it("traps focus inside the card", async () => {
     const opener = await mount();
     const card = dialog()!;
