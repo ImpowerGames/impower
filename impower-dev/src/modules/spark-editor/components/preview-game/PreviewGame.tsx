@@ -371,21 +371,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             }
             Workspace.window.setHighlights(executedMap);
             if (state === "running" && !restarted) {
-              const editor = Workspace.window.getActiveEditorForPane("logic");
-              if (editor) {
-                const { uri } = editor;
-                const lastExecutedLine = executedLines?.[uri]?.last;
-                if (lastExecutedLine != null) {
-                  Workspace.window.showDocument(
-                    uri,
-                    {
-                      start: { line: lastExecutedLine, character: 0 },
-                      end: { line: lastExecutedLine, character: 0 },
-                    },
-                    false,
-                  );
-                }
-              }
+              Workspace.window.followExecutedLines(executedLines);
             }
           }
           if (GameAwaitingInteractionMessage.type.isNotification(message)) {

@@ -986,6 +986,8 @@ export default class WorkspaceWindow {
 
   protected _launchLimit?: ReturnType<typeof setTimeout>;
 
+  protected _playedFromScript = false;
+
   protected launch(event: LaunchEvent) {
     const game = this.store.preview.modes.game;
     const from = launchPhaseOf(game, this._startGameRequestId !== undefined);
@@ -1994,7 +1996,36 @@ export default class WorkspaceWindow {
     sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}));
   }
 
+  coversScript() {
+    return !!this.store.preview.revealed && layoutState.current() === "phone";
+  }
+
+  followExecutedLines(
+    executedLines: Record<string, { last?: number | null }> | undefined,
+  ) {
+    if (this.coversScript()) {
+      return;
+    }
+    const editor = this.getActiveEditorForPane("logic");
+    const line = editor ? executedLines?.[editor.uri]?.last : undefined;
+    if (editor && line != null) {
+      this.showDocument(
+        editor.uri,
+        { start: { line, character: 0 }, end: { line, character: 0 } },
+        false,
+      );
+    }
+  }
+
+  openFullView() {
+    this._playedFromScript = false;
+    this.expandPreviewPane();
+  }
+
   playInFullView() {
+    if (!this.store.preview.revealed) {
+      this._playedFromScript = true;
+    }
     if (!playsGame(workspaceSettings.preferences.peek().previewMode)) {
       this.setPreviewMode("game");
     }
@@ -2020,7 +2051,8 @@ export default class WorkspaceWindow {
   }
 
   collapsePreviewPane() {
-    if (this.store.preview.revealed && layoutState.current() === "phone") {
+    this._playedFromScript = false;
+    if (this.coversScript()) {
       this.stopGame();
     }
     this.update({
@@ -2483,6 +2515,16 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
+    const game = this.store.preview.modes.game;
+    if (
+      this._playedFromScript &&
+      this.coversScript() &&
+      launchPhaseOf(game, this._startGameRequestId !== undefined) !== "idle"
+    ) {
+      this.collapsePreviewPane();
+      return;
+    }
+    this._playedFromScript = false;
     this.launch("press");
   }
 
