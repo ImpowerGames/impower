@@ -1,6 +1,5 @@
 import {
   BreakpointIcon,
-  Button,
   ContinueIcon,
   StepIntoIcon,
   StepOutIcon,
@@ -12,6 +11,7 @@ import { useCaretScript } from "../../workspace/useActiveEditor";
 import type WorkspaceWindow from "../../workspace/WorkspaceWindow";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import type { GameState } from "@impower/spark-editor-protocol/src/types";
+import { ControlButton } from "../preview-top-bar/ControlButton";
 import {
   STEP_SHORTCUTS,
   stepRefusals,
@@ -45,36 +45,6 @@ const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
   act(Workspace.window);
 };
 
-function ToolbarButton({
-  label,
-  icon: Icon,
-  reason,
-  title,
-  class: className,
-  onClick,
-}: {
-  label: string;
-  icon: IconComponent;
-  reason?: string;
-  title?: string;
-  class?: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      variant="quiet"
-      size="icon"
-      aria-label={label}
-      title={reason ?? title ?? label}
-      aria-disabled={reason ? true : undefined}
-      onClick={reason ? undefined : onClick}
-      class={`${className ?? "text-ink"} aria-disabled:cursor-default aria-disabled:opacity-40`}
-    >
-      <Icon />
-    </Button>
-  );
-}
-
 export default function PreviewDebugToolbar() {
   const game = workspace.state.value.preview?.modes?.game;
   const session = workspace.debugSession.value;
@@ -90,19 +60,20 @@ export default function PreviewDebugToolbar() {
       data-debug-toolbar
       class="pointer-events-auto flex items-center rounded-toolbar-menu border border-solid border-edge bg-popup p-0.5 shadow-toolbar-menu"
     >
-      <ToolbarButton
+      <ControlButton
         label={CONTINUE}
         icon={ContinueIcon}
-        class="text-accent"
+        tone="accent"
         onClick={() => void withWindow((window) => window.unpauseGame())}
       />
       {STEPS.map(({ traversal, label, icon }) => (
-        <ToolbarButton
+        <ControlButton
           key={traversal}
           label={label}
           icon={icon}
           reason={refusals[traversal]}
           title={workspaceShortcuts.title(STEP_SHORTCUTS[traversal], label)}
+          tone="ink"
           onClick={() => void withWindow((window) => window.stepGame(traversal))}
         />
       ))}
@@ -111,10 +82,11 @@ export default function PreviewDebugToolbar() {
         aria-orientation="vertical"
         class="mx-0.5 h-6 w-px shrink-0 bg-edge"
       />
-      <ToolbarButton
+      <ControlButton
         label={TOGGLE_BREAKPOINT}
         icon={BreakpointIcon}
         reason={caretScript ? undefined : NO_CARET_REASON}
+        tone="ink"
         onClick={() =>
           void withWindow((window) =>
             caretScript ? window.toggleBreakpointAtCaret(caretScript) : undefined,

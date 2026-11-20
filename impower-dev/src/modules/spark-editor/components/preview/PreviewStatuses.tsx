@@ -36,7 +36,7 @@ export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
       data-preview-statuses
       class="pointer-events-none absolute top-3 left-3 z-[3] flex max-w-[calc(100%-24px)] flex-col items-start gap-2"
     >
-      {stopped ? <PreviewDebugToolbar /> : null}
+      <PreviewDebugToolbar />
       {refusal ? (
         <button
           type="button"

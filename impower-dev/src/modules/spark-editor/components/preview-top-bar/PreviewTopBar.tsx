@@ -46,6 +46,7 @@ import { AspectRatioSettings } from "../preview-bar";
 import { SavesMenuButton } from "../preview-saves";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { useRef } from "preact/hooks";
+import { ControlButton } from "./ControlButton";
 import { REPLAY_BEAT } from "@impower/spark-web-player/src/components/PlayerBar/replayBeat";
 import {
   skipRefusal,
@@ -165,43 +166,7 @@ const withWindow = async (act: (window: WorkspaceWindow) => unknown) => {
   act(Workspace.window);
 };
 
-const controlClass = "text-muted";
-
 const MENU_WIDTH = "w-[340px] max-w-[calc(100cqi-24px)]";
-
-function ControlButton({
-  label,
-  icon: Icon,
-  disabled,
-  reason,
-  title,
-  pressed,
-  onClick,
-}: {
-  label: string;
-  icon: IconComponent;
-  disabled?: boolean;
-  reason?: string;
-  title?: string;
-  pressed?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      variant="quiet"
-      size="icon"
-      aria-label={label}
-      title={reason ?? title ?? label}
-      aria-pressed={pressed}
-      aria-disabled={reason ? true : undefined}
-      disabled={disabled}
-      onClick={reason ? undefined : onClick}
-      class={`${pressed ? "text-accent" : controlClass} aria-disabled:cursor-default aria-disabled:opacity-40`}
-    >
-      <Icon />
-    </Button>
-  );
-}
 
 function SkipButton({
   direction,
