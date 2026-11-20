@@ -379,7 +379,54 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(Math.abs(turn - 0.5)).toBeLessThan(1e-6);
     const held = new MorphTimeline(timing({ duration: 1, easing: stationary, replay: replay({ start: 0.2, end: 0.878755, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
     expect(held.at(0.55)).toEqual({ phase: "playing", play: 0, offset: 0.878755 });
-    const cubics: string[] = [];
+    const touching = "cubic-bezier(0.3333333333333333, 0.3333333333333333, 0.6666666666666666, -0.4)";
+    const touch = firstMorphEasingReach(touching, 0.1);
+    expect(Math.abs(touch - 0.25)).toBeLessThan(1e-6);
+    const cube = "cubic-bezier(0.3333333333333333, 0, 0.6666666666666666, 0)";
+    expect(parseMorphEasing(cube)!(firstMorphEasingReach(cube, 0.125))).toBeGreaterThanOrEqual(0.125);
+    const peaked = new MorphTimeline(timing({ duration: 1, easing: touching, replay: replay({ end: 0.1, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    expect(peaked.at(0.3)).toEqual({ phase: "playing", play: 0, offset: 0.1 });
+    const edge = "linear(0.2 0%, 0.3 25%, 0 25%, 1 100%)";
+    expect(firstMorphEasingReach(edge, 0.3)).toBe(0.24999999999999997);
+    const edged = new MorphTimeline(timing({ duration: 1, easing: edge, replay: replay({ end: 0.3, delay_min: 0.1, delay_max: 0.1 }) }), () => 0.5);
+    expect(edged.at(0.3)).toEqual({ phase: "playing", play: 0, offset: 0.3 });
+    const controls = (easing: string): [number, number, number, number] | undefined => {
+      if (easing === "ease-in-out") return [0.42, 0, 0.58, 1];
+      const match = /^cubic-bezier\((.*)\)$/.exec(easing);
+      return match ? (match[1]!.split(",").map(Number) as [number, number, number, number]) : undefined;
+    };
+    const oracle = ([x1, y1, x2, y2]: [number, number, number, number], position: number) => {
+      const bernstein = (a: number, b: number, t: number) => 3 * (1 - t) * (1 - t) * t * a + 3 * (1 - t) * t * t * b + t * t * t;
+      const slope = (t: number) => 3 * ((1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * (y2 - y1) + t * t * (1 - y2));
+      const grid = Array.from({ length: 20001 }, (_, i) => i / 20000);
+      const extrema: number[] = [];
+      for (let i = 1; i < grid.length; i++) {
+        let lo = grid[i - 1]!;
+        let hi = grid[i]!;
+        if (Math.sign(slope(lo)) === Math.sign(slope(hi))) continue;
+        for (let k = 0; k < 80; k++) {
+          const mid = (lo + hi) / 2;
+          if (Math.sign(slope(mid)) === Math.sign(slope(lo))) lo = mid;
+          else hi = mid;
+        }
+        extrema.push(lo, hi);
+      }
+      const points = [...grid, ...extrema].sort((a, b) => a - b);
+      const reaches = (t: number) => bernstein(y1, y2, t) >= position;
+      const touches = new Set(extrema.filter((t) => bernstein(y1, y2, t) >= position - 1e-14));
+      const k = points.findIndex((t) => reaches(t) || touches.has(t));
+      if (k <= 0) return k === 0 ? 0 : 1;
+      if (!reaches(points[k]!)) return bernstein(x1, x2, points[k]!);
+      let lo = points[k - 1]!;
+      let hi = points[k]!;
+      for (let n = 0; n < 80; n++) {
+        const mid = (lo + hi) / 2;
+        if (reaches(mid)) hi = mid;
+        else lo = mid;
+      }
+      return bernstein(x1, x2, hi);
+    };
+    const cubics: string[] = [touching];
     for (const x1 of [0, 0.3, 1]) for (const y1 of [-0.6, 0.5, 1.51]) for (const x2 of [0, 0.7, 1]) for (const y2 of [-0.8, 0.5, 1.6]) cubics.push(`cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`);
     const solverTolerance = 1e-6;
     const scan = (easing: string, positions: number[], samples: number) => {
@@ -396,16 +443,16 @@ describe("a play that replays part of its keyframes (#2580)", () => {
         }
         const label = `${easing} @ ${position}`;
         expect(x, label).toBeLessThanOrEqual(scanned + solverTolerance);
-        if (/^(cubic-bezier|ease)/.test(easing)) {
-          const near = Array.from({ length: 2001 }, (_, i) => Math.min(1, Math.max(0, x - solverTolerance + i * 1e-9)));
-          expect(near.some((v) => clamped(v) >= position), label).toBe(true);
+        const curve = controls(easing);
+        if (curve) {
+          expect(Math.abs(x - oracle(curve, position)), label).toBeLessThan(2e-7);
         } else {
           expect(clamped(x), label).toBeGreaterThanOrEqual(position);
           expect(scanned - x, label).toBeLessThan(1 / samples);
         }
       }
     };
-    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop, rise, stationary]) scan(easing, [0.1, 0.35, 0.6, 0.878755, 0.9], 200000);
+    for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop, rise, stationary]) scan(easing, [0.1, 0.3, 0.35, 0.6, 0.878755, 0.9], 200000);
     for (const easing of cubics) scan(easing, [0.1, 0.35, 0.6, 0.878755, 0.9], 20000);
   });
 

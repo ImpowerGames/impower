@@ -9,13 +9,23 @@ interface Curve {
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
+const doubleView = new Float64Array(1);
+const bitsView = new BigInt64Array(doubleView.buffer);
+
+function previousDouble(value: number): number {
+  if (!(value > 0)) return value;
+  doubleView[0] = value;
+  bitsView[0]! -= 1n;
+  return doubleView[0]!;
+}
+
 function firstAtOrPast(reaches: (v: number) => boolean, turns: readonly number[]): number {
   if (reaches(0)) return 0;
   const bounds = [...new Set([0, ...turns.filter((v) => v > 0 && v < 1), 1])].sort((a, b) => a - b);
   for (let i = 1; i < bounds.length; i++) {
     let lo = bounds[i - 1]!;
     const end = bounds[i]!;
-    const before = end - end * Number.EPSILON;
+    const before = previousDouble(end);
     const top = before > lo && reaches(before) ? before : reaches(end) ? end : undefined;
     if (top === undefined) continue;
     let hi = top;
@@ -66,21 +76,22 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number): Curve {
     }
     return t;
   };
-  const slopeY = [3 * ay, 2 * by, cy] as const;
-  const roots =
-    slopeY[0] === 0
-      ? slopeY[1] === 0
-        ? []
-        : [-slopeY[2] / slopeY[1]]
-      : (() => {
-          const d = slopeY[1] * slopeY[1] - 4 * slopeY[0] * slopeY[2];
-          if (d < 0) return [];
-          const r = Math.sqrt(d);
-          return [(-slopeY[1] - r) / (2 * slopeY[0]), (-slopeY[1] + r) / (2 * slopeY[0])];
-        })();
+  const [qa, qb, qc] = [3 * ay, 2 * by, cy];
+  const roots = (() => {
+    if (qa === 0) return qb === 0 ? [] : [-qc / qb];
+    const d = qb * qb - 4 * qa * qc;
+    if (d < 0) return [];
+    const q = -0.5 * (qb + (qb < 0 ? -1 : 1) * Math.sqrt(d));
+    return q === 0 ? [0] : [q / qa, qc / q];
+  })();
+  const evaluationError = 8 * Number.EPSILON * (Math.abs(ay) + Math.abs(by) + Math.abs(cy) + 1);
   return {
     ease: (x) => (x <= 0 ? 0 : x >= 1 ? 1 : sampleY(solve(x))),
-    reach: (position) => sampleX(firstAtOrPast((t) => sampleY(t) >= position, roots)),
+    reach: (position) => {
+      const crossing = firstAtOrPast((t) => sampleY(t) >= position, roots);
+      const touch = roots.filter((t) => t > 0 && t < crossing && sampleY(t) >= position - evaluationError).sort((a, b) => a - b)[0];
+      return sampleX(touch ?? crossing);
+    },
   };
 }
 
