@@ -45,6 +45,14 @@ describe("only the colon marks an option in a directive", () => {
     expect(resolveImageSrcs(program.context!, ["mia~hat"])).toEqual([]);
   });
 
+  it("reports a tilde after a colon option as invalid syntax at the tilde, on image and sound lines", () => {
+    const program = compile("scene start\n  [[mia:happy~hat]]\n  ((bark:loud~soft))\nend\n");
+    const invalid = (program.diagnostics?.[URI] ?? [])
+      .filter((diagnostic) => (typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value) === "Invalid syntax")
+      .map((diagnostic) => [diagnostic.range.start.line, diagnostic.range.start.character, diagnostic.range.end.character]);
+    expect(invalid).toEqual([[1, 13, 14], [2, 13, 14]]);
+  });
+
   it("still reads [[mia:happy:hat]] as the image mia with its options", () => {
     const program = compile("scene start\n  [[mia:happy:hat]]\nend\n");
     expect(messages(program)).toEqual([]);
