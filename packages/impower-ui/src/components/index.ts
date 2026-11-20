@@ -193,7 +193,6 @@ export {
   default as Tabs,
   Tab,
   TabPanel,
-  tabId,
   type TabsProps,
   type TabProps,
   type TabPanelProps,

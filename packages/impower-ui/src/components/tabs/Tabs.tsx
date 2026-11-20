@@ -93,7 +93,7 @@ export type TabsVariant = NonNullable<
   VariantProps<typeof tabTrigger>["variant"]
 >;
 
-export const tabId = (panel: string, value: string) => `${panel}-trigger-${value}`;
+const tabId = (panel: string, value: string) => `${panel}-trigger-${value}`;
 
 type TabsContextValue = {
   panel: string;
