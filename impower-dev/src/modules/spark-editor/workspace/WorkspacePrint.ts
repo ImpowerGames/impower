@@ -8,6 +8,7 @@ import {
   ExportHTMLParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportHTMLMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
+import { loadFallbackFonts } from "@impower/sparkdown-screenplay-pdf/src/utils/loadFallbackFonts";
 import workspaceSettings from "./settings/WorkspaceSettings";
 import { getWorkerUrl } from "../../../workers/workerUrl";
 
@@ -65,6 +66,11 @@ export default class WorkspacePrint {
     };
   }
 
+  protected async fetchFallbackFont(url: string) {
+    const response = await fetch(url, { cache: "force-cache" });
+    return response.ok ? response.arrayBuffer() : undefined;
+  }
+
   protected handleWorkerMessage = async (event: MessageEvent) => {
     const message = event.data;
     if (
@@ -112,8 +118,16 @@ export default class WorkspacePrint {
     scripts: string[],
     onProgress?: (value: ProgressValue) => void,
   ) {
-    const fonts = await this.getFonts();
-    const params: ExportPDFParams = { scripts, fonts, config: this.config };
+    const [fonts, fallbackFonts] = await Promise.all([
+      this.getFonts(),
+      loadFallbackFonts(scripts, (url) => this.fetchFallbackFont(url)),
+    ]);
+    const params: ExportPDFParams = {
+      scripts,
+      fonts,
+      fallbackFonts,
+      config: this.config,
+    };
     if (onProgress) {
       params.workDoneToken = ExportPDFMessage.type.uuid();
       this._progressQueue[params.workDoneToken] = onProgress;
@@ -127,6 +141,7 @@ export default class WorkspacePrint {
         params.fonts.italic,
         params.fonts.bolditalic,
         params.fonts["emoji"],
+        ...fallbackFonts.flatMap((family) => [family.normal, family.bold]),
       ].filter((buffer): buffer is ArrayBuffer => buffer != null),
     );
   }

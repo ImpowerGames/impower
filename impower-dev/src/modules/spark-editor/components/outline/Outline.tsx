@@ -12,11 +12,16 @@ import { worstProblem } from "@impower/codemirror-vscode-lsp-client/src/symbolPr
 import { projectPath } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 import workspace from "../../workspace/WorkspaceStore";
-import { openFind, SearchRail } from "../find-references-rename";
+import {
+  openFind,
+  SearchRail,
+  useSearchInPanel,
+} from "../find-references-rename";
 import OutlineListRow from "./OutlineListRow";
 import { problemSummary, type OutlineRow } from "./outlineRows";
 import { OUTLINE_RAIL_ROW, railRowAfter, railRowExtent } from "./railLayout";
 import useOutlineModel from "./useOutlineModel";
+import useRailPlace from "./useRailPlace";
 import { withWindow } from "./withWindow";
 
 const scriptName = (uri: string) => {
@@ -42,12 +47,15 @@ function Heading({
 
 export default function Outline() {
   const { uri, model } = useOutlineModel();
-  const searching = workspace.search.value.open;
+  const inPanel = useSearchInPanel();
+  const searching = workspace.search.value.open && !inPanel;
   const rows = model.rows;
   const extent = useCallback(
     (_row: OutlineRow, index: number) => railRowExtent(rows, index),
     [rows],
   );
+
+  const place = useRailPlace(uri ?? "", rows, model.currentIndex);
 
   const summary = problemSummary(model.problems);
 
@@ -86,7 +94,9 @@ export default function Outline() {
                 items={rows}
                 itemHeight={extent}
                 getKey={(row) => row.key}
-                revealIndex={model.currentIndex}
+                listRef={place.listRef}
+                revealIndex={place.revealIndex}
+                revealRequest={place.revealRequest}
                 renderItem={(row, index) => (
                   <OutlineListRow
                     uri={uri}

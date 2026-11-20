@@ -59,16 +59,16 @@ describe("@ inside names (#2109)", () => {
     const program = compile(`scene start
   [[mia@night]]
   [[mia@night:sad]]
-  [[mia@night~hat]]
+  [[mia@night:hat]]
 end
 `);
     expect(messages(program)).toEqual([]);
     const shown = (program.chunks?.table.strings ?? []).filter((s) => s.includes("mia@night"));
     expect(shown.some((s) => /mia@night(?![:~@\w])/.test(s)), shown.join("\n")).toBe(true);
-    expect(program.context?.["filtered_image"]?.["mia@night~sad"]?.attributes).toEqual(["sad"]);
-    expect(drawn(program, "filtered_image", "mia@night~sad")).toMatch(/id=['"]sad['"]/);
-    expect(drawn(program, "filtered_image", "mia@night~sad")).not.toMatch(/id=['"]happy['"]/);
-    expect(program.context?.["filtered_image"]?.["mia@night~hat"]?.attributes).toEqual(["hat"]);
+    expect(program.context?.["filtered_image"]?.["mia@night:sad"]?.attributes).toEqual(["sad"]);
+    expect(drawn(program, "filtered_image", "mia@night:sad")).toMatch(/id=['"]sad['"]/);
+    expect(drawn(program, "filtered_image", "mia@night:sad")).not.toMatch(/id=['"]happy['"]/);
+    expect(program.context?.["filtered_image"]?.["mia@night:hat"]?.attributes).toEqual(["hat"]);
   });
 
   it("resolves a named look built on the image, alone and in a composition", () => {
@@ -124,8 +124,8 @@ define mia_plain as filtered_image with
 end
 `);
     expect(program.imageThings).toMatchObject({ "mia@night": "mia", "mia@party": "mia", mia_plain: "mia_plain" });
-    expect(program.imageThings?.["mia@night~sad"]).toBeUndefined();
-    expect(compile("[[mia@night:sad]]").imageThings?.["mia@night~sad"]).toBe("mia");
+    expect(program.imageThings?.["mia@night:sad"]).toBeUndefined();
+    expect(compile("[[mia@night:sad]]").imageThings?.["mia@night:sad"]).toBe("mia");
     expect(getImageThing("raffles@confident@left")).toBe("raffles");
     expect(getImageThing("raffles")).toBe("raffles");
   });

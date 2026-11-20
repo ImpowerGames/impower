@@ -2,6 +2,7 @@ import {
   AccountIcon,
   BugIcon,
   Button,
+  buttonVariants,
   CloseIcon,
   ComputerIcon,
   DownloadIcon,
@@ -96,13 +97,13 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           <span class="min-w-0 flex-1 [--fade:20px] fade-edge text-[15px]/[1.3] font-semibold">
             {label}
           </span>
-          <Button
-            size="icon"
+          <DropdownItem
             aria-label="Close app menu"
-            onClick={() => setOpen(false)}
+            class={buttonVariants({ size: "icon", class: "min-h-0 flex-none p-0" })}
+            onSelect={() => setOpen(false)}
           >
             <CloseIcon />
-          </Button>
+          </DropdownItem>
         </DropdownLabel>
         {account ? (
           <>
@@ -151,7 +152,7 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           </DropdownItem>
         )}
         <DropdownItem
-          onSelect={() => void withWindow((win) => win.navigateTo("project"))}
+          onSelect={() => void withWindow((win) => win.navigateTo("settings"))}
         >
           <SettingsIcon />
           Settings

@@ -256,6 +256,8 @@ export default function Tabs({
 
 export type TabProps = {
   value: string;
+  id?: string;
+  controls?: string;
   icon?: IconComponent;
   activeIcon?: IconComponent;
   disabled?: boolean;
@@ -266,6 +268,8 @@ export type TabProps = {
 
 export function Tab({
   value,
+  id,
+  controls,
   icon,
   activeIcon,
   disabled,
@@ -282,6 +286,8 @@ export function Tab({
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       <button
         type="button"
+        {...(id ? { id } : {})}
+        {...(controls ? { "aria-controls": controls } : {})}
         class={cn(
           tabTrigger({
             orientation: ctx.vertical ? "vertical" : "horizontal",

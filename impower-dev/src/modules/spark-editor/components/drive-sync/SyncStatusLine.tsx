@@ -1,5 +1,6 @@
 import { ErrorIcon, WarningIcon } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
+import { useId } from "preact/hooks";
 import { saveStatusOf, type SaveAction } from "../../workspace/saveStatus";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
@@ -22,7 +23,7 @@ const runAction = async (action: SaveAction) => {
   if (action === "conflict") {
     Workspace.window.openSyncConflict();
   } else if (action === "settings") {
-    Workspace.window.navigateTo("project", "save-settings");
+    Workspace.window.navigateTo("settings", "save-settings");
   } else {
     Workspace.window.setAppMenuOpen(true);
   }
@@ -34,6 +35,7 @@ export default function SyncStatusLine() {
     () =>
       workspace.signals.projectId.value === WorkspaceConstants.LOCAL_PROJECT_ID,
   ).value;
+  const id = useId();
 
   if (!status) {
     return (
@@ -54,6 +56,8 @@ export default function SyncStatusLine() {
             data-tone={status.tone}
             data-action={status.action}
             class={STATUS_BUTTON}
+            id={id}
+            aria-labelledby={id}
             title={ACTION_TITLE[status.action]}
             onClick={() => void runAction(status.action)}
           >

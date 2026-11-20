@@ -7,10 +7,10 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
-import { layoutState, railState } from "@impower/impower-ui/layout";
+import { layoutState } from "@impower/impower-ui/layout";
 import { debounce } from "../utils/debounce";
 import { applyEditorEdit, documentChangesOf } from "./applyEditorEdit";
-import { railReveal } from "./railWidths";
+import { searchWidensRail } from "./railWidths";
 import type WorkspaceFileSystem from "./WorkspaceFileSystem";
 import type WorkspaceLanguageServer from "./WorkspaceLanguageServer";
 import type { SearchSources } from "./WorkspaceSearch";
@@ -79,7 +79,7 @@ export const searchSources = (parts: {
       if (!projectId) {
         return;
       }
-      window.navigateTo("collection");
+      window.navigateTo("assets");
       workspace.assetsInspect.value = fs.getRelativePath(projectId, uri);
     },
     setMatches: (uri, ranges) => {
@@ -97,18 +97,8 @@ export const searchSources = (parts: {
       }
     },
     revealRail: () => {
-      const reveal = railReveal(
-        workspace.state.peek().shell,
-        layoutState.current(),
-        railState.current(),
-      );
-      if (!reveal) {
-        return;
-      }
-      if ("railCompactWidth" in reveal) {
-        window.setRailCompactWidth(reveal.railCompactWidth);
-      } else {
-        window.setRailWidth(reveal.railWidth);
+      if (searchWidensRail(workspace.state.peek().shell, layoutState.current())) {
+        window.setRailWidth(undefined);
       }
     },
     autoRenameFiles: () => settings.preferences.peek().autoRenameFiles,

@@ -6,12 +6,12 @@ describe("nested-indent single-dialogue → action squish", () => {
   it("dialogue inside a 4-space-indented parent, body at 6-space indent, blank line at 6-space indent, action at 4-space indent", () => {
     const source =
       `    RAFFLES:\n` +
-      `      [[raffles_confident~coat]]\n` +
+      `      [[raffles_confident:coat]]\n` +
       `      (tucking scripts away)\n` +
       `      Oh Bunny,  we're not going to DDP... >\n` +
-      `      [[raffles_flirty~coat]]\n` +
+      `      [[raffles_flirty:coat]]\n` +
       `      I said Danby and I were close,  didn't I? >\n` +
-      `      [[raffles_happy~coat]]\n` +
+      `      [[raffles_happy:coat]]\n` +
       `      We'll just pop by for a visit!\n` +
       `      \n` +
       `    He ((sfx_shoes_stopping)) stops and gestures to...\n`;

@@ -2,10 +2,12 @@ import {
   ExportPDFMessage,
   type ExportPDFResult,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
+import { loadFallbackFonts } from "@impower/sparkdown-screenplay-pdf/src/utils/loadFallbackFonts";
 import { unprintableNotice } from "@impower/sparkdown-screenplay-pdf/src/utils/unprintableNotice";
 import * as vscode from "vscode";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
+import { fetchFallbackFont } from "./fetchFallbackFont";
 import { getEditor } from "./getEditor";
 import { getFonts as getDefaultScreenplayFonts } from "./getDefaultScreenplayFonts";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
@@ -100,7 +102,10 @@ export const exportPdf = async (
       ]);
       const config = getSparkdownPreviewConfig(uri);
       let currentPercentage = 0;
-      const defaultFonts = await getDefaultScreenplayFonts(context);
+      const [defaultFonts, fallbackFonts] = await Promise.all([
+        getDefaultScreenplayFonts(context),
+        loadFallbackFonts(scriptFiles, (url) => fetchFallbackFont(context, url)),
+      ]);
       const userFonts: {
         [name: string]: ArrayBuffer;
       } = {};
@@ -127,9 +132,15 @@ export const exportPdf = async (
           scripts: scriptFiles,
           config,
           fonts: { ...defaultFonts, ...userFonts },
+          fallbackFonts,
           workDoneToken: crypto.randomUUID(),
         });
-        worker.postMessage(request, Object.values(defaultFonts));
+        worker.postMessage(request, [
+          ...Object.values(defaultFonts),
+          ...fallbackFonts.flatMap((family) =>
+            family.bold ? [family.normal, family.bold] : [family.normal],
+          ),
+        ]);
       });
       if (token.isCancellationRequested) {
         return;

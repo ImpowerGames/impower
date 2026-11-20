@@ -85,4 +85,4 @@ export const isSettingsSectionId = (id: string | undefined): id is SettingsSecti
   !!id && (SETTINGS_SECTION_IDS as readonly string[]).includes(id);
 
 export const settingsSectionHref = (id: SettingsSectionId): string =>
-  `${hashOfRoute("project")}?section=${id}`;
+  `${hashOfRoute("settings")}?section=${id}`;

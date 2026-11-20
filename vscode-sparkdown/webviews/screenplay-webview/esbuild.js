@@ -1,44 +1,13 @@
-import { compile } from "@tailwindcss/node";
-import { Scanner } from "@tailwindcss/oxide";
 import { context } from "esbuild";
 import fs from "fs";
 import path from "path";
 import { impowerUiBuildOptions } from "../impowerUiBuildOptions.mjs";
+import { tailwindLoader } from "../tailwindLoader.mjs";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
 const tailwindInputs = new Set();
-
-/** @type {import('esbuild').Plugin} */
-const tailwindLoader = () => ({
-  name: "tailwind-loader",
-  setup(build) {
-    build.onStart(() => {
-      tailwindInputs.clear();
-    });
-    build.onResolve({ filter: /\?tw$/ }, (args) => ({
-      path: path.resolve(args.resolveDir, args.path.replace(/\?tw$/, "")),
-      namespace: "tailwind-loader",
-    }));
-    build.onLoad(
-      { filter: /.*/, namespace: "tailwind-loader" },
-      async (args) => {
-        const input = await fs.promises.readFile(args.path, "utf8");
-        const base = path.dirname(args.path);
-        const watchFiles = [args.path];
-        const compiler = await compile(input, {
-          base,
-          onDependency: (file) => watchFiles.push(file),
-        });
-        const scanner = new Scanner({ sources: compiler.sources });
-        const css = compiler.build(scanner.scan());
-        for (const file of watchFiles) tailwindInputs.add(file);
-        return { contents: `export default ${JSON.stringify(css)};`, watchFiles };
-      },
-    );
-  },
-});
 
 /** @type {import('esbuild').Plugin} */
 const rawLoader = () => ({
@@ -94,7 +63,7 @@ const config = {
   ...impowerUiBuildOptions,
   entryPoints: ["./screenplay-webview.ts"],
   outfile: "../../out/webviews/screenplay-webview.js",
-  plugins: [rawLoader(), tailwindLoader(), esbuildProblemMatcher()],
+  plugins: [rawLoader(), tailwindLoader(tailwindInputs), esbuildProblemMatcher()],
   alias: {
     ...impowerUiBuildOptions.alias,
     "@codemirror/autocomplete": "@codemirror/autocomplete",

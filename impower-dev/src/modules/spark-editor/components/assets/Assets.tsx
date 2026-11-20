@@ -42,7 +42,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
-import { useComputed } from "@preact/signals";
+import { computed, useComputed } from "@preact/signals";
 import type { VNode } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -115,7 +115,7 @@ import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missing
 import { folderTitle } from "../../workspace/uploadSession";
 import AddUrlDialog from "./AddUrlDialog";
 import AssetRowMenu, { INSPECTOR_ACTIONS, rowEntries, type AssetRowAction } from "./AssetRowMenu";
-import { SoundLine, SoundPlay } from "./SoundRow";
+import { SoundLine, soundLineText, SoundPlay } from "./SoundRow";
 import UploadsPanel from "./UploadsPanel";
 import { useFileDrop } from "./useFileDrop";
 import { useNarrowPane } from "./useNarrowPane";
@@ -778,10 +778,11 @@ function AssetsBrowser() {
     else void run(async () => (await intents()).assets.downloadAll(picked));
   };
 
-  const openLabel = (row: AssetRow, line: string) => {
+  const openLabel = (row: AssetRow, line: string, variantsLast = false) => {
     const opens = row.kind === "folder" ? "Open folder" : `Open ${row.link ? "link" : TYPE_NOUNS[row.type]}`;
     const variants = row.variantCount ? `, ${variantsLabel(row.variantCount)}` : "";
-    return `${opens} ${row.name}${variants}${line ? `, ${line.toLowerCase()}` : ""}`;
+    const caption = line ? `, ${line}` : "";
+    return variantsLast ? `${opens} ${row.name}${caption}${variants}` : `${opens} ${row.name}${variants}${caption}`;
   };
 
   const openRow = (row: AssetRow) => {
@@ -818,7 +819,7 @@ function AssetsBrowser() {
         badge={row.variantCount ? <VariantsBadge count={row.variantCount} /> : undefined}
         label={row.name}
         description={line}
-        aria-label={openLabel(row, line)}
+        aria-label={openLabel(row, line, TILE_SIZES[size].meta)}
         current={!folder && row.path === openPath}
         data-asset-path={row.path}
         {...selectable(row)}
@@ -890,7 +891,7 @@ function AssetsBrowser() {
         label={
           row.variantCount ? (
             <span class="flex min-w-0 items-center gap-[7px]">
-              <span class="min-w-0 [--fade:20px] fade-edge">{row.name}</span>
+              <span class="min-w-0 [--fade:20px] fade-edge">{row.name}</span>{" "}
               <VariantsChip count={row.variantCount} class="relative top-px" />
             </span>
           ) : (
@@ -898,7 +899,7 @@ function AssetsBrowser() {
           )
         }
         description={sound ? <SoundLine sound={sound} line={line} requestLength={requestLength} /> : line}
-        aria-label={openLabel(row, line)}
+        aria-label={sound ? computed(() => openLabel(row, soundLineText(sound, line))) : openLabel(row, line)}
         trailing={folder ? <ChevronIcon /> : undefined}
         current={!folder && row.path === openPath}
         data-asset-path={row.path}

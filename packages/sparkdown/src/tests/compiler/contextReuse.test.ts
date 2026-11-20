@@ -222,8 +222,8 @@ describe("a compile's own implicit definitions (#654)", () => {
     const text = screenplay();
     const compiler = compilerFor(text);
     const first = compile(compiler);
-    expect(first.context?.["filtered_image"]?.["mia~happy"]).toBeDefined();
-    expect(first.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
+    expect(first.context?.["filtered_image"]?.["mia:happy"]).toBeDefined();
+    expect(first.context?.["filtered_image"]?.["mia:sad"]).toBeUndefined();
 
     const withDirective = edit(
       compiler,
@@ -233,16 +233,16 @@ describe("a compile's own implicit definitions (#654)", () => {
       2,
     );
     const second = compile(compiler);
-    const added = second.context?.["filtered_image"]?.["mia~sad"];
+    const added = second.context?.["filtered_image"]?.["mia:sad"];
     expect(added).toBeDefined();
     expect(added?.["attributes"]).toEqual(["sad"]);
     expect(added?.["image"]).toBeDefined();
     expect(second.contextRevision).not.toBe(first.contextRevision);
-    expect(first.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
+    expect(first.context?.["filtered_image"]?.["mia:sad"]).toBeUndefined();
 
     edit(compiler, withDirective, "\n[[mia:sad]]", "", 3);
     const third = compile(compiler);
-    expect(third.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
+    expect(third.context?.["filtered_image"]?.["mia:sad"]).toBeUndefined();
     expect(third.contextRevision).toBe(first.contextRevision);
   });
 
@@ -250,7 +250,7 @@ describe("a compile's own implicit definitions (#654)", () => {
     const text = screenplay();
     const compiler = compilerFor(text);
     const canonical = compile(compiler);
-    expect(canonical.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
+    expect(canonical.context?.["filtered_image"]?.["mia:sad"]).toBeUndefined();
     const buildsBefore = builds(compiler);
 
     const offset = text.indexOf("[[mia:happy]]");
@@ -272,14 +272,14 @@ describe("a compile's own implicit definitions (#654)", () => {
     ) as { program?: { context?: Record<string, Record<string, any>> } };
     expect(preview.program).toBeDefined();
     expect(
-      preview.program?.context?.["filtered_image"]?.["mia~sad"],
+      preview.program?.context?.["filtered_image"]?.["mia:sad"],
     ).toBeDefined();
 
     const afterPreview = compile(compiler);
     expect(
-      afterPreview.context?.["filtered_image"]?.["mia~sad"],
+      afterPreview.context?.["filtered_image"]?.["mia:sad"],
     ).toBeUndefined();
-    expect(canonical.context?.["filtered_image"]?.["mia~sad"]).toBeUndefined();
+    expect(canonical.context?.["filtered_image"]?.["mia:sad"]).toBeUndefined();
     expect(builds(compiler)).toBe(buildsBefore);
   });
 });

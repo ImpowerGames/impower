@@ -77,7 +77,7 @@ describe("the web editor's sparkdown.addAsset", () => {
   it("opens the Assets page on the asset's type with the name ready for its upload", async () => {
     expect(await runEditorCommand(ADD_BOOM)).toBe(true);
     expect(mocks.setListState).toHaveBeenCalledWith({ assetsType: "audio" });
-    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("assets");
     expect(workspace.assetsAdd.value).toEqual({ name: "boom", type: "audio" });
   });
 

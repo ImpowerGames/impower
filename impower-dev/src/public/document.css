@@ -171,7 +171,29 @@ html {
   display: none;
 }
 
-main {
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"], [type="image"], [type="hidden"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+html.keyboard-open,
+html.keyboard-open body {
+  touch-action: pinch-zoom;
+}
+
+[data-phone-shell]:not([data-editing]) .sparkdown-script-editor-root .cm-keyboard-toolbar,
+html:not(.keyboard-open) [data-phone-shell] .sparkdown-script-editor-root .cm-keyboard-toolbar {
+  display: none;
+}
+
+html:has([data-keyboard-panel]) [data-phone-shell][data-editing] .sparkdown-script-editor-root .cm-keyboard-toolbar {
+  display: flex;
+}
+
+#app {
   position: absolute;
   top: 0;
   left: 0;

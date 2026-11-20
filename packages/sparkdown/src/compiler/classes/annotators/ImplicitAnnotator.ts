@@ -14,7 +14,7 @@ export class ImplicitAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ImageCommand") {
       const directive = readSourceDirective(nodeRef, (from, to) => this.read(from, to));
       for (const name of directive?.names ?? []) {
-        if (/[:~]/.test(name.text)) {
+        if (name.text.includes(":")) {
           annotations.push(SparkdownAnnotation.mark("filtered_image").range(name.from, name.to));
         }
       }

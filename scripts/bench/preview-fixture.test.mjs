@@ -330,7 +330,7 @@ await check("heap-retained counts a WeakMap value whose key only a parsed object
 });
 
 const root = path.resolve(HERE, "..", "..");
-if (!fs.existsSync(path.join(root, "packages"))) {
+if (!fs.existsSync(path.join(root, "packages", "sparkdown", "package.json"))) {
   console.log("SKIP: the workspace alias check needs the package manifests under packages/ (a sparse checkout has none)");
 } else
 await check("the bench bundle aliases every @impower workspace package to this checkout's own directory", () => {

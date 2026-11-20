@@ -361,3 +361,29 @@ describe("the Scripts page off the phone", () => {
     expect(search("Search this script")).toBeNull();
   });
 });
+
+describe("the Scripts page's Sort menu", () => {
+  it.each(["phone", "desktop"] as const)("offers the sort fields with no hint under Uses at %s", async (next) => {
+    layout.value = next;
+    workspace.layout.value = next as Layout;
+    await mount();
+    const trigger = [...host!.querySelectorAll<HTMLElement>('button[aria-label^="Sort by"]')][0];
+    expect(trigger).toBeTruthy();
+    await act(async () => {
+      trigger!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse" }));
+    });
+    await settle();
+    const items = () => [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
+    await vi.waitFor(() => expect(items().length).toBeGreaterThan(0));
+    expect(items().map((item) => item.textContent?.trim())).toEqual([
+      "Name",
+      "Modified",
+      "Size",
+      "Uses",
+      "Story order",
+      "A to Z",
+      "Z to A",
+    ]);
+    expect(document.querySelector("[data-dropdown-item-text]")).toBeNull();
+  });
+});

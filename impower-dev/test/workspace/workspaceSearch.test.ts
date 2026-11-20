@@ -21,9 +21,6 @@ const { INITIAL_SEARCH } = await import(
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
 );
-const { railReveal, RAIL_COMPACT_WIDTH, RAIL_WIDTH } = await import(
-  "../../src/modules/spark-editor/workspace/railWidths"
-);
 const { buildConfiguration, PREFERENCES_SCHEMA, PROJECT_SETTINGS_SCHEMA } =
   await import("../../src/modules/spark-editor/workspace/settings/settingsSchema");
 
@@ -739,16 +736,6 @@ describe("a collapsed rail", () => {
     await search.openReferences({ name: "imani", character: false });
     await search.openRename();
     expect(sources.revealRail).toHaveBeenCalledTimes(3);
-  });
-
-  it("widens to the full rail from its icons on desktop and tablet, and stays as it is otherwise", () => {
-    expect(railReveal({ railWidth: RAIL_WIDTH.collapsed }, "desktop", "full")).toEqual({ railWidth: undefined });
-    expect(railReveal({ railWidth: 300 }, "desktop", "full")).toBeNull();
-    expect(railReveal(undefined, "desktop", "icons")).toBeNull();
-    expect(railReveal(undefined, "compact", "icons")).toEqual({ railCompactWidth: RAIL_COMPACT_WIDTH.full });
-    expect(railReveal({ railCompactWidth: RAIL_COMPACT_WIDTH.collapsed }, "compact", "full")).toEqual({ railCompactWidth: RAIL_COMPACT_WIDTH.full });
-    expect(railReveal(undefined, "compact", "full")).toBeNull();
-    expect(railReveal({ railWidth: RAIL_WIDTH.collapsed }, "phone", "icons")).toBeNull();
   });
 });
 

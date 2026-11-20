@@ -7,7 +7,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { contextOptions, displayReport, parseViewport, PREFERENCES_STORAGE_KEY, screenshotPath, seedThemePreference, shotFileName, takeDisplayFlags, themeMismatch, themeSeed } from "./viewport.mjs";
-import { launchEditorBrowser, parseScreenshotArgs } from "./driver.mjs";
+import { launchEditorBrowser, parseScreenshotArgs, parseUiSteps, screenshotUiArgs } from "./driver.mjs";
 
 const DRIVER = path.join(path.dirname(fileURLToPath(import.meta.url)), "driver.mjs");
 
@@ -213,8 +213,20 @@ await check("the theme seed sets or clears the preference once per page session 
 });
 
 await check("screenshot arguments resolve the derived path and refuse strays", () => {
-  assert.deepEqual(parseScreenshotArgs(["story", "--out-dir", "ev"], { ...none, viewport: parseViewport("phone") }), { out: path.resolve("ev", "story-phone.png"), headed: false, steps: [] });
-  assert.deepEqual(parseScreenshotArgs(["story", "--headed", "--step", "play"], none), { out: path.resolve("story.png"), headed: true, steps: ["play"] });
+  assert.deepEqual(parseScreenshotArgs(["story", "--out-dir", "ev"], { ...none, viewport: parseViewport("phone") }), { out: path.resolve("ev", "story-phone.png"), headed: false, setup: [], steps: [] });
+  assert.deepEqual(parseScreenshotArgs(["story", "--headed", "--step", "play"], none), { out: path.resolve("story.png"), headed: true, setup: [], steps: ["play"] });
+  assert.deepEqual(
+    parseScreenshotArgs(["cog", "--sd", "probe.sd", "--step", "preview-settings", "--scrub", "3", "--project", "proj"], none),
+    { out: path.resolve("cog.png"), headed: false, setup: ["--sd", "probe.sd", "--scrub", "3", "--project", "proj"], steps: ["preview-settings"] },
+  );
+  assert.throws(() => parseScreenshotArgs(["cog", "--scrub"], none), /--scrub needs a line/);
+  const forwarded = screenshotUiArgs(parseScreenshotArgs(["cog", "--headed", "--step", "preview-settings", "--sd", "probe.sd", "--scrub", "3"], none));
+  assert.deepEqual(forwarded, ["--sd", "probe.sd", "--scrub", "3", "--step", "preview-settings", "--shot", path.resolve("cog.png"), "--headed"]);
+  assert.deepEqual(parseUiSteps(forwarded), [{ sd: "probe.sd" }, { scrub: 3 }, { step: "preview-settings" }, { shotOf: "page", out: path.resolve("cog.png") }]);
+  const seeded = screenshotUiArgs(parseScreenshotArgs(["cog", "--project", "proj", "--sd", "probe.sd", "--scrub", "3", "--step", "preview-settings"], none));
+  assert.deepEqual(parseUiSteps(seeded), [{ project: "proj" }, { sd: "probe.sd" }, { scrub: 3 }, { step: "preview-settings" }, { shotOf: "page", out: path.resolve("cog.png") }]);
+  const reversed = screenshotUiArgs(parseScreenshotArgs(["cog", "--sd", "probe.sd", "--project", "proj"], none));
+  assert.throws(() => parseUiSteps(reversed), /put every --sd after the last --project/);
   assert.throws(() => parseScreenshotArgs([], none), /needs a name/);
   assert.throws(() => parseScreenshotArgs(["story", "--shot", "x.png"], none), /unknown argument --shot/);
   assert.throws(() => parseScreenshotArgs(["story", "--out-dir"], none), /--out-dir needs a directory/);

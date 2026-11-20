@@ -42,7 +42,7 @@ sparkdown-screenplay-preview {
 }
 
 .sparkdown-screenplay-preview-root * {
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
 }
 
 .sparkdown-screenplay-preview-root > .preview-pane {

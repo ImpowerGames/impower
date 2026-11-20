@@ -148,7 +148,7 @@ describe("files dropped anywhere in the app", () => {
     });
     await fire("drop", files(["hero.png", "rain.wav"]));
     await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
-    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("assets");
     const [dropped, folder] = mocks.upload.mock.calls[0]!;
     expect(dropped.map((file) => file.name)).toEqual(["hero.png", "rain.wav"]);
     expect(folder).toBe("");
@@ -172,7 +172,7 @@ describe("files dropped anywhere in the app", () => {
       workspace.current = { ...workspace.current, pane: "assets" };
     });
     await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "hero.png" })], ""));
-    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("assets");
     mocks.upload.mockClear();
     mocks.navigateTo.mockClear();
     await dropThen(files(["ada.png"]), () => {
@@ -278,7 +278,7 @@ describe("a single zip dropped anywhere", () => {
     });
     await fire("drop", zipDrop("art.zip", bytes));
     await vi.waitFor(() => expect(mocks.upload).toHaveBeenCalledTimes(1));
-    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("assets");
     expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
     const [unpacked, folder] = mocks.upload.mock.calls[0]!;
     expect(folder).toBe("");
@@ -325,7 +325,7 @@ describe("a single zip dropped anywhere", () => {
     await vi.waitFor(() => expect(workspace.uploads.value).toHaveLength(1));
     expect(uploadNote(workspace.uploads.value[0]!, () => "")).toBe("Not added: the file could not be read, so choose it again.");
     expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
-    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("assets");
   });
 
   it.each([
@@ -358,6 +358,6 @@ describe("a single zip dropped anywhere", () => {
     expect(mocks.requestProjectReplace).not.toHaveBeenCalled();
     expect(mocks.upload).not.toHaveBeenCalled();
     expect(mocks.importFiles).not.toHaveBeenCalled();
-    expect(mocks.navigateTo).toHaveBeenCalledWith("collection");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("assets");
   });
 });

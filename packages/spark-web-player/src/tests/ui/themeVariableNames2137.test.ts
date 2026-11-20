@@ -68,9 +68,9 @@ describe("a theme variable name keeps the declared name (#2137)", () => {
     expect(identValues(escapeCssIdentifier(variable))).toEqual([variable]);
   });
 
-  it("sorts the attributes after the first ~", () => {
-    expect(getVarName("image", "b~y~x")).toBe(getVarName("image", "b~x~y"));
-    expect(getVarName("image", "x~b~y")).not.toBe(getVarName("image", "b~x~y"));
+  it("sorts the attributes after the first colon", () => {
+    expect(getVarName("image", "b:y:x")).toBe(getVarName("image", "b:x:y"));
+    expect(getVarName("image", "x:b:y")).not.toBe(getVarName("image", "b:x:y"));
   });
 
   it.each(["a-b", "mia_night", "sky_40", "neutral-20", "a1"])("keeps the variable of %s", (name) => {

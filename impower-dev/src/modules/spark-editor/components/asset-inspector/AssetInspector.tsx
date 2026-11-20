@@ -22,8 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { addMenuFolders, addMenuKindsOf } from "../../utils/addMenuFolders";
 import {
   assetDetails,
-  NOT_USED_NOTES,
-  NOT_USED_VARIANTS_NOTE,
+  notUsedNote,
   titleLine,
   type InspectedAsset,
 } from "../../utils/assetDetails";
@@ -615,7 +614,7 @@ export default function AssetInspector({
               }
             />
           ) : (
-            <p class="m-0 text-[12px]/[1.5] text-muted">{stack ? NOT_USED_VARIANTS_NOTE : NOT_USED_NOTES[asset.type]}</p>
+            <p class="m-0 text-[12px]/[1.5] text-muted">{notUsedNote(asset, Boolean(stack))}</p>
           )}
         </Section>
         {!filed && (

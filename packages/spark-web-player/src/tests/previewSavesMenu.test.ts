@@ -1,3 +1,5 @@
+import "./resizeObserverStub";
+import { pickTab, routeTabs } from "./routeListQueries";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -932,9 +934,7 @@ describe("Load a save", () => {
     });
     p.routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
     await settle();
-    [...p.routeList.querySelectorAll<HTMLButtonElement>(".route-tab")]
-      .find((tab) => tab.dataset["tab"] === "values")!
-      .click();
+    pickTab(routeTabs(p.routeList)[1]!);
     await settle();
     return p;
   };
@@ -1011,9 +1011,7 @@ describe("Load a save", () => {
     });
     p.routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
     await settle();
-    [...p.routeList.querySelectorAll<HTMLButtonElement>(".route-tab")]
-      .find((tab) => tab.dataset["tab"] === "values")!
-      .click();
+    pickTab(routeTabs(p.routeList)[1]!);
     await settle();
     loadButton(p).click();
     const pick = p.routeList.querySelector<HTMLButtonElement>(".sv-load-row")!;
@@ -1052,9 +1050,7 @@ describe("Load a save", () => {
     });
     p.routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
     await settle();
-    [...p.routeList.querySelectorAll<HTMLButtonElement>(".route-tab")]
-      .find((tab) => tab.dataset["tab"] === "values")!
-      .click();
+    pickTab(routeTabs(p.routeList)[1]!);
     await settle();
     loadButton(p).click();
     p.routeList.querySelector<HTMLButtonElement>(".sv-load-row")!.click();

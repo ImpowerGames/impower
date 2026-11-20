@@ -406,6 +406,7 @@ export default function ListRow({
       <span class={listRowLabelVariants({ overflow, size })}>
         {label}
       </span>
+      {description && " "}
       {description && (
         <small class={listRowDescriptionVariants({ size, fit: descriptionFit })}>
           {description}

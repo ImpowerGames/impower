@@ -18,12 +18,12 @@ describe("image attributes in scripts", () => {
   it("keeps plain image references working", () => {
     expect(compile("[[mia]]").context?.["image"]?.["mia"]).toBeDefined();
   });
-  it.each([":", "~"])("preserves ordered attributes with %s and clauses", (separator) => {
-    const program = compile(`[[mia${separator}happy${separator}hat${separator}look.far-left with dissolve]]`);
-    expect(program.context?.["filtered_image"]?.["mia~happy~hat~look.far-left"]?.attributes).toEqual(["happy", "hat", "look.far-left"]);
+  it("preserves ordered attributes and clauses", () => {
+    const program = compile("[[mia:happy:hat:look.far-left with dissolve]]");
+    expect(program.context?.["filtered_image"]?.["mia:happy:hat:look.far-left"]?.attributes).toEqual(["happy", "hat", "look.far-left"]);
   });
-  it("canonicalizes separators without sorting competing choices", () => {
-    expect(sortFilteredName("mia:sad:happy")).toBe("mia~sad~happy");
+  it("canonicalizes the name without sorting competing choices", () => {
+    expect(sortFilteredName("mia: sad :happy")).toBe("mia:sad:happy");
     expect(sortFilteredName("mia~sad~happy")).toBe("mia~sad~happy");
     expect(sortFilteredName("mia:happy:sad")).not.toBe(sortFilteredName("mia:sad:happy"));
   });
@@ -33,7 +33,7 @@ describe("image attributes in scripts", () => {
   attributes = { "happy" }
 end
 [[mia_party:sad]]`);
-    const look = program.context?.["filtered_image"]?.["mia_party~sad"];
+    const look = program.context?.["filtered_image"]?.["mia_party:sad"];
     const src = decodeURIComponent(filterImage(program.context!, look).src ?? "");
     expect(src).toMatch(/id=['"]sad['"]/);
     expect(src).not.toMatch(/id=['"]happy['"]/);
@@ -49,12 +49,12 @@ end
     const missing = program.diagnostics?.[URI]?.map((diagnostic) =>
       typeof diagnostic.message === "string" ? diagnostic.message : diagnostic.message.value,
     ).filter((message) => message.startsWith("Cannot find image")) ?? [];
-    expect(missing.some((message) => message.includes("mia~look.far-left"))).toBe(false);
+    expect(missing.some((message) => message.includes("mia:look.far-left"))).toBe(false);
     expect(missing.some((message) => message.includes("`missing`"))).toBe(true);
   });
   it("recomputes a look after its ordered attributes change", () => {
     const program = compile("[[mia:happy]]");
-    const look = program.context?.["filtered_image"]?.["mia~happy"];
+    const look = program.context?.["filtered_image"]?.["mia:happy"];
     filterImage(program.context!, look);
     look.attributes = ["sad"];
     const src = decodeURIComponent(filterImage(program.context!, look).src!);

@@ -196,9 +196,13 @@ describe("the print configuration", () => {
       screenplay_print_paper_size: "a4",
       screenplay_print_headings_bold: false,
     };
-    expect(posted[1]!.params.config).toEqual(changed);
-    expect(posted[2]!.method).toBe("workspace/exportHTML");
-    expect(posted[2]!.params.config).toEqual(changed);
+    const overlapping = posted.slice(1, 3);
+    const pdf = overlapping.find((message) => message.method === "workspace/exportPDF");
+    const html = overlapping.find((message) => message.method === "workspace/exportHTML");
+    expect(pdf).toBeDefined();
+    expect(html).toBeDefined();
+    expect(pdf!.params.config).toEqual(changed);
+    expect(html!.params.config).toEqual(changed);
 
     workspaceSettings.resetProjectSettings(SCREENPLAY_SETTING_KEYS);
     void print.exportPDF(["Hello"]);

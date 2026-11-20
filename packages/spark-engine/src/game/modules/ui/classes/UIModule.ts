@@ -14,6 +14,7 @@ import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilt
 import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
+import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { buildMorphMotion } from "@impower/sparkdown/src/morph/motion";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
@@ -1596,7 +1597,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   };
 
   protected morphTiming(morph: string): MorphTiming {
-    return { ...default_morph().timing, ...(this.context.morph?.[morph]?.timing ?? {}) } as MorphTiming;
+    const written = this.context.morph?.[morph];
+    const replay = readMorphReplay(written?.replay);
+    return { ...default_morph().timing, ...(written?.timing ?? {}), ...(replay ? { replay } : {}) } as MorphTiming;
   }
 
   getFontNamesForLayout(layoutName: string): string[] {

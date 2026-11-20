@@ -11,6 +11,7 @@ export interface GetGameThreadsResult {
   threads: Thread[];
   stopped?: boolean;
   run?: number | null;
+  canRollBack?: boolean;
 }
 
 export class GetGameThreadsMessage {

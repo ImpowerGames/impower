@@ -12,6 +12,7 @@ export interface ExportPDFParams {
     bolditalic: ArrayBuffer;
     [name: string]: ArrayBuffer;
   };
+  fallbackFonts?: { script?: string; normal: ArrayBuffer; bold?: ArrayBuffer }[];
   config?: ScreenplayConfig;
   workDoneToken?: string;
 }

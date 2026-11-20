@@ -18,7 +18,9 @@ import {
   MORPH_METHODS,
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
+  MORPH_REPLAY_FIELDS,
   MORPH_ROOT_FIELDS,
+  MORPH_TIMING_DEFAULTS,
   MORPH_SPEECH_EXCLUDED_TIMING,
   MORPH_SPREAD_PROBLEM,
   MORPH_SYNCS,
@@ -30,7 +32,10 @@ import {
   parseMorphQualifiedState,
   parseMorphSpan,
   parseMorphSpread,
+  readMorphReplayRange,
 } from "./morphSchema";
+import { parseMorphEasing } from "../../morph/easing";
+import { morphReplayStretch } from "../../morph/timeline";
 import { morphRequirements } from "./bindMorph";
 import { readEntryColor } from "../../morph/color";
 import { morphMotionProblem } from "../../morph/motion";
@@ -38,7 +43,7 @@ import { normalizeMorphKeyframes } from "./normalizeMorphKeyframes";
 import type { MorphBody, MorphIssue } from "./readMorphBody";
 
 type Span = { from: number; to: number };
-type Where = "root" | "timing" | "layer" | "keyframe" | "container" | "clip" | "paint";
+type Where = "root" | "timing" | "replay" | "layer" | "keyframe" | "container" | "clip" | "paint";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === "object" && !Array.isArray(value);
@@ -67,12 +72,15 @@ HOME["targets"] = "in a `clips { … }` or `paints { … }` entry";
 for (const f of ["keyframes", "layers", "clips", "paints", "unless", "rest"]) HOME[f] = "at the morph root";
 HOME["when"] = "at the morph root or in a `paints { … }` entry";
 HOME["timing"] = "at the morph root";
+for (const f of MORPH_REPLAY_FIELDS) HOME[f] = "in `replay { … }`";
+HOME["replay"] = "at the morph root";
 HOME["spread"] = "at the morph root, under a label in `layers { … }` or in a `clips { … }` entry";
 HOME["offset"] = "directly in a keyframe";
 
 const ALLOWED: Record<Where, readonly string[]> = {
   root: MORPH_ROOT_FIELDS,
   timing: MORPH_TIMING_FIELDS,
+  replay: MORPH_REPLAY_FIELDS,
   layer: [...MORPH_POLICY_FIELDS, ...MORPH_LAYER_FIELDS],
   keyframe: ["offset"],
   container: MORPH_CONTAINER_FIELDS,
@@ -428,6 +436,35 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       checkTiming(timing, (field, message) =>
         push(valueSpan(timing, field), message),
       );
+    }
+  }
+
+  const replay = own["replay"];
+  const replaySpan = keySpan(own, "replay");
+  const isRange = (value: unknown): value is Record<string, unknown> => isRecord(value) && !("$type" in value) && !("$name" in value);
+  const ownReplay = isRange(replay) ? replay : undefined;
+  const checkRange = (range: Record<string, unknown>) => {
+    checkFields(range, "replay");
+    for (const field of MORPH_REPLAY_FIELDS) {
+      if (!(field in range)) continue;
+      const problem = replayFieldProblem(field, range[field]);
+      if (problem) push(valueSpan(range, field), problem);
+    }
+  };
+  if (replay !== undefined) {
+    if (Array.isArray(replay)) {
+      const written = src(replay);
+      const fields = [...(written?.keys.keys() ?? [])];
+      if (fields.some((key) => written!.values.has(key))) push(replaySpan, REPLAY_MIXED);
+      for (const key of fields) if (!written!.values.has(key)) push(written!.lines.get(key) ?? written!.keys.get(key), REPLAY_ITEM);
+      replay.forEach((entry, index) => {
+        if (isRange(entry)) checkRange(entry);
+        else push(written?.items[index] ?? replaySpan, REPLAY_ITEM);
+      });
+    } else if (!ownReplay) {
+      push(valueSpan(own, "replay") ?? replaySpan, REPLAY_BLOCK);
+    } else {
+      checkRange(ownReplay);
     }
   }
 
@@ -821,6 +858,51 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       );
     }
   }
+  const effectiveReplay = effective["replay"];
+  const effectiveRanges: { range: Record<string, unknown>; mine?: Record<string, unknown>; at?: SourceSpan; kind: string }[] = [];
+  if (isRange(effectiveReplay)) effectiveRanges.push({ range: effectiveReplay, mine: ownReplay, at: replaySpan, kind: "block" });
+  else if (Array.isArray(effectiveReplay)) {
+    const ownList = Array.isArray(replay) ? replay : undefined;
+    effectiveReplay.forEach((range, index) => {
+      if (!isRange(range)) return;
+      const mine = ownList?.[index];
+      effectiveRanges.push({ range, mine: isRange(mine) ? mine : undefined, at: ownList ? src(ownList)?.items[index] : undefined, kind: "entry" });
+    });
+  }
+  for (const { range, mine, at, kind } of effectiveRanges) {
+    const writes = (field: string) => !!mine && Object.hasOwn(mine, field);
+    const report = (fields: readonly string[], message: string, severity: MorphIssue["severity"] = "error") => {
+      const written = fields.find(writes);
+      if (written) push(valueSpan(mine, written) ?? at ?? replaySpan, message, severity);
+      else if (mine || !decl.parent) push(at ?? replaySpan ?? decl.name, message, severity);
+      else push(decl.parent, `\`replay\`, inherited: ${message}`, severity);
+    };
+    if (!("chance" in range)) {
+      report([], `This \`replay\` ${kind} needs a \`chance\`: how likely each replay is, such as \`chance = 50%\`.`);
+    }
+    if (decl.parent) {
+      for (const field of MORPH_REPLAY_FIELDS) {
+        if (!(field in range) || writes(field)) continue;
+        const problem = replayFieldProblem(field, range[field]);
+        if (problem) push(decl.parent, `\`replay.${field}\`, inherited: ${problem}`);
+      }
+    }
+    for (const { field, message } of replayPairProblems(range)) {
+      report(field === "to" ? ["to", "from"] : [field, field === "delay_min" ? "delay_max" : "delay_min"], message);
+    }
+    const playable = readMorphReplayRange(range);
+    if (playable && playable.chance > 0) {
+      const easingText =
+        isRecord(effectiveTiming) && typeof effectiveTiming["easing"] === "string" ? effectiveTiming["easing"] : MORPH_TIMING_DEFAULTS.easing;
+      if (parseMorphEasing(easingText) && !morphReplayStretch(easingText, playable.from, playable.to)) {
+        report(
+          [],
+          `Under \`easing = ${easingText}\` this play reaches \`to\` at the same moment as \`from\`, so the stretch between them takes no time and the play never replays. Move \`from\` and \`to\` onto different steps.`,
+          "warning",
+        );
+      }
+    }
+  }
   if (Object.hasOwn(own, "default")) {
     const value = own["default"];
     if (typeof value !== "boolean") {
@@ -835,6 +917,71 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   return issues;
 }
 
+function secondsProblem(field: string, value: unknown, positive: boolean): string | null {
+  if (typeof value === "string") {
+    return `Timing values are numbers of seconds: write \`${field} = ${value.replace(/m?s$/, "")}\`${/ms$/.test(value) ? " (in seconds)" : ""}.`;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value)) return `\`${field}\` is a number of seconds.`;
+  if (positive ? value <= 0 : value < 0) {
+    return positive ? `\`${field}\` must be greater than 0.` : `\`${field}\` must not be negative.`;
+  }
+  return null;
+}
+
+const REPLAY_POSITION_PROBLEM = (field: string, example: string) =>
+  `\`${field}\` is a percentage from \`0%\` to \`100%\` or a number from 0 to 1, such as \`${field} = ${example}\`.`;
+
+const REPLAY_EXAMPLES: Record<string, string> = { from: "0%", to: "66.667%", chance: "50%" };
+
+const REPLAY_BLOCK =
+  "`replay` is a block of fields: `replay { from = 0%; to = 66.667%; chance = 50% }`.";
+
+const REPLAY_MIXED =
+  "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, or `{ … }` entries, one range each, not both.";
+
+const REPLAY_ITEM =
+  "Each item in `replay` is a range's field, such as `chance = 50%`, or a `{ … }` entry holding one range's fields.";
+
+function replayFieldProblem(field: string, value: unknown): string | null {
+  switch (field) {
+    case "from":
+    case "to":
+    case "chance":
+      return parseMorphSpan(value) === undefined ? REPLAY_POSITION_PROBLEM(field, REPLAY_EXAMPLES[field]!) : null;
+    case "count":
+      return typeof value === "number" && Number.isInteger(value) && value >= 1
+        ? null
+        : "`count` is the most replays this range makes in one play: a whole number of at least 1.";
+    case "delay_min":
+    case "delay_max":
+      return secondsProblem(field, value, false);
+    default:
+      return null;
+  }
+}
+
+function replayPairProblems(replay: Record<string, unknown>): { field: string; message: string }[] {
+  const problems: { field: string; message: string }[] = [];
+  const from = replay["from"] === undefined ? 0 : parseMorphSpan(replay["from"]);
+  const to = replay["to"] === undefined ? 1 : parseMorphSpan(replay["to"]);
+  if (from !== undefined && to !== undefined && from >= to) {
+    problems.push({
+      field: "to",
+      message: `\`replay\` turns back at \`to\` and resumes from \`from\`, so \`from\` must be below \`to\`: \`from\` is ${describeValue(replay["from"] ?? "0%")} and \`to\` is ${describeValue(replay["to"] ?? "100%")}.`,
+    });
+  }
+  const min = replay["delay_min"];
+  const max = replay["delay_max"];
+  if ((min === undefined) !== (max === undefined)) {
+    const missing = min === undefined ? "delay_min" : "delay_max";
+    const present = min === undefined ? "delay_max" : "delay_min";
+    problems.push({ field: present, message: `\`${present}\` needs \`${missing}\`: the pause before a replay is drawn between the two.` });
+  } else if (typeof min === "number" && typeof max === "number" && Number.isFinite(min) && Number.isFinite(max) && max < min) {
+    problems.push({ field: "delay_max", message: `\`delay_max\` (${max}) must be at least \`delay_min\` (${min}).` });
+  }
+  return problems;
+}
+
 const durationTooShort = (value: unknown): boolean =>
   typeof value === "number" && value > 0 && value < MORPH_MIN_DURATION;
 
@@ -843,25 +990,8 @@ function checkTiming(
   report: (field: string, message: string) => void,
 ) {
   const seconds = (field: string, value: unknown, positive: boolean) => {
-    if (typeof value === "string") {
-      report(
-        field,
-        `Timing values are numbers of seconds: write \`${field} = ${value.replace(/m?s$/, "")}\`${/ms$/.test(value) ? " (in seconds)" : ""}.`,
-      );
-      return;
-    }
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      report(field, `\`${field}\` is a number of seconds.`);
-      return;
-    }
-    if (positive ? value <= 0 : value < 0) {
-      report(
-        field,
-        positive
-          ? `\`${field}\` must be greater than 0.`
-          : `\`${field}\` must not be negative.`,
-      );
-    }
+    const problem = secondsProblem(field, value, positive);
+    if (problem) report(field, problem);
   };
   for (const [field, value] of Object.entries(timing)) {
     switch (field) {

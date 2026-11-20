@@ -11,7 +11,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
-import { useState } from "preact/hooks";
+import { useId, useState } from "preact/hooks";
 import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import { exportBackup, persistAskOf } from "../../utils/storagePersistence";
 import {
@@ -65,6 +65,7 @@ export default function LocalStorageStatus({
   buttonClass: string;
 }) {
   const [open, setOpen] = useState(false);
+  const id = useId();
   const device = useComputed(() => workspace.deviceStorage.value).value;
   const signedIn = !!workspace.signals.account.value;
   const signinLabel = workspace.signals.signinLabel.value;
@@ -84,6 +85,8 @@ export default function LocalStorageStatus({
           data-local-storage-status
           data-tone={status.tone}
           class={buttonClass}
+          id={id}
+          aria-labelledby={id}
           title={status.title}
         >
           {status.text}

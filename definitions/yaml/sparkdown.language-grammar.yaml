@@ -67,6 +67,11 @@ variables:
 
   SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where", "host", "host-context"]
   NTH_SELECTOR_FUNCTION_NAMES: ["nth-child", "nth-last-child"]
+  SELECTOR_AT_RULE_NAMES: ["container", "layer", "media", "starting-style", "starting_style", "initial"]
+  SELECTOR_WORD_CHAR: '\p{L}\p{N}_-'
+  SELECTOR_WORD_PART_START: '[@][\p{L}\p{N}_]'
+  SELECTOR_WORD: (?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)
+  SELECTOR_WORD_GOES_ON: (?:[{{SELECTOR_WORD_CHAR}}]|{{SELECTOR_WORD_PART_START}})
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
@@ -105,7 +110,7 @@ variables:
   DIRECTIVE_CONTROL: (?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|{{WRITE_CONTROL_KEYWORDS}})
   IMAGE_DIRECTIVE_CONTROL: (?:{{DIRECTIVE_CONTROL}}|{{LAYOUT_CONTROL_KEYWORDS}})
   DIRECTIVE_NAME_TEXT: (?:[^ \t\r\n+]+)
-  ASSET_FILTERS: (?:(?:[:~][^:~+\s]+)+)
+  ASSET_FILTERS: (?:(?:[:][^:~+\s]+)+)
   _DIRECTIVE_END_: ({{DIRECTIVE_SPACE}}*)$
   _DIRECTIVE_TAG_AND_END_: (?:({{DIRECTIVE_SEPARATOR}}{{DIRECTIVE_TAG}}))?{{_DIRECTIVE_END_}}
   _DIRECTIVE_NAVIGATE_TO_: ({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_DESTINATION}})({{DIRECTIVE_NEXT_WORD}}*)
@@ -1291,7 +1296,8 @@ variables:
   STRUCT_TEXT_SLASH_COMMENT: (?:{{WS}}+[/][/](?:{{WS}}.*)?)
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
-  STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  # lookaround: LuauStructBlockProperty reads an `end = …` line in a brace body as a key, so the compiler reports it as a field, while the body's `end:` takes a bare `end` line as the declaration's `end`. A brace body tests its `end:` before its patterns, so neither reordering LuauStructBlockEntries nor splitting it lets the property claim the line first; the parent's `end:` already carries this bail-out; and tightening `END` itself would also stop it closing `with` bodies and Luau blocks, where `end` is never a key.
+  STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}}(?!{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody take a `{` that opens the line after a header written without `with`, and the keyword rule's end takes a beat or an `end` line. A body that opened at the header's line break would hold that line before either could claim it, so it opens on the first line neither claims.
   STRUCT_WITHOUT_WITH_LINE: ^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_BLOCK_BAIL}})
   # lookaround: LuauStructBraceBody and LuauSparkleBraceBody read a struct keyword's `}`, and the keyword's block ends right after it; LuauStructWithBody and LuauSparkleWithBody end before their `end`. A line of a `with` body may end in a `}` too, so the rule around the bodies can only tell the two apart by holding each body as one child.
@@ -4253,7 +4259,7 @@ repository:
     match: ([+])
 
   AssetCommandFilter:
-    match: ([:~])($|[^:~\s]+)?
+    match: ([:])($|[^:~\s]+)?
     captures:
       1:
         patterns:
@@ -4265,7 +4271,7 @@ repository:
   AssetCommandFilterOperator:
     tag: propertyName
     name: variable.other.property.filter.sd
-    match: ([:~])
+    match: ([:])
 
   AssetCommandFilterName:
     tag: constant(variableName)
@@ -4775,13 +4781,164 @@ repository:
       - { include: "#BooleanLiteral" }
       - { include: "#StringLiteral" }
       - { include: "#SelectorOperator" }
+      - { include: "#SelectorScopeAtRule" }
+      - { include: "#SelectorSupportsAtRule" }
+      - { include: "#SelectorAtRule" }
       - { include: "#RecursiveSelectorFunction" }
       - { include: "#NthSelectorFunction" }
       - { include: "#SimpleSelectorFunction" }
       - { include: "#StyleAttribute" }
       - { include: "#SelectorAttribute" }
       - { include: "#LabelAttribute" }
+      - { include: "#SelectorPseudoClass" }
       - { include: "#Separator" }
+
+  SelectorScopeAtRule:
+    # lookaround: a longer state name that starts with the at-rule's name
+    # (`@scope-x`, `@scope_x(a)`, `@scope²(a)`) stays `SimpleSelectorFunction`'s or
+    # `UnassignedSelectorAttribute`'s, which must come after this rule since
+    # they also read `@scope(`.
+    begin: ([@])(scope)(?!{{SELECTOR_WORD_GOES_ON}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+    patterns:
+      - { include: "#RecursiveSelectorFunctionParameters" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorSupportsAtRule:
+    # lookaround: as for `SelectorScopeAtRule`, a longer state name
+    # (`@supports-x`) stays `SimpleSelectorFunction`'s or
+    # `UnassignedSelectorAttribute`'s.
+    begin: ([@])(supports)(?!{{SELECTOR_WORD_GOES_ON}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+    patterns:
+      - { include: "#SelectorSupportsAtRuleGroup" }
+      - { include: "#SelectorSupportsSelectorFunction" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorSupportsAtRuleGroup:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#SelectorSupportsAtRuleGroup" }
+      - { include: "#SelectorSupportsSelectorFunction" }
+      - { include: "#SelectorAtRuleDeclarationValue" }
+      - { include: "#SelectorCssText" }
+    end: $|([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SelectorSupportsSelectorFunction:
+    # lookaround: `SelectorCssWord`, tried after this rule, reads a longer word
+    # holding `selector` (`selectorselector(card)`, `selectors(card)`) whole
+    # only when this rule declines at the word's start. The writer's
+    # `SELECTOR_FUNCTION_BEFORE` also counts an `@` as the edge of the
+    # function name, so a joined word ending in `@selector` opens it too
+    # (`foo@selector(card)`). Trying the word first would take every
+    # `selector(`, and taking the `(` here would copy the patterns of
+    # `RecursiveSelectorFunctionParameters`, which reads it.
+    begin: (?:({{SELECTOR_WORD}})([@]))?(selector)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorCssWord" }
+      2:
+        patterns:
+          - { include: "#SelectorCssPunctuation" }
+      3:
+        patterns:
+          - { include: "#SelectorCssWord" }
+    patterns:
+      - { include: "#RecursiveSelectorFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  SelectorAtRule:
+    # lookaround: as for `SelectorScopeAtRule`, a longer state name
+    # (`@container-size(sm)`, `@media-x`) stays `SimpleSelectorFunction`'s or
+    # `UnassignedSelectorAttribute`'s. The list's own end lets a `-` go on.
+    begin: ([@])({{SELECTOR_AT_RULE_NAMES}})(?!{{SELECTOR_WORD_GOES_ON}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorStateOperator" }
+      2:
+        patterns:
+          - { include: "#SelectorStateName" }
+    patterns:
+      - { include: "#SelectorAtRuleGroup" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorAtRuleGroup:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#SelectorAtRuleGroup" }
+      - { include: "#SelectorAtRuleDeclarationValue" }
+      - { include: "#SelectorCssText" }
+    end: $|([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SelectorAtRuleDeclarationValue:
+    begin: ([:])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SelectorCssPunctuation" }
+    patterns:
+      - { include: "#SelectorAtRuleGroup" }
+      - { include: "#SelectorCssText" }
+    applyEndPatternLast: true
+    end: (?=[)])|$
+
+  SelectorCssText:
+    patterns:
+      - { include: "#LuauStructBlockKeyString" }
+      - { include: "#StringLiteral" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#SelectorCssWord" }
+      - { include: "#SelectorCssPunctuation" }
+
+  SelectorCssWord:
+    tag: string
+    name: string.unquoted.css.sd
+    match: ({{SELECTOR_WORD}})
+
+  SelectorCssPunctuation:
+    tag: operator
+    name: keyword.operator.css.sd
+    match: ([^\s(){{SELECTOR_WORD_CHAR}}])
 
   ComponentName:
     patterns:
@@ -4816,12 +4973,12 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
-      - { include: "#SelectorPseudoClass" }
+      - { include: "#LuauStructBlockKeyString" }
+      - { include: "#SelectorCssWord" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#LuauSparkleElementClass" }
-      - { include: "#BuiltinComponentName" }
-      - { include: "#CustomComponentName" }
+      - { include: "#PunctuationComma" }
+      - { include: "#SelectorCssPunctuation" }
     end: $|({{WS}}*)([)])
     endCaptures:
       1:
@@ -4832,7 +4989,7 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   SelectorPseudoClass:
-    match: ([:]{1,2})({{IDENTIFIER}})
+    match: ([:]{1,2})([{{SELECTOR_WORD_CHAR}}]+)
     captures:
       1:
         patterns:
@@ -4862,8 +5019,10 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockKeyString" }
+      - { include: "#SelectorCssWord" }
       - { include: "#SelectorPropertyNamePart" }
+      - { include: "#SelectorCssPunctuation" }
     end: $|({{WS}}*)(\])
     endCaptures:
       1:
@@ -5356,9 +5515,10 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
-      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#LuauStructBlockKeyString" }
       - { include: "#ParameterStringIdentifier" }
+      - { include: "#SelectorCssWord" }
+      - { include: "#SelectorPropertyNamePart" }
       - { include: "#IllegalChar" }
     end: $|({{WS}}*)([)])
     endCaptures:

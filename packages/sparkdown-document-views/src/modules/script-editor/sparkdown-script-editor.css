@@ -14,7 +14,7 @@ sparkdown-script-editor {
 
 .sparkdown-script-editor-root * {
   overscroll-behavior: none;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
 }
 
 .sparkdown-script-editor-root > .main {

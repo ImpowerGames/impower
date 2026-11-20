@@ -8,6 +8,10 @@ const HOST_TOKENS = read(
 );
 const ROUTE_LIST = read("../packages/spark-web-player/src/route/route-list.css");
 const SAVES = read("../packages/spark-web-player/src/saves/saves.css");
+const VALUES_VIEW = read(
+  "../packages/spark-web-player/src/route/StartingValuesViews.tsx",
+);
+const ROUTE_VIEWS = read("../packages/spark-web-player/src/route/RouteViews.tsx");
 
 type Specificity = [number, number, number];
 
@@ -96,10 +100,11 @@ describe("the hosted route list's tokens", () => {
         expect(compare(specificityOf(coarse), specificityOf(selector)), token).toBeGreaterThan(0);
       }
     }
-    expect(ROUTE_LIST).toMatch(/\.sv-row \{[^}]*height: var\(--swp-route-row-height\);/);
-    expect(ROUTE_LIST).toMatch(
-      /\.sv-row \{[^}]*grid-template-columns: [^;]* var\(--swp-route-control-size\);/,
+    expect(HOST_TOKENS).toMatch(
+      /\.sv-tab \{[^}]*--list-row-compact-height: var\(--swp-route-row-height\);/,
     );
+    expect(VALUES_VIEW).toMatch(/sv-clear-slot [^"]*w-\(--swp-route-control-size\)/);
+    expect(SAVES).toMatch(/\.saves-values \.sv-row \{[^}]*height: var\(--swp-route-row-height\);/);
     expect(SAVES).toMatch(
       /\.saves-row \{[^}]*grid-template-columns: [^;]* var\(--swp-saves-control-size\);/,
     );
@@ -122,12 +127,17 @@ describe("the hosted route list's tokens", () => {
   it("keep the pinned tab head above the positioned rows that scroll under it, and the field popups above the head", () => {
     const rule = (selector: string) =>
       ROUTE_LIST.match(new RegExp(`\\) ${selector.replace(".", "\\.")} \\{([^}]*)\\}`))?.[1] ?? "";
-    const head = rule(".route-list-head");
-    expect(head).toMatch(/position: sticky;/);
+    const headClasses = (
+      ROUTE_VIEWS.match(/<PanelHead[^>]*?class="([^"]*)"/)?.[1] ?? ""
+    ).split(/\s+/);
+    expect(headClasses).toContain("sticky");
+    const headZ = Number(
+      headClasses.find((c) => /^z-\d+$/.test(c))?.slice(2) ?? 0,
+    );
     const zOf = (body: string) => Number(body.match(/z-index: (\d+);/)?.[1] ?? 0);
-    expect(zOf(head)).toBeGreaterThan(0);
+    expect(headZ).toBeGreaterThan(0);
     expect(rule(".sv-row")).toMatch(/position: relative;/);
     expect(zOf(rule(".sv-row"))).toBe(0);
-    expect(zOf(rule(".sv-popup"))).toBeGreaterThan(zOf(head));
+    expect(zOf(rule(".sv-popup"))).toBeGreaterThan(headZ);
   });
 });

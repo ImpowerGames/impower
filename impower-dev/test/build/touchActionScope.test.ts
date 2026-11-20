@@ -13,6 +13,14 @@ const SCRIPT_EDITOR_CSS = path.resolve(
   REPO,
   "packages/sparkdown-document-views/src/modules/script-editor/sparkdown-script-editor.css",
 );
+const MOBILE_VIEWPORT_MANAGER = path.resolve(
+  REPO,
+  "packages/sparkdown-document-views/src/modules/script-editor/utils/extensions/mobileViewportManager.ts",
+);
+const SCREENPLAY_PREVIEW_CSS = path.resolve(
+  REPO,
+  "packages/sparkdown-document-views/src/modules/screenplay-preview/sparkdown-screenplay-preview.css",
+);
 
 const PAGE_STYLESHEETS = [
   path.join(SRC, "public/document.css"),
@@ -21,7 +29,7 @@ const PAGE_STYLESHEETS = [
   path.join(IMPOWER_UI_SRC, "theme.css"),
 ];
 
-const PLAIN_ELEMENTS = ["div", "span", "p", "h3", "li", "button", "img", "input", "textarea", "nav", "section"];
+const PLAIN_ELEMENTS = ["div", "span", "p", "h3", "li", "button", "img", "input", "textarea", "nav", "section", "main", "header", "aside"];
 
 const HORIZONTAL_SCROLLERS = [
   "components/carousel/Carousel.tsx",
@@ -47,11 +55,11 @@ const styleRules = (rules: CSSRuleList, out: CSSStyleRule[] = []): CSSStyleRule[
 
 const touchActionRules = (css: string) => {
   const dom = new JSDOM(
-    `<!doctype html><html><head><style></style></head><body><main>${PLAIN_ELEMENTS.map((tag) => `<${tag}></${tag}>`).join("")}</main></body></html>`,
+    `<!doctype html><html><head><style></style></head><body><div id="app">${PLAIN_ELEMENTS.map((tag) => `<${tag}></${tag}>`).join("")}</div></body></html>`,
   );
   const document = dom.window.document;
   document.querySelector("style")!.textContent = css;
-  const plain = PLAIN_ELEMENTS.map((tag) => document.querySelector(`main > ${tag}`)!);
+  const plain = PLAIN_ELEMENTS.map((tag) => document.querySelector(`#app > ${tag}`)!);
   return styleRules(document.querySelector("style")!.sheet!.cssRules)
     .filter((rule) => rule.style.getPropertyValue("touch-action") !== "")
     .map((rule) => ({
@@ -121,7 +129,7 @@ describe("where the editor page sets touch-action", () => {
     for (const name of ["scroller-x", "phone:scroller-x", "compact:scroller-x"]) {
       const escaped = `.${name.replace(":", "\\:")}`;
       const rule = rules.find(({ selector }) => selector.startsWith(escaped));
-      expect(rule?.value, name).toBe("pan-x pan-y");
+      expect(rule?.value, name).toBe("pan-x pan-y pinch-zoom");
       expect(rule?.overflowX, name).toBe("auto");
     }
   });
@@ -139,7 +147,21 @@ describe("where the editor page sets touch-action", () => {
 
   it("the script editor keeps vertical-only panning inside its own root, where every line wraps and nothing scrolls sideways", () => {
     const rules = touchActionRules(fs.readFileSync(SCRIPT_EDITOR_CSS, "utf8"));
-    expect(rules.map(({ selector, value }) => [selector, value])).toEqual([[".sparkdown-script-editor-root *", "pan-y"]]);
+    expect(rules.map(({ selector, value }) => [selector, value])).toEqual([[".sparkdown-script-editor-root *", "pan-y pinch-zoom"]]);
     expect(rules.every(({ plain }) => plain.length === 0)).toBe(true);
+  });
+
+  it("every touch-action the script editor and the screenplay preview set, at runtime or in their stylesheets, still lets a pinch zoom the page", () => {
+    const declared = [
+      MOBILE_VIEWPORT_MANAGER,
+      SCRIPT_EDITOR_CSS,
+      SCREENPLAY_PREVIEW_CSS,
+    ].flatMap((file) =>
+      [...fs.readFileSync(file, "utf8").matchAll(/touch(?:Action|-action)\s*:\s*["']?([^;"'\n]+)/g)].map(
+        (match) => `${relative(file)}: ${match[1]!.replace("!important", "").trim()}`,
+      ),
+    );
+    expect(declared.length).toBeGreaterThanOrEqual(4);
+    expect(declared.filter((entry) => !/\bpinch-zoom\b/.test(entry))).toEqual([]);
   });
 });

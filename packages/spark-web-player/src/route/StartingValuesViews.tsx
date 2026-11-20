@@ -1,3 +1,10 @@
+import {
+  ListRow,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@impower/impower-ui/components";
+import { useRef, useState } from "preact/hooks";
 import { LoadSave, type LoadSaveProps } from "../saves/SavesViews";
 import { loadedStatus, notLoadedStatus } from "../saves/savesView";
 import { RouteIconSvg } from "./RouteIcons";
@@ -71,7 +78,7 @@ function ValueField({
   const unsetParameter = !row.set && status === "warning" && !row.unresolved;
   return (
     <span
-      class="sv-field"
+      class="sv-field flex-[1.5_1.5_0%]"
       data-status={status}
       data-set={row.set ? "" : undefined}
     >
@@ -98,21 +105,71 @@ function ValueField({
       />
       <span class="sv-slot">
         {row.badge ? (
-          <span
-            class="sv-badge"
-            data-status={row.badge.status}
-            tabIndex={0}
-            aria-label={row.badge.message}
-          >
-            <RouteIconSvg icon={row.badge.status} />
-            <span class="sv-popup" role="tooltip">
-              <RouteIconSvg icon={row.badge.status} />
-              <span>{row.badge.message}</span>
-            </span>
-          </span>
+          <StatusBadge badge={row.badge} />
         ) : null}
       </span>
     </span>
+  );
+}
+
+function StatusBadge({ badge }: { badge: NonNullable<ValueRow["badge"]> }) {
+  const { status, message } = badge;
+  const [open, setOpen] = useState(false);
+  const hovering = useRef(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        hovering.current = false;
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          ref={trigger}
+          type="button"
+          class="sv-badge"
+          data-status={status}
+          aria-label={message}
+          onPointerEnter={(e) => {
+            if (e.pointerType === "mouse" && !open) {
+              hovering.current = true;
+              setOpen(true);
+            }
+          }}
+          onPointerLeave={() => {
+            if (hovering.current) {
+              hovering.current = false;
+              setOpen(false);
+            }
+          }}
+          onClick={(e) => {
+            if (hovering.current) {
+              hovering.current = false;
+              e.preventDefault();
+            }
+          }}
+        >
+          <RouteIconSvg icon={status} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        data-impower-ui
+        container={trigger.current?.closest<HTMLElement>("spark-web-player")}
+        side="top"
+        align="end"
+        sideOffset={6}
+        alignOffset={-4}
+        aria-label={message}
+        class="sv-badge-popup w-max max-w-[min(var(--popover-width),calc(100vw-24px))] flex-row items-start gap-1.5 px-2 py-1.5 text-[length:var(--list-row-compact-font-size)]/[1.4] [&>svg]:size-3.5 [&>svg]:flex-none"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
+        <RouteIconSvg icon={status} />
+        <span>{message}</span>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -124,7 +181,7 @@ export interface StartingValuesTabProps {
 export function StartingValuesTab({ state, events }: StartingValuesTabProps) {
   const groups = valueGroups(state);
   return (
-    <div class="sv-tab" role="tabpanel" aria-label="Starting values">
+    <div class="sv-tab">
       <input
         type="search"
         class="sv-search"
@@ -149,29 +206,40 @@ export function StartingValuesTab({ state, events }: StartingValuesTabProps) {
               <div
                 key={row.key}
                 class="sv-row"
+                data-impower-ui
                 data-key={row.key}
                 data-set={row.set && !row.unresolved ? "" : undefined}
                 data-field={row.field ? "" : undefined}
                 data-unresolved={row.unresolved ? "" : undefined}
               >
-                <span class="sv-name" title={row.name}>
-                  <span class="sv-name-text">{row.name}</span>
-                  {row.line !== undefined ? (
-                    <span class="sv-line">{`· ${row.line}`}</span>
-                  ) : null}
-                </span>
-                <ValueField row={row} events={events} />
-                <button
-                  type="button"
-                  class="sv-clear"
-                  aria-label={`Clear ${row.name}`}
-                  title="Clear"
-                  style={row.set ? undefined : { visibility: "hidden" }}
-                  tabIndex={row.set ? 0 : -1}
-                  onClick={() => events.onClear(row.key)}
-                >
-                  ×
-                </button>
+                <ListRow
+                  size="compact"
+                  overflow="self"
+                  label={
+                    <span class="sv-name" title={row.name}>
+                      <span class="sv-name-text">{row.name}</span>
+                      {row.line !== undefined ? (
+                        <span class="sv-line">{`· ${row.line}`}</span>
+                      ) : null}
+                    </span>
+                  }
+                  trailing={<ValueField row={row} events={events} />}
+                  actions={
+                    <span class="sv-clear-slot flex w-(--swp-route-control-size) flex-none items-center">
+                      <button
+                        type="button"
+                        class="sv-clear"
+                        aria-label={`Clear ${row.name}`}
+                        title="Clear"
+                        style={row.set ? undefined : { visibility: "hidden" }}
+                        tabIndex={row.set ? 0 : -1}
+                        onClick={() => events.onClear(row.key)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  }
+                />
               </div>
             ))}
           </section>

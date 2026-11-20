@@ -136,7 +136,7 @@ describe("the preview's last differences from the Folio prototype (I-2517)", () 
     });
     expect(names).toEqual({
       mode: ["Viewing mode: Visual Novel", "Viewing mode: Visual Novel"],
-      ratio: ["Game aspect ratio: Auto, shown at 544×694 pixels", "Game aspect ratio: Auto, shown at 544×694 pixels"],
+      ratio: ["Game aspect ratio: Auto, 544×694 pixels", "Game aspect ratio: Auto, 544×694 pixels"],
       bar: expect.arrayContaining(["Playback controls", "Problems and playback messages"]),
     });
   }, 60_000);

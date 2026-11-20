@@ -33,8 +33,6 @@ type SwitchSpec = {
   readonly detail: ComponentChildren;
 };
 
-const Mark = ({ children }: { children: string }) => <span class="opacity-55">{children}</span>;
-
 const APPEARANCE_SWITCHES: readonly SwitchSpec[] = [
   { key: "boldDeclarationNames", name: "Bold declaration names", detail: "Show names bolded when declaring them." },
   { key: "boldSpeakerNames", name: "Bold speaker names", detail: "Show speaker cues bolded." },
@@ -52,15 +50,15 @@ const APPEARANCE_SWITCHES: readonly SwitchSpec[] = [
       <>
         Show{" "}
         <i>
-          <Mark>*</Mark>italic<Mark>*</Mark>
+          *italic*
         </i>
         ,{" "}
         <b>
-          <Mark>**</Mark>bold<Mark>**</Mark>
+          **bold**
         </b>
         , and{" "}
         <u>
-          <Mark>_</Mark>underline<Mark>_</Mark>
+          _underline_
         </u>{" "}
         the way the reader will see them.
       </>
@@ -151,7 +149,7 @@ function ScriptSample() {
         caret={caret}
         appearance={appearance}
         label="Read-only syntax sample"
-        class="max-h-[540px] overflow-auto bg-workspace phone:max-h-[440px]"
+        class="bg-workspace"
       />
       <p class="m-0 border-t border-solid border-edge px-4 py-3 text-[13px]/[1.5] text-muted">
         Highlight matching symbols and Hover previews need your open script, so this sample does not show them.

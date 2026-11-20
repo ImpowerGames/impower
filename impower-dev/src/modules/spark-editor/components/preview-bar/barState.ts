@@ -51,7 +51,7 @@ export const aspectRatioButtonName = (
 ): string => {
   const name = choice === "auto" ? "Auto" : choice;
   const shown = shownSize(size);
-  return `Game aspect ratio: ${name}${shown ? `, shown at ${shown} pixels` : ""}`;
+  return `Game aspect ratio: ${name}${shown ? `, ${shown} pixels` : ""}`;
 };
 
 export const aspectRatioLabelReserves = (

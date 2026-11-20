@@ -486,7 +486,7 @@ sparkdown [0..629]
  │   │       │   │   │   │               │       │   │   └─ PunctuationParenOpen [302..303]: "("
  │   │       │   │   │   │               │       │   └─ SimpleSelectorFunctionParameters_begin_c2 303
  │   │       │   │   │   │               │       ├─ SimpleSelectorFunctionParameters_content [303..304]
- │   │       │   │   │   │               │       │   └─ NumberLiteral [303..304]: "1"
+ │   │       │   │   │   │               │       │   └─ SelectorCssWord [303..304]: "1"
  │   │       │   │   │   │               │       └─ SimpleSelectorFunctionParameters_end [304..305]
  │   │       │   │   │   │               │           ├─ SimpleSelectorFunctionParameters_end_c1 304
  │   │       │   │   │   │               │           └─ SimpleSelectorFunctionParameters_end_c2 [304..305]

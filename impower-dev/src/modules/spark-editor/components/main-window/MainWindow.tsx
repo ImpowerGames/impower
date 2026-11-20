@@ -7,8 +7,10 @@ import {
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import { useScriptFocus } from "../../utils/useScriptFocus";
+import { routeOfState, type Route } from "../../workspace/routes";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
+import problems from "../../workspace/problems/ProblemsStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
 import Assets from "../assets";
 import { useFocusRule, WorkspaceShell } from "../desktop-shell";
@@ -33,6 +35,14 @@ function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) 
 
 const STRIP_HEIGHT = WorkspaceConstants.PREVIEW_STRIP_HEIGHT;
 
+const PANE_DIVIDER_LABELS: Record<Route, string> = {
+  story: "Resize script and preview panes",
+  scripts: "Resize scripts and preview panes",
+  assets: "Resize page and preview panes",
+  share: "Resize page and preview panes",
+  settings: "Resize page and preview panes",
+};
+
 export default function MainWindow(_props: MainWindowProps) {
   useWorkspaceSession();
   useFocusRule();
@@ -52,19 +62,21 @@ export default function MainWindow(_props: MainWindowProps) {
   const settings = useComputed(
     () => !!workspace.state.value.screen?.settingsOpen,
   ).value;
+  const route = useComputed(() => routeOfState(workspace.state.value)).value;
   const stripHeight = useComputed(
     () => workspace.state.value.shell?.stripHeight,
   ).value;
 
   const onStripHeightChange = async (height: number | undefined) => {
+    problems.keepStripHeight();
     const { Workspace } = await import("../../workspace/Workspace");
     Workspace.window.setStripHeight(height);
   };
 
   const content = (
-    <div class="relative flex h-full w-full flex-col">
+    <main class="relative flex h-full w-full flex-col">
       <PaneContent pane={pane} settings={settings} />
-    </div>
+    </main>
   );
 
   return (
@@ -80,7 +92,7 @@ export default function MainWindow(_props: MainWindowProps) {
               orientation={strip ? "vertical" : "horizontal"}
               reverse={strip}
               solo={scriptOnly}
-              label={strip ? "Resize preview" : undefined}
+              label={strip ? "Resize preview" : PANE_DIVIDER_LABELS[route]}
               class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"
               pinned={
                 strip
@@ -100,10 +112,13 @@ export default function MainWindow(_props: MainWindowProps) {
               start={content}
               end={
                 !phone && (
-                  <div class="relative flex h-full w-full flex-col bg-stage">
+                  <aside
+                    aria-label="Preview"
+                    class="relative flex h-full w-full flex-col bg-stage"
+                  >
                     <Preview />
                     <InspectorDock />
-                  </div>
+                  </aside>
                 )
               }
             />

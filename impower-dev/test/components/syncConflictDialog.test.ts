@@ -146,7 +146,7 @@ describe("the sync conflict dialog", () => {
       expect(caption.dataset.action).toBe("settings");
       await act(async () => caption.click());
       await settle();
-      expect(navigate).toHaveBeenCalledWith("project", "save-settings");
+      expect(navigate).toHaveBeenCalledWith("settings", "save-settings");
     } finally {
       navigate.mockRestore();
     }
@@ -171,7 +171,7 @@ describe("the sync conflict dialog", () => {
         const caption = button("Draft not saved")!;
         await act(async () => caption.click());
         await settle();
-        expect(navigate).toHaveBeenCalledWith("project", "save-settings");
+        expect(navigate).toHaveBeenCalledWith("settings", "save-settings");
         expect(menu).not.toHaveBeenCalledWith(true);
       } finally {
         navigate.mockRestore();

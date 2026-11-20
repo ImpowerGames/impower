@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
@@ -703,7 +703,7 @@ async function importPlaywright() {
 const themeLine = (display) =>
   display.theme ? `theme: ${display.theme}, set as the theme preference before the page loads` : "theme: Automatic, the theme preference is cleared before the page loads";
 
-export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY }) {
+export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright, display = DISPLAY, extra = {} }) {
   const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
   if (dir === path.join(SESSION_DIR, "profile")) recordCheckoutOwner(REPO_ROOT);
@@ -715,6 +715,7 @@ export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platfor
   const ctx = await chromium.launchPersistentContext(dir, {
     headless,
     ...contextOptions(display),
+    ...extra,
     args: ["--autoplay-policy=no-user-gesture-required"],
     ...(executablePath ? { executablePath } : {}),
   });
@@ -2081,19 +2082,19 @@ const SCREENS = {
   assets: '[data-assets-action="add"]',
   share: "#share-page",
 };
-const ASSET_ROW_SELECTOR = '[role="listitem"] button[aria-label^="Open "]';
+const ASSET_ROW_SELECTOR = '[role="listitem"] button[aria-label^="Open "]:not([aria-label="Problems and playback messages"] *)';
 const ASSET_INSPECTOR_SELECTOR = SURFACE_SELECTORS.assetInspector;
 const ASSET_FOLDER_DEPTH = 4;
 
 export async function openAssetInspector(page, { timeout = 10_000 } = {}) {
   const fail = (reason, extra = {}) => ({ step: "asset-inspector", ran: false, ...extra, reason });
   await page.evaluate(() => {
-    if (!/^#collection(?:[?&]|$)/i.test(location.hash)) location.hash = "#collection";
+    if (!/^#assets(?:[?&]|$)/i.test(location.hash)) location.hash = "#assets";
   });
   try {
     await page.locator(SCREENS.assets).first().waitFor({ state: "visible", timeout });
   } catch {
-    return fail(`the Assets page did not appear within ${timeout / 1000} s of going to #collection`);
+    return fail(`the Assets page did not appear within ${timeout / 1000} s of going to #assets`);
   }
   const rows = page.locator(ASSET_ROW_SELECTOR);
   for (let depth = 0; depth <= ASSET_FOLDER_DEPTH; depth += 1) {
@@ -2398,10 +2399,10 @@ export function wheelProbe([op, index, tops]) {
     }
     const layer = [...document.querySelectorAll('[role="dialog"]')].filter(shown).at(-1) ?? null;
     const root = layer ?? document.body;
-    const roots = [document.documentElement, document.body, document.querySelector("main")].filter(Boolean);
+    const roots = [document.documentElement, document.body, document.getElementById("app")].filter(Boolean);
     [...roots, ...document.querySelectorAll("*")]
       .filter((el, i, all) => all.indexOf(el) === i && (roots.includes(el) || (getComputedStyle(el).overflowY !== "visible" && el.scrollHeight > el.clientHeight + 1)))
-      .forEach((el, i) => el.setAttribute("data-driver-scroll", roots.includes(el) ? `page:${el.tagName.toLowerCase()}` : String(i)));
+      .forEach((el, i) => el.setAttribute("data-driver-scroll", roots.includes(el) ? `page:${el.id || el.tagName.toLowerCase()}` : String(i)));
     const lists = [root, ...root.querySelectorAll("*")].filter((el) => el instanceof HTMLElement && !el.closest(".cm-editor") && shown(el) && overflowsY(el));
     lists.forEach((el, i) => el.setAttribute("data-driver-wheel", String(i)));
     return { layer: layer ? describe(layer) : null, lists: lists.map((el, i) => ({ index: i, list: describe(el), scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })) };
@@ -2515,7 +2516,7 @@ export async function wheelList(page, { delta = 400, settleMs = 700 } = {}) {
 
 export async function openSettings(page, section, { timeout = 10000 } = {}) {
   await page.evaluate((id) => {
-    window.location.hash = `#project?section=${id}`;
+    window.location.hash = `#settings?section=${id}`;
   }, section);
   try {
     await page.waitForFunction(
@@ -2534,7 +2535,7 @@ export async function openSettings(page, section, { timeout = 10000 } = {}) {
       ran: false,
       reason: known.length
         ? `no Settings section "${section}" took focus within ${timeout / 1000} s; the page has: ${known.join(", ")}`
-        : `the Settings page did not open within ${timeout / 1000} s of going to #project?section=${section}`,
+        : `the Settings page did not open within ${timeout / 1000} s of going to #settings?section=${section}`,
     };
   }
   await page
@@ -2875,7 +2876,7 @@ export function editorAbsentReason({ screen, panelTab = null, scriptsPage = fals
 }
 
 async function editorExpectedHere(page) {
-  if (await page.evaluate(() => /^#project(?:$|[?&])/i.test(location.hash))) return false;
+  if (await page.evaluate(() => /^#settings(?:$|[?&])/i.test(location.hash))) return false;
   await page.waitForSelector(SELECTED_SCREEN_TAB, { state: "attached", timeout: 5_000 }).catch(() => {});
   const screen = await activeScreen(page);
   if (screen == null) return null;
@@ -3718,20 +3719,29 @@ export function parseScreenshotArgs(args, display = DISPLAY) {
   if (name == null || name.startsWith("--")) throw new Error("screenshot needs a name, such as `screenshot story`");
   let outDir = ".";
   let headed = false;
+  const setup = [];
   const steps = [];
+  const needs = { "--out-dir": "directory", "--step": "step name", "--sd": "script file", "--project": "project directory", "--scrub": "line number" };
   for (let i = 0; i < more.length; i++) {
-    if (more[i] === "--headed") headed = true;
-    else if (more[i] === "--out-dir" || more[i] === "--step") {
-      const flagName = more[i];
-      const v = more[++i];
-      if (v == null || v === "" || v.startsWith("--")) throw new Error(`${flagName} needs a ${flagName === "--step" ? "step name" : "directory"}`);
-      if (flagName === "--step") {
-        parseNamedStep(v);
-        steps.push(v);
-      } else outDir = v;
-    } else throw new Error(`screenshot: unknown argument ${more[i]}`);
+    const flagName = more[i];
+    if (flagName === "--headed") {
+      headed = true;
+      continue;
+    }
+    if (!(flagName in needs)) throw new Error(`screenshot: unknown argument ${flagName}`);
+    const v = more[++i];
+    if (v == null || v === "" || v.startsWith("--")) throw new Error(`${flagName} needs a ${needs[flagName]}`);
+    if (flagName === "--step") {
+      parseNamedStep(v);
+      steps.push(v);
+    } else if (flagName === "--out-dir") outDir = v;
+    else setup.push(flagName, v);
   }
-  return { out: screenshotPath(name, display, outDir), headed, steps };
+  return { out: screenshotPath(name, display, outDir), headed, setup, steps };
+}
+
+export function screenshotUiArgs(parsed) {
+  return [...parsed.setup, ...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])];
 }
 
 async function screenshot(args, deps = liveDeps) {
@@ -3742,7 +3752,7 @@ async function screenshot(args, deps = liveDeps) {
     deps.die(e.message);
   }
   fs.mkdirSync(path.dirname(parsed.out), { recursive: true });
-  return ui([...parsed.steps.flatMap((step) => ["--step", step]), "--shot", parsed.out, ...(parsed.headed ? ["--headed"] : [])], deps);
+  return ui(screenshotUiArgs(parsed), deps);
 }
 
 async function deviceReport(page, device, display = DISPLAY) {
@@ -4248,8 +4258,11 @@ const runAsCli =
   fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 
 const [cmd, ...rest] = runAsCli ? process.argv.slice(2) : ["__imported__"];
-if (runAsCli && (hasDisplayFlags(DISPLAY) || DEVICE) && !DISPLAY_COMMANDS.includes(cmd)) {
-  die(`--device, --viewport, --color-scheme and --theme apply to ${DISPLAY_COMMANDS.join(", ")} only, not ${cmd ?? "a missing command"}`);
+if (runAsCli && cmd === "audit" && hasDisplayFlags(DISPLAY)) {
+  die("audit chooses its own viewports and themes; --viewport, --color-scheme and --theme do not apply to it (--device android does)");
+}
+if (runAsCli && (hasDisplayFlags(DISPLAY) || DEVICE) && !DISPLAY_COMMANDS.includes(cmd) && cmd !== "audit") {
+  die(`--device, --viewport, --color-scheme and --theme apply to ${DISPLAY_COMMANDS.join(", ")} only, not ${cmd ?? "a missing command"}; --device also applies to audit`);
 }
 if (runAsCli && DEVICE && !findAdb()) die(adbMissingMessage());
 switch (cmd) {
@@ -4305,6 +4318,38 @@ switch (cmd) {
     });
     break;
   }
+  case "audit": {
+    const { audit } = await import("./audit.mjs");
+    await audit(rest, {
+      device: DEVICE,
+      withEditor,
+      readState,
+      headCommit: () => execFileSync("git", ["rev-parse", "--short=10", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8", windowsHide: true }).trim(),
+      launchEditorBrowser,
+      grantDurableStorage,
+      openEditorPage,
+      reloadEditorPage,
+      waitForApp,
+      seedProject,
+      switchScreen,
+      scriptEditorPresent,
+      settleEditor,
+      waitForDomQuiet,
+      settleViewTransitions,
+      protocolRequest,
+      placeCaret,
+      pressInEditor,
+      openAppMenu,
+      openAddMenu,
+      openPreviewSettings,
+      openProblems,
+      openFileMenu,
+      openAssetInspector,
+      log,
+      die,
+    });
+    break;
+  }
   case "timing": {
     const { timing } = await import("./timing.mjs");
     await timing(rest, {
@@ -4338,12 +4383,13 @@ switch (cmd) {
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
-        "  screenshot <name> [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
+        "  screenshot <name> [--project <dir>] [--sd <file>] [--scrub <line>] [--step <name>]... [--out-dir <dir>] [--headed]  load the editor, seed and scrub as ui does, run the named steps and screenshot to <name>[-<viewport>][-<scheme>].png",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "  measure [options]     time key press to painted preview at one line, in a browser profile of its own",
         "  timing input|metronome [options]  time input and audio against the running game, in a browser profile of its own",
+        "  audit --out <dir> [--doc <file>] [options]  measure contrast, targets, keyboard, motion, forced colors and copy on every route",
         "",
         "verify options:",
         "  --fresh-sw       unregister and reload; report the controlling worker's script hash and console",
@@ -4399,6 +4445,7 @@ switch (cmd) {
         "",
         "measure: see references/performance.md; `measure --help` lists its options.",
         "timing: see references/performance.md; `timing --help` lists its options.",
+        "audit: see references/audit.md; `audit` without --out lists its options.",
       ].join("\n"),
     );
 }

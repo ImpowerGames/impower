@@ -33,6 +33,6 @@ export const escapeCssIdentifier = (identifier: string): string => {
 };
 
 export const getThemeVariableName = (type: string, name: string): string => {
-  const [tag, ...attributes] = name.split("~");
-  return `--theme-${type}-${[tag, ...attributes.sort()].join("~")}`;
+  const [tag, ...attributes] = name.split(":");
+  return `--theme-${type}-${[tag, ...attributes.sort()].join(":")}`;
 };

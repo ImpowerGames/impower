@@ -16,6 +16,6 @@ export async function runEditorCommand(command: EditorFixCommand): Promise<boole
   const { Workspace } = await import("../Workspace");
   Workspace.window.setListState({ assetsType: asset.type });
   workspace.assetsAdd.value = asset;
-  Workspace.window.navigateTo("collection");
+  Workspace.window.navigateTo("assets");
   return true;
 }

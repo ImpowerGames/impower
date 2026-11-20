@@ -22,6 +22,15 @@ export interface MorphTiming {
   iteration_delay_max?: number;
 }
 
+export interface MorphReplayBlock {
+  from?: string | number;
+  to?: string | number;
+  chance?: string | number;
+  count?: number;
+  delay_min?: number;
+  delay_max?: number;
+}
+
 export interface MorphPose {
   state?: string;
   translate?: string | number;
@@ -46,6 +55,7 @@ export interface Morph extends Reference<"morph">, MorphPolicy {
   layers: Record<string, MorphPolicy>;
   keyframes: MorphKeyframe[];
   timing: MorphTiming;
+  replay?: MorphReplayBlock;
   clips: MorphClip[];
   default?: boolean;
 }

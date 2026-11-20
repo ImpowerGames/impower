@@ -39,7 +39,7 @@ describe("Back with a name field open on a browser without CloseWatcher", () => 
   it("leaves the route and discards the draft instead of committing it", async () => {
     const w = mount();
     w.openPane("share");
-    w.navigateTo("collection");
+    w.navigateTo("assets");
     host = document.body.appendChild(document.createElement("div"));
     const onCommit = vi.fn(async () => {});
     const onCancel = vi.fn();

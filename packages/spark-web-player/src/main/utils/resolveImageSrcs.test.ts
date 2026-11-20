@@ -41,21 +41,21 @@ const context = () => ({
     } as any,
   },
   filtered_image: {
-    "stripped~hat.off": {
+    "stripped:hat.off": {
       $type: "filtered_image",
-      $name: "stripped~hat.off",
+      $name: "stripped:hat.off",
       image: { $type: "image", $name: "stripped" },
       attributes: ["hat.off"],
     } as any,
-    "portrait~hat.off": {
+    "portrait:hat.off": {
       $type: "filtered_image",
-      $name: "portrait~hat.off",
+      $name: "portrait:hat.off",
       image: { $type: "image", $name: "portrait" },
       attributes: ["hat.off"],
     } as any,
-    "layers~hat.off": {
+    "layers:hat.off": {
       $type: "filtered_image",
-      $name: "layers~hat.off",
+      $name: "layers:hat.off",
       image: { $type: "layered_image", $name: "layers" },
       attributes: ["hat.off"],
     } as any,
@@ -94,8 +94,8 @@ describe("warming the urls the renderer will request", () => {
     const ctx = context();
     const before = shape(ctx);
     resolveImageSrcs(ctx, [
-      "stripped~hat.off",
-      "layers~hat.off",
+      "stripped:hat.off",
+      "layers:hat.off",
       "layers",
       "portrait",
     ]);
@@ -105,14 +105,14 @@ describe("warming the urls the renderer will request", () => {
   it("resolves the same urls the game resolves for the same name", () => {
     const warm = context();
     const game = context();
-    for (const name of ["stripped~hat.off", "layers~hat.off"]) {
+    for (const name of ["stripped:hat.off", "layers:hat.off"]) {
       expect(resolveImageSrcs(warm, [name])).toEqual(gameSrcs(game, name));
     }
   });
 
   it("agrees with the game when both resolve through the same structs", () => {
     const ctx = context();
-    for (const name of ["stripped~hat.off", "layers~hat.off"]) {
+    for (const name of ["stripped:hat.off", "layers:hat.off"]) {
       const warmFirst = resolveImageSrcs(ctx, [name]);
       expect(warmFirst).toEqual(gameSrcs(ctx, name));
       expect(resolveImageSrcs(ctx, [name])).toEqual(warmFirst);
@@ -121,6 +121,6 @@ describe("warming the urls the renderer will request", () => {
 
   it("still skips a look whose root keeps its source inlined", () => {
     const ctx = context();
-    expect(resolveImageSrcs(ctx, ["portrait~hat.off"])).toEqual([]);
+    expect(resolveImageSrcs(ctx, ["portrait:hat.off"])).toEqual([]);
   });
 });

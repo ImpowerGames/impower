@@ -59,7 +59,13 @@ onmessage = async (e) => {
             });
           }
         } else {
-          const result = await buildPDF(scripts, config, fonts, onProgress);
+          const result = await buildPDF(
+            scripts,
+            config,
+            fonts,
+            onProgress,
+            params.fallbackFonts,
+          );
           postMessage({ jsonrpc: "2.0", method, id, result }, [result.pdf]);
         }
       }

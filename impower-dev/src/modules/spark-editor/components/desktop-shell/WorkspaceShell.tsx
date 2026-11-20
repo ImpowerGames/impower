@@ -81,7 +81,7 @@ export default function WorkspaceShell({
     return () => document.removeEventListener("focusin", onFocusIn);
   }, [editing]);
 
-  const onStory = writing && route === "write";
+  const onStory = writing && route === "story";
 
   useEffect(() => {
     if (phone && previewRevealed && !onStory) {
@@ -150,6 +150,8 @@ export default function WorkspaceShell({
               <PhoneSearch />
               <BottomNavigation />
             </>
+          ) : compact ? (
+            <PhoneSearch />
           ) : null
         }
       >

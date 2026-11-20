@@ -7,6 +7,8 @@ import ScreenplayPrinter from "./classes/ScreenplayPrinter";
 import EmojiSvgProvider from "./emoji/EmojiSvgProvider";
 import { setEmojiProvider } from "./emoji/emojiText";
 import { startUnprintableLog } from "./utils/unprintableCharacters";
+import { registerFallbackFonts } from "./utils/fallbackFonts";
+import type { FallbackFontFaces } from "./utils/fallbackFontSources";
 
 export interface BuiltPDF {
   pdf: ArrayBuffer;
@@ -30,6 +32,7 @@ export const buildPDF = async (
     message?: string;
     percentage?: number;
   }) => void,
+  fallbackFonts?: FallbackFontFaces[],
 ): Promise<BuiltPDF> => {
   let currentProgress = 0;
 
@@ -72,6 +75,8 @@ export const buildPDF = async (
       }
       doc.registerFont(fontName, fontBuffer);
     }
+    const { emoji: _emoji, ...faces } = fonts;
+    registerFallbackFonts(doc, faces, fallbackFonts);
     if (fonts.normal) {
       doc.font(fonts.normal);
     }

@@ -19,6 +19,7 @@ import {
   MORPH_METHODS,
   MORPH_PAINT_FIELDS,
   MORPH_POLICY_FIELDS,
+  MORPH_REPLAY_FIELDS,
   MORPH_ROOT_FIELDS,
   MORPH_SYNCS,
   MORPH_TIMING_FIELDS,
@@ -35,7 +36,7 @@ import {
   type Position,
 } from "vscode-languageserver";
 
-const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "clips", "paints", "between", "targets", "rest"]);
+const CONTAINER_KEYS = new Set(["layers", "keyframes", "timing", "replay", "clips", "paints", "between", "targets", "rest"]);
 const CONDITION_KEYS = new Set<string>(MORPH_CONDITION_FIELDS);
 const KEYFRAME_POSITIONS = ["from", "to"];
 
@@ -165,7 +166,7 @@ export function getMorphCompletions(
   };
   const inPaint = path[0] === "paints";
   const docs = (name: string) => {
-    const scoped = path[0] === "paints" || path[0] === "clips" ? MORPH_FIELD_DOCS[`${path[0]}.${name}`] : undefined;
+    const scoped = path[0] === "paints" || path[0] === "clips" || path[0] === "replay" ? MORPH_FIELD_DOCS[`${path[0]}.${name}`] : undefined;
     const doc = scoped ?? MORPH_FIELD_DOCS[name];
     return doc ? { kind: MarkupKind.Markdown, value: doc } : undefined;
   };
@@ -359,6 +360,8 @@ export function getMorphCompletions(
     addField("state");
   } else if (first === "timing" && path.length === 1) {
     MORPH_TIMING_FIELDS.forEach(addField);
+  } else if (first === "replay" && (path.length === 1 || (path.length === 2 && second === "-"))) {
+    MORPH_REPLAY_FIELDS.forEach(addField);
   } else if (first === "layers" && path.length === 1) {
     for (const label of labels) addLabel(label, containerSuffix, "layer label");
   } else if (first === "layers" && path.length === 2) {

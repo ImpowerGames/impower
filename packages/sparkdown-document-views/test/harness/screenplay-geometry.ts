@@ -1,4 +1,4 @@
-import { RangeSet } from "@codemirror/state";
+import { RangeSet, StateEffect } from "@codemirror/state";
 import { BlockType, type BlockInfo, type EditorView, type WidgetType } from "@codemirror/view";
 import type { ScreenplayConfig } from "../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import CollapseWidget from "../../src/modules/screenplay-preview/classes/widgets/CollapseWidget";
@@ -7,14 +7,24 @@ import HiddenLineWidget from "../../src/modules/screenplay-preview/classes/widge
 import InsertedRowWidget from "../../src/modules/screenplay-preview/classes/widgets/InsertedRowWidget";
 import NameWidget from "../../src/modules/screenplay-preview/classes/widgets/NameWidget";
 import PageBreakWidget from "../../src/modules/screenplay-preview/classes/widgets/PageBreakWidget";
+import PrintedParagraphWidget, {
+  PARAGRAPH_CLASS,
+} from "../../src/modules/screenplay-preview/classes/widgets/PrintedParagraphWidget";
 import TitlePageWidget from "../../src/modules/screenplay-preview/classes/widgets/TitlePageWidget";
 import createEditorView from "../../src/modules/screenplay-preview/utils/createEditorView";
-import { decorate } from "../../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { decorate, wholeParagraphLength } from "../../src/modules/screenplay-preview/utils/screenplayFormatting";
 import { settleParse } from "../helpers/parseSettle";
 
 let view: EditorView | undefined;
 
-const render = (name: string, text: string, config: ScreenplayConfig, scenesBefore: number, width: number) => {
+const render = (
+  name: string,
+  text: string,
+  config: ScreenplayConfig,
+  scenesBefore: number,
+  width: number,
+  paragraphLength?: number,
+) => {
   const section = document.body.appendChild(document.createElement("section"));
   section.dataset["fixture"] = name;
   section.style.width = `${width}px`;
@@ -23,7 +33,90 @@ const render = (name: string, text: string, config: ScreenplayConfig, scenesBefo
     config,
     scenesBefore,
   });
+  if (paragraphLength !== undefined) {
+    view.dispatch({ effects: StateEffect.appendConfig.of(wholeParagraphLength.of(paragraphLength)) });
+  }
   settleParse(view);
+};
+
+const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+const paragraphDrawing = async (firstLine: number, lastLine = firstLine) => {
+  if (!view) return undefined;
+  const current = view;
+  const first = current.state.doc.line(firstLine);
+  const last = current.state.doc.line(lastLine);
+  current.dispatch({ selection: { anchor: last.to - 1 } });
+  current.dom.scrollIntoView();
+  await frames();
+  const elements = Array.from(current.contentDOM.children).filter((child): child is HTMLElement => {
+    if (!(child instanceof HTMLElement) || child.getBoundingClientRect().height < 1) return false;
+    const position = current.posAtDOM(child);
+    return position >= first.from && position <= last.to;
+  });
+  const element = elements.find((found) => found.matches(".cm-activeLine, .sp-lit")) ?? elements.at(-1);
+  if (!element) return undefined;
+  const content = current.contentDOM.getBoundingClientRect();
+  const rects = elements.map((found) => found.getBoundingClientRect());
+  const box = {
+    left: Math.min(...rects.map((rect) => rect.left)),
+    top: Math.min(...rects.map((rect) => rect.top)),
+    width: Math.max(...rects.map((rect) => rect.right)) - Math.min(...rects.map((rect) => rect.left)),
+    height: Math.max(...rects.map((rect) => rect.bottom)) - Math.min(...rects.map((rect) => rect.top)),
+  };
+  const lit = getComputedStyle(element);
+  const opacityOf = (node: Element | null) => {
+    let opacity = 1;
+    for (let at = node; at && at !== current.contentDOM; at = at.parentElement) opacity *= Number(getComputedStyle(at).opacity);
+    return opacity;
+  };
+  const decorationOf = (node: Element | null) => {
+    const lines = new Set<string>();
+    for (let at = node; at && at !== current.contentDOM; at = at.parentElement) {
+      for (const kind of getComputedStyle(at).textDecorationLine.split(" ")) if (kind !== "none") lines.add(kind);
+    }
+    return [...lines].sort().join(" ");
+  };
+  const glyphs: string[] = [];
+  const range = document.createRange();
+  const textNodes = elements.flatMap((found) => {
+    const walker = document.createTreeWalker(found, NodeFilter.SHOW_TEXT);
+    const nodes: Node[] = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+    return nodes;
+  });
+  for (const node of textNodes) {
+    const text = node.textContent ?? "";
+    const parent = node.parentElement;
+    const style = parent ? getComputedStyle(parent) : undefined;
+    const decoration = decorationOf(parent);
+    for (let index = 0; index < text.length; index++) {
+      if (/\s/.test(text[index]!) && !decoration) continue;
+      range.setStart(node, index);
+      range.setEnd(node, index + 1);
+      const rect = range.getBoundingClientRect();
+      if (rect.width < 0.5) continue;
+      glyphs.push(
+        [
+          text[index],
+          (rect.left - content.left).toFixed(1),
+          (rect.top - content.top).toFixed(1),
+          style?.fontWeight,
+          style?.fontStyle,
+          style?.color,
+          decoration,
+          opacityOf(parent).toFixed(2),
+        ].join(" "),
+      );
+    }
+  }
+  return {
+    paragraph: elements.some((found) => found.classList.contains(PARAGRAPH_CLASS)),
+    inserted: elements.reduce((count, found) => count + found.querySelectorAll(".sp-inserted").length, 0),
+    box: [box.left - content.left, box.top - content.top, box.width, box.height].map((value) => value.toFixed(1)).join(" "),
+    lit: [lit.backgroundColor, lit.boxShadow, lit.borderRadius].join(" | "),
+    glyphs,
+  };
 };
 
 const titlePageEstimate = () => {
@@ -82,7 +175,9 @@ const blockKind = (block: BlockInfo) =>
     ? "collapse"
     : block.widget instanceof HiddenLineWidget
       ? "hidden line"
-      : (widgetKind(block.widget) ?? (block.widget ? "other widget" : "text"));
+      : block.widget instanceof PrintedParagraphWidget
+        ? "paragraph"
+        : (widgetKind(block.widget) ?? (block.widget ? "other widget" : "text"));
 
 const blockHeights = () => {
   if (!view) return { row: 0, blocks: [] };
@@ -122,4 +217,4 @@ const lineDrift = () => {
   return drifts;
 };
 
-Object.assign(window, { renderScreenplay: render, titlePageEstimate, widgetHeights, blockHeights, lineDrift });
+Object.assign(window, { renderScreenplay: render, titlePageEstimate, widgetHeights, blockHeights, lineDrift, paragraphDrawing });
