@@ -555,7 +555,7 @@ async function shortcutPass(page, deps) {
     const editor = await deps.protocolRequest(page, "editor/read").catch(() => null);
     const dom = await page.evaluate(() => ({
       hash: location.hash,
-      overlays: [...document.querySelectorAll('[role="dialog"], [role="menu"], [role="tooltip"], .cm-panel, .cm-tooltip, [role="listbox"], [role="region"][aria-label]')].filter((el) => el.checkVisibility()).map((el) => el.getAttribute("aria-label") || el.className || el.getAttribute("role")).join("|"),
+      overlays: [...document.querySelectorAll('[role="dialog"], [role="menu"], [role="tooltip"], .cm-panel, .cm-tooltip, [role="listbox"], [role="region"][aria-label], aside[aria-label], section[aria-label]')].filter((el) => el.checkVisibility()).map((el) => el.getAttribute("aria-label") || el.className || el.getAttribute("role")).join("|"),
       carets: document.querySelectorAll(".cm-cursor").length,
       folds: document.querySelectorAll(".cm-foldPlaceholder").length,
       selections: document.querySelectorAll(".cm-selectionBackground").length,
