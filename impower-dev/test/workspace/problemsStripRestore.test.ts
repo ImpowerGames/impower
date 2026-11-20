@@ -68,13 +68,37 @@ describe("the compact preview strip around the Problems panel", () => {
     expect(strip()).toBeUndefined();
   });
 
+  const resizeByHand = (height: number | undefined) => {
+    store.keepStripHeight();
+    Workspace.window.setStripHeight(height);
+  };
+
   it("keeps a height the user set while Problems was open", async () => {
     Workspace.window.setStripHeight(334);
     store.togglePanel();
     await settle();
-    Workspace.window.setStripHeight(700);
+    resizeByHand(700);
     store.togglePanel();
     await settle();
     expect(strip()).toBe(700);
+  });
+
+  it("keeps a height the user set to exactly the raised height", async () => {
+    Workspace.window.setStripHeight(334);
+    store.togglePanel();
+    await settle();
+    const raised = strip();
+    resizeByHand(raised);
+    store.togglePanel();
+    await settle();
+    expect(strip()).toBe(raised);
+  });
+
+  it("leaves the strip at its earlier height when Problems closes before the raise lands", async () => {
+    Workspace.window.setStripHeight(334);
+    store.togglePanel();
+    store.togglePanel();
+    await settle();
+    expect(strip()).toBe(334);
   });
 });

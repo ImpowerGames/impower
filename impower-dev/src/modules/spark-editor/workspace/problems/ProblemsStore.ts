@@ -156,7 +156,7 @@ export class ProblemsStore {
 
   protected _openHeight = PANEL_OPEN_HEIGHT;
 
-  protected _stripRestore?: { before: number | undefined; raised: number };
+  protected _stripRestore?: { before: number | undefined };
 
   protected _leftForScript = false;
 
@@ -309,14 +309,20 @@ export class ProblemsStore {
       workspaceSettings.projectSettings.value.previewPanelHeight +
       STRIP_ABOVE_PANEL;
     if (this.panelOpen.value && strip < room) {
-      this._stripRestore = {
+      const restore = {
         before: this._stripRestore ? this._stripRestore.before : stored,
-        raised: room,
       };
-      void import("../Workspace").then(({ Workspace }) =>
-        Workspace.window.setStripHeight(room),
-      );
+      this._stripRestore = restore;
+      void import("../Workspace").then(({ Workspace }) => {
+        if (this._stripRestore === restore) {
+          Workspace.window.setStripHeight(room);
+        }
+      });
     }
+  }
+
+  keepStripHeight() {
+    this._stripRestore = undefined;
   }
 
   collapsePanel() {
@@ -328,10 +334,7 @@ export class ProblemsStore {
     }
     const restore = this._stripRestore;
     this._stripRestore = undefined;
-    if (
-      restore &&
-      workspace.state.value.shell?.stripHeight === restore.raised
-    ) {
+    if (restore) {
       void import("../Workspace").then(({ Workspace }) =>
         Workspace.window.setStripHeight(restore.before),
       );
