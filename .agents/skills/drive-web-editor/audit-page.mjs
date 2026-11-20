@@ -59,6 +59,7 @@ export function auditScan({ parts, coarse, minTarget }) {
   const inViewport = (r) => r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
   const shown = (el) => el.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true });
   const exempt = (el) => !!el.closest(':disabled, [aria-disabled="true"], [inert], [aria-hidden="true"]');
+  const disabled = (el) => !!el.closest(':disabled, [aria-disabled="true"], [inert]');
 
   const backdrop = (el) => {
     let color = { r: 0, g: 0, b: 0, a: 0 };
@@ -89,7 +90,7 @@ export function auditScan({ parts, coarse, minTarget }) {
     };
     for (const el of document.body.querySelectorAll("*")) {
       if (el.closest("iframe, script, style, template, noscript")) continue;
-      if (exempt(el)) continue;
+      if (disabled(el)) continue;
       const text = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
       const isIcon = el.localName === "svg" && !el.parentElement.closest("svg");
       const isControl = el.matches('input:not([type="hidden"]):not([type="range"]), textarea, select, [role="switch"], [role="checkbox"], [role="radio"]');
@@ -106,7 +107,9 @@ export function auditScan({ parts, coarse, minTarget }) {
         const value = ratio(effective, back.color);
         push({ kind: "text", where, sample: text.slice(0, 40), fg: hex(effective), bg: hex(back.color), ratio: Math.round(value * 100) / 100, needs: textNeeds(style), unresolved: back.unresolved, script: region(el) === "script" });
       } else if (isIcon) {
-        const paint = [style.stroke, style.fill].find((v) => v && v !== "none" && !/^url/.test(v)) ?? style.color;
+        const shape = el.querySelector("path, circle, rect, line, polyline, polygon, ellipse") ?? el;
+        const drawn = getComputedStyle(shape);
+        const paint = [drawn.stroke, drawn.fill].find((v) => v && v !== "none" && !/^url/.test(v) && rgba(v).a > 0) ?? style.color;
         const fg = rgba(paint);
         if (fg.a === 0) continue;
         const effective = over({ ...fg, a: fg.a * back.opacity }, back.color);
@@ -308,11 +311,15 @@ export function focusState() {
       if (role) part += `[role=${role}]`;
       const label = n.getAttribute("aria-label");
       if (label) part += `[aria-label="${label.slice(0, 40)}"]`;
+      const siblings = n.parentElement ? [...n.parentElement.children].filter((c) => c.localName === n.localName) : [];
+      if (!n.id && !label && siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(n) + 1})`;
       parts.unshift(part);
       if (n.id || label) break;
     }
     return parts.join(" > ");
   };
+  const ids = (window.__auditStopIds ??= new WeakMap());
+  if (!ids.has(el)) ids.set(el, (window.__auditStopCount = (window.__auditStopCount ?? 0) + 1));
   const name = (el.getAttribute("aria-label") || el.getAttribute("title") || el.innerText || el.getAttribute("placeholder") || "").trim().replace(/\s+/g, " ").slice(0, 50);
   const role = el.getAttribute("role") || el.localName;
   const native = el.matches('button, a[href], input, select, textarea, summary, [contenteditable="true"], iframe');
@@ -333,7 +340,8 @@ export function focusState() {
   const s = getComputedStyle(el);
   const ring = s.outlineStyle !== "none" && parseFloat(s.outlineWidth) > 0;
   return {
-    key: describe(el),
+    key: `stop:${ids.get(el)}`,
+    where: describe(el),
     tag: el.localName,
     role,
     name,

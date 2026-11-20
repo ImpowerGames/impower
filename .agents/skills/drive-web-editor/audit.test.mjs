@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { AUDIT_PARTS, AUDIT_THEMES, DOC_BEGIN, DOC_END, FIXTURE, bannedWords, contrastFailures, contrastRatio, copyFindings, editorShortcutRows, glossaryStrings, parseAuditArgs, playwrightCombo, renderMarkdown, replaceGenerated, tabOrder, titleCaseWords, writeFixture } from "./audit.mjs";
+import { AUDIT_PARTS, AUDIT_THEMES, DOC_BEGIN, DOC_END, FIXTURE, bannedWords, copyFindings, editorShortcutRows, glossaryStrings, parseAuditArgs, playwrightCombo, renderMarkdown, replaceGenerated, tabOrder, titleCaseWords, writeFixture } from "./audit.mjs";
 import { auditScan } from "./audit-page.mjs";
 
 let failures = 0;
@@ -35,24 +35,6 @@ await check("arguments default to every part, theme and route, and --out is requ
 await check("the eight themes are the ones the editor offers, with Charcoal and Chalk held to the bar", () => {
   assert.deepEqual(AUDIT_THEMES.map((t) => t.id), ["charcoal", "chalk", "ink", "paper", "graphite", "warm", "midnight", "dusk"]);
   assert.deepEqual(AUDIT_THEMES.filter((t) => t.bar).map((t) => t.id), ["charcoal", "chalk"]);
-});
-
-await check("contrast ratios match WCAG 2's published extremes and the design reference", () => {
-  assert.equal(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 }), 21);
-  assert.equal(contrastRatio({ r: 119, g: 119, b: 119 }, { r: 255, g: 255, b: 255 }).toFixed(2), "4.48");
-  assert.equal(contrastRatio({ r: 0xf0, g: 0xef, b: 0xeb }, { r: 0x20, g: 0x21, b: 0x23 }).toFixed(2), "14.00");
-});
-
-await check("a failure is a measured pair under its threshold, with the script's colours counted apart", () => {
-  const rows = [
-    { ratio: 4.4, needs: 4.5 },
-    { ratio: 4.5, needs: 4.5 },
-    { ratio: 2.9, needs: 3 },
-    { ratio: 1, needs: 3, unresolved: "no boundary is drawn" },
-    { ratio: 2, needs: 4.5, script: true },
-  ];
-  assert.deepEqual(contrastFailures(rows).map((r) => r.ratio), [4.4, 2.9]);
-  assert.deepEqual(contrastFailures(rows, { script: true }).map((r) => r.ratio), [4.4, 2.9, 2]);
 });
 
 await check("old words are caught as words, not inside other words", () => {
@@ -132,6 +114,25 @@ try {
 
 if (browser) {
   const page = await browser.newPage({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true });
+
+  await check("the scan's contrast maths matches WCAG 2's published values", async () => {
+    await page.setContent('<style>body{background:#fff}p{margin:4px;font-size:14px}</style><p style="color:#000">Black</p><p style="color:#777">Grey</p><div style="background:#202123;padding:4px"><p style="color:#f0efeb">Charcoal ink</p></div>');
+    const scan = await page.evaluate(auditScan, { parts: ["contrast"], coarse: false, minTarget: 44 });
+    assert.deepEqual(scan.contrast.map((row) => [row.sample, row.ratio, row.needs]), [["Black", 21, 4.5], ["Grey", 4.48, 4.5], ["Charcoal ink", 14, 4.5]]);
+  });
+
+  await check("an icon hidden from screen readers is still measured, because it is still seen", async () => {
+    await page.setContent('<style>body{background:#fff}button{background:#fff;border:0;color:#fff;width:44px;height:44px}</style><button aria-label="Close"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><path d="M2 2L14 14" stroke="currentColor"/></svg></button>');
+    const scan = await page.evaluate(auditScan, { parts: ["contrast"], coarse: false, minTarget: 44 });
+    const icon = scan.contrast.find((row) => row.kind === "icon");
+    assert.ok(icon && icon.ratio === 1 && icon.needs === 3, JSON.stringify(scan.contrast));
+  });
+
+  await check("the keyboard pass keeps sibling stops that share a description", async () => {
+    await page.setContent('<nav aria-label="Settings sections"><div role="group" aria-label="Editor"><button>Appearance</button><button>Script editing</button><button>Keyboard shortcuts</button></div></nav><button>Done</button>');
+    const { stops } = await tabOrder(page, { limit: 8, deps: { reloadEditorPage: async () => {}, waitForApp: async () => {} } });
+    assert.deepEqual(stops.map((s) => s.name), ["Appearance", "Script editing", "Keyboard shortcuts", "Done"]);
+  });
 
   await check("two sibling controls are measured apart, so a small one beside a large one fails", async () => {
     await page.setContent('<style>body{margin:8px}button{width:100px;height:44px}button+button{height:20px}</style><nav aria-label="Settings sections"><div role="group" aria-label="Editor"><button>Appearance</button><button>Shortcuts</button></div></nav>');

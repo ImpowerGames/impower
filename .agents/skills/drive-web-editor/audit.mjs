@@ -95,23 +95,6 @@ export function parseAuditArgs(args) {
   return out;
 }
 
-export function luminance({ r, g, b }) {
-  const channel = (v) => {
-    const c = v / 255;
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
-export function contrastRatio(a, b) {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-export function contrastFailures(rows, { script = false } = {}) {
-  return rows.filter((row) => row.ratio < row.needs && !row.unresolved && (script || !row.script));
-}
-
 export function bannedWords(strings) {
   const hits = [];
   for (const s of strings) for (const { word, test } of BANNED_WORDS) if (test.test(s.text)) hits.push({ word, ...s });
