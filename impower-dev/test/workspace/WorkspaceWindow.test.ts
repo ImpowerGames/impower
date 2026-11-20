@@ -944,10 +944,15 @@ describe("WorkspaceWindow store transitions", () => {
       ["#collection", "#assets"],
       ["#project?section=file-types", "#settings?section=file-types"],
       ["#write", "#story"],
-    ])("follows the old name %s typed into the address bar and rewrites it to %s", (old, current) => {
-      window.history.pushState(null, "", old);
-      window.dispatchEvent(new HashChangeEvent("hashchange"));
-      return vi.waitFor(() => expect(window.location.hash).toBe(current));
+    ])("follows the old name %s typed into the address bar and rewrites it to %s", async (old, current) => {
+      const before = workspace.current;
+      try {
+        window.history.pushState(null, "", old);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        await vi.waitFor(() => expect(window.location.hash).toBe(current));
+      } finally {
+        workspace.current = before;
+      }
     });
 
     it("keeps a settings deep link's section in the hash while it opens the page", () => {
