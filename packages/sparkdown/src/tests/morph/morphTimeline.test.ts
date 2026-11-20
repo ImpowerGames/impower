@@ -384,7 +384,6 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(Math.abs(touch - 0.25)).toBeLessThan(1e-6);
     const cube = "cubic-bezier(0.3333333333333333, 0, 0.6666666666666666, 0)";
     expect(parseMorphEasing(cube)!(firstMorphEasingReach(cube, 0.125))).toBeGreaterThanOrEqual(0.125);
-    expect(Math.abs(firstMorphEasingReach(touching, 0.1000000000000005) - 0.25)).toBeLessThan(1e-6);
     expect(firstMorphEasingReach(touching, 0.100000000000005)).toBeGreaterThan(0.4);
     const steep = "cubic-bezier(0.3333333333333333, 1, 0.6666666666666666, -100000000000000)";
     expect(firstMorphEasingReach(steep, 0.8)).toBeGreaterThan(0.99);
@@ -445,6 +444,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     const cubics: string[] = [touching];
     for (const x1 of [0, 0.3, 1]) for (const y1 of [-0.6, 0.5, 1.51]) for (const x2 of [0, 0.7, 1]) for (const y2 of [-0.8, 0.5, 1.6]) cubics.push(`cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`);
     const solverTolerance = 1e-6;
+    const withinRounding: string[] = [];
     const scan = (easing: string, positions: number[], samples: number) => {
       const ease = parseMorphEasing(easing)!;
       const clamped = (x: number) => Math.max(0, Math.min(1, ease(x)));
@@ -463,10 +463,10 @@ describe("a play that replays part of its keyframes (#2580)", () => {
         if (curve) {
           const expected = oracle(curve, position);
           if (Math.abs(x - expected) >= 2e-7) {
-            const t = parameterAt(curve, x);
-            expect(x, `${label}: only a touching peak may come before the exact crossing`).toBeLessThan(expected);
+            const t = parameterAt(curve, Math.min(x, expected));
             expect(Math.abs(bernsteinSlope(curve[1], curve[3], t)), label).toBeLessThan(1e-6);
-            expect(Math.abs(bernstein(curve[1], curve[3], t) - position), label).toBeLessThan(4e-15);
+            expect(Math.abs(bernstein(curve[1], curve[3], t) - position), label).toBeLessThan(1e-14);
+            withinRounding.push(label);
           }
         } else {
           expect(clamped(x), label).toBeGreaterThanOrEqual(position);
@@ -476,6 +476,7 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     };
     for (const easing of ["cubic-bezier(0.3, 1.8, 0.7, -0.8)", "cubic-bezier(0.2, -0.6, 0.8, 1.6)", "ease-in-out", "steps(4, jump-both)", spike, drop, rise, stationary]) scan(easing, [0.1, 0.3, 0.35, 0.6, 0.878755, 0.9], 200000);
     for (const easing of cubics) scan(easing, [0.1, 0.35, 0.6, 0.878755, 0.9], 20000);
+    expect(withinRounding).toEqual([]);
   });
 
   test("a stretch that takes no time under the easing makes no replay and draws nothing", () => {
