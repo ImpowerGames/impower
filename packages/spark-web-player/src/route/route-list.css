@@ -350,12 +350,6 @@
 
 :is(spark-web-player, swp-route-view) .sv-row {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) var(--swp-route-control-size);
-  align-items: center;
-  gap: 8px;
-  height: var(--swp-route-row-height);
-  padding-left: 8px;
 }
 
 :is(spark-web-player, swp-route-view) .sv-row[data-set]::before {
@@ -452,6 +446,11 @@
 :is(spark-web-player, swp-route-view) .sv-badge {
   position: relative;
   display: flex;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
   outline: none;
   cursor: default;
 }
