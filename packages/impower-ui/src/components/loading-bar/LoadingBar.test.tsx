@@ -21,6 +21,12 @@ type FakeAnimation = {
 
 let animations: FakeAnimation[] = [];
 let reducedMotion = false;
+let motionListeners: (() => void)[] = [];
+
+const setReducedMotion = (value: boolean) => {
+  reducedMotion = value;
+  for (const listener of motionListeners) listener();
+};
 let host: HTMLDivElement;
 
 const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve));
@@ -59,10 +65,19 @@ beforeEach(() => {
   vi.useFakeTimers();
   animations = [];
   reducedMotion = false;
+  motionListeners = [];
   vi.stubGlobal(
     "matchMedia",
     vi.fn((query: string) => ({
-      matches: query.includes("reduce") && reducedMotion,
+      get matches() {
+        return query.includes("reduce") && reducedMotion;
+      },
+      addEventListener: (_type: string, listener: () => void) => {
+        motionListeners.push(listener);
+      },
+      removeEventListener: (_type: string, listener: () => void) => {
+        motionListeners = motionListeners.filter((l) => l !== listener);
+      },
     })),
   );
   Element.prototype.animate = function (
@@ -192,6 +207,21 @@ describe("LoadingBar", () => {
     expect(sweep!.cancelled).toBe(true);
     expect(bar.style.opacity).toBe("0");
     expect(animations).toEqual([sweep]);
+  });
+
+  it("turns a running sweep into the static bar when reduced motion turns on while loading", async () => {
+    const { bar, segment } = await mount(false);
+    await setActive(bar, true);
+    vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS);
+    const [sweep] = live(segment);
+    setReducedMotion(true);
+    expect(sweep!.cancelled).toBe(true);
+    expect(live(segment)).toHaveLength(0);
+    expect(segment.style.transform).toBe("none");
+    expect(bar.style.opacity).toBe("1");
+    setReducedMotion(false);
+    const [restarted] = live(segment);
+    expect(restarted?.keyframes[0]?.transform).toBe("translateX(-50%) scaleX(0.5)");
   });
 
   it("shows a static full-width bar with no sweep under reduced motion", async () => {

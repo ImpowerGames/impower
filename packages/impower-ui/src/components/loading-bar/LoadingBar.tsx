@@ -32,9 +32,11 @@ export function setLoadingBarActive(
   bar?.setAttribute("data-active", String(active));
 }
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
 const prefersReducedMotion = () =>
   typeof window.matchMedia === "function" &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.matchMedia(REDUCED_MOTION_QUERY).matches;
 
 function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
   let showTimer = 0;
@@ -140,6 +142,34 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
     }
   };
 
+  const onMotionChange = () => {
+    if (!shown) {
+      return;
+    }
+    const reduced = prefersReducedMotion();
+    if (fade) {
+      if (reduced) {
+        hide();
+      }
+      return;
+    }
+    if (finish && !reduced) {
+      return;
+    }
+    finish?.cancel();
+    finish = undefined;
+    if (bar.getAttribute("data-active") === "false") {
+      fadeOut();
+    } else {
+      show();
+    }
+  };
+
+  const motionQuery =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia(REDUCED_MOTION_QUERY)
+      : undefined;
+  motionQuery?.addEventListener?.("change", onMotionChange);
   apply(bar.getAttribute("data-active") !== "false");
   const observer = new MutationObserver(() =>
     apply(bar.getAttribute("data-active") !== "false"),
@@ -147,6 +177,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
   observer.observe(bar, { attributes: true, attributeFilter: ["data-active"] });
   return () => {
     observer.disconnect();
+    motionQuery?.removeEventListener?.("change", onMotionChange);
     window.clearTimeout(showTimer);
     cancelMotion();
   };
