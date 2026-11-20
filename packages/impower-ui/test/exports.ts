@@ -33,6 +33,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "audioWaveVariants",
   "clock",
   "setLoadingBarActive",
+  "TOAST_TRANSITION_MS",
   "useEscapeWithin",
   "portraitThumbnailVariants",
   "portraitCropLabel",

@@ -2,22 +2,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useCoarsePointer } from "../../hooks/useCoarsePointer";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import { topToastLayer } from "../../utils/toastLayer";
 import Button from "../button/Button";
-import {
-  CloseIcon,
-} from "../icon/icons.generated";
 
 export const TOAST_TRANSITION_MS = 150;
 export const TOAST_SWIPE_DISMISS_PX = 24;
 
 export const toastVariants = cva(
   [
-    "pointer-events-auto flex max-w-[calc(100vw-28px)] min-h-11 touch-none flex-row items-center gap-3",
-    "rounded-toast border border-edge bg-elevated py-1 pl-4 pr-1 text-[14px]/[1.5] text-ink shadow-float",
+    "pointer-events-auto flex max-w-[max(calc(var(--toast-width,100vw)-var(--toast-inset)),min(calc(var(--toast-width,100vw)-28px),320px))] min-h-11 touch-none flex-row items-center gap-2",
+    "rounded-toast bg-ink py-0 pl-4 pr-1 text-[12px]/[1.5] text-bg shadow-float",
   ],
   {
     variants: {
@@ -52,7 +48,6 @@ export default function Toast({
   class: className,
 }: ToastProps) {
   const { mounted } = useMountTransition(open, TOAST_TRANSITION_MS);
-  const coarse = useCoarsePointer();
   const swipeStart = useRef<number | null>(null);
   const [lift, setLift] = useState(0);
 
@@ -72,7 +67,7 @@ export default function Toast({
       return;
     }
     swipeStart.current = null;
-    if (open && lift <= -TOAST_SWIPE_DISMISS_PX) {
+    if (open && Math.abs(lift) >= TOAST_SWIPE_DISMISS_PX) {
       onDismiss();
     } else {
       setLift(0);
@@ -81,7 +76,7 @@ export default function Toast({
 
   return createPortal(
     <div
-      class="pointer-events-none fixed inset-x-0 top-[var(--toast-top)] z-[60] flex justify-center px-3.5"
+      class="pointer-events-none fixed top-[var(--toast-top)] bottom-[var(--toast-bottom)] left-[var(--toast-left,0px)] z-[60] flex h-[var(--toast-height)] w-[var(--toast-width,100vw)] items-center justify-center"
       role="status"
       aria-live="polite"
     >
@@ -98,7 +93,7 @@ export default function Toast({
         }}
         onPointerMove={(event) => {
           if (swipeStart.current !== null) {
-            setLift(Math.min(0, event.clientY - swipeStart.current));
+            setLift(event.clientY - swipeStart.current);
           }
         }}
         onPointerUp={endSwipe}
@@ -108,7 +103,7 @@ export default function Toast({
         {actionLabel && (
           <Button
             variant="quiet"
-            class="text-accent"
+            class="font-semibold text-bg"
             onClick={() => {
               if (open) {
                 onAction?.();
@@ -116,20 +111,6 @@ export default function Toast({
             }}
           >
             {actionLabel}
-          </Button>
-        )}
-        {!coarse && (
-          <Button
-            variant="quiet"
-            size="icon"
-            aria-label="Dismiss"
-            onClick={() => {
-              if (open) {
-                onDismiss();
-              }
-            }}
-          >
-            <CloseIcon />
           </Button>
         )}
       </div>

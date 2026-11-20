@@ -111,6 +111,7 @@ export class GotoLinePanel implements Panel {
         EditorView.scrollIntoView(selection.from, { y: "center" }),
       ],
       selection,
+      userEvent: "select",
     });
     this.view.focus();
   }

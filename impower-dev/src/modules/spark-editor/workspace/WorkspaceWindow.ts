@@ -2364,7 +2364,7 @@ export default class WorkspaceWindow {
     if (this.store.preview.revealed) {
       this.collapsePreviewPane();
     }
-    const result = await this.showDocument(uri, range, takeFocus);
+    const result = await this.showDocument(uri, range, takeFocus, true);
     if (routeOfState(this.store) !== "story") {
       this.navigateTo("story");
     }

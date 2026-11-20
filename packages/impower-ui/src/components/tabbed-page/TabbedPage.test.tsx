@@ -44,7 +44,8 @@ describe("TabbedPage", () => {
     expect(tabs[1]!.getAttribute("aria-selected")).toBe("true");
     expect(tabs[0]!.className).toContain("min-h-12");
     const panel = section.querySelector('[role="tabpanel"]')!;
-    expect(panel.getAttribute("aria-label")).toBe("Second");
+    expect(document.getElementById(panel.getAttribute("aria-labelledby")!)).toBe(tabs[1]);
+    expect(tabs.map((tab) => document.getElementById(tab.getAttribute("aria-controls")!))).toEqual([panel, panel]);
     expect(panel.querySelector('[data-body="two"]')).not.toBeNull();
     expect(section.querySelector('[data-body="one"]')).toBeNull();
     const back = Array.from(section.querySelectorAll("button")).find((b) => b.textContent === "Back to story")!;

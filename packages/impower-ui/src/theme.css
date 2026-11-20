@@ -652,8 +652,12 @@
   --preview-top-bar-height: 52px;
   --preview-bar-height: 62px;
   --preview-strip-height: 91px;
+  --bottom-navigation-height: 65px;
   --toast-gap: 8px;
-  --toast-top: calc(var(--title-bar-height) + var(--script-header-height) + var(--toast-gap));
+  --toast-top: 0px;
+  --toast-bottom: auto;
+  --toast-height: var(--title-bar-height);
+  --toast-inset: 280px;
   --sheet-gesture-clearance: 8px;
   --list-row-gutter: 26px;
 }
@@ -667,13 +671,19 @@
   --title-bar-height: 54px;
   --list-row-gutter: 22px;
   --script-header-height: 48px;
-  --toast-top: calc(var(--title-bar-height) + var(--preview-top-bar-height) + var(--toast-gap));
 }
 
 :root[data-layout="phone"] {
   --title-bar-height: 90px;
   --script-header-height: 48px;
-  --toast-top: calc(var(--title-bar-height) + var(--preview-strip-height) + var(--script-header-height) + var(--toast-gap));
+  --toast-top: auto;
+  --toast-bottom: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom) + var(--toast-gap));
+  --toast-height: auto;
+  --toast-inset: 28px;
+}
+
+:root[data-layout="phone"].keyboard-open {
+  --toast-bottom: var(--toast-gap);
 }
 
 [data-theme="chalk"] {
