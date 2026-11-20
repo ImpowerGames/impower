@@ -59,6 +59,81 @@ const markupOn = async (
   return markup;
 };
 
+type BarState = "collection" | "write" | "editing" | "naming";
+
+const markupIn = async (barState: BarState) => {
+  const route = barState === "collection" ? "collection" : "write";
+  workspace.state.value = stateForRoute(
+    workspace.state.value as WorkspaceCache,
+    route,
+  );
+  workspace.layout.value = "phone";
+  workspace.scriptMode.value = barState === "editing" ? "editing" : "reading";
+  const host = document.body.appendChild(document.createElement("div"));
+  try {
+    await act(async () => render(h(PhoneTitleBar, { scrolled: false }), host));
+    if (barState === "naming") {
+      await act(async () =>
+        host
+          .querySelector<HTMLInputElement>('input[aria-label="Project name"]')!
+          .focus(),
+      );
+    }
+    return host.innerHTML;
+  } finally {
+    await act(async () => render(null, host));
+    host.remove();
+    workspace.scriptMode.value = "reading";
+  }
+};
+
+const measureEdges = async (markup: string, width: number) => {
+  const css = await stylesFor(markup);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({
+      viewport: { width, height: 780 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    await page.setContent(
+      `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
+    );
+    return await page.evaluate(() => {
+      const bar = document.querySelector<HTMLElement>("[data-phone-title-bar]")!;
+      const style = getComputedStyle(bar);
+      const controls = [...bar.children].filter(
+        (child) => getComputedStyle(child).position !== "absolute",
+      );
+      const last = controls.at(-1)!;
+      const group = last.matches("button") ? null : last;
+      const logo = bar.querySelector('[aria-label="Spark Engine"] svg');
+      return {
+        inset: `${style.paddingLeft} ${style.paddingRight}`,
+        gap: style.columnGap,
+        groupGap: group ? getComputedStyle(group).columnGap : null,
+        firstLeft: controls[0]!.getBoundingClientRect().x,
+        lastRight: last.getBoundingClientRect().right,
+        controlWidths: [...bar.querySelectorAll("button")]
+          .slice(-2)
+          .map((b) => b.getBoundingClientRect().width),
+        search: (() => {
+          const box = bar
+            .querySelector('button[aria-label="Search"]')
+            ?.getBoundingClientRect();
+          return box ? box.x + box.width / 2 : null;
+        })(),
+        logoX: logo ? logo.getBoundingClientRect().x : null,
+        labels: [...bar.querySelectorAll("button")].map((b) =>
+          b.getAttribute("aria-label"),
+        ),
+      };
+    });
+  } finally {
+    await browser.close();
+  }
+};
+
 const stylesFor = async (markup: string) => {
   const compiler = await compile('@import "./src/style.css";', {
     base: UI_PACKAGE,
@@ -139,12 +214,14 @@ describe(
   "the phone title bar against the Folio prototype",
   () => {
     it.each([
-      [430, 347, 398],
-      [360, 277, 328],
-    ])(
-      "at %ipx on a page other than the Story, sits on the prototype's 10px inset with 7px gaps",
-      async (width, search, menu) => {
-        const bar = await measure(await markupOn("collection"), width);
+      [430, "collection", 347, 398],
+      [360, "collection", 277, 328],
+      [430, "write", 347, 398],
+      [360, "write", 277, 328],
+    ] as const)(
+      "at %ipx on %s, sits on one 10px inset with 7px gaps",
+      async (width, route, search, menu) => {
+        const bar = await measure(await markupOn(route), width);
         expect(bar.logoBox).toEqual({ width: 44, height: 44 });
         expect(bar.logo).toEqual({ x: 20, width: 24, height: 30 });
         expect(bar.name.x).toBe(61);
@@ -159,30 +236,47 @@ describe(
     );
 
     it.each([
-      [430, 360, 404],
-      [360, 290, 334],
-    ])(
-      "at %ipx on the Story, the bar that carries the edit history, sits on the prototype's 8px and 4px inset with no gap",
-      async (width, search, menu) => {
-        const bar = await measure(await markupOn("write"), width);
-        expect(bar.logo.x).toBe(18);
-        expect(bar.name.x).toBe(56);
-        expect(bar.statusX).toBe(56);
-        expect([bar.search, bar.menu]).toEqual([search, menu]);
+      [430, "collection", "App menu"],
+      [360, "collection", "App menu"],
+      [430, "write", "App menu"],
+      [360, "write", "App menu"],
+      [430, "editing", "Done editing"],
+      [360, "editing", "Done editing"],
+      [430, "naming", "Keep the name"],
+      [360, "naming", "Keep the name"],
+    ] as const)(
+      "at %ipx while %s, the bar keeps the one 10px inset with 7px gaps",
+      async (width, barState, lastLabel) => {
+        const bar = await measureEdges(await markupIn(barState), width);
+        expect(bar.labels.at(-1)).toBe(lastLabel);
+        expect(bar.inset).toBe("10px 10px");
+        expect(bar.gap).toBe("7px");
+        expect(bar.firstLeft).toBe(10);
+        expect(bar.lastRight).toBe(width - 10);
+        if (barState !== "naming") {
+          expect(bar.groupGap).toBe("7px");
+        }
+        if (barState !== "editing") {
+          expect(bar.logoX).toBe(20);
+        }
+        if (barState !== "naming") {
+          expect(bar.search).toBe(width - 83);
+          expect(bar.controlWidths).toEqual([44, 44]);
+        }
       },
       60000,
     );
 
     it.each([
-      [430, "collection", 61, 347, 398],
-      [360, "collection", 61, 277, 328],
-      [430, "write", 56, 360, 404],
-      [360, "write", 56, 290, 334],
+      [430, "collection", 347, 398],
+      [360, "collection", 277, 328],
+      [430, "write", 347, 398],
+      [360, "write", 277, 328],
     ] as const)(
       "at %ipx on %s, a 60-character name fades on one line and leaves the buttons where they were",
-      async (width, route, x, search, menu) => {
+      async (width, route, search, menu) => {
         const bar = await measure(await markupOn(route, LONG_NAME), width);
-        expect(bar.name.x).toBe(x);
+        expect(bar.name.x).toBe(61);
         expect(rounded(bar.name.height)).toBe(15.6);
         expect(bar.name.overflows).toBe(true);
         expect(bar.name.mask).toBe(
