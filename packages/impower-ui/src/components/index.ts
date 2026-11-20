@@ -333,7 +333,6 @@ export {
   type HoldRepeatHandlers,
 } from "../hooks/useHoldRepeat";
 export * from "./icon/icons.generated";
-export * from "./icon/icons.aliases";
 export * from "./registry";
 export { useEscapeWithin } from "../utils/escapeWithin";
 export * from "../layout";

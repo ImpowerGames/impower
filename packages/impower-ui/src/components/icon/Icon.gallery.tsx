@@ -1,5 +1,4 @@
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import * as aliases from "./icons.aliases";
 import * as icons from "./icons.generated";
 
 const ICONS = Object.entries(icons) as [string, icons.IconComponent][];
@@ -37,6 +36,6 @@ function IconDemo() {
 
 export const iconGallery: GalleryEntry = {
   title: "Icons",
-  exports: [...ICONS.map(([name]) => name), ...Object.keys(aliases)],
+  exports: ICONS.map(([name]) => name),
   Demo: IconDemo,
 };
