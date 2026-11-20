@@ -598,6 +598,15 @@ describe("a play that replays several ranges (#2581)", () => {
     expect(forward.at(0.125)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
   });
 
+  test("a play with thousands of replays builds its path at once and ends after every stretch", () => {
+    const began = performance.now();
+    const timeline = new MorphTimeline(timing({ duration: 1, replay: [range(0.2, 0.7, { count: 4096 })] }), () => 0.5);
+    expect(timeline.at(0)).toEqual({ phase: "playing", play: 0, offset: 0 });
+    expect(performance.now() - began).toBeLessThan(1000);
+    expect(offsetAt(timeline, 1 + 4096 * 0.5 - 0.25)).toBeCloseTo(0.75, 6);
+    expect(timeline.at(1 + 4096 * 0.5 + 0.01)).toEqual({ phase: "done", play: 0, offset: 1 });
+  });
+
   test("a block of one entry plays, and draws, exactly as the same fields written directly", () => {
     const fields = { from: "20%", to: "70%", chance: "50%", count: 3, delay_min: 0.05, delay_max: 0.2 };
     const values = [0.1, 0.4, 0.2, 0.8, 0.3, 0.6, 0.9, 0.2];

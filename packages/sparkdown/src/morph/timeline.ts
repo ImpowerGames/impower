@@ -46,7 +46,7 @@ interface Hold {
 }
 
 interface Turn {
-  steps: number[];
+  partial: number;
   resume: number;
   range: number;
   run: number;
@@ -182,7 +182,7 @@ export class MorphTimeline {
         const index = path.runs.length - 1;
         const run = path.runs[index]!;
         const partial = (down ? run.from - next : next - run.from) * this.duration;
-        path.turns.push({ steps: this.timeAt(path, index, partial), resume: down ? stretch.to : stretch.from, range: i, run: index });
+        path.turns.push({ partial, resume: down ? stretch.to : stretch.from, range: i, run: index });
         if (!taken(path.turns.length - 1)) continue;
         path.holds.push({ pause, hold: stretch.hold });
         path.taken.push({ pause, stretch: (stretch.to - stretch.from) * this.duration });
@@ -195,15 +195,16 @@ export class MorphTimeline {
     return path;
   }
 
-  protected timeAt(path: Path, run: number, partial: number): number[] {
-    if (run === 0) return [partial];
-    const previous = path.runs[run - 1]!;
-    return [...this.timeAt(path, run - 1, previous.length), path.holds[run - 1]!.pause + partial];
+  protected turnAt(path: Path, turn: Turn, start: number): number {
+    if (turn.run === 0) return start + turn.partial;
+    let at = start + path.runs[0]!.length;
+    for (let k = 1; k < turn.run; k++) at += path.holds[k - 1]!.pause + path.runs[k]!.length;
+    return at + (path.holds[turn.run - 1]!.pause + turn.partial);
   }
 
   protected forward(pauses: number[][], taken: (turn: number) => boolean): Path {
     const path: Path = { runs: [{ from: 0, to: 0, length: 0 }], holds: [], turns: [], taken: [] };
-    return this.walk(path, 0, false, pauses.map((list) => list.slice()), (list) => list.shift(), taken);
+    return this.walk(path, 0, false, pauses.map((list) => list.slice().reverse()), (list) => list.pop(), taken);
   }
 
   protected backward(pauses: number[][], taken: (turn: number) => boolean): Path {
@@ -216,7 +217,7 @@ export class MorphTimeline {
       const range = ranges[k]!;
       const stretch = this.stretches[range]!;
       const run = path.runs[k]!;
-      path.turns.push({ steps: this.timeAt(path, k, run.length), resume: run.to, range, run: k });
+      path.turns.push({ partial: run.length, resume: run.to, range, run: k });
       if (!taken(k)) {
         const left = pauses.map((list) => list.slice());
         for (const { range: spent } of path.turns) left[spent]!.pop();
@@ -262,11 +263,14 @@ export class MorphTimeline {
     const play = this.runs[index];
     if (!play || !this.stretches.length) return;
     for (;;) {
-      const turn = this.path(play).turns[play.taken.length];
-      const at = turn?.steps.reduce((sum, step) => sum + step, play.start);
-      if (at === undefined || at > t) return;
-      play.taken.push(this.speaking(at));
-      play.path = undefined;
+      const path = this.path(play);
+      const turn = path.turns[play.taken.length];
+      if (!turn) return;
+      const at = this.turnAt(path, turn, play.start);
+      if (at > t) return;
+      const taken = this.speaking(at);
+      play.taken.push(taken);
+      if (!taken) play.path = undefined;
     }
   }
 
