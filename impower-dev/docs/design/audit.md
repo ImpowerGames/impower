@@ -34,6 +34,7 @@ That first run measured only what each route's first screen showed. The scans no
 | Sepia's muted and warning text under 4.5:1 | `--muted` `#64615a`, `--warning` `#8f5400` | `theme.css`, `tokens.md` |
 | Settings section chips 36px under touch | 44px under a coarse pointer; a mouse keeps 36px | `JumpChips.tsx` |
 | Selects 36px under touch (the Settings script sample's selector) | 44px under a coarse pointer; a mouse keeps 36px | `Select.tsx` |
+| The desktop divider between the page and the preview had no accessible name | Named per route as the glossary gives it ("Resize script and preview panes" and its Scripts and page forms) | `MainWindow.tsx` |
 | The Settings sample's gutter moved under reduced motion | The editor theme turns its transitions off under reduced motion, declared after the rules it overrides | `EDITOR_THEME.ts` |
 
 ### Filed
@@ -50,6 +51,7 @@ That first run measured only what each route's first screen showed. The scans no
 | #2646 | Script rows, asset rows and the aspect-ratio button are labelled with words other than the ones they show |
 | #2647 | The app menu is an ARIA menu holding children a menu may not contain |
 | #2658 | The Emphasize markup row's markers are dimmed to 2.26 to 3.32:1, the one text failure left in Charcoal and Chalk |
+| #2662 | The title bar's save status button has an empty accessible name: the label that gives it its hit area supersedes its text |
 
 ### Known, owned by open tickets
 
@@ -57,7 +59,7 @@ Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls 
 
 ### Decisions and readings
 
-- Other themes. Ink, Sepia, Graphite, Warm Folio and Dusk fail only what Charcoal and Chalk fail: the control boundaries (#2643) and the Emphasize markup markers (#2658), both filed for every theme. Midnight keeps today's values by decision, and it fails only those same two.
+- Other themes. Ink, Sepia, Graphite, Warm Folio and Dusk fail only what Charcoal and Chalk fail: the control boundaries (#2643) and the Emphasize markup markers (#2658), both filed for every theme. Midnight keeps today's values by decision. Besides those same two, it draws field placeholders in `#315881`, at 1.87 to 2.57:1. Dusk takes Midnight's component colours by design (the theme test "gives Dusk Midnight's colours"), so it shares both the placeholder colour and the decision. Changing Dusk's placeholder would separate it from Midnight; that is recorded here as accepted, not fixed.
 - Token pairs that no screen draws. Chalk's `--warning` reaches 4.19:1 on `--tint` and 4.23:1 on `--elevated`. No audited view draws warning text on either surface, so both are accepted as recorded; a component that puts warning text there needs another colour.
 - The Add panel returns focus to the script, at the caret it inserts at, rather than to its Add button. Its close handler does this on purpose (`AddPanel.tsx`), so the behaviour is kept and recorded here.
 - Copy. No old word appears. The glossary quotes four prototype strings in title case that the editor shows in sentence case ("Editor & project preferences", and the Settings names "Play from here", "Step into" and "Step out"). The sentence-case rule is kept over the glossary's capitals. The preview's play button keeps the glossary's "Play From Here".
@@ -65,6 +67,7 @@ Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls 
 - Touch on the emulator. Centred in its scroller before it is measured, every control reaches 44×44 except the phone title bar's three (#2644), the same as on the 360 preset.
 - On-screen keyboard. On the emulator no tapped field was covered once the keyboard was up. The script name field only shows in the phone layout's edit mode, so it was not tapped, and toasts were not raised. Both belong to #2594.
 - Forced colors. No Tab stop lost its focus edge, and the screenshots show every control drawn in system colours. The rail's current route stays marked only by bold text. The current script row and the current outline scene lose their tint and accent bar. This is an observation from the screenshots, not measured, and not filed.
+- Names in the keyboard order. The order is named from Chromium's accessibility tree. Three stops have no name: the save status button (#2662), the script editor (#2640) and the game frame, whose title arrives with the player. All three are filed or explained.
 - Live regions. The save status is a `status` ("Draft saved"). Each page ends with an empty `status` that receives toasts. Settings announces through an `output`. The caret position readout is a button with `aria-live="off"`, so it does not announce caret moves; whether it should is for the screen-reader pass below. The Outline ("Scene outline in main") and the Scripts rows ("Scripts and folders") are lists.
 
 ### Screen-reader pass
