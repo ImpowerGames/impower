@@ -7,6 +7,7 @@ type Size = "portrait" | "landscape" | "small";
 
 const CAST = "Assets/Images/Cast";
 const PICTURE = `${CAST}/picture_000.png`;
+const FOLDER = `${CAST}/Crew`;
 
 let browser: Browser;
 let script: string;
@@ -38,14 +39,14 @@ const settle = async (page: Page) => {
   await frames(page);
 };
 
-const tile = `[data-tile]:has([data-asset-path="${PICTURE}"])`;
+const tileOf = (path: string) => `[data-tile]:has([data-asset-path="${path}"])`;
 const cell = "[data-probe-cell]";
 
 const measure = (page: Page, tile: string) =>
   page.evaluate((selector) => {
     const root = document.querySelector<HTMLElement>(selector);
     const frame = root?.querySelector<HTMLElement>("[data-tile] > :is(button, div)");
-    const picture = root?.querySelector<HTMLElement>("img");
+    const picture = root?.querySelector<HTMLElement>("[data-tile] > :is(button, div) > .order-first");
     const field = root?.querySelector<HTMLElement>("[data-name-field]")?.parentElement;
     const message = root?.querySelector<HTMLElement>('[role="alert"]')?.parentElement;
     const size = (element?: HTMLElement | null) => {
@@ -72,8 +73,16 @@ const measure = (page: Page, tile: string) =>
   }, tile);
 
 describe("Renaming an asset in a tile keeps the tile's shape (I-2683)", { timeout: 30_000 }, () => {
-  it.each(["portrait", "landscape", "small"] as const)("keeps the %s tile's frame and picture, fills the name line and shows the refusal inside the tile", async (size) => {
+  it.each([
+    { size: "portrait" as const, path: PICTURE },
+    { size: "landscape" as const, path: PICTURE },
+    { size: "small" as const, path: PICTURE },
+    { size: "portrait" as const, path: FOLDER },
+    { size: "landscape" as const, path: FOLDER },
+    { size: "small" as const, path: FOLDER },
+  ])("keeps the $size tile's frame and picture for $path, fills the name line and shows the refusal inside the tile", async ({ size, path }) => {
     const page = await open(size);
+    const tile = tileOf(path);
     try {
       await page.locator(tile).evaluate((element) => element.parentElement!.setAttribute("data-probe-cell", ""));
       const before = await measure(page, cell);
