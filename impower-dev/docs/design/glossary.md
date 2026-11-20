@@ -1639,7 +1639,7 @@ The body is a context line, the name of the scope, a ` · ` and the counts, then
 | --- | --- | --- | --- |
 | `Rename ` | dialog title: `Rename ` + the file name, or `Rename ` + the unit (image, sound, video, note, font or file) | folio-assets.js:1985, folio-assets.js:2365 |  |
 | `File name` | label (a file of a stacked image) | folio-assets.js:1986 |  |
-| `The part before the first ~ names the picture the file belongs to; what follows a ~ is the layer's condition, and @ names an alternate. The lines that use this name are not changed.` | body note | folio-assets.js:1986 |  |
+| `The part before the first ~ after the first character names the picture the file belongs to; what follows that ~ is the layer's condition, and an @ with a name on each side names an alternate. A name that starts with ~ has no layer part. The lines that use this name are not changed.` | body note | folio-assets.js:1986 |  |
 | `Name` | label (an asset) | folio-assets.js:2307, folio-assets.js:2366 |  |
 | `Also update the ` | checkbox label: this text + a count and the word line (with s unless the count is 1) + ` in your scripts that use this name` | folio-assets.js:2366 |  |
 | ` in your scripts that use this name` | checkbox label, end | folio-assets.js:2366 |  |
@@ -1675,7 +1675,7 @@ The body is a context line, the name of the scope, a ` · ` and the counts, then
 | `This ` | body: this text + layer, alternate or file + ` will be removed from your local draft; the rest of ` + the picture name + ` stays.` | folio-assets.js:2011 |  |
 | `  will be removed from your local draft; the rest of  ` | body, middle | folio-assets.js:2011 |  |
 | ` stays.` | body, end | folio-assets.js:2011 |  |
-| `It is the picture the layers sit on. Without it the layers rest on nothing and will report a missing base.` | body, second paragraph when deleting a Base file | folio-assets.js:2011 |  |
+| `It is the picture the layers sit on. Without it the picture is its layers alone, with no warning.` | body, second paragraph when deleting a Base file | folio-assets.js:2011 |  |
 
 ### Name errors
 
