@@ -4,6 +4,10 @@ import type { Text } from "@codemirror/state";
 import type { Command, EditorView } from "@codemirror/view";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import type * as lsp from "vscode-languageserver-protocol";
+import {
+  assetCommandOf,
+  type AssetReferenceKind,
+} from "@impower/sparkdown/src/attributes/assetReference";
 import { LSPPlugin } from "./plugin";
 
 export const INSERT_CONSTRUCTS = [
@@ -377,13 +381,12 @@ function templateOf(
   speaker: string | null,
   name: string | undefined,
 ): Template {
-  const named = (line: (reference: string) => string, placeholder: string) => {
-    const reference = name ?? placeholder;
-    return {
-      lines: [line(reference)],
-      placeholder: reference,
-      picked: name !== undefined,
-    };
+  const named = (kind: AssetReferenceKind, placeholder: string, unpicked?: string) => {
+    const command = name === undefined ? null : assetCommandOf(kind, name);
+    if (command !== null) {
+      return { lines: [command], placeholder: name!, picked: true };
+    }
+    return { lines: [unpicked ?? assetCommandOf(kind, placeholder)!], placeholder };
   };
   switch (construct) {
     case "branch": {
@@ -409,16 +412,13 @@ function templateOf(
         placeholder: speaker ? "What do they say?" : "CHARACTER",
       };
     case "backdrop":
-      return named((ref) => `[[show backdrop ${ref}]]`, "backdrop_name");
+      return named("backdrop", "backdrop_name");
     case "portrait":
-      return named((ref) => `[[show portrait ${ref}]]`, "portrait_name");
+      return named("portrait", "portrait_name");
     case "sound":
-      return named(
-        (ref) => (name === undefined ? `((${ref}))` : `((play sound ${ref}))`),
-        "sound_name",
-      );
+      return named("sound", "sound_name", "((sound_name))");
     case "music":
-      return named((ref) => `((play music ${ref} loop))`, "music_name");
+      return named("music", "music_name");
     default:
       throw new Error(`${construct} is not a story block`);
   }
