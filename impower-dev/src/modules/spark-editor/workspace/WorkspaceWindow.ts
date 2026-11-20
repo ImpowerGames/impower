@@ -333,6 +333,13 @@ export default class WorkspaceWindow {
   }
 
   openRoute(route: Route) {
+    if (typeof document !== "undefined" && route !== routeOfState(this.store)) {
+      const selection = document.getSelection();
+      if (selection?.type === "Range") {
+        // workaround(chromium): Chromium 149 crashes the renderer when a pushState route change mounts the script editor while the page holds a text selection; Chrome 157 does not, so retire this once the Playwright-pinned Chromium is 157 or later.
+        selection.removeAllRanges();
+      }
+    }
     this.update(stateForRoute(this.store, route));
   }
 
