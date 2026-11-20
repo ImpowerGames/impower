@@ -177,6 +177,7 @@ export default function SparkdownScriptEditor({
     <div class="sparkdown-script-editor-root" ref={rootRef}>
       <style>{cssText}</style>
       <LoadingBar
+        label="Loading"
         containerRef={loadingRef}
         class="absolute left-0"
         style={{ top: "-2px", zIndex: 20 }}

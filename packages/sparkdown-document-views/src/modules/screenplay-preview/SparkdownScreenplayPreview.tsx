@@ -103,6 +103,7 @@ export default function SparkdownScreenplayPreview({
     >
       <style>{cssText}</style>
       <LoadingBar
+        label="Loading"
         containerRef={loadingRef}
         class="absolute top-0 left-0 right-0 z-10"
       />

@@ -41,6 +41,7 @@ export const createScriptSampleState = (
   text: string,
   appearance: ScriptAppearance,
   caret?: number,
+  label?: string,
 ) =>
   EditorState.create({
     doc: text,
@@ -62,6 +63,7 @@ export const createScriptSampleState = (
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
       EditorView.theme(SAMPLE_THEME, { dark: true }),
+      label ? EditorView.contentAttributes.of({ "aria-label": label }) : [],
     ],
   });
 
@@ -84,7 +86,7 @@ export default function SparkdownScriptSample({
     const view = new EditorView({
       parent,
       root: parent.getRootNode() as Document | ShadowRoot,
-      state: createScriptSampleState(text, appearanceRef.current, caret),
+      state: createScriptSampleState(text, appearanceRef.current, caret, label),
     });
     viewRef.current = view;
     return () => {

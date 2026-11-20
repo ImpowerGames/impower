@@ -36,6 +36,7 @@ const mount = async (active: boolean) => {
   await act(async () =>
     render(
       <LoadingBar
+        label="Loading"
         active={active}
         containerRef={(element: HTMLDivElement | null) => {
           bar = element;
@@ -112,6 +113,22 @@ afterEach(async () => {
 });
 
 describe("LoadingBar", () => {
+  it("is named, and stays out of the accessibility tree except while it shows", async () => {
+    const { bar, segment } = await mount(false);
+    expect(bar.getAttribute("aria-label")).toBe("Loading");
+    expect(bar.getAttribute("aria-hidden")).toBe("true");
+    await setActive(bar, true);
+    vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS - 50);
+    expect(bar.getAttribute("aria-hidden")).toBe("true");
+    vi.advanceTimersByTime(50);
+    expect(bar.hasAttribute("aria-hidden")).toBe(false);
+    await setActive(bar, false);
+    end(live(segment)[0]);
+    expect(bar.hasAttribute("aria-hidden")).toBe(false);
+    end(live(bar)[0]);
+    expect(bar.getAttribute("aria-hidden")).toBe("true");
+  });
+
   it("shows nothing for a load shorter than the show delay", async () => {
     const { bar } = await mount(false);
     await setActive(bar, true);
