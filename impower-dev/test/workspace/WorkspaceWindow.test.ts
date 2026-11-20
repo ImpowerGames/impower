@@ -83,7 +83,7 @@ vi.mock("../../src/modules/spark-editor/components/problems", () => ({
 }));
 
 vi.mock("../../src/modules/spark-editor/components/settings", () => ({
-  settingsSectionHref: (id: string) => `#project?section=${id}`,
+  settingsSectionHref: (id: string) => `#settings?section=${id}`,
 }));
 
 vi.mock("@impower/impower-ui/components", async () => {
@@ -101,11 +101,12 @@ vi.mock("@impower/impower-ui/components", async () => {
     "CheckIcon",
     "ChevronDownIcon",
     "CogIcon",
+    "ContinueIcon",
     "NextIcon",
     "PauseIcon",
     "PlayIcon",
-    "PlayOutlineIcon",
     "PreviousIcon",
+    "ReplayBeatIcon",
     "RestartIcon",
     "ResumeIcon",
     "ScreenplayIcon",
@@ -229,6 +230,7 @@ import {
   playerUrl,
 } from "../../src/modules/spark-editor/components/preview-game/playerPreferences";
 import PreviewTopBar from "../../src/modules/spark-editor/components/preview-top-bar/PreviewTopBar";
+import PreviewDebugToolbar from "../../src/modules/spark-editor/components/preview-debug-toolbar/PreviewDebugToolbar";
 import Preview from "../../src/modules/spark-editor/components/preview/Preview";
 import PreviewScreenplay from "../../src/modules/spark-editor/components/preview-screenplay/PreviewScreenplay";
 import WorkspacePrint from "../../src/modules/spark-editor/workspace/WorkspacePrint";
@@ -254,7 +256,6 @@ import {
 } from "../../src/modules/spark-editor/workspace/launchMachine";
 import statuses, {
   NO_GAME_STATUSES,
-  shownStatuses,
 } from "../../src/modules/spark-editor/workspace/statuses/StatusesStore";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { ProjectImportError } from "../../src/modules/spark-editor/workspace/projectImport";
@@ -281,6 +282,41 @@ describe("WorkspaceWindow store transitions", () => {
 
   afterEach(() => {
     win.dispose();
+  });
+
+  const selectText = () => {
+    const text = document.body.appendChild(document.createElement("p"));
+    text.textContent = "Untitled story";
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    return text;
+  };
+
+  it("drops the page's text selection when a route change opens the script editor", async () => {
+    await win.navigateTo("scripts");
+    const text = selectText();
+    try {
+      expect(document.getSelection()!.type).toBe("Range");
+      win.openScript("main.sd");
+      expect(window.location.hash).toBe("#story");
+      expect(document.getSelection()!.type).toBe("None");
+    } finally {
+      text.remove();
+    }
+  });
+
+  it("keeps the text selection when navigating to the route already open", async () => {
+    await win.navigateTo("story");
+    const text = selectText();
+    try {
+      await win.navigateTo("story");
+      expect(document.getSelection()!.type).toBe("Range");
+    } finally {
+      document.getSelection()!.removeAllRanges();
+      text.remove();
+    }
   });
 
   it("openPane sets the active pane", () => {
@@ -364,7 +400,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   it("showDocument opens the script it shows, so going to a definition in an unopened script renders it", () => {
     const projectId = workspace.current.project.id;
-    win.openRoute("write");
+    win.openRoute("story");
     win.closeFileEditor("Scripts/never-opened.sd");
     expect(workspace.current.panes.logic.panels.scripts?.activeEditor?.open).toBe(false);
     void win.showDocument(`file://${projectId}/Scripts/never-opened.sd`);
@@ -460,7 +496,7 @@ describe("WorkspaceWindow store transitions", () => {
 
   it("brings the script on screen for a window/showDocument request made from another route", async () => {
     const projectId = workspace.current.project.id;
-    win.navigateTo("collection");
+    win.navigateTo("assets");
     expect(workspace.current.pane).toBe("assets");
     const at = { line: 4, character: 0 };
     const request = ShowDocumentMessage.type.request({
@@ -468,7 +504,7 @@ describe("WorkspaceWindow store transitions", () => {
       selection: { start: at, end: at },
     });
     sendProtocolMessage(request);
-    await vi.waitFor(() => expect(window.location.hash).toBe("#write"));
+    await vi.waitFor(() => expect(window.location.hash).toBe("#story"));
     expect(workspace.current.pane).toBe("logic");
     expect(win.getActiveEditorForPane("logic")?.filename).toBe(
       "scripts/chapter.sd",
@@ -538,6 +574,40 @@ describe("WorkspaceWindow store transitions", () => {
       workspace.scriptMode.value = "editing";
       win.finishEditing();
       expect(workspace.scriptMode.value).toBe("reading");
+    });
+
+    it("gives up the script's focus before the script returns to reading", () => {
+      const root = document.body.appendChild(document.createElement("div"));
+      root.className = "sparkdown-script-editor-root";
+      const content = root.appendChild(document.createElement("div"));
+      content.className = "cm-content";
+      content.contentEditable = "true";
+      content.tabIndex = 0;
+      content.focus();
+      workspace.scriptMode.value = "editing";
+      const modeAtBlur: string[] = [];
+      content.addEventListener("focusout", () =>
+        modeAtBlur.push(workspace.scriptMode.peek()),
+      );
+
+      win.finishEditing();
+
+      expect(modeAtBlur).toEqual(["editing"]);
+      expect(document.activeElement).toBe(document.body);
+      expect(workspace.scriptMode.value).toBe("reading");
+      root.remove();
+    });
+
+    it("leaves focus outside the script where it is", () => {
+      const field = document.body.appendChild(document.createElement("input"));
+      field.focus();
+      workspace.scriptMode.value = "editing";
+
+      win.finishEditing();
+
+      expect(document.activeElement).toBe(field);
+      expect(workspace.scriptMode.value).toBe("reading");
+      field.remove();
     });
 
     it("changes nothing and notifies nothing while reading", () => {
@@ -708,9 +778,9 @@ describe("WorkspaceWindow store transitions", () => {
       win.openView("logic", "list");
       win.openPanel("logic", "main");
       win.openPane("logic");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       win.openPane("assets");
-      expect(window.location.hash).toBe("#collection");
+      expect(window.location.hash).toBe("#assets");
       win.openPane("share");
       expect(window.location.hash).toBe("#share");
       win.openView("logic", "scripts");
@@ -721,7 +791,7 @@ describe("WorkspaceWindow store transitions", () => {
     it("opens a script from the Scripts page on write, and Main as the main editor", () => {
       win.navigateTo("scripts");
       win.openScript("Scripts/intro.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       const logic = workspace.current.panes.logic;
       expect(logic.view).toBe("logic-editor");
       expect(logic.panel).toBe("scripts");
@@ -731,7 +801,7 @@ describe("WorkspaceWindow store transitions", () => {
       });
       win.navigateTo("scripts");
       win.openScript("main.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       expect(workspace.current.panes.logic.view).toBe("list");
       expect(workspace.current.panes.logic.panel).toBe("main");
     });
@@ -749,7 +819,7 @@ describe("WorkspaceWindow store transitions", () => {
         workspace.scriptMode.value = "reading";
         win.navigateTo("scripts");
         const writing = win.writeScript("Scripts/Untitled script.sd");
-        expect(window.location.hash).toBe("#write");
+        expect(window.location.hash).toBe("#story");
         expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
           open: true,
           filename: "Scripts/Untitled script.sd",
@@ -768,16 +838,16 @@ describe("WorkspaceWindow store transitions", () => {
     });
 
     it("browses the scripts from either editor; a script's Back returns to the Scripts page and Back to story to that script", () => {
-      win.navigateTo("write");
+      win.navigateTo("story");
       win.browseScripts();
       expect(window.location.hash).toBe("#scripts");
       expect(workspace.current.panes.logic.view).toBe("scripts");
       win.openScript("Scripts/intro.sd");
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       win.browseScripts();
       expect(window.location.hash).toBe("#scripts");
       expect(workspace.current.panes.logic.view).toBe("scripts");
-      win.navigateTo("write");
+      win.navigateTo("story");
       expect(workspace.current.panes.logic.view).toBe("logic-editor");
       expect(workspace.current.panes.logic.panel).toBe("scripts");
       expect(workspace.current.panes.logic.panels.scripts?.activeEditor).toMatchObject({
@@ -807,8 +877,8 @@ describe("WorkspaceWindow store transitions", () => {
 
     it("navigates by pushing a history entry, and follows the hash back", async () => {
       const length = window.history.length;
-      win.navigateTo("collection");
-      expect(window.location.hash).toBe("#collection");
+      win.navigateTo("assets");
+      expect(window.location.hash).toBe("#assets");
       expect(window.history.length).toBe(length + 1);
       expect(workspace.current.pane).toBe("assets");
       window.history.replaceState(null, "", "#share");
@@ -816,22 +886,22 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.pane).toBe("share");
     });
 
-    it("opens settings on #project over the current pane and returns on close", () => {
+    it("opens settings on #settings over the current pane and returns on close", () => {
       win.openPane("assets");
-      win.navigateTo("project");
+      win.navigateTo("settings");
       expect(workspace.current.screen.settingsOpen).toBe(true);
       expect(workspace.current.pane).toBe("assets");
-      expect(window.location.hash).toBe("#project");
+      expect(window.location.hash).toBe("#settings");
       win.closeSettings();
       expect(workspace.current.screen.settingsOpen).toBe(false);
-      expect(window.location.hash).toBe("#collection");
+      expect(window.location.hash).toBe("#assets");
     });
 
     it("leaves the hash alone for a change that does not move the route", () => {
-      window.history.pushState(null, "", "#project");
+      window.history.pushState(null, "", "#settings");
       win.setAppMenuOpen(true);
       win.setAppMenuOpen(false);
-      expect(window.location.hash).toBe("#project");
+      expect(window.location.hash).toBe("#settings");
     });
 
     it("opens the writing tools, moves between their views and closes them", () => {
@@ -874,9 +944,9 @@ describe("WorkspaceWindow store transitions", () => {
     });
 
     it("opens the Sparkdown guide on its own from another route, and closes it on leaving Write", () => {
-      win.navigateTo("collection");
+      win.navigateTo("assets");
       win.openSparkdownGuide();
-      expect(window.location.hash).toBe("#write");
+      expect(window.location.hash).toBe("#story");
       expect(workspace.current.pane).toBe("logic");
       expect(workspace.current.screen.writingTools).toEqual({ view: "guide", fromMenu: false });
       win.navigateTo("share");
@@ -888,15 +958,55 @@ describe("WorkspaceWindow store transitions", () => {
       window.history.replaceState(null, "", "#assets");
       win = new WorkspaceWindow(Workspace);
       expect(workspace.current.pane).toBe("assets");
-      expect(window.location.hash).toBe("#collection");
+      expect(window.location.hash).toBe("#assets");
     });
+
+    const withStoreRestored = async (run: () => void | Promise<void>) => {
+      const before = workspace.current;
+      try {
+        await run();
+      } finally {
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        workspace.current = before;
+        localStorage.clear();
+      }
+    };
+
+    it.each([
+      ["#write", "#story"],
+      ["#logic", "#story"],
+      ["#main", "#story"],
+      ["#collection", "#assets"],
+      ["#project", "#settings"],
+      ["#project?section=save-settings", "#settings?section=save-settings"],
+    ])("opens the old name %s on load and rewrites the address bar to %s", (old, current) =>
+      withStoreRestored(() => {
+        win.dispose();
+        window.history.replaceState(null, "", old);
+        win = new WorkspaceWindow(Workspace);
+        expect(window.location.hash).toBe(current);
+        expect(workspace.current.screen.settingsOpen).toBe(current.startsWith("#settings"));
+      }),
+    );
+
+    it.each([
+      ["#collection", "#assets"],
+      ["#project?section=file-types", "#settings?section=file-types"],
+      ["#write", "#story"],
+    ])("follows the old name %s typed into the address bar and rewrites it to %s", (old, current) =>
+      withStoreRestored(async () => {
+        window.history.pushState(null, "", old);
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        await vi.waitFor(() => expect(window.location.hash).toBe(current));
+      }),
+    );
 
     it("keeps a settings deep link's section in the hash while it opens the page", () => {
       win.dispose();
-      window.history.replaceState(null, "", "#project?section=save-settings");
+      window.history.replaceState(null, "", "#settings?section=save-settings");
       win = new WorkspaceWindow(Workspace);
       expect(workspace.current.screen.settingsOpen).toBe(true);
-      expect(window.location.hash).toBe("#project?section=save-settings");
+      expect(window.location.hash).toBe("#settings?section=save-settings");
     });
 
     it("navigates to a settings section, telling an open settings page to land on it", () => {
@@ -904,13 +1014,13 @@ describe("WorkspaceWindow store transitions", () => {
       window.addEventListener("hashchange", landed);
       try {
         win.closeSettings();
-        win.navigateTo("project", "save-settings");
+        win.navigateTo("settings", "save-settings");
         expect(workspace.current.screen.settingsOpen).toBe(true);
-        expect(window.location.hash).toBe("#project?section=save-settings");
+        expect(window.location.hash).toBe("#settings?section=save-settings");
         expect(landed).not.toHaveBeenCalled();
-        window.history.replaceState(null, "", "#project");
-        win.navigateTo("project", "save-settings");
-        expect(window.location.hash).toBe("#project?section=save-settings");
+        window.history.replaceState(null, "", "#settings");
+        win.navigateTo("settings", "save-settings");
+        expect(window.location.hash).toBe("#settings?section=save-settings");
         expect(landed).toHaveBeenCalledTimes(1);
       } finally {
         window.removeEventListener("hashchange", landed);
@@ -2211,16 +2321,12 @@ describe("PLAY pressed before the game player has connected", () => {
       ended: "Stop",
     };
 
-    const showsBadge = (p: LaunchPhase) => p === "awaiting" || p === "starting";
+    const startsGame = (p: LaunchPhase) => p === "awaiting" || p === "starting";
 
     const expectBar = (p: LaunchPhase) => {
       expect(phase()).toBe(p);
       expect(transport().getAttribute("aria-label")).toBe(CONTROL[p]);
-      expect(
-        shownStatuses(statuses.statuses.value, "game", Boolean(game().starting)).some(
-          (status) => status.key === "starting",
-        ),
-      ).toBe(showsBadge(p));
+      expect(Boolean(game().starting)).toBe(startsGame(p));
     };
 
     const cases = (Object.keys(EXPECTED) as Setup[]).flatMap((setup) =>
@@ -2641,8 +2747,8 @@ describe("Revealing a script from the bar under the game", () => {
 
   const uriOf = (path: string) => `file://${workspace.current.project.id}/${path}`;
 
-  it("opens the script on the write route from another route", async () => {
-    win.navigateTo("collection");
+  it("opens the script on the story route from another route", async () => {
+    win.navigateTo("assets");
     expect(workspace.current.pane).toBe("assets");
     const at = { line: 11, character: 0 };
     await win.revealDocument(uriOf("scripts/intro.sd"), { start: at, end: at });
@@ -2652,7 +2758,7 @@ describe("Revealing a script from the bar under the game", () => {
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
     expect(editor?.filename).toBe("scripts/intro.sd");
     expect(editor?.selectedRange).toEqual({ start: at, end: at });
-    expect(window.location.hash).toBe("#write");
+    expect(window.location.hash).toBe("#story");
   });
 
   it("makes an unopened script the active editor, so the stopped readout and the toggle follow it", async () => {
@@ -2680,7 +2786,7 @@ describe("Revealing a script from the bar under the game", () => {
     const at = { line: 2, character: 0 };
     await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });
     expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(true);
-    win.navigateTo("collection");
+    win.navigateTo("assets");
     await win.revealDocument(uriOf("main.sd"), { start: at, end: at });
     expect(workspace.current.panes.logic.panel).toBe("main");
     expect(workspace.current.panes.logic.panels.scripts!.activeEditor?.open).toBe(false);
@@ -2688,7 +2794,7 @@ describe("Revealing a script from the bar under the game", () => {
       "scripts/chapter.sd",
     );
     expect(win.getActiveEditorForPane("logic")?.filename).toBe("main.sd");
-    expect(window.location.hash).toBe("#write");
+    expect(window.location.hash).toBe("#story");
   });
 
   it("collapses the phone's revealed preview so the script shows", async () => {
@@ -2769,7 +2875,7 @@ describe("The preview's top bar", () => {
         modes: { ...workspace.current.preview.modes, game },
       },
     };
-    render(h(PreviewTopBar, {}), container);
+    render(h("div", {}, h(PreviewTopBar, {}), h(PreviewDebugToolbar, {})), container);
   };
 
   const control = (label: string) =>
@@ -2844,7 +2950,8 @@ describe("The preview's top bar", () => {
     expect(sizeOf(control("Pause"))).toBe(stopped);
     expect(slotOf("Pause")).toBe("left");
     show({ running: true, paused: true });
-    expect(sizeOf(control("Resume"))).toBe(stopped);
+    expect(control("Pause")).toBeNull();
+    expect(control("Resume")).toBeNull();
     show({ running: true, ended: true });
     expect(control("Replay beat")).toBeNull();
     expect(sizeOf(control("Play Again"))).toBe(stopped);
@@ -2928,21 +3035,13 @@ describe("The preview's top bar", () => {
       expect(labels()).toEqual([
         "Viewing mode: Visual Novel",
         "Pause",
-        "Step",
-        "Step Over",
-        "Step Into",
         "Skip back",
         "Stop",
         "Skip forward",
-        "Step Out",
-        "Toggle breakpoint",
         "Saves",
         "Preview settings",
       ]);
-      for (const step of ["Step Over", "Step Into", "Step Out"]) {
-        expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
-        expect(control(step)?.title).toBe("Pause the story to step through it");
-      }
+      expect(container.querySelector('[role="toolbar"]')).toBeNull();
       control("Pause")!.click();
       await vi.waitFor(() =>
         expect(workspace.current.preview.modes.game.paused).toBe(true),
@@ -2953,7 +3052,19 @@ describe("The preview's top bar", () => {
       );
       expect(workspace.current.preview.modes.game.position).toEqual({ uri, line: 3 });
       show(workspace.current.preview.modes.game);
-      expect(control("Resume")?.getAttribute("aria-pressed")).toBe("true");
+      expect(labels()).toEqual([
+        "Viewing mode: Visual Novel",
+        "Skip back",
+        "Stop",
+        "Skip forward",
+        "Saves",
+        "Preview settings",
+        "Continue",
+        "Step Over",
+        "Step Into",
+        "Step Out",
+        "Toggle breakpoint",
+      ]);
       expect(control("Step Over")?.hasAttribute("aria-disabled")).toBe(false);
       expect(control("Step Over")?.title).toBe("Step Over (F10)");
       expect(control("Step Into")?.hasAttribute("aria-disabled")).toBe(false);
@@ -2979,71 +3090,72 @@ describe("The preview's top bar", () => {
       await vi.waitFor(() =>
         expect(requests.filter((method) => method === "game/step")).toHaveLength(2),
       );
-      control("Resume")!.click();
+      control("Continue")!.click();
       await vi.waitFor(() =>
         expect(workspace.current.preview.modes.game.paused).toBe(false),
       );
       expect(requests).toContain("game/continue");
+      show(workspace.current.preview.modes.game);
+      expect(container.querySelector('[role="toolbar"]')).toBeNull();
+      expect(control("Pause")).not.toBeNull();
     } finally {
       window.removeEventListener(MessageProtocol.event, player);
     }
   });
 
-  it("puts the steps in one Step menu on phones, each with its refusal", async () => {
+  it("keeps the steps out of the bar on phones and steps from the toolbar with one tap each, each with its refusal", async () => {
     layoutMock.value = "phone";
     try {
       show({ running: true, paused: true });
       expect(labels()).toEqual([
         "Viewing mode: Visual Novel",
-        "Resume",
-        "Step",
         "Skip back",
         "Stop",
         "Skip forward",
         "Saves",
         "Preview settings",
+        "Continue",
+        "Step Over",
+        "Step Into",
+        "Step Out",
+        "Toggle breakpoint",
       ]);
       expect(
-        rows("menuitem").slice(0, 3).map((row) => [
-          row.querySelector("strong")?.textContent,
-          row.querySelector("small")?.textContent ?? null,
-          (row as HTMLButtonElement).disabled,
+        rows("menuitem").filter((row) => /Step|breakpoint/.test(row.textContent ?? "")),
+      ).toEqual([]);
+      expect(
+        ["Step Over", "Step Into", "Step Out"].map((label) => [
+          label,
+          control(label)?.getAttribute("aria-disabled") ?? null,
+          control(label)?.title,
         ]),
       ).toEqual([
-        ["Step Over", null, false],
-        ["Step Into", null, false],
-        ["Step Out", "Nothing is calling, so there is nothing to step out of.", true],
+        ["Step Over", null, "Step Over (F10)"],
+        ["Step Into", null, expect.stringMatching(/^Step Into/)],
+        ["Step Out", "true", "Nothing is calling, so there is nothing to step out of."],
       ]);
       const stepGame = vi.spyOn(win, "stepGame").mockResolvedValue(true);
-      rows("menuitem")[0]!.click();
+      control("Step Over")!.click();
       await vi.waitFor(() => expect(stepGame).toHaveBeenCalledWith("over"));
+      control("Step Over")!.click();
+      await vi.waitFor(() => expect(stepGame).toHaveBeenCalledTimes(2));
     } finally {
       layoutMock.value = "desktop";
     }
   });
 
-  it("offers Play Again instead of Pause once the story has ended, with the Steps disabled", () => {
-    show({ running: true, ended: true });
+  it("offers Play Again instead of Pause once the story has ended, with no debug toolbar", () => {
+    show({ running: true, ended: true, paused: true });
     expect(labels()).toEqual([
       "Viewing mode: Visual Novel",
       "Play Again",
-      "Step",
-      "Step Over",
-      "Step Into",
       "Skip back",
       "Stop",
       "Skip forward",
-      "Step Out",
-      "Toggle breakpoint",
       "Saves",
       "Preview settings",
     ]);
-    for (const step of ["Step Over", "Step Into", "Step Out"]) {
-      expect(control(step)?.getAttribute("aria-disabled")).toBe("true");
-      expect(control(step)?.title).toBe(
-        "The story is over, so there is nothing to step to.",
-      );
-    }
+    expect(container.querySelector('[role="toolbar"]')).toBeNull();
   });
 
   it("runs no step the bar refuses, so a key cannot get past a disabled button", async () => {
@@ -3262,14 +3374,9 @@ describe("The preview's top bar", () => {
     expect(labels()).toEqual([
       "Viewing mode: Screenplay",
       "Pause",
-      "Step",
-      "Step Over",
-      "Step Into",
       "Skip back",
       "Stop",
       "Skip forward",
-      "Step Out",
-      "Toggle breakpoint",
       "Preview settings",
     ]);
   });
@@ -3444,7 +3551,7 @@ describe("The preview's top bar", () => {
       expect(requests).not.toContain(ToggleEditorBreakpointMessage.method);
     });
 
-    it("sits in the Step menu on phones, so the bar does not grow, and runs the same toggle", async () => {
+    it("sits in the toolbar on phones, outside the settings menu, and runs the same toggle", async () => {
       layoutMock.value = "phone";
       const toggle = vi
         .spyOn(win, "toggleBreakpointAtCaret")
@@ -3452,20 +3559,20 @@ describe("The preview's top bar", () => {
       try {
         caretIn("main.sd", 2);
         show({ running: true, paused: true });
-        expect(labels()).not.toContain("Toggle breakpoint");
-        const row = rows("menuitem").find(
-          (r) => r.querySelector("strong")?.textContent === "Toggle breakpoint",
-        );
-        expect((row as HTMLButtonElement).disabled).toBe(false);
-        row!.click();
+        const button = container.querySelector<HTMLButtonElement>(
+          '[role="toolbar"] button[aria-label="Toggle breakpoint"]',
+        )!;
+        expect(button.hasAttribute("aria-disabled")).toBe(false);
+        expect(
+          rows("menuitem").some((r) => r.textContent?.includes("Toggle breakpoint")),
+        ).toBe(false);
+        button.click();
         await vi.waitFor(() => expect(toggle).toHaveBeenCalledWith("main.sd"));
         caretIn("main.sd");
         show({ running: true, paused: true });
-        const refused = rows("menuitem").find(
-          (r) => r.querySelector("strong")?.textContent === "Toggle breakpoint",
-        );
-        expect((refused as HTMLButtonElement).disabled).toBe(true);
-        expect(refused!.querySelector("small")?.textContent).toBe(
+        const refused = control("Toggle breakpoint")!;
+        expect(refused.getAttribute("aria-disabled")).toBe("true");
+        expect(refused.title).toBe(
           "Put the caret on a script line to toggle its breakpoint.",
         );
       } finally {

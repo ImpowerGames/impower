@@ -1,4 +1,6 @@
 import { act } from "preact/test-utils";
+import "./resizeObserverStub";
+import { pickTab, routeTabs, shownText } from "./routeListQueries";
 import { afterEach, describe, expect, test } from "vitest";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { SetRouteTogglesMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SetRouteTogglesMessage";
@@ -130,8 +132,8 @@ function player() {
     routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
   };
   const tabs = () =>
-    [...routeList.querySelectorAll<HTMLButtonElement>(".route-tab")];
-  const valuesTab = () => tabs().find((t) => t.dataset["tab"] === "values");
+    routeTabs(routeList);
+  const valuesTab = () => (tabs().length > 1 ? tabs()[1] : undefined);
   const rows = () => [...routeList.querySelectorAll<HTMLElement>(".sv-row")];
   const row = (key: string) =>
     routeList.querySelector<HTMLElement>(`.sv-row[data-key="${key}"]`)!;
@@ -177,7 +179,7 @@ async function onValuesTab(values: StartingValues = {}) {
   p.open();
   await Promise.resolve();
   await Promise.resolve();
-  p.valuesTab()!.click();
+  pickTab(p.valuesTab()!);
   return p;
 }
 
@@ -210,7 +212,7 @@ describe("the route panel's tabs", () => {
     const p = player();
     p.report();
     p.open();
-    expect(p.tabs().map((t) => t.textContent)).toEqual(["Route to line 20"]);
+    expect(p.tabs().map(shownText)).toEqual(["Route to line 20"]);
   });
 
   test("the Starting values tab counts the values set and names the route's scene's values", async () => {
@@ -218,7 +220,7 @@ describe("the route panel's tabs", () => {
       interrogation: { "store:trust": "2" },
       other: { "store:trust": "5" },
     });
-    expect(p.tabs().map((t) => t.textContent)).toEqual([
+    expect(p.tabs().map(shownText)).toEqual([
       "Route to line 20",
       "Starting values1",
     ]);
@@ -264,7 +266,7 @@ describe("the route panel's tabs", () => {
     p.report();
     p.open();
     await settle();
-    p.valuesTab()!.click();
+    pickTab(p.valuesTab()!);
     const status = p.routeList.querySelector(".sv-status");
     expect(status).not.toBeNull();
     expect(status!.textContent).toBe("");
@@ -281,7 +283,7 @@ describe("the route panel's tabs", () => {
       (m) => m.method === "preview/didChangeRouteToggles",
     );
     expect(told.at(-1).params.tab).toBe("values");
-    p.tabs()[0]!.click();
+    pickTab(p.tabs()[0]!);
     expect(p.routeList.querySelector(".sv-tab")).toBeNull();
     await (p.controller as any).handleSetRouteToggles(
       SetRouteTogglesMessage.type.request({ toggles: {}, tab: "values" }),
@@ -291,10 +293,10 @@ describe("the route panel's tabs", () => {
 
   test("the Route tab lists the decisions and the target line, with no start row", async () => {
     const p = await onValuesTab();
-    p.tabs()[0]!.click();
+    pickTab(p.tabs()[0]!);
     expect(
-      [...p.routeList.querySelectorAll(".route-entry")].map(
-        (e) => e.querySelector(".route-text")!.textContent,
+      [...p.routeList.querySelectorAll("[data-route-entry]")].map(
+        (e) => e.querySelector("[data-route-text]")!.textContent,
       ),
     ).toEqual([
       "Choice Tell the truth.",
@@ -318,8 +320,8 @@ describe("the route panel's tabs", () => {
     p.open();
     await Promise.resolve();
     await Promise.resolve();
-    const entries = [...p.routeList.querySelectorAll(".route-entry")];
-    expect(entries.at(-1)!.querySelector(".route-text")!.textContent).toBe(
+    const entries = [...p.routeList.querySelectorAll("[data-route-entry]")];
+    expect(entries.at(-1)!.querySelector("[data-route-text]")!.textContent).toBe(
       "Tunnel ends here, with nothing to return to in the preview",
     );
   });
@@ -432,7 +434,7 @@ describe("the Starting values tab", () => {
     expect(p.badge("param:hour")).toBeNull();
     const clear = p.row("param:hour").querySelector<HTMLElement>(".sv-clear")!;
     expect(clear.style.visibility).toBe("");
-    expect(p.valuesTab()!.textContent).toBe("Starting values1");
+    expect(shownText(p.valuesTab()!)).toBe("Starting values1");
     expect(
       p.valuesTab()!.querySelector(".sv-tab-icon")!.getAttribute("data-icon"),
     ).toBe("sliders");
@@ -546,7 +548,7 @@ describe("the Starting values tab", () => {
     expect(p.input("store:trust").value).toBe("3");
     expect(p.badge("store:trust")).toBeNull();
     expect(p.row("store:trust").hasAttribute("data-set")).toBe(true);
-    expect(p.valuesTab()!.textContent).toBe("Starting values1");
+    expect(shownText(p.valuesTab()!)).toBe("Starting values1");
   });
 
   test.each([["×"], ["Reset all"]])(

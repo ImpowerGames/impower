@@ -38,7 +38,7 @@ const LONG_NAME =
   "The Extraordinarily Long Midnight Jukebox Story of Raffles X";
 
 const markupOn = async (
-  route: "write" | "collection",
+  route: "story" | "assets",
   name = "The Midnight Jukebox",
 ) => {
   const state = stateForRoute(workspace.state.value as WorkspaceCache, route);
@@ -59,10 +59,10 @@ const markupOn = async (
   return markup;
 };
 
-type BarState = "collection" | "write" | "editing" | "naming";
+type BarState = "assets" | "story" | "editing" | "naming";
 
 const markupIn = async (barState: BarState) => {
-  const route = barState === "collection" ? "collection" : "write";
+  const route = barState === "assets" ? "assets" : "story";
   workspace.state.value = stateForRoute(
     workspace.state.value as WorkspaceCache,
     route,
@@ -214,10 +214,10 @@ describe(
   "the phone title bar against the Folio prototype",
   () => {
     it.each([
-      [430, "collection", 347, 398],
-      [360, "collection", 277, 328],
-      [430, "write", 347, 398],
-      [360, "write", 277, 328],
+      [430, "assets", 347, 398],
+      [360, "assets", 277, 328],
+      [430, "story", 347, 398],
+      [360, "story", 277, 328],
     ] as const)(
       "at %ipx on %s, sits on one 10px inset with 7px gaps",
       async (width, route, search, menu) => {
@@ -236,10 +236,10 @@ describe(
     );
 
     it.each([
-      [430, "collection", "App menu"],
-      [360, "collection", "App menu"],
-      [430, "write", "App menu"],
-      [360, "write", "App menu"],
+      [430, "assets", "App menu"],
+      [360, "assets", "App menu"],
+      [430, "story", "App menu"],
+      [360, "story", "App menu"],
       [430, "editing", "Done editing"],
       [360, "editing", "Done editing"],
       [430, "naming", "Keep the name"],
@@ -268,10 +268,10 @@ describe(
     );
 
     it.each([
-      [430, "collection", 347, 398],
-      [360, "collection", 277, 328],
-      [430, "write", 347, 398],
-      [360, "write", 277, 328],
+      [430, "assets", 347, 398],
+      [360, "assets", 277, 328],
+      [430, "story", 347, 398],
+      [360, "story", 277, 328],
     ] as const)(
       "at %ipx on %s, a 60-character name fades on one line and leaves the buttons where they were",
       async (width, route, search, menu) => {

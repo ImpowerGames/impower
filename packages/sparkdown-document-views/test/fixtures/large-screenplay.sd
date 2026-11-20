@@ -1134,7 +1134,7 @@ scene ACT_TWO
   Bunny maneuvers backwards.   Panicked.   Arms dragging 180 pounds of dead weight -- Raffles.
 
   BUNNY:
-    [[bunny_panicking~look_down]]
+    [[bunny_panicking:look_down]]
     (teeth clenched around a ring of keys)
     ...don't-die-don't-die-don't...
 
@@ -1175,7 +1175,7 @@ scene ACT_TWO
     [[bunny_serious]]
     Okay.  Unconscious.  
     Still breathing. >
-    [[bunny_what~eyes_closed]]
+    [[bunny_what:eyes_closed]]
     (eyes shut tight)
     First step is...
 

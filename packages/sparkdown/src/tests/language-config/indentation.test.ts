@@ -458,3 +458,22 @@ describe("the story define onEnterRule", () => {
     expect(before.test("define end with")).toBe(false);
   });
 });
+
+describe("sparkdown.language-config.json decreaseIndentPattern and a replay block's range fields (#2625)", () => {
+  const decrease = new RegExp((STORY_LANGUAGE_CONFIG as { indentationRules: { decreaseIndentPattern: string } }).indentationRules.decreaseIndentPattern);
+
+  it("dedents no line while `from = 0%` or `to = 66.667%` is typed key by key", () => {
+    for (const field of ["from = 0%", "to = 66.667%"]) {
+      for (let i = 1; i <= field.length; i++) {
+        const line = `    ${field.slice(0, i)}`;
+        expect(decrease.test(line), line).toBe(false);
+      }
+    }
+  });
+
+  it("dedents a line starting with `end`, whatever follows it", () => {
+    for (const line of ["  end", "    end = 66.667%", "    end=1", "  end == x"]) {
+      expect(decrease.test(line), line).toBe(true);
+    }
+  });
+});

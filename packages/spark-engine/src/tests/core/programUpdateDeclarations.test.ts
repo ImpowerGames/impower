@@ -193,7 +193,7 @@ describe("a game given a program that runs the same declarations (#1759)", () =>
     expect(second.contextRevision).not.toBe(first.contextRevision);
     expect(update(game, second).builds).toBe(0);
     expect(
-      context(game)["filtered_image"]?.["hero_worried~gloves"],
+      context(game)["filtered_image"]?.["hero_worried:gloves"],
     ).toBeDefined();
   });
 

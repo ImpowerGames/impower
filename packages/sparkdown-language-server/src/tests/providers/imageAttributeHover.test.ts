@@ -11,7 +11,7 @@ describe("attribute directive hover", () => {
       image: { mia: { $type: "image", $name: "mia", ext: "svg", data: '<svg xmlns="http://www.w3.org/2000/svg"><g data-name="hat.on" id="hat-layer"/></svg>' } },
       filtered_image: {
         mia: { $type: "filtered_image", $name: "mia", image: { $type: "image", $name: "mia" }, attributes: [] },
-        "mia~hat": { $type: "filtered_image", $name: "mia hat", image: { $name: "mia" }, attributes: ["hat"] },
+        "mia:hat": { $type: "filtered_image", $name: "mia hat", image: { $name: "mia" }, attributes: ["hat"] },
       },
     } } as any;
     const hover = await getHover(documents.get(uri), documents.tree(uri), documents.annotations(uri), program, undefined, { line: 0, character });

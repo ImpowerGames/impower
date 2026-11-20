@@ -26,7 +26,7 @@ const KEYFRAMES = [
   "  }",
 ];
 
-const SCENE = ["scene start", "  [[bunny]]", "  [[bunny~eyes.closed]]", "  [[bunny~mouth.teeth]]", "  [[bunny~mouth.open]]", "end", ""];
+const SCENE = ["scene start", "  [[bunny]]", "  [[bunny:eyes.closed]]", "  [[bunny:mouth.teeth]]", "  [[bunny:mouth.open]]", "end", ""];
 
 type Field = (typeof MORPH_ROOT_FIELDS)[number];
 
@@ -86,6 +86,9 @@ const ROWS: Row[] = [
   row("timing", "timing {", "  duration = 0.5", "}"),
   row("timing", "timing {", "  duration = -1", "}"),
   row("timing", "timing {", "  easing = wobble", "}"),
+  row("replay", "replay {", "  chance = 50%", "}"),
+  row("replay", "replay {", "  chance = 150%", "}"),
+  row("replay", "replay {", "  end = 50%", "}"),
   prefixed(row("clips", "clips {", "  { between { nose }; targets { chin } }", "}"), [from("clips"), "No image the morph applies to has a layer labelled `nose`."], [from("clips"), "No image the morph applies to has a layer labelled `chin`."]),
   row("paints", "paints {", "  { targets { lips }; state = mouth.open; fill = red }", "}"),
   row("paints", "paints {", "  { targets { lips }; state = mouth.grin; fill = red }", "}"),

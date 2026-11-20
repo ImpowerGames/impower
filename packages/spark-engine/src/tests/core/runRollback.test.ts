@@ -243,6 +243,27 @@ describe("rolling back to a breakpoint", () => {
     expect(first.moved && first.restored.beat).toBe(0);
     expect(h.text()).toBe("The first beat.");
   });
+
+  test("a roll to a beat a later stop held reports the lines the beat first executed", async () => {
+    const h = play();
+    h.game.setBreakpoints([{ file: MAIN, line: lineOf("-> visit ->") }]);
+    playTo(h, "The second beat.");
+    const shown = h.of("game/executed").at(-1)?.params;
+    h.continueToBreakpoint();
+    expect(h.stoppedAt()).toBe(lineOf("-> visit ->"));
+    h.game.continue();
+    expect(h.text()).toBe("The third beat.");
+    const back = await h.game.rollBack("beat");
+    expect(back.moved && back.restored.beat).toBe(1);
+    const rolled = h.of("game/rolled").at(-1)?.params;
+    expect(back.moved && back.restored.location?.range.start.line).toBe(
+      lineOf("The second beat."),
+    );
+    expect(rolled.executed.firstLocation).toEqual(shown.firstLocation);
+    expect(rolled.executed.lastLocation?.range.end.line).toBe(
+      lineOf("The second beat."),
+    );
+  });
 });
 
 describe("rolling a run back and forward", () => {

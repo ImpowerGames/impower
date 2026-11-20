@@ -20,6 +20,12 @@ import EDITOR_THEME from "../script-editor/constants/EDITOR_THEME";
 
 const SAMPLE_URI = "file:///sample.sd";
 
+const SAMPLE_THEME = {
+  ...EDITOR_THEME,
+  "&.cm-editor": { overscrollBehavior: "auto !important" },
+  "&.cm-editor *": { overscrollBehavior: "auto !important" },
+};
+
 export type SparkdownScriptSampleProps = {
   text: string;
   appearance: ScriptAppearance;
@@ -35,6 +41,7 @@ export const createScriptSampleState = (
   text: string,
   appearance: ScriptAppearance,
   caret?: number,
+  label?: string,
 ) =>
   EditorState.create({
     doc: text,
@@ -55,7 +62,8 @@ export const createScriptSampleState = (
       scriptAppearance(appearance),
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
-      EditorView.theme(EDITOR_THEME, { dark: true }),
+      EditorView.theme(SAMPLE_THEME, { dark: true }),
+      label ? EditorView.contentAttributes.of({ "aria-label": label }) : [],
     ],
   });
 
@@ -78,7 +86,7 @@ export default function SparkdownScriptSample({
     const view = new EditorView({
       parent,
       root: parent.getRootNode() as Document | ShadowRoot,
-      state: createScriptSampleState(text, appearanceRef.current, caret),
+      state: createScriptSampleState(text, appearanceRef.current, caret, label),
     });
     viewRef.current = view;
     return () => {

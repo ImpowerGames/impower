@@ -624,7 +624,7 @@ sparkdown [0..456]
  │   │       │               │               └─ AssetCommandFilteredFileName_c2 [397..401]
  │   │       │               │                   └─ AssetCommandFilter [397..401]
  │   │       │               │                       ├─ AssetCommandFilter_c1 [397..398]
- │   │       │               │                       │   └─ AssetCommandFilterOperator [397..398]: "~"
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [397..398]: ":"
  │   │       │               │                       └─ AssetCommandFilter_c2 [398..401]
  │   │       │               │                           └─ AssetCommandFilterName [398..401]: "hat"
  │   │       │               ├─ AssetCommandNamesFirst_c2 401

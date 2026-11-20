@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { impowerUiBuildOptions } from "../impowerUiBuildOptions.mjs";
+import { tailwindLoader } from "../tailwindLoader.mjs";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -31,6 +32,7 @@ const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
 const workerInputs = new Set();
+const tailwindInputs = new Set();
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildInlineWorkerPlugin = (extraConfig) => ({
@@ -113,7 +115,12 @@ export const config = {
   ...impowerUiBuildOptions,
   entryPoints: ["./game-webview.ts"],
   outfile: "../../out/webviews/game-webview.js",
-  plugins: [rawPlugin, esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
+  plugins: [
+    rawPlugin,
+    tailwindLoader(tailwindInputs),
+    esbuildInlineWorkerPlugin(),
+    esbuildProblemMatcher(),
+  ],
   metafile: WATCH,
 };
 
@@ -123,7 +130,7 @@ async function main() {
     // workaround(esbuild): ctx.watch() polls the build graph's files rather than using change notifications (seen with esbuild 0.25.12)
     const { watchBuild } = await import("../../../scripts/esbuild-watch.mjs");
     await watchBuild(ctx, {
-      extraInputs: () => workerInputs,
+      extraInputs: () => [...workerInputs, ...tailwindInputs],
       onError: (e) => console.error(LOG_PREFIX + "rebuild failed:", e?.message ?? e),
     });
   } else {

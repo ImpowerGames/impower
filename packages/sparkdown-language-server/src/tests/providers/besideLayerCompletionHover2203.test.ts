@@ -107,9 +107,9 @@ describe("completion offers a beside-layer picture's own options (#2203)", () =>
     expect(labels("[[ava@night:face.@0]]", ".")).toEqual(["happy"]);
   });
 
-  it("offers the same options after ~", () => {
-    expect(labels("[[ava~@0]]")).toEqual(["closed", "face", "happy", "hat", "mouth", "open", "sad"]);
-    expect(labels("[[ava@night~@0]]")).toEqual(["face", "happy"]);
+  it("offers no options after ~", () => {
+    expect(labels("[[ava~@0]]")).toEqual([]);
+    expect(labels("[[ava@night~@0]]")).toEqual([]);
   });
 
   it("offers the named picture's options inside a + composition", () => {

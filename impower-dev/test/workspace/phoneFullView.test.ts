@@ -116,6 +116,99 @@ describe("the phone's full view", () => {
     expect(sent.stopped).toBe(1);
   });
 
+  it("returns to the script when Stop ends a run played from the strip", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(sent.stopped).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(false);
+  });
+
+  it("opens the full view from the thumbnail without starting a run", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.openFullView();
+    expect(workspace.current.preview.revealed).toBe(true);
+    expect(sent.started).toBe(0);
+    w.collapsePreviewPane();
+    expect(workspace.current.preview.revealed).toBe(false);
+    expect(sent.started).toBe(0);
+    expect(sent.stopped).toBe(0);
+  });
+
+  it("keeps the full view open when Stop ends a run played inside it", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.openFullView();
+    w.toggleGameRunning();
+    expect(sent.started).toBe(1);
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(sent.stopped).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
+  it("keeps the full view open after Stop when a strip run is replayed inside it", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.collapsePreviewPane();
+    w.syncGameExited();
+    w.openFullView();
+    w.toggleGameRunning();
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
+  it("leaves the script's caret where it was while a strip run plays behind the full view, through Stop", () => {
+    const uri = "file:///project/main.sd";
+    const w = mount();
+    vi.spyOn(w, "getActiveEditorForPane").mockReturnValue({ uri } as ReturnType<
+      typeof w.getActiveEditorForPane
+    >);
+    const shown = vi.spyOn(w, "showDocument").mockResolvedValue(undefined as never);
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.followExecutedLines({ [uri]: { last: 30 } });
+    w.toggleGameRunning();
+    expect(workspace.current.preview.revealed).toBe(false);
+    expect(shown).not.toHaveBeenCalled();
+  });
+
+  it("still moves the caret to the executed line where the script is in view", () => {
+    const uri = "file:///project/main.sd";
+    layout.value = "compact";
+    const w = mount();
+    vi.spyOn(w, "getActiveEditorForPane").mockReturnValue({ uri } as ReturnType<
+      typeof w.getActiveEditorForPane
+    >);
+    const shown = vi.spyOn(w, "showDocument").mockResolvedValue(undefined as never);
+    w.expandPreviewPane();
+    w.followExecutedLines({ [uri]: { last: 30 } });
+    expect(shown).toHaveBeenCalledWith(
+      uri,
+      { start: { line: 30, character: 0 }, end: { line: 30, character: 0 } },
+      false,
+    );
+  });
+
+  it("leaves the preview where it is when Stop is pressed outside the phone layout", () => {
+    layout.value = "compact";
+    const w = mount();
+    w.connectPlayer();
+    w.expandPreviewPane();
+    w.toggleGameRunning();
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(sent.stopped).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
   it("leaves a game running when the preview collapses outside the phone layout", () => {
     layout.value = "compact";
     const w = mount();

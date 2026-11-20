@@ -61,6 +61,7 @@ import {
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import {
+  CapabilitiesEvent,
   ContinuedEvent,
   ExitedEvent,
   Handles,
@@ -143,6 +144,8 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _firstRead: Promise<void> | undefined;
 
   private _endStop: { run: number | null | undefined } | undefined;
+
+  private _supportsStepBack = true;
 
   private _resuming: Promise<void> | undefined;
 
@@ -378,7 +381,11 @@ export class SparkDebugSession extends LoggingDebugSession {
       }
       this._endStop = { run };
     }
-    const { threads } = answer;
+    const { threads, canRollBack } = answer;
+    if (canRollBack !== undefined && canRollBack !== this._supportsStepBack) {
+      this._supportsStepBack = canRollBack;
+      this.sendEvent(new CapabilitiesEvent({ supportsStepBack: canRollBack }));
+    }
     for (const thread of threads) {
       this._stoppedReason.set(thread.id, reason);
       const event = new StoppedEvent(reason, thread.id);

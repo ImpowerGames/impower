@@ -12,7 +12,7 @@
   --swp-route-warning-color: var(--warning);
   --swp-route-muted-color: var(--muted);
   --swp-route-field-background-color: var(--control-hover);
-  --swp-route-field-border-color: var(--edge);
+  --swp-route-field-border-color: var(--field-edge);
   --swp-route-popup-background-color: var(--panel);
   --swp-route-popup-border-color: var(--edge);
   --swp-saves-menu-max-height: var(
@@ -24,8 +24,26 @@
   font-size: var(--swp-toolbar-font-size);
 }
 
+:root swp-route-view .route-list {
+  --tab-height: 25px;
+  --tab-padding-x: 8px;
+  --tab-gap: 6px;
+  --tab-font-size: 12px;
+  --panel-head-height: 33px;
+  --panel-head-padding-x: 2px;
+  --panel-head-gap: 6px;
+  --list-row-compact-height: 23px;
+  --list-row-compact-padding-x: 0px;
+  --list-row-compact-padding-y: 0px;
+  --list-row-compact-gap: 6px;
+  --list-row-compact-font-size: 12px;
+  --control-size: 22px;
+  --control-radius: 3px;
+}
+
 :root swp-route-view .sv-tab {
   --list-row-compact-height: var(--swp-route-row-height);
+  --list-row-compact-padding-x: 8px;
   --list-row-compact-padding-y: 0px;
   --list-row-compact-gap: 8px;
 }

@@ -199,7 +199,7 @@ const SCRIPT = [
   "scene start",
   "  [[show portrait imani]]",
   "  [[show portrait imani@night]]",
-  "  [[show portrait imani~face.happy]]",
+  "  [[show portrait imani:face.happy]]",
   "  [[show portrait imani_extra]]",
   "end",
   "",
@@ -226,7 +226,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(shown(await h.read("main.sd"))).toEqual([
       "[[show portrait zadie]]",
       "[[show portrait zadie@night]]",
-      "[[show portrait zadie~face.happy]]",
+      "[[show portrait zadie:face.happy]]",
       "[[show portrait imani_extra]]",
     ]);
     expect(h.snackbar.value?.message).toBe("Renamed imani and 3 lines.");
@@ -238,7 +238,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(shown(await h.read("main.sd"))).toEqual([
       "[[show portrait imani]]",
       "[[show portrait imani@night]]",
-      "[[show portrait imani~face.happy]]",
+      "[[show portrait imani:face.happy]]",
       "[[show portrait kai]]",
     ]);
     expect(h.snackbar.value?.message).toBe("Renamed imani_extra and 1 line.");
@@ -338,7 +338,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect((await inPortraits(h)).filter((path) => path.includes("/Imani"))).toEqual(
       STACK.map((path) => path.replace("/imani", "/Imani")).sort(),
     );
-    expect(shown(await h.read("main.sd"))[2]).toBe("[[show portrait Imani~face.happy]]");
+    expect(shown(await h.read("main.sd"))[2]).toBe("[[show portrait Imani:face.happy]]");
   });
 
   for (const [which, failing] of [["first", 0], ["last", 3]] as const) {
@@ -369,7 +369,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(shown(text)).toEqual([
       "[[show portrait zadie]]",
       "[[show portrait zadie@night]]",
-      "[[show portrait zadie~face.happy]]",
+      "[[show portrait zadie:face.happy]]",
       "[[show portrait imani_extra]]",
     ]);
   });
@@ -461,7 +461,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     await expect(h.assets.rename(STACK[0]!, "zadie")).rejects.toMatchObject({
       rollback: { complete: false, kept: ["main.sd"] },
     });
-    expect(await h.read("main.sd")).toBe(saved.replace(/imani(@night|~face)/g, "zadie$1"));
+    expect(await h.read("main.sd")).toBe(saved.replace(/imani(@night|:face)/g, "zadie$1"));
     expect(await inPortraits(h)).toEqual(ORIGINAL);
   });
 
@@ -480,7 +480,7 @@ describe("renaming a stacked picture", { timeout: 120000 }, () => {
     expect(text).toContain("  The author says imani.");
     expect(shown(text)).toEqual([
       "[[show portrait zadie@night]]",
-      "[[show portrait zadie~face.happy]]",
+      "[[show portrait zadie:face.happy]]",
       "[[show portrait imani_extra]]",
     ]);
   });

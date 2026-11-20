@@ -23,7 +23,7 @@ const synthesizeFilteredImage = (
     return undefined;
   }
   const attributes = [...filtered.attributes];
-  const name = [filtered.image, ...attributes].join("~");
+  const name = [filtered.image, ...attributes].join(":");
   const existing = context["filtered_image"]?.[name];
   if (existing) {
     return { context, struct: existing };

@@ -33,8 +33,11 @@ sparkdown [0..338]
  │   │       │   │   │   │           ├─ SelectorOperator [20..21]: ">"
  │   │       │   │   │   │           ├─ SelectorOperator [21..22]: ">"
  │   │       │   │   │   │           ├─ RequiredWhitespace [22..23]: " "
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [23..24]: ":"
- │   │       │   │   │   │           ├─ CustomComponentName [24..29]: "where"
+ │   │       │   │   │   │           ├─ SelectorPseudoClass [23..29]
+ │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [23..24]
+ │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [23..24]: ":"
+ │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [24..29]
+ │   │       │   │   │   │           │       └─ SelectorPseudoClassName [24..29]: "where"
  │   │       │   │   │   │           └─ ParenPropertyIdentifierString [29..47]
  │   │       │   │   │   │               ├─ ParenPropertyIdentifierString_begin [29..30]
  │   │       │   │   │   │               │   ├─ ParenPropertyIdentifierString_begin_c1 [29..30]
@@ -67,8 +70,11 @@ sparkdown [0..338]
  │   │       │   │   │       │   │   │   │   └─ LuauStructBlockKey [54..89]
  │   │       │   │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [54..89]
  │   │       │   │   │       │   │   │   │           ├─ SelectorOperator [54..55]: "&"
- │   │       │   │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [55..56]: ":"
- │   │       │   │   │       │   │   │   │           ├─ CustomComponentName [56..61]: "where"
+ │   │       │   │   │       │   │   │   │           ├─ SelectorPseudoClass [55..61]
+ │   │       │   │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [55..56]
+ │   │       │   │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [55..56]: ":"
+ │   │       │   │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [56..61]
+ │   │       │   │   │       │   │   │   │           │       └─ SelectorPseudoClassName [56..61]: "where"
  │   │       │   │   │       │   │   │   │           └─ ParenPropertyIdentifierString [61..89]
  │   │       │   │   │       │   │   │   │               ├─ ParenPropertyIdentifierString_begin [61..62]
  │   │       │   │   │       │   │   │   │               │   ├─ ParenPropertyIdentifierString_begin_c1 [61..62]
@@ -160,8 +166,11 @@ sparkdown [0..338]
  │   │       │   │   │   │           ├─ SelectorOperator [132..133]: ">"
  │   │       │   │   │   │           ├─ SelectorOperator [133..134]: ">"
  │   │       │   │   │   │           ├─ RequiredWhitespace [134..135]: " "
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [135..136]: ":"
- │   │       │   │   │   │           ├─ CustomComponentName [136..141]: "where"
+ │   │       │   │   │   │           ├─ SelectorPseudoClass [135..141]
+ │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [135..136]
+ │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [135..136]: ":"
+ │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [136..141]
+ │   │       │   │   │   │           │       └─ SelectorPseudoClassName [136..141]: "where"
  │   │       │   │   │   │           └─ ParenPropertyIdentifierString [141..165]
  │   │       │   │   │   │               ├─ ParenPropertyIdentifierString_begin [141..142]
  │   │       │   │   │   │               │   ├─ ParenPropertyIdentifierString_begin_c1 [141..142]
@@ -278,15 +287,18 @@ sparkdown [0..338]
  │   │       │   │   │   │   └─ LuauStructBlockKey [219..233]
  │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [219..233]
  │   │       │   │   │   │           ├─ SelectorOperator [219..220]: "&"
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [220..221]: ":"
- │   │       │   │   │   │           ├─ CustomComponentName [221..226]: "where"
+ │   │       │   │   │   │           ├─ SelectorPseudoClass [220..226]
+ │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [220..221]
+ │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [220..221]: ":"
+ │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [221..226]
+ │   │       │   │   │   │           │       └─ SelectorPseudoClassName [221..226]: "where"
  │   │       │   │   │   │           └─ ParenPropertyIdentifierString [226..233]
  │   │       │   │   │   │               ├─ ParenPropertyIdentifierString_begin [226..227]
  │   │       │   │   │   │               │   ├─ ParenPropertyIdentifierString_begin_c1 [226..227]
  │   │       │   │   │   │               │   │   └─ PunctuationParenOpen [226..227]: "("
  │   │       │   │   │   │               │   └─ ParenPropertyIdentifierString_begin_c2 227
  │   │       │   │   │   │               ├─ ParenPropertyIdentifierString_content [227..232]
- │   │       │   │   │   │               │   └─ BuiltinComponentName [227..232]: "label"
+ │   │       │   │   │   │               │   └─ SelectorCssWord [227..232]: "label"
  │   │       │   │   │   │               └─ ParenPropertyIdentifierString_end [232..233]
  │   │       │   │   │   │                   ├─ ParenPropertyIdentifierString_end_c1 232
  │   │       │   │   │   │                   └─ ParenPropertyIdentifierString_end_c2 [232..233]
@@ -343,8 +355,11 @@ sparkdown [0..338]
  │   │       │   │   │   │   └─ LuauStructBlockKey [263..303]
  │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [263..303]
  │   │       │   │   │   │           ├─ SelectorOperator [263..264]: "&"
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [264..265]: ":"
- │   │       │   │   │   │           ├─ CustomComponentName [265..270]: "where"
+ │   │       │   │   │   │           ├─ SelectorPseudoClass [264..270]
+ │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [264..265]
+ │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [264..265]: ":"
+ │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [265..270]
+ │   │       │   │   │   │           │       └─ SelectorPseudoClassName [265..270]: "where"
  │   │       │   │   │   │           ├─ ParenPropertyIdentifierString [270..283]
  │   │       │   │   │   │           │   ├─ ParenPropertyIdentifierString_begin [270..271]
  │   │       │   │   │   │           │   │   ├─ ParenPropertyIdentifierString_begin_c1 [270..271]
@@ -362,7 +377,7 @@ sparkdown [0..338]
  │   │       │   │   │   │           │   │       │   │   └─ PunctuationParenOpen [275..276]: "("
  │   │       │   │   │   │           │   │       │   └─ ParenPropertyIdentifierString_begin_c2 276
  │   │       │   │   │   │           │   │       ├─ ParenPropertyIdentifierString_content [276..281]
- │   │       │   │   │   │           │   │       │   └─ BuiltinComponentName [276..281]: "label"
+ │   │       │   │   │   │           │   │       │   └─ SelectorCssWord [276..281]: "label"
  │   │       │   │   │   │           │   │       └─ ParenPropertyIdentifierString_end [281..282]
  │   │       │   │   │   │           │   │           ├─ ParenPropertyIdentifierString_end_c1 281
  │   │       │   │   │   │           │   │           └─ ParenPropertyIdentifierString_end_c2 [281..282]
@@ -375,8 +390,11 @@ sparkdown [0..338]
  │   │       │   │   │   │           ├─ RequiredWhitespace [284..285]: " "
  │   │       │   │   │   │           ├─ SelectorOperator [285..286]: ">"
  │   │       │   │   │   │           ├─ RequiredWhitespace [286..287]: " "
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [287..288]: ":"
- │   │       │   │   │   │           ├─ CustomComponentName [288..293]: "where"
+ │   │       │   │   │   │           ├─ SelectorPseudoClass [287..293]
+ │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [287..288]
+ │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [287..288]: ":"
+ │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [288..293]
+ │   │       │   │   │   │           │       └─ SelectorPseudoClassName [288..293]: "where"
  │   │       │   │   │   │           └─ ParenPropertyIdentifierString [293..303]
  │   │       │   │   │   │               ├─ ParenPropertyIdentifierString_begin [293..294]
  │   │       │   │   │   │               │   ├─ ParenPropertyIdentifierString_begin_c1 [293..294]

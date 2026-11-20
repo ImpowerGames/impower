@@ -60,14 +60,13 @@ describe("portrait asset review regressions", () => {
       .toContain("plain.png");
   });
 
-  it("preloads colon attributes using the same ordered selection as tilde syntax", () => {
+  it("preloads colon attributes and nothing for a tilde spelling", () => {
     const vocabulary = buildSVGAttributeVocabulary('<svg><g data-name="hat.on"/></svg>');
     const context = { image: { mia: { $type: "image", $name: "mia", ext: "svg",
       src: "/file:/local/assets/mia.svg?v=1", attribute_vocabulary: vocabulary } },
-      filtered_image: { "mia~hat": { $type: "filtered_image", $name: "mia~hat",
+      filtered_image: { "mia:hat": { $type: "filtered_image", $name: "mia:hat",
         image: { $type: "image", $name: "mia" }, attributes: ["hat"] } } };
-    const tilde = resolveImageSrcs(context, ["mia~hat"]);
-    expect(tilde).toHaveLength(1);
-    expect(resolveImageSrcs(context, ["mia:hat"])).toEqual(tilde);
+    expect(resolveImageSrcs(context, ["mia:hat"])).toHaveLength(1);
+    expect(resolveImageSrcs(context, ["mia~hat"])).toEqual([]);
   });
 });

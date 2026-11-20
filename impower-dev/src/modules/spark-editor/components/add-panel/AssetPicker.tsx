@@ -72,7 +72,7 @@ const openAssets = (row: PickerRow, onLeave: () => void) => () => {
     Workspace.window.setListState({
       assetsType: row.picker.audition === "sound" ? "audio" : "image",
     });
-    Workspace.window.navigateTo("collection");
+    Workspace.window.navigateTo("assets");
   });
 };
 
@@ -328,7 +328,7 @@ function Cards({
     const openPreference = () => {
       onLeave();
       void intents().then((Workspace) =>
-        Workspace.window.navigateTo("project", THUMBNAIL_SECTION),
+        Workspace.window.navigateTo("settings", THUMBNAIL_SECTION),
       );
     };
     return (

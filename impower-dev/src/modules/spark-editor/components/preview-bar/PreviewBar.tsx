@@ -1,6 +1,8 @@
 import {
+  announce,
   Button,
   CloseIcon,
+  RefreshIcon,
   DetourIcon,
   DropdownContent,
   DropdownRoot,
@@ -16,6 +18,7 @@ import {
 import { useLayout, type Layout } from "@impower/impower-ui/layout";
 import type { GameSize } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
+import { useEffect, useRef, useState } from "preact/hooks";
 import route from "../../workspace/route/RouteStore";
 import workspace from "../../workspace/WorkspaceStore";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
@@ -98,7 +101,56 @@ const READOUT_ICONS = {
   stopped: <StopSignIcon data-icon="stop-sign" class="text-warning" />,
 };
 
+const STARTING_DELAY_MS = 300;
+const STARTING_LABEL = "Loading";
+const STARTING_ANNOUNCEMENT = "Starting the game…";
+const STARTED_ANNOUNCEMENT = "The game has started.";
+
+function useShowsStarting(): boolean {
+  const starting = useComputed(
+    () => !!workspace.state.value.preview?.modes?.game?.starting,
+  ).value;
+  const running = useComputed(
+    () => !!workspace.state.value.preview?.modes?.game?.running,
+  ).value;
+  const [shown, setShown] = useState(false);
+  const announced = useRef(false);
+  useEffect(() => {
+    if (!starting) {
+      setShown(false);
+      if (announced.current) {
+        announced.current = false;
+        if (running) {
+          announce(STARTED_ANNOUNCEMENT);
+        }
+      }
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShown(true);
+      announced.current = true;
+      announce(STARTING_ANNOUNCEMENT);
+    }, STARTING_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [starting, running]);
+  return starting && shown;
+}
+
+function StartingReadout() {
+  return (
+    <span
+      data-starting
+      title={STARTING_ANNOUNCEMENT}
+      class={`inline-flex min-h-11 min-w-0 items-center justify-end gap-1.5 px-2.5 py-2 [&_svg]:size-[18px] text-muted ${BAR_TEXT}`}
+    >
+      <RefreshIcon aria-hidden="true" class="shrink-0 motion-safe:animate-spin" />
+      <span class="min-w-0 truncate">{STARTING_LABEL}</span>
+    </span>
+  );
+}
+
 function RouteReadout({ layout }: { layout: Layout }) {
+  const showsStarting = useShowsStarting();
   const readout = barReadout(
     workspace.state.value,
     route.view.value,
@@ -133,7 +185,9 @@ function RouteReadout({ layout }: { layout: Layout }) {
           {note}
         </span>
       ) : null}
-      {readout ? (
+      {showsStarting ? (
+        <StartingReadout />
+      ) : readout ? (
         <Button
           variant="quiet"
           title={readout.title}

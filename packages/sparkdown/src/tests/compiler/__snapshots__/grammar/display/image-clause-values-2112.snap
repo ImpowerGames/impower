@@ -684,7 +684,7 @@ sparkdown [0..413]
  │   │       │               │               └─ AssetCommandFilteredFileName_c2 [394..406]
  │   │       │               │                   └─ AssetCommandFilter [394..406]
  │   │       │               │                       ├─ AssetCommandFilter_c1 [394..395]
- │   │       │               │                       │   └─ AssetCommandFilterOperator [394..395]: "~"
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [394..395]: ":"
  │   │       │               │                       └─ AssetCommandFilter_c2 [395..406]
  │   │       │               │                           └─ AssetCommandFilterName [395..406]: "mouth.morph"
  │   │       │               ├─ AssetCommandNamesFirst_c2 406

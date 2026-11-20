@@ -2,6 +2,7 @@ import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
+import { visibleTextInName } from "../../../packages/impower-ui/test/visibleTextInName";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
@@ -269,8 +270,8 @@ describe("the Assets page", () => {
     expect(host!.querySelector('nav[aria-label="Folder path"]')!.textContent).toContain("4 files");
     await click(all<HTMLElement>('button[aria-label^="Open folder Music"]')[0]);
     expect(rowLabels()).toEqual([
-      "Open audio harbor_theme, modified 2d · 4 kb",
-      "Open audio night_market, modified 2d · 2 kb",
+      "Open audio harbor_theme, Modified 2d · 4 kB",
+      "Open audio night_market, Modified 2d · 2 kB",
     ]);
     const trail = host!.querySelector('nav[aria-label="Folder path"]')!;
     expect(trail.querySelector('button[aria-label="Audio"]')).not.toBeNull();
@@ -302,17 +303,17 @@ describe("the Assets page", () => {
     await mount();
     expect(rowLabels()).toEqual(["Open folder music, 1 sound"]);
     await click(all<HTMLElement>('button[aria-label^="Open folder music"]')[0]);
-    expect(rowLabels()).toEqual(["Open audio theme, assets/music · modified 2d · 2 kb"]);
+    expect(rowLabels()).toEqual(["Open audio theme, assets/music · Modified 2d · 2 kB"]);
   });
 
   it("lists a .webm under Video, a .ttf under Fonts and a .csv under Other", async () => {
     await mount();
     await showTab("Video");
-    expect(rowLabels()).toEqual(["Open video intro, modified 2d · 4 b"]);
+    expect(rowLabels()).toEqual(["Open video intro, Modified 2d · 4 B"]);
     await showTab("Fonts");
-    expect(rowLabels()).toEqual(["Open font courier_prime, modified 2d · 2 kb"]);
+    expect(rowLabels()).toEqual(["Open font courier_prime, Modified 2d · 2 kB"]);
     await showTab("Other");
-    expect(rowLabels()).toEqual(["Open file table, modified 2d · 19 b"]);
+    expect(rowLabels()).toEqual(["Open file table, Modified 2d · 19 B"]);
   });
 
   it("searches every type and groups the results under each type's name", async () => {
@@ -328,9 +329,9 @@ describe("the Assets page", () => {
     expect(text()).toContain("Results in all types");
     expect(headings()).toEqual(["Images", "Audio", "Other"]);
     expect(rowLabels()).toEqual([
-      "Open image theme_card, images · modified 2d · 1 kb",
-      "Open audio theme, music · modified 2d · 1 kb",
-      "Open file theme, other · modified 2d · 1 kb",
+      "Open image theme_card, Images · Modified 2d · 1 kB",
+      "Open audio theme, Music · Modified 2d · 1 kB",
+      "Open file theme, Other · Modified 2d · 1 kB",
     ]);
     await search("lighthouse");
     expect(text()).toContain("No files match.");
@@ -500,7 +501,7 @@ describe("image folders as tiles", () => {
     workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
     await mount();
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
-    expect(rowLabels()).toEqual(["Open image imani, 4 variants, modified 2d · 330 b"]);
+    expect(rowLabels()).toEqual(["Open image imani, Modified 2d · 330 B, 4 variants"]);
     expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toContain("pt-4");
     expect(host!.querySelector('[aria-label="Assets and folders"]')!.parentElement!.className.split(" ")).toEqual(
       expect.arrayContaining(["-mr-4", "pr-gutter-4"]),
@@ -676,20 +677,41 @@ describe("image folders as tiles", () => {
     expect(tiles().map((tile) => tile.getAttribute("data-tile"))).toEqual(["portrait"]);
   });
 
+  it("names every tile and row with the words it shows, in the order it shows them", async () => {
+    const shown = () =>
+      all<HTMLElement>('[role="listitem"] button[aria-label^="Open"]').map((button) => ({
+        name: button.getAttribute("aria-label"),
+        ...visibleTextInName(button),
+      }));
+    const mismatched = () => shown().filter((row) => !row.contained);
+    workspace.current = { ...workspace.current, lists: { assetsFolders: { image: "Assets/Images/Portraits" } } };
+    await mount();
+    expect(tiles()).toHaveLength(1);
+    expect(mismatched()).toEqual([]);
+    await search("imani");
+    expect(tiles()).toEqual([]);
+    expect(shown()).toHaveLength(2);
+    expect(mismatched()).toEqual([]);
+    await search("");
+    await showTab("Audio");
+    expect(shown()).toHaveLength(1);
+    expect(mismatched()).toEqual([]);
+  });
+
   it("lists search results as rows and leaves the Audio tab as rows with no layout button", async () => {
     await mount();
     await search("imani");
     expect(tiles()).toEqual([]);
     expect(host!.querySelector('[data-thumbnail] img')!.className.split(" ")).toEqual(expect.arrayContaining(["size-full", "object-contain"]));
     expect(rowLabels()).toEqual([
-      "Open image imani, 4 variants, portraits · modified 2d · 330 b",
-      "Open audio imani, audio · modified 2d · 5 b",
+      "Open image imani, 4 variants, Portraits · Modified 2d · 330 B",
+      "Open audio imani, Audio · Modified 2d · 5 B",
     ]);
     await search("");
     await showTab("Audio");
     expect(tiles()).toEqual([]);
     expect(layoutButton()).toBeNull();
-    expect(rowLabels()).toEqual(["Open audio imani, modified 2d · 5 b"]);
+    expect(rowLabels()).toEqual(["Open audio imani, Modified 2d · 5 B"]);
   });
 });
 
@@ -1034,7 +1056,7 @@ describe("selecting, moving and deleting", () => {
         uses: [
           use(1, "  [[show portrait imani]]"),
           use(2, "  [[show portrait imani@night]]"),
-          use(3, "  [[show portrait imani~face.happy]]"),
+          use(3, "  [[show portrait imani:face.happy]]"),
           use(4, "  [[show portrait imani]]"),
         ],
       },
@@ -1158,7 +1180,12 @@ describe("playing sounds from their rows", () => {
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
     expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
     expect(rowOf("bell").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
+    const open = () => rowOf("bell").querySelector<HTMLElement>('button[aria-label^="Open audio bell"]')!;
+    expect(open().getAttribute("aria-label")).toBe("Open audio bell, 0:02 / 0:05 · Modified 2d · 5 kB");
+    expect(visibleTextInName(open())).toMatchObject({ contained: true });
     await click(playButton("bell"));
+    expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
+    expect(visibleTextInName(open())).toMatchObject({ contained: true });
   });
 
   it("pauses a row's sound in place, holding its time in the row and in the inspector, and resumes it there", async () => {
@@ -1836,7 +1863,7 @@ describe("adding files dragged in from the desktop", () => {
     expect(workspace.assetsReveal.value).toBeNull();
     expect(host!.querySelector<HTMLInputElement>('input[aria-label="Search assets"]')!.value).toBe("");
     expect(workspace.current.lists?.assetsType).toBe("audio");
-    expect(rowLabels()).toContain("Open audio rain, modified 2d · 300 b");
+    expect(rowLabels()).toContain("Open audio rain, Modified 2d · 300 B");
   });
 
   it("opens the inspector for a file another surface asks to show, on that file's tab", async () => {
@@ -1914,9 +1941,9 @@ describe("sorting by Uses and Story order", () => {
     await mount();
     await showAs("List");
     expect(rowLabels()).toEqual([
-      "Open image harbor, 2 variants, modified 2d · 2 kb",
-      "Open image market, modified 2d · 2 kb",
-      "Open image unused, modified 2d · 512 b",
+      "Open image harbor, 2 variants, Modified 2d · 2 kB",
+      "Open image market, Modified 2d · 2 kB",
+      "Open image unused, Modified 2d · 512 B",
     ]);
     await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
     await vi.waitFor(() => expect(sortMenuNote()).toBe("Counting uses…"));
@@ -1927,7 +1954,7 @@ describe("sorting by Uses and Story order", () => {
     workspace.assetUsageFailed.value = PROJECT;
     await mount();
     await showAs("List");
-    expect(rowLabels()[0]).toBe("Open image harbor, 2 variants, modified 2d · 2 kb");
+    expect(rowLabels()[0]).toBe("Open image harbor, 2 variants, Modified 2d · 2 kB");
     await openMenu(all<HTMLElement>('button[aria-label^="Sort by"]')[0]);
     await vi.waitFor(() => expect(sortMenuNote()).toBe("Uses could not be counted. Edit a script to try again."));
     workspace.assetUsageFailed.value = null;

@@ -3,6 +3,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_SECTION_IDS } from "../../src/modules/spark-editor/components/settings/sections";
 import { routeOfHash, sectionOfHash } from "../../src/modules/spark-editor/workspace/routes";
+import { visibleTextInName } from "../../../packages/impower-ui/test/visibleTextInName";
 
 const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
@@ -480,7 +481,7 @@ describe("the bar under the game", () => {
     expect(toggle().getAttribute("aria-expanded")).toBe("false");
     expect(document.getElementById("route-panel")).not.toBeNull();
     expect(document.getElementById("problems-panel")).toBeNull();
-    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+    expect(document.querySelector("#route-panel [data-route-entry]")!.textContent).toContain(
       "Condition trust > 3 forced true",
     );
     await act(async () => toggle().click());
@@ -583,11 +584,15 @@ describe("the bar under the game", () => {
       });
       await act(async () => route.toggle());
       await settle();
-      const tab = document.querySelector<HTMLButtonElement>(
-        '#route-panel .route-tab[data-tab="values"]',
-      );
+      const tab = document.querySelectorAll<HTMLButtonElement>(
+        '#route-panel [role="tab"]',
+      )[1];
       expect(tab?.textContent).toContain("Starting values");
-      await act(async () => tab!.click());
+      await act(async () => {
+        tab!.dispatchEvent(
+          new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+        );
+      });
       await settle();
       expect(sent).toContainEqual(
         expect.objectContaining({
@@ -627,7 +632,7 @@ describe("the bar under the game", () => {
     await act(async () => readout.click());
     await settle();
     expect(document.getElementById("route-panel")).not.toBeNull();
-    expect(document.querySelector("#route-panel .route-entry")!.textContent).toContain(
+    expect(document.querySelector("#route-panel [data-route-entry]")!.textContent).toContain(
       "Condition trust > 3 forced true",
     );
   });
@@ -654,7 +659,7 @@ describe("the bar under the game", () => {
     await act(async () => readout.click());
     await settle(300);
     const sheet = document.querySelector('[role="dialog"]');
-    expect(sheet?.querySelector("swp-route-view .route-entry")?.textContent).toContain(
+    expect(sheet?.querySelector("swp-route-view [data-route-entry]")?.textContent).toContain(
       "Condition trust > 3 forced true",
     );
     expect(document.getElementById("route-panel")).toBeNull();
@@ -671,8 +676,9 @@ describe("the bar under the game", () => {
       return s;
     });
     expect(ratio().textContent).toBe("Auto · 392×696");
-    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
-    expect(ratio().title).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
+    expect(visibleTextInName(ratio())).toMatchObject({ contained: true });
+    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, 392×696 pixels");
+    expect(ratio().title).toBe("Game aspect ratio: Auto, 392×696 pixels");
   });
 
   it("chooses a ratio from a menuitemradio menu and keeps it for the project", async () => {
@@ -707,7 +713,7 @@ describe("the bar under the game", () => {
     const link = bar().querySelector<HTMLAnchorElement>("a")!;
     expect(link.getAttribute("aria-label")).toBe("Screenplay settings");
     expect(link.textContent).toBe("US Letter");
-    expect(routeOfHash(link.getAttribute("href")!)).toBe("project");
+    expect(routeOfHash(link.getAttribute("href")!)).toBe("settings");
     expect(sectionOfHash(link.getAttribute("href")!)).toBe("screenplay-settings");
     expect(SETTINGS_SECTION_IDS).toContain(sectionOfHash(link.getAttribute("href")!));
     expect(bar().querySelector('[aria-label^="Game aspect ratio"]')).toBeNull();
@@ -883,5 +889,93 @@ describe("the divider above the bar", () => {
     await mount();
     expect(divider()).toBeNull();
     expect(toggle().textContent).toBe("No problems");
+  });
+});
+
+describe("the bar while the game starts", () => {
+  const readout = () =>
+    bar().querySelector<HTMLButtonElement>('button[aria-controls="route-panel"]');
+  const loading = () => bar().querySelector<HTMLElement>("[data-starting]");
+  const setStarting = (starting: boolean, running = false) =>
+    setState((state) => ({
+      ...state,
+      preview: {
+        ...state.preview,
+        modes: {
+          ...state.preview.modes,
+          game: { ...state.preview.modes.game, starting, running },
+        },
+      },
+    }));
+  const spoken = async () => {
+    const { announcement } = await import(
+      "../../../packages/impower-ui/src/hooks/useAnnouncer"
+    );
+    return announcement.value.trim();
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows nothing new when the game starts within the delay", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const before = await spoken();
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(250));
+    expect(loading()).toBeNull();
+    expect(document.querySelector('[data-status="starting"]')).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    await setStarting(false);
+    await act(() => vi.advanceTimersByTime(1000));
+    expect(loading()).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    expect(await spoken()).toBe(before);
+    expect(document.querySelector('[data-status="starting"]')).toBeNull();
+  });
+
+  it("replaces the route summary with Loading and a spinner on a slow start, then hands back", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const items = () => Array.from(bar().children).length;
+    const count = items();
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(300));
+    expect(loading()!.textContent).toBe("Loading");
+    expect(loading()!.querySelector("svg")!.classList).toContain("motion-safe:animate-spin");
+    expect(readout()).toBeNull();
+    expect(items()).toBe(count);
+    expect(bar().classList).toContain("h-preview-bar");
+    expect(await spoken()).toBe("Starting the game…");
+    expect(document.querySelector('[data-status="starting"]')).toBeNull();
+    await setStarting(false, true);
+    expect(loading()).toBeNull();
+    expect(items()).toBe(count);
+    expect(await spoken()).toBe("The game has started.");
+  });
+
+  it("hands back to the route summary without saying the game started when a slow start is cancelled", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(300));
+    expect(loading()).not.toBeNull();
+    expect(await spoken()).toBe("Starting the game…");
+    await setStarting(false);
+    await act(() => vi.advanceTimersByTime(1000));
+    expect(loading()).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    expect(await spoken()).toBe("Starting the game…");
   });
 });

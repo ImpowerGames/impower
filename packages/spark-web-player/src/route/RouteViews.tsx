@@ -1,4 +1,12 @@
-import { useLayoutEffect, useState } from "preact/hooks";
+import {
+  Button,
+  CloseIcon,
+  ListRow,
+  PanelHead,
+  Tab,
+  Tabs,
+} from "@impower/impower-ui/components";
+import { useId, useLayoutEffect, useState } from "preact/hooks";
 import { useRouteListStylesheet } from "./routeListStylesheet";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type {
@@ -145,6 +153,19 @@ function PinControl({
   );
 }
 
+const ROUTE_TAB_CLASS =
+  "ml-0.5 flex-none font-normal first:ml-0 data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_-2px_0_var(--accent)]";
+
+const ROUTE_TEXT_CLASS =
+  "block overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_left,transparent_0,#000_16px)]";
+
+const ROUTE_KIND_COLOURS: Record<RouteKind, string> = {
+  pinned: "text-accent",
+  auto: "text-muted",
+  forced: "text-warning",
+  clipped: "text-warning",
+};
+
 export function RouteList({
   state,
   nameOf,
@@ -157,6 +178,7 @@ export function RouteList({
   onPinLastRun,
 }: RouteListProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const tabsId = useId();
   useRouteListStylesheet();
   const drafts = state.values?.drafts;
   useLayoutEffect(() => {
@@ -213,54 +235,91 @@ export function RouteList({
   const lineLink = (location: DocumentLocation) => (
     <button
       type="button"
-      class="route-line"
+      data-route-line
+      class="relative control-overlay mr-[var(--list-row-compact-gap)] flex min-h-[var(--list-row-compact-height)] min-w-[3em] flex-none cursor-pointer items-center justify-end self-stretch rounded-control px-1.5 text-accent tabular-nums focus-inset"
       title={`Go to line ${location.range.start.line + 1} of ${nameOf(location.uri)}`}
       onClick={() => onShowLine(location)}
     >
       {location.range.start.line + 1}
     </button>
   );
+  const tabId = (value: RouteTab) => `${tabsId}-tab-${value}`;
+  const panelId = (value: RouteTab) => `${tabsId}-panel-${value}`;
   return (
     <section class="route-list" aria-label={routeTitle}>
-      <header class="route-list-head">
-        <div class="route-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            class="route-tab"
-            data-tab="route"
-            aria-selected={tab === "route"}
-            onClick={() => onTab?.("route")}
+      <PanelHead
+        size="compact"
+        edge={false}
+        class="sticky top-0 z-1 bg-panel"
+        title={
+          <Tabs
+            value={tab}
+            onChange={(value) => onTab?.(value as RouteTab)}
+            iconLayout="beside"
+            indicator="none"
+            class="w-auto"
           >
-            <span class="route-list-title">{routeTitle}</span>
-          </button>
-          {valuesState ? (
-            <button
-              type="button"
-              role="tab"
-              class="route-tab"
-              data-tab="values"
-              aria-selected={tab === "values"}
-              onClick={() => onTab?.("values")}
+            <Tab
+              value="route"
+              id={tabId("route")}
+              controls={panelId("route")}
+              class={ROUTE_TAB_CLASS}
             >
-              <StartingValuesTabLabel state={valuesState} />
-            </button>
+              {routeTitle}
+            </Tab>
+            {valuesState ? (
+              <Tab
+                value="values"
+                id={tabId("values")}
+                controls={panelId("values")}
+                class={ROUTE_TAB_CLASS}
+              >
+                <span class="inline-flex items-center gap-[var(--tab-gap)]">
+                  <StartingValuesTabLabel state={valuesState} />
+                </span>
+              </Tab>
+            ) : null}
+          </Tabs>
+        }
+        end={
+          <Button
+            variant="quiet"
+            size="icon"
+            class="size-[var(--control-size)] flex-none text-muted [&_svg]:size-3.5"
+            aria-label="Close the route"
+            title="Close"
+            onClick={onClose}
+          >
+            <CloseIcon />
+          </Button>
+        }
+      />
+      {valuesState ? (
+        <div
+          role="tabpanel"
+          id={panelId("values")}
+          aria-labelledby={tabId("values")}
+          hidden={tab !== "values"}
+        >
+          {tab === "values" && values ? (
+            <StartingValuesTab state={valuesState} events={values} />
           ) : null}
         </div>
-        <button
-          type="button"
-          class="route-list-close"
-          aria-label="Close the route"
-          title="Close"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </header>
+      ) : null}
       {tab === "values" && valuesState && values ? (
-        <StartingValuesTab state={valuesState} events={values} />
+        <div
+          role="tabpanel"
+          id={panelId("route")}
+          aria-labelledby={tabId("route")}
+          hidden
+        />
       ) : (
-        <div class="route-tab-body" role={valuesState ? "tabpanel" : undefined}>
+        <div
+          class="route-tab-body"
+          role="tabpanel"
+          id={panelId("route")}
+          aria-labelledby={tabId("route")}
+        >
           <div class="route-list-toggles" role="group" aria-label="Show">
             {ROUTE_KINDS.map((kind) => (
               <button
@@ -288,30 +347,52 @@ export function RouteList({
                   const choice = decision.options != null;
                   const open = choice && isExpanded(decision);
                   return (
-                    <li
-                      key={key}
-                      class={open ? "route-entry expanded" : "route-entry"}
-                      data-kind={decision.kind}
-                    >
-                      <div class="route-entry-row">
-                        {lineLink(decision.location)}
-                        <RouteIconSvg icon={decision.kind} />
-                        {choice ? (
-                          <button
-                            type="button"
-                            class="route-text route-entry-toggle"
-                            aria-expanded={open}
-                            title={open ? "Hide the pin control" : "Pin the option taken here"}
-                            onClick={() =>
-                              setExpanded({ ...expanded, [key]: !open })
-                            }
-                          >
-                            {decisionText(decision)}
-                          </button>
-                        ) : (
-                          <span class="route-text">{decisionText(decision)}</span>
-                        )}
-                        <span class="route-badge">{ROUTE_KIND_LABELS[decision.kind]}</span>
+                    <li key={key} data-route-entry data-kind={decision.kind}>
+                      <div data-impower-ui>
+                        <ListRow
+                          size="compact"
+                          overflow="self"
+                          leading={lineLink(decision.location)}
+                          icon={
+                            <span
+                              class={`flex flex-none forced-colors:text-[CanvasText] ${ROUTE_KIND_COLOURS[decision.kind]}`}
+                            >
+                              <RouteIconSvg icon={decision.kind} />
+                            </span>
+                          }
+                          label={
+                            choice ? (
+                              <button
+                                type="button"
+                                data-route-text
+                                class={`relative control-overlay block w-full cursor-pointer rounded-control px-1 py-[3px] text-left leading-[normal] focus-inset ${ROUTE_TEXT_CLASS}`}
+                                aria-expanded={open}
+                                title={
+                                  open
+                                    ? "Hide the pin control"
+                                    : "Pin the option taken here"
+                                }
+                                onClick={() =>
+                                  setExpanded({ ...expanded, [key]: !open })
+                                }
+                              >
+                                {decisionText(decision)}
+                              </button>
+                            ) : (
+                              <span data-route-text class={ROUTE_TEXT_CLASS}>
+                                {decisionText(decision)}
+                              </span>
+                            )
+                          }
+                          trailing={
+                            <span
+                              data-route-badge
+                              class="ml-auto flex-none text-muted"
+                            >
+                              {ROUTE_KIND_LABELS[decision.kind]}
+                            </span>
+                          }
+                        />
                       </div>
                       {open ? (
                         <PinControl
@@ -324,26 +405,37 @@ export function RouteList({
                     </li>
                   );
                 })}
-                <li class="route-entry route-target">
-                  <div class="route-entry-row">
-                    {lineLink(route.target)}
-                    <span class="route-text">
-                      {route.tunnelEnds
-                        ? "Tunnel ends here, with nothing to return to in the preview"
-                        : "Target line"}
-                    </span>
+                <li data-route-entry>
+                  <div data-impower-ui>
+                    <ListRow
+                      size="compact"
+                      overflow="self"
+                      leading={lineLink(route.target)}
+                      label={
+                        <span data-route-text class={ROUTE_TEXT_CLASS}>
+                          {route.tunnelEnds
+                            ? "Tunnel ends here, with nothing to return to in the preview"
+                            : "Target line"}
+                        </span>
+                      }
+                    />
                   </div>
                 </li>
               </ol>
               {unresolved.length > 0 ? (
-                <ul class="route-unresolved-pins" aria-label="Pins with no option">
+                <ul
+                  class="route-unresolved-pins"
+                  aria-label="Pins with no option"
+                >
                   {unresolved.map((pin) => (
                     <li
                       key={`${pin.uri}:${pin.line}:${pin.offer}`}
                       class="route-unresolved-pin"
                     >
                       <RouteIconSvg icon="pinned" />
-                      <span class="route-text">{unresolvedPinText(pin, nameOf)}</span>
+                      <span class="route-text">
+                        {unresolvedPinText(pin, nameOf)}
+                      </span>
                       <button
                         type="button"
                         class="route-pin-remove"
@@ -356,7 +448,9 @@ export function RouteList({
                 </ul>
               ) : null}
               {decisions.length === 0 ? (
-                <p class="route-list-note">The preview runs this line as the game does</p>
+                <p class="route-list-note">
+                  The preview runs this line as the game does
+                </p>
               ) : null}
             </>
           )}
@@ -367,7 +461,9 @@ export function RouteList({
           ) : null}
           {hidden > 0 || state.pins.length > 0 || lastRun > 0 ? (
             <footer class="route-list-foot">
-              {hidden > 0 ? <span>{`${hidden} hidden by the toggles`}</span> : null}
+              {hidden > 0 ? (
+                <span>{`${hidden} hidden by the toggles`}</span>
+              ) : null}
               {lastRun > 0 ? (
                 <button
                   type="button"

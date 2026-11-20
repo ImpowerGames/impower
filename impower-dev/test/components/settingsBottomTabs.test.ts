@@ -85,7 +85,7 @@ describe("the phone bottom navigation on the Settings page", () => {
     ["logic", "Story", "logic"],
     ["assets", "Assets", "assets"],
   ] as const)("selects no tab over %s and returns to it when its own tab is pressed", async (pane, label, route) => {
-    workspace.current = stateForRoute({ ...workspace.current, pane }, "project");
+    workspace.current = stateForRoute({ ...workspace.current, pane }, "settings");
     host = document.body.appendChild(document.createElement("div"));
     await act(async () => render(h(MainWindow, null), host!));
     await settle();

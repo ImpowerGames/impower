@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { chromium } from "playwright";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { edgeTreatment } from "../../../test/fadeEdge";
+import { visibleTextInName } from "../../../test/visibleTextInName";
 import Tile, { tileGrid, tileHeight, type TileSize } from "./Tile";
 
 let host: HTMLDivElement | undefined;
@@ -22,6 +23,24 @@ const inBrowser = it.skipIf(!existsSync(chromium.executablePath()));
 const SIZES: readonly TileSize[] = ["portrait", "landscape", "small"];
 
 describe("Tile", () => {
+  it("keeps its label, description and badge separate words in that order, so a name that repeats them contains its visible text", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Tile
+          media={null}
+          badge={<span>4</span>}
+          label="imani"
+          description="Modified 2d · 330 B"
+          aria-label="Open image imani, Modified 2d · 330 B, 4 variants"
+          onClick={() => {}}
+        />,
+        host!,
+      ),
+    );
+    expect(visibleTextInName(host.querySelector("button")!)).toMatchObject({ contained: true });
+  });
+
   it("gives each size the prototype's grid minimum and gap on desktop, at 1100px and below, and in a desktop pane 440 wide or less", () => {
     const tracks = (track: "desktop" | "narrow" | "pane") =>
       Object.fromEntries(SIZES.map((size) => { const { minWidth, gap } = tileGrid(size, track); return [size, [minWidth, gap]]; }));

@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
+import { mobileViewportManager } from "../src/modules/script-editor/utils/extensions/mobileViewportManager";
 import SparkdownScriptSample from "../src/modules/script-sample/SparkdownScriptSample";
 import type { ScriptAppearance } from "../src/cm-script-appearance/scriptAppearanceOptions";
 import { ALL_OFF_APPEARANCE } from "./fixtures/scriptAppearance";
@@ -45,6 +46,28 @@ describe("the read-only script sample", () => {
     const next = await show({ text: DIALOGUE, appearance: { ...ALL_OFF_APPEARANCE, boldSpeakerNames: true } });
     expect(next).toBe(view);
     expect(view.dom.classList.contains("cm-bold-speakers")).toBe(true);
+  });
+
+  it("lets a scroll gesture on the sample chain to the page, even beside a touch editor", async () => {
+    const editorHost = document.body.appendChild(document.createElement("div"));
+    const editor = new EditorView({
+      parent: editorHost,
+      state: EditorState.create({ doc: DIALOGUE, extensions: [mobileViewportManager()] }),
+    });
+    const other = new EditorView({ parent: editorHost, state: EditorState.create({ doc: DIALOGUE }) });
+    try {
+      const view = await show({ text: DIALOGUE, appearance: ALL_OFF_APPEARANCE });
+      for (const el of [view.dom, view.scrollDOM, view.contentDOM]) {
+        expect(getComputedStyle(el).overscrollBehavior).not.toBe("none");
+      }
+      expect(getComputedStyle(editor.scrollDOM).overscrollBehavior).toBe("none");
+      expect(getComputedStyle(editor.contentDOM).overscrollBehavior).toBe("none");
+      expect(getComputedStyle(other.contentDOM).overscrollBehavior).toBe("none");
+    } finally {
+      other.destroy();
+      editor.destroy();
+      editorHost.remove();
+    }
   });
 
   it("replaces the text and puts the caret where the new sample marks it", async () => {

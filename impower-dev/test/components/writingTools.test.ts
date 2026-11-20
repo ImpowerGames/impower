@@ -165,8 +165,8 @@ describe("Writing tools menu", () => {
     await open();
     expect(panel()?.querySelector("h2")?.textContent).toBe("Writing tools");
     expect(rows().map((b) => b.textContent)).toEqual([
-      "Sparkdown guideA quick reference while you write.",
-      "Keyboard shortcutsFor a connected keyboard.",
+      "Sparkdown guide A quick reference while you write.",
+      "Keyboard shortcuts For a connected keyboard.",
       "Find and replace",
     ]);
     expect(document.activeElement?.getAttribute("aria-label")).toBe(
@@ -215,8 +215,8 @@ describe("Writing tools menu", () => {
     calls.name = new Promise((r) => (resolve = r));
     await open();
     expect(rows().map((b) => b.textContent)).toEqual([
-      "Sparkdown guideA quick reference while you write.",
-      "Keyboard shortcutsFor a connected keyboard.",
+      "Sparkdown guide A quick reference while you write.",
+      "Keyboard shortcuts For a connected keyboard.",
       "Find and replace",
     ]);
     await act(async () => resolve(null));

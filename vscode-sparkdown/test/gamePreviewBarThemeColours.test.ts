@@ -248,3 +248,72 @@ describe("the Game Preview bar takes its Run, Stop and border colours from the V
     expect(bar.htmlClasses).not.toContain("theme-dark");
   });
 });
+
+const FOCUS_BORDERS = {
+  "Light Modern": "#005fb8",
+  "Dark Modern": "#0078d4",
+  "Dark High Contrast": "#f38518",
+  "Light High Contrast": "#006bbd",
+} as const;
+
+const tabThroughBar = async (html: string, theme: Theme | null) => {
+  const page = await browser.newPage();
+  const vars = theme
+    ? Object.entries(theme)
+        .map(([name, value]) => `${name}: ${value};`)
+        .join(" ")
+    : "";
+  await page.setContent(
+    html
+      .replace(/<html([^>]*)>/, `<html$1 style="${vars}">`)
+      .replace("</head>", `<style>${PLAYER_CSS}</style></head>`)
+      .replace(/<spark-web-player([^>]*)><\/spark-web-player>/, `<spark-web-player$1>${BAR}</spark-web-player>`),
+  );
+  const rings = [];
+  for (let i = 0; i < 4; i += 1) {
+    await page.keyboard.press("Tab");
+    rings.push(
+      await page.evaluate(() => {
+        const element = document.activeElement!;
+        const style = getComputedStyle(element);
+        return {
+          focusVisible: element.matches(":focus-visible"),
+          style: style.outlineStyle,
+          width: style.outlineWidth,
+          color: style.outlineColor,
+          offset: style.outlineOffset,
+        };
+      }),
+    );
+  }
+  await page.close();
+  return rings;
+};
+
+describe("a bar button focused from the keyboard shows a focus ring (I-2532)", () => {
+  it.each(Object.entries(FOCUS_BORDERS))("in the Game Preview under %s", async (_, focusBorder) => {
+    const rings = await tabThroughBar(template, { "--vscode-focusBorder": focusBorder });
+    for (const ring of rings) {
+      expect(ring).toEqual({
+        focusVisible: true,
+        style: "solid",
+        width: "2px",
+        color: toRgb(focusBorder),
+        offset: "-2px",
+      });
+    }
+  });
+
+  it("in the player's own accent colour where a host supplies none", async () => {
+    const rings = await tabThroughBar(standalone, null);
+    for (const ring of rings) {
+      expect(ring).toEqual({
+        focusVisible: true,
+        style: "solid",
+        width: "2px",
+        color: toRgb("#66baff"),
+        offset: "-2px",
+      });
+    }
+  });
+});

@@ -224,18 +224,18 @@ describe("where a morph plays", () => {
   test("a blink with no condition plays on a look whose eyes the directive closed, and rests it open", () => {
     const text = `${blink()}
 scene start
-  [[bunny~eyes.closed]]
+  [[bunny:eyes.closed]]
 end
 `;
-    expect(statusOf(text, [{ name: "bunny", svg: FACE }], "blink")["bunny~eyes.closed"]).toBe("active");
+    expect(statusOf(text, [{ name: "bunny", svg: FACE }], "blink")["bunny:eyes.closed"]).toBe("active");
     const program = compile(text);
-    expect(program.morphs!.variants["bunny~eyes.closed"]).toHaveLength(1);
+    expect(program.morphs!.variants["bunny:eyes.closed"]).toHaveLength(1);
   });
 
   test("`unless = eyes.closed` keeps the blink off a closed look and off a face drawn closed, with nothing reported", () => {
     const text = `${blink("  unless = eyes.closed\n")}
 scene start
-  [[bunny~eyes.closed]]
+  [[bunny:eyes.closed]]
   [[sleepy]]
 end
 `;
@@ -245,7 +245,7 @@ end
     ];
     const status = statusOf(text, images, "blink");
     expect(status["bunny"]).toBe("active");
-    expect(status["bunny~eyes.closed"]).toBe("excluded");
+    expect(status["bunny:eyes.closed"]).toBe("excluded");
     expect(status["sleepy"]).toBe("excluded");
     const program = compile(text, images);
     expect(Object.keys(program.morphs!.variants).sort()).toEqual(["bunny"]);
@@ -260,40 +260,40 @@ end
   test("`when` admits only looks where every listed state is active", () => {
     const text = `${talkSmile("  when = mouth.teeth\n")}
 scene start
-  [[bunny~mouth.teeth]]
-  [[bunny~mouth.closed]]
+  [[bunny:mouth.teeth]]
+  [[bunny:mouth.closed]]
 end
 `;
     const status = statusOf(text, [{ name: "bunny", svg: FACE }], "talk_smile");
-    expect(status).toMatchObject({ bunny: "excluded", "bunny~mouth.teeth": "active", "bunny~mouth.closed": "excluded" });
+    expect(status).toMatchObject({ bunny: "excluded", "bunny:mouth.teeth": "active", "bunny:mouth.closed": "excluded" });
     expect(diagnosticsOf(text).filter((d) => d.code === "morph")).toEqual([]);
   });
 
   test("`when` with several states admits only a look where all of them are active", () => {
     const text = `${talkSmile("  when {\n    mouth.teeth\n    eyes.open\n  }\n")}
 scene start
-  [[bunny~mouth.teeth]]
-  [[bunny~mouth.teeth~eyes.closed]]
+  [[bunny:mouth.teeth]]
+  [[bunny:mouth.teeth:eyes.closed]]
 end
 `;
     expect(statusOf(text, [{ name: "bunny", svg: FACE }], "talk_smile")).toEqual({
       bunny: "excluded",
-      "bunny~mouth.teeth": "active",
-      "bunny~mouth.teeth~eyes.closed": "excluded",
+      "bunny:mouth.teeth": "active",
+      "bunny:mouth.teeth:eyes.closed": "excluded",
     });
   });
 
   test("`unless` with several states keeps the morph off a look where any one of them is active", () => {
     const text = `${blink("  unless {\n    eyes.closed\n    mouth.teeth\n  }\n")}
 scene start
-  [[bunny~mouth.teeth]]
-  [[bunny~eyes.closed]]
+  [[bunny:mouth.teeth]]
+  [[bunny:eyes.closed]]
 end
 `;
     expect(statusOf(text, [{ name: "bunny", svg: FACE }], "blink")).toEqual({
       bunny: "active",
-      "bunny~mouth.teeth": "excluded",
-      "bunny~eyes.closed": "excluded",
+      "bunny:mouth.teeth": "excluded",
+      "bunny:eyes.closed": "excluded",
     });
   });
 
@@ -529,7 +529,7 @@ end
   test("a directive's choice in a driven group warns on the choice, naming the morph, the group and the rest", () => {
     const text = `${blink()}
 scene start
-  [[bunny~eyes.closed]]
+  [[bunny:eyes.closed]]
 end
 `;
     const found = diagnosticsOf(text).filter((d) => d.message.includes("`blink`") && d.line === 23);
@@ -544,7 +544,7 @@ end
     const text = `${blink()}
 scene start
   [[sleepy]]
-  [[bunny~eyes.open]]
+  [[bunny:eyes.open]]
 end
 `;
     const images = [
@@ -590,7 +590,7 @@ end
   test("a directive kept off the morph by `unless` is not reported", () => {
     const text = `${blink("  unless = eyes.closed\n")}
 scene start
-  [[bunny~eyes.closed]]
+  [[bunny:eyes.closed]]
 end
 `;
     expect(diagnosticsOf(text).filter((d) => d.severity === 2 || d.severity === 1).map((d) => d.message)).toEqual([]);

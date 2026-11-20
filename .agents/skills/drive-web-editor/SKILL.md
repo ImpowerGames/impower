@@ -21,6 +21,7 @@ Select only the references needed for this run:
 - For performance, memory, count or timing changes, read [measurement](references/performance.md) before choosing a fixture or timing a run.
 - Before writing a custom browser probe, read [custom probe caveats](references/custom-probes.md). Keep scripts importing driver helpers inside the worktree for dependency resolution and never stage scratch files.
 - For direct requests, notifications or socket clients, read [editor protocol](references/protocol.md).
+- For the accessibility audit, read [audit](references/audit.md).
 
 ## Viewport, color scheme and theme
 
@@ -32,7 +33,7 @@ Select only the references needed for this run:
 
 The report's `display` field echoes what was applied. Desktop and tablet presets are evidence widths; at phone widths the presets are quick checks only, and the [Android emulator](#android-emulator) route is the bar.
 
-`screenshot <name> [--step <name>]... [--out-dir <dir>]` loads the editor, runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
+`screenshot <name> [--project <dir>] [--sd <file>] [--scrub <line>] [--step <name>]... [--out-dir <dir>]` loads the editor, runs the [named steps](#named-steps) and saves the page as `<name>[-<viewport>][-<theme>][-<scheme>].png`, such as `story-tablet-chalk-light.png`, so an evidence folder holds one file per combination. `--shot <path>` on `verify` and `ui` writes exactly the path given.
 
 ## Android emulator
 
@@ -40,7 +41,7 @@ Phone layouts are verified on an emulator, because the on-screen keyboard and na
 
 ## Named steps
 
-`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device. Each step and the surface it opens:
+`ui` and `screenshot` accept `--step <name>`, repeatable, with any viewport or device. At phone widths, `play`, `preview-settings` and `problems` need `--sd <file> --scrub <line>` on the same run. Each step and the surface it opens:
 
 | Step | Surface |
 |---|---|

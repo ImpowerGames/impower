@@ -24,6 +24,7 @@ vi.mock("@impower/impower-ui/loading-bar", async () => {
   return {
     LoadingBar: ({ containerRef }: { containerRef: unknown }) =>
       h("div", { ref: containerRef as never }),
+    setLoadingBarActive: () => {},
   };
 });
 

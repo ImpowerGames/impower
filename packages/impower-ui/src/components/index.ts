@@ -147,6 +147,7 @@ export {
 export {
   default as LoadingBar,
   type LoadingBarProps,
+  setLoadingBarActive,
 } from "./loading-bar/LoadingBar";
 export {
   Popover,

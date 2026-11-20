@@ -4479,7 +4479,7 @@ export class Game<T extends M = {}> {
 
   protected notifyExecuted(params: GameExecutedParams = this.executedParams()) {
     const beat = this._run.current;
-    if (beat && !this._run.behindLatest && this.recordsRun()) {
+    if (beat && !beat.executed && !this._run.behindLatest && this.recordsRun()) {
       beat.executed = params;
     }
     this.connection.emit(GameExecutedMessage.type.notification(params));

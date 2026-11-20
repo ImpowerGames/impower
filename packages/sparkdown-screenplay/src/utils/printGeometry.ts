@@ -1,5 +1,4 @@
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
-import { SCRIPT_FONT_ADVANCES } from "../constants/SCRIPT_FONT_ADVANCES";
 import type { PageLine } from "../types/DocumentSpan";
 import type { FormattedText } from "../types/FormattedText";
 import type { PagePosition } from "../types/PagePosition";
@@ -8,7 +7,7 @@ import type { ScreenplayConfig } from "../types/ScreenplayConfig";
 import type { ScreenplayTokenType } from "../types/ScreenplayTokenType";
 import { scriptAdvanceOf } from "./scriptFontAdvance";
 
-export const SCRIPT_FONT_ADVANCE = scriptAdvanceOf("normal", 0x20) / SCRIPT_FONT_ADVANCES.normal.unitsPerEm;
+export const SCRIPT_FONT_ADVANCE = scriptAdvanceOf("normal", 0x20);
 
 export const EMOJI_FONT_ADVANCE = 1275 / 1024;
 

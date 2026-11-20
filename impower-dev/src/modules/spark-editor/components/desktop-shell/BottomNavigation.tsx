@@ -22,7 +22,7 @@ export default function BottomNavigation() {
     () => workspace.keyboardPanels.value.length > 0,
   ).value;
   const current = useComputed(() =>
-    routeOfState(workspace.state.value) === "project"
+    routeOfState(workspace.state.value) === "settings"
       ? ""
       : workspace.signals.pane.value,
   ).value;

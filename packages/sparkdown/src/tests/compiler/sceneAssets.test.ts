@@ -46,7 +46,7 @@ scene start
 end
 
 scene A
-  [[show portrait bunny~hat+hat]]
+  [[show portrait bunny:hat+hat]]
   ((play music theme))
   [[open hud]]
   branch inner
@@ -108,7 +108,7 @@ describe("program.sceneAssets", () => {
 
   it("unions a scene's names in first-use order and records the functions it calls", () => {
     const a = sceneAssets["A"]!;
-    expect(a.image).toEqual(["bunny~hat", "hat", "bunny"]);
+    expect(a.image).toEqual(["bunny:hat", "hat", "bunny"]);
     expect(a.audio).toEqual(["theme"]);
     expect(a.layouts).toEqual(["hud"]);
     expect(a.loads).toEqual(["Other"]);
@@ -137,7 +137,7 @@ describe("program.sceneAssets", () => {
       b.image ? "image" : b.audio ? "audio" : b.layouts ? "layouts" : "loads",
     );
     expect(kinds).toEqual(["image", "audio", "layouts", "image", "loads"]);
-    expect(a.beats[0]!.image).toEqual(["bunny~hat", "hat"]);
+    expect(a.beats[0]!.image).toEqual(["bunny:hat", "hat"]);
     expect(a.beats[3]!.image).toEqual(["bunny"]);
     const locator = programLocator(program);
     for (const beat of a.beats) {

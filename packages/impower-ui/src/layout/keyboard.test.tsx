@@ -62,6 +62,7 @@ beforeEach(() => {
       viewportListeners.get(type)?.delete(listener),
   });
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  document.body.appendChild(document.createElement("textarea")).focus();
 });
 
 afterEach(() => {
@@ -75,7 +76,7 @@ afterEach(() => {
 });
 
 describe("fitting the root to the on-screen keyboard", () => {
-  it("sizes the root to the visible height whenever the keyboard is open, whatever has focus", () => {
+  it("sizes the root to the visible height while the keyboard is open, whichever field has focus", () => {
     const release = hold();
     const field = document.body.appendChild(document.createElement("input"));
     field.focus();
@@ -91,10 +92,45 @@ describe("fitting the root to the on-screen keyboard", () => {
       height: KEYBOARD_HEIGHT,
       visibleHeight: window.innerHeight - KEYBOARD_HEIGHT,
     });
+    release();
+  });
+
+  it("releases the root as soon as no field has focus, before the viewport reports the keyboard leaving", () => {
+    const seen: boolean[] = [];
+    const release = hold((next) => seen.push(next.open));
+    const field = document.body.appendChild(document.createElement("input"));
+    field.focus();
+    setKeyboard(true);
 
     field.blur();
-    emit("resize");
+
+    expect(visibleHeight()).toBe(window.innerHeight - KEYBOARD_HEIGHT);
+    expect(rootReleased()).toBe(true);
+    expect(document.body.style.getPropertyValue("--keyboard-height")).toBe(
+      `${KEYBOARD_HEIGHT}px`,
+    );
+    expect(keyboard().open).toBe(false);
+    expect(seen).toEqual([true, false]);
+
+    emit("scroll");
+    expect(rootReleased()).toBe(true);
+
+    field.focus();
     expect(rootFitted()).toBe(true);
+    release();
+  });
+
+  it("keeps the root fitted when focus moves straight from one field to another", () => {
+    const release = hold();
+    const first = document.body.appendChild(document.createElement("input"));
+    const second = document.body.appendChild(document.createElement("input"));
+    first.focus();
+    setKeyboard(true);
+
+    second.focus();
+
+    expect(rootFitted()).toBe(true);
+    expect(keyboard().open).toBe(true);
     release();
   });
 
@@ -112,16 +148,28 @@ describe("fitting the root to the on-screen keyboard", () => {
     release();
   });
 
-  it("asks the page to scroll back to the top when the browser has panned it", () => {
+  it("asks the page to scroll back to the top and keeps the root under a pan it cannot undo", () => {
     const release = hold();
     setKeyboard(true);
     expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(document.body.style.transform).toBe("");
 
     offsetTop = 112;
     emit("scroll");
 
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
     expect(rootFitted()).toBe(true);
+    expect(document.body.style.transform).toBe("translateY(112px)");
+
+    offsetTop = 0;
+    emit("scroll");
+    expect(document.body.style.transform).toBe("");
+
+    offsetTop = 112;
+    emit("scroll");
+    setKeyboard(false);
+    expect(rootReleased()).toBe(true);
+    expect(document.body.style.transform).toBe("");
     release();
   });
 
@@ -150,9 +198,11 @@ describe("fitting the root to the on-screen keyboard", () => {
 
     const button = document.body.appendChild(document.createElement("button"));
     button.focus();
-    expect(keyboard().open).toBe(true);
+    expect(keyboard().open).toBe(false);
+    expect(rootReleased()).toBe(true);
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT + 48);
     emit("resize");
+    editable.focus();
     expect(keyboard()).toEqual({
       open: true,
       height: KEYBOARD_HEIGHT - 48,
@@ -174,12 +224,14 @@ describe("fitting the root to the on-screen keyboard", () => {
 
   it("treats a shorter window at the same width as no keyboard while no field has focus", () => {
     const full = window.innerHeight;
+    (document.activeElement as HTMLElement).blur();
     const release = hold();
     vi.stubGlobal("innerHeight", full - KEYBOARD_HEIGHT);
     emit("resize");
+    document.body.appendChild(document.createElement("input")).focus();
 
-    expect(document.activeElement).toBe(document.body);
     expect(keyboard().open).toBe(false);
+    expect(document.activeElement).not.toBe(document.body);
     expect(rootReleased()).toBe(true);
     release();
   });

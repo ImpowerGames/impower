@@ -145,7 +145,7 @@ export default function NameRow({
       label={
         <span
           ref={box}
-          class="flex h-[26px] min-w-0 items-center rounded-control border border-edge bg-bg focus-within:border-accent"
+          class="flex h-[26px] min-w-0 items-center rounded-control border border-field-edge bg-bg focus-within:border-accent"
         >
           <TextField
             ref={input}
