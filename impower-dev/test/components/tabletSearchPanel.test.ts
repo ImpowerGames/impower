@@ -10,11 +10,22 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { search, window: win },
 }));
 
-vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  useLayout: () => layout.current,
-  useRailDefault: () => "icons",
-}));
+vi.mock("@impower/impower-ui/layout", async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    layoutState: {
+      ...(original.layoutState as object),
+      current: () => layout.current,
+    },
+    railState: {
+      ...(original.railState as object),
+      current: () => "icons",
+    },
+    useLayout: () => layout.current,
+    useRailDefault: () => "icons",
+  };
+});
 
 const storage = new Map<string, string>();
 vi.stubGlobal("localStorage", {
@@ -43,6 +54,37 @@ const { INITIAL_SEARCH, INITIAL_SEARCH_POSITION } = await import(
 const { searchWidensRail, RAIL_COMPACT_WIDTH, RAIL_WIDTH } = await import(
   "../../src/modules/spark-editor/workspace/railWidths"
 );
+const { default: WorkspaceSearch } = await import(
+  "../../src/modules/spark-editor/workspace/WorkspaceSearch"
+);
+const { searchSources } = await import(
+  "../../src/modules/spark-editor/workspace/searchSources"
+);
+
+const setShell = (patch: Record<string, number | undefined>) => {
+  workspace.current = {
+    ...workspace.current,
+    shell: { ...workspace.current.shell, ...patch },
+  };
+};
+
+const workspaceWindow = {
+  ...win,
+  getActiveEditorForPane: () => undefined,
+  setRailWidth: (railWidth: number | undefined) => setShell({ railWidth }),
+  setRailCompactWidth: (railCompactWidth: number | undefined) =>
+    setShell({ railCompactWidth }),
+};
+
+const realSearch = () =>
+  new WorkspaceSearch(
+    searchSources({
+      window: workspaceWindow,
+      ls: { findText: async () => [] },
+      fs: { getFiles: async () => ({}), getFileText: async () => "" },
+      settings: { preferences: { peek: () => ({}) } },
+    } as unknown as Parameters<typeof searchSources>[0]),
+  );
 
 const FIND = { ...INITIAL_SEARCH, open: true, view: "find" as const, term: "chapter" };
 
@@ -179,5 +221,35 @@ describe("search at desktop width", () => {
     await mount();
     expect(railSearch()).not.toBeNull();
     expect(findBar()).toBeNull();
+  });
+});
+
+describe("opening Find through the workspace's search", () => {
+  it("leaves a tablet icon rail as icons and docks Find at the bottom", async () => {
+    showStory();
+    await mount(INITIAL_SEARCH);
+    const opened = realSearch();
+    await act(async () => opened.open("find"));
+    await flush();
+    expect(workspace.current.shell?.railCompactWidth).toBeUndefined();
+    expect(host.querySelector("[data-sidebar]")!.getAttribute("data-sidebar")).toBe("collapsed");
+    expect(railSearch()).toBeNull();
+    expect(findBar()).not.toBeNull();
+    opened.dispose();
+  });
+
+  it("widens a desktop icon rail and shows Find in it", async () => {
+    layout.current = "desktop";
+    showStory();
+    setShell({ railWidth: RAIL_WIDTH.collapsed });
+    await mount(INITIAL_SEARCH);
+    const opened = realSearch();
+    await act(async () => opened.open("find"));
+    await flush();
+    expect(workspace.current.shell?.railWidth).toBeUndefined();
+    expect(host.querySelector("[data-sidebar]")!.getAttribute("data-sidebar")).toBe("expanded");
+    expect(railSearch()).not.toBeNull();
+    expect(findBar()).toBeNull();
+    opened.dispose();
   });
 });
