@@ -67,7 +67,7 @@ Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls 
 - Touch on the emulator. Centred in its scroller before it is measured, every control reaches 44×44 except the phone title bar's three (#2644), the same as on the 360 preset.
 - On-screen keyboard. On the emulator no tapped field was covered once the keyboard was up. The script name field only shows in the phone layout's edit mode, so it was not tapped, and toasts were not raised. Both belong to #2594.
 - Forced colors. No Tab stop lost its focus edge, and the screenshots show every control drawn in system colours. The rail's current route stays marked only by bold text. The current script row and the current outline scene lose their tint and accent bar. This is an observation from the screenshots, not measured, and not filed.
-- Names in the keyboard order. The order is named from Chromium's accessibility tree. Three stops have no name: the save status button (#2662), the script editor (#2640) and the game frame, whose title arrives with the player. All three are filed or explained.
+- Names in the keyboard order. The order is named from Chromium's accessibility tree. Two stops have no name, and both are filed: the save status button (#2662) and the script editor (#2640). The game frame reads "Untitled story game preview".
 - Live regions. The save status is a `status` ("Draft saved"). Each page ends with an empty `status` that receives toasts. Settings announces through an `output`. The caret position readout is a button with `aria-live="off"`, so it does not announce caret moves; whether it should is for the screen-reader pass below. The Outline ("Scene outline in main") and the Scripts rows ("Scripts and folders") are lists.
 
 ### Screen-reader pass
