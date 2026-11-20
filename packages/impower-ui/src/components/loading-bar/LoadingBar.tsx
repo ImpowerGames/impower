@@ -77,7 +77,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
   };
 
   const fadeOut = () => {
-    if (!canAnimate) {
+    if (!canAnimate || prefersReducedMotion()) {
       hide();
       return;
     }
@@ -133,7 +133,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
     if (!shown || finish || fade) {
       return;
     }
-    if (sweep) {
+    if (sweep && !prefersReducedMotion()) {
       runOut();
     } else {
       fadeOut();

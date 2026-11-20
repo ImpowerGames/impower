@@ -182,6 +182,18 @@ describe("LoadingBar", () => {
     expect(bar.className).not.toContain("--loading-indicator-width");
   });
 
+  it("hides at once with no run-out when reduced motion turns on during a sweep", async () => {
+    const { bar, segment } = await mount(false);
+    await setActive(bar, true);
+    vi.advanceTimersByTime(LOADING_BAR_SHOW_DELAY_MS);
+    const [sweep] = live(segment);
+    reducedMotion = true;
+    await setActive(bar, false);
+    expect(sweep!.cancelled).toBe(true);
+    expect(bar.style.opacity).toBe("0");
+    expect(animations).toEqual([sweep]);
+  });
+
   it("shows a static full-width bar with no sweep under reduced motion", async () => {
     reducedMotion = true;
     const { bar, segment } = await mount(false);
@@ -190,5 +202,8 @@ describe("LoadingBar", () => {
     expect(bar.style.opacity).toBe("1");
     expect(segment.style.transform).toBe("none");
     expect(live(segment)).toHaveLength(0);
+    await setActive(bar, false);
+    expect(bar.style.opacity).toBe("0");
+    expect(animations).toHaveLength(0);
   });
 });
