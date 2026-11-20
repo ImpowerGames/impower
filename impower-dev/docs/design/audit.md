@@ -24,6 +24,8 @@ The first run measured main at `b969caf645`, before any fix; its tables are in t
 - Under reduced motion the Settings page's script sample still animated its line numbers (180ms).
 - Every Tab stop on every route showed a focus edge, none was focusable without a role, and every menu, sheet and inspector closed with Escape.
 
+That first run measured only what each route's first screen showed. The scans now cover whole pages, and that found three more things. Settings draws its switches, selects and text fields with the same divider-coloured boundary as the search fields, which widens #2643. The Emphasize markup row dims its markers to 2.26 to 3.32:1 (#2658). The Settings script sample's selector took taps in 36px under touch, which is fixed below.
+
 ### Fixed in this change
 
 | Finding | Fix | Where |
@@ -31,6 +33,7 @@ The first run measured main at `b969caf645`, before any fix; its tables are in t
 | The game frame had no accessible name | Titled "*story title* game preview", the glossary's frame title | `PreviewGame.tsx` |
 | Sepia's muted and warning text under 4.5:1 | `--muted` `#64615a`, `--warning` `#8f5400` | `theme.css`, `tokens.md` |
 | Settings section chips 36px under touch | 44px under a coarse pointer; a mouse keeps 36px | `JumpChips.tsx` |
+| Selects 36px under touch (the Settings script sample's selector) | 44px under a coarse pointer; a mouse keeps 36px | `Select.tsx` |
 | The Settings sample's gutter moved under reduced motion | The editor theme turns its transitions off under reduced motion, declared after the rules it overrides | `EDITOR_THEME.ts` |
 
 ### Filed
@@ -42,10 +45,11 @@ The first run measured main at `b969caf645`, before any fix; its tables are in t
 | #2640 | The script editor's text box and its loading bar have no accessible name |
 | #2641 | Every tab's `aria-controls` points at a panel that does not exist |
 | #2642 | The page cannot be zoomed on a phone (`maximum-scale=1`, `user-scalable=no`) |
-| #2643 | Text field borders reach 1.3 to 1.9:1 against the page, the one Charcoal and Chalk contrast failure left |
+| #2643 | Bordered form controls (the search fields, and the switches, selects and fields in Settings and the Watch panel) reach 1.3 to 1.9:1 against their surface, the one control failure left in Charcoal and Chalk |
 | #2644 | The phone title bar's project name, save status and problem count take taps in a 25 to 27px strip |
 | #2646 | Script rows, asset rows and the aspect-ratio button are labelled with words other than the ones they show |
 | #2647 | The app menu is an ARIA menu holding children a menu may not contain |
+| #2658 | The Emphasize markup row's markers are dimmed to 2.26 to 3.32:1, the one text failure left in Charcoal and Chalk |
 
 ### Known, owned by open tickets
 
@@ -53,7 +57,7 @@ Not fixed or filed here: #2586 (phone title bar spacing), #2591 (debug controls 
 
 ### Decisions and readings
 
-- Other themes. Ink, Graphite, Warm Folio and Dusk fail only the field boundary, which #2643 covers for every theme. Midnight keeps today's values by decision; its only failure is the same field boundary.
+- Other themes. Ink, Sepia, Graphite, Warm Folio and Dusk fail only what Charcoal and Chalk fail: the control boundaries (#2643) and the Emphasize markup markers (#2658), both filed for every theme. Midnight keeps today's values by decision, and it fails only those same two.
 - Token pairs that no screen draws. Chalk's `--warning` reaches 4.19:1 on `--tint` and 4.23:1 on `--elevated`. No audited view draws warning text on either surface, so both are accepted as recorded; a component that puts warning text there needs another colour.
 - The Add panel returns focus to the script, at the caret it inserts at, rather than to its Add button. Its close handler does this on purpose (`AddPanel.tsx`), so the behaviour is kept and recorded here.
 - Copy. No old word appears. The glossary quotes four prototype strings in title case that the editor shows in sentence case ("Editor & project preferences", and the Settings names "Play from here", "Step into" and "Step out"). The sentence-case rule is kept over the glossary's capitals. The preview's play button keeps the glossary's "Play From Here".
