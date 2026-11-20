@@ -260,6 +260,12 @@ describe("Button bare", () => {
     expect(button.hasAttribute("data-probe")).toBe(true);
   });
 
+  it("is a Button variant whose variants function gives only the caller's classes", () => {
+    const bare: ButtonVariant = "bare";
+    expect(buttonVariants({ variant: bare })).toBe("");
+    expect(buttonVariants({ variant: bare, size: "icon", raised: true, class: "underline" })).toBe("underline");
+  });
+
   it("passes the caller's classes alone to a slotted child", async () => {
     const host = await mount(
       <Button variant="bare" asChild class="underline">

@@ -4,7 +4,7 @@ import type { ComponentChildren, JSX, Ref } from "preact";
 import { forwardRef } from "preact/compat";
 import { cn } from "../../utils/cn";
 
-export const buttonVariants = cva(
+const styledButtonVariants = cva(
   [
     "relative control-overlay",
     "inline-flex shrink-0 items-center justify-center whitespace-nowrap select-none cursor-pointer",
@@ -69,6 +69,18 @@ export const buttonVariants = cva(
   },
 );
 
+type StyledButtonVariantProps = VariantProps<typeof styledButtonVariants>;
+
+export const buttonVariants = ({
+  variant,
+  class: className,
+  ...rest
+}: Omit<StyledButtonVariantProps, "variant"> & {
+  variant?: StyledButtonVariantProps["variant"] | "bare";
+  class?: string;
+} = {}): string =>
+  variant === "bare" ? (className ?? "") : styledButtonVariants({ variant, ...rest, class: className });
+
 export type ButtonVariant = NonNullable<
   VariantProps<typeof buttonVariants>["variant"]
 >;
@@ -83,8 +95,7 @@ export type ButtonProps = Omit<
   JSX.HTMLAttributes<HTMLButtonElement>,
   "size" | "type"
 > &
-  Omit<VariantProps<typeof buttonVariants>, "variant"> & {
-    variant?: ButtonVariant | "bare" | null;
+  VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     class?: string;
     name?: string;
