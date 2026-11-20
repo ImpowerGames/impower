@@ -32,7 +32,8 @@ import {
   type TitleRegionHeights,
   titlePageLayout,
 } from "@impower/sparkdown-screenplay/src/utils/titlePageLayout";
-import { noteUnprintable } from "../utils/unprintableCharacters";
+import { currentFaceName, drawFaceRuns } from "../utils/fallbackFonts";
+import { measureTextWidth } from "../textbox-for-pdfkit/src/utils/textMeasurement";
 
 const PDF_POINTS_PER_INCH = 72;
 
@@ -237,7 +238,8 @@ export default class ScreenplayPrinter {
           180) /
         Math.PI;
       // workaround(pdfkit): underline combined with rotation renders wrongly, so formatting is reset first (seen with pdfkit 0.14.0)
-      const len = watermarkString.length;
+      const face = currentFaceName(this._doc);
+      const len = this.getWatermarkCells(watermarkString, face);
       let diagonal;
       diagonal = Math.sqrt(
         Math.pow(this._profile.page_width, 2) +
@@ -248,19 +250,27 @@ export default class ScreenplayPrinter {
       this._doc.fillColor(this.profile.settings?.["meta:watermark"]?.color ?? "#eeeeee");
       this._doc.fontSize(font_size);
       this._doc.rotate(angle, options);
-      noteUnprintable(this._doc, watermarkString);
-      this._doc.text(
+      drawFaceRuns(
+        this._doc,
         watermarkString,
         2 * PDF_POINTS_PER_INCH,
         -(font_size / 2),
-        {
-          lineBreak: false,
-        },
+        face,
+        { lineBreak: false },
+        "top",
+        font_size,
       );
       this._doc.rotate(-angle, options);
       this._doc.fontSize(this._profile.font_size ?? 12);
       this._doc.fillColor(this.profile.color ?? "#000000");
     }
+  }
+
+  getWatermarkCells(text: string, face: string | undefined): number {
+    this._doc.fontSize(1);
+    const cell = this._doc.widthOfString(" ");
+    const width = measureTextWidth({ text, font: face, fontSize: 1 }, this._doc);
+    return cell > 0 && width > 0 ? width / cell : text.length;
   }
 
   printLine(span: PageLine) {

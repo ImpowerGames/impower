@@ -16,6 +16,7 @@
     "watch": "node ./esbuild.js --watch",
     "package": "node ./esbuild.js --production",
     "build:cli": "node ./esbuild.cli.js",
+    "generate:fallback-advances": "node ./scripts/generate-fallback-advances.mjs",
     "typecheck": "node ../../scripts/typecheck.mjs packages/sparkdown-screenplay-pdf/"
   },
   "browser": {

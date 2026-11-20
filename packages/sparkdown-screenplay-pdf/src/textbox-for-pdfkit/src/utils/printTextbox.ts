@@ -6,7 +6,7 @@ import { TextOptions } from "../types/TextOptions";
 import { wrapTextbox } from "./wrapTextbox";
 import { getFontAscent } from "./fontHandler";
 import { drawEmojiChunk, getEmojiProvider } from "../../../emoji/emojiText";
-import { noteUnprintable } from "../../../utils/unprintableCharacters";
+import { drawFaceRuns } from "../../../utils/fallbackFonts";
 
 export const printTextbox = (
   doc: PDFKit.PDFDocument,
@@ -52,6 +52,7 @@ const printLines = (
     }
     let xPosition = getLineStartXPosition(line, width, posX);
     line.texts.forEach((textPart) => {
+      let drawnEnd = xPosition;
       if (textPart.font != null) {
         doc.font(textPart.font);
       }
@@ -77,18 +78,23 @@ const printLines = (
           String(baseline),
         );
       } else if (textPart.text != null) {
-        noteUnprintable(doc, textPart.text);
-        doc.text(textPart.text, xPosition, yPosition, {
-          link: textPart.link,
-          align: "left",
-          baseline: baseline as keyof PDFKit.Mixins.TextOptions["baseline"],
-          oblique: textPart.oblique,
-          underline: textPart.underline,
-          strike: textPart.strike,
-        });
+        const fontSize =
+          textPart.fontSize ??
+          (doc as unknown as { _fontSize?: number })._fontSize ??
+          12;
+        drawnEnd = drawFaceRuns(
+          doc,
+          textPart.text,
+          xPosition,
+          yPosition,
+          textPart.font,
+          textPart,
+          baseline,
+          fontSize,
+        );
       }
       if (textPart.width != null) {
-        xPosition += textPart.width;
+        xPosition = Math.max(xPosition + textPart.width, drawnEnd);
       }
     });
   });
