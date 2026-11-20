@@ -32,6 +32,12 @@ const { stateForRoute } =
   await import("../../src/modules/spark-editor/workspace/routes");
 const { default: problems } =
   await import("../../src/modules/spark-editor/workspace/problems/ProblemsStore");
+const { WorkspaceConstants } =
+  await import("../../src/modules/spark-editor/workspace/WorkspaceConstants");
+const { DEVICE_STORAGE_COPY } =
+  await import("../../src/modules/spark-editor/workspace/saveStatus");
+const { auditScan } =
+  await import("../../../.agents/skills/drive-web-editor/audit-page.mjs");
 
 const UI_PACKAGE = resolve(process.cwd(), "../packages/impower-ui");
 
@@ -42,11 +48,12 @@ const LONG_NAME =
 const markupOn = async (
   route: "story" | "assets",
   name = "The Midnight Jukebox",
+  id = WorkspaceConstants.LOCAL_PROJECT_ID,
 ) => {
   const state = stateForRoute(workspace.state.value as WorkspaceCache, route);
   workspace.state.value = {
     ...state,
-    project: { ...state.project, name },
+    project: { ...state.project, id, name },
     sync: { ...state.sync, status: "cached" },
   } as WorkspaceCache;
   const host = document.body.appendChild(document.createElement("div"));
@@ -313,8 +320,8 @@ const withProblems = async <T>(run: () => Promise<T>) => {
   }
 };
 
+
 const TARGETS = {
-  name: 'input[aria-label="Project name"]',
   status: '[role="status"] button',
   problems: 'button[data-tone="error"]',
 } as const;
@@ -331,40 +338,14 @@ const probeTargets = async (markup: string, width: number) => {
     await page.setContent(
       `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}<main style="height:600px"><button style="width:100%;height:100%">Content</button></main></body></html>`,
     );
-    const hit = await page.evaluate((targets) => {
-      const selector =
-        'button, a[href], input:not([type="hidden"]), [role="button"], [tabindex]:not([tabindex="-1"])';
-      const reachOf = (el: Element) => {
-        const rect = el.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const label = el.closest("label");
-        const hits = (x: number, y: number) => {
-          if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) return false;
-          const at = document.elementFromPoint(x, y);
-          if (!at) return false;
-          if (at === el || el.contains(at)) return true;
-          if (!label || !(at === label || label.contains(at))) return false;
-          const control = at.closest(selector);
-          return !control || control === el || !label.contains(control);
-        };
-        const reach = (dx: number, dy: number) => {
-          let n = 0;
-          while (n < 44 && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++;
-          return n;
-        };
-        return {
-          width: Math.min(reach(-1, 0) + reach(1, 0) + 1, 44),
-          height: Math.min(reach(0, -1) + reach(0, 1) + 1, 44),
-        };
-      };
-      return Object.fromEntries(
-        Object.entries(targets).map(([key, query]) => [
-          key,
-          reachOf(document.querySelector(query)!),
-        ]),
-      );
-    }, TARGETS);
+    const scan = await page.evaluate(auditScan, {
+      parts: ["targets"],
+      coarse: true,
+      minTarget: 44,
+    });
+    const header = (
+      scan.targets as { where: string; name: string; hit: string }[]
+    ).filter((target) => target.where.startsWith("header:"));
     const cdp = await page.context().newCDPSession(page);
     const { root } = await cdp.send("DOM.getDocument");
     const named = async (query: string) => {
@@ -372,6 +353,7 @@ const probeTargets = async (markup: string, width: number) => {
         nodeId: root.nodeId,
         selector: query,
       });
+      if (!nodeId) return null;
       const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
         nodeId,
         fetchRelatives: false,
@@ -388,12 +370,30 @@ const probeTargets = async (markup: string, width: number) => {
       };
     };
     return {
-      hit,
-      status: await named(TARGETS.status),
+      hit: Object.fromEntries(header.map((target) => [target.name, target.hit])),
+      status: (await named(TARGETS.status))!,
       problems: await named(TARGETS.problems),
     };
   } finally {
     await browser.close();
+  }
+};
+
+const withDevice = async <T>(run: () => Promise<T>) => {
+  await act(async () => {
+    workspace.deviceStorage.value = {
+      persisted: false,
+      permission: "prompt",
+      canPersist: true,
+      install: null,
+    };
+  });
+  try {
+    return await run();
+  } finally {
+    await act(async () => {
+      workspace.deviceStorage.value = null;
+    });
   }
 };
 
@@ -404,15 +404,17 @@ describe("the phone title bar's text controls", () => {
     [430, "story"],
     [360, "story"],
   ] as const)(
-    "at %ipx on %s, the name, the save status and the problem count each take a tap anywhere in a 44px band",
+    "at %ipx on %s, the audit's hit test finds the name, the save status, the problem count and every other title bar control taking a tap anywhere in 44x44",
     async (width, route) => {
       const bar = await withProblems(async () =>
         probeTargets(await markupOn(route), width),
       );
       expect(bar.hit).toEqual({
-        name: { width: 44, height: 44 },
-        status: { width: 44, height: 44 },
-        problems: { width: 44, height: 44 },
+        "Project name": "44x44",
+        "Saved in this browser.": "44x44",
+        "Show problems": "44x44",
+        Search: "44x44",
+        "App menu": "44x44",
       });
     },
     60000,
@@ -422,18 +424,44 @@ describe("the phone title bar's text controls", () => {
     const bar = await withProblems(async () =>
       probeTargets(await markupOn("story"), 360),
     );
-    expect(bar.status.text).not.toBe("");
     expect(bar.status).toEqual({
-      name: bar.status.text,
-      description: bar.status.title,
-      text: bar.status.text,
-      title: bar.status.title,
+      name: "Draft saved",
+      description: "Saved in this browser.",
+      text: "Draft saved",
+      title: "Saved in this browser.",
     });
     expect(bar.problems).toEqual({
       name: "2 problems",
       description: "Show problems",
       text: "2 problems",
       title: "Show problems",
+    });
+  }, 60000);
+
+  it("names the local save status with its storage marker when the browser has not agreed to keep the project", async () => {
+    const bar = await withDevice(async () =>
+      probeTargets(await markupOn("story"), 360),
+    );
+    expect(bar.status).toEqual({
+      name: `Draft saved ${DEVICE_STORAGE_COPY.marker}`,
+      description: "Saved in this browser.",
+      text: "Draft saved",
+      title: "Saved in this browser.",
+    });
+  }, 60000);
+
+  it("names a Drive project's save status by the words it shows, with its action as the description", async () => {
+    const bar = await probeTargets(
+      await markupOn("story", "The Midnight Jukebox", "drive-file"),
+      360,
+    );
+    expect(bar.status.text).not.toBe("");
+    expect(bar.status.title).not.toBeNull();
+    expect(bar.status).toEqual({
+      name: bar.status.text,
+      description: bar.status.title,
+      text: bar.status.text,
+      title: bar.status.title,
     });
   }, 60000);
 });
