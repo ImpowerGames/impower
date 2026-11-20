@@ -370,7 +370,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
               executedMap[uri] = expandLineRanges(lines.ranges);
             }
             Workspace.window.setHighlights(executedMap);
-            if (state === "running" && !restarted) {
+            if (state === "running" && !restarted && !Workspace.window.coversScript()) {
               const editor = Workspace.window.getActiveEditorForPane("logic");
               if (editor) {
                 const { uri } = editor;

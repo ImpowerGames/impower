@@ -93,6 +93,7 @@ export default function PhonePreviewStrip() {
       playDisabled={!copy.playable}
       expanded={expanded}
       onPlay={() => void withWorkspace((win) => win.playInFullView())}
+      onOpen={() => void withWorkspace((win) => win.openFullView())}
       onCollapse={() => void withWorkspace((win) => win.collapsePreviewPane())}
       picture={typeof window === "undefined" ? null : <Preview />}
     />

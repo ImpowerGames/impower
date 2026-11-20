@@ -116,6 +116,75 @@ describe("the phone's full view", () => {
     expect(sent.stopped).toBe(1);
   });
 
+  it("returns to the script when Stop ends a run played from the strip", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(sent.stopped).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(false);
+  });
+
+  it("opens the full view from the thumbnail without starting a run", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.openFullView();
+    expect(workspace.current.preview.revealed).toBe(true);
+    expect(sent.started).toBe(0);
+    w.collapsePreviewPane();
+    expect(workspace.current.preview.revealed).toBe(false);
+    expect(sent.started).toBe(0);
+    expect(sent.stopped).toBe(0);
+  });
+
+  it("keeps the full view open when Stop ends a run played inside it", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.openFullView();
+    w.toggleGameRunning();
+    expect(sent.started).toBe(1);
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(sent.stopped).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
+  it("keeps the full view open after Stop when a strip run is replayed inside it", () => {
+    const w = mount();
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.collapsePreviewPane();
+    w.syncGameExited();
+    w.openFullView();
+    w.toggleGameRunning();
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
+  it("reports the script as covered only while the phone's full view is open, so a run does not move its caret", () => {
+    const w = mount();
+    expect(w.coversScript()).toBe(false);
+    w.openFullView();
+    expect(w.coversScript()).toBe(true);
+    layout.value = "compact";
+    expect(w.coversScript()).toBe(false);
+  });
+
+  it("leaves the preview where it is when Stop is pressed outside the phone layout", () => {
+    layout.value = "compact";
+    const w = mount();
+    w.connectPlayer();
+    w.expandPreviewPane();
+    w.toggleGameRunning();
+    w.syncGameStarted();
+    w.toggleGameRunning();
+    expect(sent.stopped).toBe(1);
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
   it("leaves a game running when the preview collapses outside the phone layout", () => {
     layout.value = "compact";
     const w = mount();
