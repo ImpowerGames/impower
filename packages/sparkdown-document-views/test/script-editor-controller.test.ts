@@ -10,6 +10,7 @@ import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
+import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   customGotoLinePanel,
@@ -280,6 +281,37 @@ describe("ScriptEditorController initial selection", () => {
     expect(view.state.selection.main.head).toBe(0);
     mounted.controller["handleIdle"]();
     expect(view.state.selection.main.head).toBe(view.state.doc.line(2).from + 2);
+  });
+
+  it("reports the opened script's caret as the author's selection once the editor settles", async () => {
+    const mounted = mount();
+    const selected: unknown[] = [];
+    mounted.host.addEventListener(MessageProtocol.event, (e) => {
+      const message = (e as CustomEvent).detail;
+      if (DidSelectTextDocumentMessage.type.isNotification(message)) {
+        selected.push(message.params);
+      }
+    });
+    const at = { line: 1, character: 2 };
+    await mounted.controller["handleLoadEditor"]({
+      ...LoadEditorMessage.type.request({
+        textDocument: { uri: "file:///chapter_1.sd", languageId: "sparkdown", version: 0, text: "" },
+        selectedRange: { start: at, end: at },
+        languageServerInitializeParams: {} as never,
+        languageServerInitializeResult: {} as never,
+      }),
+      id: `load-${nextId++}`,
+    } as LoadEditorMessage.Request);
+    const { view } = created[created.length - 1]!;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "second line\n" } });
+    mounted.controller["handleIdle"]();
+    expect(selected).toContainEqual(
+      expect.objectContaining({
+        textDocument: { uri: "file:///chapter_1.sd" },
+        selectedRange: { start: at, end: at },
+        userEvent: true,
+      }),
+    );
   });
 });
 

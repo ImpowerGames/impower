@@ -19,6 +19,7 @@ import {
   ChangeSet,
   EditorSelection,
   EditorState,
+  Text,
   Transaction,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -1428,26 +1429,13 @@ export class ScriptEditorController {
         plugin.uri = uri;
       }
       const state = this._view.state;
-      const cursorRange = state.selection.main;
-      const anchor = cursorRange.anchor;
-      const head = cursorRange.head;
-      const params: DidSelectTextDocumentMessage.Notification["params"] = {
-        textDocument: { uri },
-        selectedRange: {
-          start: convertToPosition(state.doc, anchor),
-          end: convertToPosition(state.doc, head),
-        },
-        hasFocus: this._view?.hasFocus,
-        docChanged: false,
-        userEvent: true,
-      };
-      sendProtocolMessage(
-        DidSelectTextDocumentMessage.type.notification(params),
-        this.host,
-      );
-      sendProtocolMessage(
-        SelectedEditorMessage.type.notification(params),
-        this.host,
+      this.publishSelection(
+        uri,
+        state.doc,
+        state.selection.main.anchor,
+        state.selection.main.head,
+        false,
+        true,
       );
       this.publishHistory(state);
     } else {
@@ -1634,26 +1622,15 @@ export class ScriptEditorController {
           onSelectionChanged: (update, anchor, head) => {
             const uri = this._textDocument?.uri;
             if (uri) {
-              const params: DidSelectTextDocumentMessage.Notification["params"] =
-                {
-                  textDocument: { uri },
-                  selectedRange: {
-                    start: convertToPosition(update.state.doc, anchor),
-                    end: convertToPosition(update.state.doc, head),
-                  },
-                  hasFocus: this._view?.hasFocus,
-                  docChanged: update.docChanged,
-                  userEvent: update.transactions.some((tr) =>
-                    tr.annotation(Transaction.userEvent),
-                  ),
-                };
-              sendProtocolMessage(
-                DidSelectTextDocumentMessage.type.notification(params),
-                this.host,
-              );
-              sendProtocolMessage(
-                SelectedEditorMessage.type.notification(params),
-                this.host,
+              this.publishSelection(
+                uri,
+                update.state.doc,
+                anchor,
+                head,
+                update.docChanged,
+                update.transactions.some((tr) =>
+                  tr.annotation(Transaction.userEvent),
+                ),
               );
             }
           },
@@ -1847,6 +1824,34 @@ export class ScriptEditorController {
     }
   }
 
+  protected publishSelection(
+    uri: string,
+    doc: Text,
+    anchor: number,
+    head: number,
+    docChanged: boolean,
+    userEvent: boolean,
+  ) {
+    const params: DidSelectTextDocumentMessage.Notification["params"] = {
+      textDocument: { uri },
+      selectedRange: {
+        start: convertToPosition(doc, anchor),
+        end: convertToPosition(doc, head),
+      },
+      hasFocus: this._view?.hasFocus,
+      docChanged,
+      userEvent,
+    };
+    sendProtocolMessage(
+      DidSelectTextDocumentMessage.type.notification(params),
+      this.host,
+    );
+    sendProtocolMessage(
+      SelectedEditorMessage.type.notification(params),
+      this.host,
+    );
+  }
+
   protected settleSelection(
     range: Range,
     scrollIntoView: "nearest" | "start" | "end" | "center" | false,
@@ -1966,6 +1971,17 @@ export class ScriptEditorController {
       }
       this._selectionMoved = false;
       const view = this._view;
+      if (view && this._textDocument) {
+        const { anchor, head } = view.state.selection.main;
+        this.publishSelection(
+          this._textDocument.uri,
+          view.state.doc,
+          anchor,
+          head,
+          false,
+          true,
+        );
+      }
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
         this._focusIntervalTimeout = window.setInterval(() => {
