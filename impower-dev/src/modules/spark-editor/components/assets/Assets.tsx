@@ -1001,22 +1001,26 @@ function AssetsBrowser() {
         </>
       }
       tabs={
-        searching ? undefined : (
-          <Tabs
-            variant="inline"
-            iconLayout="beside"
-            scroll
-            value={type}
-            onChange={(next) => setLists({ assetsType: next })}
-            class="flex-none border-b border-edge"
-          >
-            {ASSET_TYPES.map((spec) => (
-              <Tab key={spec.type} value={spec.type}>
-                {spec.title}
-              </Tab>
-            ))}
-          </Tabs>
-        )
+        searching ? undefined : {
+          value: type,
+          render: (panel) => (
+            <Tabs
+              panel={panel}
+              variant="inline"
+              iconLayout="beside"
+              scroll
+              value={type}
+              onChange={(next) => setLists({ assetsType: next })}
+              class="flex-none border-b border-edge"
+            >
+              {ASSET_TYPES.map((spec) => (
+                <Tab key={spec.type} value={spec.type}>
+                  {spec.title}
+                </Tab>
+              ))}
+            </Tabs>
+          ),
+        }
       }
       bar={
         selecting && !drag.dragging ? (

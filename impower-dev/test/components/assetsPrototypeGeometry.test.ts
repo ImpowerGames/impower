@@ -366,7 +366,7 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
     h(
       "div",
       { style: "border-bottom:1px solid #d3d3d7;width:398px" },
-      h(ui.Tabs, { variant, iconLayout: "beside", scroll: variant === "inline", value: "images", onChange: () => {} }, [
+      h(ui.Tabs, { panel: "panel", variant, iconLayout: "beside", scroll: variant === "inline", value: "images", onChange: () => {} }, [
         h(ui.Tab, { key: "images", value: "images" }, "Images"),
         h(ui.Tab, { key: "audio", value: "audio" }, "Audio"),
       ]),
@@ -431,7 +431,7 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
     h(
       "div",
       { style: `width:${width}` },
-      h(ui.Tabs, { variant, vertical: variant === "rail", iconLayout: variant === "rail" ? "beside" : "above", indicator: "none", value: "logic", onChange: () => {} }, [
+      h(ui.Tabs, { panel: "panel", variant, vertical: variant === "rail", iconLayout: variant === "rail" ? "beside" : "above", indicator: "none", value: "logic", onChange: () => {} }, [
         h(ui.Tab, { key: "logic", value: "logic", icon: ui.BookIcon }, "Story"),
         h(ui.Tab, { key: "assets", value: "assets", icon: ui.ArtIcon }, "Assets"),
       ]),

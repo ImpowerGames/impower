@@ -11,6 +11,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import Outline from "../outline";
 import { SettingsIndex } from "../settings";
 import AppMenu from "./AppMenu";
+import { SCREEN_PANEL_ID } from "./screenPanel";
 
 export default function ShellRail() {
   const pane = workspace.signals.pane.value;
@@ -31,6 +32,7 @@ export default function ShellRail() {
         class="flex-none border-b border-edge px-[14px] pt-[22px] pb-5 in-data-[layout=compact]:px-[10px] in-data-[layout=compact]:pt-4 group-data-[sidebar=collapsed]/sidebar:px-[5px] group-data-[sidebar=collapsed]/sidebar:pt-3.5"
       >
         <Tabs
+          panel={SCREEN_PANEL_ID}
           value={settings ? "" : pane}
           onChange={onChange}
           variant="rail"
