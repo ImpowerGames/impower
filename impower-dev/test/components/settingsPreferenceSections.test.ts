@@ -167,6 +167,18 @@ describe("the Script editor section", () => {
     expect(sample.className.split(/\s+/).filter((name) => /(^|:)(max-h-|overflow-)/.test(name))).toEqual([]);
   });
 
+  it("shows the Emphasize markup row's markers at the detail's own ink, with nothing dimming them", async () => {
+    await mountEditor();
+    const detail = host!.querySelector<HTMLElement>("#script-emphasizeMarkup-detail")!;
+    expect(detail.textContent).toContain("*italic*");
+    expect(detail.textContent).toContain("**bold**");
+    expect(detail.textContent).toContain("_underline_");
+    const dimmed = [...detail.querySelectorAll<HTMLElement>("*")].filter((el) =>
+      el.className.split(/\s+/).some((name) => /(^|:)opacity-/.test(name)),
+    );
+    expect(dimmed.map((el) => el.textContent)).toEqual([]);
+  });
+
   it("writes the indentation guides choice", async () => {
     await mountEditor();
     await choose(host!.querySelector<HTMLSelectElement>("#script-indentGuides-control")!, "all");

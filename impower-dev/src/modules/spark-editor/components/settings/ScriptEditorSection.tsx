@@ -33,8 +33,6 @@ type SwitchSpec = {
   readonly detail: ComponentChildren;
 };
 
-const Mark = ({ children }: { children: string }) => <span class="opacity-55">{children}</span>;
-
 const APPEARANCE_SWITCHES: readonly SwitchSpec[] = [
   { key: "boldDeclarationNames", name: "Bold declaration names", detail: "Show names bolded when declaring them." },
   { key: "boldSpeakerNames", name: "Bold speaker names", detail: "Show speaker cues bolded." },
@@ -52,15 +50,15 @@ const APPEARANCE_SWITCHES: readonly SwitchSpec[] = [
       <>
         Show{" "}
         <i>
-          <Mark>*</Mark>italic<Mark>*</Mark>
+          *italic*
         </i>
         ,{" "}
         <b>
-          <Mark>**</Mark>bold<Mark>**</Mark>
+          **bold**
         </b>
         , and{" "}
         <u>
-          <Mark>_</Mark>underline<Mark>_</Mark>
+          _underline_
         </u>{" "}
         the way the reader will see them.
       </>
