@@ -1,0 +1,6 @@
+{
+  "source": [
+    "packages/sparkdown/src/tests/luau-conformance/typecheck/NonstrictMode.test.ts"
+  ],
+  "archivedNativeProbes": []
+}
