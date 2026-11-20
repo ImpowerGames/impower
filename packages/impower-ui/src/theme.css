@@ -670,6 +670,12 @@
   --toast-top: calc(var(--title-bar-height) + var(--preview-top-bar-height) + var(--toast-gap));
 }
 
+@media (pointer: coarse) {
+  :root[data-layout] {
+    --title-bar-height: 90px;
+  }
+}
+
 :root[data-layout="phone"] {
   --title-bar-height: 90px;
   --script-header-height: 48px;
