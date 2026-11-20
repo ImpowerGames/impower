@@ -275,7 +275,7 @@ export class MorphTimeline {
       const span = this.spanFrom(at);
       const least = span && Math.max(0, span[0] - at);
       play.settled.push(least);
-      if (least !== 0) play.path = undefined;
+      if (least === undefined || least > path.holds[turn.run]!.pause) play.path = undefined;
     }
   }
 

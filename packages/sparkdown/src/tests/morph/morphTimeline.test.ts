@@ -734,6 +734,29 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
     expect(offsetAt(shorter, resumes + 0.005)).toBeCloseTo(0.005 / 0.35, 6);
   });
 
+  test("a play builds its path again only when a turn in a gap must wait longer than its written pause", () => {
+    class Counted extends MorphTimeline {
+      builds = 0;
+      protected override forward(...args: Parameters<MorphTimeline["forward"]>) {
+        this.builds += 1;
+        return super.forward(...args);
+      }
+    }
+    const counted = (pause: number) =>
+      new Counted(
+        timing({ trigger: "speech", duration: 0.35, replay: [{ from: 0, to: 0.66667, chance: 1, count: 1, delay_min: pause, delay_max: pause }] }),
+        () => 0.5,
+      );
+    const covered = counted(0.05);
+    covered.speak([[0, turn - gap / 2], [resumes, 0.6]], 0);
+    covered.at(turn + 0.06);
+    expect(covered.builds).toBe(1);
+    const waits = counted(0.005);
+    waits.speak([[0, turn - gap / 2], [resumes, 0.6]], 0);
+    waits.at(turn + 0.01);
+    expect(waits.builds).toBe(2);
+  });
+
   test("going forward, the replay is refused when no span remains after the turning point", () => {
     const timeline = talk();
     timeline.speak([[0, turn - gap / 2]], 0);
