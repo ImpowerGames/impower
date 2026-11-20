@@ -174,12 +174,12 @@ has no margin left.
 | `--preview-mat` | Surface: the mat around the game preview | `#e9e2d3` | `rgb(233, 226, 211)` | `folio-themes.css:191` `body[data-theme="paper"]` |
 | `--elevated` | Raised surface: tags, keycaps, the checked segment | `#e6dfcf` | `rgb(230, 223, 207)` | `folio-themes.css:179` `body[data-theme="paper"]` |
 | `--ink` | Ink: text and icons at full strength | `#252421` | `rgb(37, 36, 33)` | `folio-themes.css:181` `body[data-theme="paper"]` |
-| `--muted` | Muted ink: secondary text and chrome; the info problem colour | `#6b6861` | `rgb(107, 104, 97)` | `folio-themes.css:182` `body[data-theme="paper"]` |
+| `--muted` | Muted ink: secondary text and chrome; the info problem colour | `#64615a` | `rgb(100, 97, 90)` | `folio-themes.css:182` `body[data-theme="paper"]` |
 | `--accent` | Accent: active navigation, links, focus edge, primary button, current-line rule | `#9c4519` | `rgb(156, 69, 25)` | `folio-themes.css:183` `body[data-theme="paper"]` |
 | `--accent-ink` | Ink on an accent fill | `#fff8ee` | `rgb(255, 248, 238)` | `folio-themes.css:184` `body[data-theme="paper"]` |
 | `--tint` | Tint: selected, current and drop-target washes | `#f1e1d3` | `rgb(241, 225, 211)` | `folio-themes.css:185` `body[data-theme="paper"]` |
 | `--error` | Problem colour: error | `#b3261e` | `rgb(179, 38, 30)` | `folio-themes.css:188` `body[data-theme="paper"]` |
-| `--warning` | Problem colour: warning | `#9a5a00` | `rgb(154, 90, 0)` | `folio-themes.css:187` `body[data-theme="paper"]` |
+| `--warning` | Problem colour: warning | `#8f5400` | `rgb(143, 84, 0)` | `folio-themes.css:187` `body[data-theme="paper"]` |
 | `--success` | Problem colour: success | `#33702f` | `rgb(51, 112, 47)` | `folio-themes.css:186` `body[data-theme="paper"]` |
 | `--edge` | Divider: borders and rules | `#d6cdbb` | `rgb(214, 205, 187)` | `folio-themes.css:180` `body[data-theme="paper"]` |
 | `--selection` | Selection: selected text in the script | `#efd6c2` | `rgb(239, 214, 194)` | `folio-themes.css:194` `body[data-theme="paper"]` |
@@ -187,6 +187,8 @@ has no margin left.
 | `--scrollbar` | Scrollbar thumb (no track) | `#c4bba9` | `rgb(196, 187, 169)` | `folio-themes.css:193` `body[data-theme="paper"]` |
 | `--control-hover` | Hover overlay on controls | `rgb(60 40 20 / 0.06)` | `rgba(60, 40, 20, 0.06)` | `folio-themes.css:175` `body[data-theme="paper"]` |
 | `--stage-full` | Fullscreen player backdrop | `#ebebeb` | `rgb(235, 235, 235)` | `folio-themes.css:192` `body[data-theme="paper"]` |
+
+The editor's `--muted` and `--warning` for Sepia are darker than the prototype's `#6b6861` and `#9a5a00`, so that muted and warning text reach 4.5:1 on `--elevated` and on the preview mat (`#e9e2d3`) as the [accessibility audit](audit.md) measures them.
 
 #### Graphite (no `data-theme` block; the base `body[data-direction="folio"]` values)
 

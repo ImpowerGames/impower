@@ -1,4 +1,7 @@
+import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
+import workspace from "../../workspace/WorkspaceStore";
+import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import { previewAspectRatioFor } from "../../workspace/previewAspectRatio";
@@ -41,6 +44,10 @@ const STYLE = `
 export default function PreviewGame(_props: PreviewGameProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [playerSrc] = useState(() => playerUrl(PLAYER_SRC));
+  const title = useComputed(
+    () =>
+      `${workspace.state.value.project?.name || WorkspaceConstants.DEFAULT_PROJECT_NAME} game preview`,
+  ).value;
 
   const iframeChannelRef = useRef<any>(null);
   const initializedRef = useRef(false);
@@ -487,6 +494,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         <iframe
           ref={iframeRef}
           id="iframe"
+          title={title}
           src={playerSrc}
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"

@@ -21,6 +21,7 @@ Select only the references needed for this run:
 - For performance, memory, count or timing changes, read [measurement](references/performance.md) before choosing a fixture or timing a run.
 - Before writing a custom browser probe, read [custom probe caveats](references/custom-probes.md). Keep scripts importing driver helpers inside the worktree for dependency resolution and never stage scratch files.
 - For direct requests, notifications or socket clients, read [editor protocol](references/protocol.md).
+- For the accessibility audit, read [audit](references/audit.md).
 
 ## Viewport, color scheme and theme
 

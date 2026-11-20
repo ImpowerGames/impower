@@ -15,7 +15,7 @@ export const selectVariants = cva(
   {
     variants: {
       size: {
-        default: "min-h-9 py-1.5 pr-7 pl-2.5 text-[13px]/[1.4] font-normal",
+        default: "min-h-9 pointer-coarse:min-h-11 py-1.5 pr-7 pl-2.5 text-[13px]/[1.4] font-normal",
       },
     },
     defaultVariants: {
