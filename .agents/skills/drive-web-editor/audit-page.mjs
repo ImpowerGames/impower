@@ -41,6 +41,8 @@ export function auditScan({ parts, coarse, minTarget }) {
       if (role) part += `[role=${role}]`;
       const label = node.getAttribute("aria-label");
       if (label) part += `[aria-label="${label.slice(0, 40)}"]`;
+      const siblings = node.parentElement ? [...node.parentElement.children].filter((c) => c.localName === node.localName) : [];
+      if (!node.id && !label && siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(node) + 1})`;
       parts.unshift(part);
       if (node.id || label) break;
     }
@@ -80,12 +82,10 @@ export function auditScan({ parts, coarse, minTarget }) {
   const out = { contrast: [], targets: [], strings: [], lists: [], liveRegions: [] };
 
   if (parts.includes("contrast")) {
-    const seen = new Set();
-    const push = (entry) => {
-      const key = `${entry.kind}|${entry.fg}|${entry.bg}|${entry.where}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      out.contrast.push(entry);
+    const push = (entry) => out.contrast.push(entry);
+    const textNeeds = (style) => {
+      const size = parseFloat(style.fontSize);
+      return size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700) ? 3 : 4.5;
     };
     for (const el of document.body.querySelectorAll("*")) {
       if (el.closest("iframe, script, style, template, noscript")) continue;
@@ -103,10 +103,8 @@ export function auditScan({ parts, coarse, minTarget }) {
         if (style.color === "transparent" || Number(style.opacity) === 0) continue;
         const fg = rgba(style.color);
         const effective = over({ ...fg, a: fg.a * back.opacity }, back.color);
-        const size = parseFloat(style.fontSize);
-        const large = size >= 24 || (size >= 18.66 && Number(style.fontWeight) >= 700);
         const value = ratio(effective, back.color);
-        push({ kind: "text", where, sample: text.slice(0, 40), fg: hex(effective), bg: hex(back.color), ratio: Math.round(value * 100) / 100, needs: large ? 3 : 4.5, unresolved: back.unresolved, script: region(el) === "script" });
+        push({ kind: "text", where, sample: text.slice(0, 40), fg: hex(effective), bg: hex(back.color), ratio: Math.round(value * 100) / 100, needs: textNeeds(style), unresolved: back.unresolved, script: region(el) === "script" });
       } else if (isIcon) {
         const paint = [style.stroke, style.fill].find((v) => v && v !== "none" && !/^url/.test(v)) ?? style.color;
         const fg = rgba(paint);
@@ -114,6 +112,17 @@ export function auditScan({ parts, coarse, minTarget }) {
         const effective = over({ ...fg, a: fg.a * back.opacity }, back.color);
         push({ kind: "icon", where, sample: nameOf(el.closest("button, a, [role]") ?? el), fg: hex(effective), bg: hex(back.color), ratio: Math.round(ratio(effective, back.color) * 100) / 100, needs: 3, unresolved: back.unresolved });
       } else {
+        const typed = el.matches('input:not([type="checkbox"]):not([type="radio"]):not([role="switch"]):not([type="color"]):not([type="file"]), textarea, select');
+        if (typed) {
+          const shownText = el.localName === "select" ? el.selectedOptions?.[0]?.text ?? "" : el.value;
+          const textStyle = shownText ? style : getComputedStyle(el, "::placeholder");
+          const sample = shownText || el.getAttribute("placeholder") || "";
+          if (sample.trim()) {
+            const fg = rgba(textStyle.color);
+            const effective = over({ ...fg, a: fg.a * back.opacity }, back.color);
+            push({ kind: shownText ? "text" : "placeholder", where, sample: sample.slice(0, 40), fg: hex(effective), bg: hex(back.color), ratio: Math.round(ratio(effective, back.color) * 100) / 100, needs: textNeeds(textStyle), unresolved: back.unresolved });
+          }
+        }
         let best = null;
         for (let box = el, depth = 0; box && box !== document.body && depth < 4; box = box.parentElement, depth++) {
           const r = box.getBoundingClientRect();
@@ -138,7 +147,6 @@ export function auditScan({ parts, coarse, minTarget }) {
 
   if (parts.includes("targets") && coarse) {
     const selector = 'button, a[href], input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [role="link"], [role="slider"], [role="treeitem"], [tabindex]:not([tabindex="-1"])';
-    const seen = new Set();
     const scrolled = [...document.querySelectorAll("*")].filter((n) => n.scrollTop || n.scrollLeft).map((n) => [n, n.scrollTop, n.scrollLeft]);
     const restore = () => {
       for (const n of document.querySelectorAll("*")) if (n.scrollTop || n.scrollLeft) n.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -174,10 +182,7 @@ export function auditScan({ parts, coarse, minTarget }) {
       };
       const width = Math.min(reach(-1, 0) + reach(1, 0) + 1, minTarget);
       const height = Math.min(reach(0, -1) + reach(0, 1) + 1, minTarget);
-      const key = describe(el);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.targets.push({ where: `${region(el)}: ${key}`, name: nameOf(el), box: `${Math.round(rect.width)}x${Math.round(rect.height)}`, hit: `${width}x${height}`, ok: width >= minTarget && height >= minTarget });
+      out.targets.push({ where: `${region(el)}: ${describe(el)}`, name: nameOf(el), box: `${Math.round(rect.width)}x${Math.round(rect.height)}`, hit: `${width}x${height}`, ok: width >= minTarget && height >= minTarget });
     }
     restore();
   }

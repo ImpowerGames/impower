@@ -342,7 +342,7 @@ export function renderMarkdown(report) {
     push("");
   }
   if (report.keyboard) {
-    push("### Keyboard order", "", "Tab from the page start until the order repeats, on the desktop layout in Charcoal. Each stop: role, accessible name, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.", "");
+    push("### Keyboard order", "", "Tab from the page start until the order repeats, on the desktop layout in Charcoal. Each stop: its role and accessible name as Chromium's accessibility tree computes them, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.", "");
     for (const route of report.keyboard.routes) {
       push(`#### ${route.name}`, "", `${route.stops.length} stops${route.cycled ? "" : ", stopped at the limit before the order repeated"}; ${route.invisible} without a visible focus edge; ${route.custom} focusable without a role.`, "");
       push(route.stops.map((s, i) => `${i + 1}. ${s.role}${s.name ? ` “${cell(s.name)}”` : ""}${s.caret ? " — focus shown by the caret" : ""}${s.visible === false ? " — **no visible focus**" : ""}${s.custom ? " — **no role**" : ""}`).join("\n"), "");
@@ -511,7 +511,7 @@ async function landmarks(page) {
   return { banner: await count("banner"), navigation: await count("navigation"), main: await count("main"), complementary: await count("complementary") };
 }
 
-async function tabOrder(page, { limit, deps }) {
+export async function tabOrder(page, { limit, deps }) {
   await closeEverything(page);
   await page.evaluate(() => {
     document.activeElement?.blur?.();
@@ -524,6 +524,20 @@ async function tabOrder(page, { limit, deps }) {
   const stops = [];
   let first = null;
   let cycled = false;
+  const cdp = await page.context().newCDPSession(page);
+  const accessible = async () => {
+    try {
+      const { result } = await cdp.send("Runtime.evaluate", { expression: "document.activeElement", objectGroup: "audit-focus" });
+      if (!result.objectId) return null;
+      const { nodes } = await cdp.send("Accessibility.getPartialAXTree", { objectId: result.objectId, fetchRelatives: false });
+      const node = nodes.find((n) => !n.ignored) ?? nodes[0];
+      return node ? { role: node.role?.value ?? null, name: node.name?.value ?? "" } : null;
+    } catch {
+      return null;
+    } finally {
+      await cdp.send("Runtime.releaseObjectGroup", { objectGroup: "audit-focus" }).catch(() => {});
+    }
+  };
   for (let i = 0; i < limit; i++) {
     const before = stops.at(-1);
     if (before?.inEditor) await page.keyboard.press("Escape");
@@ -533,6 +547,13 @@ async function tabOrder(page, { limit, deps }) {
       page.evaluate(focusState),
       new Promise((resolve) => setTimeout(() => resolve({ key: `timeout:${i}`, role: "unknown", name: "the page did not answer within 5 s", timedOut: true }), 5_000)),
     ]).catch((error) => ({ key: `error:${i}`, role: "unknown", name: String(error.message).split("\n")[0] }));
+    if (!state.timedOut && !state.body) {
+      const ax = await accessible();
+      if (ax) {
+        state.role = ax.role || state.role;
+        state.name = ax.name.trim().replace(/\s+/g, " ").slice(0, 60);
+      }
+    }
     if (i % 20 === 0) progress(`tab ${i}: ${state.role} ${state.name ?? ""}`);
     if (state.timedOut) {
       stops.push(state);
@@ -552,6 +573,7 @@ async function tabOrder(page, { limit, deps }) {
     }
   }
   progress(`tab order ended after ${stops.length} stops`);
+  await cdp.detach().catch(() => {});
   await deps.reloadEditorPage(page);
   await deps.waitForApp(page);
   return { stops, cycled };

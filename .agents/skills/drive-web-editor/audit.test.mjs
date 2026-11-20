@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { AUDIT_PARTS, AUDIT_THEMES, DOC_BEGIN, DOC_END, FIXTURE, bannedWords, contrastFailures, contrastRatio, copyFindings, editorShortcutRows, glossaryStrings, parseAuditArgs, playwrightCombo, renderMarkdown, replaceGenerated, titleCaseWords, writeFixture } from "./audit.mjs";
+import { AUDIT_PARTS, AUDIT_THEMES, DOC_BEGIN, DOC_END, FIXTURE, bannedWords, contrastFailures, contrastRatio, copyFindings, editorShortcutRows, glossaryStrings, parseAuditArgs, playwrightCombo, renderMarkdown, replaceGenerated, tabOrder, titleCaseWords, writeFixture } from "./audit.mjs";
+import { auditScan } from "./audit-page.mjs";
 
 let failures = 0;
 const check = async (name, fn) => {
@@ -120,6 +121,50 @@ await check("the markdown names the date and commit and marks failing token pair
   assert.match(md, /on 2026-11-19 \(UTC\) at commit `abc1234567`/);
   assert.match(md, /\| `--ink` \| `--bg` \| \*\*4\.20\*\* \|/);
 });
+
+let browser = null;
+try {
+  const { chromium } = await import("playwright");
+  browser = await chromium.launch({ headless: true });
+} catch (error) {
+  console.log(`SKIP: the in-page scan checks need Chromium, which did not launch (${String(error.message).split("\n")[0]})`);
+}
+
+if (browser) {
+  const page = await browser.newPage({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true });
+
+  await check("two sibling controls are measured apart, so a small one beside a large one fails", async () => {
+    await page.setContent('<style>body{margin:8px}button{width:100px;height:44px}button+button{height:20px}</style><nav aria-label="Settings sections"><div role="group" aria-label="Editor"><button>Appearance</button><button>Shortcuts</button></div></nav>');
+    const scan = await page.evaluate(auditScan, { parts: ["targets"], coarse: true, minTarget: 44 });
+    assert.equal(scan.targets.length, 2);
+    assert.deepEqual(scan.targets.map((t) => [t.name, t.ok]), [["Appearance", true], ["Shortcuts", false]]);
+    assert.notEqual(scan.targets[0].where, scan.targets[1].where);
+  });
+
+  await check("sibling text with different thresholds keeps a row each, so small text cannot hide behind large", async () => {
+    await page.setContent('<style>body{background:white;color:#777}span{display:block;font-size:24px}span+span{font-size:12px}</style><div><span>Large heading</span><span>Small caption</span></div>');
+    const scan = await page.evaluate(auditScan, { parts: ["contrast"], coarse: false, minTarget: 44 });
+    assert.deepEqual(scan.contrast.map((row) => [row.sample, row.needs, row.ratio < row.needs]), [["Large heading", 3, false], ["Small caption", 4.5, true]]);
+  });
+
+  await check("a field's value and placeholder are measured as text, apart from its boundary", async () => {
+    await page.setContent('<style>body{background:white}input{background:white;color:white;border:2px solid black;width:200px;height:44px}input::placeholder{color:#ddd}</style><input aria-label="Search scripts" value="Invisible search"><input aria-label="Search assets" placeholder="Faint hint">');
+    const scan = await page.evaluate(auditScan, { parts: ["contrast"], coarse: false, minTarget: 44 });
+    const value = scan.contrast.find((row) => row.kind === "text" && row.sample === "Invisible search");
+    const hint = scan.contrast.find((row) => row.kind === "placeholder" && row.sample === "Faint hint");
+    assert.ok(value && value.ratio < value.needs, JSON.stringify(scan.contrast));
+    assert.ok(hint && hint.ratio < hint.needs, JSON.stringify(scan.contrast));
+    assert.ok(scan.contrast.some((row) => row.kind === "control" && row.ratio >= 3));
+  });
+
+  await check("the keyboard pass names each stop by its accessible name, aria-labelledby and labels included", async () => {
+    await page.setContent('<span id="wrap-name">Wrap lines</span><button role="switch" aria-checked="true" aria-labelledby="wrap-name"></button><label for="paper">Paper size</label><select id="paper"><option>A4</option><option>US Letter</option></select>');
+    const { stops } = await tabOrder(page, { limit: 6, deps: { reloadEditorPage: async () => {}, waitForApp: async () => {} } });
+    assert.deepEqual(stops.slice(0, 2).map((s) => [s.role, s.name]), [["switch", "Wrap lines"], ["combobox", "Paper size"]]);
+  });
+
+  await browser.close();
+}
 
 if (failures) {
   console.log(`${failures} check(s) failed`);

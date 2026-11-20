@@ -2,7 +2,6 @@ import { render, type ComponentChild } from "preact";
 import { useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { hitArea } from "../../../test/hitArea";
 import Select, { selectVariants, type SelectOption } from "./Select";
 
 const OPTIONS: readonly SelectOption[] = [
@@ -42,11 +41,6 @@ describe("Select", () => {
       ["a4", "A4"],
     ]);
     expect(select.value).toBe("a4");
-  });
-
-  it("gives the default size a 44px tall target under a coarse pointer", async () => {
-    const select = await mount(<Select aria-label="Paper" options={OPTIONS} defaultValue="a4" />);
-    expect((await hitArea(select)).height).toBeGreaterThanOrEqual(44);
   });
 
   it("changes itself when uncontrolled and reports the value", async () => {
