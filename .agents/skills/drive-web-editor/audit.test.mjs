@@ -132,6 +132,9 @@ if (browser) {
     await page.setContent('<nav aria-label="Settings sections"><div role="group" aria-label="Editor"><button>Appearance</button><button>Script editing</button><button>Keyboard shortcuts</button></div></nav><button>Done</button>');
     const { stops } = await tabOrder(page, { limit: 8, deps: { reloadEditorPage: async () => {}, waitForApp: async () => {} } });
     assert.deepEqual(stops.map((s) => s.name), ["Appearance", "Script editing", "Keyboard shortcuts", "Done"]);
+    await page.setContent('<div><button aria-label="Fold">+</button><button aria-label="Fold">+</button><button aria-label="Fold">+</button></div><button>Done</button>');
+    const same = await tabOrder(page, { limit: 8, deps: { reloadEditorPage: async () => {}, waitForApp: async () => {} } });
+    assert.deepEqual(same.stops.map((s) => s.name), ["Fold", "Fold", "Fold", "Done"]);
   });
 
   await check("two sibling controls are measured apart, so a small one beside a large one fails", async () => {
