@@ -211,14 +211,20 @@ describe("the Assets page's file intents", () => {
     ]);
   });
 
-  it("names a link as it was typed, replacing only a folder separator", async () => {
+  it("names a link as it was typed, and refuses a name some computers cannot hold", async () => {
     const { assets } = fakeWorkspace({});
     await assets.load();
     mocks.importFiles.mockClear();
-    expect(await assets.addLink("https://cdn.example.com/knock.mp3", "door knock! café", "Assets/Audio")).toBe(
-      "Assets/Audio/door knock! café.url",
+    expect(await assets.addLink("https://cdn.example.com/knock.mp3", "door knock! #2 café", "Assets/Audio")).toBe(
+      "Assets/Audio/door knock! #2 café.url",
     );
-    expect(await assets.addLink("https://cdn.example.com/knock.mp3", "a/b\\c", "Assets/Audio")).toBe("Assets/Audio/a_b_c.url");
+    await expect(assets.addLink("https://cdn.example.com/knock.mp3", "a/b", "Assets/Audio")).rejects.toThrow(
+      NAME_MESSAGES.characters,
+    );
+    await expect(assets.addLink("https://cdn.example.com/knock.mp3", "what?", "Assets/Audio")).rejects.toThrow(
+      NAME_MESSAGES.characters,
+    );
+    expect(mocks.importFiles).toHaveBeenCalledTimes(1);
   });
 
   it("adds a link under the type its address names through the upload conflict check", async () => {

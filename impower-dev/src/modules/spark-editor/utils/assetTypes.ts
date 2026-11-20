@@ -44,10 +44,12 @@ export const assetTypeSpec = (type: AssetType): AssetTypeSpec =>
   ASSET_TYPES.find((spec) => spec.type === type)!;
 
 export const endingOf = (path: string): string => {
-  const name = path.split(/[?#]/)[0]!.split("/").pop() ?? "";
+  const name = path.split("/").pop() ?? "";
   const dot = name.lastIndexOf(".");
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
 };
+
+export const addressEndingOf = (address: string): string => endingOf(address.split(/[?#]/)[0]!);
 
 export const assetEndingsOf = (patterns: AssetFilePatterns): AssetEndings => ({
   image: patternEndings(patterns.imageFiles),
@@ -74,7 +76,7 @@ export const assetTypeOf = (
 ): AssetType =>
   isLinkPath(path)
     ? address
-      ? assetTypeOfEnding(endingOf(address), endings)
+      ? assetTypeOfEnding(addressEndingOf(address), endings)
       : "other"
     : assetTypeOfEnding(endingOf(path), endings);
 

@@ -11,6 +11,7 @@ export type UploadReason =
   | { kind: "storage" }
   | { kind: "skipped" }
   | { kind: "unreadable" }
+  | { kind: "name"; message: string }
   | { kind: "unreadable_folder" }
   | { kind: "empty_folder" }
   | { kind: "project_changed" }
@@ -149,6 +150,7 @@ const REASON_SENTENCES: {
   storage: () => "Not added: this browser ran out of room for it, so free some space and try again.",
   skipped: () => "Not added: you kept the file already there with this name.",
   unreadable: () => "Not added: the file could not be read, so choose it again.",
+  name: ({ message }) => `Not added: some computers cannot hold this name. ${message}`,
   unreadable_folder: () => "Not added: this folder could not be read, so drop it again.",
   empty_folder: () => "Not added: this folder holds no files.",
   project_changed: () => "Not added: another project was opened before it could be added, so open this one and add it again.",
