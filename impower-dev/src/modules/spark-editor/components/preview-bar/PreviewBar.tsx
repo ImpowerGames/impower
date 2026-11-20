@@ -110,6 +110,9 @@ function useShowsStarting(): boolean {
   const starting = useComputed(
     () => !!workspace.state.value.preview?.modes?.game?.starting,
   ).value;
+  const running = useComputed(
+    () => !!workspace.state.value.preview?.modes?.game?.running,
+  ).value;
   const [shown, setShown] = useState(false);
   const announced = useRef(false);
   useEffect(() => {
@@ -117,7 +120,9 @@ function useShowsStarting(): boolean {
       setShown(false);
       if (announced.current) {
         announced.current = false;
-        announce(STARTED_ANNOUNCEMENT);
+        if (running) {
+          announce(STARTED_ANNOUNCEMENT);
+        }
       }
       return;
     }
@@ -127,7 +132,7 @@ function useShowsStarting(): boolean {
       announce(STARTING_ANNOUNCEMENT);
     }, STARTING_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [starting]);
+  }, [starting, running]);
   return starting && shown;
 }
 

@@ -890,14 +890,14 @@ describe("the bar while the game starts", () => {
   const readout = () =>
     bar().querySelector<HTMLButtonElement>('button[aria-controls="route-panel"]');
   const loading = () => bar().querySelector<HTMLElement>("[data-starting]");
-  const setStarting = (starting: boolean) =>
+  const setStarting = (starting: boolean, running = false) =>
     setState((state) => ({
       ...state,
       preview: {
         ...state.preview,
         modes: {
           ...state.preview.modes,
-          game: { ...state.preview.modes.game, starting },
+          game: { ...state.preview.modes.game, starting, running },
         },
       },
     }));
@@ -951,10 +951,25 @@ describe("the bar while the game starts", () => {
     expect(bar().classList).toContain("h-preview-bar");
     expect(await spoken()).toBe("Starting the game…");
     expect(document.querySelector('[data-status="starting"]')).toBeNull();
-    await setStarting(false);
+    await setStarting(false, true);
     expect(loading()).toBeNull();
-    expect(readout()!.textContent).toContain("interrogation");
     expect(items()).toBe(count);
     expect(await spoken()).toBe("The game has started.");
+  });
+
+  it("hands back to the route summary without saying the game started when a slow start is cancelled", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(300));
+    expect(loading()).not.toBeNull();
+    expect(await spoken()).toBe("Starting the game…");
+    await setStarting(false);
+    await act(() => vi.advanceTimersByTime(1000));
+    expect(loading()).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    expect(await spoken()).toBe("Starting the game…");
   });
 });
