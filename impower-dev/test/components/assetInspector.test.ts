@@ -507,10 +507,10 @@ describe("the asset inspector", () => {
     expect(details()).toContain("Used as: Sound, Define");
     const rows = [...region()!.querySelectorAll<HTMLElement>('section[aria-label="Uses"] li button')];
     expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual([
-      "Open main at line 4",
-      "Open main at line 12",
-      "Open audio at line 1",
-      "Open market at line 3",
+      "Open main · line 4, ((door_chime))",
+      "Open main · line 12, ((play sound door_chime))",
+      "Open audio · line 1, define door_chime as sound with",
+      "Open market · line 3, ((door_chime))",
     ]);
     expect(rows.map((row) => [...row.querySelectorAll("span, small")].filter((el) => !el.children.length).map((el) => el.textContent))).toEqual([
       ["main · line 4", "((door_chime))"],
@@ -553,7 +553,7 @@ describe("the asset inspector", () => {
     expect(assets.watchFacts.mock.calls[0]![0]).toEqual(["Assets/Audio/Sounds/door_chime.wav"]);
     expect(sectionTitles()).toContain("Used in 2 lines");
     expect(details()).toContain("Used as: Sound");
-    const use = region()!.querySelector<HTMLElement>('button[aria-label="Open main at line 5"]');
+    const use = region()!.querySelector<HTMLElement>('button[aria-label^="Open main · line 5,"]');
     await click(use);
     expect(window.revealDocument).toHaveBeenCalledWith("file:///p/main.sd", range);
   });
@@ -1154,7 +1154,7 @@ describe("the Variants tester and the Files section", () => {
     expect(details()).toContain("Used as: Portrait");
     expect(
       [...region()!.querySelectorAll<HTMLElement>('section[aria-label="Uses"] li button')].map((b) => b.getAttribute("aria-label")),
-    ).toEqual(["Open main at line 4", "Open market at line 2", "Open market at line 7"]);
+    ).toEqual(["Open main · line 4, [[imani]]", "Open market · line 2, [[imani]]", "Open market · line 7, [[imani@night]]"]);
   });
 
   it("offers a row per group, writes the reference live, shows the engine's picture, and resets", async () => {
@@ -1402,8 +1402,8 @@ describe("the Variants tester and the Files section", () => {
     const files = region()!.querySelector<HTMLElement>('section[aria-label="Files"]')!;
     expect(files.querySelector("h3")!.nextElementSibling!.textContent).toBe("7 files · 28 kB");
     const rows = [...files.querySelectorAll<HTMLElement>("[data-file-path]")].map((row) => row.textContent);
-    expect(rows).toContain("imani mouth.closed default.pngLayer · mouth.closed · default · 4 kB");
-    expect(rows).toContain("imani@night.pngAlternate · night · 6 kB");
+    expect(rows).toContain("imani mouth.closed default.png Layer · mouth.closed · default · 4 kB");
+    expect(rows).toContain("imani@night.png Alternate · night · 6 kB");
     await fileMenu("imani face.sad.png", "Rename");
     const input = host!.querySelector<HTMLInputElement>('input[aria-label="Rename imani face.sad.png"]')!;
     expect(input.value).toBe("imani face.sad");

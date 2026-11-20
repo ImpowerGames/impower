@@ -3,6 +3,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_SECTION_IDS } from "../../src/modules/spark-editor/components/settings/sections";
 import { routeOfHash, sectionOfHash } from "../../src/modules/spark-editor/workspace/routes";
+import { visibleTextInName } from "../../../packages/impower-ui/test/visibleTextInName";
 
 const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
@@ -675,8 +676,9 @@ describe("the bar under the game", () => {
       return s;
     });
     expect(ratio().textContent).toBe("Auto · 392×696");
-    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
-    expect(ratio().title).toBe("Game aspect ratio: Auto, shown at 392×696 pixels");
+    expect(visibleTextInName(ratio())).toMatchObject({ contained: true });
+    expect(ratio().getAttribute("aria-label")).toBe("Game aspect ratio: Auto, 392×696 pixels");
+    expect(ratio().title).toBe("Game aspect ratio: Auto, 392×696 pixels");
   });
 
   it("chooses a ratio from a menuitemradio menu and keeps it for the project", async () => {
