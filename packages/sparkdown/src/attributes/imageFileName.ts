@@ -57,6 +57,10 @@ export const thingNameOf = (name: string): string => {
   return at < 0 ? picture : picture.slice(0, at);
 };
 
+const LOOSE_AT = /(?:^|[^\p{L}\p{N}_])@|@(?:$|[^\p{L}\p{N}_])/u;
+
+export const isWritableImageName = (name: string): boolean => !name.includes("~") && !LOOSE_AT.test(name);
+
 export const stackNameOf = (base: string): string => {
   const dot = base.indexOf(".");
   return dot > 0 ? base.slice(0, dot) : base;

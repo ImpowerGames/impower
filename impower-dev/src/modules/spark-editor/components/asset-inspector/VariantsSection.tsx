@@ -18,15 +18,16 @@ import {
 } from "@impower/impower-ui/components";
 import type { RefObject } from "preact";
 import { useId, useRef } from "preact/hooks";
+import { UNWRITABLE_NAME_RULE } from "../../utils/assetDetails";
 import type { ImageStack } from "../../utils/imageStacks";
 import {
   chosenIn,
   groupLabel,
   isChanged,
   optionLabel,
-  referenceOf,
   testerGroups,
   variantOf,
+  writableReferenceOf,
   type TesterGroup,
   type VariantForm,
   type VariantSelection,
@@ -185,8 +186,9 @@ export default function VariantsSection({
   const formLabel = useId();
   const noCaret = useId();
   const groups = testerGroups(stack, selection);
-  const reference = referenceOf(variantOf(stack, selection), form);
+  const reference = writableReferenceOf(variantOf(stack, selection), form);
   const copy = () =>
+    reference !== null &&
     void navigator.clipboard.writeText(reference).then(
       () => showSnackbar({ message: "Copied." }),
       () => showSnackbar({ message: "Couldn't copy. Select the reference and copy it." }),
@@ -254,6 +256,12 @@ export default function VariantsSection({
               onValueChange={onForm}
             />
           </div>
+          {reference === null ? (
+            <p class="m-0 text-[12px]/[1.5] text-muted" data-variant-unwritable>
+              {UNWRITABLE_NAME_RULE}
+            </p>
+          ) : (
+          <>
           <code
             class={cn(
               "block overflow-hidden rounded-control border border-edge bg-bg px-3 py-[9px] font-mono text-[14px]/[1.4] whitespace-nowrap text-ink select-text [--fade:24px] fade-edge-always",
@@ -285,6 +293,8 @@ export default function VariantsSection({
             <p id={noCaret} class="-mt-1 mb-0 text-[12px]/[1.5] text-muted" data-variant-no-caret>
               {NO_CARET}
             </p>
+          )}
+          </>
           )}
         </div>
       </div>
