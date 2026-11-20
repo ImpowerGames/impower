@@ -45,3 +45,13 @@ describe("the play an image write carries for a morph with a replay (#2580)", ()
     expect(none.definition).not.toBe(half.definition);
   });
 });
+
+describe("the play an image write carries for a morph with several replay entries (#2581)", () => {
+  test("carries one range per entry, in written order", async () => {
+    const listed = await play(scene(withReplay("    { to = 33.333%; chance = 50% }\n    { from = 33.333%; to = 66.667%; chance = 25%; count = 2 }\n")));
+    expect(listed.timing.replay).toEqual([
+      { from: 0, to: 33.333 / 100, chance: 0.5, count: 1 },
+      { from: 33.333 / 100, to: 66.667 / 100, chance: 0.25, count: 2 },
+    ]);
+  });
+});
