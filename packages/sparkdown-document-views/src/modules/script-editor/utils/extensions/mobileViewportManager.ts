@@ -11,11 +11,11 @@ import { scrollCaretIntoView } from "./caretScrollMargin";
 const viewportTheme = EditorView.baseTheme({
   "&": {
     overscrollBehavior: "none !important",
-    touchAction: "pan-y !important",
+    touchAction: "pan-y pinch-zoom !important",
   },
   "& *": {
     overscrollBehavior: "none !important",
-    touchAction: "pan-y !important",
+    touchAction: "pan-y pinch-zoom !important",
   },
   ".cm-scroller": {
     WebkitOverflowScrolling: "touch !important",

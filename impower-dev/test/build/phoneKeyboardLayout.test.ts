@@ -27,6 +27,21 @@ describe("the phone layout around the on-screen keyboard", () => {
     );
   });
 
+  it("lets the reader pinch-zoom the page to at least 200%", () => {
+    const content =
+      new JSDOM(DOCUMENT_HTML).window.document
+        .querySelector('meta[name="viewport"]')
+        ?.getAttribute("content") ?? "";
+    const settings = Object.fromEntries(
+      content
+        .split(",")
+        .map((part) => part.split("=").map((side) => side.trim().toLowerCase())),
+    );
+
+    expect(settings["user-scalable"] ?? "yes").not.toMatch(/^(no|0)$/);
+    expect(Number(settings["maximum-scale"] ?? "10")).toBeGreaterThanOrEqual(2);
+  });
+
   it("shows the script's keyboard toolbar on a phone only while editing with the keyboard measured open", () => {
     const toolbar = (win: Window) =>
       win.getComputedStyle(win.document.querySelector(".cm-keyboard-toolbar")!)

@@ -121,7 +121,7 @@ describe("where the editor page sets touch-action", () => {
     for (const name of ["scroller-x", "phone:scroller-x", "compact:scroller-x"]) {
       const escaped = `.${name.replace(":", "\\:")}`;
       const rule = rules.find(({ selector }) => selector.startsWith(escaped));
-      expect(rule?.value, name).toBe("pan-x pan-y");
+      expect(rule?.value, name).toBe("pan-x pan-y pinch-zoom");
       expect(rule?.overflowX, name).toBe("auto");
     }
   });
@@ -139,7 +139,7 @@ describe("where the editor page sets touch-action", () => {
 
   it("the script editor keeps vertical-only panning inside its own root, where every line wraps and nothing scrolls sideways", () => {
     const rules = touchActionRules(fs.readFileSync(SCRIPT_EDITOR_CSS, "utf8"));
-    expect(rules.map(({ selector, value }) => [selector, value])).toEqual([[".sparkdown-script-editor-root *", "pan-y"]]);
+    expect(rules.map(({ selector, value }) => [selector, value])).toEqual([[".sparkdown-script-editor-root *", "pan-y pinch-zoom"]]);
     expect(rules.every(({ plain }) => plain.length === 0)).toBe(true);
   });
 });
