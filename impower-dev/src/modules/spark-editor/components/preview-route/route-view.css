@@ -39,6 +39,12 @@
 :root[data-pointer="coarse"] swp-route-view .saves-menu {
   --control-size: 44px;
   --list-row-compact-height: 50px;
+  --list-row-compact-padding-y: 3px;
+}
+
+:root swp-route-view .saves-menu [data-renaming] {
+  --list-row-compact-height: 0px;
+  --list-row-compact-padding-y: 3px;
 }
 
 :root [data-saves-row-menu] {

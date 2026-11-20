@@ -284,7 +284,12 @@ function SaveListRow({
       }
     >
       <PopoverAnchor asChild>
-        <li data-save-row data-id={row.id} data-gone={row.gone ? "" : undefined}>
+        <li
+          data-save-row
+          data-id={row.id}
+          data-gone={row.gone ? "" : undefined}
+          data-renaming={renaming ? "" : undefined}
+        >
           <ListRow
             size="compact"
             overflow={renaming ? "self" : "fade"}
@@ -307,7 +312,7 @@ function SaveListRow({
               )
             }
             actions={
-              <span class="flex flex-none items-center gap-1.5 pr-1">
+              <span class="flex flex-none items-center gap-1.5 py-[var(--list-row-compact-padding-y)] pr-1">
                 <button
                   type="button"
                   class="saves-play"
