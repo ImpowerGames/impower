@@ -12,6 +12,8 @@ if (typeof document !== "undefined") {
 const TEXT_ENTRY =
   'textarea, [contenteditable]:not([contenteditable="false"]), input:not([type="button"], [type="checkbox"], [type="color"], [type="file"], [type="image"], [type="radio"], [type="range"], [type="reset"], [type="submit"])';
 
+export const lastInputWasKeyboard = () => keyboard;
+
 type FocusVisibleOptions = FocusOptions & { focusVisible?: boolean };
 
 export const focusAsInput = (target: HTMLElement) => {
