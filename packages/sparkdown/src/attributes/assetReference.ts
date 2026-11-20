@@ -1,4 +1,5 @@
 import GRAMMAR from "../../language/sparkdown.language-grammar.json";
+import { isWritableImageName } from "./imageFileName";
 
 export type AssetReferenceKind = "backdrop" | "portrait" | "sound" | "music";
 
@@ -24,7 +25,7 @@ export const isWritableAssetReference = (kind: AssetReferenceKind, reference: st
   const [name = "", ...attributes] = reference.split(":");
   if (!isWritableAssetName(name)) return false;
   if (kind === "sound" || kind === "music") return attributes.length === 0;
-  return attributes.every((attribute) => ATTRIBUTE.test(attribute));
+  return isWritableImageName(name) && attributes.every((attribute) => ATTRIBUTE.test(attribute));
 };
 
 const COMMANDS: Record<AssetReferenceKind, (reference: string) => string> = {
