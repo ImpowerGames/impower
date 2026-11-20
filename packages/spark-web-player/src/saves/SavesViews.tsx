@@ -213,6 +213,8 @@ function SaveRowMenu({
   };
   return (
     <PopoverContent
+      data-impower-ui
+      container={trigger.current?.closest<HTMLElement>("spark-web-player")}
       role="menu"
       aria-label={`More for ${row.name}`}
       align="end"
@@ -301,6 +303,7 @@ function SaveListRow({
       <PopoverAnchor asChild>
         <li
           data-save-row
+          data-impower-ui
           data-id={row.id}
           data-gone={row.gone ? "" : undefined}
           data-renaming={renaming ? "" : undefined}
