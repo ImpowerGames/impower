@@ -16,6 +16,46 @@ const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "checkp
 console.log(`scratch: ${tmp}`);
 const defaults = run.readWriterDefaults();
 const GB = 2 ** 30;
+const childProcess = createRequire(import.meta.url)("node:child_process");
+const healthyMemory = () => ({ physical: 16 * GB, commit: 16 * GB });
+function withWriterMemory(action, read = healthyMemory) {
+  const originalExec = childProcess.execFileSync;
+  const originalRead = fs.readFileSync;
+  const originalTotal = os.totalmem;
+  const originalFree = os.freemem;
+  const commitLimit = 32 * GB;
+  try {
+    os.totalmem = () => 64 * GB;
+    if (process.platform === "win32") {
+      childProcess.execFileSync = function (command, args, options) {
+        if (command === "powershell.exe" && args?.[2] === "-Command" && args[3]?.includes("Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory | Select-Object AvailableBytes,CommitLimit,CommittedBytes")) {
+          const { physical, commit } = read();
+          return JSON.stringify({ AvailableBytes: physical, CommitLimit: commitLimit, CommittedBytes: commitLimit - commit });
+        }
+        return originalExec.call(this, command, args, options);
+      };
+    } else if (process.platform === "linux") {
+      fs.readFileSync = function (file, ...options) {
+        if (file === "/proc/meminfo") {
+          const { physical, commit } = read();
+          return `MemAvailable: ${physical / 1024} kB\nCommitLimit: ${commitLimit / 1024} kB\nCommitted_AS: ${(commitLimit - commit) / 1024} kB\n`;
+        }
+        if (file === "/proc/sys/vm/overcommit_memory") return "2\n";
+        return originalRead.call(this, file, ...options);
+      };
+    } else {
+      os.freemem = () => read().physical;
+    }
+    syncBuiltinESMExports();
+    return action();
+  } finally {
+    childProcess.execFileSync = originalExec;
+    fs.readFileSync = originalRead;
+    os.totalmem = originalTotal;
+    os.freemem = originalFree;
+    syncBuiltinESMExports();
+  }
+}
 const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
 const SRC = "src-host", DST = "dst-host";
@@ -801,7 +841,22 @@ try {
   assert.throws(() => cp.main(["resume", "--record", path.join(dstPrivate, "run-800b.json"), "--checkout", dst, "--repo", "acme/widgets", "--issue", "800", "--harness", "claude", "--coordinator", "local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", "--coordinator-mode", "bypassPermissions", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--invocation", "Use orchestrate-issues for #800."], { github }), /--slug must be two to four lowercase words/);
   const snap800 = { repository: "acme/widgets", issue: { number: 800, state: "open" }, originMain: "x", tickets: [ticket(801, { parent: 800 })] };
   const plan800 = write("plan-800.json", run.planDispatch({ record: run.readRecord(rec800), snapshot: snap800, preflights: [available("claude-cli", [801])], freeBytes: 100 * GB, defaults }));
-  const claimed = run.main(["claim", "--record", rec800, "--coordinator", "local_cli", "--expect-revision", String(rev(rec800)), "--plan", plan800, "--ticket", "801", "--worktree", path.join(tmp, "dst-wt-801"), "--branch", "feat/801-cli", "--artifact-parent", dstPrivate], { defaults, github });
+  const claim800 = () => run.main(["claim", "--record", rec800, "--coordinator", "local_cli", "--expect-revision", String(rev(rec800)), "--plan", plan800, "--ticket", "801", "--worktree", path.join(tmp, "dst-wt-801"), "--branch", "feat/801-cli", "--artifact-parent", dstPrivate], { defaults, github });
+  const unavailable = () => { throw new Error("fixture host memory sample unavailable"); };
+  const remoteCheckpoint800 = () => cp.fetchState(dst, "origin", "acme/widgets", 800).commit;
+  const beforeClaim800 = run.readRecord(rec800);
+  const beforeCheckpoint800 = remoteCheckpoint800();
+  const assertRefused800 = (read, reason) => {
+    assert.throws(() => withWriterMemory(claim800, read), reason);
+    assert.deepEqual(run.readRecord(rec800), beforeClaim800, "resource refusal leaves the local record, including revision and pending claim, unchanged");
+    assert.equal(remoteCheckpoint800(), beforeCheckpoint800, "resource refusal leaves the remote checkpoint unchanged");
+  };
+  assertRefused800(() => ({ ...healthyMemory(), physical: GB }), /Available physical memory is below 2 GiB; plan again before starting a writer/);
+  if (process.platform === "win32" || process.platform === "linux") {
+    assertRefused800(() => ({ ...healthyMemory(), commit: 4 * GB }), /Direct commit headroom is below 5 GiB; plan again before starting a writer/);
+  }
+  assertRefused800(unavailable, /Cannot measure writer admission memory: fixture host memory sample unavailable; obtain a fresh resource sample; plan again before starting a writer/);
+  const claimed = withWriterMemory(() => withWriterMemory(claim800), unavailable);
   assert.equal(claimed.checkpoint.saved, true, "the claim is checkpointed automatically");
   assert.equal(claimed.checkpoint.seq, 2);
   const offline = path.join(tmp, "remote-offline.git");
@@ -856,7 +911,7 @@ try {
   let seenAtOpen = null;
   const runners = { open: () => { seenAtOpen = cp.fetchState(dst, "origin", "acme/widgets", 800).checkpoint.tickets[802].owner.opened.steps.at(-1); return { requested: true, pid: 1 }; } };
   const endedWriter = (n) => {
-    cli("claim", "--plan", cliPlan(), "--ticket", String(n), "--worktree", path.join(tmp, `dst-wt-${n}`), "--branch", `feat/${n}-ended`, "--artifact-parent", dstPrivate);
+    withWriterMemory(() => cli("claim", "--plan", cliPlan(), "--ticket", String(n), "--worktree", path.join(tmp, `dst-wt-${n}`), "--branch", `feat/${n}-ended`, "--artifact-parent", dstPrivate));
     const launchDir = run.launchDirOf(run.readRecord(rec800).tickets[n].pending, n);
     const spawner = () => { fs.writeFileSync(path.join(launchDir, "out.jsonl"), `${JSON.stringify({ type: "system", subtype: "init", session_id: `00000000-0000-4000-8000-000000000${n}` })}\n`); return { started: true, pid: 2 ** 24 + n * 4 }; };
     mutate(rec800, "local_cli", (r) => run.launch(r, { ticket: n, executable: process.execPath, args: ["-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt: plan800, spawner }));
@@ -879,7 +934,7 @@ try {
   assert.match(github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body, /\| #803 \| collect-report \|/);
 
   const snap800c = { ...snap800, observedAt: "now", tickets: [...snap800b.tickets, ticket(804, { parent: 800, state: "closed", delivered: true }), ticket(805, { parent: 800, blockers: [{ number: 803, state: "open", delivered: false }] })] };
-  const planCli = () => run.main(["plan", "--record", rec800, "--snapshot", write("snap-800c.json", snap800c), "--preflight", write("pf-800.json", available("claude-cli", [802, 803, 805])), "--out", path.join(tmp, "plan-800c.json")], { defaults, github });
+  const planCli = () => withWriterMemory(() => run.main(["plan", "--record", rec800, "--snapshot", write("snap-800c.json", snap800c), "--preflight", write("pf-800.json", available("claude-cli", [802, 803, 805])), "--out", path.join(tmp, "plan-800c.json")], { defaults, github }));
   const planned = planCli();
   assert.equal(planned.checkpoint.saved, true);
   const statusBody = github.get(JSON.parse(fs.readFileSync(cp.sidecarOf(rec800), "utf8")).summary.commentId).body;
@@ -1000,7 +1055,7 @@ try {
     const published = { tickets: { 901: { checkpoints: [{ state: "published", pr: 77, id: "d1", kind: "finish", round: 3, head: "h", published: { comment: 123, time: "t" } }] } } };
     assert.equal(cp.decisionLinks({ repository: CODE, ticketsRepository: INTERNAL, ...published })[0].url, `https://github.com/${INTERNAL}/issues/901#issuecomment-123`);
     assert.equal(cp.decisionLinks({ repository: CODE, ...published })[0].url, `https://github.com/${CODE}/pull/77#issuecomment-123`, "with one repository the link is the PR's, as before");
-    const childProcess = createRequire(import.meta.url)("node:child_process"), originalExec = childProcess.execFileSync;
+    const originalExec = childProcess.execFileSync;
     const interleave = (when, then) => {
       let fired = false;
       childProcess.execFileSync = function (command, args, options) { const result = originalExec.call(this, command, args, options); if (!fired && command === "git" && when(args)) { fired = true; then(); } return result; };
