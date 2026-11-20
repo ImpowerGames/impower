@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { chromium } from "playwright";
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 let phone = false;
 const mediaListeners = new Set<() => void>();
@@ -39,20 +39,10 @@ const { default: workspace } = await import("../../src/modules/spark-editor/work
 
 const initial = structuredClone(workspace.current);
 
-const runningInNarrowBar = () => {
+const stoppedRun = () => {
   const next = structuredClone(workspace.current);
-  next.preview.modes.game = { ...next.preview.modes.game, running: true };
+  next.preview.modes.game = { ...next.preview.modes.game, running: true, paused: true };
   workspace.current = next;
-  const isBar = (element: Element) => element.getAttribute("aria-label") === "Playback controls";
-  return [
-    vi.spyOn(Element.prototype, "clientWidth", "get").mockImplementation(function (this: Element) {
-      return isBar(this) ? 300 : 0;
-    }),
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
-      const width = this.tagName === "BUTTON" && this.closest('[aria-label="Playback controls"]') ? 44 : 0;
-      return { x: 0, y: 0, top: 0, left: 0, bottom: 44, right: width, width, height: width ? 44 : 0, toJSON: () => ({}) } as DOMRect;
-    }),
-  ];
 };
 
 const UI_PACKAGE = resolve(process.cwd(), "../packages/impower-ui");
@@ -172,35 +162,32 @@ describe("the preview settings menu's rows take the prototype's 2px gap (I-2541)
   it.each<Theme>(["charcoal", "chalk"])("spaces rows 2px apart, separators and More preview settings 6px, at 1440 in %s", async (theme) => {
     await setPhone(false);
     workspaceSettings.setPreference("previewMode", "game");
-    const spies = runningInNarrowBar();
+    stoppedRun();
     let markup: string;
     try {
       markup = await openMenuMarkup();
     } finally {
-      spies.forEach((spy) => spy.mockRestore());
       workspace.current = structuredClone(initial);
     }
     const boxes = await inBrowser(markup, 1440, theme, "desktop", readBoxes);
-    expect(boxes.some((box) => box.name === "Step")).toBe(true);
+    expect(boxes.some((box) => box.name === "Step")).toBe(false);
     expect(boxes.some((box) => box.name === "Device color scheme")).toBe(true);
     expectSettingsRhythm(boxes);
   }, 60_000);
 
-  it("spaces the sheet form's rows, the folded Step and aspect-ratio groups included, the same way at 430", async () => {
+  it("spaces the sheet form's rows, the aspect-ratio group included and no Step group while stopped, the same way at 430", async () => {
     await setPhone(true);
     workspaceSettings.setPreference("previewMode", "game");
-    const spies = runningInNarrowBar();
+    stoppedRun();
     let markup: string;
     try {
       markup = await openMenuMarkup();
     } finally {
-      spies.forEach((spy) => spy.mockRestore());
       workspace.current = structuredClone(initial);
     }
     const boxes = await inBrowser(markup, 430, "charcoal", "phone", readBoxes);
-    expect(boxes.some((box) => box.name === "Step")).toBe(true);
-    expect(boxes.filter((box) => box.role === "menuitem").length).toBeGreaterThan(1);
-    expect(boxes.some((box) => box.name === "Game aspect ratio")).toBe(true);
+    expect(boxes.some((box) => box.name === "Step")).toBe(false);
+        expect(boxes.some((box) => box.name === "Game aspect ratio")).toBe(true);
     expectSettingsRhythm(boxes);
     await setPhone(false);
   }, 60_000);
@@ -215,29 +202,6 @@ describe("the preview settings menu's rows take the prototype's 2px gap (I-2541)
 });
 
 describe("the preview settings menu's rows take the prototype's 10px side padding (I-2536)", () => {
-  it("starts the folded Step group's heading and rows 10px in from the row at 1440", async () => {
-    await setPhone(false);
-    workspaceSettings.setPreference("previewMode", "game");
-    const spies = runningInNarrowBar();
-    let markup: string;
-    try {
-      markup = await openMenuMarkup();
-    } finally {
-      spies.forEach((spy) => spy.mockRestore());
-      workspace.current = structuredClone(initial);
-    }
-    const rows: Row[] = await measure(markup, 1440, "charcoal", "desktop");
-    const steps = rows.filter((row) => row.role === "menuitem" && !row.name.startsWith("More preview settings"));
-    expect(rows.some((row) => row.role === "label" && row.name === "Step")).toBe(true);
-    expect(steps.length).toBeGreaterThan(0);
-    for (const row of rows.filter((row) => row.role === "label")) {
-      expect({ name: row.name, text: row.text }).toEqual({ name: row.name, text: 10 });
-    }
-    for (const row of steps) {
-      expect({ name: row.name, glyph: row.glyph, text: row.text }).toEqual({ name: row.name, glyph: 10, text: 40 });
-    }
-  }, 60_000);
-
   it.each<Theme>(["charcoal", "chalk"])("starts every row's glyph and text 10px in from the row at 1440 in %s", async (theme) => {
     await setPhone(false);
     workspaceSettings.setPreference("previewMode", "game");
