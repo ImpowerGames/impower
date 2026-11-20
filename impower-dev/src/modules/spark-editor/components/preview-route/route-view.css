@@ -24,6 +24,22 @@
   font-size: var(--swp-toolbar-font-size);
 }
 
+:root swp-route-view .route-list {
+  --tab-height: 25px;
+  --tab-padding-x: 8px;
+  --tab-gap: 6px;
+  --tab-font-size: 12px;
+  --panel-head-height: 33px;
+  --panel-head-padding-x: 2px;
+  --panel-head-gap: 6px;
+  --list-row-compact-height: 23px;
+  --list-row-compact-padding-x: 0px;
+  --list-row-compact-padding-y: 0px;
+  --list-row-compact-gap: 6px;
+  --list-row-compact-font-size: 12px;
+  --control-size: 22px;
+}
+
 :root[data-pointer="coarse"] swp-route-view {
   --swp-route-row-height: 44px;
   --swp-route-control-size: 44px;
