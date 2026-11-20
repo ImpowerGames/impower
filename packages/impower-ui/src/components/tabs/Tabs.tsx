@@ -282,7 +282,7 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  const panel = typeof ctx.panel === "string" ? ctx.panel : ctx.panel(value);
+  const panel = typeof ctx.panel === "function" ? ctx.panel(value) : ctx.panel;
   const accented = ctx.variant !== "default";
   const activeColorClass = accented ? "text-accent" : "text-tab-ink";
   const inactiveColor = color || (accented ? "text-muted" : "text-tab-muted");
@@ -291,8 +291,8 @@ export function Tab({
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       <button
         type="button"
-        id={tabId(panel, value)}
-        aria-controls={panel}
+        id={panel ? tabId(panel, value) : undefined}
+        aria-controls={panel || undefined}
         class={cn(
           tabTrigger({
             orientation: ctx.vertical ? "vertical" : "horizontal",

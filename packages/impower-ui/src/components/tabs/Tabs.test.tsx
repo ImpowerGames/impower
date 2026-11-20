@@ -76,6 +76,35 @@ describe("Tabs panel", () => {
       expect(panel.hasAttribute("aria-labelledby")).toBe(false);
     }
   });
+
+  it("points each tab at its own panel when panel is a function of the tab's value", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const panelOf = (value: string) => `pane-${value}`;
+    await act(async () =>
+      render(
+        <>
+          <Tabs panel={panelOf} value="assets" onChange={() => {}}>
+            <Tab value="logic">Story</Tab>
+            <Tab value="assets">Assets</Tab>
+          </Tabs>
+          <TabPanel panel={panelOf("logic")} value="logic" hidden />
+          <TabPanel panel={panelOf("assets")} value="assets" />
+        </>,
+        host!,
+      ),
+    );
+    for (const tab of Array.from(host.querySelectorAll<HTMLElement>('[role="tab"]'))) {
+      const panel = document.getElementById(tab.getAttribute("aria-controls")!)!;
+      expect(panel.getAttribute("role")).toBe("tabpanel");
+      expect(document.getElementById(panel.getAttribute("aria-labelledby")!)).toBe(tab);
+    }
+  });
+
+  it.each([undefined, null, ""])("renders tabs that name no panel, and no dangling aria-controls, when panel is %s", async (panel) => {
+    const { tabs } = await mount({ panel: panel as unknown as string });
+    expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
+    expect(tabs.every((tab) => !tab.hasAttribute("aria-controls") && !tab.hasAttribute("id"))).toBe(true);
+  });
 });
 
 describe("Tabs accessible name", () => {
