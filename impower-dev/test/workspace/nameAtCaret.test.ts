@@ -59,13 +59,13 @@ describe("the name under the caret", () => {
 });
 
 describe("the writing tools across routes", () => {
-  it("stays open on the write route and closes on every other", () => {
+  it("stays open on the story route and closes on every other", () => {
     const open = {
       ...workspace.current,
       screen: { writingTools: { view: "guide" as const, fromMenu: false } },
     };
-    expect(stateForRoute(open, "write").screen.writingTools).toEqual({ view: "guide", fromMenu: false });
-    for (const route of ["scripts", "collection", "share", "project"] as const) {
+    expect(stateForRoute(open, "story").screen.writingTools).toEqual({ view: "guide", fromMenu: false });
+    for (const route of ["scripts", "assets", "share", "settings"] as const) {
       expect(stateForRoute(open, route).screen.writingTools).toBeUndefined();
     }
   });

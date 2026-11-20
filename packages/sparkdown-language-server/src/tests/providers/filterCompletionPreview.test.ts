@@ -21,9 +21,9 @@ const previewSrc = async (item: any, program: any) => {
 };
 
 describe("provider · attribute completion preview (#474)", () => {
-  test.each([":", "~"])("previews applied attributes plus the candidate after %s", async (separator) => {
+  test("previews applied attributes plus the candidate", async () => {
     const program = buildProgram();
-    const src = await previewSrc(itemNamed(`[[bunny_bruh${separator}phone${separator}look.d|]]`, program, "down"), program);
+    const src = await previewSrc(itemNamed("[[bunny_bruh:phone:look.d|]]", program, "down"), program);
     expect(src).toContain("look-down");
     expect(src).toContain("phone");
     expect(src).not.toContain("look-up");
@@ -60,7 +60,7 @@ describe("provider · attribute completion preview (#474)", () => {
   });
   test("reuses an existing ordered combination without adding another struct", async () => {
     const program = buildProgram();
-    const name = "bunny_bruh~phone~look.down";
+    const name = "bunny_bruh:phone:look.down";
     const declared: any = Object.freeze({ $type: "filtered_image", $name: name, image: Object.freeze({ $name: "bunny_bruh" }), attributes: Object.freeze(["phone", "look.down"]) });
     program.context.filtered_image = { [name]: declared };
     const src = await previewSrc(itemNamed("[[bunny_bruh:phone:look.d|]]", program, "down"), program);
@@ -73,7 +73,7 @@ describe("provider · attribute completion preview (#474)", () => {
     await previewSrc(itemNamed("[[bunny_bruh:phone:look.d|]]", program, "down"), program);
     expect(program.context.filtered_image).toBeUndefined();
   });
-  test.each(["[[~look.d|]]", "((bark~look.d|))"])("offers no image attributes without an image vocabulary: %s", (source) => {
+  test.each(["[[:look.d|]]", "((bark:look.d|))"])("offers no image attributes without an image vocabulary: %s", (source) => {
     expect(completionsAt(source, buildProgram()) ?? []).toEqual([]);
   });
 });

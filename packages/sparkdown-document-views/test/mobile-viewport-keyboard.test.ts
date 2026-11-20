@@ -9,16 +9,12 @@ import { CARET_SCROLL_MARGIN_TOP } from "../src/modules/script-editor/utils/exte
 import { mobileViewportManager } from "../src/modules/script-editor/utils/extensions/mobileViewportManager";
 
 const KEYBOARD_HEIGHT = 300;
-const CLOSE_DELAY = 150;
 
 let keyboardOpen = false;
 let viewportListeners: Set<() => void>;
 
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-
-const wait = (ms: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const visibleHeight = () =>
   window.innerHeight - (keyboardOpen ? KEYBOARD_HEIGHT : 0);
@@ -114,7 +110,7 @@ describe("mobile viewport manager keyboard state", () => {
     expect(margins).toContain(CARET_SCROLL_MARGIN_TOP);
   });
 
-  it("keeps the root fitted when focus moves from the editor to a field outside it with the keyboard open", async () => {
+  it("keeps the root fitted and drops the editor's own keyboard state on the next frame when focus moves to a field outside it", async () => {
     await focusEditor(view!);
     const field = document.body.appendChild(document.createElement("input"));
 
@@ -122,7 +118,6 @@ describe("mobile viewport manager keyboard state", () => {
     field.focus();
     view!.scrollDOM.dispatchEvent(new FocusEvent("blur"));
     window.dispatchEvent(new FocusEvent("focusout"));
-    await wait(CLOSE_DELAY + 50);
     await nextFrame();
 
     expect(document.activeElement).toBe(field);
@@ -141,6 +136,18 @@ describe("mobile viewport manager keyboard state", () => {
       `${KEYBOARD_HEIGHT}px`,
     );
     expect(isKeyboardToolbarOpen(view!.state)).toBe(false);
+  });
+
+  it("releases the root when the editor loses focus, before the viewport reports the keyboard leaving", async () => {
+    await focusEditor(view!);
+
+    view!.contentDOM.blur();
+
+    expect(keyboardOpen).toBe(true);
+    expect(rootReleased()).toBe(true);
+    await nextFrame();
+    expect(isKeyboardToolbarOpen(view!.state)).toBe(false);
+    expect(view!.dom.classList.contains("keyboard-open")).toBe(false);
   });
 
   it("releases the root when the editor is destroyed", async () => {

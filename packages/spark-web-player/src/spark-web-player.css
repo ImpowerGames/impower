@@ -43,6 +43,17 @@ spark-web-player *:focus-visible {
   outline: none;
 }
 
+spark-web-player :is(.toolbar-button, .route-button, .saves-button):focus-visible {
+  outline: 2px solid var(--swp-focus-color);
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  spark-web-player :is(.toolbar-button, .route-button, .saves-button):focus-visible {
+    outline-color: Highlight;
+  }
+}
+
 spark-web-player .pause-game *,
 spark-web-player .pause-game *::before,
 spark-web-player .pause-game *::after {
@@ -233,6 +244,7 @@ spark-web-player {
 
   --swp-game-background-color: #000;
   --swp-accent-color: #66baff;
+  --swp-focus-color: var(--swp-accent-color);
   --swp-pause-color: #ffcc00;
   --swp-run-color: #89d185;
   --swp-resize-handle-color: #888;
@@ -551,7 +563,7 @@ spark-web-player #replay-beat-button[aria-disabled="true"] {
 
 spark-web-player .transport-icon[data-icon="replay-beat"] {
   color: var(--swp-run-color);
-  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm0 1.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM6.5 5.2l.75-.4 4 2.6v.9l-4 2.6-.75-.4V5.2z"/></svg>');
+  mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 0 2.05-4.95"/><path d="M7 3v4.05h4.05"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/></svg>');
 }
 
 spark-web-player .transport-icon {

@@ -106,8 +106,6 @@ function ScriptProblemBadge({ path, name }: { path: string; name: string }) {
 
 const ALL_TAB = "all";
 
-const USES_HINT = "Other scripts' diverts, calls, character cues and uses of its defines.";
-
 function AllScripts() {
   const projectId = workspace.signals.projectId.value;
   const current = workspace.scriptListing.value;
@@ -356,7 +354,6 @@ function AllScripts() {
             <SortMenu
               value={sort}
               separatorSpacing="tight"
-              usesHint={USES_HINT}
               onChange={(key) =>
                 void intents().then((Workspace) => Workspace.window.setListState({ scriptsSort: key }))
               }
@@ -459,7 +456,7 @@ export default function ScriptsPage() {
     <TabbedPage
       title="Scripts"
       icon={<BookIcon class="flex-none text-accent" />}
-      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("write"))}
+      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("story"))}
       showTabs={showTabs}
       value={tab === OUTLINE_TAB ? OUTLINE_TAB : ALL_TAB}
       onValueChange={(next) =>

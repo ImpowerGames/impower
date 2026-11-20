@@ -1,7 +1,7 @@
 # File manager: the Scripts and Assets pages
 
 The project's files are browsed on two pages: **Scripts** (`#scripts`) holds every
-script, and **Assets** (`#collection`) holds images, sounds, fonts and links. Both
+script, and **Assets** (`#assets`) holds images, sounds, fonts and links. Both
 are folders inside the one project, scoped by the file types of Settings, File types;
 the files are stored in the browser's private file system by the
 `packages/opfs-workspace` worker, reached through the `WorkspaceFileSystem`

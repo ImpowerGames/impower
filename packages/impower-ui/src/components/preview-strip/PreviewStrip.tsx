@@ -58,6 +58,7 @@ export type PreviewStripProps = {
   pictureLabel?: string;
   expanded?: boolean;
   onCollapse?: () => void;
+  onOpen?: () => void;
   onPlay?: () => void;
   playDisabled?: boolean;
   class?: string;
@@ -74,6 +75,7 @@ export default function PreviewStrip({
   pictureLabel = "Game preview",
   expanded = false,
   onCollapse,
+  onOpen,
   onPlay,
   playDisabled = false,
   class: className,
@@ -169,6 +171,15 @@ export default function PreviewStrip({
             >
               {symbol === "pencil" ? <PencilIcon /> : <FileIcon />}
             </span>
+          ) : null}
+          {onOpen && !expanded ? (
+            <button
+              type="button"
+              aria-label="Open the full preview"
+              data-preview-strip-open=""
+              class="absolute inset-0 m-0 cursor-pointer rounded-[7px] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-accent"
+              onClick={() => onOpen()}
+            />
           ) : null}
         </div>
         <div

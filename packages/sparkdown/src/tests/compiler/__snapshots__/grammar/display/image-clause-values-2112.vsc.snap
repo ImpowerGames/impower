@@ -187,7 +187,7 @@ text.source.sparkdown [0..413]
  │   ├─ keyword.operator.expression.begin.image.sd [389..391]: "[["
  │   ├─ variable.other.constant.asset.file.sd [391..406]
  │   │   ├─ variable.other.constant.asset.file.sd [391..394]: "mia"
- │   │   ├─ variable.other.property.filter.sd [394..395]: "~"
+ │   │   ├─ variable.other.property.filter.sd [394..395]: ":"
  │   │   └─ variable.other.constant.asset.filter.sd [395..406]: "mouth.morph"
  │   └─ keyword.operator.expression.end.image.sd [406..408]: "]]"
  ├─ Newline [408..409]: "\n"

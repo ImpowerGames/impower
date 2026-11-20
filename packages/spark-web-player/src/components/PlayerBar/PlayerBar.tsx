@@ -358,9 +358,12 @@ export default function PlayerBar({
           </div>
         ) : null}
         {controls.fullscreen ? (
-          <div
+          <button
+            type="button"
             id="fullscreen-button"
             class="toolbar-button"
+            aria-label="Fullscreen"
+            title="Fullscreen"
             onPointerDown={(e) => {
               (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
               e.stopPropagation();
@@ -372,8 +375,8 @@ export default function PlayerBar({
             }}
             onClick={() => onToggleFullscreen?.()}
           >
-            <div id="fullscreen-icon" />
-          </div>
+            <span id="fullscreen-icon" />
+          </button>
         ) : null}
       </div>
     </div>

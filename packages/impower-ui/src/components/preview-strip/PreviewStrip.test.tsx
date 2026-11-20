@@ -68,6 +68,26 @@ describe("PreviewStrip", () => {
     expect(onPlay).toHaveBeenCalledTimes(1);
   });
 
+  it("opens the full preview from a thumbnail tap without playing", async () => {
+    const onPlay = vi.fn();
+    const onOpen = vi.fn();
+    await mount(
+      <PreviewStrip label="IMANI" words="We need a mystery." onPlay={onPlay} onOpen={onOpen} />,
+    );
+    const thumbnail = host!.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open the full preview"]',
+    )!;
+    expect(thumbnail.closest("[data-preview-strip-picture]")).not.toBeNull();
+    await act(async () => thumbnail.click());
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+
+  it("removes the thumbnail's tap target while the full preview is open", async () => {
+    await mount(<PreviewStrip label="IMANI" words="Rain." expanded onOpen={() => {}} />);
+    expect(host!.querySelector('button[aria-label="Open the full preview"]')).toBeNull();
+  });
+
   it("server-renders Play disabled only when asked, as on a setup line", () => {
     const play = (html: string) => {
       const markup = document.createElement("div");

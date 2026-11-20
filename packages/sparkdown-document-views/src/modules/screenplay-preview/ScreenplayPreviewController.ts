@@ -1,3 +1,4 @@
+import { setLoadingBarActive } from "@impower/impower-ui/loading-bar";
 import { syntaxParserRunning } from "@codemirror/language";
 import { EditorSelection, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -406,7 +407,7 @@ export class ScreenplayPreviewController {
       this._textDocument = textDocument;
     } else {
       this.refs.preview.style.visibility = "hidden";
-      this.refs.loading.style.opacity = "1";
+      setLoadingBarActive(this.refs.loading, true);
       if (this._view) {
         this.unbindView(this._view);
         this._view.destroy();
@@ -551,7 +552,7 @@ export class ScreenplayPreviewController {
         this.selectRange(initialSelectedRange, scrollStrategy ?? false);
       }
       if (this._textDocument && this._loadingRequest != null) {
-        this.refs.loading.style.opacity = "0";
+        setLoadingBarActive(this.refs.loading, false);
         this.refs.preview.style.visibility = "visible";
         this.refs.preview.style.opacity = "1";
         this._loadingRequest = undefined;

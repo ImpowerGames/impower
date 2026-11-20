@@ -1,4 +1,4 @@
-import GRAMMAR from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { isWritableAssetReference } from "@impower/sparkdown/src/attributes/assetReference";
 import {
   addMenuFiles,
   addMenuSubfolder,
@@ -11,8 +11,14 @@ import {
   imageThingsOf,
   type ImagePicture,
 } from "@impower/sparkdown/src/attributes/imageFileName";
-import { imageStacks } from "../../utils/imageStacks";
-import type { ImageVariant } from "../../utils/imageVariants";
+import { imageStacks, type ImageStack } from "../../utils/imageStacks";
+import {
+  ALTERNATE,
+  optionLabel,
+  testerGroups,
+  variantOf,
+  type ImageVariant,
+} from "../../utils/imageVariants";
 
 export interface PickerFile {
   readonly path: string;
@@ -28,45 +34,22 @@ export interface PickerItem {
   readonly path: string;
   readonly src?: string;
   readonly variant?: ImageVariant;
+  readonly option?: true;
 }
 
 interface Candidate {
+  readonly id: string;
   readonly reference: string;
+  readonly base: string;
   readonly name: string;
-  readonly alternate: string | null;
+  readonly note: string | null;
   readonly path: string;
   readonly variant?: ImageVariant;
+  readonly option?: true;
 }
 
 const compare = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
-
-const GRAMMAR_RULES = GRAMMAR.repository as unknown as Record<
-  string,
-  { match?: string } | undefined
->;
-
-const grammarPattern = (rule: string, wrap: (source: string) => string) => {
-  const match = GRAMMAR_RULES[rule]?.match;
-  return match ? new RegExp(wrap(match), "u") : /(?!)/u;
-};
-
-const ASSET_NAME = grammarPattern("AssetCommandFileName", (m) => `^(?:${m})$`);
-
-const NONE_KEYWORD = grammarPattern(
-  "AssetCommandKeywordNone",
-  (m) => `^(?:${m})$`,
-);
-
-const CLAUSE_KEYWORD = grammarPattern(
-  "AssetCommandClauseKeyword",
-  (m) => `^(?:${m})$`,
-);
-
-const writableName = (name: string) =>
-  ASSET_NAME.test(name) &&
-  !NONE_KEYWORD.test(name) &&
-  !CLAUSE_KEYWORD.test(name);
 
 const sharedNames = (names: readonly string[]) => {
   const counts = new Map<string, number>();
@@ -91,18 +74,52 @@ const pictureCandidate = (
 ): Candidate | null => {
   const files = pictureFiles(picture).filter((path) => offered.has(path));
   if (!files.length) return null;
+  const path = picture.path !== undefined && offered.has(picture.path) ? picture.path : files[0]!;
   return {
+    id: path,
     reference: picture.name,
+    base: picture.name,
     name,
-    alternate: picture.alternate,
-    path: picture.path !== undefined && offered.has(picture.path) ? picture.path : files[0]!,
+    note: picture.alternate,
+    path,
     ...(picture.layers.length ? { variant: restingLook(picture.name) } : {}),
   };
 };
 
-const imageCandidates = (own: readonly string[], offered: ReadonlySet<string>) => {
+const optionCandidates = (stack: ImageStack, base: Candidate): Candidate[] => {
+  const group = testerGroups(stack, {}).find((candidate) => candidate.key !== ALTERNATE);
+  if (!group) return [];
+  return group.options
+    .filter((option) => option !== group.default)
+    .map((option): Candidate => {
+      const variant = variantOf(stack, { [group.key]: option });
+      const reference = [variant.image, ...variant.attributes].join(":");
+      const layers = group.switch ? [group.key] : [`${group.key}.${option}`];
+      const member = stack.members.find(
+        (candidate) => candidate.layer !== undefined && layers.includes(candidate.layer.split(" ")[0]!),
+      );
+      const path = member?.path ?? base.path;
+      return {
+        id: `${path}#${reference}`,
+        reference,
+        base: base.base,
+        name: base.name,
+        note: `${optionLabel(group.key)}: ${optionLabel(option)}`,
+        path,
+        variant,
+        option: true,
+      };
+    });
+};
+
+const imageCandidates = (
+  kind: AddMenuKind,
+  own: readonly string[],
+  offered: ReadonlySet<string>,
+) => {
   const things = imageThingsOf(own);
-  const folders = imageStacks(own).filter((stack) => stack.kind === "folder");
+  const stacks = imageStacks(own);
+  const folders = stacks.filter((stack) => stack.kind === "folder");
   const shared = sharedNames([
     ...things.flatMap((thing) =>
       thing.pictures.flatMap((picture) =>
@@ -111,24 +128,35 @@ const imageCandidates = (own: readonly string[], offered: ReadonlySet<string>) =
     ),
     ...folders.map((stack) => stack.name),
   ]);
+  const writable = (candidate: Candidate) =>
+    isWritableAssetReference(kind, candidate.reference) && !shared.has(candidate.base);
+  const withOptions = (stack: ImageStack | undefined, base: Candidate) =>
+    kind === "portrait" && stack && writable(base) ? [base, ...optionCandidates(stack, base)] : [base];
+  const stackNamed = (name: string) =>
+    stacks.find((stack) => stack.kind === "files" && stack.name === name);
   const candidates = [
     ...things.flatMap((thing) =>
-      thing.pictures.flatMap((picture) => pictureCandidate(picture, thing.name, offered) ?? []),
+      thing.pictures.flatMap((picture, index) => {
+        const base = pictureCandidate(picture, thing.name, offered);
+        if (!base) return [];
+        return index === 0 ? withOptions(stackNamed(thing.name), base) : [base];
+      }),
     ),
     ...folders
       .filter((stack) => stack.paths.some((path) => offered.has(path)))
-      .map((stack): Candidate => ({
-        reference: stack.name,
-        name: stack.name,
-        alternate: null,
-        path: stack.cover,
-        variant: restingLook(stack.name),
-      })),
+      .flatMap((stack) =>
+        withOptions(stack, {
+          id: stack.cover,
+          reference: stack.name,
+          base: stack.name,
+          name: stack.name,
+          note: null,
+          path: stack.cover,
+          variant: restingLook(stack.name),
+        }),
+      ),
   ];
-  return candidates.map((candidate) => ({
-    candidate,
-    writable: writableName(candidate.reference) && !shared.has(candidate.reference),
-  }));
+  return candidates.map((candidate) => ({ candidate, writable: writable(candidate) }));
 };
 
 const candidatesOf = (
@@ -143,11 +171,11 @@ const candidatesOf = (
     const shared = sharedNames(own.map((path) => assetNameOf(path, type)));
     return paths.map((path) => {
       const name = assetNameOf(path, type);
-      const candidate: Candidate = { reference: name, name, alternate: null, path };
-      return { candidate, writable: writableName(name) && !shared.has(name) };
+      const candidate: Candidate = { id: path, reference: name, base: name, name, note: null, path };
+      return { candidate, writable: isWritableAssetReference(kind, name) && !shared.has(name) };
     });
   }
-  return imageCandidates(own, new Set(paths));
+  return imageCandidates(kind, own, new Set(paths));
 };
 
 export const pickerItems = (
@@ -169,15 +197,22 @@ export const pickerItems = (
         compare(a.candidate.name, b.candidate.name),
     )
     .map(({ candidate, folder }): PickerItem => ({
-      id: candidate.path,
+      id: candidate.id,
       reference: candidate.reference,
       name: candidate.name,
-      caption: [folder, candidate.alternate].filter(Boolean).join(" · "),
+      caption: [folder, candidate.note].filter(Boolean).join(" · "),
       path: candidate.path,
       src: sources.get(candidate.path),
       ...(candidate.variant ? { variant: candidate.variant } : {}),
+      ...(candidate.option ? { option: true as const } : {}),
     }));
 };
+
+export const pickerPictureCount = (
+  kind: AddMenuKind,
+  files: readonly PickerFile[],
+  folders: AddMenuFolders,
+): number => pickerItems(kind, files, folders).filter((item) => !item.option).length;
 
 export const pickerLeftOut = (
   kind: AddMenuKind,

@@ -117,6 +117,18 @@
       "nth-child",
       "nth-last-child"
     ],
+    "SELECTOR_AT_RULE_NAMES": [
+      "container",
+      "layer",
+      "media",
+      "starting-style",
+      "starting_style",
+      "initial"
+    ],
+    "SELECTOR_WORD_CHAR": "\\p{L}\\p{N}_-",
+    "SELECTOR_WORD_PART_START": "[@][\\p{L}\\p{N}_]",
+    "SELECTOR_WORD": "(?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)",
+    "SELECTOR_WORD_GOES_ON": "(?:[{{SELECTOR_WORD_CHAR}}]|{{SELECTOR_WORD_PART_START}})",
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}-",
     "IDENTIFIER_START": "[{{IDENTIFIER_START_CHAR}}]",
@@ -141,7 +153,7 @@
     "DIRECTIVE_CONTROL": "(?:{{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LOAD_CONTROL_KEYWORDS}}|{{MOVIE_CONTROL_KEYWORDS}}|{{WRITE_CONTROL_KEYWORDS}})",
     "IMAGE_DIRECTIVE_CONTROL": "(?:{{DIRECTIVE_CONTROL}}|{{LAYOUT_CONTROL_KEYWORDS}})",
     "DIRECTIVE_NAME_TEXT": "(?:[^ \\t\\r\\n+]+)",
-    "ASSET_FILTERS": "(?:(?:[:~][^:~+\\s]+)+)",
+    "ASSET_FILTERS": "(?:(?:[:][^:~+\\s]+)+)",
     "_DIRECTIVE_END_": "({{DIRECTIVE_SPACE}}*)$",
     "_DIRECTIVE_TAG_AND_END_": "(?:({{DIRECTIVE_SEPARATOR}}{{DIRECTIVE_TAG}}))?{{_DIRECTIVE_END_}}",
     "_DIRECTIVE_NAVIGATE_TO_": "({{DIRECTIVE_SEPARATOR}})({{DIRECTIVE_DESTINATION}})({{DIRECTIVE_NEXT_WORD}}*)",
@@ -662,7 +674,7 @@
     "STRUCT_TEXT_SLASH_COMMENT": "(?:{{WS}}+[/][/](?:{{WS}}.*)?)",
     "STRUCT_BLOCK_PROPERTY_KEY": "(?:\\[[^\\]\\n]*\\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})",
     "STRUCT_BLOCK_PROPERTY_HEAD": "(?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})",
-    "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}})",
+    "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}}(?!{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))",
     "STRUCT_WITHOUT_WITH_LINE": "^(?!{{WS}}*(?:[{]|$))(?!{{STRUCT_BLOCK_BAIL}})",
     "STRUCT_KEYWORD_BRACE_CLOSED": "(?<=[}])",
     "STRUCT_BLOCK_TRAILING_COMMA": "(?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))",
@@ -6513,7 +6525,7 @@
       }
     },
     "AssetCommandNoneName": {
-      "match": "(none)((?:(?:[:~][^:~+\\s]+)+)?)(?:([+])|((?:(?:[ \\t])+))|$)",
+      "match": "(none)((?:(?:[:][^:~+\\s]+)+)?)(?:([+])|((?:(?:[ \\t])+))|$)",
       "captures": {
         "1": {
           "patterns": [
@@ -6553,7 +6565,7 @@
     "AssetCommandFilteredFileName": {
       "tag": "constant(variableName)",
       "name": "variable.other.constant.asset.file.sd",
-      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:(?:[:~][^:~+\\s]+)+))",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))((?:(?:[:][^:~+\\s]+)+))",
       "captures": {
         "1": {
           "patterns": [
@@ -6582,7 +6594,7 @@
       "match": "([+])"
     },
     "AssetCommandFilter": {
-      "match": "([:~])($|[^:~\\s]+)?",
+      "match": "([:])($|[^:~\\s]+)?",
       "captures": {
         "1": {
           "patterns": [
@@ -6603,7 +6615,7 @@
     "AssetCommandFilterOperator": {
       "tag": "propertyName",
       "name": "variable.other.property.filter.sd",
-      "match": "([:~])"
+      "match": "([:])"
     },
     "AssetCommandFilterName": {
       "tag": "constant(variableName)",
@@ -7520,6 +7532,15 @@
           "include": "#SelectorOperator"
         },
         {
+          "include": "#SelectorScopeAtRule"
+        },
+        {
+          "include": "#SelectorSupportsAtRule"
+        },
+        {
+          "include": "#SelectorAtRule"
+        },
+        {
           "include": "#RecursiveSelectorFunction"
         },
         {
@@ -7538,9 +7559,260 @@
           "include": "#LabelAttribute"
         },
         {
+          "include": "#SelectorPseudoClass"
+        },
+        {
           "include": "#Separator"
         }
       ]
+    },
+    "SelectorScopeAtRule": {
+      "begin": "([@])(scope)(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorStateOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorStateName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#RecursiveSelectorFunctionParameters"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorSupportsAtRule": {
+      "begin": "([@])(supports)(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorStateOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorStateName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorSupportsAtRuleGroup"
+        },
+        {
+          "include": "#SelectorSupportsSelectorFunction"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorSupportsAtRuleGroup": {
+      "brackets": true,
+      "begin": "([(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorSupportsAtRuleGroup"
+        },
+        {
+          "include": "#SelectorSupportsSelectorFunction"
+        },
+        {
+          "include": "#SelectorAtRuleDeclarationValue"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "end": "$|([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "SelectorSupportsSelectorFunction": {
+      "begin": "(?:((?:[\\p{L}\\p{N}_-]+(?:[@][\\p{L}\\p{N}_][\\p{L}\\p{N}_-]*)*))([@]))?(selector)(?=[(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorCssWord"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorCssPunctuation"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#SelectorCssWord"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#RecursiveSelectorFunctionParameters"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=$|.)"
+    },
+    "SelectorAtRule": {
+      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorStateOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorStateName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorAtRuleGroup"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorAtRuleGroup": {
+      "brackets": true,
+      "begin": "([(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorAtRuleGroup"
+        },
+        {
+          "include": "#SelectorAtRuleDeclarationValue"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "end": "$|([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationParenClose"
+            }
+          ]
+        }
+      }
+    },
+    "SelectorAtRuleDeclarationValue": {
+      "begin": "([:])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SelectorCssPunctuation"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SelectorAtRuleGroup"
+        },
+        {
+          "include": "#SelectorCssText"
+        }
+      ],
+      "applyEndPatternLast": true,
+      "end": "(?=[)])|$"
+    },
+    "SelectorCssText": {
+      "patterns": [
+        {
+          "include": "#LuauStructBlockKeyString"
+        },
+        {
+          "include": "#StringLiteral"
+        },
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorCssPunctuation"
+        }
+      ]
+    },
+    "SelectorCssWord": {
+      "tag": "string",
+      "name": "string.unquoted.css.sd",
+      "match": "((?:[\\p{L}\\p{N}_-]+(?:[@][\\p{L}\\p{N}_][\\p{L}\\p{N}_-]*)*))"
+    },
+    "SelectorCssPunctuation": {
+      "tag": "operator",
+      "name": "keyword.operator.css.sd",
+      "match": "([^\\s()\\p{L}\\p{N}_-])"
     },
     "ComponentName": {
       "patterns": [
@@ -7591,10 +7863,10 @@
       },
       "patterns": [
         {
-          "include": "#LuauComment"
+          "include": "#LuauStructBlockKeyString"
         },
         {
-          "include": "#SelectorPseudoClass"
+          "include": "#SelectorCssWord"
         },
         {
           "include": "#SelectorPropertyNamePart"
@@ -7603,10 +7875,10 @@
           "include": "#LuauSparkleElementClass"
         },
         {
-          "include": "#BuiltinComponentName"
+          "include": "#PunctuationComma"
         },
         {
-          "include": "#CustomComponentName"
+          "include": "#SelectorCssPunctuation"
         }
       ],
       "end": "$|((?:[^\\S\\n\\r])*)([)])",
@@ -7628,7 +7900,7 @@
       }
     },
     "SelectorPseudoClass": {
-      "match": "([:]{1,2})((?:[_\\p{L}][0-9_\\p{L}-]*(?:[@][0-9_\\p{L}][0-9_\\p{L}-]*)*(?<![-])))",
+      "match": "([:]{1,2})([\\p{L}\\p{N}_-]+)",
       "captures": {
         "1": {
           "patterns": [
@@ -7677,10 +7949,16 @@
       },
       "patterns": [
         {
-          "include": "#LuauComment"
+          "include": "#LuauStructBlockKeyString"
+        },
+        {
+          "include": "#SelectorCssWord"
         },
         {
           "include": "#SelectorPropertyNamePart"
+        },
+        {
+          "include": "#SelectorCssPunctuation"
         }
       ],
       "end": "$|((?:[^\\S\\n\\r])*)(\\])",
@@ -8542,13 +8820,16 @@
       },
       "patterns": [
         {
-          "include": "#LuauComment"
-        },
-        {
-          "include": "#SelectorPropertyNamePart"
+          "include": "#LuauStructBlockKeyString"
         },
         {
           "include": "#ParameterStringIdentifier"
+        },
+        {
+          "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
         },
         {
           "include": "#IllegalChar"
@@ -10764,7 +11045,7 @@
       }
     },
     "LuauStructWithBody": {
-      "begin": "((?:[^\\S\\n\\r])*)(with)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|^(?!(?:[^\\S\\n\\r])*(?:[{]|$))(?!(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))",
+      "begin": "((?:[^\\S\\n\\r])*)(with)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|^(?!(?:[^\\S\\n\\r])*(?:[{]|$))(?!(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))",
       "beginCaptures": {
         "1": {
           "emit": true,
@@ -10815,7 +11096,7 @@
           "include": "#LuauStructBlockEntries"
         }
       ],
-      "end": "([}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))",
+      "end": "([}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -11132,7 +11413,7 @@
       }
     },
     "LuauStructBlockLine": {
-      "begin": "^(?!(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))(?=\\S|(?:[^\\S\\n\\r])+\\S)",
+      "begin": "^(?!(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))(?=\\S|(?:[^\\S\\n\\r])+\\S)",
       "patterns": [
         {
           "include": "#LuauStructStrayBlockClose"
@@ -11141,7 +11422,7 @@
           "include": "#LuauStructBlockEntries"
         }
       ],
-      "end": "$|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))"
+      "end": "$|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))"
     },
     "LuauStructBlockEntries": {
       "patterns": [
@@ -11212,7 +11493,7 @@
           "include": "#LuauStructBlockBody"
         }
       ],
-      "end": "(?<=[}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))"
+      "end": "(?<=[}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))"
     },
     "LuauStructBlockKey": {
       "match": "(.+)",
@@ -11290,7 +11571,7 @@
           "include": "#LuauStructBlockEntries"
         }
       ],
-      "end": "([}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))",
+      "end": "([}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -11318,7 +11599,7 @@
           "include": "#LuauStructBlockEntries"
         }
       ],
-      "end": "([}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))",
+      "end": "([}])|(?=(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -13555,7 +13836,7 @@
       }
     },
     "LuauSparkleWithBody": {
-      "begin": "((?:[^\\S\\n\\r])*)(with)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|^(?!(?:[^\\S\\n\\r])*(?:[{]|$))(?!(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))))",
+      "begin": "((?:[^\\S\\n\\r])*)(with)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))|^(?!(?:[^\\S\\n\\r])*(?:[{]|$))(?!(?:(?:^(?:[^\\S\\n\\r])*(?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:scene|branch)(?![0-9_\\p{L}]|[@][0-9_\\p{L}])(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|^(?:(?:[^\\S\\n\\r])*(?:end)(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))",
       "beginCaptures": {
         "1": {
           "emit": true,

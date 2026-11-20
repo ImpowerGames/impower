@@ -22,12 +22,10 @@ const viewportTheme = EditorView.baseTheme({
   },
 });
 
-const CLOSE_KEYBOARD_DELAY = 150;
-
 const viewportPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
-    closeTimeout?: ReturnType<typeof setTimeout>;
+    frame?: number;
     destroyed = false;
     releaseFit: () => void;
 
@@ -38,75 +36,37 @@ const viewportPlugin = ViewPlugin.fromClass(
       this.onKeyboardUpdate();
     }
 
-    openKeyboardUI() {
-      requestAnimationFrame(() => {
-        if (this.destroyed) return;
-        this.view.dom.classList.add("keyboard-open");
-        if (!hasScriptMode(this.view.state)) {
-          openKeyboardToolbar(this.view);
-        }
-      });
-    }
-
-    closeKeyboardUI() {
-      requestAnimationFrame(() => {
-        if (this.destroyed) return;
-        this.view.dom.classList.remove("keyboard-open");
-        if (!hasScriptMode(this.view.state)) {
-          closeKeyboardToolbar(this.view);
-        }
-      });
-    }
-
-    onKeyboardUpdate = (e?: Event) => {
+    editorFocused() {
       const root = this.view.dom.getRootNode() as Document | ShadowRoot;
-
-      const activeElt = root.activeElement;
-      const isActiveEltEditable =
-        activeElt &&
-        (activeElt instanceof HTMLInputElement ||
-          activeElt instanceof HTMLTextAreaElement ||
-          (activeElt as HTMLElement).isContentEditable);
-      const isEditorInputFocused =
+      const active = root.activeElement;
+      return (
         this.view.hasFocus ||
-        (activeElt && this.view.dom.contains(activeElt) && isActiveEltEditable);
+        (active != null &&
+          this.view.dom.contains(active) &&
+          (active instanceof HTMLInputElement ||
+            active instanceof HTMLTextAreaElement ||
+            (active as HTMLElement).isContentEditable))
+      );
+    }
 
-      const isFocusEvent = e?.type === "focusin" || e?.type === "focus";
-
-      const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
-
-      const isKeyboardVisible = keyboard().open;
-
-      if (
-        isKeyboardVisible &&
-        !isFocusEvent &&
-        (isBlurEvent || !isEditorInputFocused)
-      ) {
-        if (!this.closeTimeout) {
-          this.closeTimeout = setTimeout(() => {
-            this.closeKeyboardUI();
-            this.closeTimeout = undefined;
-          }, CLOSE_KEYBOARD_DELAY);
-        }
-        return;
+    apply() {
+      const open = keyboard().open && this.editorFocused();
+      this.view.dom.classList.toggle("keyboard-open", open);
+      if (!hasScriptMode(this.view.state)) {
+        if (open) openKeyboardToolbar(this.view);
+        else closeKeyboardToolbar(this.view);
       }
-
-      if (this.closeTimeout) {
-        clearTimeout(this.closeTimeout);
-        this.closeTimeout = undefined;
+      if (open && this.view.hasFocus) {
+        scrollCaretIntoView(this.view);
       }
+    }
 
-      if (isKeyboardVisible) {
-        this.openKeyboardUI();
-      } else {
-        this.closeKeyboardUI();
-      }
-
-      if (isKeyboardVisible && this.view.hasFocus) {
-        requestAnimationFrame(() => {
-          scrollCaretIntoView(this.view);
-        });
-      }
+    onKeyboardUpdate = () => {
+      if (this.frame != null) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = undefined;
+        if (!this.destroyed) this.apply();
+      });
     };
 
     bind() {
@@ -119,8 +79,8 @@ const viewportPlugin = ViewPlugin.fromClass(
       window.removeEventListener("focusout", this.onKeyboardUpdate);
       this.view.scrollDOM.removeEventListener("focus", this.onKeyboardUpdate);
       this.view.scrollDOM.removeEventListener("blur", this.onKeyboardUpdate);
-      if (this.closeTimeout) {
-        clearTimeout(this.closeTimeout);
+      if (this.frame != null) {
+        cancelAnimationFrame(this.frame);
       }
     }
 
@@ -138,11 +98,11 @@ export function mobileViewportManager(): Extension {
     viewportTheme,
     viewportPlugin,
     EditorView.domEventObservers({
-      focus: (e, view) => {
-        view.plugin(viewportPlugin)?.onKeyboardUpdate(e);
+      focus: (_, view) => {
+        view.plugin(viewportPlugin)?.onKeyboardUpdate();
       },
-      blur: (e, view) => {
-        view.plugin(viewportPlugin)?.onKeyboardUpdate(e);
+      blur: (_, view) => {
+        view.plugin(viewportPlugin)?.onKeyboardUpdate();
       },
     }),
   ];

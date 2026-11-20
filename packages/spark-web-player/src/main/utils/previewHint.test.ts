@@ -152,21 +152,21 @@ describe("planPreviewHint", () => {
     }
   });
 
-  it.each([":", "~"])("asks for the filtered variant the engine resolves with %s, query string and all", (separator) => {
+  it("asks for the filtered variant the engine resolves, query string and all", () => {
     const story = `define dim as filtered_image with
   image = hall
   attributes = { "glow" }
 end
 
 scene A
-  [[show backdrop hall${separator}glow]]
+  [[show backdrop hall:glow]]
   Line one.
   done
 end
 `;
     const filtered = compile(story, 1, [svg("hall")]);
     const game = new Game({ program: filtered } as any);
-    const theirs = game.module.ui.getImageSrcsByName(`hall${separator}glow`);
+    const theirs = game.module.ui.getImageSrcsByName("hall:glow");
     expect(theirs).toHaveLength(1);
     expect(theirs![0]).toMatch(/^\/file:\/proj\/hall\.svg\?v=1&attributes=/);
     expect(JSON.parse(new URL(theirs![0]!, "https://example.invalid").searchParams.get("attributes")!)).toEqual({ glow: "on" });

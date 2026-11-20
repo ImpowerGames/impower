@@ -137,11 +137,11 @@ describe("morph bake diagnostics", () => {
 
   it("one problem in the art shows once, naming every variant it affects", async () => {
     const { workspace, publishes } = setup();
-    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program: compileServed(`${SCRIPT}\n[[bunny~eyes.open]]\n`) });
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program: compileServed(`${SCRIPT}\n[[bunny:eyes.open]]\n`) });
     await until(() => publishes().some((p) => p.uri === asset));
     const diagnostics = publishes().filter((p) => p.uri === asset).at(-1).diagnostics;
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].message).toContain("Morph `blink` on `bunny`, `bunny~eyes.open`");
+    expect(diagnostics[0].message).toContain("Morph `blink` on `bunny`, `bunny:eyes.open`");
   });
 
   it("a `paints` target the pose does not draw is warned about on the art, once, naming the variants", async () => {
@@ -150,14 +150,14 @@ describe("morph bake diagnostics", () => {
       "  clips {",
       "  paints {\n    { targets { eyelash-left; eyelash-right }; state = eyes.closed; fill = #c9c9c9; span = 40% }\n  }\n  clips {",
     );
-    const program = compileServed(`${painted}\n[[bunny~eyes.open]]\n`);
+    const program = compileServed(`${painted}\n[[bunny:eyes.open]]\n`);
     expect(program.diagnostics?.[main]?.filter((d: any) => d.code === "morph" && d.severity === 1) ?? []).toEqual([]);
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
     await until(() => publishes().some((p) => p.uri === asset));
     const diagnostics = publishes().filter((p) => p.uri === asset).at(-1).diagnostics;
     const missing = diagnostics.filter((d: any) => d.code === "morph-paint-target-missing");
     expect(missing).toEqual([expect.objectContaining({ severity: 2 })]);
-    expect(missing[0].message).toContain("Morph `blink` on `bunny`, `bunny~eyes.open`");
+    expect(missing[0].message).toContain("Morph `blink` on `bunny`, `bunny:eyes.open`");
     expect(missing[0].message).toContain('"eyelash-right"');
     expect(missing[0].message).not.toContain('"eyelash-left"');
   });
@@ -207,8 +207,8 @@ describe("morph previews through the providers", () => {
     const { workspace } = setup();
     const program = compileServed();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
-    const composed = { $type: "layered_image", $name: "bunny+bunny~eyes.closed", assets: [{ $name: "bunny" }, { $name: "bunny~eyes.closed" }] };
-    program.context.filtered_image["bunny~eyes.closed"] ??= { $type: "filtered_image", $name: "bunny~eyes.closed", image: { $name: "bunny" }, attributes: ["eyes.closed"] };
+    const composed = { $type: "layered_image", $name: "bunny+bunny:eyes.closed", assets: [{ $name: "bunny" }, { $name: "bunny:eyes.closed" }] };
+    program.context.filtered_image["bunny:eyes.closed"] ??= { $type: "filtered_image", $name: "bunny:eyes.closed", image: { $name: "bunny" }, attributes: ["eyes.closed"] };
     const layers = await resolvePreviewLayers(program.context, composed, createImageCompositeOptions(workspace));
     expect(layers).toHaveLength(2);
     expect(decodeURIComponent(layers[0]!.src)).toContain("<mask");
@@ -219,7 +219,7 @@ describe("morph previews through the providers", () => {
     const { workspace } = setup();
     const program = compileServed();
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
-    expect(program.morphs.variants["bunny~eyes.open"]).toBeUndefined();
+    expect(program.morphs.variants["bunny:eyes.open"]).toBeUndefined();
     const item = { label: "open", data: { uri: main, type: "image", name: "bunny", filtered: { image: "bunny", attributes: ["eyes.open"] } } };
     const resolved = await resolveCompletion({ ...item }, program, createImageCompositeOptions(workspace));
     expect(previewImage((resolved.documentation as any)?.value)).toContain("<mask");
@@ -239,12 +239,12 @@ describe("morph previews through the providers", () => {
 
   it("hovering a look shows the morph's rest in its driven groups before the rest render is ready", async () => {
     const { workspace } = setup();
-    const script = `${SCRIPT}[[bunny~eyes.closed]]\n`;
+    const script = `${SCRIPT}[[bunny:eyes.closed]]\n`;
     const program = compileServed(script);
     workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
     const documents = new SparkdownDocumentRegistry(["references"]);
     documents.set({ textDocument: { uri: main, text: script, version: 1, languageId: "sparkdown" } });
-    const position = { line: lineOf(script, "[[bunny~eyes.closed]]"), character: 4 };
+    const position = { line: lineOf(script, "[[bunny:eyes.closed]]"), character: 4 };
     const shown = { shownLayers: (context: any, struct: any) => workspace.morphShownLayers(context, struct) };
     const hover = await getHover(documents.get(main), documents.tree(main), documents.annotations(main), program, undefined, position, shown);
     const src = previewImage((hover?.contents as any)?.value);

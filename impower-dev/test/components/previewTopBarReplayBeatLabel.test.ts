@@ -53,4 +53,21 @@ describe("the preview top bar's Replay beat button", () => {
     expect(labels).toContain(SHARED_WORDING);
     expect(labels).not.toContain("Replay beat");
   });
+
+  it("draws the replay-beat glyph, not a play triangle", async () => {
+    const { ReplayBeatIcon, PlayOutlineIcon } = await import("@impower/impower-ui/icons");
+    const drawn = (icon: typeof ReplayBeatIcon) => {
+      const element = document.createElement("div");
+      render(h(icon, {}), element);
+      return element.querySelector("svg")!.innerHTML;
+    };
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(PreviewTopBar, {}), host!));
+    const button = [...host.querySelectorAll("button")].find(
+      (element) => element.getAttribute("aria-label") === SHARED_WORDING,
+    );
+    const glyph = button?.querySelector("svg")?.innerHTML;
+    expect(glyph).toBe(drawn(ReplayBeatIcon));
+    expect(glyph).not.toBe(drawn(PlayOutlineIcon));
+  });
 });

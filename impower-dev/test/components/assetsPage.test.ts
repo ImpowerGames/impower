@@ -1034,7 +1034,7 @@ describe("selecting, moving and deleting", () => {
         uses: [
           use(1, "  [[show portrait imani]]"),
           use(2, "  [[show portrait imani@night]]"),
-          use(3, "  [[show portrait imani~face.happy]]"),
+          use(3, "  [[show portrait imani:face.happy]]"),
           use(4, "  [[show portrait imani]]"),
         ],
       },

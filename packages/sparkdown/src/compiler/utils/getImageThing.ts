@@ -1,4 +1,4 @@
-const THING_END = /[@~:]/;
+const THING_END = /[@:]/;
 
 export const getImageThing = (name: string): string => {
   const end = name.search(THING_END);

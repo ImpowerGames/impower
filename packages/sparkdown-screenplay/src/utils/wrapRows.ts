@@ -29,6 +29,8 @@ export const getCharChunks = (str: string) => {
   }
 };
 
+const fits = (width: number, space: number, box: number) => width <= space + Math.abs(box) * 1e-9;
+
 const measureFragments = <T extends WrapPiece>(piece: T, texts: string[], measure: MeasurePiece<T>) =>
   texts.map((text) => ({
     text,
@@ -54,17 +56,17 @@ export const wrapPieceInRows = <T extends WrapPiece>(
     rows.push({ ...piece, text: "", width: 0 });
   };
   for (const word of measureFragments(piece, getWordChunks(piece.text), measure)) {
-    if (word.minWidth <= spaceLeft) {
+    if (fits(word.minWidth, spaceLeft, widthTextbox)) {
       add(word);
       continue;
     }
     startRow();
-    if (word.minWidth <= spaceLeft) {
+    if (fits(word.minWidth, spaceLeft, widthTextbox)) {
       add(word);
       continue;
     }
     for (const character of measureFragments(piece, getCharChunks(word.text), measure)) {
-      if (character.minWidth > spaceLeft) startRow();
+      if (!fits(character.minWidth, spaceLeft, widthTextbox)) startRow();
       add(character);
     }
   }
@@ -77,12 +79,12 @@ export const wrapParagraph = <T extends WrapPiece>(
   measure: MeasurePiece<T>,
 ): T[][] => {
   const total = paragraph.reduce((sum, piece) => sum + (piece.width ?? 0), 0);
-  if (total <= textWidth) return [paragraph];
+  if (fits(total, textWidth, textWidth)) return [paragraph];
   let spaceLeftInLine = textWidth;
   let line: T[] = [];
   const lines: T[][] = [];
   for (const piece of paragraph) {
-    if (piece.width != null && piece.width <= spaceLeftInLine) {
+    if (piece.width != null && fits(piece.width, spaceLeftInLine, textWidth)) {
       line.push(piece);
       spaceLeftInLine -= piece.width;
       continue;

@@ -13,7 +13,7 @@ export type SearchBoxProps = {
 
 export default function SearchBox({ label, value, onChange }: SearchBoxProps) {
   return (
-    <label class="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-control border border-edge pl-[13px] focus-within:border-accent">
+    <label class="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-control border border-field-edge pl-[13px] focus-within:border-accent">
       <SearchIcon class="size-[18px] flex-none text-muted" />
       <TextField
         frame="inset"

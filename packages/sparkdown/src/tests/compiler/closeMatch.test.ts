@@ -160,7 +160,7 @@ describe("close match after an edit", () => {
     const added = misspelling(compiler, "miawink");
     expect(compiler.referenceValidationStats.chunksServed).toBeGreaterThan(0);
     expect(added?.data).toEqual({
-      closeMatch: { name: "miawink", match: "mia~wink" },
+      closeMatch: { name: "miawink", match: "mia:wink" },
       expect: "miawink",
       ...missing("miawink"),
     });

@@ -934,6 +934,7 @@ export class SparkdownPreviewGamePanelManager {
               --swp-toolbar-border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.15));
               --swp-toolbar-button-hover-color: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--vscode-foreground) 12%, transparent));
               --swp-toolbar-button-active-color: var(--vscode-toolbar-activeBackground, color-mix(in srgb, var(--vscode-foreground) 18%, transparent));
+              --swp-focus-color: var(--vscode-focusBorder, var(--swp-accent-color));
             }
 
             spark-web-player {

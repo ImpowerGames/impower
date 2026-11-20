@@ -183,7 +183,7 @@ describe("Add menu", () => {
     expect(input("add-folder-backdrop").value).toBe("Backdrops");
   });
 
-  it("counts a picture once per alternate and never its layers, as the picker offers it", async () => {
+  it("counts a picture once per alternate and never its layers, nor the layer-option cards the picker adds", async () => {
     for (const name of ["ava.png", "ava@night.png", "ava face.happy.png", "ava face.sad.png", "bo.png", "cy.png"]) {
       file(`assets/Images/Portraits/${name}`, "image");
     }

@@ -1007,14 +1007,14 @@ describe("morph binding", () => {
   test("a variant resting in another state plays the morph, whatever its folders rest in", () => {
     const text = `${SIMPLE_BLINK}
 scene start
-  [[bunny~sleepy]]
-  [[bunny~eyes.closed]]
+  [[bunny:sleepy]]
+  [[bunny:eyes.closed]]
 end
 `;
     const binding = bindingOf(text, [{ name: "bunny", svg: TWO_FOLDERS }]);
     const variants = binding.candidates[0]!.variants;
-    expect(variants.find((v) => v.name === "bunny~sleepy")?.status).toBe("active");
-    expect(variants.find((v) => v.name === "bunny~eyes.closed")?.status).toBe("active");
+    expect(variants.find((v) => v.name === "bunny:sleepy")?.status).toBe("active");
+    expect(variants.find((v) => v.name === "bunny:eyes.closed")?.status).toBe("active");
     const warnings = morphDiagnostics(text, [{ name: "bunny", svg: TWO_FOLDERS }]);
     expect(warnings.filter((d) => d.message.includes("does not apply"))).toEqual([]);
   });
@@ -1133,12 +1133,12 @@ end
 }
 
 scene start
-  [[bunny~eyes.closed]]
+  [[bunny:eyes.closed]]
 end
 `;
     const binding = bindingOf(text, [{ name: "bunny", svg: WIDE }]);
     expect(binding.requirements.start.has("eyes")).toBe(false);
-    const closed = binding.candidates[0]!.variants.find((v) => v.name === "bunny~eyes.closed")!;
+    const closed = binding.candidates[0]!.variants.find((v) => v.name === "bunny:eyes.closed")!;
     expect(closed.status).toBe("active");
     expect(closed.rest).toEqual({ eyes: "closed" });
     const program = compile(text, [{ name: "bunny", svg: WIDE }]);
@@ -1156,7 +1156,7 @@ describe("block-level artwork coverage", () => {
 
   test("hypothetical binding selections publish no attribute warnings on the script", () => {
     const text = `${BLINK}
-[[bunny~look.left]]
+[[bunny:look.left]]
 `;
     const svg = PORTRAIT.replace(
       '<g data-name="pupil-left eyes.open" id="pl"/>',

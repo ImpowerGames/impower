@@ -11,6 +11,7 @@ import {
   referenceOf,
   testerGroups,
   variantOf,
+  writableReferenceOf,
   type VariantSelection,
 } from "../../src/modules/spark-editor/utils/imageVariants";
 
@@ -179,5 +180,28 @@ describe("the Files rows", () => {
   it("sums the files", () => {
     const rows = fileRows(one(IMANI), sizes(IMANI));
     expect(filesSummary(rows)).toBe("7 files · 28 kB");
+  });
+});
+
+describe("the snippet the tester offers to copy or insert", () => {
+  const snippet = (paths: readonly string[], selection: VariantSelection = {}, form: "portrait" | "backdrop" = "backdrop") =>
+    writableReferenceOf(variantOf(one(paths.map((path) => `Assets/Images/${path}`)), selection), form);
+
+  it("offers nothing for a picture whose name no script can write", () => {
+    expect(snippet(["a@-b.png"])).toBeNull();
+    expect(snippet(["a@@b.png"])).toBeNull();
+    expect(snippet(["@foo.png"])).toBeNull();
+    expect(snippet(["@foo.png", "@foo face.happy.png"], { face: "happy" }, "portrait")).toBeNull();
+    expect(snippet(["~foo.png"])).toBeNull();
+    expect(snippet(["foo~bar.png"])).toBeNull();
+    expect(snippet(["a.png", "a@-b.png"], { [ALTERNATE]: "-b" })).toBeNull();
+  });
+
+  it("offers the reference for a picture a script can write", () => {
+    expect(snippet(["bar.png"])).toBe("[[show backdrop bar]]");
+    expect(snippet(["é@x.png"])).toBe("[[show backdrop é@x]]");
+    expect(snippet(["a.png", "a@-b.png"])).toBe("[[show backdrop a]]");
+    expect(snippet(["ava.png", "ava@night.png"], { [ALTERNATE]: "night" }, "portrait")).toBe("[[ava@night]]");
+    expect(snippet(["ava.png", "ava face.happy.png"], { face: "happy" }, "portrait")).toBe("[[ava:happy]]");
   });
 });

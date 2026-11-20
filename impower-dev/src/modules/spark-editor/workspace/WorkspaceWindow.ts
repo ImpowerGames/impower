@@ -115,6 +115,7 @@ import {
   type ShowDocumentResult,
 } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
+import { focusedElement } from "../utils/focusedElement";
 import { isScriptExtension } from "../utils/scriptFiles";
 import SingletonPromise from "./SingletonPromise";
 import WorkspaceDebugClient from "./WorkspaceDebugClient";
@@ -189,6 +190,7 @@ import {
   hashNamesRoute,
   routeOfHash,
   routeOfState,
+  sectionOfHash,
   stateForRoute,
   transitionRoute,
   type Route,
@@ -294,6 +296,8 @@ export default class WorkspaceWindow {
       }
       if (route !== routeOfState(this.store)) {
         transitionRoute(() => this.openRoute(route));
+      } else {
+        this.syncRouteHash();
       }
     };
     const onPopState = () => {
@@ -321,17 +325,30 @@ export default class WorkspaceWindow {
       return;
     }
     const route = routeOfState(this.store);
-    const hash = hashOfRoute(route);
-    if (route === this._route && routeOfHash(window.location.hash)) {
+    const hashRoute = routeOfHash(window.location.hash);
+    if (route === this._route && hashRoute && hashRoute !== route) {
       return;
     }
     this._route = route;
     if (!hashNamesRoute(window.location.hash, route)) {
-      window.history.replaceState(window.history.state, "", hash);
+      const section =
+        route === "settings" ? sectionOfHash(window.location.hash) : undefined;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        hashOfRoute(route, section),
+      );
     }
   }
 
   openRoute(route: Route) {
+    if (typeof document !== "undefined" && route !== routeOfState(this.store)) {
+      const selection = document.getSelection();
+      if (selection?.type === "Range") {
+        // workaround(chromium): Chromium 149 crashes the renderer when a pushState route change mounts the script editor while the page holds a text selection; Chrome 157 does not, so retire this once the Playwright-pinned Chromium is 157 or later.
+        selection.removeAllRanges();
+      }
+    }
     this.update(stateForRoute(this.store, route));
   }
 
@@ -368,7 +385,7 @@ export default class WorkspaceWindow {
     }
     this.openPanel("logic", panel);
     this.openFileEditor(filename);
-    this.navigateTo("write");
+    this.navigateTo("story");
   }
 
   async writeScript(filename: string) {
@@ -655,12 +672,19 @@ export default class WorkspaceWindow {
     if (workspace.scriptMode.peek() !== "editing") {
       return;
     }
+    const focused = focusedElement();
+    if (
+      focused instanceof HTMLElement &&
+      focused.closest(".sparkdown-script-editor-root .cm-content")
+    ) {
+      focused.blur();
+    }
     workspace.scriptMode.value = "reading";
   }
 
   openSparkdownGuide() {
-    if (this._route !== "write") {
-      this.navigateTo("write");
+    if (this._route !== "story") {
+      this.navigateTo("story");
     }
     this.openWritingTools("guide");
   }
@@ -692,7 +716,7 @@ export default class WorkspaceWindow {
 
   async openOutlineLocation(uri: string, range: Range) {
     if (this.store.pane !== "logic" || this.store.screen.settingsOpen) {
-      this.navigateTo("write");
+      this.navigateTo("story");
     }
     await this.showDocument(uri, range, true, true);
   }
@@ -985,6 +1009,8 @@ export default class WorkspaceWindow {
   protected _playerConnected = false;
 
   protected _launchLimit?: ReturnType<typeof setTimeout>;
+
+  protected _playedFromScript = false;
 
   protected launch(event: LaunchEvent) {
     const game = this.store.preview.modes.game;
@@ -1754,7 +1780,7 @@ export default class WorkspaceWindow {
       { start: position, end: position },
       true,
     );
-    this.navigateTo("write");
+    this.navigateTo("story");
   }
 
   protected requestEditor<M extends string, P, R>(
@@ -1994,7 +2020,36 @@ export default class WorkspaceWindow {
     sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}));
   }
 
+  coversScript() {
+    return !!this.store.preview.revealed && layoutState.current() === "phone";
+  }
+
+  followExecutedLines(
+    executedLines: Record<string, { last?: number | null }> | undefined,
+  ) {
+    if (this.coversScript()) {
+      return;
+    }
+    const editor = this.getActiveEditorForPane("logic");
+    const line = editor ? executedLines?.[editor.uri]?.last : undefined;
+    if (editor && line != null) {
+      this.showDocument(
+        editor.uri,
+        { start: { line, character: 0 }, end: { line, character: 0 } },
+        false,
+      );
+    }
+  }
+
+  openFullView() {
+    this._playedFromScript = false;
+    this.expandPreviewPane();
+  }
+
   playInFullView() {
+    if (!this.store.preview.revealed) {
+      this._playedFromScript = true;
+    }
     if (!playsGame(workspaceSettings.preferences.peek().previewMode)) {
       this.setPreviewMode("game");
     }
@@ -2020,7 +2075,8 @@ export default class WorkspaceWindow {
   }
 
   collapsePreviewPane() {
-    if (this.store.preview.revealed && layoutState.current() === "phone") {
+    this._playedFromScript = false;
+    if (this.coversScript()) {
       this.stopGame();
     }
     this.update({
@@ -2309,8 +2365,8 @@ export default class WorkspaceWindow {
       this.collapsePreviewPane();
     }
     const result = await this.showDocument(uri, range, takeFocus);
-    if (routeOfState(this.store) !== "write") {
-      this.navigateTo("write");
+    if (routeOfState(this.store) !== "story") {
+      this.navigateTo("story");
     }
     return result;
   }
@@ -2483,6 +2539,16 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
+    const game = this.store.preview.modes.game;
+    if (
+      this._playedFromScript &&
+      this.coversScript() &&
+      launchPhaseOf(game, this._startGameRequestId !== undefined) !== "idle"
+    ) {
+      this.collapsePreviewPane();
+      return;
+    }
+    this._playedFromScript = false;
     this.launch("press");
   }
 

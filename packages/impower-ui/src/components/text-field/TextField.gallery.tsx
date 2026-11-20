@@ -90,7 +90,7 @@ function TextFieldDemo() {
             frame === "inset" ? (
               <label
                 key={frame}
-                class="flex h-9 w-[300px] items-center gap-2 rounded-control border border-edge px-2.5 focus-within:border-accent"
+                class="flex h-9 w-[300px] items-center gap-2 rounded-control border border-field-edge px-2.5 focus-within:border-accent"
               >
                 <TextField frame={frame} aria-label={FRAMES[frame]} placeholder={FRAMES[frame]} data-gallery-control />
                 <span class="text-[13px] text-muted">.sd</span>

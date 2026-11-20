@@ -1,4 +1,5 @@
 import { clock } from "@impower/impower-ui/components";
+import { assetNameOf, isWritableImageName } from "@impower/sparkdown/src/attributes/imageFileName";
 import { addMenuKindsOf, type AddMenuFolders, type AddMenuKind } from "./addMenuFolders";
 import { endingOf, type AssetType } from "./assetTypes";
 import { bytesLabel, plural } from "./fileListModel";
@@ -137,6 +138,21 @@ export const NOT_USED_NOTES: Record<AssetType, string> = {
 
 export const NOT_USED_VARIANTS_NOTE =
   "Nothing shows it yet. Copy its name into a line of the script, or insert a variant from above.";
+
+export const UNWRITABLE_NAME_RULE =
+  "A script can't write this name: it must start with a letter or _, hold only letters, digits, _, - and @, not end with -, and put each @ between two letters, digits or _. Rename the file to use it.";
+
+export const UNWRITABLE_NAME_NOTE = `Nothing shows it yet. ${UNWRITABLE_NAME_RULE}`;
+
+const writableNamesOf = (asset: Pick<InspectedAsset, "name" | "link" | "files">): string[] =>
+  asset.link || !asset.files.length ? [asset.name] : asset.files.map((file) => assetNameOf(file.path, "image"));
+
+export const notUsedNote = (asset: Pick<InspectedAsset, "name" | "type" | "link" | "files">, stack: boolean): string =>
+  asset.type === "image" && !writableNamesOf(asset).some(isWritableImageName)
+    ? UNWRITABLE_NAME_NOTE
+    : stack
+      ? NOT_USED_VARIANTS_NOTE
+      : NOT_USED_NOTES[asset.type];
 
 export const neighborsOf = <T extends { path: string }>(items: readonly T[], path: string) => {
   const at = items.findIndex((item) => item.path === path);

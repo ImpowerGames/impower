@@ -2,9 +2,51 @@ import { own } from "./own";
 
 export type MorphEasing = (x: number) => number;
 
-const linear: MorphEasing = (x) => x;
+interface Curve {
+  ease: MorphEasing;
+  reach: (position: number) => number;
+}
 
-function cubicBezier(x1: number, y1: number, x2: number, y2: number): MorphEasing {
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+const doubleView = new Float64Array(1);
+const bitsView = new BigInt64Array(doubleView.buffer);
+
+function previousDouble(value: number): number {
+  if (!(value > 0)) return value;
+  doubleView[0] = value;
+  bitsView[0]! -= 1n;
+  return doubleView[0]!;
+}
+
+function firstAtOrPast(reaches: (v: number) => boolean, turns: readonly number[]): number {
+  if (reaches(0)) return 0;
+  const bounds = [...new Set([0, ...turns.filter((v) => v > 0 && v < 1), 1])].sort((a, b) => a - b);
+  for (let i = 1; i < bounds.length; i++) {
+    let lo = bounds[i - 1]!;
+    const end = bounds[i]!;
+    const before = previousDouble(end);
+    const top = before > lo && reaches(before) ? before : reaches(end) ? end : undefined;
+    if (top === undefined) continue;
+    let hi = top;
+    for (;;) {
+      const mid = (lo + hi) / 2;
+      if (mid <= lo || mid >= hi) return hi;
+      if (reaches(mid)) hi = mid;
+      else lo = mid;
+    }
+  }
+  return 1;
+}
+
+const byInput = (ease: MorphEasing, turns: readonly number[]): Curve => ({
+  ease,
+  reach: (position) => firstAtOrPast((x) => clamp01(ease(x)) >= position, turns),
+});
+
+const linear: Curve = byInput((x) => x, []);
+
+function cubicBezier(x1: number, y1: number, x2: number, y2: number): Curve {
   if (x1 === y1 && x2 === y2) return linear;
   const cx = 3 * x1;
   const bx = 3 * (x2 - x1) - cx;
@@ -34,23 +76,34 @@ function cubicBezier(x1: number, y1: number, x2: number, y2: number): MorphEasin
     }
     return t;
   };
-  return (x) => (x <= 0 ? 0 : x >= 1 ? 1 : sampleY(solve(x)));
+  const [qa, qb, qc] = [3 * ay, 2 * by, cy];
+  const roots = (() => {
+    if (qa === 0) return qb === 0 ? [] : [-qc / qb];
+    const d = qb * qb - 4 * qa * qc;
+    if (d < 0) return [];
+    const q = -0.5 * (qb + (qb < 0 ? -1 : 1) * Math.sqrt(d));
+    return q === 0 ? [0] : [q / qa, qc / q];
+  })();
+  return {
+    ease: (x) => (x <= 0 ? 0 : x >= 1 ? 1 : sampleY(solve(x))),
+    reach: (position) => sampleX(firstAtOrPast((t) => sampleY(t) >= position, roots)),
+  };
 }
 
 type StepPosition = "jump-start" | "jump-end" | "jump-none" | "jump-both";
 
-function steps(count: number, position: StepPosition): MorphEasing {
+function steps(count: number, position: StepPosition): Curve {
   const jumps = position === "jump-none" ? count - 1 : position === "jump-both" ? count + 1 : count;
   const leading = position === "jump-start" || position === "jump-both";
-  return (x) => {
+  return byInput((x) => {
     let step = Math.floor(x * count) + (leading ? 1 : 0);
     if (step < 0) step = 0;
     if (step > jumps) step = jumps;
     return step / jumps;
-  };
+  }, []);
 }
 
-function linearStops(args: string[]): MorphEasing | undefined {
+function linearStops(args: string[]): Curve | undefined {
   const points: { output: number; input?: number }[] = [];
   for (const arg of args) {
     const [output, ...inputs] = arg.trim().split(/\s+/);
@@ -78,7 +131,7 @@ function linearStops(args: string[]): MorphEasing | undefined {
     i = j;
   }
   const placed = points as { output: number; input: number }[];
-  return (x) => {
+  const ease: MorphEasing = (x) => {
     let i = placed.length - 2;
     while (i > 0 && placed[i]!.input > x) i--;
     const a = placed[i]!;
@@ -86,9 +139,10 @@ function linearStops(args: string[]): MorphEasing | undefined {
     if (b.input === a.input) return x < b.input ? a.output : b.output;
     return a.output + ((b.output - a.output) * (x - a.input)) / (b.input - a.input);
   };
+  return byInput(ease, placed.map((point) => point.input));
 }
 
-const NAMED: Record<string, MorphEasing> = {
+const NAMED: Record<string, Curve> = {
   linear,
   ease: cubicBezier(0.25, 0.1, 0.25, 1),
   "ease-in": cubicBezier(0.42, 0, 1, 1),
@@ -98,9 +152,9 @@ const NAMED: Record<string, MorphEasing> = {
   "step-end": steps(1, "jump-end"),
 };
 
-const cache = new Map<string, MorphEasing | undefined>();
+const cache = new Map<string, Curve | undefined>();
 
-export function parseMorphEasing(text: string): MorphEasing | undefined {
+function curve(text: string): Curve | undefined {
   const key = text.trim();
   if (cache.has(key)) return cache.get(key);
   const parsed = parse(key);
@@ -109,7 +163,17 @@ export function parseMorphEasing(text: string): MorphEasing | undefined {
   return parsed;
 }
 
-function parse(text: string): MorphEasing | undefined {
+export function parseMorphEasing(text: string): MorphEasing | undefined {
+  return curve(text)?.ease;
+}
+
+export function firstMorphEasingReach(text: string, position: number): number {
+  if (position <= 0) return 0;
+  if (position >= 1) return 1;
+  return (curve(text) ?? linear).reach(position);
+}
+
+function parse(text: string): Curve | undefined {
   const named = own(NAMED, text);
   if (named) return named;
   const call = /^([a-z-]+)\((.*)\)$/i.exec(text);

@@ -711,7 +711,7 @@ describe("the bar under the game", () => {
     const link = bar().querySelector<HTMLAnchorElement>("a")!;
     expect(link.getAttribute("aria-label")).toBe("Screenplay settings");
     expect(link.textContent).toBe("US Letter");
-    expect(routeOfHash(link.getAttribute("href")!)).toBe("project");
+    expect(routeOfHash(link.getAttribute("href")!)).toBe("settings");
     expect(sectionOfHash(link.getAttribute("href")!)).toBe("screenplay-settings");
     expect(SETTINGS_SECTION_IDS).toContain(sectionOfHash(link.getAttribute("href")!));
     expect(bar().querySelector('[aria-label^="Game aspect ratio"]')).toBeNull();
@@ -887,5 +887,93 @@ describe("the divider above the bar", () => {
     await mount();
     expect(divider()).toBeNull();
     expect(toggle().textContent).toBe("No problems");
+  });
+});
+
+describe("the bar while the game starts", () => {
+  const readout = () =>
+    bar().querySelector<HTMLButtonElement>('button[aria-controls="route-panel"]');
+  const loading = () => bar().querySelector<HTMLElement>("[data-starting]");
+  const setStarting = (starting: boolean, running = false) =>
+    setState((state) => ({
+      ...state,
+      preview: {
+        ...state.preview,
+        modes: {
+          ...state.preview.modes,
+          game: { ...state.preview.modes.game, starting, running },
+        },
+      },
+    }));
+  const spoken = async () => {
+    const { announcement } = await import(
+      "../../../packages/impower-ui/src/hooks/useAnnouncer"
+    );
+    return announcement.value.trim();
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows nothing new when the game starts within the delay", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const before = await spoken();
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(250));
+    expect(loading()).toBeNull();
+    expect(document.querySelector('[data-status="starting"]')).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    await setStarting(false);
+    await act(() => vi.advanceTimersByTime(1000));
+    expect(loading()).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    expect(await spoken()).toBe(before);
+    expect(document.querySelector('[data-status="starting"]')).toBeNull();
+  });
+
+  it("replaces the route summary with Loading and a spinner on a slow start, then hands back", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const items = () => Array.from(bar().children).length;
+    const count = items();
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(300));
+    expect(loading()!.textContent).toBe("Loading");
+    expect(loading()!.querySelector("svg")!.classList).toContain("motion-safe:animate-spin");
+    expect(readout()).toBeNull();
+    expect(items()).toBe(count);
+    expect(bar().classList).toContain("h-preview-bar");
+    expect(await spoken()).toBe("Starting the game…");
+    expect(document.querySelector('[data-status="starting"]')).toBeNull();
+    await setStarting(false, true);
+    expect(loading()).toBeNull();
+    expect(items()).toBe(count);
+    expect(await spoken()).toBe("The game has started.");
+  });
+
+  it("hands back to the route summary without saying the game started when a slow start is cancelled", async () => {
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    await setStarting(true);
+    await act(() => vi.advanceTimersByTime(300));
+    expect(loading()).not.toBeNull();
+    expect(await spoken()).toBe("Starting the game…");
+    await setStarting(false);
+    await act(() => vi.advanceTimersByTime(1000));
+    expect(loading()).toBeNull();
+    expect(readout()!.textContent).toContain("interrogation");
+    expect(await spoken()).toBe("Starting the game…");
   });
 });

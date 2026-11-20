@@ -19,7 +19,7 @@ const compile = (text: string) => {
   return compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
 };
 
-const CANONICAL = "bunny_suspicious~phone~look.left";
+const CANONICAL = "bunny_suspicious:phone:look.left";
 
 describe("implicit filtered_image is created regardless of a trailing clause", () => {
   test("a filtered asset with NO clause creates the implicit filtered_image", () => {
@@ -45,7 +45,7 @@ animation flip {
 }
 
 scene main
-  [[bunny_suspicious~phone~look.left with flip]]
+  [[bunny_suspicious:phone:look.left with flip]]
   done
 end
 `);

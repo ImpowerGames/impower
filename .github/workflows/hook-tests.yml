@@ -66,6 +66,7 @@ jobs:
         .vscode/tasks.json
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
+        packages/codemirror-vscode-lsp-client/src/shortcutTable.ts
 
   skills-checks:
     needs: changes
@@ -148,6 +149,7 @@ jobs:
             /package.json
             /vscode-sparkdown/package.json
             /vscode-sparkdown/scripts/f5.mjs
+            /packages/codemirror-vscode-lsp-client/src/shortcutTable.ts
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:

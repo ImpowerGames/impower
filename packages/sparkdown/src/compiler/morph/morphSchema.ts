@@ -1,4 +1,6 @@
-export const MORPH_BLENDS = ["morph", "fade", "cut", "scale"] as const;
+import type { MorphReplay } from "../../morph/types";
+
+export const MORPH_BLENDS =["morph", "fade", "cut", "scale"] as const;
 export const MORPH_FALLBACKS = ["fade", "cut", "scale"] as const;
 export const MORPH_METHODS = ["match", "bend", "trace"] as const;
 export const MORPH_DIRECTIONS = [
@@ -34,6 +36,7 @@ export const MORPH_ROOT_FIELDS = [
   "layers",
   "keyframes",
   "timing",
+  "replay",
   "clips",
   "paints",
   "when",
@@ -118,6 +121,26 @@ export const MORPH_TIMING_FIELDS = [
   "iteration_delay_max",
 ] as const;
 
+export const MORPH_REPLAY_FIELDS = ["from", "to", "chance", "count", "delay_min", "delay_max"] as const;
+
+export function readMorphReplay(value: unknown): MorphReplay[] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const block = value as Record<string, unknown>;
+  const span = (field: string, fallback: number) => (block[field] === undefined ? fallback : parseMorphSpan(block[field]));
+  const from = span("from", 0);
+  const to = span("to", 1);
+  const chance = block["chance"] === undefined ? undefined : parseMorphSpan(block["chance"]);
+  const count = block["count"] ?? 1;
+  if (from === undefined || to === undefined || chance === undefined || !(from < to)) return undefined;
+  if (typeof count !== "number" || !Number.isInteger(count) || count < 1) return undefined;
+  const min = block["delay_min"];
+  const max = block["delay_max"];
+  const seconds = (s: unknown): s is number => typeof s === "number" && Number.isFinite(s) && s >= 0;
+  if (min === undefined && max === undefined) return [{ from, to, chance, count }];
+  if (!seconds(min) || !seconds(max) || max < min) return undefined;
+  return [{ from, to, chance, count, delay_min: min, delay_max: max }];
+}
+
 export const MORPH_LAYER_PROPERTIES = [
   "translate",
   "rotate",
@@ -195,6 +218,16 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   keyframes:
     "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. Every group the morph drives needs its `state` in the first pose. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it; a last pose that leaves a group out holds the morph's rest there, and a first or last pose that leaves a layer property out uses its resting value (no movement, opacity 1). Each group rests in the state `rest` gives it, or else in the state of the last pose that names it.",
   timing: "When and how often the morph plays.",
+  replay:
+    "A chance for each play to go back over part of its keyframes before it finishes: `replay { from = 0%; to = 66.667%; chance = 50% }`. Each time the play reaches `to` with a replay still to make, it holds the pose at `to` for a pause drawn between `delay_min` and `delay_max`, then continues from `from`. A replay lengthens its play by the time between `from` and `to` plus its pause; `duration` stays the time of one straight pass.",
+  "replay.from": "The keyframe position a replay resumes from: a percentage from `0%` to `100%`, or a number from 0 to 1, below `to`. Default `0%`.",
+  "replay.to":
+    "The keyframe position a play turns back at: a percentage from `0%` to `100%`, or a number from 0 to 1, above `from`. Default `100%`, the end of the play.",
+  "replay.chance":
+    "How likely each replay is: a percentage from `0%` to `100%`, or a number from 0 to 1. When a play starts it rolls `chance` up to `count` times and stops at the first roll that fails. `0%` never replays. Required.",
+  "replay.count": "The most replays one play makes: a whole number of at least 1. Default 1.",
+  "replay.delay_min": "Shortest pause, in seconds, before a replay starts, holding the pose at `to`. Needs `delay_max`. Without both, a replay starts at once.",
+  "replay.delay_max": "Longest pause, in seconds, before a replay starts. Each pause is drawn uniformly between the two bounds. Needs `delay_min`.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
   trigger:

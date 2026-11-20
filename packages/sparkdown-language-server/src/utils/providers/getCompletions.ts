@@ -127,7 +127,7 @@ const FLOW_KEYWORDS = ["DONE", "END"];
 
 const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 
-const isPrefilteredName = (name: string) => name.includes("~");
+const isPrefilteredName = (name: string) => name.includes(":");
 
 const unclosedOpenerBefore = (
   tree: Tree,
@@ -1575,10 +1575,10 @@ const completionsAt = (
   if (program?.context && leftStack.some((node) => node.name === "ImageCommand")) {
     const asset = leftStack.find((node) => node.name === "AssetCommandName");
     const prefix = asset ? read(asset.from, documentCursorOffset) : "";
-    const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_]\w*(?:@\w+)*)((?:[:~][\w.-]*)+)$/);
+    const match = prefix.match(/(?:^|[+])\s*([a-zA-Z_]\w*(?:@\w+)*)((?::[\w.-]*)+)$/);
     if (match) {
       const name = match[1]!;
-      const current = match[2]!.split(/[:~]/).at(-1) ?? "";
+      const current = match[2]!.split(":").at(-1) ?? "";
       const start = documentCursorOffset - current.length;
       const { before, after } = readAssetCommandAttributes(leftStack, read, documentCursorOffset, start);
       const attributeNode = leftStack.find((node) => node.name === "AssetCommandFilterName");

@@ -103,7 +103,7 @@ describe("the Share page", () => {
     const back = [...host!.querySelectorAll("button")].find((el) => el.textContent?.includes("Back to story"))!;
     await act(async () => back.click());
     await settle();
-    expect(calls.routes).toEqual(["write"]);
+    expect(calls.routes).toEqual(["story"]);
   });
 
   it("names the screenplay settings and follows them when they change", async () => {
@@ -113,7 +113,7 @@ describe("the Share page", () => {
     await act(async () => workspaceSettings.setProjectSetting("screenplayPaperSize", "a4"));
     expect(summary()).toBe("A4 · Title page · No scene numbers");
     expect(
-      card("Export a screenplay").querySelector<HTMLAnchorElement>('a[href="#project?section=screenplay-settings"]'),
+      card("Export a screenplay").querySelector<HTMLAnchorElement>('a[href="#settings?section=screenplay-settings"]'),
     ).not.toBeNull();
   });
 

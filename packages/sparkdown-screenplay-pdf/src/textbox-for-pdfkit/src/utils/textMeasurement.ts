@@ -2,6 +2,7 @@ import type PDFKit from "pdfkit";
 import { FormattedText } from "../types/FormattedText";
 import { MeasuredText } from "../types/MeasuredText";
 import { getEmojiProvider, measureEmojiWidth } from "../../../emoji/emojiText";
+import { faceRuns, fallbackRunWidth } from "../../../utils/fallbackFonts";
 
 export const measureTextWidth = (
   textChunk: FormattedText,
@@ -17,20 +18,30 @@ export const measureTextWidth = (
       return measureEmojiWidth(provider, textChunk.text, fontSize);
     }
   }
-  if (textChunk.font != null) {
-    doc.font(textChunk.font);
-  }
   if (textChunk.fontSize != null) {
     doc.fontSize(textChunk.fontSize);
   }
-  return doc.widthOfString(textChunk.text, {
-    link: textChunk.link,
-    align: "left",
-    baseline: textChunk.baseline || "alphabetic",
-    oblique: textChunk.oblique,
-    underline: textChunk.underline,
-    strike: textChunk.strike,
-  });
+  let width = 0;
+  const runs = faceRuns(doc, textChunk.text, textChunk.font);
+  for (const run of runs) {
+    if (run.font != null) {
+      doc.font(run.font);
+    }
+    width += run.fallback
+      ? fallbackRunWidth(doc, run.text)
+      : doc.widthOfString(run.text, {
+          link: textChunk.link,
+          align: "left",
+          baseline: textChunk.baseline || "alphabetic",
+          oblique: textChunk.oblique,
+          underline: textChunk.underline,
+          strike: textChunk.strike,
+        });
+  }
+  if (runs.some((run) => run.fallback) && textChunk.font != null) {
+    doc.font(textChunk.font);
+  }
+  return width;
 };
 
 export const measureTextsWidth = (
