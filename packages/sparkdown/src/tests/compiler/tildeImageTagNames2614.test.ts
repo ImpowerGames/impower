@@ -46,6 +46,11 @@ describe("an image tag whose name starts with ~ is an error, since no script can
     }
   });
 
+  it("an indented [[~blush]] beside an image file ~blush.png reports the name (#2615)", () => {
+    const program = compile([`${ROOT}/assets/Images/~blush.png`], "scene start\n  [[~blush]]\nend\n");
+    expect(messagesOf(program)).toContainEqual({ message: TILDE, severity: 1, line: 1, from: 4, to: 10 });
+  });
+
   it.each(["[[zzz]]", "[[zzz~happy]]", "[[show portrait zzz]]"])("%s does not report it", (tag) => {
     const program = compile([], `scene start\n${tag}\nend\n`);
     expect(messagesOf(program).map((d) => d.message)).not.toContain(TILDE);
