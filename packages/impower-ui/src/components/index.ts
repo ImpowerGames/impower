@@ -435,7 +435,6 @@ export {
   tileVariants,
   tileOpenVariants,
   tileActionsVariants,
-  tileNoticeVariants,
   tileMarkVariants,
   tileMediaVariants,
   tileLabelVariants,

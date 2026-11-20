@@ -190,7 +190,7 @@ export const tileDescriptionVariants = cva("min-w-0 text-[11px]/[1.4] text-muted
   defaultVariants: { size: "landscape" },
 });
 
-export const tileNoticeVariants = cva("min-h-0 overflow-auto rounded-[9px] bg-bg/92", {
+const tileNoticeVariants = cva("min-h-0 overflow-auto rounded-[9px] bg-bg/92", {
   variants: { size: bySize("notice") },
   defaultVariants: { size: "landscape" },
 });
