@@ -629,7 +629,7 @@ About one blink in eight is double, with the eyes held open for 0.17 to 0.35 sec
 | `from` | `0%` | The keyframe position a replay resumes from. |
 | `to` | `100%` | The keyframe position a play turns back at. |
 | `chance` | required | How likely each replay is: a percentage from `0%` to `100%`, or a number from 0 to 1. `0%` never replays. |
-| `count` | `1` | The most replays one play makes: a whole number of at least 1. |
+| `count` | `1` | The most replays this range makes in one play: a whole number of at least 1. |
 | `delay_min` | none | Shortest pause, in seconds, before a replay starts. |
 | `delay_max` | none | Longest such pause. |
 

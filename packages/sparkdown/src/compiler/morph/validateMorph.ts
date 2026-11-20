@@ -951,7 +951,7 @@ function replayFieldProblem(field: string, value: unknown): string | null {
     case "count":
       return typeof value === "number" && Number.isInteger(value) && value >= 1
         ? null
-        : "`count` is the most replays one play makes: a whole number of at least 1.";
+        : "`count` is the most replays this range makes in one play: a whole number of at least 1.";
     case "delay_min":
     case "delay_max":
       return secondsProblem(field, value, false);

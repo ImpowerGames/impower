@@ -81,7 +81,7 @@ describe("a replay block of several entries (#2581)", () => {
   test.each([
     ["chance = 150%", "150%", "`chance` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `chance = 50%`."],
     ["from = -5%; chance = 50%", "-5%", "`from` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `from = 0%`."],
-    ["chance = 50%; count = 0", "0", "`count` is the most replays one play makes: a whole number of at least 1."],
+    ["chance = 50%; count = 0", "0", "`count` is the most replays this range makes in one play: a whole number of at least 1."],
     ["chance = 50%; delay_min = 0.17", "0.17", "`delay_min` needs `delay_max`: the pause before a replay is drawn between the two."],
     ["chance = 50%; delay_min = 0.35; delay_max = 0.17", "0.17", "`delay_max` (0.17) must be at least `delay_min` (0.35)."],
     ["chance = 50%; weight = 2", "weight", "Unknown morph field `weight`."],
@@ -167,8 +167,8 @@ describe("an inherited list of replays (#2581)", () => {
     const text = `${TALK.replace("count = 2", "count = 0")}\nmorph quiet as talk {\n  blend = cut\n}\n`;
     expect(compile(text).context?.["morph"]?.["quiet"]?.replay).toHaveLength(2);
     expect(reported(text)).toEqual([
-      { text: "0", message: "`count` is the most replays one play makes: a whole number of at least 1.", severity: 1 },
-      { text: "talk", message: "`replay.count`, inherited: `count` is the most replays one play makes: a whole number of at least 1.", severity: 1 },
+      { text: "0", message: "`count` is the most replays this range makes in one play: a whole number of at least 1.", severity: 1 },
+      { text: "talk", message: "`replay.count`, inherited: `count` is the most replays this range makes in one play: a whole number of at least 1.", severity: 1 },
     ]);
   });
 });
