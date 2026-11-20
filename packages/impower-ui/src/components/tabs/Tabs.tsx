@@ -95,8 +95,10 @@ export type TabsVariant = NonNullable<
 
 const tabId = (panel: string, value: string) => `${panel}-trigger-${value}`;
 
+export type TabsPanel = string | ((value: string) => string);
+
 type TabsContextValue = {
-  panel: string;
+  panel: TabsPanel;
   variant: TabsVariant;
   indicator: "underline" | "none";
   vertical: boolean;
@@ -113,7 +115,7 @@ const TabsContext = createContext<TabsContextValue>({
 });
 
 export type TabsProps = {
-  panel: string;
+  panel: TabsPanel;
   value: string | null;
   onChange: (value: string) => void;
   variant?: TabsVariant;
@@ -280,6 +282,7 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
+  const panel = typeof ctx.panel === "string" ? ctx.panel : ctx.panel(value);
   const accented = ctx.variant !== "default";
   const activeColorClass = accented ? "text-accent" : "text-tab-ink";
   const inactiveColor = color || (accented ? "text-muted" : "text-tab-muted");
@@ -288,8 +291,8 @@ export function Tab({
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       <button
         type="button"
-        id={tabId(ctx.panel, value)}
-        aria-controls={ctx.panel}
+        id={tabId(panel, value)}
+        aria-controls={panel}
         class={cn(
           tabTrigger({
             orientation: ctx.vertical ? "vertical" : "horizontal",

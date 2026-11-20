@@ -1,3 +1,4 @@
+import "./resizeObserverStub";
 import { PinFillIcon, PinIcon } from "@impower/impower-ui/icons";
 import { h, render } from "preact";
 import { readFileSync } from "node:fs";
@@ -9,8 +10,11 @@ import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/Pre
 import { GamePlayerController } from "../GamePlayerController";
 import { mountPlayerBar } from "./playerBarHarness";
 import { SIMULATION_FAILURE_MESSAGES } from "../utils/describeSimulationFailure";
+import { routeTabs, shownText } from "./routeListQueries";
 
 const URI = "file://proj/main.sd";
+
+const routeTabName = (list: Element) => shownText(routeTabs(list)[0]!);
 
 const at = (line: number, uri = URI) => ({
   uri,
@@ -64,11 +68,11 @@ function player() {
   const button = () =>
     routeButton.querySelector<HTMLButtonElement>(".route-button");
   const entries = () =>
-    [...routeList.querySelectorAll(".route-entry")].map((e) =>
+    [...routeList.querySelectorAll("[data-route-entry]")].map((e) =>
       [
-        e.querySelector(".route-line")?.textContent ?? "",
-        e.querySelector(".route-text")?.textContent ?? "",
-        e.querySelector(".route-badge")?.textContent ?? "",
+        e.querySelector("[data-route-line]")?.textContent ?? "",
+        e.querySelector("[data-route-text]")?.textContent ?? "",
+        e.querySelector("[data-route-badge]")?.textContent ?? "",
       ].join(" | "),
     );
   const toggle = (label: string) =>
@@ -166,7 +170,7 @@ describe("the route list", () => {
     p.button()!.click();
     expect(p.routeList.hidden).toBe(false);
     expect(p.viewport.classList.contains("route-open")).toBe(true);
-    expect(p.routeList.querySelector(".route-list-title")!.textContent).toBe(
+    expect(routeTabName(p.routeList)).toBe(
       "Route to line 21",
     );
     expect(p.entries()).toEqual([
@@ -193,9 +197,9 @@ describe("the route list", () => {
     const hollow = drawn(PinIcon);
     const filled = drawn(PinFillIcon);
     expect(hollow).not.toEqual(filled);
-    expect(glyph(".route-entry[data-kind='auto']")).toEqual(hollow);
+    expect(glyph("[data-route-entry][data-kind='auto']")).toEqual(hollow);
     expect(glyph(".route-toggle[data-kind='auto']")).toEqual(hollow);
-    expect(glyph(".route-entry[data-kind='pinned']")).toEqual(filled);
+    expect(glyph("[data-route-entry][data-kind='pinned']")).toEqual(filled);
     expect(glyph(".route-toggle[data-kind='pinned']")).toEqual(filled);
   });
 
@@ -207,10 +211,22 @@ describe("the route list", () => {
       );
       return rule?.[2]!.match(/color:\s*([^;]+);/)?.[1];
     };
-    expect(colourOf('.route-entry[data-kind="auto"] .route-icon')).toBe("var(--swp-route-muted-color)");
     expect(colourOf('.route-toggle[data-kind="auto"] .route-icon')).toBe("var(--swp-route-muted-color)");
-    expect(colourOf('.route-entry[data-kind="pinned"] .route-icon')).toBe("var(--swp-route-accent-color)");
     expect(colourOf('.route-toggle[data-kind="pinned"] .route-icon')).toBe("var(--swp-route-accent-color)");
+    const p = player();
+    const route = exampleRoute();
+    route.decisions.push({ kind: "pinned", location: at(10), text: "Lie.", meeting: 1 });
+    p.report({ route });
+    p.button()!.click();
+    const entryIconColour = (kind: string) =>
+      p.routeList
+        .querySelector(`[data-route-entry][data-kind='${kind}'] svg.route-icon`)!
+        .parentElement!.className.split(/\s+/)
+        .filter((c) => c.startsWith("text-"));
+    expect(entryIconColour("auto")).toEqual(["text-muted"]);
+    expect(entryIconColour("pinned")).toEqual(["text-accent"]);
+    expect(entryIconColour("forced")).toEqual(["text-warning"]);
+    expect(entryIconColour("clipped")).toEqual(["text-warning"]);
   });
 
   test("each toggle shows its kind's count, and a toggle hides its kind and the foot counts it", () => {
@@ -258,7 +274,7 @@ describe("the route list", () => {
     p.report({ route: exampleRoute() });
     p.button()!.click();
     const link = [
-      ...p.routeList.querySelectorAll<HTMLButtonElement>(".route-line"),
+      ...p.routeList.querySelectorAll<HTMLButtonElement>("[data-route-line]"),
     ].find((l) => l.textContent === "15")!;
     link.click();
     const shown = p.sent.filter((m) => m.method === "window/showDocument");
@@ -311,7 +327,7 @@ describe("the route list", () => {
     p.button()!.click();
     p.report({ route: { ...exampleRoute(), target: at(22) } });
     expect(p.routeList.hidden).toBe(false);
-    expect(p.routeList.querySelector(".route-list-title")!.textContent).toBe(
+    expect(routeTabName(p.routeList)).toBe(
       "Route to line 22",
     );
   });

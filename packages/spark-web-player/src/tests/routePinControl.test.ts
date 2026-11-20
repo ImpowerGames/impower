@@ -1,3 +1,4 @@
+import "./resizeObserverStub";
 import { afterEach, describe, expect, test } from "vitest";
 import {
   MessageProtocol,
@@ -102,7 +103,7 @@ function player() {
     routeButton.querySelector<HTMLButtonElement>(".route-button")!.click();
   const expand = async () => {
     routeList
-      .querySelector<HTMLButtonElement>(".route-entry-toggle")!
+      .querySelector<HTMLButtonElement>("button[aria-expanded]")!
       .click();
     await settle();
   };
@@ -159,11 +160,11 @@ describe("the pin control", () => {
     p.report(pinnedRoute());
     p.open();
     const entry = p.routeList.querySelector<HTMLElement>(
-      '.route-entry[data-kind="pinned"]',
+      '[data-route-entry][data-kind="pinned"]',
     )!;
-    expect(entry.querySelector(".route-badge")!.textContent).toBe("Pinned");
+    expect(entry.querySelector("[data-route-badge]")!.textContent).toBe("Pinned");
     expect(p.routeList.querySelector(".route-pin-control")).toBeNull();
-    entry.querySelector<HTMLButtonElement>(".route-entry-toggle")!.click();
+    entry.querySelector<HTMLButtonElement>("button[aria-expanded]")!.click();
     await settle();
     expect(
       p.routeList.querySelector(".route-pin-sentence")!.textContent,
@@ -254,7 +255,7 @@ describe("the pin control", () => {
     p.report(gated());
     p.open();
     p.routeList
-      .querySelector<HTMLButtonElement>('.route-entry[data-kind="pinned"] .route-entry-toggle')!
+      .querySelector<HTMLButtonElement>('[data-route-entry][data-kind="pinned"] button[aria-expanded]')!
       .click();
     await settle();
     p.button("Pin", p.option("Wait."))!.click();

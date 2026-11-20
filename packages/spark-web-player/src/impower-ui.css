@@ -1,0 +1,50 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css";
+@import "../../impower-ui/src/mappings.css";
+@source "../../impower-ui/src/components/button";
+@source "../../impower-ui/src/components/list-row";
+@source "../../impower-ui/src/components/panel-head";
+@source "../../impower-ui/src/components/popover";
+@source "../../impower-ui/src/components/tabs";
+@source "./route";
+@source "./saves";
+@source not "../../impower-ui/src/**/*.test.{ts,tsx}";
+@source not "../../impower-ui/src/**/*.gallery.tsx";
+@source not "./route/**/*.test.{ts,tsx}";
+@source not "./saves/**/*.test.{ts,tsx}";
+
+body spark-web-player :where([data-panel-head], [data-impower-ui]),
+body spark-web-player :where([data-panel-head], [data-impower-ui]) *,
+body spark-web-player :where([data-panel-head], [data-impower-ui]) *::before,
+body spark-web-player :where([data-panel-head], [data-impower-ui]) *::after {
+  position: static;
+  display: revert;
+  flex-direction: row;
+  align-items: normal;
+}
+
+spark-web-player {
+  --tab-height: 23px;
+  --tab-padding-x: 8px;
+  --tab-gap: 6px;
+  --tab-font-size: var(--swp-toolbar-font-size);
+  --panel-head-height: 31px;
+  --panel-head-padding-x: 2px;
+  --panel-head-gap: 6px;
+  --list-row-compact-height: 22px;
+  --list-row-compact-padding-x: 0px;
+  --list-row-compact-padding-y: 0px;
+  --list-row-compact-gap: 6px;
+  --list-row-compact-font-size: var(--swp-toolbar-font-size);
+  --control-size: 22px;
+  --control-radius: 3px;
+  --accent: var(--swp-route-accent-color);
+  --muted: var(--swp-route-muted-color);
+  --tab-muted: var(--swp-route-muted-color);
+  --panel: var(--swp-route-panel-background-color);
+  --edge: var(--swp-route-panel-border-color);
+  --tint: var(--swp-route-active-color);
+  --control-hover: var(--swp-route-hover-color);
+  --warning: var(--swp-route-warning-color);
+  --error: var(--swp-route-error-color);
+}
