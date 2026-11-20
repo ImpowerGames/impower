@@ -60,7 +60,8 @@ open pane, the Story pane's view and `screen.settingsOpen` decide it, and
 The old names `#write`, `#logic`, `#main`, `#collection` and `#project` open
 their page through `LEGACY_ROUTES` and the address bar is rewritten to the
 current name, keeping a Settings `?section=`. `LEGACY_ROUTES_REMOVAL_DATE`
-(2027-02-18) is when the redirects go.
+(2027-02-18) is the planned removal date: nothing reads it at run time, and the
+redirects stay until a change deletes `LEGACY_ROUTES` on or after that date.
 
 ### Layouts
 
