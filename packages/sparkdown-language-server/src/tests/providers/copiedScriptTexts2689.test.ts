@@ -251,6 +251,37 @@ describe("duplicating a script renames the declarations the copy would repeat", 
     );
   });
 
+  test("a jump to a branch of a renamed scene renames the scene part of its path and keeps the branch's name", () => {
+    const { before, after, copy } = copyOne(
+      lines(
+        "scene chapter_1",
+        "  -> ending.last",
+        "end",
+        "",
+        "scene ending",
+        "  branch last",
+        "    Bye.",
+        "  end",
+        "end",
+      ),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      lines(
+        "scene chapter_1_copy",
+        "  -> ending_copy.last",
+        "end",
+        "",
+        "scene ending_copy",
+        "  branch last",
+        "    Bye.",
+        "  end",
+        "end",
+      ),
+    );
+  });
+
   test("a name that already ends in the suffix gets a number instead of the original's name", () => {
     const { after, copy } = copyOne(
       lines(
