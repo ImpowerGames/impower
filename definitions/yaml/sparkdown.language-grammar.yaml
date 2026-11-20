@@ -4851,13 +4851,21 @@ repository:
   SelectorSupportsSelectorFunction:
     # lookaround: `SelectorCssWord`, tried after this rule, reads a longer word
     # holding `selector` (`selectorselector(card)`, `selectors(card)`) whole
-    # only when this rule declines at the word's start and at each `selector`
-    # inside it. Trying the word first would take every
+    # only when this rule declines at the word's start. The writer's
+    # `SELECTOR_FUNCTION_BEFORE` also counts an `@` as the edge of the
+    # function name, so a joined word ending in `@selector` opens it too
+    # (`foo@selector(card)`). Trying the word first would take every
     # `selector(`, and taking the `(` here would copy the patterns of
     # `RecursiveSelectorFunctionParameters`, which reads it.
-    begin: (selector)(?=[(])
+    begin: (?:({{SELECTOR_WORD}})([@]))?(selector)(?=[(])
     beginCaptures:
       1:
+        patterns:
+          - { include: "#SelectorCssWord" }
+      2:
+        patterns:
+          - { include: "#SelectorCssPunctuation" }
+      3:
         patterns:
           - { include: "#SelectorCssWord" }
     patterns:
@@ -4916,8 +4924,6 @@ repository:
     patterns:
       - { include: "#LuauStructBlockKeyString" }
       - { include: "#StringLiteral" }
-      - { include: "#UnitValue" }
-      - { include: "#NumericLiteral" }
       - { include: "#Separator" }
       - { include: "#PunctuationComma" }
       - { include: "#SelectorCssWord" }
@@ -4967,10 +4973,10 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauStructBlockKeyString" }
+      - { include: "#SelectorCssWord" }
       - { include: "#SelectorPropertyNamePart" }
       - { include: "#LuauSparkleElementClass" }
       - { include: "#PunctuationComma" }
-      - { include: "#SelectorCssWord" }
       - { include: "#SelectorCssPunctuation" }
     end: $|({{WS}}*)([)])
     endCaptures:
@@ -5013,8 +5019,8 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauStructBlockKeyString" }
-      - { include: "#SelectorPropertyNamePart" }
       - { include: "#SelectorCssWord" }
+      - { include: "#SelectorPropertyNamePart" }
       - { include: "#SelectorCssPunctuation" }
     end: $|({{WS}}*)(\])
     endCaptures:
@@ -5509,9 +5515,9 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauStructBlockKeyString" }
-      - { include: "#SelectorPropertyNamePart" }
       - { include: "#ParameterStringIdentifier" }
       - { include: "#SelectorCssWord" }
+      - { include: "#SelectorPropertyNamePart" }
       - { include: "#IllegalChar" }
     end: $|({{WS}}*)([)])
     endCaptures:

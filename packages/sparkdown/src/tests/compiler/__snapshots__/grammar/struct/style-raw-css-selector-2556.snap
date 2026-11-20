@@ -155,7 +155,9 @@ sparkdown [0..460]
  │   │       │   │   │   │               │   ├─ Separator [111..112]: " "
  │   │       │   │   │   │               │   └─ SelectorSupportsSelectorFunction [112..126]
  │   │       │   │   │   │               │       ├─ SelectorSupportsSelectorFunction_begin [112..120]
- │   │       │   │   │   │               │       │   └─ SelectorSupportsSelectorFunction_begin_c1 [112..120]
+ │   │       │   │   │   │               │       │   ├─ SelectorSupportsSelectorFunction_begin_c1 112
+ │   │       │   │   │   │               │       │   ├─ SelectorSupportsSelectorFunction_begin_c2 112
+ │   │       │   │   │   │               │       │   └─ SelectorSupportsSelectorFunction_begin_c3 [112..120]
  │   │       │   │   │   │               │       │       └─ SelectorCssWord [112..120]: "selector"
  │   │       │   │   │   │               │       ├─ SelectorSupportsSelectorFunction_content [120..126]
  │   │       │   │   │   │               │       │   └─ RecursiveSelectorFunctionParameters [120..126]

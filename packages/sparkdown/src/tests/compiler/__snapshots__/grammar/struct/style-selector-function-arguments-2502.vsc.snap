@@ -181,7 +181,7 @@ text.source.sparkdown [0..629]
  │       ├─ entity.name.function.attribute.name.view.sd [290..291]: "@"
  │       ├─ entity.name.function.attribute.name.view.sd [291..302]: "nth-child-x"
  │       ├─ punctuation.definition.template-expression.begin.sd [302..303]: "("
- │       ├─ constant.numeric.sd [303..304]: "1"
+ │       ├─ string.unquoted.css.sd [303..304]: "1"
  │       ├─ punctuation.definition.template-expression.end.sd [304..305]: ")"
  │       ├─ punctuation.whitespace.sd [305..306]: " "
  │       └─ punctuation.definition.template-expression.begin.sd [306..307]: "{"

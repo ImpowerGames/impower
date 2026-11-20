@@ -7665,9 +7665,23 @@
       }
     },
     "SelectorSupportsSelectorFunction": {
-      "begin": "(selector)(?=[(])",
+      "begin": "(?:((?:[\\p{L}\\p{N}_-]+(?:[@][\\p{L}\\p{N}_][\\p{L}\\p{N}_-]*)*))([@]))?(selector)(?=[(])",
       "beginCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#SelectorCssWord"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SelectorCssPunctuation"
+            }
+          ]
+        },
+        "3": {
           "patterns": [
             {
               "include": "#SelectorCssWord"
@@ -7777,12 +7791,6 @@
           "include": "#StringLiteral"
         },
         {
-          "include": "#UnitValue"
-        },
-        {
-          "include": "#NumericLiteral"
-        },
-        {
           "include": "#Separator"
         },
         {
@@ -7858,6 +7866,9 @@
           "include": "#LuauStructBlockKeyString"
         },
         {
+          "include": "#SelectorCssWord"
+        },
+        {
           "include": "#SelectorPropertyNamePart"
         },
         {
@@ -7865,9 +7876,6 @@
         },
         {
           "include": "#PunctuationComma"
-        },
-        {
-          "include": "#SelectorCssWord"
         },
         {
           "include": "#SelectorCssPunctuation"
@@ -7944,10 +7952,10 @@
           "include": "#LuauStructBlockKeyString"
         },
         {
-          "include": "#SelectorPropertyNamePart"
+          "include": "#SelectorCssWord"
         },
         {
-          "include": "#SelectorCssWord"
+          "include": "#SelectorPropertyNamePart"
         },
         {
           "include": "#SelectorCssPunctuation"
@@ -8815,13 +8823,13 @@
           "include": "#LuauStructBlockKeyString"
         },
         {
-          "include": "#SelectorPropertyNamePart"
-        },
-        {
           "include": "#ParameterStringIdentifier"
         },
         {
           "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorPropertyNamePart"
         },
         {
           "include": "#IllegalChar"

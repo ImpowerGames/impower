@@ -117,9 +117,18 @@ const RAW_CSS_KEYS = [
   "&:²where(label)",
   "(foo@scope(card))",
   "(foo@supports selector(card))",
+  "(1px@scope(card))",
+  "(1px@media (min-width: sm))",
+  "@lang(1px@scope(card))",
 ];
 
-const NOT_A_STATE_KEYS = ["(foo@media (min-width: sm))", "(foo@scope(card))", "(foo@supports selector(card))"];
+const NOT_A_STATE_KEYS = [
+  "(foo@media (min-width: sm))",
+  "(foo@scope(card))",
+  "(foo@supports selector(card))",
+  "(1px@scope(card))",
+  "(1px@media (min-width: sm))",
+];
 
 const SELECTOR_LIST_KEYS: [key: string, components: string[]][] = [
   ["@scope (card) to (icon)", ["card", "icon"]],
@@ -127,6 +136,9 @@ const SELECTOR_LIST_KEYS: [key: string, components: string[]][] = [
   ["@supports (display: grid) and selector(card)", ["card"]],
   ["@supports not (selector(card))", ["card"]],
   ["@supports ((display: grid) and selector(card))", ["card"]],
+  ["@supports foo@selector(card)", ["card"]],
+  ["@supports (foo@selector(card))", ["card"]],
+  ["@supports ²@selector(card)", ["card"]],
   ["@is(card, icon)", ["card", "icon"]],
 ];
 
