@@ -172,11 +172,6 @@ const THEME: {
         borderColor: "Highlight",
       },
   },
-  "@media (prefers-reduced-motion: reduce)": {
-    ".cm-lineNumbers .cm-gutterElement, .cm-foldGutter .cm-fold-marker": {
-      transition: "none",
-    },
-  },
   "& .cm-textfield": {
     minHeight: "32px",
     width: "225px",
@@ -622,6 +617,11 @@ const THEME: {
     "&::after": {
       color: "var(--syntax-number)",
       maskImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M11 1V5H15V6H11L11 10H15V11H11V15H10V11H6V15H5L5 11H1V10H5L5 6H1V5H5L5 1H6V5H10V1H11ZM6 6L6 10H10L10 6H6Z" fill="black"/></svg>')`,
+    },
+  },
+  "@media (prefers-reduced-motion: reduce)": {
+    ".cm-lineNumbers .cm-gutterElement, .cm-foldGutter .cm-fold-marker": {
+      transition: "none",
     },
   },
 };

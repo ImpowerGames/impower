@@ -13,8 +13,12 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
+const installedCss = () => [...document.querySelectorAll("style")].map((style) => style.textContent ?? "").join("\n");
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const reducedMotionRules = () => {
-  const css = [...document.querySelectorAll("style")].map((style) => style.textContent ?? "").join("\n");
+  const css = installedCss();
   const blocks: string[] = [];
   const pattern = /@media \(prefers-reduced-motion: reduce\)\s*\{/g;
   for (let match = pattern.exec(css); match; match = pattern.exec(css)) {
@@ -41,9 +45,13 @@ describe("the script editor theme under reduced motion", () => {
       .flatMap(([key]) => key.split(",").map((s) => s.trim().replace(/^&\s*/, "")));
     expect(moving.length).toBeGreaterThan(0);
     const reduced = reducedMotionRules();
+    const css = installedCss();
+    const overrideAt = css.lastIndexOf("@media (prefers-reduced-motion: reduce)");
     for (const selector of moving) {
-      const rule = new RegExp(`[^{}]*${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^{}]*\\{[^}]*transition:\\s*none`);
-      expect(reduced, selector).toMatch(rule);
+      expect(reduced, selector).toMatch(new RegExp(`[^{}]*${escape(selector)}[^{}]*\\{[^}]*transition:\\s*none`));
+      const base = [...css.matchAll(new RegExp(`[^{}]*${escape(selector)}[^{}]*\\{[^}]*transition:(?!\\s*none)`, "g"))];
+      expect(base.length, selector).toBeGreaterThan(0);
+      expect(base.at(-1)!.index, `${selector} is declared after its reduced-motion override, which then loses the cascade`).toBeLessThan(overrideAt);
     }
   });
 });
