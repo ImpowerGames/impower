@@ -32,11 +32,7 @@ const findCharacterNameValue = (
   const propertyName = propertyNameNode
     ? document.read(propertyNameNode.from, propertyNameNode.to).trim()
     : "";
-  if (
-    propertyName !== "aliases" &&
-    (propertyName !== "name" ||
-      contentNode.name !== "LuauDoubleQuotedString_content")
-  ) {
+  if (propertyName !== "aliases" && propertyName !== "name") {
     return undefined;
   }
   const defineNode = stack.find((n) => n.name === "LuauDefine");

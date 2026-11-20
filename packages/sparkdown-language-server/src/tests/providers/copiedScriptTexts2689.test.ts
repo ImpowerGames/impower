@@ -195,6 +195,95 @@ describe("duplicating a script renames the declarations the copy would repeat", 
     );
   });
 
+  test("a single-quoted display name takes the suffix with its cues, so the original's cue keeps its speaker", () => {
+    const { before, after, copy, speaker } = copyOne(
+      lines(
+        "define companion as character with",
+        "  name = 'Ada'",
+        "end",
+        "",
+        "scene chapter_1",
+        "  Ada: Hi.",
+        "end",
+      ),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      lines(
+        "define companion_copy as character with",
+        "  name = 'Ada_copy'",
+        "end",
+        "",
+        "scene chapter_1_copy",
+        "  Ada_copy: Hi.",
+        "end",
+      ),
+    );
+    expect([speaker("Ada"), speaker("Ada_copy")]).toEqual(["companion", "companion_copy"]);
+  });
+
+  test("an escaped display name keeps its spelling, takes the suffix, and its cues follow it", () => {
+    const { before, after, copy, speaker } = copyOne(
+      lines(
+        "define companion as character with",
+        "  name = \"\\65da\"",
+        "end",
+        "",
+        "scene chapter_1",
+        "  Ada: Hi.",
+        "end",
+      ),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      lines(
+        "define companion_copy as character with",
+        "  name = \"\\65da_copy\"",
+        "end",
+        "",
+        "scene chapter_1_copy",
+        "  Ada_copy: Hi.",
+        "end",
+      ),
+    );
+    expect([speaker("Ada"), speaker("Ada_copy")]).toEqual(["companion", "companion_copy"]);
+  });
+
+  test("a new name that a local in the copy already uses gets a number, so the renamed global is not captured by the local", () => {
+    const { before, after, copy } = copyOne(
+      lines(
+        "store score = 0",
+        "",
+        "function tally()",
+        "  local score_copy = 10",
+        "  return score + score_copy",
+        "end",
+        "",
+        "scene chapter_1",
+        "  Hi {tally()}.",
+        "end",
+      ),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      lines(
+        "store score_copy_2 = 0",
+        "",
+        "function tally_copy()",
+        "  local score_copy = 10",
+        "  return score_copy_2 + score_copy",
+        "end",
+        "",
+        "scene chapter_1_copy",
+        "  Hi {tally_copy()}.",
+        "end",
+      ),
+    );
+  });
+
   test("a local that reuses a top-level name keeps its name, and so do the uses it shadows", () => {
     const { after, copy } = copyOne(
       lines(

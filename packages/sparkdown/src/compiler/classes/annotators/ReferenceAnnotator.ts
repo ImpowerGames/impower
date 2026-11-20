@@ -794,11 +794,11 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         if (this.defineType === "character" && propName === "name") {
           const stringNode = getDescendent(
-            "LuauDoubleQuotedString",
+            ["LuauDoubleQuotedString", "LuauSingleQuotedString"],
             nodeRef.node,
           );
           const contentNode = stringNode
-            ? getDescendent("LuauDoubleQuotedString_content", stringNode)
+            ? findChildByName(stringNode, `${stringNode.name}_content`)
             : null;
           if (contentNode) {
             const value = processLuauEscapes(this.read(contentNode.from, contentNode.to));

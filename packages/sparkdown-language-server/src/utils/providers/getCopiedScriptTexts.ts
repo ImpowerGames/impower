@@ -20,8 +20,6 @@ const CHARACTER_TEXT: ReadonlySet<Reference["declaration"]> = new Set([
   "character_alias",
 ]);
 
-type Scripts = Pick<SparkdownLanguageServerWorkspace, "document" | "annotations" | "tree">;
-
 const DECLARED_NAME: ReadonlySet<DeclarationType> = new Set([
   "scene",
   "function",
@@ -30,8 +28,14 @@ const DECLARED_NAME: ReadonlySet<DeclarationType> = new Set([
   "define",
 ]);
 
-const storyWideDeclarations = (scripts: Scripts, uri: string) => {
-  const found: { from: number; name: string }[] = [];
+const MAX_NAMINGS = 50;
+
+type Scripts = Pick<SparkdownLanguageServerWorkspace, "document" | "annotations" | "tree">;
+
+type Site = { uri: string; from: number; to: number; name: string; raw: string };
+
+const storyWideDeclarations = (scripts: Scripts, uri: string): Site[] => {
+  const found: Site[] = [];
   const document = scripts.document(uri);
   const names = new Set<number>();
   const d = scripts.annotations(uri)?.declarations.iter();
@@ -45,14 +49,22 @@ const storyWideDeclarations = (scripts: Scripts, uri: string) => {
   walkReferences(scripts, uri, (r) => {
     const reference = r.value?.type;
     if (
-      document &&
-      reference &&
-      ((names.has(r.from) && STORY_WIDE.has(reference.declaration)) ||
-        CHARACTER_TEXT.has(reference.declaration)) &&
-      reference.root == null &&
-      bindingAt(uri, r.from, reference) === undefined
+      !document ||
+      !reference ||
+      reference.root != null ||
+      bindingAt(uri, r.from, reference) !== undefined
     ) {
-      found.push({ from: r.from, name: document.read(r.from, r.to) });
+      return;
+    }
+    const raw = document.read(r.from, r.to);
+    if (names.has(r.from) && STORY_WIDE.has(reference.declaration)) {
+      found.push({ uri, from: r.from, to: r.to, name: raw, raw });
+    } else if (CHARACTER_TEXT.has(reference.declaration)) {
+      const id = reference.symbolIds?.[0];
+      const name = id?.slice(id.indexOf("=") + 1);
+      if (name) {
+        found.push({ uri, from: r.from, to: r.to, name, raw });
+      }
     }
   });
   return found;
@@ -83,33 +95,21 @@ export const getCopiedScriptTexts = (
       taken.add(name);
     }
   }
-  const declared = uris.flatMap((uri) =>
-    storyWideDeclarations(view, uri).map((declaration) => ({ uri, ...declaration })),
-  );
+  const declared = uris.flatMap((uri) => storyWideDeclarations(view, uri));
+  const declaredAt = new Map(declared.map((site) => [`${site.uri}\n${site.from}`, site]));
   for (const { name } of declared) {
     taken.add(name);
   }
-  const renamed = new Map<string, string>();
-  for (const { name } of declared) {
-    if (!renamed.has(name)) {
-      let candidate = name + suffix;
-      for (let n = 2; taken.has(candidate); n += 1) {
-        candidate = `${name}${suffix}_${n}`;
-      }
-      taken.add(candidate);
-      renamed.set(name, candidate);
-    }
-  }
 
-  const edits = new Map<string, Map<number, { to: number; text: string }>>();
-  for (const { uri, from, name } of declared) {
-    const document = view.document(uri)!;
+  const sites = new Map<string, Site>();
+  for (const declaration of declared) {
+    const document = view.document(declaration.uri)!;
     const { references } = getReferences(
       document,
-      view.tree(uri),
+      view.tree(declaration.uri),
       program,
       view,
-      document.positionAt(from),
+      document.positionAt(declaration.from),
       {
         includeDeclaration: true,
         searchOtherFiles: true,
@@ -122,28 +122,78 @@ export const getCopiedScriptTexts = (
       if (!target) {
         continue;
       }
-      const start = target.offsetAt(reference.range.start);
-      const end = target.offsetAt(reference.range.end);
-      if (target.read(start, end) !== name) {
-        continue;
+      const from = target.offsetAt(reference.range.start);
+      const to = target.offsetAt(reference.range.end);
+      const key = `${reference.uri}\n${from}`;
+      const raw = target.read(from, to);
+      const site = declaredAt.get(key);
+      if (site?.name === declaration.name || raw === declaration.name) {
+        sites.set(key, { uri: reference.uri, from, to, name: declaration.name, raw });
       }
-      let inFile = edits.get(reference.uri);
-      if (!inFile) {
-        inFile = new Map();
-        edits.set(reference.uri, inFile);
-      }
-      inFile.set(start, { to: end, text: renamed.get(name)! });
     }
   }
 
-  return files.map(({ uri, text }) => {
-    const inFile = [...(edits.get(uri) ?? new Map<number, { to: number; text: string }>())].sort(
-      ([a], [b]) => b - a,
-    );
-    let result = text;
-    for (const [from, { to, text: replacement }] of inFile) {
-      result = result.slice(0, from) + replacement + result.slice(to);
+  const render = (renamed: ReadonlyMap<string, string>) =>
+    files.map(({ uri, text }) => {
+      const inFile = [...sites.values()]
+        .filter((site) => site.uri === uri)
+        .sort((a, b) => a.from - b.from);
+      let result = "";
+      let at = 0;
+      const moved: { from: number; name: string }[] = [];
+      for (const site of inFile) {
+        const replacement = site.raw + renamed.get(site.name)!.slice(site.name.length);
+        result += text.slice(at, site.from);
+        moved.push({ from: result.length, name: site.name });
+        result += replacement;
+        at = site.to;
+      }
+      return { uri, text: result + text.slice(at), moved };
+    });
+
+  const captured = (rendered: ReturnType<typeof render>) => {
+    const reparsed = new SparkdownDocumentRegistry([]);
+    for (const { uri, text } of rendered) {
+      reparsed.add({ textDocument: { uri, languageId: "sparkdown", version: 0, text } });
     }
-    return result;
-  });
+    const bindingAt = referenceBindings({
+      tree: (uri: string) => reparsed.tree(uri),
+      document: (uri: string) => reparsed.get(uri),
+    } as Scripts);
+    const names = new Set<string>();
+    for (const { uri, moved } of rendered) {
+      for (const { from, name } of moved) {
+        if (bindingAt(uri, from, undefined) !== undefined) {
+          names.add(name);
+        }
+      }
+    }
+    return names;
+  };
+
+  const blocked = new Set(taken);
+  let rendered: ReturnType<typeof render> = [];
+  for (let naming = 0; naming < MAX_NAMINGS; naming += 1) {
+    const used = new Set(blocked);
+    const renamed = new Map<string, string>();
+    for (const { name } of declared) {
+      if (!renamed.has(name)) {
+        let candidate = name + suffix;
+        for (let n = 2; used.has(candidate); n += 1) {
+          candidate = `${name}${suffix}_${n}`;
+        }
+        used.add(candidate);
+        renamed.set(name, candidate);
+      }
+    }
+    rendered = render(renamed);
+    const capturing = captured(rendered);
+    if (capturing.size === 0) {
+      break;
+    }
+    for (const name of capturing) {
+      blocked.add(renamed.get(name)!);
+    }
+  }
+  return rendered.map(({ text }) => text);
 };
