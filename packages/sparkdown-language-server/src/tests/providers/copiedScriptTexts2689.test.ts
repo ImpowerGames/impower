@@ -1,5 +1,6 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { characterNames, cueCharacter } from "@impower/sparkdown/src/compiler/utils/cueCharacter";
 import { describe, expect, test, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
@@ -68,14 +69,16 @@ const duplicate = (
   const files = Object.entries(originals).map(([uri, text]) => ({ uri, text }));
   const texts = getCopiedScriptTexts(workspace, compile(scripts), files, suffix);
   const copies = Object.fromEntries(files.map(({ uri }, i) => [copyUri(uri), texts[i]!]));
-  return { before: problems(scripts), after: problems({ ...scripts, ...copies }), copies };
+  const context = compile({ ...scripts, ...copies }).context as Record<string, unknown>;
+  const speaker = (cue: string) => cueCharacter(context, characterNames(context), cue);
+  return { before: problems(scripts), after: problems({ ...scripts, ...copies }), copies, speaker };
 };
 
 const CHAPTER = `${ROOT}scripts/chapter_1.sd`;
 const CHAPTER_COPY = `${ROOT}scripts/chapter_1_copy.sd`;
 const copyOne = (text: string, suffix = "_copy") => {
-  const { before, after, copies } = duplicate({ [CHAPTER]: text }, () => CHAPTER_COPY, suffix);
-  return { before, after, copy: copies[CHAPTER_COPY]! };
+  const { before, after, copies, speaker } = duplicate({ [CHAPTER]: text }, () => CHAPTER_COPY, suffix);
+  return { before, after, copy: copies[CHAPTER_COPY]!, speaker };
 };
 
 describe("duplicating a script renames the declarations the copy would repeat", () => {
@@ -143,13 +146,52 @@ describe("duplicating a script renames the declarations the copy would repeat", 
         "end",
         "",
         "define companion_copy as character with",
-        "  name = \"Ada\"",
+        "  name = \"Ada_copy\"",
         "end",
         "",
         "scene chapter_1_copy",
         "  Hi {thing_copy.x} {limit_copy}.",
         "end",
       ),
+    );
+  });
+
+  test("a character's display name and aliases take the suffix with the cues that use them, so each script's cues keep their own speaker", () => {
+    const { before, after, copy, speaker } = copyOne(
+      lines(
+        "define companion as character with",
+        "  name = \"Ada\"",
+        "  aliases = { \"VISITOR\", 'GUEST' }",
+        "end",
+        "",
+        "scene chapter_1",
+        "  VISITOR: Hi.",
+        "  GUEST: Hey.",
+        "  Ada: Yo.",
+        "  companion: Hm.",
+        "end",
+      ),
+    );
+    expect(before).toEqual([]);
+    expect(after).toEqual([]);
+    expect(copy).toBe(
+      lines(
+        "define companion_copy as character with",
+        "  name = \"Ada_copy\"",
+        "  aliases = { \"VISITOR_copy\", 'GUEST_copy' }",
+        "end",
+        "",
+        "scene chapter_1_copy",
+        "  VISITOR_copy: Hi.",
+        "  GUEST_copy: Hey.",
+        "  Ada_copy: Yo.",
+        "  companion_copy: Hm.",
+        "end",
+      ),
+    );
+    expect(["VISITOR", "GUEST", "Ada", "companion"].map(speaker)).toEqual(Array(4).fill("companion"));
+    expect(["VISITOR_copy", "GUEST_copy", "Ada_copy", "companion_copy"].map(speaker)).toEqual(
+      Array(4).fill("companion_copy"),
     );
   });
 

@@ -15,6 +15,11 @@ const STORY_WIDE: ReadonlySet<Reference["declaration"]> = new Set([
   "define_variable_name",
 ]);
 
+const CHARACTER_TEXT: ReadonlySet<Reference["declaration"]> = new Set([
+  "character_name",
+  "character_alias",
+]);
+
 type Scripts = Pick<SparkdownLanguageServerWorkspace, "document" | "annotations" | "tree">;
 
 const DECLARED_NAME: ReadonlySet<DeclarationType> = new Set([
@@ -42,8 +47,8 @@ const storyWideDeclarations = (scripts: Scripts, uri: string) => {
     if (
       document &&
       reference &&
-      names.has(r.from) &&
-      STORY_WIDE.has(reference.declaration) &&
+      ((names.has(r.from) && STORY_WIDE.has(reference.declaration)) ||
+        CHARACTER_TEXT.has(reference.declaration)) &&
       reference.root == null &&
       bindingAt(uri, r.from, reference) === undefined
     ) {
