@@ -173,7 +173,7 @@ html {
 
 html.keyboard-open,
 html.keyboard-open body {
-  touch-action: none;
+  touch-action: pinch-zoom;
 }
 
 [data-phone-shell]:not([data-editing]) .sparkdown-script-editor-root .cm-keyboard-toolbar,

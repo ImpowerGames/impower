@@ -62,7 +62,7 @@ describe("the phone layout around the on-screen keyboard", () => {
     expect(toolbar(page("", "", panel))).toBe("none");
   });
 
-  it("stops the page itself panning under the visible area while the keyboard is open", () => {
+  it("stops the page itself panning under the visible area while the keyboard is open, and still lets a pinch zoom it", () => {
     const touchAction = (win: Window, element: Element) =>
       Array.from(win.document.styleSheets)
         .flatMap((sheet) => Array.from(sheet.cssRules))
@@ -77,8 +77,8 @@ describe("the phone layout around the on-screen keyboard", () => {
     const open = page("keyboard-open", "data-editing");
     const closed = page("", "data-editing");
 
-    expect(touchAction(open, open.document.documentElement)).toBe("none");
-    expect(touchAction(open, open.document.body)).toBe("none");
-    expect(touchAction(closed, closed.document.body)).not.toBe("none");
+    expect(touchAction(open, open.document.documentElement)).toBe("pinch-zoom");
+    expect(touchAction(open, open.document.body)).toBe("pinch-zoom");
+    expect(touchAction(closed, closed.document.body)).toBe("");
   });
 });
