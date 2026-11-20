@@ -43,6 +43,17 @@ spark-web-player *:focus-visible {
   outline: none;
 }
 
+spark-web-player :is(.toolbar-button, .route-button, .saves-button):focus-visible {
+  outline: 2px solid var(--swp-focus-color);
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  spark-web-player :is(.toolbar-button, .route-button, .saves-button):focus-visible {
+    outline-color: Highlight;
+  }
+}
+
 spark-web-player .pause-game *,
 spark-web-player .pause-game *::before,
 spark-web-player .pause-game *::after {
@@ -233,6 +244,7 @@ spark-web-player {
 
   --swp-game-background-color: #000;
   --swp-accent-color: #66baff;
+  --swp-focus-color: var(--swp-accent-color);
   --swp-pause-color: #ffcc00;
   --swp-run-color: #89d185;
   --swp-resize-handle-color: #888;
