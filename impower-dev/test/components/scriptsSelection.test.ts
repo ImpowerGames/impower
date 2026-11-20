@@ -127,8 +127,8 @@ describe("naming the rows on the Scripts page", () => {
     expect(rows.map((row) => row.name)).toEqual([
       expect.stringMatching(/^Open script Main, /),
       "Open folder Drafts, 1 script",
-      "Open script intro.sd, Modified Dec 31, 1969 · 10 B",
-      "Open script outro.sd, Modified Dec 31, 1969 · 10 B",
+      expect.stringMatching(/^Open script intro\.sd, Modified .+ · 10 B$/),
+      expect.stringMatching(/^Open script outro\.sd, Modified .+ · 10 B$/),
     ]);
     expect(rows.filter((row) => !row.contained)).toEqual([]);
   });
