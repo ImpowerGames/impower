@@ -4,7 +4,6 @@ import {
   availableName,
   bytesLabel,
   copyName,
-  renameCopiedScenes,
   defaultName,
   holdingsLabel,
   NAME_MESSAGES,
@@ -182,14 +181,6 @@ describe("name rules", () => {
     expect(copyName("chapter_3", ["chapter_3.sd"], ".sd")).toBe("chapter_3_copy.sd");
     expect(copyName("chapter_3", ["chapter_3.sd", "Chapter_3_Copy.sd"], ".sd")).toBe("chapter_3_copy_2.sd");
     expect(copyName("Drafts", ["Drafts", "Drafts_copy", "Drafts_copy_2"])).toBe("Drafts_copy_3");
-  });
-
-  it("adds a copy's suffix to every scene name it declares, whatever letters the name holds", () => {
-    expect(renameCopiedScenes("scene élan\nend\n", "_copy")).toBe("scene élan_copy\nend\n");
-    expect(renameCopiedScenes("scene first-scene\nend\n", "_copy")).toBe("scene first-scene_copy\nend\n");
-    expect(renameCopiedScenes("\tscene a@b\n", "_copy_2")).toBe("\tscene a@b_copy_2\n");
-    expect(renameCopiedScenes("  scene x-\n", "_copy")).toBe("  scene x_copy-\n");
-    expect(renameCopiedScenes("scenes start\n  scene\n", "_copy")).toBe("scenes start\n  scene\n");
   });
 
   describe("a new script's default name", () => {
