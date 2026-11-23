@@ -98,6 +98,14 @@ describe("the Share page", () => {
     expect(link.textContent).toContain("Open your project in VS Code");
   });
 
+  it("stacks the cards in one column on tablets and phones and two on desktop", async () => {
+    await mount();
+    const grid = card("Export a game").closest<HTMLElement>(".grid")!;
+    expect(grid.classList).toContain("grid-cols-2");
+    expect(grid.classList).toContain("compact:grid-cols-1");
+    expect(grid.classList).toContain("phone:grid-cols-1");
+  });
+
   it("goes back to the story from its Back to story action", async () => {
     await mount();
     const back = [...host!.querySelectorAll("button")].find((el) => el.textContent?.includes("Back to story"))!;

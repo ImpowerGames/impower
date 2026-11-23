@@ -8,7 +8,7 @@ const caretColorChipTarget =
 
 export const caretColorChipVariants = cva(
   [
-    "inline-flex min-w-0 max-w-full items-center gap-[7px] rounded-full border border-solid border-edge bg-transparent px-3",
+    "inline-flex min-w-0 max-w-full items-center gap-[7px] rounded-full border border-solid border-field-edge bg-transparent px-3",
     "font-sans text-[12px]/[1] font-normal whitespace-nowrap",
     "group-hover/caret-color:bg-control-hover group-active/caret-color:bg-control-hover",
     "group-focus-visible/caret-color:outline-2 group-focus-visible/caret-color:outline-offset-2",

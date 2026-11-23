@@ -1,4 +1,4 @@
-import { ErrorIcon, WarningIcon } from "@impower/impower-ui/components";
+import { Button, ErrorIcon, WarningIcon } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useId } from "preact/hooks";
 import { saveStatusOf, type SaveAction } from "../../workspace/saveStatus";
@@ -47,12 +47,12 @@ export default function SyncStatusLine() {
 
   return (
     <div role="status" aria-live="polite" class="flex h-[18px] in-data-[layout=phone]:h-auto in-data-[layout=compact]:h-auto">
-      <label class="inline-hit-down h-full">
+      <label class="inline-hit-bar h-full">
         {local && status.action === "menu" ? (
           <LocalStorageStatus status={status} buttonClass={STATUS_BUTTON} />
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="bare"
             data-tone={status.tone}
             data-action={status.action}
             class={STATUS_BUTTON}
@@ -67,7 +67,7 @@ export default function SyncStatusLine() {
               <WarningIcon />
             ) : null}
             {status.text}
-          </button>
+          </Button>
         )}
       </label>
     </div>

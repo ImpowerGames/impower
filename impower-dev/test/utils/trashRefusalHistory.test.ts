@@ -227,25 +227,3 @@ it("restores only the replaced file's batch when another tab bins it while the r
   expect(files()).toEqual([b]);
   expect(await holding(b)).toEqual(other);
 });
-
-it("offers Undo for a duplicate in a toast whose action moves the copy and its folders to the bin", async () => {
-  const deleting = vi.spyOn(bin.fs, "deleteFiles");
-  const removing = vi.spyOn(bin.fs, "deleteFolders");
-  recordCreate("p", [a, b], "Drafts_copy", { folders: ["Scripts"], message: "Folder duplicated." });
-  expect(showSnackbar).toHaveBeenCalledTimes(1);
-  const toast = showSnackbar.mock.calls[0]![0];
-  expect(toast).toMatchObject({ message: "Folder duplicated.", actionLabel: "Undo" });
-  toast.onAction();
-  await vi.waitFor(() => expect(files()).toEqual([]));
-  expect(deleting).toHaveBeenCalledWith(
-    expect.objectContaining({ folders: [{ uri: "file:///p/Scripts" }], mode: "trash" }),
-  );
-  await vi.waitFor(() => expect(removing).toHaveBeenCalledWith("p", ["Scripts"]));
-  expect(await history.redo()).toBe(true);
-  expect(files()).toEqual([a, b]);
-});
-
-it("shows no toast for a creation recorded without a message", () => {
-  recordCreate("p", [a], "a.sd");
-  expect(showSnackbar).not.toHaveBeenCalled();
-});

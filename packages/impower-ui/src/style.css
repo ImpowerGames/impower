@@ -5,6 +5,7 @@
 @source ".";
 @source "../../spark-web-player/src/components";
 @source "../../spark-web-player/src/route";
+@source "../../spark-web-player/src/saves";
 
 @layer base {
   * {

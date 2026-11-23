@@ -52,7 +52,7 @@ describe("CaretColorChip", () => {
   });
 
   it("draws an edged pill through its variant and keeps a 44px target", async () => {
-    expect(caretColorChipVariants({ size: "default" })).toContain("border-edge");
+    expect(caretColorChipVariants({ size: "default" })).toContain("border-field-edge");
     expect(caretColorChipVariants({ size: "default" })).toContain("rounded-full");
     await mount(<CaretColorChip color="#ff8800" value="#ff8800" />);
     const area = await hitArea(host!.querySelector("button")!);

@@ -53,6 +53,23 @@ const FORM_CONTROL_SYNTAX = [
   },
 ];
 
+const BUTTON_DIALOG_MESSAGE =
+  'Render buttons, dialogs and menus only inside packages/impower-ui; use its Button, Dialog, DockedDialog, Popover or Dropdown instead of a bare <button> or a hand-written role="dialog", "menu" or "menuitem".';
+
+const BUTTON_DIALOG_ROLES = "/^(dialog|menu|menuitem)$/";
+
+const BUTTON_DIALOG_SYNTAX = [
+  {
+    selector: [
+      'JSXOpeningElement[name.name="button"]',
+      `JSXAttribute[name.name="role"][value.value=${BUTTON_DIALOG_ROLES}]`,
+      `JSXAttribute[name.name="role"] > JSXExpressionContainer > Literal[value=${BUTTON_DIALOG_ROLES}]`,
+      `JSXAttribute[name.name="role"] > JSXExpressionContainer > TemplateLiteral[expressions.length=0] > TemplateElement[value.raw=${BUTTON_DIALOG_ROLES}]`,
+    ].join(", "),
+    message: BUTTON_DIALOG_MESSAGE,
+  },
+];
+
 export default [
   {
     ignores: ["**/dist/**", "**/out/**", "**/.tmp/**", "**/coverage/**"],
@@ -86,7 +103,7 @@ export default [
   {
     files: ["impower-dev/**/*.{tsx,jsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...FORM_CONTROL_SYNTAX],
+      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...FORM_CONTROL_SYNTAX, ...BUTTON_DIALOG_SYNTAX],
     },
   },
   {
@@ -98,7 +115,13 @@ export default [
   {
     files: ["impower-dev/src/**/*.{tsx,jsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...RADIX_SYNTAX, ...IMPOWER_UI_SRC_SYNTAX, ...FORM_CONTROL_SYNTAX],
+      "no-restricted-syntax": [
+        "error",
+        ...RADIX_SYNTAX,
+        ...IMPOWER_UI_SRC_SYNTAX,
+        ...FORM_CONTROL_SYNTAX,
+        ...BUTTON_DIALOG_SYNTAX,
+      ],
     },
   },
 ];

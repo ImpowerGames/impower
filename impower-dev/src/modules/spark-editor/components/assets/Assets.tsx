@@ -97,7 +97,9 @@ import {
   LibraryPage,
   MoveDialog,
   NameRow,
+  type NameFieldOptions,
   SelectionBar,
+  useNameField,
   useRowFocusReturn,
   SortMenu,
   Trail,
@@ -145,6 +147,12 @@ const FOLDER_LAYOUTS: readonly { layout: FolderLayout; label: string; Icon: Icon
 ];
 
 const SCROLL_SETTLE_MS = 800;
+
+type TileRename = ReturnType<typeof useNameField>;
+
+function RenamingTile({ tile, ...options }: NameFieldOptions & { tile: (rename: TileRename) => VNode }) {
+  return tile(useNameField(options));
+}
 
 const TYPE_ICONS: Record<AssetType, IconComponent> = {
   image: ImageIcon,
@@ -802,13 +810,15 @@ function AssetsBrowser() {
     ...(row.kind === "folder" ? { [DROP_FOLDER]: row.path } : {}),
   });
 
-  const renderTile = (row: AssetRow) => {
+  const renderTile = (row: AssetRow, rename?: TileRename) => {
     const line = lineOf(row);
     const folder = row.kind === "folder";
     return (
       <Tile
         size={size}
         kind={folder ? "folder" : "file"}
+        editor={rename?.field}
+        notice={rename?.message}
         media={
           folder ? (
             <AssetFolderCover listing={listing} fit={TILE_SIZES[size].fit} covers={row.covers ?? []} />
@@ -850,30 +860,30 @@ function AssetsBrowser() {
     if (renaming === row.path) {
       const [stem, extension] =
         row.kind === "folder" ? [row.name, ""] : row.paths ? [row.name, stemAndExtension(leafOf(row.path))[1]!] : stemAndExtension(leafOf(row.path));
-      return (
-        <NameRow
-          size="library"
-          icon={<RowGlyph row={row} listing={listing} />}
-          label={`Rename ${row.name}`}
-          wrapError={tiles}
-          initial={stem}
-          suffix={extension}
-          onCancel={() => {
-            setRenaming(null);
-            if (!reopenInspector(row.path, row.path)) {
-              focusRenamed(row.path);
-            }
-          }}
-          onCommit={async (name) => {
-            let renamed = row.path;
-            await relocating(row.paths ?? [row.path], async () => {
-              renamed = await (await intents()).assets.rename(row.path, name);
-              return [{ from: row.path, to: renamed }];
-            });
-            setRenaming(null);
-            reopenInspector(row.path, renamed);
-          }}
-        />
+      const options: NameFieldOptions = {
+        label: `Rename ${row.name}`,
+        initial: stem,
+        suffix: extension,
+        onCancel: () => {
+          setRenaming(null);
+          if (!reopenInspector(row.path, row.path)) {
+            focusRenamed(row.path);
+          }
+        },
+        onCommit: async (name) => {
+          let renamed = row.path;
+          await relocating(row.paths ?? [row.path], async () => {
+            renamed = await (await intents()).assets.rename(row.path, name);
+            return [{ from: row.path, to: renamed }];
+          });
+          setRenaming(null);
+          reopenInspector(row.path, renamed);
+        },
+      };
+      return tiles ? (
+        <RenamingTile {...options} tile={(rename) => renderTile(row, rename)} />
+      ) : (
+        <NameRow size="library" icon={<RowGlyph row={row} listing={listing} />} {...options} />
       );
     }
     if (tiles) {

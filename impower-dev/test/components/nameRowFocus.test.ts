@@ -17,7 +17,6 @@ const scripts = vi.hoisted(() => ({
   referencing: vi.fn(async (): Promise<string[] | null> => []),
   move: vi.fn(async (paths: string[]) => paths),
   download: vi.fn(async () => undefined),
-  duplicate: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
   createScript: vi.fn(async () => "Scripts/Untitled script.sd"),
   createFolder: vi.fn(async () => ""),

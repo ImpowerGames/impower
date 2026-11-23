@@ -203,7 +203,7 @@
   }
 }
 
-@utility inline-hit-down {
+@utility inline-hit-bar {
   @apply inline-hit;
   & > :is(input, button) {
     min-height: 0;
@@ -213,8 +213,8 @@
       content: "";
       position: absolute;
       inset-inline: 0;
-      top: 0;
-      height: 44px;
+      top: calc(-1 * var(--title-bar-height));
+      bottom: calc(-1 * var(--title-bar-height));
     }
   }
 }

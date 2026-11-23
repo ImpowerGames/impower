@@ -8,7 +8,6 @@ const scripts = vi.hoisted(() => ({
   referencing: vi.fn(async (_paths: string[]): Promise<string[] | null> => []),
   move: vi.fn(async (paths: string[], _folder: string) => paths),
   download: vi.fn(async (_paths: string[]) => undefined),
-  duplicate: vi.fn(async () => ""),
   rename: vi.fn(async () => ""),
   create: vi.fn(async () => ""),
 }));
@@ -34,7 +33,6 @@ const ICONS: Record<string, string> = {
   Select: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="m8 12 3 3 5-6"></path>',
   Rename: '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
   "Move…": '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
-  Duplicate: '<path d="M9 9h12v12H9zM15 9V3H3v12h6"></path>',
   Download: '<path d="M12 3v12m-5-5 5 5 5-5M4 21h16"></path>',
   Delete: '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"></path>',
 };
@@ -91,7 +89,7 @@ afterEach(async () => {
   }
 });
 
-describe("the Scripts page's row menu matches the prototype's entries and glyphs (I-2518, I-2521)", () => {
+describe("the Scripts page's row menu offers the prototype's entries but Duplicate, with its glyphs (I-2518, I-2521, I-2689)", () => {
   for (const pointerType of ["mouse", "touch"] as const) {
     it(`draws Rename with the plain pencil and every glyph muted, Delete's text alone in the error colour, under ${pointerType}`, async () => {
       workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, scriptsFolder: "Scripts" } };
@@ -105,6 +103,17 @@ describe("the Scripts page's row menu matches the prototype's entries and glyphs
         expect((item.getAttribute("class") ?? "").includes("text-error")).toBe(label === "Delete");
       }
       expect(all('[role="separator"]')).toEqual([]);
+    });
+
+    it(`offers no Duplicate for a folder of scripts under ${pointerType} (I-2689)`, async () => {
+      workspace.current = { ...workspace.current, lists: { ...workspace.current.lists, scriptsFolder: "Scripts" } };
+      workspace.scriptListing.value = {
+        projectId: PROJECT,
+        files: { "main.sd": facts, "Scripts/intro.sd": facts, "Scripts/Drafts/old.sd": facts },
+        folders: ["Scripts", "Scripts/Drafts"],
+      };
+      const items = await open("Drafts", pointerType);
+      expect(items.map((item) => item.textContent?.trim())).toEqual(["Select", "Rename", "Move…", "Download", "Delete"]);
     });
 
     it(`starts selecting with the row picked when Select is chosen under ${pointerType} (I-2521)`, async () => {
@@ -121,9 +130,9 @@ describe("the Scripts page's row menu matches the prototype's entries and glyphs
     });
   }
 
-  it("keeps Main's menu to Duplicate and Download, both muted, with no separator", async () => {
+  it("keeps Main's menu to Download alone, muted, with no separator", async () => {
     const items = await open("Main", "mouse");
-    expect(items.map((item) => item.textContent?.trim())).toEqual(["Duplicate", "Download"]);
+    expect(items.map((item) => item.textContent?.trim())).toEqual(["Download"]);
     expect(all('[role="separator"]')).toEqual([]);
     for (const item of items) {
       expect(item.querySelector("svg")!.getAttribute("class") ?? "").toContain("text-muted");

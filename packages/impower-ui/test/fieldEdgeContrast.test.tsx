@@ -14,6 +14,11 @@ const SOURCES = [
   resolve(PACKAGE, "src/components/text-field/TextField.tsx"),
   resolve(PACKAGE, "src/components/select/Select.tsx"),
   resolve(PACKAGE, "src/components/switch/Switch.tsx"),
+  resolve(PACKAGE, "src/components/button/Button.tsx"),
+  resolve(PACKAGE, "src/components/play-button/PlayButton.tsx"),
+  resolve(PACKAGE, "src/components/jump-chips/JumpChips.tsx"),
+  resolve(PACKAGE, "src/components/keys-chip/KeysChip.tsx"),
+  resolve(PACKAGE, "src/components/caret-color-chip/CaretColorChip.tsx"),
 ];
 const THEMES = ["charcoal", "chalk", "ink", "paper", "graphite", "warm", "midnight", "dusk"];
 
@@ -42,7 +47,10 @@ const styles = async () => {
 type Boundary = { theme: string; surface: string; field: string; border: string; fill: string; around: string };
 
 let browser: Browser | undefined;
+type Outline = { theme: string; surface: string; button: string; outline: string; field: string };
+
 let boundaries: Boundary[] = [];
+let outlines: Outline[] = [];
 
 beforeAll(async () => {
   if (!browserAvailable) {
@@ -73,6 +81,27 @@ beforeAll(async () => {
             };
           }),
         );
+      }, theme)),
+    );
+    outlines.push(
+      ...(await page.evaluate((name) => {
+        document.documentElement.dataset["theme"] = name;
+        const drawn = (element: HTMLElement) => {
+          const style = getComputedStyle(element);
+          return parseFloat(style.borderTopWidth) > 0 && style.borderTopColor !== "rgba(0, 0, 0, 0)"
+            ? style.borderTopColor
+            : (style.boxShadow.match(/rgba?\([^)]*\)/g)?.find((color) => color !== "rgba(0, 0, 0, 0)") ?? "none");
+        };
+        return Array.from(document.querySelectorAll<HTMLElement>("[data-surface]")).flatMap((surface) => {
+          const field = drawn(surface.querySelector<HTMLElement>('[data-field="text field"]')!);
+          return Array.from(surface.querySelectorAll<HTMLElement>("[data-button]")).map((button) => ({
+            theme: name,
+            surface: surface.dataset["surface"]!,
+            button: button.dataset["button"]!,
+            outline: drawn(button),
+            field,
+          }));
+        });
       }, theme)),
     );
   }
@@ -120,6 +149,33 @@ describe.skipIf(!browserAvailable)("a form control's boundary stands out from th
         return { ...boundary, best: Number(best.toFixed(2)) };
       })
       .filter((boundary) => boundary.best < 3);
+    expect(failures).toEqual([]);
+  });
+});
+
+describe.skipIf(!browserAvailable)("an outlined button draws its outline in the text field's edge colour, in a browser", () => {
+  test("every theme renders each outlined button on each surface", () => {
+    expect(outlines).toHaveLength(THEMES.length * 3 * 7);
+  });
+
+  test.each(THEMES)("in %s, every outlined button's resting outline equals the text field's border", (theme) => {
+    const mismatches = outlines
+      .filter((outline) => outline.theme === theme && outline.outline !== outline.field)
+      .map(({ surface, button, outline, field }) => ({ surface, button, outline, field }));
+    expect(mismatches).toEqual([]);
+  });
+
+  test.each(THEMES)("in %s, every outlined button's outline reaches 3:1 against the page, panel and inset well", (theme) => {
+    const failures = outlines
+      .filter((outline) => outline.theme === theme)
+      .map((outline) => {
+        const around = over(
+          boundaries.find((boundary) => boundary.theme === theme && boundary.surface === outline.surface)!.around,
+          [255, 255, 255],
+        );
+        return { ...outline, ratio: Number(contrast(over(outline.outline, around), around).toFixed(2)) };
+      })
+      .filter((outline) => outline.ratio < 3);
     expect(failures).toEqual([]);
   });
 });
