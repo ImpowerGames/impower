@@ -67,12 +67,12 @@ const BLINK = `morph blink {
 
 const withStart = (text: string) => `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
 
-function compile(text: string) {
+function compile(text: string, portrait = PORTRAIT) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
-      { uri: "file:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: PORTRAIT },
+      { uri: "file:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: portrait },
     ],
   } as any);
   return compiler.compile({ textDocument: { uri: URI } }).program;
@@ -226,13 +226,15 @@ describe("an inherited replay (#2580)", () => {
 
 describe("replay is not part of a morph's recipe (#2580)", () => {
   const BUNNY = `${TALK}\nimage bunny_talk = bunny\n`;
+  const LABELLED = PORTRAIT.replace(/data-name="[^"]*"/g, (name) => name.replace(/:/g, " "));
   const recipesOf = (text: string) => {
-    const program = compile(text);
+    const program = compile(text, LABELLED);
     return { recipes: program.morphs?.recipes, variants: JSON.stringify(program.morphs?.variants) };
   };
 
   test("adding a replay, and editing one, leaves the recipes and every reference key as they were", () => {
     const written = recipesOf(BUNNY);
+    expect(written.variants).toContain('"morphs":["talk"]');
     expect(written.recipes?.["talk"]).toBeDefined();
     expect(recipesOf(BUNNY.replace(/  replay \{[\s\S]*?\n  \}\n/, ""))).toEqual(written);
     expect(recipesOf(BUNNY.replace("chance = 50%", "chance = 25%\n    count = 2"))).toEqual(written);
