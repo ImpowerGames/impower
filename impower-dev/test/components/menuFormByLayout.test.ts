@@ -136,72 +136,81 @@ afterEach(async () => {
 
 const names = Object.keys(MENUS) as MenuName[];
 
-describe("the editor's menus open as a sheet under a finger and as a dropdown with a mouse, at any width", () => {
-  it.each(names.flatMap((name) => [430, 1440].map((width) => [name, width] as const)))(
-    "%s at %ipx wide opens as a sheet when a finger opens it on a touch screen",
-    async (name, width) => {
+const FORMS = [
+  [360, "sheet"],
+  [430, "sheet"],
+  [768, "menu"],
+  [1440, "menu"],
+] as const;
+
+describe("the editor's menus open as a sheet in the phone layout and as a dropdown in every other layout, whatever opens them", () => {
+  it.each(names.flatMap((name) => FORMS.flatMap(([width, form]) => (["touch", "pen", "mouse"] as const).map((pointerType) => [name, width, pointerType, form] as const))))(
+    "%s at %ipx wide, opened by a %s, opens as a %s",
+    async (name, width, pointerType, form) => {
+      await setScreen(width, pointerType !== "mouse");
+      const trigger = await mount(name);
+      await press(trigger, pointerType);
+      expect(formOpen()).toBe(form);
+    },
+  );
+
+  it.each(names.flatMap((name) => FORMS.map(([width, form]) => [name, width, form] as const)))(
+    "%s at %ipx wide on a touch screen, opened from the keyboard, opens as a %s",
+    async (name, width, form) => {
       await setScreen(width, true);
       const trigger = await mount(name);
-      await press(trigger, "touch");
-      expect(formOpen()).toBe("sheet");
+      trigger.focus();
+      await act(async () => {
+        trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      });
+      await settle(300);
+      expect(formOpen()).toBe(form);
     },
   );
 
-  it.each(names.flatMap((name) => [430, 1440].map((width) => [name, width] as const)))(
-    "%s at %ipx wide opens as a dropdown when a mouse opens it",
-    async (name, width) => {
+  it.each(names.flatMap((name) => FORMS.map(([width, form]) => [name, width, form] as const)))(
+    "%s at %ipx wide on a touch screen, opened by a click no pointer made, opens as a %s",
+    async (name, width, form) => {
+      await setScreen(width, true);
+      const trigger = await mount(name);
+      await act(async () => trigger.click());
+      await settle(300);
+      expect(formOpen()).toBe(form);
+    },
+  );
+
+  it.each(names.flatMap((name) => FORMS.map(([width, form]) => [name, width, form] as const)))(
+    "%s at %ipx wide gives a finger, then a mouse, then a finger the same %s",
+    async (name, width, form) => {
       await setScreen(width, false);
       const trigger = await mount(name);
-      await press(trigger, "mouse");
-      expect(formOpen()).toBe("menu");
+      const seen: string[] = [];
+      for (const pointerType of ["touch", "mouse", "touch"]) {
+        await press(trigger, pointerType);
+        seen.push(formOpen());
+        await act(async () => {
+          document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+        });
+        await settle(400);
+        expect(formOpen()).toBe("closed");
+      }
+      expect(seen).toEqual([form, form, form]);
     },
   );
 
-  it.each(names)("%s at 430px wide on a touch screen opens as a dropdown from the keyboard", async (name) => {
-    await setScreen(430, true);
-    const trigger = await mount(name);
-    trigger.focus();
-    await act(async () => {
-      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-    });
-    await settle(300);
-    expect(formOpen()).toBe("menu");
-  });
-
-  it.each(names)("%s at 430px wide on a touch screen opens as a dropdown from a click no pointer made", async (name) => {
-    await setScreen(430, true);
-    const trigger = await mount(name);
-    await act(async () => trigger.click());
-    await settle(300);
-    expect(formOpen()).toBe("menu");
-  });
-
-  it.each(names)("%s follows each opening on one page: a finger, then a mouse, then a finger", async (name) => {
-    await setScreen(1440, false);
-    const trigger = await mount(name);
-    const seen: string[] = [];
-    for (const pointerType of ["touch", "mouse", "touch"]) {
-      await press(trigger, pointerType);
-      seen.push(formOpen());
-      await act(async () => {
-        document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-      });
-      await settle(400);
-      expect(formOpen()).toBe("closed");
-    }
-    expect(seen).toEqual(["sheet", "menu", "sheet"]);
-  });
-
-  it.each(names)("%s keeps the form it opened in when the window crosses 701px while it is open", async (name) => {
-    await setScreen(1440, false);
-    const trigger = await mount(name);
-    await press(trigger, "touch");
-    expect(formOpen()).toBe("sheet");
-    await setScreen(430, true);
-    await settle(50);
-    expect(formOpen()).toBe("sheet");
-    await setScreen(1440, false);
-    await settle(50);
-    expect(formOpen()).toBe("sheet");
-  });
+  it.each(names.flatMap((name) => [[430, 1440, "sheet"], [1440, 430, "menu"]].map(([from, to, form]) => [name, from, to, form] as const)))(
+    "%s opened at %ipx wide keeps its form when the window becomes %ipx wide while it is open: a %s",
+    async (name, from, to, form) => {
+      await setScreen(from, true);
+      const trigger = await mount(name);
+      await press(trigger, "touch");
+      expect(formOpen()).toBe(form);
+      await setScreen(to, true);
+      await settle(50);
+      expect(formOpen()).toBe(form);
+      await setScreen(from, true);
+      await settle(50);
+      expect(formOpen()).toBe(form);
+    },
+  );
 });

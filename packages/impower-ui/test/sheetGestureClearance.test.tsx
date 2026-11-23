@@ -146,11 +146,13 @@ describe.skipIf(!browserAvailable)("a bottom sheet's last row and the phone's sy
     }, "touch");
   });
 
-  test("with a mouse in a narrow window the Dropdown opens as a menu with no foot clearance", async () => {
+  test("with a mouse in a narrow window the Dropdown opens as a sheet that adds nothing at its foot", async () => {
     await opened("menu", false, async (page) => {
       const box = await measured(page);
-      expect(box.role).toBe("menu");
-      expect(box.cardPaddingBottom).toBe("6px");
+      expect(box.coarse).toBe(false);
+      expect(box.role).toBe("dialog");
+      expect(box.cardPaddingBottom).toBe("0px");
+      expect(box.sheet.bottom).toBe(box.inner);
     });
   });
 });

@@ -8,12 +8,12 @@ const options = new Set(location.hash.slice(1).split(","));
 const rows = options.has("long")
   ? Array.from({ length: 30 }, (_, index) => `Row ${index + 1}`)
   : options.has("wide")
-    ? ["happy", "an extremely long but valid user named expression for the character portrait", "an_unbroken_expression_name_with_no_spaces_that_is_wider_than_any_phone_window"]
+    ? ["happy", "an extremely long but valid user named expression for the character portrait", "an_unbroken_expression_name_with_no_spaces_that_is_wider_than_any_phone_window_and_wider_than_the_narrowest_tablet_window_by_a_long_way_too"]
     : ["New project", "Open project", "Save a copy", "Settings", "Report a bug"];
 
 function Menu({ keepClear }: { keepClear?: KeepClear }) {
   return (
-    <DropdownRoot>
+    <DropdownRoot sheetOn={options.has("touch-sheet") ? "phone-or-touch" : "phone"}>
       <DropdownTrigger asChild>
         <button type="button" data-trigger class="h-11 w-24 shrink-0">
           Menu

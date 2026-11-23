@@ -118,16 +118,23 @@ const boxes = (page: Page) =>
     };
   });
 
-describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens it, in a browser", () => {
+describe.skipIf(!browserAvailable)("a menu's form follows the layout, whatever opens it, in a browser", () => {
   test.each([
     [430, "tap", "sheet", true],
-    [1440, "tap", "sheet", true],
-    [430, "mouse", "menu", false],
-    [1440, "mouse", "menu", false],
-    [430, "keyboard", "menu", true],
-    [1440, "touch", "sheet", false],
+    [430, "mouse", "sheet", false],
+    [430, "mouse", "sheet", true],
+    [430, "keyboard", "sheet", true],
+    [430, "keyboard", "sheet", false],
+    [360, "tap", "sheet", true],
+    [360, "mouse", "sheet", false],
     [430, "touch detail 0 after a mouse click", "sheet", true],
-    [1440, "touch detail 0 after a mouse click", "sheet", false],
+    [768, "tap", "menu", true],
+    [768, "mouse", "menu", false],
+    [768, "keyboard", "menu", true],
+    [1440, "tap", "menu", true],
+    [1440, "mouse", "menu", false],
+    [1440, "touch", "menu", false],
+    [1440, "touch detail 0 after a mouse click", "menu", false],
   ] as const)("at %ipx wide, opened by %s, it opens as a %s and moves nothing on the page", async (width, opening, form, touchScreen) => {
     await withPage(width, [], async (page) => {
       const before = await boxes(page);
@@ -143,11 +150,69 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
   });
 
   test.each([
-    [1440, 440, 560],
-    [820, 130, 560],
-    [430, 0, 430],
-  ])("at %ipx wide, the sheet a finger opens sits at x %i, %ipx wide, on the window's foot, with its backdrop over the whole window, and a tap outside closes it", async (width, left, sheetWidth) => {
+    [430, "tap", false],
+    [768, "tap", false],
+    [430, "mouse", false],
+    [430, "keyboard", true],
+    [768, "keyboard", true],
+  ] as const)("at %ipx wide, opened by %s, an item draws the focus ring: %s", async (width, opening, ring) => {
     await withPage(width, [], async (page) => {
+      await openWith(page, opening);
+      const focus = await page.evaluate(() => {
+        const active = document.activeElement as HTMLElement | null;
+        const inside = !!active?.closest('[role="menu"], [role="dialog"]');
+        const ringed = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].filter(
+          (item) => item.matches(":focus-visible") || (getComputedStyle(item).outlineStyle !== "none" && parseFloat(getComputedStyle(item).outlineWidth) > 0),
+        ).length;
+        return { inside, ringed };
+      });
+      expect(focus.inside).toBe(true);
+      expect(focus.ringed).toBe(ring ? 1 : 0);
+    }, { touchScreen: opening === "tap" });
+  });
+
+  test.each([768, 1440])("at %ipx wide, a tap opens the popover, a tap on its trigger closes it for good, and a tap outside closes it without pressing what is under it", async (width) => {
+    await withPage(width, [], async (page) => {
+      const pressed = await page.evaluateHandle(() => {
+        const log: string[] = [];
+        document.querySelector("[data-left]")!.addEventListener("click", () => log.push("left"));
+        return log;
+      });
+      await openWith(page, "tap");
+      expect((await boxes(page)).form).toBe("menu");
+      const trigger = (await boxes(page)).trigger!;
+      await page.touchscreen.tap(trigger.left + trigger.width / 2, trigger.top + trigger.height / 2);
+      await page.waitForTimeout(400);
+      expect((await boxes(page)).form, "after a tap on the trigger").toBe("closed");
+      await openWith(page, "tap");
+      expect((await boxes(page)).form).toBe("menu");
+      const left = (await boxes(page)).left!;
+      await page.touchscreen.tap(left.left + left.width / 2, left.top + left.height / 2);
+      await page.waitForTimeout(400);
+      expect((await boxes(page)).form, "after a tap outside").toBe("closed");
+      expect(await pressed.evaluate((log) => log)).toEqual([]);
+    }, { touchScreen: true });
+  }, 20000);
+
+  test.each([
+    [768, "tap", "sheet", true],
+    [1440, "touch", "sheet", false],
+    [768, "mouse", "menu", false],
+    [1440, "keyboard", "menu", false],
+    [430, "mouse", "sheet", false],
+  ] as const)("a menu that also comes up as a sheet by touch, at %ipx wide, opened by %s, opens as a %s", async (width, opening, form, touchScreen) => {
+    await withPage(width, ["touch-sheet"], async (page) => {
+      await openWith(page, opening);
+      expect((await boxes(page)).form).toBe(form);
+    }, { touchScreen });
+  });
+
+  test.each([
+    [1440, 440, 560, ["touch-sheet"]],
+    [820, 130, 560, ["touch-sheet"]],
+    [430, 0, 430, []],
+  ])("at %ipx wide, the sheet a finger opens sits at x %i, %ipx wide, on the window's foot, with its backdrop over the whole window, and a tap outside closes it", async (width, left, sheetWidth, options) => {
+    await withPage(width, options, async (page) => {
       await openWith(page, "tap");
       const placed = await boxes(page);
       expect(placed.form).toBe("sheet");
@@ -183,7 +248,7 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
     }, { touchScreen: true });
   });
 
-  test.each([430, 320])("at %ipx wide, a long menu a mouse opens stays 12px inside the window 6px under its trigger, capped in height, and scrolls", async (width) => {
+  test.each([768, 701])("at %ipx wide, a long menu a mouse opens stays 12px inside the window 6px under its trigger, capped in height, and scrolls", async (width) => {
     await withPage(width, ["long"], async (page) => {
       await openWith(page, "mouse");
       const placed = await boxes(page);
@@ -200,7 +265,7 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
     });
   });
 
-  test.each([430, 320])("at %ipx wide, a menu a mouse opens from the window's foot opens above its trigger, 12px inside the window", async (width) => {
+  test.each([768, 701])("at %ipx wide, a menu a mouse opens from the window's foot opens above its trigger, 12px inside the window", async (width) => {
     await withPage(width, ["bottom"], async (page) => {
       await openWith(page, "mouse");
       const placed = await boxes(page);
@@ -212,7 +277,7 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
     });
   });
 
-  test.each([430, 320])("at %ipx wide, a menu of labels wider than the window, with no width of its own, a mouse opens stays 12px inside the window and wraps its labels", async (width) => {
+  test.each([768, 701])("at %ipx wide, a menu of labels wider than the window, with no width of its own, a mouse opens stays 12px inside the window and wraps its labels", async (width) => {
     await withPage(width, ["wide"], async (page) => {
       await openWith(page, "mouse");
       const placed = await boxes(page);
@@ -229,8 +294,8 @@ describe.skipIf(!browserAvailable)("a menu's form follows the pointer that opens
   test.each([
     ["a long menu", ["clear", "long"]],
     ["a menu from the window's foot", ["clear", "long", "bottom"]],
-  ] as const)("at 430px wide, %s a mouse opens keeps clear of the picture above it", async (_name, options) => {
-    await withPage(430, [...options], async (page) => {
+  ] as const)("at 768px wide, %s a mouse opens keeps clear of the picture above it", async (_name, options) => {
+    await withPage(768, [...options], async (page) => {
       await openWith(page, "mouse");
       const placed = await boxes(page);
       expect(placed.form).toBe("menu");

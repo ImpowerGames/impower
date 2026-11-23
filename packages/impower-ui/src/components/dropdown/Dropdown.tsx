@@ -16,18 +16,21 @@ import {
   useRef,
   useState,
 } from "preact/hooks";
-import { menuFormFor, type MenuForm } from "../../layout/menuForm";
+import { useLayout } from "../../hooks/useLayout";
+import { menuFormFor, touchPointer, type MenuForm, type MenuSheetOn } from "../../layout/menuForm";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { registerFocusReturn } from "../../utils/focusReturn";
 import { focusAsInput, lastInputWasKeyboard } from "../../utils/inputModality";
 import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
+import { swallowNextClick } from "../../utils/swallowNextClick";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
 
 type MenuCtx = {
   mode: MenuForm;
+  formFor: (openingPointer: string | undefined) => MenuForm;
   open: boolean;
   setOpen: (open: boolean) => void;
   trigger: RefObject<HTMLElement>;
@@ -39,6 +42,7 @@ type MenuCtx = {
 };
 const ModeContext = createContext<MenuCtx>({
   mode: "menu",
+  formFor: () => "menu",
   open: false,
   setOpen: () => {},
   trigger: { current: null },
@@ -167,6 +171,7 @@ type RootProps = {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   modal?: boolean;
+  sheetOn?: MenuSheetOn;
   children?: ComponentChildren;
 };
 
@@ -175,8 +180,11 @@ export function DropdownRoot({
   defaultOpen = false,
   onOpenChange,
   modal = true,
+  sheetOn = "phone",
   children,
 }: RootProps) {
+  const layout = useLayout();
+  const formFor = (openingPointer: string | undefined) => menuFormFor(layout, openingPointer, sheetOn);
   const trigger = useRef<HTMLElement>(null);
   const returnsFocus = useRef(true);
   const opener = useRef<string | undefined>(undefined);
@@ -186,7 +194,7 @@ export function DropdownRoot({
   const open = controlled ? !!openProp : internal;
   const held = useRef<{ open: boolean; form: MenuForm }>({ open: false, form: "menu" });
   if (open && !held.current.open) {
-    held.current.form = menuFormFor(opener.current);
+    held.current.form = formFor(opener.current);
     opener.current = undefined;
   }
   held.current.open = open;
@@ -213,7 +221,7 @@ export function DropdownRoot({
   );
   return (
     <ModeContext.Provider
-      value={{ mode, open, setOpen, trigger, opener, returnsFocus, modal, handingOff, handOff }}
+      value={{ mode, formFor, open, setOpen, trigger, opener, returnsFocus, modal, handingOff, handOff }}
     >
       <DropdownMenuPrimitive.Root
         open={open && mode === "menu"}
@@ -239,6 +247,7 @@ export function DropdownTrigger({
   children?: ComponentChildren;
 }) {
   const ctx = useMenuCtx();
+  const opensOnClick = (pointer: string | undefined) => touchPointer(pointer) || ctx.formFor(pointer) === "sheet";
   return (
     <DropdownMenuPrimitive.Trigger
       asChild={asChild}
@@ -247,7 +256,7 @@ export function DropdownTrigger({
       data-state={ctx.open ? "open" : "closed"}
       onPointerDown={(event: PointerEvent) => {
         ctx.opener.current = !ctx.open && event.button === 0 ? event.pointerType : undefined;
-        if (menuFormFor(ctx.opener.current) === "sheet") {
+        if (!ctx.open && opensOnClick(ctx.opener.current)) {
           event.preventDefault();
         }
       }}
@@ -262,13 +271,10 @@ export function DropdownTrigger({
           return;
         }
         const clickPointer = (event as Partial<PointerEvent>).pointerType;
-        if (menuFormFor(clickPointer) === "sheet") {
-          ctx.opener.current = clickPointer;
+        if (event.detail === 0) {
+          ctx.opener.current = touchPointer(clickPointer) ? clickPointer : undefined;
           ctx.setOpen(true);
-        } else if (event.detail === 0) {
-          ctx.opener.current = undefined;
-          ctx.setOpen(true);
-        } else if (menuFormFor(ctx.opener.current) === "sheet") {
+        } else if (ctx.opener.current !== undefined && opensOnClick(ctx.opener.current)) {
           ctx.setOpen(true);
         }
       }}
@@ -507,9 +513,11 @@ export function DropdownContent({
           className,
         )}
         onInteractOutside={(event: CustomEvent<{ originalEvent: PointerEvent }>) => {
-          const { button, ctrlKey } = event.detail.originalEvent;
+          const { type, button, ctrlKey, pointerType } = event.detail.originalEvent;
           if (!ctx.modal || button === 2 || (button === 0 && ctrlKey)) {
             leftOutside.current = true;
+          } else if (type === "pointerdown" && touchPointer(pointerType)) {
+            swallowNextClick(ctx.trigger.current?.ownerDocument);
           }
         }}
         onCloseAutoFocus={(event: Event) => {

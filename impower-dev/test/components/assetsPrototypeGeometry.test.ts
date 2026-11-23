@@ -14,6 +14,15 @@ const setMedia = async (matches: (query: string) => boolean) => {
   await act(async () => mediaListeners.forEach((listener) => listener()));
 };
 
+const atDesktop = async <T>(run: () => Promise<T>) => {
+  await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+  try {
+    return await run();
+  } finally {
+    await setMedia(() => false);
+  }
+};
+
 beforeAll(() => {
   window.matchMedia = ((query: string) => ({
     get matches() {
@@ -123,10 +132,10 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
   });
 
   it("21: the Face menu is 196 wide with a 1px border, 182px items and the check 12px from the item's end", async () => {
-    const measured = await inChromium(
+    const measured = await atDesktop(() => inChromium(
       h(
         ui.DropdownRoot,
-        { open: true, onOpenChange: () => {}, sheet: false },
+        { open: true, onOpenChange: () => {} },
         h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "Face")),
         h(
           ui.DropdownContent,
@@ -155,7 +164,7 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
           checkFromEnd: item.right - check.right,
         };
       },
-    );
+    ));
     expect(measured).toEqual({ width: 196, border: "1px", gutter: "auto", itemInset: 7, itemWidth: 182, checkFromEnd: 12 });
   });
 
@@ -163,7 +172,7 @@ describe("Assets page parts against the Folio prototype (I-2415)", () => {
     const measured = await inChromium(
       h(
         ui.DropdownRoot,
-        { open: true, onOpenChange: () => {}, sheet: false },
+        { open: true, onOpenChange: () => {} },
         h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "Many")),
         h(
           ui.DropdownContent,
@@ -391,7 +400,7 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
   const addMenu = () =>
     h(
       ui.DropdownRoot,
-      { open: true, onOpenChange: () => {}, sheet: false },
+      { open: true, onOpenChange: () => {} },
       h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button" }, "Add")),
       h(
         ui.DropdownContent,
@@ -549,7 +558,7 @@ describe("The Assets page's and app frame's last differences from the Folio prot
       { style: "padding:100px 400px" },
       h(
         ui.DropdownRoot,
-        { open: true, onOpenChange: () => {}, sheet: false },
+        { open: true, onOpenChange: () => {} },
         h(ui.DropdownTrigger, { asChild: true }, h("button", { type: "button", style: "height:44px" }, "Add")),
         h(ui.DropdownContent, { align: "end", elevation }, h(ui.DropdownItem, {}, "Upload files")),
       ),
@@ -558,11 +567,11 @@ describe("The Assets page's and app frame's last differences from the Folio prot
   const menuShadow = () => getComputedStyle(document.querySelector('[role="menu"]')!).boxShadow.split(", rgba").pop();
 
   it.each(THEMES)("G1: in %s a dropdown at the library elevation casts the prototype's 0 8px 24px shadow at 0.267", async (theme) => {
-    expect(await inChromium(menuBelow("library"), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
+    expect(await atDesktop(() => inChromium(menuBelow("library"), { width: 1440, theme }, menuShadow))).toBe("(0, 0, 0, 0.267) 0px 8px 24px 0px");
   });
 
   it.each(THEMES)("G1: in %s a dropdown that is not a library menu, such as the app menu, keeps the floating shadow", async (theme) => {
-    expect(await inChromium(menuBelow(), { width: 1440, theme }, menuShadow)).toBe("(0, 0, 0, 0.4) 0px 12px 40px 0px");
+    expect(await atDesktop(() => inChromium(menuBelow(), { width: 1440, theme }, menuShadow))).toBe("(0, 0, 0, 0.4) 0px 12px 40px 0px");
   });
 
   const sheetLook = (elevation: "flat" | "menu", theme: Theme) =>

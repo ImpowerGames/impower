@@ -538,7 +538,7 @@ describe("useSheetOpen", () => {
     await unmount();
   });
 
-  it("reports the sheet menu a finger opens", async () => {
+  it("reports the sheet menu a finger opens at the phone width", async () => {
     const unmount = await mountReporter();
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
@@ -555,6 +555,7 @@ describe("useSheetOpen", () => {
       ),
     );
     expect(reported.at(-1)).toBe(false);
+    await setPhone(true);
     await tap(host!.querySelector("button")!);
     await settle(50);
     expect(reported.at(-1)).toBe(true);
@@ -717,7 +718,7 @@ describe("focus return across openers and layout changes", () => {
 
 describe("Dropdown motion", () => {
   it.each([false, true])(
-    "gates the menu's motion behind prefers-reduced-motion (opened by a finger as a sheet: %s)",
+    "gates the menu's motion behind prefers-reduced-motion (opened by a finger as a sheet at the phone width: %s)",
     async (bySheet) => {
       host = document.body.appendChild(document.createElement("div"));
       await act(async () =>
@@ -734,6 +735,7 @@ describe("Dropdown motion", () => {
         ),
       );
       if (bySheet) {
+        await setPhone(true);
         await tap(host.querySelector("button")!);
       }
       await settle(50);
