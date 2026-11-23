@@ -18,8 +18,11 @@ vi.mock("../../src/modules/spark-editor/utils/downloadProjectZip", () => ({
   downloadProjectZip: exportZip,
 }));
 
+const { setCoarsePointer } = await import("../pointer");
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { useNaming, finishNaming } =
+  await import("../../src/modules/spark-editor/components/desktop-shell/naming");
 const { SyncStatusLine } =
   await import("../../src/modules/spark-editor/components/drive-sync");
 
@@ -191,6 +194,38 @@ describe("the local project's storage status", () => {
     await settle();
     expect(popover()).toBeNull();
     expect(document.activeElement).toBe(trigger());
+  });
+});
+
+describe("renaming the project from the storage status", () => {
+  const Naming = () => h("span", { "data-naming": useNaming() ?? "" });
+  const naming = () =>
+    document.querySelector<HTMLElement>("[data-naming]")?.dataset.naming;
+
+  afterEach(async () => {
+    await act(async () => finishNaming());
+    await setCoarsePointer(false);
+  });
+
+  it("offers no Rename project with a mouse", async () => {
+    await open();
+    expect(rows()).toEqual(["keep", "drive", "export"]);
+  });
+
+  it("offers Rename project last under a coarse pointer, and starts naming the project once the popover has closed", async () => {
+    await setCoarsePointer(true);
+    const probe = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(Naming, null), probe));
+    await open();
+    expect(rows()).toEqual(["keep", "drive", "export", "rename"]);
+    expect(row("rename")?.textContent).toContain("Rename project");
+    expect(naming()).toBe("");
+    await act(async () => row("rename")!.querySelector("button")!.click());
+    await settle();
+    expect(popover()).toBeNull();
+    expect(naming()).toBe("project");
+    expect(document.activeElement).not.toBe(trigger());
+    await act(async () => render(null, probe));
   });
 });
 

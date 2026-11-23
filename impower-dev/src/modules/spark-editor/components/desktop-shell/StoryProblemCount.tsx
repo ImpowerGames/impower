@@ -18,7 +18,7 @@ export default function StoryProblemCount() {
       <span aria-hidden="true" class="px-1 text-muted">
         ·
       </span>
-      <label class="inline-hit-down h-[18px] in-data-[layout=phone]:h-[1lh] in-data-[layout=compact]:h-[1lh]">
+      <label class="inline-hit-bar h-[18px] in-data-[layout=phone]:h-[1lh] in-data-[layout=compact]:h-[1lh]">
         <Button
           ref={ref}
           variant="quiet"

@@ -47,7 +47,7 @@ export default function SyncStatusLine() {
 
   return (
     <div role="status" aria-live="polite" class="flex h-[18px] in-data-[layout=phone]:h-auto in-data-[layout=compact]:h-auto">
-      <label class="inline-hit-down h-full">
+      <label class="inline-hit-bar h-full">
         {local && status.action === "menu" ? (
           <LocalStorageStatus status={status} buttonClass={STATUS_BUTTON} />
         ) : (
