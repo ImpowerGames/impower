@@ -220,6 +220,26 @@ describe("the Game Preview styles the impower-ui route list and Saves menu from 
     expect(row).toEqual({ matches: true, outline: focus });
   });
 
+  it.each(Object.entries(THEMES))("rings the player's own route filter and Save here buttons when focused from the keyboard in %s", async (_, theme) => {
+    const page = await open(theme, ROUTE_LIST);
+    await page.evaluate((markup) => {
+      document.querySelector("#saves-menu")!.innerHTML = markup;
+    }, SAVES_MENU);
+    const ring = async (selector: string) => {
+      await page.keyboard.press("Shift");
+      await page.focus(selector);
+      return page.evaluate((s) => {
+        const style = getComputedStyle(document.querySelector(s)!);
+        return `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`;
+      }, selector);
+    };
+    const filter = await ring(".route-toggle");
+    const saveHere = await ring(".saves-here");
+    await page.close();
+    const focus = `solid 1px ${toRgb(theme["--vscode-focusBorder"])}`;
+    expect({ filter, saveHere }).toEqual({ filter: focus, saveHere: focus });
+  });
+
   it.each(Object.entries(THEMES))("draws the Saves menu and its rows in the theme's panel and text colours in %s", async (_, theme) => {
     const page = await open(theme, "");
     await page.evaluate((markup) => {
