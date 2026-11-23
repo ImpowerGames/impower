@@ -9,7 +9,12 @@ export const Workspace = {
     upload: async () => [],
     addLink: async () => "",
     createFolder: async () => "",
-    rename: async (path: string) => path,
+    rename: async (path: string, name: string) => {
+      if (/[@~]/.test(name)) {
+        throw new Error("Use a name without @ or ~. They mark a picture's alternates and layers.");
+      }
+      return path;
+    },
     remove: none,
     move: async () => [],
     usedBy: async () => [],

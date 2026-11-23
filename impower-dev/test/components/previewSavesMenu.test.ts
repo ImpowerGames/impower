@@ -162,7 +162,7 @@ describe("the top bar's Saves button", () => {
     expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
     expect(menu()!.querySelector(".saves-here")!.textContent).toBe("Save here");
     expect(
-      Array.from(menu()!.querySelectorAll(".saves-row-name")).map((n) => n.textContent),
+      Array.from(menu()!.querySelectorAll("[data-save-name]")).map((n) => n.textContent),
     ).toEqual(["Entering interrogation", "Before the confession"]);
   });
 
@@ -181,7 +181,7 @@ describe("the top bar's Saves button", () => {
     await act(async () => menu()!.querySelector<HTMLButtonElement>(".saves-here")!.click());
     expect(sentActions()).toContainEqual({ kind: "saveHere" });
     await act(async () =>
-      menu()!.querySelector<HTMLButtonElement>('.saves-row[data-id="s1"] .saves-play')!.click(),
+      menu()!.querySelector<HTMLButtonElement>('[data-save-row][data-id="s1"] .saves-play')!.click(),
     );
     expect(sentActions()).toContainEqual({ kind: "play", id: "s1" });
   });
@@ -211,6 +211,21 @@ describe("the top bar's Saves button", () => {
     expect(document.querySelector("swp-route-view .route-list")).toBeNull();
     expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
     expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
+  });
+
+  it("leaves a press outside both menus to an open row menu and keeps the Saves menu open", async () => {
+    await mount();
+    await show(view({ rowMenu: "s1" }));
+    await settle(40);
+    expect(document.querySelector("[data-saves-row-menu]")).not.toBeNull();
+    const outside = document.body.appendChild(document.createElement("div"));
+    await act(async () => {
+      outside.dispatchEvent(new (window.PointerEvent ?? MouseEvent)("pointerdown", { bubbles: true, button: 0 }));
+      outside.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await settle(40);
+    expect(sentActions()).toContainEqual({ kind: "rowMenu", id: null });
+    expect(sentActions()).not.toContainEqual({ kind: "open", open: false });
   });
 
   it("closes on Escape from the list and goes back from a save's values instead", async () => {

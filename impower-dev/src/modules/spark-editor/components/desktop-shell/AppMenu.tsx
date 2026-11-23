@@ -14,13 +14,16 @@ import {
   DropdownTrigger,
   HelpIcon,
   MenuIcon,
+  PencilIcon,
   SettingsIcon,
   SignOutIcon,
 } from "@impower/impower-ui/components";
+import { useCoarsePointer } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
+import { RENAME_PROJECT, renameProject } from "./naming";
 import { withWindow } from "./workspaceWindow";
 import { useLocalSaveLabel, useSaveStatus } from "../drive-sync";
 
@@ -44,6 +47,8 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
     () => !!workspace.state.value.screen?.pickingResource,
   ).value;
   const openingGuide = useRef(false);
+  const renaming = useRef(false);
+  const coarse = useCoarsePointer();
   const projectId = workspace.signals.projectId.value;
   const onDrive =
     !!projectId && projectId !== WorkspaceConstants.LOCAL_PROJECT_ID;
@@ -89,6 +94,11 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           if (openingGuide.current) {
             openingGuide.current = false;
             event.preventDefault();
+          }
+          if (renaming.current) {
+            renaming.current = false;
+            event.preventDefault();
+            renameProject();
           }
         }}
         class="w-[280px]"
@@ -149,6 +159,16 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
           >
             <AccountIcon />
             {signinLabel}
+          </DropdownItem>
+        )}
+        {coarse && (
+          <DropdownItem
+            onSelect={() => {
+              renaming.current = true;
+            }}
+          >
+            <PencilIcon />
+            {RENAME_PROJECT}
           </DropdownItem>
         )}
         <DropdownItem

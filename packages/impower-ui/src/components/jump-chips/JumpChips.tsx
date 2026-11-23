@@ -5,7 +5,7 @@ import type { RailIndexGroup } from "../rail-index/RailIndex";
 export const jumpChipVariants = cva(
   [
     "relative control-overlay inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap select-none",
-    "rounded-full border border-solid border-edge bg-transparent text-ink",
+    "rounded-full border border-solid border-field-edge bg-transparent text-ink",
     "motion-safe:transition-[background-color,border-color] motion-safe:duration-140",
   ],
   {

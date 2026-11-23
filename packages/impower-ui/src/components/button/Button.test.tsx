@@ -91,7 +91,7 @@ describe("Button kinds", () => {
     const css = await packageCss(classes.split(" "));
     expect(css).toMatch(/@media \(pointer: coarse\)\s*\{[^@]*border-block-width: 3px;/);
     expect(css).toContain("background-clip: padding-box;");
-    expect(css).toContain("--tw-shadow: inset 0 0 0 1px var(--tw-shadow-color, var(--edge));");
+    expect(css).toContain("--tw-shadow: inset 0 0 0 1px var(--tw-shadow-color, var(--field-edge));");
     expect(css).toMatch(/\[data-changed\]:not\([^)]*aria-expanded="true"[^)]*\)[^{]*\{[^}]*--tw-shadow: inset 0 0 0 1px var\(--tw-shadow-color, var\(--accent\)\)/);
     expect(css).toMatch(/\[aria-expanded="true"\][^{]*\{[^}]*--tw-shadow: inset 0 0 0 2px var\(--tw-shadow-color, var\(--accent\)\)/);
     expect(css).toMatch(/:focus-visible[^{]*\{[^}]*--tw-shadow: inset 0 0 0 1px var\(--tw-shadow-color, var\(--accent\)\)/);

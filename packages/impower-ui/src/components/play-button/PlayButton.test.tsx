@@ -44,7 +44,7 @@ describe("PlayButton", () => {
 
   it("draws a strip's larger glyph in an accent ring, and an edge ring otherwise", async () => {
     const row = (await mount(<PlayButton name="door" />)).className;
-    expect(row).toContain("border-edge");
+    expect(row).toContain("border-field-edge");
     expect(row).toContain("[&_svg]:size-[18px]");
     const strip = (await mount(<PlayButton name="from this line" size="strip" ring="accent" />))
       .className;
@@ -52,6 +52,6 @@ describe("PlayButton", () => {
     expect(strip).toContain("[&_svg]:size-[22px]");
     expect(strip).not.toContain("[&_svg]:size-[18px]");
     expect(strip).toContain("border-accent");
-    expect(strip).not.toContain("border-edge");
+    expect(strip).not.toContain("border-field-edge");
   });
 });

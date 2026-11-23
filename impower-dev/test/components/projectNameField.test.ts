@@ -30,8 +30,11 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
   };
 });
 
+const { setCoarsePointer } = await import("../pointer");
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { renameProject, finishNaming } =
+  await import("../../src/modules/spark-editor/components/desktop-shell/naming");
 const { default: ProjectNameField } =
   await import("../../src/modules/spark-editor/components/desktop-shell/ProjectNameField");
 
@@ -164,6 +167,52 @@ describe("the desktop project name field", () => {
       expect(workspace.current.project.name).toBe("My story");
       expect(input.value).toBe("My story");
     }
+  });
+});
+
+describe("the project name under a coarse pointer", () => {
+  beforeEach(() => setCoarsePointer(true));
+  afterEach(() => setCoarsePointer(false));
+
+  it("shows the name as text with no field and no tap target of its own", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(ProjectNameField, null), host!));
+    expect(host.querySelector("input")).toBeNull();
+    expect(host.querySelector("label")).toBeNull();
+    const text = host.querySelector<HTMLElement>("[data-project-name]")!;
+    expect(text.textContent).toBe("My story");
+    expect(text.className).toMatch(/\bfade-edge\b/);
+    expect(text.parentElement!.className).not.toMatch(/\bcontrol-overlay\b/);
+  });
+
+  it("turns into the focused name field on Rename project, commits on Enter and goes back to text", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(ProjectNameField, null), host!));
+    await act(async () => renameProject());
+    await settle();
+    const input = host.querySelector<HTMLInputElement>("input")!;
+    expect(input.getAttribute("aria-label")).toBe("Project name");
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe("My story".length);
+    expect(calls.started).toBe(1);
+    await type(input, "Night shift");
+    await key(input, "Enter");
+    expect(calls.finished).toEqual(["Night shift"]);
+    expect(host.querySelector("input")).toBeNull();
+    expect(host.querySelector("[data-project-name]")!.textContent).toBe(
+      "Night shift",
+    );
+  });
+
+  it("goes back to text when Done finishes the naming", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(ProjectNameField, null), host!));
+    await act(async () => renameProject());
+    await act(async () => finishNaming());
+    await settle();
+    expect(host.querySelector("input")).toBeNull();
+    expect(host.querySelector("[data-project-name]")).not.toBeNull();
   });
 });
 

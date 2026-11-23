@@ -6,17 +6,31 @@ import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { beforeAll, describe, expect, it } from "vitest";
 
+let coarse = false;
+const pointerLists: (() => void)[] = [];
+
 beforeAll(() => {
-  window.matchMedia = ((query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    const listeners = new Set<() => void>();
+    const pointer = query.includes("pointer: coarse");
+    if (pointer) {
+      pointerLists.push(() => listeners.forEach((listener) => listener()));
+    }
+    return {
+      get matches() {
+        return pointer && coarse;
+      },
+      media: query,
+      onchange: null,
+      addEventListener: (_: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) =>
+        listeners.delete(listener),
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    };
+  }) as unknown as typeof window.matchMedia;
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class {
     observe() {}
     unobserve() {}
@@ -36,6 +50,8 @@ const { WorkspaceConstants } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceConstants");
 const { DEVICE_STORAGE_COPY } =
   await import("../../src/modules/spark-editor/workspace/saveStatus");
+const { renameProject } =
+  await import("../../src/modules/spark-editor/components/desktop-shell/naming");
 const { auditScan } =
   await import("../../../.agents/skills/drive-web-editor/audit-page.mjs");
 
@@ -60,8 +76,8 @@ const markupOn = async (
   await act(async () => render(h(PhoneTitleBar, { scrolled: false }), host));
   const field = host.querySelector<HTMLInputElement>(
     'input[aria-label="Project name"]',
-  )!;
-  field.setAttribute("value", field.value);
+  );
+  field?.setAttribute("value", field.value);
   const markup = host.innerHTML;
   await act(async () => render(null, host));
   host.remove();
@@ -255,11 +271,11 @@ describe(
       [430, "naming", "Keep the name"],
       [360, "naming", "Keep the name"],
     ] as const)(
-      "at %ipx while %s, the bar keeps its 90px height and the one 10px inset with 7px gaps",
+      "at %ipx while %s, the bar keeps its 54px height and the one 10px inset with 7px gaps",
       async (width, barState, lastLabel) => {
         const bar = await measureEdges(await markupIn(barState), width);
         expect(bar.labels.at(-1)).toBe(lastLabel);
-        expect(bar.height).toBe(90);
+        expect(bar.height).toBe(54);
         expect(bar.inset).toBe("10px 10px");
         expect(bar.gap).toBe("7px");
         expect(bar.firstLeft).toBe(10);
@@ -321,6 +337,22 @@ const withProblems = async <T>(run: () => Promise<T>) => {
 };
 
 
+const setCoarse = async (next: boolean) => {
+  coarse = next;
+  await act(async () => {
+    pointerLists.forEach((fire) => fire());
+  });
+};
+
+const withCoarse = async <T>(run: () => Promise<T>) => {
+  await setCoarse(true);
+  try {
+    return await run();
+  } finally {
+    await setCoarse(false);
+  }
+};
+
 const TARGETS = {
   status: '[role="status"] button',
   problems: 'button[data-tone="error"]',
@@ -370,6 +402,18 @@ const probeTargets = async (markup: string, width: number) => {
       };
     };
     return {
+      height: await page.evaluate(
+        () => document.querySelector("header")!.getBoundingClientRect().height,
+      ),
+      nameField: await page.evaluate(
+        () => !!document.querySelector('header input[aria-label="Project name"]'),
+      ),
+      name: await page.evaluate(() => {
+        const text = document.querySelector<HTMLElement>("header [data-project-name]");
+        return text
+          ? { x: text.getBoundingClientRect().x, text: text.textContent }
+          : null;
+      }),
       hit: Object.fromEntries(header.map((target) => [target.name, target.hit])),
       status: (await named(TARGETS.status))!,
       problems: await named(TARGETS.problems),
@@ -404,13 +448,15 @@ describe("the phone title bar's text controls", () => {
     [430, "story"],
     [360, "story"],
   ] as const)(
-    "at %ipx on %s, the audit's hit test finds the name, the save status, the problem count and every other title bar control taking a tap anywhere in 44x44",
+    "at %ipx on %s under touch, the audit's hit test finds the save status, the problem count and every other title bar control taking a tap anywhere in 44x44, and the name takes none",
     async (width, route) => {
-      const bar = await withProblems(async () =>
-        probeTargets(await markupOn(route), width),
+      const bar = await withCoarse(() =>
+        withProblems(async () => probeTargets(await markupOn(route), width)),
       );
+      expect(bar.height).toBe(54);
+      expect(bar.nameField).toBe(false);
+      expect(bar.name).toEqual({ x: 61, text: "The Midnight Jukebox" });
       expect(bar.hit).toEqual({
-        "Project name": "44x44",
         "Saved in this browser.": "44x44",
         "Show problems": "44x44",
         Search: "44x44",
@@ -464,4 +510,101 @@ describe("the phone title bar's text controls", () => {
       title: bar.status.title,
     });
   }, 60000);
+});
+
+describe("renaming the project from the phone title bar under touch", () => {
+  it("shows the name as text until Rename project, then turns it into the focused name field with Done beside it", async () => {
+    await setCoarse(true);
+    workspace.state.value = {
+      ...stateForRoute(workspace.state.value as WorkspaceCache, "story"),
+    } as WorkspaceCache;
+    workspace.state.value = {
+      ...workspace.state.value,
+      project: { ...workspace.state.value.project, name: "The Midnight Jukebox" },
+      sync: { ...workspace.state.value.sync, status: "cached" },
+    } as WorkspaceCache;
+    const host = document.body.appendChild(document.createElement("div"));
+    try {
+      await act(async () => render(h(PhoneTitleBar, { scrolled: false }), host));
+      expect(host.querySelector('input[aria-label="Project name"]')).toBeNull();
+      expect(host.querySelector("[data-project-name]")?.textContent).toBe(
+        "The Midnight Jukebox",
+      );
+      await act(async () => renameProject());
+      const field = host.querySelector<HTMLInputElement>(
+        'input[aria-label="Project name"]',
+      );
+      expect(field).not.toBeNull();
+      expect(document.activeElement).toBe(field);
+      expect(
+        host.querySelector('button[aria-label="Keep the name"]'),
+      ).not.toBeNull();
+      await act(async () => field!.blur());
+      expect(host.querySelector('input[aria-label="Project name"]')).toBeNull();
+      expect(host.querySelector("[data-project-name]")).not.toBeNull();
+    } finally {
+      await act(async () => render(null, host));
+      host.remove();
+      await setCoarse(false);
+    }
+  });
+
+  it.each([430, 360])(
+    "at %ipx, a tap anywhere on the name field while renaming reaches the field, not the status or problem count's tap area",
+    async (width) => {
+      await setCoarse(true);
+      workspace.state.value = {
+        ...stateForRoute(workspace.state.value as WorkspaceCache, "story"),
+      } as WorkspaceCache;
+      workspace.state.value = {
+        ...workspace.state.value,
+        project: { ...workspace.state.value.project, name: "The Midnight Jukebox" },
+        sync: { ...workspace.state.value.sync, status: "cached" },
+      } as WorkspaceCache;
+      const host = document.body.appendChild(document.createElement("div"));
+      let markup = "";
+      try {
+        await withProblems(async () => {
+          await act(async () => render(h(PhoneTitleBar, { scrolled: false }), host));
+          await act(async () => renameProject());
+          const field = host.querySelector<HTMLInputElement>(
+            'input[aria-label="Project name"]',
+          )!;
+          field.setAttribute("value", field.value);
+          markup = host.innerHTML;
+        });
+      } finally {
+        await act(async () => render(null, host));
+        host.remove();
+        await setCoarse(false);
+      }
+      const css = await stylesFor(markup);
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage({
+          viewport: { width, height: 780 },
+          isMobile: true,
+          hasTouch: true,
+        });
+        await page.setContent(
+          `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
+        );
+        const hits = await page.evaluate(() => {
+          const field = document.querySelector('header input[aria-label="Project name"]')!;
+          const box = field.getBoundingClientRect();
+          return [0.05, 0.25, 0.5, 0.75, 0.95].map((at) => {
+            const hit = document.elementFromPoint(
+              box.x + box.width * at,
+              box.y + box.height / 2,
+            );
+            return hit === field;
+          });
+        });
+        expect(hits).toEqual([true, true, true, true, true]);
+      } finally {
+        await browser.close();
+      }
+    },
+    60000,
+  );
 });

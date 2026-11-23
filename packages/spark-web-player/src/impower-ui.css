@@ -63,3 +63,18 @@ spark-web-player .sv-badge-popup {
   --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
   --popover-width: 280px;
 }
+
+spark-web-player .saves-menu {
+  --list-row-compact-height: 0px;
+  --list-row-compact-padding-x: 8px;
+  --list-row-compact-padding-y: 3px;
+  --list-row-compact-description-font-size: var(--swp-toolbar-font-size);
+}
+
+spark-web-player [data-saves-row-menu] {
+  --ink: var(--swp-toolbar-color, #fff);
+  --panel: var(--swp-saves-menu-background-color);
+  --edge: var(--swp-saves-menu-border-color);
+  --radius: 6px;
+  --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+}

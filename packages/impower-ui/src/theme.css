@@ -23,6 +23,7 @@
   --list-row-compact-padding-y: 0.25rem;
   --list-row-compact-gap: 0.625rem;
   --list-row-compact-font-size: 12px;
+  --list-row-compact-description-font-size: 11px;
   --control-size: 2.75rem;
   --popover-width: 360px;
 }
@@ -673,14 +674,8 @@
   --script-header-height: 48px;
 }
 
-@media (pointer: coarse) {
-  :root[data-layout] {
-    --title-bar-height: 90px;
-  }
-}
-
 :root[data-layout="phone"] {
-  --title-bar-height: 90px;
+  --title-bar-height: 54px;
   --script-header-height: 48px;
   --toast-top: auto;
   --toast-bottom: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom) + var(--toast-gap));

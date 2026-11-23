@@ -15,7 +15,7 @@ const styledButtonVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-edge bg-panel text-ink",
+        default: "border-field-edge bg-panel text-ink",
         primary: "border-accent bg-accent text-accent-ink focus-inset",
         quiet: "border-transparent bg-transparent text-ink",
         destructive: "border-error bg-error text-bg focus-inset",
@@ -30,7 +30,7 @@ const styledButtonVariants = cva(
         ],
         field: [
           "justify-between border-transparent bg-bg bg-clip-padding text-left text-ink [&_svg]:text-muted",
-          "shadow-[inset_0_0_0_1px_var(--edge)] data-[changed]:not-aria-expanded:shadow-[inset_0_0_0_1px_var(--accent)]",
+          "shadow-[inset_0_0_0_1px_var(--field-edge)] data-[changed]:not-aria-expanded:shadow-[inset_0_0_0_1px_var(--accent)]",
           "aria-expanded:shadow-[inset_0_0_0_2px_var(--accent)]",
           "focus-visible:shadow-[inset_0_0_0_1px_var(--accent)] focus-visible:outline-transparent",
         ],

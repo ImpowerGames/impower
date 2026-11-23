@@ -629,7 +629,7 @@ About one blink in eight is double, with the eyes held open for 0.17 to 0.35 sec
 | `from` | `0%` | The keyframe position a replay resumes from. |
 | `to` | `100%` | The keyframe position a play turns back at. |
 | `chance` | required | How likely each replay is: a percentage from `0%` to `100%`, or a number from 0 to 1. `0%` never replays. |
-| `count` | `1` | The most replays this range makes in one play: a whole number of at least 1. |
+| `count` | `1` | The most replays this range makes in one play: a whole number from 1 to 1000. |
 | `delay_min` | none | Shortest pause, in seconds, before a replay starts. |
 | `delay_max` | none | Longest such pause. |
 
@@ -1022,7 +1022,7 @@ For a speech morph:
 For a `replay` block:
 
 - `replay` written as a value, a block with no `chance`, and a `chance`, `from` or `to` that is not a percentage from `0%` to `100%` or a number from 0 to 1 are errors. A block with no `chance` is reported on the block, the rest on the field.
-- A `from` at or past its `to` is an error on `to`. A `count` that is not a whole number of at least 1 is an error on `count`.
+- A `from` at or past its `to` is an error on `to`. A `count` that is not a whole number from 1 to 1000 is an error on `count`.
 - `delay_min` without `delay_max`, or the other way round, or a `delay_max` below its `delay_min`, is an error on the field, worded as for `iteration_delay_min` and `iteration_delay_max`.
 - A field the block does not take, and a `replay` field written outside the block, are told where they belong.
 - A value a child morph inherits from its parent's `replay` is reported where the child names its parent.
