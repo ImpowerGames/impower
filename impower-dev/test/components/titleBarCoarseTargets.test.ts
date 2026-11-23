@@ -145,6 +145,11 @@ const probe = async (
       height: await page.evaluate(
         () => document.querySelector("header")!.getBoundingClientRect().height,
       ),
+      toastTop: await page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--toast-top")
+          .trim(),
+      ),
       toastHeight: await page.evaluate(() =>
         getComputedStyle(document.documentElement)
           .getPropertyValue("--toast-height")
@@ -175,6 +180,7 @@ describe("the title bar's name and status under a coarse pointer", () => {
       );
       expect(bar.height).toBe(90);
       expect(bar.toastHeight).toBe("90px");
+      expect(bar.toastTop).toBe("0px");
     },
     60000,
   );
@@ -191,6 +197,7 @@ describe("the title bar's name and status under a coarse pointer", () => {
       expect(bar.coarse).toBe(false);
       expect(bar.height).toBe(height);
       expect(bar.toastHeight).toBe(`${height}px`);
+      expect(bar.toastTop).toBe("0px");
     },
     60000,
   );
