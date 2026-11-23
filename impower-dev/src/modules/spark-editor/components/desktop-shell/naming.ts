@@ -28,11 +28,18 @@ const deepActiveElement = (): Element | null => {
   return active;
 };
 
+export const RENAME_PROJECT = "Rename project";
+
+export function renameProject() {
+  namingField.value = "project";
+}
+
 export function finishNaming() {
   const active = deepActiveElement();
   if (active instanceof HTMLElement && active.matches("[data-name-field]")) {
     active.blur();
   }
+  namingField.value = null;
 }
 
 export function useFocusRule() {

@@ -14,6 +14,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { window: actions },
 }));
 
+const { setCoarsePointer } = await import("../pointer");
+const { useNaming, finishNaming } =
+  await import("../../src/modules/spark-editor/components/desktop-shell/naming");
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: AppMenu } =
@@ -235,6 +238,51 @@ describe("the app menu's children", () => {
     });
     await vi.waitFor(() => {
       expect(actions.setAppMenuOpen).toHaveBeenCalledWith(false);
+    }, WAIT);
+  });
+});
+
+describe("the app menu's Rename project item", () => {
+  const Naming = () => h("span", { "data-naming": useNaming() ?? "" });
+  const naming = () =>
+    document.querySelector<HTMLElement>("[data-naming]")?.dataset.naming;
+  let probe: HTMLElement | undefined;
+
+  afterEach(async () => {
+    await act(async () => finishNaming());
+    if (probe) {
+      await act(async () => render(null, probe!));
+      probe.remove();
+      probe = undefined;
+    }
+    await setCoarsePointer(false);
+  });
+
+  it("is not offered with a mouse", async () => {
+    await mountOpen("drive-file", "synced", "Settings");
+    expect(item("Rename project")).toBeUndefined();
+  });
+
+  it("is offered under a coarse pointer, so a Drive project can be renamed, and starts naming the project once the menu has closed", async () => {
+    await setCoarsePointer(true);
+    probe = document.body.appendChild(document.createElement("div"));
+    await act(async () => render(h(Naming, null), probe!));
+    await mountOpen("drive-file", "synced", "Rename project");
+    const labels = items().map((el) => el.textContent?.trim());
+    expect(labels.indexOf("Rename project")).toBe(labels.indexOf("Settings") - 1);
+    await select("Rename project");
+    await vi.waitFor(() => {
+      expect(actions.setAppMenuOpen).toHaveBeenCalledWith(false);
+    }, WAIT);
+    expect(naming()).toBe("");
+    await act(async () => {
+      workspace.current = {
+        ...workspace.current,
+        screen: { ...workspace.current.screen, appMenuOpen: false },
+      };
+    });
+    await vi.waitFor(() => {
+      expect(naming()).toBe("project");
     }, WAIT);
   });
 });

@@ -31,14 +31,14 @@ afterEach(async () => {
 });
 
 describe("the title bar's problem count", () => {
-  it("keeps its line height and lays its touch target down from its box through a label, away from the name above", async () => {
+  it("keeps its line height and spans its touch target over the title bar through a label", async () => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () => render(h(StoryProblemCount, null), host!));
     const button = host.querySelector("button")!;
     expect(button.textContent).toBe("5 problems");
     const box = button.parentElement!;
     expect(box.tagName).toBe("LABEL");
-    expect(box.classList.contains("inline-hit-down")).toBe(true);
+    expect(box.classList.contains("inline-hit-bar")).toBe(true);
     expect(box.className).toMatch(/\bh-\[18px\]/);
     expect(button.className).toMatch(/\bmin-h-0\b/);
     await act(async () => button.click());

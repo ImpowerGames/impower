@@ -11,6 +11,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 }));
 
 let width = 768;
+let coarse = false;
 const lists: (() => void)[] = [];
 
 vi.stubGlobal("matchMedia", (query: string) => {
@@ -18,6 +19,7 @@ vi.stubGlobal("matchMedia", (query: string) => {
   const list = {
     media: query,
     get matches() {
+      if (query.includes("pointer: coarse")) return coarse;
       const minWidth = /^\(min-width: (\d+)px\)$/.exec(query);
       return minWidth ? width >= Number(minWidth[1]) : false;
     },
@@ -58,15 +60,20 @@ const { auditScan } =
 
 const UI_PACKAGE = resolve(process.cwd(), "../packages/impower-ui");
 
-const resize = async (next: number) => {
+const resize = async (next: number, touch = false) => {
   width = next;
+  coarse = touch;
   await act(async () => {
     lists.forEach((fire) => fire());
   });
 };
 
-const markupOn = async (route: "story" | "assets", viewport: number) => {
-  await resize(viewport);
+const markupOn = async (
+  route: "story" | "assets",
+  viewport: number,
+  touch = false,
+) => {
+  await resize(viewport, touch);
   const state = stateForRoute(workspace.state.value as WorkspaceCache, route);
   workspace.state.value = {
     ...state,
@@ -90,8 +97,8 @@ const markupOn = async (route: "story" | "assets", viewport: number) => {
     await act(async () => render(h(TopBar, null), host));
     const field = host.querySelector<HTMLInputElement>(
       'input[aria-label="Project name"]',
-    )!;
-    field.setAttribute("value", field.value);
+    );
+    field?.setAttribute("value", field.value);
     return {
       layout: document.documentElement.dataset["layout"],
       markup: host.innerHTML,
@@ -145,10 +152,15 @@ const probe = async (
       height: await page.evaluate(
         () => document.querySelector("header")!.getBoundingClientRect().height,
       ),
-      toastTop: await page.evaluate(() =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--toast-top")
-          .trim(),
+      tokens: await page.evaluate(() => {
+        const style = getComputedStyle(document.documentElement);
+        return {
+          titleBar: style.getPropertyValue("--title-bar-height").trim(),
+          toast: style.getPropertyValue("--toast-height").trim(),
+        };
+      }),
+      nameField: await page.evaluate(
+        () => !!document.querySelector('header input[aria-label="Project name"]'),
       ),
       hit: Object.fromEntries(header.map((target) => [target.name, target.hit])),
     };
@@ -159,38 +171,41 @@ const probe = async (
 
 describe("the title bar's name and status under a coarse pointer", () => {
   it.each([
-    ["story", 768, "compact", "calc(90px + 52px + 8px)", ["Project name", "Saved in this browser.", "Show problems"]],
-    ["assets", 768, "compact", "calc(90px + 52px + 8px)", ["Project name", "Saved in this browser.", "Show problems"]],
-    ["story", 1366, "desktop", "calc(90px + 68px + 8px)", ["Project name", "Saved in this browser."]],
-    ["assets", 1366, "desktop", "calc(90px + 68px + 8px)", ["Project name", "Saved in this browser."]],
+    ["story", 768, "compact", 54, ["Saved in this browser.", "Show problems"]],
+    ["assets", 768, "compact", 54, ["Saved in this browser.", "Show problems"]],
+    ["story", 1366, "desktop", 76, ["Saved in this browser."]],
+    ["assets", 1366, "desktop", 76, ["Saved in this browser."]],
   ] as const)(
-    "on %s at %ipx (%s) with touch, the bar is 90px and each text control takes a tap anywhere in 44x44",
-    async (route, viewport, layout, toastTop, names) => {
-      const markup = await markupOn(route, viewport);
+    "on %s at %ipx (%s) with touch, the bar keeps its %ipx height, the status controls take a tap anywhere in 44x44 and the name takes none",
+    async (route, viewport, layout, height, names) => {
+      const markup = await markupOn(route, viewport, true);
       expect(markup.layout).toBe(layout);
       const bar = await probe(markup, viewport, true);
       expect(bar.coarse).toBe(true);
+      expect(bar.height).toBe(height);
+      expect(bar.nameField).toBe(false);
+      expect(Object.keys(bar.hit)).not.toContain("Project name");
       expect(bar.hit).toMatchObject(
         Object.fromEntries(names.map((name) => [name, "44x44"])),
       );
-      expect(bar.height).toBe(90);
-      expect(bar.toastTop).toBe(toastTop);
+      expect(bar.tokens).toEqual({ titleBar: `${height}px`, toast: `${height}px` });
     },
     60000,
   );
 
   it.each([
-    [768, "compact", 54, "calc(54px + 52px + 8px)"],
-    [1366, "desktop", 76, "calc(76px + 68px + 8px)"],
+    [768, "compact", 54],
+    [1366, "desktop", 76],
   ] as const)(
-    "with a mouse at %ipx (%s), the bar keeps its %ipx height",
-    async (viewport, layout, height, toastTop) => {
+    "with a mouse at %ipx (%s), the bar keeps its %ipx height and the name stays an editable field",
+    async (viewport, layout, height) => {
       const markup = await markupOn("story", viewport);
       expect(markup.layout).toBe(layout);
       const bar = await probe(markup, viewport, false);
       expect(bar.coarse).toBe(false);
       expect(bar.height).toBe(height);
-      expect(bar.toastTop).toBe(toastTop);
+      expect(bar.nameField).toBe(true);
+      expect(bar.tokens).toEqual({ titleBar: `${height}px`, toast: `${height}px` });
     },
     60000,
   );

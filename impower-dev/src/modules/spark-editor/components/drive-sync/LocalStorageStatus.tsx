@@ -5,14 +5,16 @@ import {
   DownloadIcon,
   DownloadTrayIcon,
   ListRow,
+  PencilIcon,
   Popover,
   PopoverContent,
   PopoverTrigger,
   ShareIcon,
 } from "@impower/impower-ui/components";
+import { useCoarsePointer } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
-import { useId, useState } from "preact/hooks";
+import { useId, useRef, useState } from "preact/hooks";
 import { downloadProjectZip } from "../../utils/downloadProjectZip";
 import { exportBackup, persistAskOf } from "../../utils/storagePersistence";
 import {
@@ -20,6 +22,7 @@ import {
   type SaveStatus,
 } from "../../workspace/saveStatus";
 import workspace from "../../workspace/WorkspaceStore";
+import { renameProject, RENAME_PROJECT } from "../desktop-shell/naming";
 
 type WorkspaceWindow =
   (typeof import("../../workspace/Workspace"))["Workspace"]["window"];
@@ -29,7 +32,13 @@ const withWindow = async (act: (win: WorkspaceWindow) => unknown) => {
   await act(Workspace.window);
 };
 
-type StorageAction = "keep" | "install" | "home-screen" | "drive" | "export";
+type StorageAction =
+  | "keep"
+  | "install"
+  | "home-screen"
+  | "drive"
+  | "export"
+  | "rename";
 
 function ActionRow({
   action,
@@ -41,7 +50,7 @@ function ActionRow({
   action: StorageAction;
   icon: ComponentChildren;
   label: string;
-  description: string;
+  description?: string;
   onPress?: () => void;
 }) {
   return (
@@ -67,6 +76,8 @@ export default function LocalStorageStatus({
 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
+  const coarse = useCoarsePointer();
+  const renaming = useRef(false);
   const device = useComputed(() => workspace.deviceStorage.value).value;
   const signedIn = !!workspace.signals.account.value;
   const signinLabel = workspace.signals.signinLabel.value;
@@ -107,6 +118,13 @@ export default function LocalStorageStatus({
         side="bottom"
         align="start"
         aria-label={COPY.statusTitle}
+        onCloseAutoFocus={(event) => {
+          if (renaming.current) {
+            renaming.current = false;
+            event.preventDefault();
+            renameProject();
+          }
+        }}
       >
         <div class="px-4 pt-3.5 pb-2 text-[13px]/[1.5]">
           <p class="font-semibold text-ink">{COPY.where}</p>
@@ -163,6 +181,17 @@ export default function LocalStorageStatus({
             description={COPY.exportDetail}
             onPress={() => run(() => exportBackup(downloadProjectZip))}
           />
+          {coarse && (
+            <ActionRow
+              action="rename"
+              icon={<PencilIcon />}
+              label={RENAME_PROJECT}
+              onPress={() => {
+                renaming.current = true;
+                setOpen(false);
+              }}
+            />
+          )}
         </ul>
       </PopoverContent>
     </Popover>

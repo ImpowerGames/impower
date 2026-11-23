@@ -673,14 +673,8 @@
   --script-header-height: 48px;
 }
 
-@media (pointer: coarse) {
-  :root[data-layout] {
-    --title-bar-height: 90px;
-  }
-}
-
 :root[data-layout="phone"] {
-  --title-bar-height: 90px;
+  --title-bar-height: 54px;
   --script-header-height: 48px;
   --toast-top: auto;
   --toast-bottom: calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom) + var(--toast-gap));
