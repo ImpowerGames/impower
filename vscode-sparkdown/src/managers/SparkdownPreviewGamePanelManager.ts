@@ -941,8 +941,8 @@ export class SparkdownPreviewGamePanelManager {
               --tab-muted: var(--muted);
               --panel: var(--vscode-editor-background);
               --edge: var(--vscode-panel-border, var(--vscode-widget-border));
-              --tint: var(--vscode-list-activeSelectionBackground);
-              --control-hover: var(--vscode-toolbar-hoverBackground);
+              --tint: var(--vscode-list-inactiveSelectionBackground, var(--swp-toolbar-button-active-color));
+              --control-hover: var(--swp-toolbar-button-hover-color);
               --accent: var(--vscode-focusBorder);
               --error: var(--vscode-errorForeground);
               --warning: var(--vscode-editorWarning-foreground);
@@ -968,6 +968,10 @@ export class SparkdownPreviewGamePanelManager {
               --swp-route-popup-background-color: var(--panel);
               --swp-route-popup-border-color: var(--edge);
               --swp-route-accent-color: var(--accent);
+              --swp-route-warning-color: var(--warning);
+              --swp-route-error-color: var(--error);
+              --swp-route-field-background-color: var(--vscode-input-background);
+              --swp-route-field-border-color: var(--vscode-input-border, var(--edge));
             }
 
             spark-web-player {

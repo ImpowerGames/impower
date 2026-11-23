@@ -8,6 +8,7 @@ import { renderToString } from "preact-render-to-string";
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { RouteList } from "../../packages/spark-web-player/src/route/RouteViews";
+import { StartingValuesTab } from "../../packages/spark-web-player/src/route/StartingValuesViews";
 import { SavesMenu } from "../../packages/spark-web-player/src/saves/SavesViews";
 
 vi.mock("vscode", async () => {
@@ -151,6 +152,7 @@ const open = async (theme: Record<string, string>, markup: string): Promise<Page
   await page.setContent(
     template
       .replace(/<html([^>]*)>/, `<html$1 style="${vars}">`)
+      .replace("<body>", `<body class="ready">`)
       .replace(
         "</head>",
         `<style>${read("spark-web-player.css")}</style><style>${entryCss}</style><style>${read("route", "route-list.css")}</style><style>${read("saves", "saves.css")}</style></head>`,
@@ -238,5 +240,99 @@ describe("the Game Preview styles the impower-ui route list and Saves menu from 
     expect(read.menuBorder).toBe(toRgb(theme["--vscode-panel-border"]));
     expect(read.name).toBe(toRgb(theme["--vscode-foreground"]));
     expect(read.play).toBe(toRgb(theme["--vscode-focusBorder"]));
+  });
+});
+
+const VALUES_TAB = renderToString(
+  h(StartingValuesTab, {
+    state: {
+      values: {},
+      drafts: {},
+      unsaved: { "store:score": "0" },
+      search: "",
+      listing: {
+        items: [
+          { key: "param:trust", name: "trust", group: "parameters", first: "nil" },
+          { key: "store:score", name: "score", group: "stores", first: "0" },
+        ],
+      },
+    },
+    events: {},
+  } as any),
+);
+
+describe("the Game Preview keeps the player's views readable in other VS Code themes", () => {
+  it("keeps a hover wash on route controls in Dark High Contrast, which sets no toolbar hover colour", async () => {
+    const page = await open(
+      {
+        "--vscode-font-size": "13px",
+        "--vscode-foreground": "#ffffff",
+        "--vscode-descriptionForeground": "#ffffff",
+        "--vscode-editor-background": "#000000",
+        "--vscode-panel-border": "#6fc3df",
+        "--vscode-focusBorder": "#f38518",
+      },
+      ROUTE_LIST,
+    );
+    await page.hover("button[data-route-text]");
+    const wash = await page.evaluate(
+      () => getComputedStyle(document.querySelector("button[data-route-text]")!, "::before").backgroundColor,
+    );
+    await page.close();
+    expect(wash).toBe("color(srgb 1 1 1 / 0.12)");
+  });
+
+  it("draws an open More button on a fill its dots read on in Light (Visual Studio)", async () => {
+    const page = await open(
+      {
+        "--vscode-font-size": "13px",
+        "--vscode-foreground": "#616161",
+        "--vscode-editor-background": "#ffffff",
+        "--vscode-panel-border": "#cccccc",
+        "--vscode-focusBorder": "#0090f1",
+        "--vscode-list-activeSelectionBackground": "#0060c0",
+        "--vscode-list-activeSelectionForeground": "#ffffff",
+        "--vscode-list-inactiveSelectionBackground": "#e4e6f1",
+      },
+      "",
+    );
+    const read = await page.evaluate((markup) => {
+      document.querySelector("#saves-menu")!.innerHTML = markup;
+      const more = document.querySelector("[data-save-more]")!;
+      more.setAttribute("aria-expanded", "true");
+      return { fill: getComputedStyle(more).backgroundColor, dots: getComputedStyle(more).color };
+    }, SAVES_MENU);
+    await page.close();
+    expect(read).toEqual({ fill: "rgb(228, 230, 241)", dots: "rgb(97, 97, 97)" });
+  });
+
+  it("colours Starting values badges and fields from the theme", async () => {
+    const page = await open(
+      {
+        "--vscode-font-size": "13px",
+        "--vscode-foreground": "#3b3b3b",
+        "--vscode-editor-background": "#ffffff",
+        "--vscode-panel-border": "#e5e5e5",
+        "--vscode-focusBorder": "#005fb8",
+        "--vscode-editorWarning-foreground": "#bf8803",
+        "--vscode-errorForeground": "#a1260d",
+        "--vscode-input-background": "#ffffff",
+        "--vscode-input-border": "#cecece",
+      },
+      VALUES_TAB,
+    );
+    const read = await page.evaluate(() => ({
+      badges: [...document.querySelectorAll(".sv-badge")].map((el) => [
+        el.getAttribute("data-status"),
+        getComputedStyle(el).color,
+      ]),
+      field: getComputedStyle(document.querySelector(".sv-search")!).borderTopColor,
+    }));
+    await page.close();
+    expect(read.badges).toEqual([
+      ["warning", "rgb(191, 136, 3)"],
+      ["error", "rgb(161, 38, 13)"],
+    ]);
+    expect(read.field).toBe("rgb(206, 206, 206)");
   });
 });
