@@ -98,7 +98,7 @@ it("gives every menu row a 44px tall target", async () => {
 
 it.each(["above", "beside"] as const)("gives every tab with icons %s its label a 44px tall target", async (iconLayout) => {
   await mount(
-    <Tabs value="a" onChange={() => {}} iconLayout={iconLayout}>
+    <Tabs panel="panel" value="a" onChange={() => {}} iconLayout={iconLayout}>
       <Tab value="a">Logic</Tab>
       <Tab value="b">Assets</Tab>
     </Tabs>,
@@ -115,7 +115,7 @@ it.each([
   ["beside", "min-h-[var(--tab-height)]"],
 ] as const)("floors every vertical tab with icons %s its label at %s so a basis-0 column cannot collapse it", async (iconLayout, floor) => {
   await mount(
-    <Tabs value="a" onChange={() => {}} vertical iconLayout={iconLayout}>
+    <Tabs panel="panel" value="a" onChange={() => {}} vertical iconLayout={iconLayout}>
       <Tab value="a">Logic</Tab>
       <Tab value="b">Assets</Tab>
     </Tabs>,

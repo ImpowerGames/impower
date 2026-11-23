@@ -268,6 +268,16 @@ describe("the phone shell", () => {
     expect(navigation().hidden).toBe(false);
   });
 
+  it("points each navigation tab at the route panel it switches, named by the current route's tab", async () => {
+    await mount();
+    const tabs = Array.from(navigation().querySelectorAll<HTMLElement>('[role="tab"]'));
+    const panels = tabs.map((tab) => document.getElementById(tab.getAttribute("aria-controls") ?? ""));
+    expect(panels.every((panel) => panel !== null && panel === panels[0])).toBe(true);
+    expect(panels[0]!.getAttribute("role")).toBe("tabpanel");
+    expect(panels[0]!.querySelector('[data-route="logic"]')).not.toBeNull();
+    expect(document.getElementById(panels[0]!.getAttribute("aria-labelledby")!)).toBe(tabs[0]);
+  });
+
   it("renders Story, Assets and Share above the navigation and marks the current route", async () => {
     await mount();
     expect(host!.querySelector('[data-route="logic"]')).not.toBeNull();

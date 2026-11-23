@@ -82,7 +82,7 @@ describe("size tokens", () => {
 
   it.each(["above", "beside"] as const)("sizes a Tabs trigger with icons %s its label from the tab tokens", async (iconLayout) => {
     const root = await mount(
-      <Tabs value="a" onChange={() => {}} iconLayout={iconLayout}>
+      <Tabs panel="panel" value="a" onChange={() => {}} iconLayout={iconLayout}>
         <Tab value="a">Routes</Tab>
       </Tabs>,
     );

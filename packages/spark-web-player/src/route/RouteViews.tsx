@@ -4,6 +4,7 @@ import {
   ListRow,
   PanelHead,
   Tab,
+  TabPanel,
   Tabs,
 } from "@impower/impower-ui/components";
 import { useId, useLayoutEffect, useState } from "preact/hooks";
@@ -243,8 +244,7 @@ export function RouteList({
       {location.range.start.line + 1}
     </button>
   );
-  const tabId = (value: RouteTab) => `${tabsId}-tab-${value}`;
-  const panelId = (value: RouteTab) => `${tabsId}-panel-${value}`;
+  const panelId = (value: string) => `${tabsId}-panel-${value}`;
   return (
     <section class="route-list" aria-label={routeTitle}>
       <PanelHead
@@ -253,27 +253,18 @@ export function RouteList({
         class="sticky top-0 z-1 bg-panel"
         title={
           <Tabs
+            panel={panelId}
             value={tab}
             onChange={(value) => onTab?.(value as RouteTab)}
             iconLayout="beside"
             indicator="none"
             class="w-auto"
           >
-            <Tab
-              value="route"
-              id={tabId("route")}
-              controls={panelId("route")}
-              class={ROUTE_TAB_CLASS}
-            >
+            <Tab value="route" class={ROUTE_TAB_CLASS}>
               {routeTitle}
             </Tab>
             {valuesState ? (
-              <Tab
-                value="values"
-                id={tabId("values")}
-                controls={panelId("values")}
-                class={ROUTE_TAB_CLASS}
-              >
+              <Tab value="values" class={ROUTE_TAB_CLASS}>
                 <span class="inline-flex items-center gap-[var(--tab-gap)]">
                   <StartingValuesTabLabel state={valuesState} />
                 </span>
@@ -295,30 +286,23 @@ export function RouteList({
         }
       />
       {valuesState ? (
-        <div
-          role="tabpanel"
-          id={panelId("values")}
-          aria-labelledby={tabId("values")}
+        <TabPanel
+          panel={panelId("values")}
+          value="values"
           hidden={tab !== "values"}
         >
           {tab === "values" && values ? (
             <StartingValuesTab state={valuesState} events={values} />
           ) : null}
-        </div>
+        </TabPanel>
       ) : null}
       {tab === "values" && valuesState && values ? (
-        <div
-          role="tabpanel"
-          id={panelId("route")}
-          aria-labelledby={tabId("route")}
-          hidden
-        />
+        <TabPanel panel={panelId("route")} value="route" hidden />
       ) : (
-        <div
+        <TabPanel
           class="route-tab-body"
-          role="tabpanel"
-          id={panelId("route")}
-          aria-labelledby={tabId("route")}
+          panel={panelId("route")}
+          value="route"
         >
           <div class="route-list-toggles" role="group" aria-label="Show">
             {ROUTE_KINDS.map((kind) => (
@@ -484,7 +468,7 @@ export function RouteList({
               ) : null}
             </footer>
           ) : null}
-        </div>
+        </TabPanel>
       )}
     </section>
   );

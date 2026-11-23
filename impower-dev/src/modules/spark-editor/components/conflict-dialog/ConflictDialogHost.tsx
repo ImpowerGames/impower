@@ -49,8 +49,8 @@ export default function ConflictDialogHost() {
       </DialogDescription>
 
       {shown.remaining > 1 && (
-        <button
-          type="button"
+        <Button
+          variant="bare"
           onClick={() => setApplyAll((v) => !v)}
           class="relative mb-4 flex min-h-11 w-full flex-row items-center gap-2 rounded-control text-left text-sm text-foreground/70 control-overlay"
         >
@@ -64,7 +64,7 @@ export default function ConflictDialogHost() {
             {applyAll && <CheckIcon class="size-3.5" />}
           </span>
           Apply to all {shown.remaining} conflicts
-        </button>
+        </Button>
       )}
 
       <DialogActions class="flex-wrap">

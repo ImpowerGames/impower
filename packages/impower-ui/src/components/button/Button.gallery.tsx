@@ -8,6 +8,7 @@ import {
   PencilIcon,
   PlusIcon,
 } from "../icon/icons.generated";
+import { SAMPLE_PICTURE } from "../thumbnail/Thumbnail.gallery";
 import Button, { type ButtonGlyph, type ButtonSize, type ButtonVariant } from "./Button";
 
 const VARIANTS: Record<ButtonVariant, string> = {
@@ -18,6 +19,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   disclosure: "Disclosure",
   toggle: "Toggle",
   field: "Field",
+  bare: "Bare",
 };
 
 const SIZES: Record<ButtonSize, string> = {
@@ -38,7 +40,7 @@ const GLYPHS: Record<ButtonGlyph, string> = {
   lg: "18px glyph",
 };
 
-const variants = Object.keys(VARIANTS) as ButtonVariant[];
+const variants = (Object.keys(VARIANTS) as ButtonVariant[]).filter((variant) => variant !== "bare");
 const sizes = Object.keys(SIZES) as ButtonSize[];
 
 function Cell({
@@ -117,6 +119,17 @@ function ButtonDemo() {
               <PlusIcon />
             </Button>
           ))}
+        </div>
+      </GalleryRow>
+      <GalleryRow label={`Bare: none of Button's own classes, only the caller's, for a control whose look its page already draws, such as a status line or a picture tile; it keeps type="button", asChild and the ref`}>
+        <div class="flex flex-wrap items-center gap-4">
+          <Button variant="bare" class="inline-flex cursor-pointer items-center gap-1 text-[12px]/[18px] text-success hover:underline focus-visible:underline">
+            Draft saved
+          </Button>
+          <Button variant="bare" class="flex w-32 cursor-pointer flex-col items-stretch text-left focus-inset">
+            <img src={SAMPLE_PICTURE} alt="" class="aspect-[16/10] w-full object-cover" />
+            <span class="px-2.5 py-1.75 text-[13px]/[1.4] font-semibold">harbor</span>
+          </Button>
         </div>
       </GalleryRow>
       <GalleryRow label="A dialog's actions and a panel's close">

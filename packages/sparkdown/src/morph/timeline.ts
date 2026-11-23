@@ -62,7 +62,7 @@ interface Path {
 interface Play {
   start: number;
   pauses: number[][];
-  taken: boolean[];
+  settled: (number | undefined)[];
   reversed: boolean;
   path?: Path;
   gap: number;
@@ -127,7 +127,7 @@ export class MorphTimeline {
   }
 
   protected schedule(start: number): Play {
-    const play: Play = { start, pauses: this.drawPauses(), taken: [], reversed: this.directed(this.runs.length, 0) === 1, gap: 0 };
+    const play: Play = { start, pauses: this.drawPauses(), settled: [], reversed: this.directed(this.runs.length, 0) === 1, gap: 0 };
     this.runs.push(play);
     return play;
   }
@@ -155,7 +155,7 @@ export class MorphTimeline {
     down: boolean,
     left: number[][],
     take: (pauses: number[]) => number | undefined,
-    taken: (turn: number) => boolean,
+    settled: (turn: number) => number | undefined,
   ): Path {
     const close = (to: number) => {
       const run = path.runs[path.runs.length - 1]!;
@@ -183,9 +183,11 @@ export class MorphTimeline {
         const run = path.runs[index]!;
         const partial = (down ? run.from - next : next - run.from) * this.duration;
         path.turns.push({ partial, resume: down ? stretch.to : stretch.from, range: i, run: index });
-        if (!taken(path.turns.length - 1)) continue;
-        path.holds.push({ pause, hold: stretch.hold });
-        path.taken.push({ pause, stretch: (stretch.to - stretch.from) * this.duration });
+        const least = settled(path.turns.length - 1);
+        if (least === undefined) continue;
+        const held = Math.max(pause, least);
+        path.holds.push({ pause: held, hold: stretch.hold });
+        path.taken.push({ pause: held, stretch: (stretch.to - stretch.from) * this.duration });
         x = down ? stretch.to : stretch.from;
         path.runs.push({ from: x, to: x, length: 0 });
         break;
@@ -202,13 +204,13 @@ export class MorphTimeline {
     return at + (path.holds[turn.run - 1]!.pause + turn.partial);
   }
 
-  protected forward(pauses: number[][], taken: (turn: number) => boolean): Path {
+  protected forward(pauses: number[][], settled: (turn: number) => number | undefined): Path {
     const path: Path = { runs: [{ from: 0, to: 0, length: 0 }], holds: [], turns: [], taken: [] };
-    return this.walk(path, 0, false, pauses.map((list) => list.slice().reverse()), (list) => list.pop(), taken);
+    return this.walk(path, 0, false, pauses.map((list) => list.slice().reverse()), (list) => list.pop(), settled);
   }
 
-  protected backward(pauses: number[][], taken: (turn: number) => boolean): Path {
-    const ahead = this.forward(pauses, () => true);
+  protected backward(pauses: number[][], settled: (turn: number) => number | undefined): Path {
+    const ahead = this.forward(pauses, () => 0);
     const runs = ahead.runs.map(({ from, to, length }): Run => ({ from: to, to: from, length })).reverse();
     const holds = ahead.holds.slice().reverse();
     const ranges = ahead.turns.map(({ range }) => range).reverse();
@@ -218,21 +220,23 @@ export class MorphTimeline {
       const stretch = this.stretches[range]!;
       const run = path.runs[k]!;
       path.turns.push({ partial: run.length, resume: run.to, range, run: k });
-      if (!taken(k)) {
+      const least = settled(k);
+      if (least === undefined) {
         const left = pauses.map((list) => list.slice());
         for (const { range: spent } of path.turns) left[spent]!.pop();
-        return this.walk(path, run.to, true, left, (list) => list.pop(), taken);
+        return this.walk(path, run.to, true, left, (list) => list.pop(), settled);
       }
-      path.holds.push(holds[k]!);
-      path.taken.push({ pause: holds[k]!.pause, stretch: (stretch.to - stretch.from) * this.duration });
+      const held = Math.max(holds[k]!.pause, least);
+      path.holds.push({ ...holds[k]!, pause: held });
+      path.taken.push({ pause: held, stretch: (stretch.to - stretch.from) * this.duration });
       path.runs.push({ ...runs[k + 1]! });
     }
     return path;
   }
 
   protected path(play: Play): Path {
-    const taken = (turn: number) => play.taken[turn] ?? true;
-    return (play.path ??= play.reversed ? this.backward(play.pauses, taken) : this.forward(play.pauses, taken));
+    const settled = (turn: number) => (turn < play.settled.length ? play.settled[turn] : 0);
+    return (play.path ??= play.reversed ? this.backward(play.pauses, settled) : this.forward(play.pauses, settled));
   }
 
   protected length(play: Play): number {
@@ -264,13 +268,14 @@ export class MorphTimeline {
     if (!play || !this.stretches.length) return;
     for (;;) {
       const path = this.path(play);
-      const turn = path.turns[play.taken.length];
+      const turn = path.turns[play.settled.length];
       if (!turn) return;
       const at = this.turnAt(path, turn, play.start);
       if (at > t) return;
-      const taken = this.speaking(at);
-      play.taken.push(taken);
-      if (!taken) play.path = undefined;
+      const span = this.spanFrom(at);
+      const least = span && Math.max(0, span[0] - at);
+      play.settled.push(least);
+      if (least === undefined || least > path.holds[turn.run]!.pause) play.path = undefined;
     }
   }
 
@@ -286,8 +291,12 @@ export class MorphTimeline {
 
   protected nextStart(from: number, last: number | undefined): number | undefined {
     if (this.beeps) return this.beeps.find((beep) => beep >= from - 1e-9 && (last === undefined || beep > last));
-    const span = this.spans.find(([, end]) => end > from);
+    const span = this.spanFrom(from);
     return span && Math.max(from, span[0]);
+  }
+
+  protected spanFrom(t: number): readonly [number, number] | undefined {
+    return this.spans.find(([, end]) => end > t);
   }
 
   protected spoken(t: number): MorphPlayhead {

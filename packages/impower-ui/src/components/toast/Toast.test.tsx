@@ -114,25 +114,54 @@ const button = (label: string) =>
   );
 
 describe("Toast", () => {
-  it("hangs under the title bar in a live region, outside the page's flow", async () => {
+  it("sits in a live region outside the page's flow, spanning its pane's columns", async () => {
     await mount();
     const region = toast()!.parentElement!;
     expect(region.parentElement).toBe(document.body);
     expect(region.getAttribute("role")).toBe("status");
-    expect(region.className).toContain("fixed");
-    expect(region.className).toContain("top-[var(--toast-top)]");
-    expect(region.className).not.toMatch(/(^|\s)bottom-/);
+    const classes = region.className.split(/\s+/);
+    for (const name of [
+      "fixed",
+      "top-[var(--toast-top)]",
+      "bottom-[var(--toast-bottom)]",
+      "h-[var(--toast-height)]",
+      "left-[var(--toast-left,0px)]",
+      "w-[var(--toast-width,100vw)]",
+      "items-center",
+      "justify-center",
+    ]) {
+      expect(classes).toContain(name);
+    }
+    expect(classes).not.toContain("inset-x-0");
   });
 
-  it.each([
-    ["desktop", ["--title-bar-height", "--script-header-height"]],
-    ["compact", ["--title-bar-height", "--preview-top-bar-height"]],
-    ["phone", ["--title-bar-height", "--preview-strip-height", "--script-header-height"]],
-  ])("hangs below the %s layout's toolbar rows, clear of their controls", (layout, rows) => {
+  it.each(["desktop", "compact"])("is centred in the %s layout's title bar row, above the page's rows", (layout) => {
     const tokens = layoutTokens(layout);
-    const rowsBottom = rows.reduce((sum, row) => sum + resolvePx(tokens, row), 0);
-    expect(rowsBottom).toBeGreaterThan(0);
-    expect(resolvePx(tokens, "--toast-top")).toBeGreaterThanOrEqual(rowsBottom);
+    expect(resolvePx(tokens, "--toast-top")).toBe(0);
+    expect(tokens.get("--toast-bottom")).toBe("auto");
+    expect(resolvePx(tokens, "--toast-height")).toBe(resolvePx(tokens, "--title-bar-height"));
+    expect(resolvePx(tokens, "--toast-height")).toBeGreaterThanOrEqual(44);
+  });
+
+  it("sits above the phone's bottom navigation, clear of the title bar and the page's first rows", () => {
+    const tokens = layoutTokens("phone");
+    expect(tokens.get("--toast-top")).toBe("auto");
+    expect(tokens.get("--toast-height")).toBe("auto");
+    expect(tokens.get("--toast-bottom")).toBe(
+      "calc(var(--bottom-navigation-height) + env(safe-area-inset-bottom) + var(--toast-gap))",
+    );
+    expect(resolvePx(tokens, "--bottom-navigation-height")).toBeGreaterThan(0);
+  });
+
+  it("is an inverted pill with small text and no border or close button", async () => {
+    await mount();
+    const classes = toast()!.className.split(/\s+/);
+    for (const name of ["bg-ink", "text-bg", "rounded-toast", "text-[12px]/[1.5]"]) {
+      expect(classes).toContain(name);
+    }
+    expect(classes.some((name) => name === "border" || name.startsWith("border-"))).toBe(false);
+    expect(classes.some((name) => name.startsWith("bg-elevated"))).toBe(false);
+    expect(Array.from(toast()!.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Undo"]);
   });
 
   it("fires its action's callback once from the action button, then leaves after its exit", async () => {
@@ -144,7 +173,7 @@ describe("Toast", () => {
     expect(toast()).toBeNull();
   });
 
-  it("ignores its action, close and swipe while it leaves, and is inert", async () => {
+  it("ignores its action and swipe while it leaves, and is inert", async () => {
     const onAction = vi.fn();
     const onDismiss = vi.fn();
     host = document.body.appendChild(document.createElement("div"));
@@ -160,7 +189,6 @@ describe("Toast", () => {
     await draw(false);
     expect(toast()?.hasAttribute("inert")).toBe(true);
     await act(async () => button("Undo")!.click());
-    await act(async () => button("Dismiss")!.click());
     const element = toast()!;
     for (const [type, clientY] of [["pointerdown", 100], ["pointermove", 40], ["pointerup", 40]] as const) {
       await act(async () => {
@@ -182,17 +210,12 @@ describe("Toast", () => {
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 
-  it("closes from its close button under a fine pointer", async () => {
-    await mount();
-    await act(async () => button("Dismiss")!.click());
-    await settle(TOAST_TRANSITION_MS + 20);
-    expect(toast()).toBeNull();
-  });
-
-  it("drops the close button on touch and dismisses on a swipe up", async () => {
+  it.each([
+    ["up", -1],
+    ["down", 1],
+  ])("dismisses on a touch swipe %s", async (_direction, sign) => {
     await setCoarse(true);
     await mount();
-    expect(button("Dismiss")).toBeUndefined();
     const element = toast()!;
     const pointer = (type: string, clientY: number) =>
       act(async () => {
@@ -200,9 +223,10 @@ describe("Toast", () => {
           new PointerEvent(type, { bubbles: true, clientY, pointerType: "touch" }),
         );
       });
+    const end = 100 + sign * (TOAST_SWIPE_DISMISS_PX + 6);
     await pointer("pointerdown", 100);
-    await pointer("pointermove", 100 - (TOAST_SWIPE_DISMISS_PX + 6));
-    await pointer("pointerup", 100 - (TOAST_SWIPE_DISMISS_PX + 6));
+    await pointer("pointermove", end);
+    await pointer("pointerup", end);
     await settle(TOAST_TRANSITION_MS + 20);
     expect(toast()).toBeNull();
   });
@@ -224,9 +248,9 @@ describe("Toast", () => {
     expect(toast()).not.toBeNull();
   });
 
-  it("keeps 44px targets for its action and close", async () => {
+  it("keeps a 44px target for its action", async () => {
     await mount();
-    for (const label of ["Undo", "Dismiss"]) {
+    for (const label of ["Undo"]) {
       const area = await hitArea(button(label)!);
       expect(area.width).toBeGreaterThanOrEqual(44);
       expect(area.height).toBeGreaterThanOrEqual(44);
@@ -323,19 +347,12 @@ describe("Toast over a modal surface", () => {
         (b) => b.textContent === "Use alice instead",
       )!;
       const controls = Array.from(action().closest("[data-toast]")!.querySelectorAll("button"));
-      expect(controls.map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual([
-        "Undo",
-        "Dismiss",
-      ]);
-      first.focus();
-      await tab(true);
-      expect(document.activeElement).toBe(controls[1]);
-      await tab();
-      expect(document.activeElement).toBe(first);
-      await setCoarse(true);
+      expect(controls.map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(["Undo"]);
       first.focus();
       await tab(true);
       expect(document.activeElement).toBe(action());
+      await tab();
+      expect(document.activeElement).toBe(first);
       await act(async () => action().click());
       expect(onAction).toHaveBeenCalledTimes(1);
     },
