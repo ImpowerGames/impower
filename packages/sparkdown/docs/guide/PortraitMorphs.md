@@ -637,6 +637,7 @@ About one blink in eight is double. The pause of 0.17 to 0.35 seconds, holding t
 
 - When a play starts, it rolls `chance` up to `count` times and stops at the first roll that fails. With `chance = 50%` and `count = 2` a play makes no replay half the time, one a quarter of the time and two a quarter of the time. `chance = 100%` makes exactly `count` replays.
 - Each time the play reaches `to` with a replay still to make, it holds the pose at `to` for a pause drawn evenly between `delay_min` and `delay_max` (no pause without them), then continues from `from`. With no replay left it runs on to its end.
+- Each play's rolls and each replay's pause are drawn independently of every other play and replay, and a play keeps them however it is watched: scrubbing a preview back and forth shows the same replays at the same moments. A play with a large `count` costs no more to start than one with a small `count`.
 - `from` and `to` are the positions the keyframes are written at, whatever the easing. The play reaches `to` at the first moment its eased position is at or past it, and resumes at the first moment its eased position is at or past `from`. `to = 100%` is the end of the play. Under `steps(3)` a replay of the whole play shows the three frames twice, each for its full time.
 - A replay makes its play longer by the time the play took between `from` and `to`, plus its pause. `duration` stays the time of one straight pass, so the morph moves at the speed you tuned.
 - Where the poses at `to` and `from` differ, the portrait cuts between them, whatever the morph's `blend`.
@@ -708,7 +709,7 @@ morph talk {
 
 Half the flaps repeat the small teeth, open, teeth flap once, and a quarter repeat the wide one up to twice.
 
-- When a play starts, each entry rolls its own chance up to its own `count` and draws its own pauses, in the order the entries are written. Each time the play reaches an entry's `to` with one of that entry's replays still to make, it pauses and goes back to that entry's `from`.
+- When a play starts, each entry rolls its own chance up to its own `count`, and each of its replays draws its own pause. Each time the play reaches an entry's `to` with one of that entry's replays still to make, it pauses and goes back to that entry's `from`.
 - An entry's `count` covers the whole play. When another entry carries the play back over an entry's stretch, that entry makes no more replays than it has left, so a play makes at most the total of its entries' counts.
 - When two entries turn back at the same position, the one written first makes all of its replays before the next makes any.
 - Ranges may overlap, sit one inside another, or repeat.
