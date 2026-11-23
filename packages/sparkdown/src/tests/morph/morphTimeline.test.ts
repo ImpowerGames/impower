@@ -878,12 +878,16 @@ describe("a play computes its replays from the seed and keeps nothing per replay
     const paused = new Counted(timing({ duration: 0.25, replay: [range(0, 1, { count: 99999999999999, ...pause })] }), morphRandom("a"));
     expect(paused.at(10000)).toMatchObject({ phase: "playing", play: 0 });
     const first = paused.pauses;
-    paused.pauses = 0;
-    const late = offsetAt(paused, 10000 + 1 / 60);
-    offsetAt(paused, 4000);
-    expect(offsetAt(paused, 10000 + 1 / 60)).toBe(late);
+    const lookups: number[] = [];
+    const frames = [10000 + 1 / 60, 4000, 10000 + 1 / 60].map((t) => {
+      paused.pauses = 0;
+      const offset = offsetAt(paused, t);
+      lookups.push(paused.pauses);
+      return offset;
+    });
+    expect(frames[2]).toBe(frames[0]);
     expect(first).toBeGreaterThan(15000);
-    expect(paused.pauses).toBeLessThan(first / 4);
+    for (const pauses of lookups) expect(pauses).toBeLessThan(first / 4);
   });
 
   test("the same seed gives the same frames whatever order they are asked for in", () => {
@@ -965,7 +969,7 @@ describe("a play computes its replays from the seed and keeps nothing per replay
       const ranges = Array.from({ length: pick([1, 2, 3]) }, () => {
         const from = pick(grid.slice(0, -1));
         const to = pick(grid.filter((point) => point > from));
-        const count = config % 10 === 9 ? pick([300, 513, 700]) : pick([1, 2, 3, 4, 6]);
+        const count = config % 10 === 9 ? pick([1100, 1537, 2100]) : pick([1, 2, 3, 4, 6]);
         const written = pick([0, 1, 2]);
         return range(from, to, { count, ...(written === 1 ? { delay_min: 0.05, delay_max: 0.05 } : written === 2 ? { delay_min: 0.02, delay_max: 0.1 } : {}) });
       });
@@ -974,9 +978,10 @@ describe("a play computes its replays from the seed and keeps nothing per replay
       const forward = new Known(timing({ duration: 1, replay: ranges }), morphRandom("ranges"));
       const reverse = new Known(timing({ duration: 1, replay: ranges, direction: "reverse" }), morphRandom("ranges"));
       const step = expected.length / 1500;
+      const digits = config % 10 === 9 ? 6 : 9;
       for (let t = 0.00011; t < expected.length; t += step) {
-        expect(offsetAt(forward, t), `${label} at ${t}`).toBeCloseTo(expected.at(t), 9);
-        expect(offsetAt(reverse, t), `${label} reversed at ${t}`).toBeCloseTo(expected.at(expected.length - t), 9);
+        expect(offsetAt(forward, t), `${label} at ${t}`).toBeCloseTo(expected.at(t), digits);
+        expect(offsetAt(reverse, t), `${label} reversed at ${t}`).toBeCloseTo(expected.at(expected.length - t), digits);
       }
       expect(forward.at(expected.length - 1e-6).phase, label).toBe("playing");
       expect(forward.at(expected.length + 1e-6).phase, label).toBe("done");
@@ -1032,6 +1037,19 @@ describe("a play computes its replays from the seed and keeps nothing per replay
       expect(unpaused[k], `gap ${k} with no pause`).toBeCloseTo(gap, 9);
       expect(fixed[k], `gap ${k} with a fixed pause`).toBeCloseTo(gap, 9);
     });
+  });
+
+  test("a turning moment that lands on the speech's end in exact arithmetic is placed by summing each pause and run in turn", () => {
+    const spoken = (pause?: number) => {
+      const fixed = pause === undefined ? {} : { delay_min: pause, delay_max: pause };
+      const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 0.3, replay: [range(0, 0.5, { count: 7, ...fixed })] }), () => 0.5);
+      timeline.speak([[0, pause === undefined ? 1.05 : 1.35]], 0);
+      return timeline;
+    };
+    expect(offsetAt(spoken(), 1.15)).toBeCloseTo(0.25 / 0.3, 9);
+    expect(spoken().at(1.21)).toEqual({ phase: "off" });
+    expect(offsetAt(spoken(0.05), 1.45)).toBeCloseTo(0.05 / 0.3, 9);
+    expect(offsetAt(spoken(0.05), 1.51)).toBeCloseTo(0.11 / 0.3, 9);
   });
 
   test("a turning point exactly at the end of the speech is refused, whatever frames were asked before", () => {

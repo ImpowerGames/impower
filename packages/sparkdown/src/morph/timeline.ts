@@ -21,7 +21,7 @@ export function morphRandom(seed: string): () => number {
 
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
-const MARK = 256;
+const MARK = 1024;
 
 const mix = (h: number) => {
   h = (h + 0x9e3779b9) | 0;
@@ -338,16 +338,13 @@ export class MorphTimeline {
     return lo;
   }
 
-  protected roundStart(play: Play, segment: Segment, at: number, r: number): number {
-    if (r === 0) return at;
-    const one = this.across(play, segment, 0, at);
-    if (r === 1) return one;
-    if (r === segment.reps && segment.total !== undefined) return one + segment.total;
+  protected later(play: Play, segment: Segment, r: number): number {
+    if (r === segment.reps && segment.total !== undefined) return segment.total;
     const i = Math.floor((r - 1) / MARK);
     let rel = this.mark(play, segment, i);
     for (let k = 1 + i * MARK; k < r; k++) rel = this.across(play, segment, k, rel);
     if (r === segment.reps) segment.total = rel;
-    return one + rel;
+    return rel;
   }
 
   protected inRound(play: Play, index: number, r: number, left: number): Hit | number {
@@ -385,21 +382,27 @@ export class MorphTimeline {
 
   protected step(play: Play, k: number): Step | undefined {
     const segments = this.path(play);
-    let at = 0;
+    let at = play.start;
+    let held: number | undefined;
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i]!;
       const m = segment.cycle.length;
-      if (k < segment.ordinal + segment.reps * m) {
-        const r = Math.floor((k - segment.ordinal) / m);
-        const q = k - segment.ordinal - r * m;
-        at = this.roundStart(play, segment, at, r);
-        for (let p = 0; p < q; p++) {
-          at += this.runOf(segment, r, p);
-          at += this.pauseOf(play, segment, r, p);
+      const local = k - segment.ordinal;
+      const target = local < segment.reps * m ? Math.floor(local / m) : segment.reps;
+      for (let r = 0; r < segment.reps; r++) {
+        if (r === 1 && segment.reps > MARK && target > 1) {
+          at = at + held! + this.later(play, segment, target);
+          held = undefined;
+          r = target;
+          if (r === segment.reps) break;
         }
-        return { segment: i, r, q, turn: at + this.runOf(segment, r, q) };
+        for (let q = 0; q < m; q++) {
+          const run = this.runOf(segment, r, q);
+          at = held === undefined ? at + run : at + (held + run);
+          if (r === target && q === local - target * m) return { segment: i, r, q, turn: at };
+          held = this.pauseOf(play, segment, r, q);
+        }
       }
-      at = this.roundStart(play, segment, at, segment.reps);
     }
     return undefined;
   }
@@ -419,9 +422,23 @@ export class MorphTimeline {
   protected length(play: Play, elapsed: number): number {
     if (play.length !== undefined) return play.length;
     if (!("tail" in this.seek(play, elapsed))) return Infinity;
-    let at = 0;
-    for (const segment of this.path(play)) at = this.roundStart(play, segment, at, segment.reps);
-    play.length = at + Math.abs((play.reversed ? 0 : 1) - play.tail) * this.duration;
+    let total = this.duration;
+    for (const segment of this.path(play)) {
+      const stretches = segment.cycle.map((c) => (this.stretches[c]!.to - this.stretches[c]!.from) * this.duration);
+      if (segment.reps > MARK) {
+        const inner = segment.inner.reduce((sum, run) => sum + run, 0);
+        const runs = segment.entry + inner + (segment.reps - 1) * (segment.wrap + inner);
+        const time = this.across(play, segment, 0, 0) + this.later(play, segment, segment.reps);
+        total += time - runs + segment.reps * stretches.reduce((sum, stretch) => sum + stretch, 0);
+        continue;
+      }
+      for (let r = 0; r < segment.reps; r++) {
+        segment.cycle.forEach((_, q) => {
+          total = total + this.pauseOf(play, segment, r, q) + stretches[q]!;
+        });
+      }
+    }
+    play.length = total;
     return play.length;
   }
 
@@ -499,7 +516,7 @@ export class MorphTimeline {
     for (;;) {
       const found = this.step(play, play.settled);
       if (!found) return;
-      const at = play.start + found.turn;
+      const at = found.turn;
       if (at > t) return;
       const span = this.spanFrom(at);
       if (!span) {
