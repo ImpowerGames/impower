@@ -80,20 +80,16 @@
 
 :is(spark-web-player, swp-route-view) .route-button .route-icon[data-icon="forced"],
 :is(spark-web-player, swp-route-view) .route-button .route-icon[data-icon="clipped"],
-:is(spark-web-player, swp-route-view) .route-entry[data-kind="forced"] .route-icon,
-:is(spark-web-player, swp-route-view) .route-entry[data-kind="clipped"] .route-icon,
 :is(spark-web-player, swp-route-view) .route-toggle[data-kind="forced"] .route-icon,
 :is(spark-web-player, swp-route-view) .route-toggle[data-kind="clipped"] .route-icon {
   color: var(--swp-route-warning-color);
 }
 
-:is(spark-web-player, swp-route-view) .route-entry[data-kind="auto"] .route-icon,
 :is(spark-web-player, swp-route-view) .route-toggle[data-kind="auto"] .route-icon {
   color: var(--swp-route-muted-color);
 }
 
 :is(spark-web-player, swp-route-view) .route-button .route-icon[data-icon="pinned"],
-:is(spark-web-player, swp-route-view) .route-entry[data-kind="pinned"] .route-icon,
 :is(spark-web-player, swp-route-view) .route-toggle[data-kind="pinned"] .route-icon {
   color: var(--swp-route-accent-color);
 }
@@ -127,23 +123,6 @@
   display: none;
 }
 
-:is(spark-web-player, swp-route-view) .route-list-head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--swp-toolbar-button-gap);
-  padding: 4px var(--swp-toolbar-button-gap);
-  background-color: var(--swp-route-panel-background-color);
-}
-
-:is(spark-web-player, swp-route-view) .route-list-title {
-  font-weight: 600;
-}
-
 :is(spark-web-player, swp-route-view) .route-list-toggles {
   display: flex;
   flex-direction: row;
@@ -152,9 +131,7 @@
   padding: 4px var(--swp-toolbar-button-gap);
 }
 
-:is(spark-web-player, swp-route-view) .route-toggle,
-:is(spark-web-player, swp-route-view) .route-list-close,
-:is(spark-web-player, swp-route-view) .route-line {
+:is(spark-web-player, swp-route-view) .route-toggle {
   cursor: pointer;
   border: none;
   background: none;
@@ -169,9 +146,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :is(spark-web-player, swp-route-view) .route-toggle:hover,
-  :is(spark-web-player, swp-route-view) .route-list-close:hover,
-  :is(spark-web-player, swp-route-view) .route-line:hover {
+  :is(spark-web-player, swp-route-view) .route-toggle:hover {
     background-color: var(--swp-route-hover-color);
   }
 }
@@ -194,7 +169,6 @@
   padding: 0 var(--swp-toolbar-button-gap) 4px;
 }
 
-:is(spark-web-player, swp-route-view) .route-entry-row,
 :is(spark-web-player, swp-route-view) .route-unresolved-pin {
   display: flex;
   flex-direction: row;
@@ -203,28 +177,12 @@
   min-height: 22px;
 }
 
-:is(spark-web-player, swp-route-view) .route-line {
-  min-width: 3em;
-  justify-content: flex-end;
-  color: var(--swp-route-accent-color);
-  font-variant-numeric: tabular-nums;
-}
-
 :is(spark-web-player, swp-route-view) .route-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   mask-image: linear-gradient(to left, transparent 0, #000 16px);
-}
-
-:is(spark-web-player, swp-route-view) .route-start .route-text,
-:is(spark-web-player, swp-route-view) .route-badge {
-  color: var(--swp-route-muted-color);
-}
-
-:is(spark-web-player, swp-route-view) .route-badge {
-  flex: none;
 }
 
 :is(spark-web-player, swp-route-view) .route-list-note,
@@ -238,41 +196,6 @@
 :is(spark-web-player, swp-route-view) .route-list-failure,
 :is(spark-web-player, swp-route-view) .route-pin-note {
   color: var(--swp-route-error-color);
-}
-
-:is(spark-web-player, swp-route-view) .route-tabs {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 2px;
-  margin-right: auto;
-  min-width: 0;
-}
-
-:is(spark-web-player, swp-route-view) .route-tab {
-  cursor: pointer;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--swp-route-muted-color);
-  font: inherit;
-  white-space: nowrap;
-}
-
-:is(spark-web-player, swp-route-view) .route-tab[aria-selected="true"] {
-  color: inherit;
-  border-bottom-color: var(--swp-route-accent-color);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  :is(spark-web-player, swp-route-view) .route-tab:hover {
-    background-color: var(--swp-route-hover-color);
-  }
 }
 
 :is(spark-web-player, swp-route-view) .route-tab-count {
@@ -569,7 +492,6 @@
   flex: 1;
 }
 
-:is(spark-web-player, swp-route-view) .route-entry-toggle,
 :is(spark-web-player, swp-route-view) .route-pin-button,
 :is(spark-web-player, swp-route-view) .route-pin-unpin,
 :is(spark-web-player, swp-route-view) .route-pin-remove,
@@ -581,11 +503,6 @@
   color: inherit;
   font: inherit;
   border-radius: 3px;
-}
-
-:is(spark-web-player, swp-route-view) .route-entry-toggle {
-  text-align: left;
-  padding: 2px 4px;
 }
 
 :is(spark-web-player, swp-route-view) .route-pin-button,
@@ -603,7 +520,6 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :is(spark-web-player, swp-route-view) .route-entry-toggle:hover,
   :is(spark-web-player, swp-route-view) .route-pin-button:hover,
   :is(spark-web-player, swp-route-view) .route-pin-unpin:hover,
   :is(spark-web-player, swp-route-view) .route-pin-remove:hover,
@@ -675,7 +591,7 @@
 }
 
 @media (forced-colors: active) {
-  :is(spark-web-player, swp-route-view) :is(.route-entry, .route-toggle, .route-button, .route-pin-button, .route-unresolved-pin) .route-icon[data-icon] {
+  :is(spark-web-player, swp-route-view) :is(.route-toggle, .route-button, .route-pin-button, .route-unresolved-pin) .route-icon[data-icon] {
     color: CanvasText;
   }
 }

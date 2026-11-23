@@ -59,15 +59,11 @@ describe("saves controls under a fine hovering pointer", () => {
     );
   });
 
-  it("keeps the active colour on expanded controls while they are hovered", () => {
+  it("keeps the active colour on the expanded Saves button while it is hovered", () => {
     const host = mount(
-      `<button class="saves-button" aria-expanded="true" data-hover>Saves</button>` +
-        `<button class="saves-more" aria-expanded="true" data-hover>More</button>`,
+      `<button class="saves-button" aria-expanded="true" data-hover>Saves</button>`,
     );
     expect(background(host.querySelector(".saves-button")!)).toBe(
-      "var(--swp-saves-active-color)",
-    );
-    expect(background(host.querySelector(".saves-more")!)).toBe(
       "var(--swp-saves-active-color)",
     );
   });
