@@ -192,6 +192,67 @@ test("a hidden file picker, the package's own controls and components with the s
   assert.deepEqual(await lint("packages/impower-ui/src/components/probe/Probe.tsx", FORM_PROBE("<input />")), []);
 });
 
+const BUTTON_DIALOG_FILES = [
+  "impower-dev/src/modules/spark-editor/components/probe/Probe.tsx",
+  "impower-dev/test/components/probePage.tsx",
+];
+
+test("a bare button or a hand-written dialog or menu role in impower-dev fails with a message naming the package", async () => {
+  for (const file of BUTTON_DIALOG_FILES) {
+    for (const element of [
+      "<button />",
+      '<button type="button" onClick={() => {}}>Go</button>',
+      '<section role="dialog" aria-label="Add" />',
+      '<div role="menu" />',
+      '<div role="menuitem">Open</div>',
+      '<div role={"dialog"} />',
+      "<div role={`menu`} />",
+    ]) {
+      await assertRefused(file, FORM_PROBE(element), "no-restricted-syntax");
+    }
+  }
+});
+
+test("impower-ui's Button and Dialog, other roles, role selectors in strings and the package's own button pass", async () => {
+  for (const file of BUTTON_DIALOG_FILES) {
+    for (const element of [
+      '<Button variant="bare">Go</Button>',
+      "<Dialog open onOpenChange={() => {}} />",
+      "<DockedDialog open onOpenChange={() => {}} />",
+      '<div role="status" />',
+      '<div role="group" />',
+      '<div role="menubar" />',
+      '<div role="menuitemradio" />',
+      '<div data-role="dialog" />',
+    ]) {
+      assert.deepEqual(await lint(file, FORM_PROBE(element)), []);
+    }
+    assert.deepEqual(
+      await lint(
+        file,
+        "export const surface = (target: Element) =>\n  target.closest('[role=\"menu\"], [role=\"dialog\"], [role=\"alertdialog\"]');\n",
+      ),
+      [],
+    );
+  }
+  assert.deepEqual(await lint("packages/impower-ui/src/components/probe/Probe.tsx", FORM_PROBE("<button />")), []);
+  assert.deepEqual(
+    await lint("packages/impower-ui/src/components/probe/Probe.tsx", FORM_PROBE('<section role="dialog" />')),
+    [],
+  );
+});
+
+test("no tracked impower-dev TSX file has a bare button or a hand-written dialog or menu role", async () => {
+  const results = await eslint().lintFiles(["impower-dev/src/**/*.tsx", "impower-dev/test/**/*.tsx"]);
+  const refused = results.flatMap((result) =>
+    result.messages
+      .filter((m) => m.message.startsWith("Render buttons, dialogs and menus only inside packages/impower-ui"))
+      .map((m) => `${path.relative(ROOT, result.filePath)}:${m.line}`),
+  );
+  assert.ok(results.length > 100, `only ${results.length} impower-dev TSX files linted`);
+  assert.deepEqual(refused, []);
+});
+
 test("the Radix boundary still holds in impower-dev's TSX files", async () => {
   await assertRefused(
     "impower-dev/src/modules/spark-editor/components/probe/Probe.tsx",

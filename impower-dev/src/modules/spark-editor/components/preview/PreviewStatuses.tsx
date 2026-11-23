@@ -1,4 +1,4 @@
-import { cn, StatusBadge, statusBadgeVariants } from "@impower/impower-ui/components";
+import { Button, cn, StatusBadge, statusBadgeVariants } from "@impower/impower-ui/components";
 import problems from "../../workspace/problems/ProblemsStore";
 import {
   playRefusalLink,
@@ -37,8 +37,8 @@ export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
     >
       <PreviewDebugToolbar />
       {refusal ? (
-        <button
-          type="button"
+        <Button
+          variant="bare"
           data-status="refusal"
           onClick={() => void revealPlayRefusal()}
           class={cn(
@@ -50,7 +50,7 @@ export default function PreviewStatuses({ mode }: PreviewStatusesProps) {
           <span class="whitespace-nowrap underline underline-offset-2">
             {playRefusalLink(playRefusalTarget(problems.problems.value, refusal))}
           </span>
-        </button>
+        </Button>
       ) : null}
       {shown.map((status) => (
         <StatusBadge

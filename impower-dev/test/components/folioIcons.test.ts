@@ -102,10 +102,9 @@ describe("the Folio icon set", () => {
     expect(iconImports.filter(({ name }) => !generated.has(kit[name as keyof typeof kit]))).toEqual([]);
   });
 
-  it("keeps the old names only as aliases of Folio components, for the shell files #995 rewrites", () => {
-    const aliases = values.filter(({ name }) => generated.has(kit[name as keyof typeof kit]) && !(name in icons));
-    expect([...new Set(aliases.map(({ file }) => file.split("/").slice(0, -1).join("/")))].sort()).toEqual([
-    ]);
+  it("exports every Folio icon from the kit under its generated name only", () => {
+    const aliases = Object.entries(kit).filter(([name, value]) => generated.has(value) && !(name in icons));
+    expect(aliases.map(([name]) => name).sort()).toEqual([]);
   });
 
   it("leaves every icon at the set's own stroke: no editor or kit source sets a stroke width", () => {

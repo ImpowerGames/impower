@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogDescription,
   DialogTitle,
+  DockedDialog,
   Lightbox,
   Sheet,
   type DialogSize,
@@ -99,6 +100,30 @@ function Trigger({ label, onOpen }: { label: string; onOpen: () => void }) {
   );
 }
 
+function DockedDemo() {
+  const [docked, setDocked] = useState(true);
+  return docked ? (
+    <div class="flex h-48 flex-col overflow-hidden rounded-card border border-edge">
+      <div class="flex flex-1 items-center justify-center text-sm text-muted">The page above the docked panel</div>
+      <DockedDialog
+        label="Writing tools"
+        onDismiss={() => setDocked(false)}
+        class="flex h-28 flex-none flex-col border-t border-edge bg-panel"
+      >
+        <div class="flex flex-row items-center gap-2 px-4 py-2">
+          <span class="flex-1 text-sm font-semibold">Writing tools</span>
+          <Button variant="quiet" onClick={() => setDocked(false)}>
+            Close
+          </Button>
+        </div>
+        <p class="m-0 px-4 text-sm text-ink/80">Escape or a press anywhere outside closes it.</p>
+      </DockedDialog>
+    </div>
+  ) : (
+    <Button onClick={() => setDocked(true)}>Show the docked panel</Button>
+  );
+}
+
 function DialogDemo() {
   useScrollbarSize();
   const [demo, setDemo] = useState<Demo | null>(null);
@@ -160,6 +185,9 @@ function DialogDemo() {
       </GalleryRow>
       <GalleryRow label="Lightbox: a picture across the whole screen on the stage colour; Close, Escape or a click beside the picture close it">
         <Trigger label="Lightbox" onOpen={() => setDemo({ kind: "lightbox" })} />
+      </GalleryRow>
+      <GalleryRow label="DockedDialog: a non-modal dialog drawn in place in its page's layout, such as the phone's tool panel in the keyboard's space; Escape and the press outside it close it at once, with no backdrop and no focus moved">
+        <DockedDemo />
       </GalleryRow>
 
       {(Object.keys(SIZE_LABELS) as DialogSize[]).map((size) => (
@@ -225,6 +253,7 @@ export const dialogGallery: GalleryEntry = {
     "DialogTitle",
     "DialogDescription",
     "DialogActions",
+    "DockedDialog",
   ],
   Demo: DialogDemo,
 };
