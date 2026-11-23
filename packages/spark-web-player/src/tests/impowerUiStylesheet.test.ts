@@ -52,13 +52,11 @@ describe("the player's impower-ui stylesheet for the VS Code Game Preview", () =
     expect(css).not.toMatch(/--panel:\s*(#|rgb|hsl)/);
   }, 60_000);
 
-  test("gives the VS Code host today's route list sizes and lets impower-ui parts lay out from initial values", async () => {
+  test("leaves the token values to the Game Preview webview and lets impower-ui parts lay out from initial values", async () => {
     const css = await build();
-    const host = css.match(/\nspark-web-player \{([^}]*)\}/)?.[1] ?? "";
-    expect(host).toMatch(/--tab-height:\s*23px/);
-    expect(host).toMatch(/--panel-head-height:\s*31px/);
-    expect(host).toMatch(/--list-row-compact-height:\s*22px/);
-    expect(host).toMatch(/--control-size:\s*22px/);
+    expect(css).not.toMatch(
+      /--(tab-height|panel-head-height|list-row-compact-height|control-size|control-radius|accent|panel|edge|ink):/,
+    );
     const reset = css.match(
       /body spark-web-player :where\(\[data-panel-head\], \[data-impower-ui\]\)[^{]*\{([^}]*)\}/,
     )?.[1];
