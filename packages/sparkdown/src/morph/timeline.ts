@@ -404,12 +404,16 @@ export class MorphTimeline {
     return undefined;
   }
 
-  protected turnFrom(play: Play, elapsed: number): number {
+  protected steps(play: Play): number {
+    const last = this.path(play).at(-1);
+    return last ? last.ordinal + last.reps * last.cycle.length : 0;
+  }
+
+  protected before(play: Play, elapsed: number): number {
     const found = this.seek(play, elapsed);
-    if ("tail" in found) return Infinity;
+    if ("tail" in found) return this.steps(play) - 1;
     const segment = this.path(play)[found.segment]!;
-    const ordinal = segment.ordinal + found.r * segment.cycle.length + found.q;
-    return found.held && found.left > 0 ? ordinal + 1 : ordinal;
+    return segment.ordinal + found.r * segment.cycle.length + found.q - 1;
   }
 
   protected length(play: Play, elapsed: number): number {
@@ -477,9 +481,11 @@ export class MorphTimeline {
     this.stretches.forEach((_, c) => {
       if (this.turnPoint(segment.down, c) === point) left[c] = 0;
     });
-    const rest = this.walk(segment.down, this.originOf(segment, r, q), left, ordinal + q);
-    play.segments = kept.concat(rest.segments);
-    play.tail = rest.end;
+    const origin = this.originOf(segment, r, q);
+    const rest = this.walk(segment.down, point, left, ordinal + q);
+    const [first, ...later] = rest.segments;
+    play.segments = first ? [...kept, this.segment(first.down, origin, first.cycle, first.reps, first.left, first.ordinal), ...later] : kept;
+    play.tail = first ? rest.end : origin;
     play.length = undefined;
   }
 
@@ -502,7 +508,7 @@ export class MorphTimeline {
       }
       const least = Math.max(0, span[0] - at);
       if (least > this.pauseOf(play, this.path(play)[found.segment]!, found.r, found.q)) this.wait(play, found, least);
-      play.settled = Math.max(play.settled + 1, this.turnFrom(play, Math.min(span[1], t) - play.start));
+      play.settled = Math.max(play.settled + 1, this.before(play, Math.min(span[1], t) - play.start));
     }
   }
 

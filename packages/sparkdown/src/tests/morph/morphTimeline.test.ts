@@ -1002,4 +1002,52 @@ describe("a play computes its replays from the seed and keeps nothing per replay
     expect(offsetAt(late, 99999.98)).toBeCloseTo((99999.98 - 0.15 * Math.floor(99999.98 / 0.15)) / 0.3, 3);
     expect(performance.now() - began).toBeLessThan(50);
   });
+
+  test("a turning point exactly at the end of the speech is refused, whatever frames were asked before", () => {
+    const spoken = (direction: MorphTiming["direction"]) => {
+      const reversed = direction === "reverse";
+      const timeline = new MorphTimeline(
+        timing({ trigger: "speech", duration: 1, direction, replay: [range(reversed ? 0.5 : 0, reversed ? 1 : 0.5, { count: 2 })] }),
+        () => 0.5,
+      );
+      timeline.speak([[0, 1]], 0);
+      return timeline;
+    };
+    expect(offsetAt(spoken("normal"), 1.125)).toBe(0.625);
+    const observed = spoken("normal");
+    expect(offsetAt(observed, 0.75)).toBe(0.25);
+    expect(offsetAt(observed, 1.125)).toBe(0.625);
+    expect(observed.at(1.5)).toEqual({ phase: "off" });
+    expect(offsetAt(spoken("reverse"), 1.125)).toBe(0.375);
+    expect(spoken("reverse").at(1.5)).toEqual({ phase: "off" });
+  });
+
+  test("a reversed speech play that skips its first turn runs on down without taking a range whose start it has already passed", () => {
+    const timeline = new MorphTimeline(
+      timing({ trigger: "speech", duration: 1, direction: "reverse", replay: [range(0.2, 0.9), range(0.5, 0.6)] }),
+      () => 0.5,
+    );
+    timeline.speak([[0, 0.7]], 0);
+    expect(offsetAt(timeline, 0.3)).toBeCloseTo(0.7, 9);
+    expect(offsetAt(timeline, 0.85)).toBeCloseTo(0.15, 9);
+    expect(offsetAt(timeline, 0.95)).toBeCloseTo(0.05, 9);
+    expect(timeline.at(1.01)).toEqual({ phase: "off" });
+  });
+
+  test("a turn of a repeated round that falls in a word gap holds until the next word, and the rounds after it keep their rhythm", () => {
+    const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 1, replay: [range(0, 0.5, { count: 6 })] }), () => 0.5);
+    timeline.speak([[0, 1.4], [1.6, 5]], 0);
+    expect(timeline.at(1.55)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
+    for (const [t, offset] of [
+      [1.2, 0.2],
+      [1.7, 0.1],
+      [2.2, 0.1],
+      [3.2, 0.1],
+      [4.0, 0.9],
+    ] as const) {
+      expect(offsetAt(timeline, t), `${t} s`).toBeCloseTo(offset, 9);
+    }
+    expect(timeline.at(4.05)).toMatchObject({ phase: "playing", play: 0 });
+    expect(timeline.at(4.15)).toMatchObject({ phase: "playing", play: 1 });
+  });
 });
