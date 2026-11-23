@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { getResourceSrcFromPath } from "@impower/sparkdown/src/workspace/utils/resourceUrl";
 
 vi.mock("@impower/sparkdown/src/filters/filteredSvg", () => ({
   getOrCreateFilteredSvg: vi.fn(),
@@ -38,8 +39,18 @@ const directory = (entries: Record<string, unknown>) => ({
 
 beforeAll(async () => {
   const file = { getFile: async () => new File([bytes], "intro.webm", { type: "video/webm" }) };
+  const named = (path: string) => ({ getFile: async () => new File([path], path.split("/").pop()!, { type: "image/png" }) });
   const root = directory({
-    local: directory({ assets: directory({ "intro.webm": file }) }),
+    local: directory({
+      assets: directory({ "intro.webm": file }),
+      named: directory({
+        " lead.png": named(" lead.png"),
+        "door knock! café #2.png": named("door knock! café #2.png"),
+        "per%41cent.png": named("per%41cent.png"),
+        "trailing dir ": directory({ "x.png": named("trailing dir /x.png") }),
+        " lead dir": directory({ "y.png": named(" lead dir/y.png") }),
+      }),
+    }),
   });
   vi.stubGlobal("self", {
     addEventListener: (type: string, listener: (event: unknown) => void) => {
@@ -104,4 +115,20 @@ describe("project-file requests through the service worker", () => {
     });
     expect((await responded!).status).toBe(404);
   });
+
+  it.each([" lead.png", "door knock! café #2.png", "per%41cent.png", "trailing dir /x.png", " lead dir/y.png"])(
+    "serves a file stored as %j under exactly that name",
+    async (path) => {
+      let responded: Promise<Response> | undefined;
+      listeners["fetch"]!({
+        request: new Request(`http://localhost${getResourceSrcFromPath(`local/named/${path}`)}`),
+        respondWith: (response: Promise<Response>) => {
+          responded = response;
+        },
+      });
+      const response = await responded!;
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe(path);
+    },
+  );
 });
