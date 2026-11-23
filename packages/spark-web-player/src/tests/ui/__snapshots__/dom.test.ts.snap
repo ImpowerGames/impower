@@ -2316,10 +2316,6 @@ spark-web-player #game .textstream_chosen {
     font-style: normal;
   }
 }
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
-}
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
   text-align: center;
@@ -4855,10 +4851,6 @@ spark-web-player #game .textstream_chosen {
     font-style: normal;
   }
 }
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
-}
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
   text-align: center;
@@ -7359,10 +7351,6 @@ spark-web-player #game .textstream_chosen {
     margin-right: 0.35em;
     font-style: normal;
   }
-}
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
 }
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
@@ -9983,10 +9971,6 @@ spark-web-player #game .textstream_chosen {
     font-style: normal;
   }
 }
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
-}
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
   text-align: center;
@@ -12469,10 +12453,6 @@ spark-web-player #game .textstream_chosen {
     font-style: normal;
   }
 }
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
-}
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
   text-align: center;
@@ -14938,10 +14918,6 @@ spark-web-player #game .textstream_chosen {
     margin-right: 0.35em;
     font-style: normal;
   }
-}
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
 }
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
@@ -17452,10 +17428,6 @@ spark-web-player #game .textstream_chosen {
     margin-right: 0.35em;
     font-style: normal;
   }
-}
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
 }
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
@@ -20197,10 +20169,6 @@ spark-web-player #game .textstream_chosen {
     font-style: normal;
   }
 }
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
-}
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
   text-align: center;
@@ -22940,10 +22908,6 @@ spark-web-player #game .textstream_chosen {
     margin-right: 0.35em;
     font-style: normal;
   }
-}
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
 }
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
@@ -25685,10 +25649,6 @@ spark-web-player #game .textstream_chosen {
     font-style: normal;
   }
 }
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
-}
 spark-web-player #game .textstream_end {
   margin: 1em 0px;
   text-align: center;
@@ -28428,10 +28388,6 @@ spark-web-player #game .textstream_chosen {
     margin-right: 0.35em;
     font-style: normal;
   }
-}
-spark-web-player #game .textstream_caption {
-  margin: 0px;
-  font-size: 0.8em;
 }
 spark-web-player #game .textstream_end {
   margin: 1em 0px;

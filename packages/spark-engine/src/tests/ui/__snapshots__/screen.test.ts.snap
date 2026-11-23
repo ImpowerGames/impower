@@ -3558,12 +3558,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "font_style": "italic",
                   "margin": "1.5em 0",
                 },
-                "textstream_caption": {
-                  "$name": "textstream_caption",
-                  "$type": "style",
-                  "font_size": "0.8em",
-                  "margin": "0",
-                },
                 "textstream_chosen": {
                   "$name": "textstream_chosen",
                   "$type": "style",
