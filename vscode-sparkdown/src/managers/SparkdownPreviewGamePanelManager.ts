@@ -967,6 +967,7 @@ export class SparkdownPreviewGamePanelManager {
               --swp-toolbar-color: var(--ink);
               --swp-route-popup-background-color: var(--panel);
               --swp-route-popup-border-color: var(--edge);
+              --swp-route-accent-color: var(--accent);
             }
 
             spark-web-player {

@@ -230,11 +230,13 @@ describe("the Game Preview styles the impower-ui route list and Saves menu from 
         menu: getComputedStyle(menu).backgroundColor,
         menuBorder: getComputedStyle(menu).borderTopColor,
         name: getComputedStyle(name).color,
+        play: getComputedStyle(document.querySelector(".saves-play")!).color,
       };
     });
     await page.close();
     expect(read.menu).toBe(toRgb(theme["--vscode-editor-background"]));
     expect(read.menuBorder).toBe(toRgb(theme["--vscode-panel-border"]));
     expect(read.name).toBe(toRgb(theme["--vscode-foreground"]));
+    expect(read.play).toBe(toRgb(theme["--vscode-focusBorder"]));
   });
 });
