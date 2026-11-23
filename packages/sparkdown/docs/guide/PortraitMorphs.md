@@ -319,6 +319,7 @@ morph blink {
 
 The rules for an entry:
 
+- An entry applies to a portrait only when the portrait draws at least one layer labelled as one of its `targets`, in any pose of the groups the morph drives. A portrait that draws none of them, such as a face drawn without separate eyeballs, skips the entry with nothing reported on its artwork and plays the rest of the morph. An entry whose targets a portrait draws keeps every rule below there.
 - `between` lists the labels the entry accepts as edges. A portrait uses the ones it draws, so one morph serves a portrait whose two right lashes are both `eyelash-right` and one whose lashes are `eyelash-top-right` and `eyelash-bottom-right`. Listing different labels does not make them counterparts: drawings still pair by their own labels, and distinct labels keep lashes from pairing across each other.
 - The edges have to be bend morphs: two moving edges that form the opening. A lone edge, an edge that never moves, three edges sharing their tips, or an edge inside its own target keeps the morph from playing on that portrait, with a warning.
 - Each entry is its own opening. Give each eye its own entry, naming that side's edges and targets, so one eye's lashes never clip the other eye.
@@ -484,6 +485,7 @@ For each look:
 
 - If the morph's `unless` or `when` keeps it off the look, the look shows exactly what the script and the art choose, and nothing is reported.
 - Otherwise every visible folder that draws a group the morph drives has to draw each state the keyframes and `rest` name for that group. If one does not, the look is skipped, with a warning on the morph naming the folder and the state it lacks.
+- A switch, a group whose only states are `on` and `off`, needs no layer for `off`: a folder that draws `lids.on` fits a morph that goes to `lids.off`, and the `off` pose shows none of the group's `on` layers. An overlay drawn over a base picture is a switch of this kind. `on` still has to be drawn, and a group with named states, such as `eyes.open` and `eyes.closed`, needs a layer for each state the morph names.
 - Otherwise the morph plays on the look, whatever the look rests in. `[[mia:eyes.closed]]` blinks, and so does a face whose eyes are marked `eyes.closed:default`, unless the morph keeps itself off them.
 
 A morph that drives several groups plays all of them or none: one skipped group skips the whole look.
@@ -1008,6 +1010,8 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A `depth-ignored` warning: the `depth` names a state of a group the label does not change with, or a pose that draws none of the label's moving shapes, so they keep their place in the rest pose.
 - A `partner-missing` warning: a pose the label moves to or from draws neither it nor any label its `partner` lists. Add a drawing there, or list a label that pose draws.
 - A `paint-target-missing` warning: a `paints` entry names a label its pose does not draw, so nothing takes that paint. Check the label's spelling, or the entry's `state`.
+- A clip that cuts nothing on one portrait while the rest of the morph plays: that portrait draws none of the entry's `targets` in any pose the morph drives, so the entry is skipped there ([Clips](#clips)). Check the targets' labels in its artwork. A label no portrait the morph plays on draws is reported where the morph writes it.
+- A look that is skipped for a folder that draws no `off`: the group has a state other than `on` and `off`, so it is not a switch and each state the morph names needs a layer.
 - A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this look does not draw a layer with its label (check the label's spelling in the artwork).
 
 For a speech morph:

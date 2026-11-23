@@ -572,7 +572,16 @@ export function* bakeSteps(
     visibleAt(element, restVisible) ||
     [...visibleIn.values()].some((byState) => [...byState.values()].some((v) => visibleAt(element, v)));
 
-  const clips = recipes.flatMap((recipe) => recipe.clips.map((clip, index) => ({ ...clip, number: index + 1, morphs: [recipe.name] })));
+  const allLeaves = drawnLeaves(doc).filter(unionVisible);
+  const drawsLabel = (label: string) =>
+    [...doc!.byKey.values()].some(
+      (e) => e.layer?.parsed.label === label && !e.resource && allLeaves.some((leaf) => isAncestorOrSelf(doc!, e.element, leaf)),
+    );
+  const clips = recipes.flatMap((recipe) =>
+    recipe.clips
+      .map((clip, index) => ({ ...clip, number: index + 1, morphs: [recipe.name] }))
+      .filter((clip) => clip.targets.some(drawsLabel)),
+  );
   const targetsByClip: Element[][] = clips.map((clip) => {
     const found: Element[] = [];
     for (const label of clip.targets) {
@@ -585,7 +594,6 @@ export function* bakeSteps(
     return found.filter((e) => !found.some((other) => other !== e && isAncestorOrSelf(doc!, other, e)));
   });
 
-  const allLeaves = drawnLeaves(doc).filter(unionVisible);
   const inTarget = (element: Element) =>
     targetsByClip.some((targets) => targets.some((t) => isAncestorOrSelf(doc!, t, element)));
   const labelledAny = (element: Element, labels: readonly string[]) =>
