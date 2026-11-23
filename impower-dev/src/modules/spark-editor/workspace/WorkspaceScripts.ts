@@ -8,8 +8,6 @@ import { downloadFile } from "../utils/downloadFile";
 import { recordCreate, recordMove, renameFile } from "../utils/fileUndo";
 import {
   availableName,
-  copyName,
-  renameCopiedScenes,
   defaultName,
   NameError,
   UNTITLED_SCRIPT,
@@ -339,64 +337,6 @@ export default class WorkspaceScripts {
       moved.push(await this.relocate(path, joinPath(target, leaf)));
     }
     return moved;
-  }
-
-  duplicate(path: string): Promise<string> {
-    return this.naming((projectId) => this.duplicateIn(projectId, path));
-  }
-
-  protected async duplicateIn(projectId: string, path: string): Promise<string> {
-    const { fs } = this._workspace;
-    const kind = this.kindOf(path);
-    const extension = kind === "file" ? extensionOf(path) : "";
-    const stem = nameOf(path).slice(0, nameOf(path).length - extension.length);
-    const folder = parentOf(path);
-    const leaf = copyName(stem, this.siblings(folder), extension);
-    const suffix = leaf.slice(stem.length, leaf.length - extension.length);
-    const to = joinPath(folder, leaf);
-    const listing = this.listing;
-    const sources =
-      kind === "file"
-        ? [path]
-        : Object.keys(listing.files).filter((p) => isInside(p, path));
-    let folders: string[] = [];
-    if (kind === "folder") {
-      const inner = listing.folders
-        .filter((f) => isInside(f, path))
-        .map((f) => to + f.slice(path.length));
-      folders = inner.includes(to) ? inner : [to, ...inner];
-      for (const created of folders) {
-        await fs.createFolder(projectId, created);
-      }
-    }
-    const files = await Promise.all(
-      sources.map(async (source) => {
-        const data = await fs.readFile({ file: { uri: fs.getFileUri(projectId, source) } });
-        return {
-          uri: fs.getFileUri(projectId, to + source.slice(path.length)),
-          data: isScriptPath(source)
-            ? new TextEncoder().encode(
-                renameCopiedScenes(new TextDecoder().decode(data), suffix),
-              ).buffer
-            : data,
-        };
-      }),
-    );
-    if (files.length) {
-      await fs.createFiles({ files });
-    }
-    this.unlisted.add(to);
-    recordCreate(
-      projectId,
-      files.map((file) => file.uri),
-      leaf,
-      {
-        folders,
-        message: kind === "file" ? "Script duplicated." : "Folder duplicated.",
-      },
-    );
-    await this.changed(kind);
-    return to;
   }
 
   async download(paths: readonly string[]): Promise<void> {

@@ -204,12 +204,7 @@ function AllScripts() {
     else if (action === "rename") setRenaming(row.path);
     else if (action === "move") setMoving([row.path]);
     else if (action === "delete") requestDelete([row.path]);
-    else
-      void run(async () => {
-        const { scripts } = await intents();
-        if (action === "duplicate") await scripts.duplicate(row.path);
-        else await scripts.download([row.path]);
-      });
+    else void run(async () => (await intents()).scripts.download([row.path]));
   };
 
   const onSelectionAction = (action: SelectionAction) => {
