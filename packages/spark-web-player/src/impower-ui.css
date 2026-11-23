@@ -32,9 +32,15 @@ body spark-web-player :where([data-panel-head], [data-impower-ui]) .focus-inset:
   outline: 1px solid var(--accent);
 }
 
+spark-web-player :where(#route-list, #saves-menu) :is(.sv-input, .sv-search, .saves-rename):focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+}
+
 @media (forced-colors: active) {
   spark-web-player :where([data-panel-head], [data-impower-ui], #route-list, #saves-menu, #save-note) :focus-visible,
-  body spark-web-player :where([data-panel-head], [data-impower-ui]) .focus-inset:focus-visible {
+  body spark-web-player :where([data-panel-head], [data-impower-ui]) .focus-inset:focus-visible,
+  spark-web-player :where(#route-list, #saves-menu) :is(.sv-input, .sv-search, .saves-rename):focus-visible {
     outline-color: Highlight;
   }
 }

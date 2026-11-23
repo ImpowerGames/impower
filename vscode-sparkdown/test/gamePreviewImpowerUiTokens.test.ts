@@ -355,4 +355,46 @@ describe("the Game Preview keeps the player's views readable in other VS Code th
     ]);
     expect(read.field).toBe("rgb(206, 206, 206)");
   });
+
+  it.each(Object.entries(THEMES))("rings Starting values fields focused from the keyboard in every state in %s", async (_, theme) => {
+    const markup = renderToString(
+      h(StartingValuesTab, {
+        state: {
+          values: { "store:mood": '"calm"' },
+          drafts: {},
+          unsaved: { "store:score": "0" },
+          search: "",
+          listing: {
+            items: [
+              { key: "param:trust", name: "trust", group: "parameters", first: "nil" },
+              { key: "store:score", name: "score", group: "stores", first: "0" },
+              { key: "store:mood", name: "mood", group: "stores", first: '"sad"' },
+            ],
+          },
+        },
+        events: {},
+      } as any),
+    );
+    const page = await open(theme, markup);
+    const states = await page.evaluate(() =>
+      [...document.querySelectorAll(".sv-field")].map((f) => (f.hasAttribute("data-set") ? "set" : f.getAttribute("data-status"))),
+    );
+    const focused: string[] = [];
+    const count = await page.locator(".sv-input").count();
+    for (const target of [".sv-search", ...Array.from({ length: count }, (_, i) => i)]) {
+      await page.keyboard.press("Shift");
+      const handle = typeof target === "string" ? page.locator(target) : page.locator(".sv-input").nth(target);
+      await handle.focus();
+      focused.push(
+        await handle.evaluate((el) => {
+          const style = getComputedStyle(el);
+          return `${style.outlineStyle} ${style.outlineWidth} ${style.outlineColor}`;
+        }),
+      );
+    }
+    await page.close();
+    expect(states).toEqual(["warning", "error", "set"]);
+    const ring = `solid 1px ${toRgb(theme["--vscode-focusBorder"])}`;
+    expect(focused).toEqual([ring, ring, ring, ring]);
+  });
 });
