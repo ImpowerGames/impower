@@ -1003,6 +1003,37 @@ describe("a play computes its replays from the seed and keeps nothing per replay
     expect(performance.now() - began).toBeLessThan(50);
   });
 
+  test("with a varying seeded stream, replays at chance 100% with no pause or a fixed one take nothing from it, so the gaps are the ones the morph draws without a replay", () => {
+    const gapsOf = (replay: MorphReplay[] | undefined, length: number) => {
+      const timeline = new MorphTimeline(timing({ duration: 1, iterations: 6, iteration_delay_min: 0.25, iteration_delay_max: 0.75, replay }), morphRandom("gaps"));
+      const starts = [0];
+      for (let play = 1; play < 6; play++) {
+        let lo = starts[play - 1]!;
+        let hi = lo + length + 1;
+        for (let i = 0; i < 200; i++) {
+          const mid = (lo + hi) / 2;
+          const head = timeline.at(mid);
+          if ("play" in head && head.play >= play) hi = mid;
+          else lo = mid;
+        }
+        starts.push(hi);
+      }
+      return starts.slice(1).map((start, k) => start - starts[k]! - length);
+    };
+    const plain = gapsOf(undefined, 1);
+    for (const gap of plain) {
+      expect(gap).toBeGreaterThanOrEqual(0.25 - 1e-9);
+      expect(gap).toBeLessThanOrEqual(0.75 + 1e-9);
+    }
+    expect(new Set(plain.map((gap) => gap.toFixed(6))).size).toBe(5);
+    const unpaused = gapsOf([range(0, 0.5)], 1.5);
+    const fixed = gapsOf([range(0, 0.5, { delay_min: 0.2, delay_max: 0.2 })], 1.7);
+    plain.forEach((gap, k) => {
+      expect(unpaused[k], `gap ${k} with no pause`).toBeCloseTo(gap, 9);
+      expect(fixed[k], `gap ${k} with a fixed pause`).toBeCloseTo(gap, 9);
+    });
+  });
+
   test("a turning point exactly at the end of the speech is refused, whatever frames were asked before", () => {
     const spoken = (direction: MorphTiming["direction"]) => {
       const reversed = direction === "reverse";
