@@ -6,6 +6,7 @@ import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
+const DRIVER_PROTOCOL = !PRODUCTION && process.argv.includes("--driver-protocol");
 
 const rawPlugin = (): esbuild.Plugin => ({
   name: "raw",
@@ -61,6 +62,7 @@ const config: esbuild.BuildOptions = {
   logLevel: "warning",
   define: {
     global: "globalThis",
+    __SPARKDOWN_DRIVER_PROTOCOL__: JSON.stringify(DRIVER_PROTOCOL),
   },
   alias: {
     "@codemirror/autocomplete": "@codemirror/autocomplete",
@@ -136,6 +138,14 @@ async function main() {
     });
   } else {
     const result = await ctx.rebuild();
+    if (result.metafile) {
+      const adapter = Object.values(result.metafile.outputs).some(({ inputs }) =>
+        Object.entries(inputs).some(([file, { bytesInOutput }]) =>
+          path.basename(file) === "driveEditorProtocol.ts" && bytesInOutput > 0,
+        ),
+      );
+      if (adapter !== DRIVER_PROTOCOL) throw new Error("editor protocol bundle mode does not match the build");
+    }
     if (PRODUCTION && result.metafile) {
       const analysis = await esbuild.analyzeMetafile(result.metafile, {
         color: true,

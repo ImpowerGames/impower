@@ -31,7 +31,7 @@ import { updateCommands } from "./updateCommands";
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext,
-): Promise<void> => {
+) => {
   const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
   const editor = getEditor();
   const fileWatchers = getWorkspaceFileWatchers();
@@ -136,6 +136,7 @@ export const activateLanguageClient = async (
   SparkProgramManager.instance.bindLanguageClient(client);
   await client.start();
   context.subscriptions.push({ dispose: () => client.stop() });
+  return client;
 };
 
 const onCompile = async (
