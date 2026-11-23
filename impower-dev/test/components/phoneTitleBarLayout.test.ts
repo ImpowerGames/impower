@@ -548,4 +548,63 @@ describe("renaming the project from the phone title bar under touch", () => {
       await setCoarse(false);
     }
   });
+
+  it.each([430, 360])(
+    "at %ipx, a tap anywhere on the name field while renaming reaches the field, not the status or problem count's tap area",
+    async (width) => {
+      await setCoarse(true);
+      workspace.state.value = {
+        ...stateForRoute(workspace.state.value as WorkspaceCache, "story"),
+      } as WorkspaceCache;
+      workspace.state.value = {
+        ...workspace.state.value,
+        project: { ...workspace.state.value.project, name: "The Midnight Jukebox" },
+        sync: { ...workspace.state.value.sync, status: "cached" },
+      } as WorkspaceCache;
+      const host = document.body.appendChild(document.createElement("div"));
+      let markup = "";
+      try {
+        await withProblems(async () => {
+          await act(async () => render(h(PhoneTitleBar, { scrolled: false }), host));
+          await act(async () => renameProject());
+          const field = host.querySelector<HTMLInputElement>(
+            'input[aria-label="Project name"]',
+          )!;
+          field.setAttribute("value", field.value);
+          markup = host.innerHTML;
+        });
+      } finally {
+        await act(async () => render(null, host));
+        host.remove();
+        await setCoarse(false);
+      }
+      const css = await stylesFor(markup);
+      const browser = await chromium.launch();
+      try {
+        const page = await browser.newPage({
+          viewport: { width, height: 780 },
+          isMobile: true,
+          hasTouch: true,
+        });
+        await page.setContent(
+          `<!doctype html><html data-theme="charcoal" data-layout="phone"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
+        );
+        const hits = await page.evaluate(() => {
+          const field = document.querySelector('header input[aria-label="Project name"]')!;
+          const box = field.getBoundingClientRect();
+          return [0.05, 0.25, 0.5, 0.75, 0.95].map((at) => {
+            const hit = document.elementFromPoint(
+              box.x + box.width * at,
+              box.y + box.height / 2,
+            );
+            return hit === field;
+          });
+        });
+        expect(hits).toEqual([true, true, true, true, true]);
+      } finally {
+        await browser.close();
+      }
+    },
+    60000,
+  );
 });

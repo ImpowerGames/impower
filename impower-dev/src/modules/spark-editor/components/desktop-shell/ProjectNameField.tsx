@@ -53,6 +53,7 @@ export default function ProjectNameField() {
       class={cn(
         "relative h-6 w-[400px] max-w-full rounded-control in-data-[layout=phone]:h-[15.6px] in-data-[layout=compact]:h-[15.6px] in-data-[layout=phone]:w-full in-data-[layout=compact]:w-full in-data-[layout=phone]:rounded-none in-data-[layout=compact]:rounded-none",
         !shown && "control-overlay focus-within-edge",
+        naming && "z-[3]",
       )}
     >
       {shown ? (
