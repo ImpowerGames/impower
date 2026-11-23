@@ -22,7 +22,7 @@ import {
   dedupe,
   externalWorkerPaths,
   getServiceWorkerDefine,
-  editorTailwindCss,
+  compileEditorPageCss,
   indir,
   MINIFY,
   outdir,
@@ -31,7 +31,6 @@ import {
   PRODUCTION,
   publicInDir,
   publicOutDir,
-  readEditorGlobalCss,
   readThemeColors,
   readManifestColor,
   serviceWorkerPaths,
@@ -177,34 +176,7 @@ const expandPageComponents = async () => {
     readThemeColors(),
   );
 
-  let tailwindCss = "";
-  {
-    const cssServer = await createServer({
-      configFile: false,
-      root: process.cwd(),
-      resolve: { alias, dedupe },
-      plugins: [tailwindcss()],
-      server: { middlewareMode: true, hmr: false },
-      logLevel: "warn",
-    });
-    try {
-      const tw = await cssServer.transformRequest(
-        "/@fs/" + editorTailwindCss.replace(/\\/g, "/") + "?direct",
-      );
-      if (tw?.code) tailwindCss = tw.code;
-    } catch (err) {
-      console.warn(
-        "[ssg] Failed to compile impower-ui Tailwind CSS:",
-        err instanceof Error ? err.message : err,
-      );
-    } finally {
-      await cssServer.close();
-    }
-  }
-
-  const ssgCss = [readEditorGlobalCss(), tailwindCss]
-    .filter(Boolean)
-    .join("\n");
+  const ssgCss = await compileEditorPageCss({ minify: MINIFY });
 
   console.log("");
   console.log(STEP_COLOR, "Expanding HTML...");

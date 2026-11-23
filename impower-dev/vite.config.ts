@@ -5,7 +5,15 @@ import fs from "fs";
 import { createRequire } from "module";
 import path from "path";
 import glob from "tiny-glob";
-import { build, defineConfig, Plugin, type ViteDevServer } from "vite";
+import { optimize } from "@tailwindcss/node";
+import tailwindcss from "@tailwindcss/vite";
+import {
+  build,
+  createServer,
+  defineConfig,
+  Plugin,
+  type ViteDevServer,
+} from "vite";
 import { filterSVG } from "../packages/sparkdown/src/compiler/utils/filterSVG";
 import {
   parseImageFilterParam,
@@ -198,6 +206,35 @@ const readEditorGlobalCss = (): string =>
   EDITOR_GLOBAL_CSS_FILES.map((f) =>
     fs.readFileSync(path.resolve(process.cwd(), f), "utf-8"),
   ).join("\n");
+
+const compileEditorPageCss = async (options: {
+  minify: boolean;
+}): Promise<string> => {
+  let tailwindCss = "";
+  const cssServer = await createServer({
+    configFile: false,
+    root: process.cwd(),
+    resolve: { alias, dedupe },
+    plugins: [tailwindcss()],
+    server: { middlewareMode: true, hmr: false },
+    logLevel: "warn",
+  });
+  try {
+    const tw = await cssServer.transformRequest(
+      "/@fs/" + editorTailwindCss.replace(/\\/g, "/") + "?direct",
+    );
+    if (tw?.code) tailwindCss = tw.code;
+  } catch (err) {
+    console.warn(
+      "[ssg] Failed to compile impower-ui Tailwind CSS:",
+      err instanceof Error ? err.message : err,
+    );
+  } finally {
+    await cssServer.close();
+  }
+  const css = [readEditorGlobalCss(), tailwindCss].filter(Boolean).join("\n");
+  return optimize(css, { minify: options.minify }).code;
+};
 
 const renderDevPage = async (
   server: ViteDevServer,
@@ -751,6 +788,7 @@ export {
   getServiceWorkerDefine,
   staticallyStylePage,
   readEditorGlobalCss,
+  compileEditorPageCss,
   readThemeColors,
   readManifestColor,
   renderDevPage,

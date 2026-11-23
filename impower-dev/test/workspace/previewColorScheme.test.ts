@@ -23,10 +23,12 @@ const themeCss = readFileSync(
   "utf8",
 );
 
-const declaredScheme = (theme: string) => {
-  const m = new RegExp(`\\[data-theme="${theme}"\\] \\{\\s*color-scheme: (light|dark);`).exec(themeCss);
-  return m?.[1];
-};
+const declaredScheme = (theme: string) =>
+  [...themeCss.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+    .filter((m) => m[1]!.split(",").some((s) => s.trim() === `[data-theme="${theme}"]`))
+    .map((m) => /(?:^|[;\s])color-scheme:\s*(light|dark);/.exec(m[2]!)?.[1])
+    .filter(Boolean)
+    .at(-1);
 
 const connected = { jsonrpc: "2.0", method: "preview/connected", params: { type: "game" } };
 const started = { jsonrpc: "2.0", method: "game/started", params: {} };
