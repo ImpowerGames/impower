@@ -6,7 +6,6 @@ import type { Diagnostic } from "vscode-languageserver-protocol";
 const intents = vi.hoisted(() => ({
   revealDocument: vi.fn(),
   getUriFromPath: vi.fn((path: string) => `file://${path}`),
-  setStripHeight: vi.fn(),
   goBackToChoice: vi.fn(async () => true),
 }));
 
@@ -34,7 +33,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       getActiveEditorForPane: () => ({ uri: "file://local/main.sd" }),
       revealDocument: intents.revealDocument,
-      setStripHeight: intents.setStripHeight,
       goBackToChoice: intents.goBackToChoice,
       debug: { inspection },
     },

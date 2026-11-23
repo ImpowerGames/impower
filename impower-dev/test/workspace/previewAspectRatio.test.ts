@@ -47,26 +47,8 @@ const load = async () => {
   return { ...rule, createAspectRatioSync };
 };
 
-describe("effectiveAspectRatio", () => {
-  it.each([
-    ["compact", "auto", "16:9"],
-    ["compact", "16:9", "16:9"],
-    ["compact", "4:3", "4:3"],
-    ["compact", "1:1", "1:1"],
-    ["compact", "3:4", "3:4"],
-    ["compact", "9:16", "9:16"],
-    ["desktop", "auto", "auto"],
-    ["desktop", "9:16", "9:16"],
-    ["phone", "auto", "auto"],
-    ["phone", "3:4", "3:4"],
-  ] as const)("in the %s layout reads %s as %s", async (layout, stored, expected) => {
-    const { effectiveAspectRatio } = await load();
-    expect(effectiveAspectRatio(layout, stored)).toBe(expected);
-  });
-});
-
-describe("the strip's ratio through the shared sender", () => {
-  it("asks for 16:9 on entering the strip and for Auto on leaving it", async () => {
+describe("the ratio through the shared sender", () => {
+  it("keeps Auto at every width, the tablet's full view included", async () => {
     const { previewAspectRatioFor, createAspectRatioSync } = await load();
     const settings = signal<{ previewAspectRatio: Ratio }>({
       previewAspectRatio: "auto",
@@ -80,20 +62,13 @@ describe("the strip's ratio through the shared sender", () => {
     resize(1100);
     resize(900);
     resize(1101);
-    resize(1440);
     resize(701);
     resize(700);
-    expect(request.mock.calls).toEqual([
-      ["auto"],
-      ["16:9"],
-      ["auto"],
-      ["16:9"],
-      ["auto"],
-    ]);
+    expect(request.mock.calls).toEqual([["auto"]]);
     sync.dispose();
   });
 
-  it("sends the strip's ratio again to a reloaded player", async () => {
+  it("sends the ratio again to a reloaded player", async () => {
     const { previewAspectRatioFor, createAspectRatioSync } = await load();
     resize(900);
     const settings = signal<{ previewAspectRatio: Ratio }>({
@@ -106,11 +81,11 @@ describe("the strip's ratio through the shared sender", () => {
     );
     sync.initialized();
     sync.initialized();
-    expect(request.mock.calls).toEqual([["16:9"], ["16:9"]]);
+    expect(request.mock.calls).toEqual([["auto"], ["auto"]]);
     sync.dispose();
   });
 
-  it("keeps an author's chosen ratio in the strip and follows a change of choice", async () => {
+  it("keeps an author's chosen ratio across widths and follows a change of choice", async () => {
     const { previewAspectRatioFor, createAspectRatioSync } = await load();
     resize(900);
     const settings = signal<{ previewAspectRatio: Ratio }>({
@@ -126,13 +101,13 @@ describe("the strip's ratio through the shared sender", () => {
     resize(900);
     settings.value = { previewAspectRatio: "auto" };
     settings.value = { previewAspectRatio: "4:3" };
-    expect(request.mock.calls).toEqual([["9:16"], ["16:9"], ["4:3"]]);
+    expect(request.mock.calls).toEqual([["9:16"], ["auto"], ["4:3"]]);
     sync.dispose();
   });
 });
 
 describe("the ratio while Interactive Fiction fills the pane", () => {
-  it("asks for Auto in Interactive Fiction, in the strip too, and for the chosen ratio again in Visual Novel", async () => {
+  it("asks for Auto in Interactive Fiction and for the chosen ratio again in Visual Novel", async () => {
     const { previewAspectRatioFor, createAspectRatioSync } = await load();
     const settings = signal<{ previewAspectRatio: Ratio }>({
       previewAspectRatio: "9:16",

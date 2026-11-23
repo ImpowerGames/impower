@@ -10,7 +10,7 @@ import {
 } from "../problemCounts";
 import { PROJECT_SETTINGS_SCHEMA } from "../settings/settingsSchema";
 import workspaceSettings from "../settings/WorkspaceSettings";
-import { WorkspaceConstants } from "../WorkspaceConstants";
+import { previewInStrip } from "../previewInStrip";
 import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/consoleEntries";
 import { showSnackbar } from "../../utils/snackbar";
@@ -36,14 +36,7 @@ import {
 export const PANEL_BAR_HEIGHT =
   PROJECT_SETTINGS_SCHEMA.previewPanelHeight.default;
 
-export const COMPACT_PANEL_BAR_HEIGHT = 52;
-
-export const panelBarHeight = (layout: string) =>
-  layout === "desktop" ? PANEL_BAR_HEIGHT : COMPACT_PANEL_BAR_HEIGHT;
-
 export const PANEL_OPEN_HEIGHT = 260;
-
-export const STRIP_ABOVE_PANEL = 300;
 
 export interface ProblemsDialogState {
   scope: ProblemsScope;
@@ -156,8 +149,6 @@ export class ProblemsStore {
 
   protected _openHeight = PANEL_OPEN_HEIGHT;
 
-  protected _stripRestore?: { before: number | undefined };
-
   protected _leftForScript = false;
 
   protected readonly _playedSources = new Set<PlayedSource>();
@@ -267,16 +258,12 @@ export class ProblemsStore {
   }
 
   showPanel(panel: PreviewPanel) {
-    const layout = layoutState.current();
-    if (layout === "phone") {
+    if (previewInStrip(layoutState.current())) {
       return false;
     }
     this.panelShows.value = panel;
     if (!this.panelOpen.value) {
       workspaceSettings.setProjectSetting("previewPanelHeight", this._openHeight);
-    }
-    if (layout === "compact") {
-      this.makeRoomInStrip();
     }
     return true;
   }
@@ -302,29 +289,6 @@ export class ProblemsStore {
     return true;
   }
 
-  makeRoomInStrip() {
-    const stored = workspace.state.value.shell?.stripHeight;
-    const strip = stored ?? WorkspaceConstants.PREVIEW_STRIP_HEIGHT.default;
-    const room =
-      workspaceSettings.projectSettings.value.previewPanelHeight +
-      STRIP_ABOVE_PANEL;
-    if (this.panelOpen.value && strip < room) {
-      const restore = {
-        before: this._stripRestore ? this._stripRestore.before : stored,
-      };
-      this._stripRestore = restore;
-      void import("../Workspace").then(({ Workspace }) => {
-        if (this._stripRestore === restore) {
-          Workspace.window.setStripHeight(room);
-        }
-      });
-    }
-  }
-
-  keepStripHeight() {
-    this._stripRestore = undefined;
-  }
-
   collapsePanel() {
     if (this.panelOpen.value) {
       this.rememberPanelHeight(
@@ -332,17 +296,10 @@ export class ProblemsStore {
       );
       workspaceSettings.setProjectSetting("previewPanelHeight", PANEL_BAR_HEIGHT);
     }
-    const restore = this._stripRestore;
-    this._stripRestore = undefined;
-    if (restore) {
-      void import("../Workspace").then(({ Workspace }) =>
-        Workspace.window.setStripHeight(restore.before),
-      );
-    }
   }
 
   togglePanel(returnFocus?: () => HTMLElement | null) {
-    if (layoutState.current() === "phone") {
+    if (previewInStrip(layoutState.current())) {
       this.openDialog({ kind: "story" }, returnFocus);
     } else if (this.problemsShown.value) {
       this.collapsePanel();

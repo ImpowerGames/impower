@@ -3,8 +3,8 @@ import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
 import problems, {
   PANEL_BAR_HEIGHT,
-  panelBarHeight,
 } from "../../workspace/problems/ProblemsStore";
+import { previewInStrip } from "../../workspace/previewInStrip";
 import workspaceSettings from "../../workspace/settings/WorkspaceSettings";
 import {
   playsGame,
@@ -55,22 +55,15 @@ function useFullscreen() {
 
 export default function Preview(_props: PreviewProps) {
   const mode = workspaceSettings.preferences.value.previewMode;
-  const layout = useLayout();
-  const phone = layout === "phone";
+  const stripped = previewInStrip(useLayout());
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
   const panelShows = problems.panelShows.value;
-  const barHeight = panelBarHeight(layout);
   const panelOpen = panelHeight > PANEL_BAR_HEIGHT;
-  useEffect(() => {
-    if (layout === "compact" && panelOpen) {
-      problems.makeRoomInStrip();
-    }
-  }, [layout, panelOpen]);
   const { ref, fullscreen, toggle } = useFullscreen();
 
   const game = workspace.state.value.preview?.modes?.game;
   const choosing = !!game?.running && !!game?.choosing;
-  const inStrip = phone && !workspace.state.value.preview?.revealed;
+  const inStrip = stripped && !workspace.state.value.preview?.revealed;
   const framed = !fullscreen && !inStrip;
   const stageMode = inStrip && !playsGame(mode) ? "game" : mode;
 
@@ -115,7 +108,7 @@ export default function Preview(_props: PreviewProps) {
     <PreviewBar
       fullscreen={fullscreen}
       onToggleFullscreen={toggle}
-      onClose={phone ? () => void closeFullView() : undefined}
+      onClose={stripped ? () => void closeFullView() : undefined}
     />
   );
 
@@ -134,13 +127,13 @@ export default function Preview(_props: PreviewProps) {
       ref={ref}
       class={cn(
         "@container flex h-full w-full min-h-0 flex-1 flex-col",
-        phone && !inStrip
+        stripped && !inStrip
           ? "bg-preview-phone-mat pb-[env(safe-area-inset-bottom)]"
           : "bg-preview-mat",
       )}
     >
       {inStrip ? null : <PreviewTopBar />}
-      {phone ? (
+      {stripped ? (
         <>
           {card}
           {inStrip ? null : bar}
@@ -153,10 +146,10 @@ export default function Preview(_props: PreviewProps) {
           overflowPanel="start"
           pinned={{
             panel: "end",
-            size: panelOpen ? panelHeight : barHeight,
-            defaultSize: barHeight,
+            size: panelOpen ? panelHeight : PANEL_BAR_HEIGHT,
+            defaultSize: PANEL_BAR_HEIGHT,
             minSize: PANEL_MIN_HEIGHT,
-            collapsedSize: barHeight,
+            collapsedSize: PANEL_BAR_HEIGHT,
             reserve: STAGE_MIN_HEIGHT,
             onSizeChange: onPanelHeightChange,
           }}

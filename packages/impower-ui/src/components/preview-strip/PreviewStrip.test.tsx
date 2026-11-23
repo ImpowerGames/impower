@@ -119,6 +119,25 @@ describe("PreviewStrip", () => {
     expect(host!.querySelector("[data-preview-strip-copy]")!.className).toContain("self-start");
   });
 
+  it("draws the tablet strip 104px tall with a 98 x 83 picture and three lines of words, two beside a status row", async () => {
+    await mount(<PreviewStrip size="tablet" label="ACTION" words="Rain." />);
+    const strip = host!.querySelector("section")!.className;
+    expect(strip).toContain("h-[var(--preview-strip-tablet-height)]");
+    expect(strip).not.toContain("h-[var(--preview-strip-height)]");
+    const picture = host!.querySelector("[data-preview-strip-picture]")!.className;
+    expect(picture).toContain("h-[83px]");
+    expect(picture).toContain("w-[98px]");
+    expect(picture).not.toContain("h-[72px]");
+    expect(words().className).toContain("line-clamp-3");
+    await mount(<PreviewStrip size="tablet" label="ACTION" words="Rain." statuses={[status("problem")]} />);
+    expect(words().className).toContain("line-clamp-2");
+    await mount(
+      <PreviewStrip size="tablet" label="ACTION" words="Rain." statuses={[status("problem"), status("forced")]} />,
+    );
+    expect(words().className).toContain("line-clamp-2");
+    expect(play().className).toContain("size-11");
+  });
+
   it.each(["problem", "forced"])("gives a %s row shown alone its 44px target", async (key) => {
     await mount(<PreviewStrip label="ACTION" words="Rain." statuses={[status(key)]} />);
     const row = host!.querySelector(`[data-preview-strip-status="${key}"]`)!;
@@ -193,6 +212,30 @@ describe("PreviewStrip", () => {
     expect(dialog().style.display).toBe("");
     expect(document.activeElement).toBe(play());
     expect(portalContainer()).toBeUndefined();
+  });
+
+  it("returns focus to Play once Play is enabled again when it collapses while Play is disabled", async () => {
+    await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded playDisabled />);
+    expect(document.activeElement).toBe(document.body);
+    await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded={false} playDisabled />);
+    expect(dialog().open).toBe(false);
+    expect(document.activeElement).not.toBe(play());
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} />);
+    expect(document.activeElement).toBe(play());
+  });
+
+  it("leaves focus where the author put it when Play is enabled only after they acted", async () => {
+    await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded playDisabled />);
+    await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded={false} playDisabled />);
+    const field = document.body.appendChild(document.createElement("input"));
+    try {
+      field.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      field.focus();
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} />);
+      expect(document.activeElement).toBe(field);
+    } finally {
+      field.remove();
+    }
   });
 });
 

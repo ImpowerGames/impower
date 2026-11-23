@@ -752,10 +752,8 @@ describe("WorkspaceWindow store transitions", () => {
       });
     });
 
-    it("keeps the strip height and the compact rail for the project and resets them", async () => {
-      win.setStripHeight(320);
+    it("keeps the compact rail for the project and resets it", async () => {
       win.setRailCompactWidth(76);
-      expect(workspace.current.shell?.stripHeight).toBe(320);
       expect(workspace.current.shell?.railCompactWidth).toBe(76);
       await new Promise((resolve) => setTimeout(resolve, 350));
       const id = workspace.current.project.id;
@@ -764,13 +762,8 @@ describe("WorkspaceWindow store transitions", () => {
           WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id,
         )!,
       );
-      expect(cached.shell.stripHeight).toBe(320);
       expect(cached.shell.railCompactWidth).toBe(76);
-      win.setStripHeight(48);
-      expect(workspace.current.shell?.stripHeight).toBe(48);
-      win.setStripHeight(undefined);
       win.setRailCompactWidth(undefined);
-      expect(workspace.current.shell?.stripHeight).toBeUndefined();
       expect(workspace.current.shell?.railCompactWidth).toBeUndefined();
     });
 

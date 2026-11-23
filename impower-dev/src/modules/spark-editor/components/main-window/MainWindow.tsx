@@ -10,7 +10,6 @@ import { useScriptFocus } from "../../utils/useScriptFocus";
 import { routeOfState, type Route } from "../../workspace/routes";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
-import problems from "../../workspace/problems/ProblemsStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
 import Assets from "../assets";
 import { useFocusRule, WorkspaceShell } from "../desktop-shell";
@@ -33,8 +32,6 @@ function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) 
   return <Logic key="logic" />;
 }
 
-const STRIP_HEIGHT = WorkspaceConstants.PREVIEW_STRIP_HEIGHT;
-
 const PANE_DIVIDER_LABELS: Record<Route, string> = {
   story: "Resize script and preview panes",
   scripts: "Resize scripts and preview panes",
@@ -52,26 +49,16 @@ export default function MainWindow(_props: MainWindowProps) {
   const scriptOnly =
     writing &&
     keyboard.open &&
-    keyboard.visibleHeight < STRIP_HEIGHT.reserve;
+    keyboard.visibleHeight < WorkspaceConstants.SCRIPT_ONLY_BELOW_HEIGHT;
   const layout = useLayout();
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
   const phone = isSSR || layout === "phone";
-  const strip = !isSSR && layout === "compact";
   const pane = workspace.signals.pane.value as PaneType;
   const settings = useComputed(
     () => !!workspace.state.value.screen?.settingsOpen,
   ).value;
   const route = useComputed(() => routeOfState(workspace.state.value)).value;
-  const stripHeight = useComputed(
-    () => workspace.state.value.shell?.stripHeight,
-  ).value;
-
-  const onStripHeightChange = async (height: number | undefined) => {
-    problems.keepStripHeight();
-    const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.setStripHeight(height);
-  };
 
   const content = (
     <main data-toast-pane class="relative flex h-full w-full flex-col">
@@ -82,36 +69,21 @@ export default function MainWindow(_props: MainWindowProps) {
   return (
     <WorkspaceShell
       phone={phone}
-      strip={phone && <PhonePreviewStrip />}
+      strip={!desktop && <PhonePreviewStrip size={phone ? "phone" : "tablet"} />}
       scriptOnly={scriptOnly}
     >
       <div class="relative flex h-full min-h-0 flex-1">
         {!isSSR && (
           <InspectorDockProvider>
             <SplitPane
-              orientation={strip ? "vertical" : "horizontal"}
-              reverse={strip}
-              solo={scriptOnly || (strip && route === "share")}
-              label={strip ? "Resize preview" : PANE_DIVIDER_LABELS[route]}
+              solo={scriptOnly || !desktop}
+              label={PANE_DIVIDER_LABELS[route]}
               class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"
-              pinned={
-                strip
-                  ? {
-                      panel: "end",
-                      size: stripHeight,
-                      defaultSize: STRIP_HEIGHT.default,
-                      minSize: STRIP_HEIGHT.min,
-                      collapsedSize: STRIP_HEIGHT.collapsed,
-                      reserve: STRIP_HEIGHT.reserve,
-                      onSizeChange: onStripHeightChange,
-                    }
-                  : undefined
-              }
               defaultSizes={[53, 47]}
-              minSize={desktop ? ["280px", "336px"] : "320px"}
+              minSize={["280px", "336px"]}
               start={content}
               end={
-                !phone && (
+                desktop && (
                   <aside
                     aria-label="Preview"
                     class="relative flex h-full w-full flex-col bg-stage"

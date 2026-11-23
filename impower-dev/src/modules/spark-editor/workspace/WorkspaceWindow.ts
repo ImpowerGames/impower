@@ -10,6 +10,7 @@ import {
   type InsertContext,
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { discardOnBack } from "./nameFieldBack";
+import { previewInStrip } from "./previewInStrip";
 import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
@@ -725,13 +726,6 @@ export default class WorkspaceWindow {
     this.update({
       ...this.store,
       shell: { ...this.store.shell, railCompactWidth: width },
-    });
-  }
-
-  setStripHeight(height: number | undefined) {
-    this.update({
-      ...this.store,
-      shell: { ...this.store.shell, stripHeight: height },
     });
   }
 
@@ -2021,7 +2015,7 @@ export default class WorkspaceWindow {
   }
 
   coversScript() {
-    return !!this.store.preview.revealed && layoutState.current() === "phone";
+    return !!this.store.preview.revealed && previewInStrip(layoutState.current());
   }
 
   followExecutedLines(

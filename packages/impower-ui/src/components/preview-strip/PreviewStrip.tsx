@@ -7,8 +7,21 @@ import { FileIcon, PencilIcon } from "../icon/icons.generated";
 import PlayButton from "../play-button/PlayButton";
 
 export const previewStripVariants = cva(
-  "@container relative flex h-[var(--preview-strip-height)] w-full flex-none border-b border-edge bg-preview-strip text-ink",
+  "@container relative flex w-full flex-none border-b border-edge bg-preview-strip text-ink",
+  {
+    variants: {
+      size: {
+        phone: "h-[var(--preview-strip-height)]",
+        tablet: "h-[var(--preview-strip-tablet-height)]",
+      },
+    },
+    defaultVariants: { size: "phone" },
+  },
 );
+
+const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
+
+export type PreviewStripSize = keyof typeof PICTURE_HEIGHT;
 
 export const previewStripStatusVariants = cva(
   [
@@ -61,10 +74,14 @@ export type PreviewStripProps = {
   onOpen?: () => void;
   onPlay?: () => void;
   playDisabled?: boolean;
+  size?: PreviewStripSize;
   class?: string;
 } & Omit<JSX.HTMLAttributes<HTMLElement>, "label" | "class">;
 
-const WORDS_CLAMP = ["line-clamp-2", "line-clamp-2", "line-clamp-1"] as const;
+const WORDS_CLAMP = {
+  phone: ["line-clamp-2", "line-clamp-2", "line-clamp-1"],
+  tablet: ["line-clamp-3", "line-clamp-2", "line-clamp-2"],
+} as const;
 
 export default function PreviewStrip({
   label,
@@ -78,11 +95,13 @@ export default function PreviewStrip({
   onOpen,
   onPlay,
   playDisabled = false,
+  size = "phone",
   class: className,
   ...rest
 }: PreviewStripProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const playRef = useRef<HTMLButtonElement | null>(null);
+  const focusPlayRef = useRef(false);
   const collapseRef = useRef(onCollapse);
   collapseRef.current = onCollapse;
   const expandedRef = useRef(expanded);
@@ -126,11 +145,33 @@ export default function PreviewStrip({
       dialog.style.display = "none";
       void dialog.offsetHeight;
       dialog.style.removeProperty("display");
-      if (hadFocus) {
-        playRef.current?.focus({ preventScroll: true });
-      }
+      focusPlayRef.current = hadFocus;
     }
   }, [expanded]);
+
+  useEffect(() => {
+    if (expanded) {
+      focusPlayRef.current = false;
+      return;
+    }
+    if (!focusPlayRef.current) {
+      return;
+    }
+    if (!playDisabled) {
+      focusPlayRef.current = false;
+      playRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const cancel = () => {
+      focusPlayRef.current = false;
+    };
+    document.addEventListener("pointerdown", cancel, true);
+    document.addEventListener("keydown", cancel, true);
+    return () => {
+      document.removeEventListener("pointerdown", cancel, true);
+      document.removeEventListener("keydown", cancel, true);
+    };
+  }, [expanded, playDisabled]);
 
   const shown = statuses.slice(0, 2);
 
@@ -139,13 +180,16 @@ export default function PreviewStrip({
       aria-label="Preview"
       data-preview-strip=""
       data-symbol={symbol}
-      class={cn(previewStripVariants(), className)}
+      class={cn(previewStripVariants({ size }), className)}
       {...rest}
     >
       <div class="flex h-full w-full min-w-0 items-center gap-3 py-[9px] pr-[max(20px,env(safe-area-inset-right))] pl-3 @max-[380px]:gap-[9px] @max-[380px]:pl-[11px]">
         <div
           data-preview-strip-picture=""
-          class="relative h-[72px] w-[98px] flex-none overflow-hidden rounded-[7px] border border-solid border-edge bg-stage @max-[380px]:w-[88px]"
+          class={cn(
+            "relative w-[98px] flex-none overflow-hidden rounded-[7px] border border-solid border-edge bg-stage @max-[380px]:w-[88px]",
+            PICTURE_HEIGHT[size],
+          )}
         >
           <dialog
             ref={dialogRef}
@@ -200,7 +244,7 @@ export default function PreviewStrip({
           <p
             class={cn(
               "w-full text-[12px]/[1.4] break-words text-muted",
-              WORDS_CLAMP[shown.length],
+              WORDS_CLAMP[size][shown.length],
             )}
           >
             {words}

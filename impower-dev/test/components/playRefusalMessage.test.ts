@@ -25,7 +25,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
       getActiveEditorForPane: () => ({ uri: MAIN }),
       revealDocument: (...args: unknown[]) => env.revealDocument(...args),
       revealPlayRefusal: () => env.revealPlayRefusal(),
-      setStripHeight: () => {},
     },
   },
 }));

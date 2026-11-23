@@ -358,6 +358,7 @@ export {
   previewStripVariants,
   previewStripStatusVariants,
   type PreviewStripProps,
+  type PreviewStripSize,
   type PreviewStripStatus,
   type PreviewStripSymbol,
   type PreviewStripTone,
