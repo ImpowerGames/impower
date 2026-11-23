@@ -202,26 +202,6 @@ export const defaultName = (
   }
 };
 
-export const copyName = (
-  stem: string,
-  siblings: readonly string[],
-  extension = "",
-): string => {
-  const taken = new Set(siblings.map((name) => name.toLowerCase()));
-  for (let n = 1; ; n += 1) {
-    const leaf = `${stem}_copy${n === 1 ? "" : `_${n}`}${extension}`;
-    if (!taken.has(leaf.toLowerCase())) {
-      return leaf;
-    }
-  }
-};
-
-export const renameCopiedScenes = (text: string, suffix: string): string =>
-  text.replace(
-    /^([ \t]*)scene([ \t]+)([_\p{L}][0-9_\p{L}-]*(?:@[0-9_\p{L}][0-9_\p{L}-]*)*(?<!-))/gmu,
-    (_, indent: string, gap: string, name: string) => `${indent}scene${gap}${name}${suffix}`,
-  );
-
 export const ago = (
   when: number | undefined,
   now = Date.now(),

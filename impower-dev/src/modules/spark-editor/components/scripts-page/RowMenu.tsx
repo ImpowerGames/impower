@@ -5,7 +5,6 @@ import {
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
-  DuplicateIcon,
   FolderIcon,
   MoreVerticalIcon,
   PencilPlainIcon,
@@ -17,7 +16,6 @@ export type RowAction =
   | "select"
   | "rename"
   | "move"
-  | "duplicate"
   | "download"
   | "delete";
 
@@ -60,10 +58,6 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
             Move…
           </DropdownItem>
         )}
-        <DropdownItem onSelect={() => onAction("duplicate")}>
-          <DuplicateIcon class="text-muted" />
-          Duplicate
-        </DropdownItem>
         <DropdownItem onSelect={() => onAction("download")}>
           <DownloadIcon class="text-muted" />
           Download

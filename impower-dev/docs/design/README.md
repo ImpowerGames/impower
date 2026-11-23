@@ -100,7 +100,7 @@ The editor follows the prototype except where the table below says otherwise. Ea
 | Settings > Keyboard shortcuts | desktop | Keyboard shortcut recording names letters by key, not by physical key code | #1037 |
 | Scripts page | desktop, tablet | The Scripts page header reads 'Scripts' instead of the open script's name | #1009 |
 | Scripts and Assets pages | desktop, tablet, phone | Naming and renaming scripts and assets happens in an inline field instead of a Rename dialog | #1009, #2215 |
-| Scripts page | desktop, tablet, phone | Main's row menu offers only Duplicate and Download | #1009 |
+| Scripts page | desktop, tablet, phone | No script or folder row offers Duplicate, and Main's row menu offers only Download | #1009, #2689 |
 | Search and replace rail | desktop, tablet | Search rail buttons and result rows are 44px, and match marks use the accent wash | #1004 |
 | Change color view | desktop, tablet | Change color opened from a swatch shows a Back button | #1005 |
 | Writing tools menu | desktop, tablet, phone | Go to definition is disabled on a dialogue cue in Writing tools | #1006 |
