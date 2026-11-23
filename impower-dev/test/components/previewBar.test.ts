@@ -646,6 +646,35 @@ describe("the bar under the game", () => {
     expect(document.getElementById("route-panel")).toBeNull();
   });
 
+  it("keeps the same game element from the desktop pane to the tablet strip, its full view and back", async () => {
+    await mount({ fullView: false });
+    const game = host!.querySelector('[data-stage="game"]');
+    expect(game).not.toBeNull();
+    const reveal = (revealed: boolean) =>
+      act(async () => {
+        workspace.current = {
+          ...workspace.current,
+          preview: { ...workspace.current.preview, revealed },
+        };
+      });
+    const layoutTo = async (next: "desktop" | "compact") => {
+      compact = next === "compact";
+      await act(async () => mediaListeners.forEach((listener) => listener()));
+    };
+    await layoutTo("compact");
+    expect(host!.querySelector('[data-stage="game"]')).toBe(game);
+    expect(host!.querySelector("[data-top-bar]")).toBeNull();
+    await reveal(true);
+    expect(host!.querySelector('[data-stage="game"]')).toBe(game);
+    expect(bar().querySelector('button[aria-label="Close the preview"]')).not.toBeNull();
+    expect(host!.querySelector('[role="separator"][aria-label="Resize game and panel"]')!.className).toContain("hidden");
+    await reveal(false);
+    await layoutTo("desktop");
+    expect(host!.querySelector('[data-stage="game"]')).toBe(game);
+    expect(host!.querySelector('[role="separator"][aria-label="Resize game and panel"]')!.className).not.toContain("hidden");
+    expect(game!.isConnected).toBe(true);
+  });
+
   it("names the ratio and the size the player reports", async () => {
     await mount();
     expect(ratio().textContent).toBe("Auto");
