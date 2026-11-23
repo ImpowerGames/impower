@@ -45,7 +45,7 @@ import { executionWatch } from "../../runtime/ExecutionWatch";
 import { fontFileNameOf } from "../../attributes/fontFileName";
 import { imageFileNameOf, imageMemberOf } from "../../attributes/imageFileName";
 import { createBesideImageDefinitions } from "../../attributes/besideSource";
-import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
+import { createRasterImageDefinitions, isRasterLayerFile, rasterLayerOfFile } from "../../attributes/rasterSource";
 import type { File } from "../types/File";
 import { diagnoseRareAttributeOptions, resolveAttributes, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -4350,10 +4350,9 @@ export class SparkdownCompiler {
         }
       };
       for (const file of files) {
-        const rasterFile = isRasterLayerFile(file);
-        const rasterPath = rasterFile ? decodeURIComponent(new URL(file.uri).pathname) : "";
-        const rasterFolder = rasterPath.split("/").at(-2) ?? "";
-        const explicitRaster = rasterFile && getContextEntry(state.structDefinitions, "layered_image", rasterFolder) !== undefined;
+        const rasterLayer = rasterLayerOfFile(file);
+        const rasterFile = rasterLayer !== undefined;
+        const explicitRaster = rasterFile && getContextEntry(state.structDefinitions, "layered_image", rasterLayer.folder) !== undefined;
         if (rasterFile && !explicitRaster && rasterAliases.get(file.name)! > 1) continue;
         const type = file.type;
         const member = type === "image" && !rasterFile ? imageFileNameOf(file.uri) : undefined;
@@ -4417,7 +4416,7 @@ export class SparkdownCompiler {
           delete program.context[type][name].data;
         }
         if (explicitRaster) {
-          const filename = rasterPath.split("/").at(-1)!;
+          const filename = decodeURIComponent(new URL(file.uri).pathname).split("/").at(-1)!;
           const stem = filename.slice(0, -(file.ext.length + 1));
           if (stem !== name) {
             claim(file.uri, type, stem);
