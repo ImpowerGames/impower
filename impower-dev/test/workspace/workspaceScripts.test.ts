@@ -89,9 +89,6 @@ function fakeWorkspace(paths: string[], folders: string[]) {
     getScriptReferences: vi.fn(async () => [
       { from: uri("main.sd"), to: uri("Scripts/intro.sd"), divert: true },
     ]),
-    getCopiedScriptTexts: vi.fn(async (copied: { uri: string; text: string }[], suffix: string) =>
-      copied.map(({ text }) => `${text}<renamed ${suffix}>`),
-    ),
   };
   const window = {
     recordScriptChange: vi.fn(async () => undefined),
@@ -282,49 +279,33 @@ describe("Scripts through the workspace", () => {
     await expect(scripts.move(["Scripts/Empty"], "Scripts/Empty/Drafts")).rejects.toThrow("inside itself");
   });
 
-  it("duplicates a script as '<name>_copy' beside it, writing the text the language server renamed with the copy's suffix, and recording it for Undo", async () => {
-    const { scripts, files, ls } = fakeWorkspace(PATHS, FOLDERS);
-    const original = "scene intro\nend\n";
+  it("duplicates a script as '<name>_copy' beside it, renaming its scenes, indented ones too, and recording it for Undo", async () => {
+    const { scripts, files } = fakeWorkspace(PATHS, FOLDERS);
+    const original = "scene intro\n  -> intro.part\nend\n  scene outro\n  end\n";
     files.set("Scripts/intro.sd", original);
     await scripts.load();
     recordCreate.mockClear();
     expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro_copy.sd");
-    expect(ls.getCopiedScriptTexts).toHaveBeenLastCalledWith([{ uri: uri("Scripts/intro.sd"), text: original }], "_copy");
-    expect(files.get("Scripts/intro_copy.sd")).toBe(`${original}<renamed _copy>`);
+    expect(files.get("Scripts/intro_copy.sd")).toBe("scene intro_copy\n  -> intro.part\nend\n  scene outro_copy\n  end\n");
     expect(recordCreate).toHaveBeenCalledWith(PROJECT, [uri("Scripts/intro_copy.sd")], "intro_copy.sd", {
       folders: [],
       message: "Script duplicated.",
     });
     expect(await scripts.duplicate("Scripts/intro.sd")).toBe("Scripts/intro_copy_2.sd");
-    expect(ls.getCopiedScriptTexts).toHaveBeenLastCalledWith([{ uri: uri("Scripts/intro.sd"), text: original }], "_copy_2");
-    expect(files.get("Scripts/intro_copy_2.sd")).toBe(`${original}<renamed _copy_2>`);
+    expect(files.get("Scripts/intro_copy_2.sd")).toBe("scene intro_copy_2\n  -> intro.part\nend\n  scene outro_copy_2\n  end\n");
     expect(files.get("Scripts/intro.sd")).toBe(original);
   });
 
-  it("renames a script whose extension is written in capitals, and copies a Luau file unchanged", async () => {
-    const { scripts, files, ls } = fakeWorkspace([...PATHS, "Scripts/chapter.SD", "Scripts/tools.luau"], FOLDERS);
+  it("renames the scenes of a script whose extension is written in capitals", async () => {
+    const { scripts, files } = fakeWorkspace([...PATHS, "Scripts/chapter.SD"], FOLDERS);
     files.set("Scripts/chapter.SD", "scene chapter\nend\n");
-    files.set("Scripts/tools.luau", "function tool() end\n");
     await scripts.load();
     expect(await scripts.duplicate("Scripts/chapter.SD")).toBe("Scripts/chapter_copy.SD");
-    expect(files.get("Scripts/chapter_copy.SD")).toBe("scene chapter\nend\n<renamed _copy>");
-    ls.getCopiedScriptTexts.mockClear();
-    expect(await scripts.duplicate("Scripts/tools.luau")).toBe("Scripts/tools_copy.luau");
-    expect(files.get("Scripts/tools_copy.luau")).toBe("function tool() end\n");
-    expect(ls.getCopiedScriptTexts).not.toHaveBeenCalled();
+    expect(files.get("Scripts/chapter_copy.SD")).toBe("scene chapter_copy\nend\n");
   });
 
-  it("writes nothing when the language server cannot rename the copy", async () => {
-    const { scripts, files, ls, fs } = fakeWorkspace(PATHS, [...FOLDERS]);
-    await scripts.load();
-    ls.getCopiedScriptTexts.mockRejectedValueOnce(new Error("language server stopped"));
-    await expect(scripts.duplicate("Scripts/Drafts")).rejects.toThrow("language server stopped");
-    expect(fs.createFolder).not.toHaveBeenCalled();
-    expect([...files.keys()].some((p) => p.includes("_copy"))).toBe(false);
-  });
-
-  it("duplicates a folder as '<name>_copy' with its subfolders and scripts, renaming its scripts together", async () => {
-    const { scripts, files, dirs, ls } = fakeWorkspace(
+  it("duplicates a folder as '<name>_copy' with its subfolders and scripts", async () => {
+    const { scripts, files, dirs } = fakeWorkspace(
       [...PATHS, "Scripts/Drafts/Old/older.sd"],
       [...FOLDERS, "Scripts/Drafts/Old", "Scripts/Drafts/Empty"],
     );
@@ -332,16 +313,8 @@ describe("Scripts through the workspace", () => {
     await scripts.load();
     recordCreate.mockClear();
     expect(await scripts.duplicate("Scripts/Drafts")).toBe("Scripts/Drafts_copy");
-    expect(ls.getCopiedScriptTexts).toHaveBeenCalledTimes(1);
-    expect(ls.getCopiedScriptTexts).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        { uri: uri("Scripts/Drafts/old.sd"), text: "scene old\nend\n" },
-        { uri: uri("Scripts/Drafts/Old/older.sd"), text: "text of Scripts/Drafts/Old/older.sd" },
-      ]),
-      "_copy",
-    );
-    expect(files.get("Scripts/Drafts_copy/old.sd")).toBe("scene old\nend\n<renamed _copy>");
-    expect(files.get("Scripts/Drafts_copy/Old/older.sd")).toBe("text of Scripts/Drafts/Old/older.sd<renamed _copy>");
+    expect(files.get("Scripts/Drafts_copy/old.sd")).toBe("scene old_copy\nend\n");
+    expect(files.get("Scripts/Drafts_copy/Old/older.sd")).toBe("text of Scripts/Drafts/Old/older.sd");
     expect(dirs.has("Scripts/Drafts_copy/Empty")).toBe(true);
     expect(files.get("Scripts/Drafts/old.sd")).toBe("scene old\nend\n");
     expect(recordCreate).toHaveBeenCalledWith(

@@ -52,14 +52,7 @@ export async function storageWorkerHarness(
   const { default: WorkspaceFileSystem } = await import("../../src/modules/spark-editor/workspace/WorkspaceFileSystem");
   const { default: WorkspaceScripts } = await import("../../src/modules/spark-editor/workspace/WorkspaceScripts");
   const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
-  const ls = {
-    connection: { onRequest() {}, sendNotification() {} },
-    start: async () => {},
-    getScriptReferences: async () => [],
-    getCopiedScriptTexts: vi.fn(async (copied: { uri: string; text: string }[], suffix: string) =>
-      copied.map(({ text }) => `${text}<renamed ${suffix}>`),
-    ),
-  };
+  const ls = { connection: { onRequest() {}, sendNotification() {} }, start: async () => {}, getScriptReferences: async () => [] };
   const fs = new WorkspaceFileSystem(ls as never, { settings, onDidChange: () => () => {} } as never);
   services.fs = fs;
   workspace.current = { ...workspace.current, project: { ...workspace.current.project, id: "local" } };
@@ -67,5 +60,5 @@ export async function storageWorkerHarness(
   const uri = (path: string) => fs.getFileUri("local", path);
   const write = (path: string, text: string) => fs.createFiles({ files: [{ uri: uri(path), data: bytes(text).buffer }] });
   const read = async (path: string) => new TextDecoder().decode(await fs.readFile({ file: { uri: uri(path) } }));
-  return { root, fs, ls, scripts, uri, write, read, bytes };
+  return { root, fs, scripts, uri, write, read, bytes };
 }

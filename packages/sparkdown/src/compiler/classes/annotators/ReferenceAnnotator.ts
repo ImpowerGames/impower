@@ -36,7 +36,7 @@ import {
   type SourceDirective,
 } from "../../utils/readDirective";
 import { CHARACTER_ALIAS_ID } from "../../utils/characterAliasOwners";
-import { processLuauEscapes, stringLiteralValue } from "../../utils/stringLiteralValue";
+import { processLuauEscapes } from "../../utils/stringLiteralValue";
 
 export interface Reference {
   usage?: "divert" | "handler";
@@ -124,12 +124,6 @@ function firstDescendant(node: any, names: Set<string>): any {
 const PROPERTY_NAME = nodeNameSet(["LuauPropertyName"]);
 const VARIABLE = nodeNameSet(["LuauVariable"]);
 const STRING_INDEX = nodeNameSet(["LuauDoubleQuotedString", "LuauSingleQuotedString"]);
-const NAME_STRINGS: SparkdownNodeName[] = [
-  "LuauDoubleQuotedString",
-  "LuauSingleQuotedString",
-  "LuauMultilineString",
-  "LuauInterpolatedString",
-];
 
 function isTrivia(node: SyntaxNode): boolean {
   return node.name.endsWith("Whitespace") || node.name.endsWith("Comment");
@@ -799,16 +793,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           }).range(nameNode.from, nameNode.to),
         );
         if (this.defineType === "character" && propName === "name") {
-          const stringNode = getDescendent(NAME_STRINGS, nodeRef.node);
-          const contentNode =
-            stringNode && !getDescendent("LuauBacktickStringInterpolation", stringNode)
-              ? findChildByName(stringNode, `${stringNode.name}_content`)
-              : null;
-          if (stringNode && contentNode) {
-            const value = stringLiteralValue(
-              this.read(stringNode.from, stringNode.to),
-              stringNode.name === "LuauMultilineString",
-            );
+          const stringNode = getDescendent(
+            "LuauDoubleQuotedString",
+            nodeRef.node,
+          );
+          const contentNode = stringNode
+            ? getDescendent("LuauDoubleQuotedString_content", stringNode)
+            : null;
+          if (contentNode) {
+            const value = processLuauEscapes(this.read(contentNode.from, contentNode.to));
             annotations.push(
               SparkdownAnnotation.mark<Reference>({
                 declaration: "character_name",

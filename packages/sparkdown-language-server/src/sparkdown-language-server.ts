@@ -45,7 +45,6 @@ import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { findWorkspaceText } from "./utils/providers/findWorkspaceText";
 import { getAssetUsage, getFileReferences } from "./utils/providers/getFileReferences";
 import { getScriptReferences } from "./utils/providers/getScriptReferences";
-import { getCopiedScriptTexts } from "./utils/providers/getCopiedScriptTexts";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
@@ -492,18 +491,6 @@ try {
     "sparkdown/uiBreakpoints",
     async (params: { uri: string }) =>
       getUiBreakpoints(await workspace.compile(params.uri, false)),
-  );
-  connection.onRequest(
-    "sparkdown/copiedScriptTexts",
-    async (params: { files: { uri: string; text: string }[]; suffix: string }) => {
-      const first = params.files[0]?.uri;
-      if (!first) {
-        return [];
-      }
-      const mainUri = workspace.getMainScriptUri(first);
-      const program = await workspace.currentProgram(mainUri ?? first);
-      return getCopiedScriptTexts(workspace, program, params.files, params.suffix);
-    },
   );
   connection.onRequest(
     "sparkdown/fileRenameEdits",

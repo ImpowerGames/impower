@@ -514,17 +514,6 @@ export default class WorkspaceLanguageServer {
     );
   }
 
-  async getCopiedScriptTexts(
-    files: { uri: string; text: string }[],
-    suffix: string,
-  ): Promise<string[]> {
-    await this.initialization();
-    return this._connection.sendRequest<string[]>("sparkdown/copiedScriptTexts", {
-      files,
-      suffix,
-    });
-  }
-
   async getFileRenameEdits(
     oldUri: string,
     newName: string,

@@ -30,13 +30,6 @@ import { getSymbol } from "./getSymbol";
 const RUN_FILE_NAME =
   /^[^\s./\\"'\p{C}\p{Zl}\p{Zp}](?:[^./\\"'\p{C}\p{Zl}\p{Zp}]*[^\s./\\"'\p{C}\p{Zl}\p{Zp}])?$/u;
 
-const STRING_CLOSERS: Readonly<Record<string, readonly string[]>> = {
-  LuauDoubleQuotedString: [`"`],
-  LuauSingleQuotedString: ["'"],
-  LuauInterpolatedString: ["`", "{"],
-  LuauMultilineString: ["]"],
-};
-
 const isCharacterNameText = (reference: Reference): boolean =>
   reference.declaration === "character_name" ||
   !!reference.symbolIds?.some((id) => id.startsWith(CHARACTER_ALIAS_ID));
@@ -68,12 +61,9 @@ const characterNameQuotes = (
     if (!found) {
       return undefined;
     }
-    for (let node = workspace.tree(uri)?.resolveInner(from, 1) ?? null; node; node = node.parent) {
-      const closers = STRING_CLOSERS[node.name];
-      if (closers) {
-        closers.forEach((closer) => quotes.add(closer));
-        break;
-      }
+    const before = document.read(from - 1, from);
+    if (before === `"` || before === "'") {
+      quotes.add(before);
     }
   }
   return quotes;
