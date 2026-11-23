@@ -145,9 +145,9 @@ const probe = async (
       height: await page.evaluate(
         () => document.querySelector("header")!.getBoundingClientRect().height,
       ),
-      toastTop: await page.evaluate(() =>
+      toastHeight: await page.evaluate(() =>
         getComputedStyle(document.documentElement)
-          .getPropertyValue("--toast-top")
+          .getPropertyValue("--toast-height")
           .trim(),
       ),
       hit: Object.fromEntries(header.map((target) => [target.name, target.hit])),
@@ -159,13 +159,13 @@ const probe = async (
 
 describe("the title bar's name and status under a coarse pointer", () => {
   it.each([
-    ["story", 768, "compact", "calc(90px + 52px + 8px)", ["Project name", "Saved in this browser.", "Show problems"]],
-    ["assets", 768, "compact", "calc(90px + 52px + 8px)", ["Project name", "Saved in this browser.", "Show problems"]],
-    ["story", 1366, "desktop", "calc(90px + 68px + 8px)", ["Project name", "Saved in this browser."]],
-    ["assets", 1366, "desktop", "calc(90px + 68px + 8px)", ["Project name", "Saved in this browser."]],
+    ["story", 768, "compact", ["Project name", "Saved in this browser.", "Show problems"]],
+    ["assets", 768, "compact", ["Project name", "Saved in this browser.", "Show problems"]],
+    ["story", 1366, "desktop", ["Project name", "Saved in this browser."]],
+    ["assets", 1366, "desktop", ["Project name", "Saved in this browser."]],
   ] as const)(
     "on %s at %ipx (%s) with touch, the bar is 90px and each text control takes a tap anywhere in 44x44",
-    async (route, viewport, layout, toastTop, names) => {
+    async (route, viewport, layout, names) => {
       const markup = await markupOn(route, viewport);
       expect(markup.layout).toBe(layout);
       const bar = await probe(markup, viewport, true);
@@ -174,23 +174,23 @@ describe("the title bar's name and status under a coarse pointer", () => {
         Object.fromEntries(names.map((name) => [name, "44x44"])),
       );
       expect(bar.height).toBe(90);
-      expect(bar.toastTop).toBe(toastTop);
+      expect(bar.toastHeight).toBe("90px");
     },
     60000,
   );
 
   it.each([
-    [768, "compact", 54, "calc(54px + 52px + 8px)"],
-    [1366, "desktop", 76, "calc(76px + 68px + 8px)"],
+    [768, "compact", 54],
+    [1366, "desktop", 76],
   ] as const)(
     "with a mouse at %ipx (%s), the bar keeps its %ipx height",
-    async (viewport, layout, height, toastTop) => {
+    async (viewport, layout, height) => {
       const markup = await markupOn("story", viewport);
       expect(markup.layout).toBe(layout);
       const bar = await probe(markup, viewport, false);
       expect(bar.coarse).toBe(false);
       expect(bar.height).toBe(height);
-      expect(bar.toastTop).toBe(toastTop);
+      expect(bar.toastHeight).toBe(`${height}px`);
     },
     60000,
   );
