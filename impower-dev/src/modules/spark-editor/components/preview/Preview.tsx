@@ -23,6 +23,7 @@ export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
 
 const PANEL_MIN_HEIGHT = 144;
+const BAR_ONLY = { panel: "end", size: "var(--preview-bar-height)" } as const;
 const STAGE_MIN_HEIGHT = 160;
 
 const playerClass = (mode: PreviewMode, choosing: boolean) => {
@@ -55,7 +56,9 @@ function useFullscreen() {
 
 export default function Preview(_props: PreviewProps) {
   const mode = workspaceSettings.preferences.value.previewMode;
-  const stripped = previewInStrip(useLayout());
+  const layout = useLayout();
+  const phone = layout === "phone";
+  const stripped = previewInStrip(layout);
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
   const panelShows = problems.panelShows.value;
   const panelOpen = panelHeight > PANEL_BAR_HEIGHT;
@@ -133,7 +136,7 @@ export default function Preview(_props: PreviewProps) {
       )}
     >
       {inStrip ? null : <PreviewTopBar />}
-      {stripped ? (
+      {phone ? (
         <>
           {card}
           {inStrip ? null : bar}
@@ -144,21 +147,27 @@ export default function Preview(_props: PreviewProps) {
           label="Resize game and panel"
           line="none"
           overflowPanel="start"
-          pinned={{
-            panel: "end",
-            size: panelOpen ? panelHeight : PANEL_BAR_HEIGHT,
-            defaultSize: PANEL_BAR_HEIGHT,
-            minSize: PANEL_MIN_HEIGHT,
-            collapsedSize: PANEL_BAR_HEIGHT,
-            reserve: STAGE_MIN_HEIGHT,
-            onSizeChange: onPanelHeightChange,
-          }}
+          solo={inStrip}
+          fixed={stripped ? BAR_ONLY : undefined}
+          pinned={
+            stripped
+              ? undefined
+              : {
+                  panel: "end",
+                  size: panelOpen ? panelHeight : PANEL_BAR_HEIGHT,
+                  defaultSize: PANEL_BAR_HEIGHT,
+                  minSize: PANEL_MIN_HEIGHT,
+                  collapsedSize: PANEL_BAR_HEIGHT,
+                  reserve: STAGE_MIN_HEIGHT,
+                  onSizeChange: onPanelHeightChange,
+                }
+          }
           start={<div class="flex h-full flex-col">{card}</div>}
           end={
             <div class="flex h-full flex-col">
               {bar}
               <div data-preview-panel class="min-h-0 flex-1">
-                {!panelOpen ? null : panelShows === "route" ? (
+                {!panelOpen || stripped ? null : panelShows === "route" ? (
                   <RoutePanel />
                 ) : (
                   <ProblemsPanel />

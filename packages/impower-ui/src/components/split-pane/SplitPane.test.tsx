@@ -151,6 +151,38 @@ describe("SplitPane", () => {
     expect(separator.getAttribute("aria-valuenow")).toBe("53");
   });
 
+  it("holds a fixed panel at its size with no handle, and keeps both panels when the handle returns", async () => {
+    host = document.body.appendChild(document.createElement("div"));
+    const draw = (fixed: SplitPaneProps["fixed"]) =>
+      act(async () =>
+        render(
+          <SplitPane
+            orientation="vertical"
+            reverse
+            fixed={fixed}
+            start={<div data-start />}
+            end={<div data-end />}
+          />,
+          host!,
+        ),
+      );
+    await draw({ panel: "end", size: "104px" });
+    const end = host.querySelector<HTMLElement>('[data-panel="end"]')!;
+    const start = host.querySelector<HTMLElement>('[data-panel="start"]')!;
+    const separator = host.querySelector<HTMLElement>('[role="separator"]')!;
+    expect(end.style.flexBasis).toBe("104px");
+    expect(end.className).toContain("flex-none");
+    expect(start.className).toContain("flex-1");
+    expect(separator.className).toContain("hidden");
+    expect(separator.tabIndex).toBe(-1);
+    const inner = host.querySelector("[data-end]");
+    await draw(undefined);
+    expect(host.querySelector('[data-panel="end"]')).toBe(end);
+    expect(host.querySelector("[data-end]")).toBe(inner);
+    expect(separator.className).not.toContain("hidden");
+    expect(separator.tabIndex).toBe(0);
+  });
+
   it("keeps a separate minimum for each pane while dragging", async () => {
     const { separator } = await mount({
       defaultSizes: [53, 47],

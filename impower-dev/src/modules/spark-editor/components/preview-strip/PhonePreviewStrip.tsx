@@ -35,8 +35,10 @@ const withWorkspace = async (
 
 export default function PhonePreviewStrip({
   size = "phone",
+  docked = false,
 }: {
   size?: PreviewStripSize;
+  docked?: boolean;
 }) {
   const snapshot = workspace.previewLine.value;
   const game = workspace.state.value.preview?.modes?.game;
@@ -97,6 +99,7 @@ export default function PhonePreviewStrip({
       statuses={statuses}
       playDisabled={!copy.playable}
       size={size}
+      docked={docked}
       expanded={expanded}
       onPlay={() => void withWorkspace((win) => win.playInFullView())}
       onOpen={() => void withWorkspace((win) => win.openFullView())}

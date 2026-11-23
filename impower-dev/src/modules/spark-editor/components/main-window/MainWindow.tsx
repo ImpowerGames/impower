@@ -16,7 +16,6 @@ import { useFocusRule, WorkspaceShell } from "../desktop-shell";
 import FileDropzone from "../file-dropzone/FileDropzone";
 import { useFindShortcut } from "../find-references-rename";
 import Logic from "../logic/Logic";
-import Preview from "../preview/Preview";
 import { PhonePreviewStrip } from "../preview-strip";
 import { SettingsPage } from "../settings";
 import { SharePage } from "../share";
@@ -31,6 +30,11 @@ function PaneContent({ pane, settings }: { pane: PaneType; settings: boolean }) 
   if (pane === "share") return <SharePage key="share" />;
   return <Logic key="logic" />;
 }
+
+const TABLET_STRIP = {
+  panel: "end",
+  size: "var(--preview-strip-tablet-height)",
+} as const;
 
 const PANE_DIVIDER_LABELS: Record<Route, string> = {
   story: "Resize script and preview panes",
@@ -54,6 +58,7 @@ export default function MainWindow(_props: MainWindowProps) {
   const isSSR = typeof window === "undefined";
   const desktop = !isSSR && layout === "desktop";
   const phone = isSSR || layout === "phone";
+  const compact = !isSSR && layout === "compact";
   const pane = workspace.signals.pane.value as PaneType;
   const settings = useComputed(
     () => !!workspace.state.value.screen?.settingsOpen,
@@ -69,26 +74,29 @@ export default function MainWindow(_props: MainWindowProps) {
   return (
     <WorkspaceShell
       phone={phone}
-      strip={!desktop && <PhonePreviewStrip size={phone ? "phone" : "tablet"} />}
+      strip={phone && <PhonePreviewStrip />}
       scriptOnly={scriptOnly}
     >
       <div class="relative flex h-full min-h-0 flex-1">
         {!isSSR && (
           <InspectorDockProvider>
             <SplitPane
-              solo={scriptOnly || !desktop}
+              orientation={compact ? "vertical" : "horizontal"}
+              reverse={compact}
+              solo={scriptOnly || (compact && route === "share")}
+              fixed={compact ? TABLET_STRIP : undefined}
               label={PANE_DIVIDER_LABELS[route]}
               class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"
               defaultSizes={[53, 47]}
-              minSize={["280px", "336px"]}
+              minSize={desktop ? ["280px", "336px"] : "320px"}
               start={content}
               end={
-                desktop && (
+                !phone && (
                   <aside
-                    aria-label="Preview"
+                    aria-label={desktop ? "Preview" : undefined}
                     class="relative flex h-full w-full flex-col bg-stage"
                   >
-                    <Preview />
+                    <PhonePreviewStrip size="tablet" docked={desktop} />
                     <InspectorDock />
                   </aside>
                 )

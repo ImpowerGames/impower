@@ -188,7 +188,7 @@ const focus = async (selector: string) => {
 const room = () => ({
   scriptOnly: host!.querySelector("[data-script-only]") !== null,
   topBar: shown(host!.querySelector("header")),
-  strip: shown(host!.querySelector("[data-tablet-strip]")),
+  strip: shown(host!.querySelector('[data-panel="end"]')),
   script: shown(host!.querySelector('[data-route="logic"]')),
 });
 

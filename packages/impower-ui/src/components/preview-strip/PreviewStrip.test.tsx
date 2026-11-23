@@ -138,6 +138,32 @@ describe("PreviewStrip", () => {
     expect(play().className).toContain("size-11");
   });
 
+  it("docks the picture to fill its host with no strip chrome, never as a modal, and keeps the same picture element when it leaves the dock", async () => {
+    const onCollapse = vi.fn();
+    await mount(
+      <PreviewStrip docked expanded label="ACTION" words="Rain." symbol="file" onOpen={vi.fn()} onCollapse={onCollapse} picture={<div data-player />} />,
+    );
+    const section = host!.querySelector("section")!;
+    expect(section.hasAttribute("aria-label")).toBe(false);
+    expect(section.className).not.toContain("--preview-strip");
+    expect(host!.querySelector("[data-preview-strip-copy]")).toBeNull();
+    expect(host!.querySelector('button[aria-label="Play from this line"]')).toBeNull();
+    expect(host!.querySelector("[data-preview-strip-symbol]")).toBeNull();
+    expect(host!.querySelector("[data-preview-strip-open]")).toBeNull();
+    expect(dialog().open).toBe(false);
+    expect(dialog().hasAttribute("inert")).toBe(false);
+    expect(dialog().className).toContain("h-full");
+    expect(dialog().className).not.toContain("scale-");
+    const player = host!.querySelector("[data-player]");
+    await mount(
+      <PreviewStrip size="tablet" label="ACTION" words="Rain." onCollapse={onCollapse} picture={<div data-player />} />,
+    );
+    expect(host!.querySelector("[data-player]")).toBe(player);
+    expect(dialog().hasAttribute("inert")).toBe(true);
+    expect(play()).not.toBeNull();
+    expect(onCollapse).not.toHaveBeenCalled();
+  });
+
   it.each(["problem", "forced"])("gives a %s row shown alone its 44px target", async (key) => {
     await mount(<PreviewStrip label="ACTION" words="Rain." statuses={[status(key)]} />);
     const row = host!.querySelector(`[data-preview-strip-status="${key}"]`)!;

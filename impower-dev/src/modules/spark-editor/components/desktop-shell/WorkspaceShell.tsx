@@ -84,14 +84,14 @@ export default function WorkspaceShell({
   }, [editing]);
 
   const onStory = writing && route === "story";
-  const hasStrip = !!strip;
-  const stripShown = phone ? onStory : compact && route !== "share";
+  const stripLayout = phone || compact;
+  const stripShown = phone ? onStory : route !== "share";
 
   useEffect(() => {
-    if (hasStrip && previewRevealed && !stripShown) {
+    if (stripLayout && previewRevealed && !stripShown) {
       void workspaceWindow().then((win) => win.collapsePreviewPane());
     }
-  }, [hasStrip, previewRevealed, stripShown]);
+  }, [stripLayout, previewRevealed, stripShown]);
 
   const onWidthChange = async (width: number | undefined) => {
     const { Workspace } = await import("../../workspace/Workspace");
@@ -137,7 +137,7 @@ export default function WorkspaceShell({
             {phone ? (
               <>
                 <PhoneTitleBar scrolled={!writing && scrolled} />
-                <div data-phone-strip="" hidden={!stripShown} class="flex-none">
+                <div data-phone-strip="" hidden={!onStory} class="flex-none">
                   {strip}
                 </div>
               </>
@@ -159,32 +159,21 @@ export default function WorkspaceShell({
           ) : null
         }
       >
-        <div class="flex h-full min-h-0 w-full flex-col">
-          {compact ? (
-            <div
-              data-tablet-strip=""
-              hidden={scriptOnly || !stripShown}
-              class="flex-none"
-            >
-              {strip}
-            </div>
-          ) : null}
-          <TabPanel
-            panel={SCREEN_PANEL_ID}
-            value={route === "settings" ? null : pane}
-            class="relative flex min-h-0 w-full flex-1"
-            onScrollCapture={
-              phone
-                ? (e) => {
-                    const target = e.target as HTMLElement;
-                    setScrolled(target.scrollTop > 2);
-                  }
-                : undefined
-            }
-          >
-            {children}
-          </TabPanel>
-        </div>
+        <TabPanel
+          panel={SCREEN_PANEL_ID}
+          value={route === "settings" ? null : pane}
+          class="relative flex h-full min-h-0 w-full"
+          onScrollCapture={
+            phone
+              ? (e) => {
+                  const target = e.target as HTMLElement;
+                  setScrolled(target.scrollTop > 2);
+                }
+              : undefined
+          }
+        >
+          {children}
+        </TabPanel>
       </SidebarLayout>
     </div>
   );

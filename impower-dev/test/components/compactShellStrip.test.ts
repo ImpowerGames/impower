@@ -1,11 +1,21 @@
 import { h, render } from "preact";
+import { useEffect } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+const players = vi.hoisted(() => ({ mounted: 0, unmounted: 0 }));
 const collapses = vi.hoisted(() => [] as string[]);
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
-  default: () => h("div", { "data-player": "" }),
+  default: function Preview() {
+    useEffect(() => {
+      players.mounted += 1;
+      return () => {
+        players.unmounted += 1;
+      };
+    }, []);
+    return h("div", { "data-player": "" });
+  },
 }));
 vi.mock("../../src/modules/spark-editor/components/logic/Logic", () => ({
   default: () => h("div", { "data-route": "logic" }),
@@ -116,20 +126,22 @@ const railWidth = () =>
     .style.getPropertyValue("--sidebar-width");
 
 describe("the compact layout", () => {
-  it("moves the one player between the docked preview and the strip's picture when the window crosses 1100px", async () => {
+  it("keeps the same player element when the window crosses 1100px and back", async () => {
+    players.mounted = 0;
+    players.unmounted = 0;
     await mount(1440);
-    expect(host!.querySelector('aside[aria-label="Preview"] [data-player]')).not.toBeNull();
-    expect(host!.querySelector("[data-preview-strip]")).toBeNull();
+    const player = host!.querySelector("[data-player]");
+    expect(player).not.toBeNull();
+    expect(host!.querySelector('aside[aria-label="Preview"] [data-player]')).toBe(player);
 
-    await resize(1100);
-    expect(host!.querySelectorAll("[data-player]")).toHaveLength(1);
-    expect(host!.querySelector("[data-preview-strip-picture] [data-player]")).not.toBeNull();
-    expect(host!.querySelector('aside[aria-label="Preview"]')).toBeNull();
-
-    await resize(1101);
-    expect(host!.querySelectorAll("[data-player]")).toHaveLength(1);
-    expect(host!.querySelector('aside[aria-label="Preview"] [data-player]')).not.toBeNull();
-    expect(host!.querySelector("[data-preview-strip]")).toBeNull();
+    for (const next of [1100, 900, 1101, 1440, 1024, 1366]) {
+      await resize(next);
+      expect(host!.querySelector("[data-player]")).toBe(player);
+      expect(player!.isConnected).toBe(true);
+      expect(!!player!.closest("[data-preview-strip-picture]")).toBe(true);
+    }
+    expect(players.mounted).toBe(1);
+    expect(players.unmounted).toBe(0);
   });
 
   it("keeps the top bar and rail from 701 to 1100 and drops the bottom tabs", async () => {
@@ -247,42 +259,48 @@ describe("the compact layout", () => {
       workspace.current = { ...workspace.current, shell: { stripHeight: 320 } as never };
     });
     await settle();
-    const holder = host!.querySelector<HTMLElement>("[data-tablet-strip]")!;
-    expect(holder.hidden).toBe(false);
-    const strip = holder.querySelector<HTMLElement>("[data-preview-strip]")!;
+    const end = host!.querySelector<HTMLElement>('[data-panel="end"]')!;
+    expect(end.style.display).not.toBe("none");
+    expect(end.style.flexBasis).toBe("var(--preview-strip-tablet-height)");
+    expect(end.parentElement!.className).toContain("flex-col-reverse");
+    const strip = end.querySelector<HTMLElement>("[data-preview-strip]")!;
+    expect(strip.hasAttribute("data-docked")).toBe(false);
     expect(strip.className).toContain("h-[var(--preview-strip-tablet-height)]");
     expect(strip.querySelector("[data-preview-strip-picture]")!.className).toContain("h-[83px]");
     expect(strip.querySelector('button[aria-label="Play from this line"]')).not.toBeNull();
-    const page = host!.querySelector("main[data-toast-pane]")!;
-    expect(holder.compareDocumentPosition(page) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(host!.querySelector("[data-phone-strip]")).toBeNull();
-    expect(host!.querySelector('[aria-label="Resize preview"]')).toBeNull();
+    expect(host!.querySelector('[role="separator"][aria-label^="Resize"]:not(.hidden)')?.getAttribute("aria-label")).toBe("Resize sidebar");
     expect(host!.querySelector("[data-split]")).toBeNull();
     expect(host!.querySelector('aside[aria-label="Preview"]')).toBeNull();
-    expect(host!.querySelector('[data-panel="end"]')!.style.display).toBe("none");
   });
 
-  it("gives Share the whole workspace at 768 and shows the strip again on the other pages", async () => {
+  it("gives Share the whole workspace at 768 and shows the strip again on the other pages, with the one player", async () => {
+    players.mounted = 0;
+    players.unmounted = 0;
     await mount(768);
-    const holder = () => host!.querySelector<HTMLElement>("[data-tablet-strip]")!;
+    const end = () => host!.querySelector<HTMLElement>('[data-panel="end"]')!;
+    const player = host!.querySelector("[data-player]");
     await act(async () => {
       workspace.current = { ...workspace.current, pane: "assets" };
     });
     await settle();
-    expect(holder().hidden).toBe(false);
+    expect(end().style.display).not.toBe("none");
 
     await act(async () => {
       workspace.current = { ...workspace.current, pane: "share" };
     });
     await settle();
-    expect(holder().hidden).toBe(true);
+    expect(end().style.display).toBe("none");
     expect(host!.querySelector('[data-panel="start"] [data-route="share"]')).not.toBeNull();
 
     await act(async () => {
       workspace.current = { ...workspace.current, pane: "assets" };
     });
     await settle();
-    expect(holder().hidden).toBe(false);
+    expect(end().style.display).not.toBe("none");
+    expect(host!.querySelector("[data-player]")).toBe(player);
+    expect(players.mounted).toBe(1);
+    expect(players.unmounted).toBe(0);
   });
 
   it("closes the full view when the strip leaves the page at 768", async () => {
@@ -313,23 +331,26 @@ describe("the compact layout", () => {
 
   it("keeps the phone's shorter strip in the title area at 430", async () => {
     await mount(430);
-    expect(host!.querySelector("[data-tablet-strip]")).toBeNull();
     const strip = host!.querySelector<HTMLElement>("[data-phone-strip] [data-preview-strip]")!;
     expect(strip.className).toContain("h-[var(--preview-strip-height)]");
     expect(strip.querySelector("[data-preview-strip-picture]")!.className).toContain("h-[72px]");
+    expect(host!.querySelectorAll("[data-preview-strip]")).toHaveLength(1);
   });
 
-  it("keeps the preview beside Share on the desktop layout", async () => {
+  it("keeps the docked preview and its divider beside Share on the desktop layout, with no strip chrome", async () => {
     await mount(1440);
     await act(async () => {
       workspace.current = { ...workspace.current, pane: "share" };
     });
     await settle();
     expect(host!.querySelector<HTMLElement>('[data-panel="end"]')!.style.display).not.toBe("none");
-    expect(host!.querySelector("[data-player]")).not.toBeNull();
-    expect(host!.querySelector("[data-tablet-strip]")).toBeNull();
+    const strip = host!.querySelector<HTMLElement>('aside[aria-label="Preview"] [data-preview-strip]')!;
+    expect(strip.hasAttribute("data-docked")).toBe(true);
+    expect(strip.querySelector("[data-preview-strip-copy]")).toBeNull();
+    expect(strip.querySelector('button[aria-label="Play from this line"]')).toBeNull();
+    expect(strip.querySelector("[data-player]")).not.toBeNull();
     expect(
-      host!.querySelector('[role="separator"][aria-label="Resize page and preview panes"]'),
-    ).not.toBeNull();
+      host!.querySelector('[role="separator"][aria-label="Resize page and preview panes"]')!.className,
+    ).not.toContain("hidden");
   });
 });

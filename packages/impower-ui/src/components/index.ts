@@ -184,6 +184,7 @@ export {
 export {
   default as SplitPane,
   type SplitPaneProps,
+  type SplitPaneFixed,
   type SplitPanePinned,
 } from "./split-pane/SplitPane";
 export {
