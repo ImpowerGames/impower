@@ -6,7 +6,7 @@ import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missing
 import { landingFolder, typeFolder } from "./assetsListing";
 import { isInside, joinPath, parentOf } from "./scriptsListing";
 import { isDroppedFolder, walkDrop, type DropItem, type WalkedDrop } from "../utils/fileDrops";
-import getValidFileName from "../utils/getValidFileName";
+import { checkedName, NameError } from "../utils/fileListModel";
 import { storageLeft } from "../utils/storageLeft";
 import { beginUploadBatch, endUploadBatch, findingUploads, refuseUploads, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
@@ -56,6 +56,23 @@ const openZip = async (file: AddedFile): Promise<OpenedFiles | null> => {
 
 const leafOf = (name: string) => name.slice(name.lastIndexOf("/") + 1);
 
+const nameProblemOf = (path: string): string | null => {
+  for (const part of path.split("/")) {
+    if (!part || part === "." || part === "..") {
+      continue;
+    }
+    try {
+      checkedName(part);
+    } catch (error) {
+      if (error instanceof NameError) {
+        return error.message;
+      }
+      throw error;
+    }
+  }
+  return null;
+};
+
 const addWalked = async (
   projectId: string,
   { files, refused }: WalkedDrop,
@@ -68,16 +85,22 @@ const addWalked = async (
     return [];
   }
   showUploads?.();
-  const refuseUnread = () => refused.forEach(({ name, reason }) => refuseUploads([name], reason));
-  if (!opened.files.length) {
-    if (refused.length) {
+  const checked = opened.files.map((file) => ({ file, message: nameProblemOf(file.name) }));
+  const kept = checked.flatMap(({ file, message }) => (message ? [] : [file]));
+  const misnamed = checked.flatMap(({ file, message }) =>
+    message ? [{ name: leafOf(file.name), reason: { kind: "name", message } as const }] : [],
+  );
+  const refuseUnread = () =>
+    [...refused, ...misnamed].forEach(({ name, reason }) => refuseUploads([name], reason));
+  if (!kept.length) {
+    if (refused.length || misnamed.length) {
       await group(async () => refuseUnread());
     }
     return [];
   }
-  const names = opened.zip ? [opened.zip.name] : opened.files.map((file) => leafOf(file.name));
+  const names = opened.zip ? [opened.zip.name] : kept.map((file) => leafOf(file.name));
   const free = await storageLeft();
-  const needed = opened.files.reduce((sum, file) => sum + file.size, 0);
+  const needed = kept.reduce((sum, file) => sum + file.size, 0);
   if (free !== null && needed > free) {
     await group(async () => {
       refuseUnread();
@@ -100,9 +123,7 @@ const addWalked = async (
       refuseUploads(names, { kind: "project_changed" });
       return [];
     }
-    return keepNames
-      ? Workspace.assets.upload(opened.files, folder, { keepNames })
-      : Workspace.assets.upload(opened.files, folder);
+    return Workspace.assets.upload(kept, folder);
   });
 };
 
@@ -131,7 +152,7 @@ export const addAssetFiles = async (
 export const namedAs = <T extends { name: string }>(file: T, name: string): T => {
   const leaf = leafOf(file.name);
   const dot = leaf.lastIndexOf(".");
-  return { ...file, name: dot > 0 ? name + getValidFileName(leaf.slice(dot)) : name };
+  return { ...file, name: dot > 0 ? name + leaf.slice(dot) : name };
 };
 
 export const addNamedAssetFile = (file: AddedFile, { name, type }: MissingAsset): Promise<string[]> =>
