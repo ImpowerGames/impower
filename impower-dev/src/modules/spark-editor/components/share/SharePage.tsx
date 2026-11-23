@@ -15,7 +15,6 @@ import {
 } from "@impower/impower-ui/components";
 import { unprintableNotice } from "@impower/sparkdown-screenplay-pdf/src/utils/unprintableNotice";
 import { useRef, useState } from "preact/hooks";
-import { backToStory } from "../../workspace/backToStory";
 import { screenplaySummary } from "../../workspace/settings/screenplaySettings";
 import { useSettings } from "../../workspace/settings/useSettings";
 import workspace from "../../workspace/WorkspaceStore";
@@ -118,7 +117,6 @@ export default function SharePage() {
       eyebrow="Download, Collaborate & Publish"
       title="Share your story"
       line="Export a shareable game or screenplay. Collaborate with others. Publish it online."
-      onBack={() => void backToStory()}
     >
       <div class="grid grid-cols-2 gap-5 compact:grid-cols-1 phone:grid-cols-1 phone:gap-3.5">
         <FeatureCard
