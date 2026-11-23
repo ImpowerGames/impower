@@ -7,7 +7,12 @@ import {
   savesActionEvents,
   type SavesViewAction,
 } from "../saves/savesViewMessages";
-import { savesEscape, type SaveRow, type SavesViewState } from "../saves/savesView";
+import {
+  rowMenuTakesPress,
+  savesEscape,
+  type SaveRow,
+  type SavesViewState,
+} from "../saves/savesView";
 
 const controllers: GamePlayerController[] = [];
 
@@ -200,8 +205,20 @@ describe("Escape in the Saves menu", () => {
     expect(savesEscape(open, null)).toBe("close");
     expect(savesEscape({ ...open, open: false }, null)).toBeNull();
     expect(savesEscape({ ...open, renaming: "s1" }, null)).toBeNull();
+    expect(savesEscape({ ...open, rowMenu: "s1" }, null)).toBeNull();
     expect(savesEscape(values, null)).toBe("back");
     expect(savesEscape(values, "suspect")).toBe("back");
     expect(savesEscape(values, "trust")).toBeNull();
+  });
+
+  test("gives a press anywhere to an open row menu, and a press inside the row menu to it", () => {
+    const outside = document.createElement("div");
+    const menu = document.createElement("div");
+    menu.setAttribute("data-saves-row-menu", "");
+    const item = menu.appendChild(document.createElement("button"));
+    expect(rowMenuTakesPress({ ...open, rowMenu: "s1" }, outside)).toBe(true);
+    expect(rowMenuTakesPress(open, item)).toBe(true);
+    expect(rowMenuTakesPress(open, outside)).toBe(false);
+    expect(rowMenuTakesPress(open, null)).toBe(false);
   });
 });

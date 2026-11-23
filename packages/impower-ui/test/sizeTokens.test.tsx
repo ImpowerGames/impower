@@ -37,6 +37,7 @@ const WEB_VALUES: [token: string, value: string, replaced: string, property: str
   ["--list-row-compact-padding-y", "0.25rem", "py-1", "padding-block"],
   ["--list-row-compact-gap", "0.625rem", "gap-2.5", "gap"],
   ["--list-row-compact-font-size", "12px", "text-[12px]/[1.4]", "font-size"],
+  ["--list-row-compact-description-font-size", "11px", "text-[11px]/[1.4]", "font-size"],
   ["--control-size", "2.75rem", "h-11", "height"],
   ["--popover-width", "360px", "w-[360px]", "width"],
 ];
@@ -110,6 +111,13 @@ describe("size tokens", () => {
       ["padding-block", "--list-row-compact-padding-y", 4],
       ["gap", "--list-row-compact-gap", 10],
       ["font-size", "--list-row-compact-font-size", 12],
+    ]);
+  });
+
+  it("sizes a compact ListRow description from the description token", async () => {
+    const root = await mount(<ListRow size="compact" label="start" description="08:15 PM" />);
+    await expectReads(root.querySelector("small"), [
+      ["font-size", "--list-row-compact-description-font-size", 11],
     ]);
   });
 
