@@ -194,6 +194,33 @@ describe.skipIf(!browserAvailable)("a menu's form follows the layout, whatever o
     }, { touchScreen: true });
   }, 20000);
 
+  test.each([768, 1440])("at %ipx wide, a popover that is not modal closes on a tap outside without pressing what is under it, and on a tap on its trigger for good", async (width) => {
+    await withPage(width, ["panel"], async (page) => {
+      const pressed = await page.evaluateHandle(() => {
+        const log: string[] = [];
+        document.querySelector("[data-left]")!.addEventListener("click", () => log.push("left"));
+        return log;
+      });
+      const panelOpen = () => page.evaluate(() => !!document.querySelector("[data-panel]"));
+      const centre = (box: { left: number; top: number; width: number; height: number }) => [box.left + box.width / 2, box.top + box.height / 2] as const;
+      await page.locator("[data-trigger]").tap();
+      await page.waitForTimeout(300);
+      expect(await panelOpen()).toBe(true);
+      await page.touchscreen.tap(...centre((await boxes(page)).left!));
+      await page.waitForTimeout(400);
+      expect(await panelOpen(), "after a tap outside").toBe(false);
+      expect(await pressed.evaluate((log) => log)).toEqual([]);
+      await page.locator("[data-trigger]").tap();
+      await page.waitForTimeout(300);
+      expect(await panelOpen()).toBe(true);
+      await page.touchscreen.tap(...centre((await boxes(page)).trigger!));
+      await page.waitForTimeout(400);
+      expect(await panelOpen(), "after a tap on the trigger").toBe(false);
+      await page.mouse.click(...centre((await boxes(page)).left!));
+      expect(await pressed.evaluate((log) => log), "a mouse click outside a closed panel still presses").toEqual(["left"]);
+    }, { touchScreen: true });
+  }, 20000);
+
   test.each([
     [768, "tap", "sheet", true],
     [1440, "touch", "sheet", false],

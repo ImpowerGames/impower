@@ -35,6 +35,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "setLoadingBarActive",
   "TOAST_TRANSITION_MS",
   "useEscapeWithin",
+  "useTapOutside",
   "portraitThumbnailVariants",
   "portraitCropLabel",
   "tabbedPageHeaderVariants",

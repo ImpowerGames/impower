@@ -236,3 +236,53 @@ describe("the bar presentation", () => {
     expect(host!.querySelector("section")).toBeNull();
   });
 });
+
+describe("the popover and a press outside it", () => {
+  const press = (target: Element, pointerType: string) =>
+    act(async () => {
+      target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 }));
+    });
+
+  const mountWithOutside = async (extra: Record<string, unknown> = {}) => {
+    const outside = document.body.appendChild(document.createElement("button"));
+    const toolbar = document.body.appendChild(document.createElement("div"));
+    toolbar.setAttribute("data-toolbar", "");
+    const onClose = await mount(undefined, vi.fn(), {
+      keepOpenOn: (target: Element) => !!target.closest("[data-toolbar]"),
+      ...extra,
+    });
+    return { outside, toolbar, onClose };
+  };
+
+  it.each(["touch", "pen"])("closes it the moment a %s presses outside", async (pointerType) => {
+    const { outside, onClose } = await mountWithOutside();
+    await press(outside, pointerType);
+    expect(onClose).toHaveBeenCalledWith("dismiss");
+  });
+
+  it("leaves a mouse press outside to the popover's own dismissal", async () => {
+    const { outside, onClose } = await mountWithOutside();
+    await press(outside, "mouse");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("stays open when a finger presses inside it or on what keeps it open", async () => {
+    const { toolbar, onClose } = await mountWithOutside();
+    await press(panel()!.querySelector('[aria-label="Words to find"]')!, "touch");
+    await press(toolbar, "touch");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("stays open when a finger presses outside a panel that does not close on outside presses", async () => {
+    const { outside, onClose } = await mountWithOutside({ closeOnOutside: false });
+    await press(outside, "touch");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves the phone's sheet to its own dismissal", async () => {
+    layout.value = "phone";
+    const { outside, onClose } = await mountWithOutside();
+    await press(outside, "touch");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
