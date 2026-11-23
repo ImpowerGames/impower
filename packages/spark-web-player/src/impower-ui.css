@@ -23,58 +23,18 @@ body spark-web-player :where([data-panel-head], [data-impower-ui]) *::after {
   align-items: normal;
 }
 
-spark-web-player {
-  --tab-height: 23px;
-  --tab-padding-x: 8px;
-  --tab-gap: 6px;
-  --tab-font-size: var(--swp-toolbar-font-size);
-  --panel-head-height: 31px;
-  --panel-head-padding-x: 2px;
-  --panel-head-gap: 6px;
-  --list-row-compact-height: 22px;
-  --list-row-compact-padding-x: 0px;
-  --list-row-compact-padding-y: 0px;
-  --list-row-compact-gap: 6px;
-  --list-row-compact-font-size: var(--swp-toolbar-font-size);
-  --control-size: 22px;
-  --control-radius: 3px;
-  --accent: var(--swp-route-accent-color);
-  --muted: var(--swp-route-muted-color);
-  --tab-muted: var(--swp-route-muted-color);
-  --panel: var(--swp-route-panel-background-color);
-  --edge: var(--swp-route-panel-border-color);
-  --tint: var(--swp-route-active-color);
-  --control-hover: var(--swp-route-hover-color);
-  --warning: var(--swp-route-warning-color);
-  --error: var(--swp-route-error-color);
+spark-web-player :where([data-panel-head], [data-impower-ui]) :focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 
-spark-web-player .sv-tab {
-  --list-row-compact-height: var(--swp-route-row-height);
-  --list-row-compact-padding-x: 8px;
-  --list-row-compact-gap: 8px;
+body spark-web-player :where([data-panel-head], [data-impower-ui]) .focus-inset:focus-visible {
+  outline: 1px solid var(--accent);
 }
 
-spark-web-player .sv-badge-popup {
-  --ink: var(--swp-toolbar-color, #fff);
-  --panel: var(--swp-route-popup-background-color);
-  --edge: var(--swp-route-popup-border-color);
-  --radius: 6px;
-  --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
-  --popover-width: 280px;
-}
-
-spark-web-player .saves-menu {
-  --list-row-compact-height: 0px;
-  --list-row-compact-padding-x: 8px;
-  --list-row-compact-padding-y: 3px;
-  --list-row-compact-description-font-size: var(--swp-toolbar-font-size);
-}
-
-spark-web-player [data-saves-row-menu] {
-  --ink: var(--swp-toolbar-color, #fff);
-  --panel: var(--swp-saves-menu-background-color);
-  --edge: var(--swp-saves-menu-border-color);
-  --radius: 6px;
-  --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+@media (forced-colors: active) {
+  spark-web-player :where([data-panel-head], [data-impower-ui]) :focus-visible,
+  body spark-web-player :where([data-panel-head], [data-impower-ui]) .focus-inset:focus-visible {
+    outline-color: Highlight;
+  }
 }
