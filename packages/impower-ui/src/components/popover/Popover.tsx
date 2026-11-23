@@ -2,6 +2,7 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
+import { portalContainer } from "../../utils/portalContainer";
 import "../../utils/uniqueIds";
 
 export const popoverVariants = cva(
@@ -92,7 +93,7 @@ export function PopoverContent({
   ...rest
 }: PopoverContentProps) {
   return (
-    <PopoverPrimitive.Portal container={container}>
+    <PopoverPrimitive.Portal container={container ?? portalContainer()}>
       <PopoverPrimitive.Content
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
