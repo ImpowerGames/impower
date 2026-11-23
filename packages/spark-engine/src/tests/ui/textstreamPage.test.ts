@@ -146,7 +146,6 @@ describe("the Interactive Fiction page records one entry per beat (#1990)", () =
     h.game.start();
     h.tapToChoice();
     expect(h.page().map(describeEntry)).toEqual([
-      "caption Backdrop: int_subway_aisle",
       "action The train rattles on.",
       "dialogue [MARA] Did you hear that?",
       "dialogue Something is wrong.",
@@ -159,7 +158,7 @@ describe("the Interactive Fiction page records one entry per beat (#1990)", () =
     h.game.chosePathToContinue(0);
     (h.game as any)._coordinator?.onUpdate({ deltaMS: 0 } as Clock);
     h.tapTo("Cold air.");
-    expect(h.page().map(describeEntry).slice(6)).toEqual([
+    expect(h.page().map(describeEntry).slice(5)).toEqual([
       "dialogue [MARA] I am calm.",
       "chosen Run.",
       "caption Sound: door_slam",
@@ -168,6 +167,28 @@ describe("the Interactive Fiction page records one entry per beat (#1990)", () =
       "heading THE PLATFORM",
       "action Cold air.",
     ]);
+  });
+
+  test("image directives draw nothing on the page and raise no error (#2719)", () => {
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args);
+    };
+    try {
+      const h = play(
+        `${OPEN_TEXTSTREAM}\n${ASSETS}\ndefine harbor as image with\n  src = "https://example.com/harbor.png"\nend\n\ndefine pier as image with\n  src = "https://example.com/pier.png"\nend\n\nscene start\n  [[show backdrop harbor]]\n  [[show portrait pier]]\n  MARA:\n    We leave at first light.\n  Gulls circle over the quiet water.\nend\n`,
+      );
+      h.game.start();
+      h.tapTo("Gulls circle over the quiet water.");
+      expect(h.page().map(describeEntry)).toEqual([
+        "dialogue [MARA] We leave at first light.",
+        "action Gulls circle over the quiet water.",
+      ]);
+    } finally {
+      console.error = original;
+    }
+    expect(errors).toEqual([]);
   });
 
   test("typewriter blips get no caption", () => {
@@ -184,10 +205,10 @@ describe("the page keeps growing (#1990)", () => {
     const h = play();
     h.game.start();
     h.tapToChoice();
-    const before = h.page().slice(0, 7).map(describeEntry);
+    const before = h.page().slice(0, 6).map(describeEntry);
     h.game.chosePathToContinue(1);
     h.tapTo("You wait.");
-    expect(h.page().slice(0, 7).map(describeEntry)).toEqual(before);
+    expect(h.page().slice(0, 6).map(describeEntry)).toEqual(before);
     expect(h.page().map(describeEntry).at(-1)).toBe("action You wait.");
 
     h.game.reset();
@@ -197,7 +218,7 @@ describe("the page keeps growing (#1990)", () => {
   test("a save after three entries loads with the same three entries, and a checkpoint holds the entries up to its beat", () => {
     const h = play();
     h.game.start();
-    h.tapTo("Did you hear that?");
+    h.tapTo("Something is wrong.");
     expect(h.page()).toHaveLength(3);
     const saved = h.game.saveHere();
     expect(saved).not.toBeNull();
@@ -474,8 +495,8 @@ end
 
   test("a scene that opens with a cue on its own beat still gets its rule", () => {
     const h = play(`${OPEN_TEXTSTREAM}
-define b as image with
-  src = "https://example.com/b.png"
+define b as audio with
+  src = "https://example.com/b.wav"
 end
 
 scene start
@@ -484,7 +505,7 @@ scene start
 end
 
 scene next
-  [[show backdrop b]] >
+  ((play sound b)) >
   After.
 end
 `);
