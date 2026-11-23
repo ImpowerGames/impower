@@ -1,0 +1,155 @@
+sparkdown [0..93]
+ ├─ Scene [0..11]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..11]
+ │   │   └─ SceneWithoutParametersDeclaration [6..11]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..11]
+ │   │       │   └─ SceneDeclarationName [6..11]: "start"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 11
+ │   └─ Scene_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImageLine [12..28]
+ │   ├─ ImageLine_c1 [12..14]
+ │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   ├─ ImageLine_c2 [14..28]
+ │   │   └─ ImageCommand [14..28]
+ │   │       ├─ ImageCommand_begin [14..16]
+ │   │       │   ├─ ImageCommand_begin_c1 [14..16]
+ │   │       │   │   └─ ImageBeginMark [14..16]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 16
+ │   │       ├─ ImageCommand_content [16..26]
+ │   │       │   └─ ImageCommandContent [16..26]
+ │   │       │       └─ ImageCommandContent_c1 [16..26]
+ │   │       │           └─ AssetCommandNamesFirst [16..26]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [16..26]
+ │   │       │               │   └─ AssetCommandName [16..26]
+ │   │       │               │       └─ AssetCommandName_c1 [16..26]
+ │   │       │               │           └─ AssetCommandFilteredFileName [16..26]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [16..19]
+ │   │       │               │               │   └─ AssetCommandFileName [16..19]: "mia"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [19..26]
+ │   │       │               │                   └─ AssetCommandFilter [19..26]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [19..20]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [19..20]: ":"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [20..26]
+ │   │       │               │                           └─ AssetCommandFilterName [20..26]: "look.2"
+ │   │       │               ├─ AssetCommandNamesFirst_c2 26
+ │   │       │               ├─ AssetCommandNamesFirst_c3 26
+ │   │       │               └─ AssetCommandNamesFirst_c4 26
+ │   │       └─ ImageCommand_end [26..28]
+ │   │           ├─ ImageCommand_end_c1 26
+ │   │           ├─ ImageCommand_end_c2 [26..28]
+ │   │           │   └─ ImageEndMark [26..28]: "]]"
+ │   │           └─ ImageCommand_end_c3 28
+ │   │               └─ ImageCommand_end_c3 28
+ │   │                   └─ OptionalWhitespace 28
+ │   └─ ImageLine_c3 28
+ ├─ Newline [28..29]: "\n"
+ ├─ ImageLine [29..41]
+ │   ├─ ImageLine_c1 [29..31]
+ │   │   └─ OptionalWhitespace [29..31]: "  "
+ │   ├─ ImageLine_c2 [31..41]
+ │   │   └─ ImageCommand [31..41]
+ │   │       ├─ ImageCommand_begin [31..33]
+ │   │       │   ├─ ImageCommand_begin_c1 [31..33]
+ │   │       │   │   └─ ImageBeginMark [31..33]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 33
+ │   │       ├─ ImageCommand_content [33..39]
+ │   │       │   └─ ImageCommandContent [33..39]
+ │   │       │       └─ ImageCommandContent_c1 [33..39]
+ │   │       │           └─ AssetCommandNamesFirst [33..39]
+ │   │       │               ├─ AssetCommandNamesFirst_c1 [33..39]
+ │   │       │               │   └─ AssetCommandName [33..39]
+ │   │       │               │       └─ AssetCommandName_c1 [33..39]
+ │   │       │               │           └─ AssetCommandFilteredFileName [33..39]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [33..36]
+ │   │       │               │               │   └─ AssetCommandFileName [33..36]: "mia"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [36..39]
+ │   │       │               │                   └─ AssetCommandFilter [36..39]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [36..37]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [36..37]: ":"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [37..39]
+ │   │       │               │                           └─ AssetCommandFilterName [37..39]: "20"
+ │   │       │               ├─ AssetCommandNamesFirst_c2 39
+ │   │       │               ├─ AssetCommandNamesFirst_c3 39
+ │   │       │               └─ AssetCommandNamesFirst_c4 39
+ │   │       └─ ImageCommand_end [39..41]
+ │   │           ├─ ImageCommand_end_c1 39
+ │   │           ├─ ImageCommand_end_c2 [39..41]
+ │   │           │   └─ ImageEndMark [39..41]: "]]"
+ │   │           └─ ImageCommand_end_c3 41
+ │   │               └─ ImageCommand_end_c3 41
+ │   │                   └─ OptionalWhitespace 41
+ │   └─ ImageLine_c3 41
+ ├─ Newline [41..42]: "\n"
+ ├─ ImageLine [42..88]
+ │   ├─ ImageLine_c1 [42..44]
+ │   │   └─ OptionalWhitespace [42..44]: "  "
+ │   ├─ ImageLine_c2 [44..88]
+ │   │   └─ ImageCommand [44..88]
+ │   │       ├─ ImageCommand_begin [44..46]
+ │   │       │   ├─ ImageCommand_begin_c1 [44..46]
+ │   │       │   │   └─ ImageBeginMark [44..46]: "[["
+ │   │       │   └─ ImageCommand_begin_c2 46
+ │   │       ├─ ImageCommand_content [46..86]
+ │   │       │   └─ ImageCommandContent [46..86]
+ │   │       │       └─ ImageCommandContent_c1 [46..86]
+ │   │       │           └─ ImageCommandControlled [46..86]
+ │   │       │               ├─ ImageCommandControlled_c1 [46..50]
+ │   │       │               │   └─ AssetCommandControl [46..50]: "show"
+ │   │       │               ├─ ImageCommandControlled_c2 [50..51]
+ │   │       │               │   └─ RequiredWhitespace [50..51]: " "
+ │   │       │               ├─ ImageCommandControlled_c3 [51..59]
+ │   │       │               │   └─ AssetCommandTarget [51..59]: "portrait"
+ │   │       │               ├─ ImageCommandControlled_c4 [59..76]
+ │   │       │               │   ├─ AssetCommandSeparator [59..60]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [59..60]
+ │   │       │               │   │       └─ RequiredWhitespace [59..60]: " "
+ │   │       │               │   └─ AssetCommandName [60..76]
+ │   │       │               │       └─ AssetCommandName_c1 [60..76]
+ │   │       │               │           └─ AssetCommandFilteredFileName [60..76]
+ │   │       │               │               ├─ AssetCommandFilteredFileName_c1 [60..63]
+ │   │       │               │               │   └─ AssetCommandFileName [60..63]: "mia"
+ │   │       │               │               └─ AssetCommandFilteredFileName_c2 [63..76]
+ │   │       │               │                   ├─ AssetCommandFilter [63..72]
+ │   │       │               │                   │   ├─ AssetCommandFilter_c1 [63..64]
+ │   │       │               │                   │   │   └─ AssetCommandFilterOperator [63..64]: ":"
+ │   │       │               │                   │   └─ AssetCommandFilter_c2 [64..72]
+ │   │       │               │                   │       └─ AssetCommandFilterName [64..72]: "2look.3d"
+ │   │       │               │                   └─ AssetCommandFilter [72..76]
+ │   │       │               │                       ├─ AssetCommandFilter_c1 [72..73]
+ │   │       │               │                       │   └─ AssetCommandFilterOperator [72..73]: ":"
+ │   │       │               │                       └─ AssetCommandFilter_c2 [73..76]
+ │   │       │               │                           └─ AssetCommandFilterName [73..76]: "hat"
+ │   │       │               ├─ ImageCommandControlled_c5 [76..86]
+ │   │       │               │   ├─ AssetCommandSeparator [76..77]
+ │   │       │               │   │   └─ AssetCommandSeparator_c1 [76..77]
+ │   │       │               │   │       └─ RequiredWhitespace [76..77]: " "
+ │   │       │               │   └─ AssetCommandValueClause [77..86]
+ │   │       │               │       ├─ AssetCommandValueClause_c1 [77..81]
+ │   │       │               │       │   └─ AssetCommandClauseKeyword [77..81]: "with"
+ │   │       │               │       ├─ AssetCommandValueClause_c2 [81..82]
+ │   │       │               │       │   └─ RequiredWhitespace [81..82]: " "
+ │   │       │               │       └─ AssetCommandValueClause_c3 [82..86]
+ │   │       │               │           └─ AssetCommandClauseValue [82..86]
+ │   │       │               │               └─ AssetCommandClauseValue_c1 [82..86]
+ │   │       │               │                   └─ NameValue [82..86]: "fade"
+ │   │       │               ├─ ImageCommandControlled_c6 86
+ │   │       │               └─ ImageCommandControlled_c7 86
+ │   │       └─ ImageCommand_end [86..88]
+ │   │           ├─ ImageCommand_end_c1 86
+ │   │           ├─ ImageCommand_end_c2 [86..88]
+ │   │           │   └─ ImageEndMark [86..88]: "]]"
+ │   │           └─ ImageCommand_end_c3 88
+ │   │               └─ ImageCommand_end_c3 88
+ │   │                   └─ OptionalWhitespace 88
+ │   └─ ImageLine_c3 88
+ ├─ Newline [88..89]: "\n"
+ ├─ LuauEndKeyword [89..92]: "end"
+ └─ Newline [92..93]: "\n"
