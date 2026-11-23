@@ -207,9 +207,7 @@ const readEditorGlobalCss = (): string =>
     fs.readFileSync(path.resolve(process.cwd(), f), "utf-8"),
   ).join("\n");
 
-const compileEditorPageCss = async (options: {
-  minify: boolean;
-}): Promise<string> => {
+const compileEditorPageCss = async (): Promise<string> => {
   let tailwindCss = "";
   const cssServer = await createServer({
     configFile: false,
@@ -233,7 +231,41 @@ const compileEditorPageCss = async (options: {
     await cssServer.close();
   }
   const css = [readEditorGlobalCss(), tailwindCss].filter(Boolean).join("\n");
-  return optimize(css, { minify: options.minify }).code;
+  return optimize(css, { minify: true }).code;
+};
+
+const renderBuiltPages = async (): Promise<
+  { src: string; dest: string; html: string }[]
+> => {
+  const documentHtml = withThemeColor(
+    await fs.promises.readFile(`${publicInDir}/document.html`, "utf-8"),
+    readThemeColors(),
+  );
+  const ssgCss = await compileEditorPageCss();
+  const htmlFilePaths = await glob(`${pagesInDir}/**/*.{html}`);
+  return Promise.all(
+    htmlFilePaths.map(async (entryPath) => {
+      const src = entryPath.replace("\\", "/");
+      const dest = src.replace(pagesInDir, publicOutDir);
+      const fileName = path.parse(src).name;
+      const basePath = path.dirname(dest);
+      const cssFilePath = `${basePath}/${fileName}.css`;
+      const jsFilePath = `${basePath}/${fileName}.js`;
+      const cssPath = fs.existsSync(cssFilePath)
+        ? cssFilePath.replace(publicOutDir, "")
+        : "";
+      const mjsPath = fs.existsSync(jsFilePath)
+        ? jsFilePath.replace(publicOutDir, "")
+        : "";
+      const html = await fs.promises.readFile(src, "utf-8").catch(() => "");
+      const renderedHtml = staticallyRenderPage(documentHtml, {
+        html,
+        cssPath,
+        mjsPath,
+      });
+      return { src, dest, html: staticallyStylePage(renderedHtml, ssgCss) };
+    }),
+  );
 };
 
 const renderDevPage = async (
@@ -788,7 +820,7 @@ export {
   getServiceWorkerDefine,
   staticallyStylePage,
   readEditorGlobalCss,
-  compileEditorPageCss,
+  renderBuiltPages,
   readThemeColors,
   readManifestColor,
   renderDevPage,
