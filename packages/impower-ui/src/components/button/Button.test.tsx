@@ -246,6 +246,36 @@ describe("Button asChild", () => {
   });
 });
 
+describe("Button bare", () => {
+  it("draws only the caller's classes, verbatim, on a type=button", async () => {
+    const classes = "flex flex-col items-stretch text-left focus-inset text-[12px]/[18px] text-muted";
+    const host = await mount(
+      <Button variant="bare" size="icon" raised class={classes} data-probe>
+        Go
+      </Button>,
+    );
+    const button = host.querySelector("button")!;
+    expect(button.getAttribute("class")).toBe(classes);
+    expect(button.getAttribute("type")).toBe("button");
+    expect(button.hasAttribute("data-probe")).toBe(true);
+  });
+
+  it("is a Button variant whose variants function gives only the caller's classes", () => {
+    const bare: ButtonVariant = "bare";
+    expect(buttonVariants({ variant: bare })).toBe("");
+    expect(buttonVariants({ variant: bare, size: "icon", raised: true, class: "underline" })).toBe("underline");
+  });
+
+  it("passes the caller's classes alone to a slotted child", async () => {
+    const host = await mount(
+      <Button variant="bare" asChild class="underline">
+        <a href="#open">Open</a>
+      </Button>,
+    );
+    expect(host.querySelector("a")!.getAttribute("class")).toBe("underline");
+  });
+});
+
 describe("Button raised", () => {
   it("adds the raised shadow only when the caller asks for it", async () => {
     const flat = await mount(<Button variant="primary">Flat</Button>);

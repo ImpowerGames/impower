@@ -932,6 +932,114 @@ describe("a Dropdown that opens at its top", () => {
   });
 });
 
+describe("a Dropdown opened from the keyboard", () => {
+  const mountMenu = async (opensAt: "top" | "chosen", checked?: string, darkDisabled = false) => {
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <button type="button">Options</button>
+          </DropdownTrigger>
+          <DropdownContent opensAt={opensAt}>
+            <DropdownItem disabled>Rename</DropdownItem>
+            <DropdownItem>Duplicate</DropdownItem>
+            <DropdownRadioGroup label="Scheme" value={checked}>
+              <DropdownRadioItem value="light">Light</DropdownRadioItem>
+              <DropdownRadioItem value="dark" disabled={darkDisabled}>Dark</DropdownRadioItem>
+            </DropdownRadioGroup>
+          </DropdownContent>
+        </DropdownRoot>,
+        host!,
+      ),
+    );
+    const trigger = host.querySelector("button")!;
+    trigger.focus();
+    return trigger;
+  };
+
+  it("passes over a checked radio item that is disabled and focuses the first enabled entry", async () => {
+    const trigger = await mountMenu("chosen", "dark", true);
+    await key(trigger, "Enter");
+    await settle(50);
+    expect(sheetMenu()).toBeNull();
+    expect(document.activeElement?.textContent).toBe("Duplicate");
+  });
+
+  it("does not open a finger-opened sheet on a checked radio item that is disabled", async () => {
+    await setPhone(true);
+    await tap(await mountMenu("chosen", "dark", true));
+    await settle(50);
+    expect(sheetMenu()).not.toBeNull();
+    expect(document.activeElement?.textContent).not.toBe("Dark");
+  });
+
+  const focusCalls = () => vi.spyOn(HTMLElement.prototype, "focus");
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["Enter", "top", "dark", "Duplicate"],
+    [" ", "top", "dark", "Duplicate"],
+    ["ArrowDown", "top", "dark", "Duplicate"],
+    ["Enter", "chosen", "dark", "Dark"],
+    [" ", "chosen", "dark", "Dark"],
+    ["ArrowDown", "chosen", "dark", "Dark"],
+    ["Enter", "chosen", undefined, "Duplicate"],
+    [" ", "chosen", undefined, "Duplicate"],
+    ["ArrowDown", "chosen", undefined, "Duplicate"],
+  ])("with %j on a menu opening at %s with %s checked, focuses %s with the keyboard focus ring", async (name, opensAt, checked, expected) => {
+    const trigger = await mountMenu(opensAt as "top" | "chosen", checked);
+    const focus = focusCalls();
+    await key(trigger, name);
+    await settle(50);
+    expect(menu()).not.toBeNull();
+    expect(sheetMenu()).toBeNull();
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe(expected);
+    const call = focus.mock.calls.filter((_, index) => focus.mock.contexts[index] === active).at(-1);
+    expect(call?.[0]).toEqual({ focusVisible: true });
+  });
+
+  it("moves focus back to an entry with the ring when the keyboard returns focus to the menu itself", async () => {
+    const trigger = await mountMenu("chosen", "dark");
+    await key(trigger, "Enter");
+    await settle(50);
+    expect(document.activeElement?.textContent).toBe("Dark");
+    await key(document.activeElement!, "Shift");
+    const focus = focusCalls();
+    await act(async () => menu()!.focus());
+    await settle(50);
+    const active = document.activeElement as HTMLElement;
+    expect(active.textContent).toBe("Dark");
+    const call = focus.mock.calls.filter((_, index) => focus.mock.contexts[index] === active).at(-1);
+    expect(call?.[0]).toEqual({ focusVisible: true });
+  });
+
+  it("returns focus to the trigger on Escape", async () => {
+    const trigger = await mountMenu("chosen");
+    await key(trigger, "Enter");
+    await settle(50);
+    expect(document.activeElement?.textContent).toBe("Duplicate");
+    await key(document.activeElement!, "Escape");
+    await settle(250);
+    expect(menu()).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("leaves a mouse-opened menu with no item focused and no ring", async () => {
+    const trigger = await mountMenu("chosen", "dark");
+    const focus = focusCalls();
+    await pointer(trigger, "mouse");
+    await settle(50);
+    expect(menu()).not.toBeNull();
+    expect(document.activeElement).toBe(menu());
+    expect(focus.mock.calls.some(([options]) => (options as { focusVisible?: boolean } | undefined)?.focusVisible)).toBe(false);
+  });
+});
+
 describe("DropdownItemText", () => {
   it("puts an item's hint on its own line beneath its label, and is the label alone without one", async () => {
     host = document.body.appendChild(document.createElement("div"));

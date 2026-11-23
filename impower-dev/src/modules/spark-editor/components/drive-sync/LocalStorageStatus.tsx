@@ -1,4 +1,5 @@
 import {
+  Button,
   CloudIcon,
   DeviceIcon,
   DownloadIcon,
@@ -80,8 +81,8 @@ export default function LocalStorageStatus({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
+        <Button
+          variant="bare"
           data-local-storage-status
           data-tone={status.tone}
           class={buttonClass}
@@ -98,7 +99,7 @@ export default function LocalStorageStatus({
               class="size-1.5 flex-none rounded-full bg-warning"
             />
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
       <PopoverContent
         data-local-storage-popover

@@ -2421,8 +2421,8 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     });
     await settle();
     await vi.waitFor(() => expect(shape()).toEqual(FOLDER));
-    const visited: string[] = [];
-    for (let step = 0; step < 7; step += 1) {
+    const visited: string[] = [(document.activeElement?.textContent ?? "").trim()];
+    for (let step = 0; step < 6; step += 1) {
       await act(async () => {
         (document.activeElement ?? document.body).dispatchEvent(
           new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),

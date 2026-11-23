@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { AUDIT_PARTS, AUDIT_THEMES, DOC_BEGIN, DOC_END, FIXTURE, bannedWords, copyFindings, editorShortcutRows, glossaryStrings, parseAuditArgs, playwrightCombo, renderMarkdown, replaceGenerated, tabOrder, titleCaseWords, writeFixture } from "./audit.mjs";
+import { AUDIT_PARTS, AUDIT_THEMES, DOC_BEGIN, audit, DOC_END, FIXTURE, bannedWords, copyFindings, editorShortcutRows, glossaryStrings, parseAuditArgs, playwrightCombo, renderMarkdown, replaceGenerated, tabOrder, titleCaseWords, writeFixture } from "./audit.mjs";
 import { auditScan } from "./audit-page.mjs";
 
 let failures = 0;
@@ -104,6 +104,29 @@ await check("the markdown names the date and commit and marks failing token pair
   assert.match(md, /\| `--ink` \| `--bg` \| \*\*4\.20\*\* \|/);
 });
 
+await check("touch targets and the keyboard order are reported for Charcoal and Chalk each", () => {
+  const stop = { role: "button", name: "Story" };
+  const md = renderMarkdown({
+    date: "2026-11-20",
+    commit: "abc1234567",
+    browser: "149",
+    targets: { min: 44, viewports: "phone", summary: [{ theme: "Charcoal", viewport: "phone 360", surface: "Story", controls: 3, failures: 0 }, { theme: "Chalk", viewport: "phone 360", surface: "Story", controls: 3, failures: 1 }], failures: [{ theme: "Chalk", viewport: "phone 360", surface: "Story", where: "b", name: "Play", box: "30×30", hit: "30×30" }] },
+    keyboard: { routes: [
+      { theme: "Charcoal", route: "story", name: "Story", stops: [stop], cycled: true, invisible: 0, custom: 0 },
+      { theme: "Chalk", route: "story", name: "Story", stops: [stop], cycled: true, invisible: 0, custom: 0 },
+      { theme: "Charcoal", route: "share", name: "Share", stops: [stop], cycled: true, invisible: 0, custom: 0 },
+      { theme: "Chalk", route: "share", name: "Share", stops: [{ ...stop, visible: false }], cycled: true, invisible: 1, custom: 0 },
+    ] },
+  });
+  assert.match(md, /\| Chalk \| phone 360 \| Story \| 3 \| 1 \|/);
+  assert.match(md, /\| Chalk \| phone 360 \| Story \| b \| Play \|/);
+  assert.equal(md.match(/#### Story/g).length, 1);
+  assert.match(md, /Charcoal: 1 stops; 0 without/);
+  assert.match(md, /Chalk: 1 stops; 0 without/);
+  assert.equal(md.match(/1\. button “Story”$/gm).length, 2);
+  assert.match(md, /Chalk: 1 stops; 1 without a visible focus edge[^\n]*\n\n1\. button “Story” — \*\*no visible focus\*\*/);
+});
+
 let browser = null;
 try {
   const { chromium } = await import("playwright");
@@ -165,6 +188,47 @@ if (browser) {
     await page.setContent('<span id="wrap-name">Wrap lines</span><button role="switch" aria-checked="true" aria-labelledby="wrap-name"></button><label for="paper">Paper size</label><select id="paper"><option>A4</option><option>US Letter</option></select>');
     const { stops } = await tabOrder(page, { limit: 6, deps: { reloadEditorPage: async () => {}, waitForApp: async () => {} } });
     assert.deepEqual(stops.slice(0, 2).map((s) => [s.role, s.name]), [["switch", "Wrap lines"], ["combobox", "Paper size"]]);
+  });
+
+  await check("the audit measures touch targets and the keyboard order in Chalk as well as Charcoal, on the emulator too", async () => {
+    const html = '<style>button{width:60px;height:60px;outline:none}button:focus{outline:3px solid red}[data-theme="chalk"] button{height:20px}[data-theme="chalk"] button:focus{outline:none}</style><main><button>Play</button><button>Stop</button></main>';
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), "audit-themes-"));
+    const contexts = [];
+    const load = async (p) => { await p.setContent(html); };
+    const deps = {
+      die: (message) => { throw new Error(message); },
+      readState: () => ({ url: "about:blank" }),
+      headCommit: () => "abc1234567",
+      log: () => {},
+      launchEditorBrowser: async ({ display }) => {
+        const ctx = await browser.newContext({ viewport: display.viewport });
+        contexts.push(ctx);
+        return ctx;
+      },
+      grantDurableStorage: async () => {},
+      openEditorPage: load,
+      reloadEditorPage: load,
+      waitForApp: async () => {},
+      seedProject: async () => ({}),
+      scriptEditorPresent: async () => {},
+      settleEditor: async () => {},
+      waitForDomQuiet: async () => {},
+      settleViewTransitions: async () => {},
+      switchScreen: async () => ({ active: true }),
+    };
+    try {
+      const report = await audit(["--out", out, "--parts", "targets,keyboard", "--routes", "share"], deps);
+      const phone = report.targets.summary.filter((row) => row.viewport === "phone 360");
+      assert.deepEqual(phone.map((row) => [row.theme, row.failures]), [["Charcoal", 0], ["Chalk", 2]]);
+      assert.deepEqual(report.keyboard.routes.map((r) => [r.theme, r.stops.length, r.invisible]), [["Charcoal", 2, 0], ["Chalk", 2, 2]]);
+      const devicePage = await (await browser.newContext({ viewport: { width: 430, height: 800 } })).newPage();
+      const device = await audit(["--out", out, "--routes", "share"], { ...deps, device: true, withEditor: async (fn) => fn({ page: devicePage, device: null }) });
+      assert.deepEqual(device.targets.summary.map((row) => [row.theme, row.failures]), [["Charcoal", 0], ["Chalk", 2]]);
+      await devicePage.context().close();
+    } finally {
+      for (const ctx of contexts) await ctx.close().catch(() => {});
+      fs.rmSync(out, { recursive: true, force: true });
+    }
   });
 
   await browser.close();

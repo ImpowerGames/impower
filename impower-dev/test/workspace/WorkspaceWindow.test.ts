@@ -2761,6 +2761,19 @@ describe("Revealing a script from the bar under the game", () => {
     expect(window.location.hash).toBe("#story");
   });
 
+  it("hands the caret it reveals to the editor as the author's move, so the preview follows it", async () => {
+    const selects: unknown[] = [];
+    const hear = (e: Event) => {
+      const message = (e as CustomEvent).detail;
+      if (message?.method === "editor/select") selects.push(message.params);
+    };
+    window.addEventListener(MessageProtocol.event, hear);
+    const at = { line: 58, character: 0 };
+    await win.revealDocument(uriOf("main.sd"), { start: at, end: at });
+    window.removeEventListener(MessageProtocol.event, hear);
+    expect(selects.at(-1)).toMatchObject({ range: { start: at }, userEvent: true });
+  });
+
   it("makes an unopened script the active editor, so the stopped readout and the toggle follow it", async () => {
     const at = { line: 11, character: 0 };
     await win.revealDocument(uriOf("scripts/chapter.sd"), { start: at, end: at });

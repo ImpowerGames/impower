@@ -3,6 +3,7 @@ import {
   Button,
   CloseIcon,
   DialogTitle,
+  DockedDialog,
   PanelHead,
   panelHeadTitleVariants,
   Popover,
@@ -19,7 +20,7 @@ import {
   type ComponentChildren,
   type VNode,
 } from "preact";
-import { useContext, useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { useContext, useLayoutEffect, useRef } from "preact/hooks";
 import { cn } from "@impower/impower-ui/components";
 import workspace from "../../workspace/WorkspaceStore";
 
@@ -214,8 +215,6 @@ function KeyboardPanel({
   returnFocus?: () => HTMLElement | null;
   children?: ComponentChildren;
 }) {
-  const panel = useRef<HTMLElement>(null);
-
   useLayoutEffect(() => workspace.addKeyboardPanel({ heading }), [heading]);
 
   useLayoutEffect(() => {
@@ -223,45 +222,28 @@ function KeyboardPanel({
     if (textFieldActive(active)) active.blur();
   }, []);
 
-  useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        !(target instanceof Element) ||
-        panel.current?.contains(target) ||
-        !closeOnOutside ||
-        keepOpenOn?.(target)
-      ) {
-        return;
-      }
-      close("dismiss");
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      close("escape");
-      if (restoresFocus("escape")) {
-        returnFocus?.()?.focus({ preventScroll: true });
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [close, restoresFocus, closeOnOutside, keepOpenOn, returnFocus]);
-
   return (
-    <section
-      ref={panel}
-      role="dialog"
-      aria-label={title}
+    <DockedDialog
+      label={title}
+      onDismiss={() => close("dismiss")}
+      onEscapeKeyDown={(event) => {
+        event.preventDefault();
+        close("escape");
+        if (restoresFocus("escape")) {
+          returnFocus?.()?.focus({ preventScroll: true });
+        }
+      }}
+      onPointerDownOutside={(event) => {
+        const target = event.target;
+        if (!closeOnOutside || (target instanceof Element && keepOpenOn?.(target))) {
+          event.preventDefault();
+        }
+      }}
       data-keyboard-panel
       class="relative z-[301] flex h-[var(--keyboard-height,min(264px,42dvh))] flex-none flex-col bg-panel"
     >
       {children}
-    </section>
+    </DockedDialog>
   );
 }
 

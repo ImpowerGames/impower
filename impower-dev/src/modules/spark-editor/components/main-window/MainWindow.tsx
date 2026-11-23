@@ -74,7 +74,7 @@ export default function MainWindow(_props: MainWindowProps) {
   };
 
   const content = (
-    <main class="relative flex h-full w-full flex-col">
+    <main data-toast-pane class="relative flex h-full w-full flex-col">
       <PaneContent pane={pane} settings={settings} />
     </main>
   );
