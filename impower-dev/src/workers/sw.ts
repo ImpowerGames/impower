@@ -163,10 +163,7 @@ async function getOrCreateFilteredSvg(
 }
 
 function splitPath(path: string) {
-  return path
-    .split("/")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return path.split("/").filter(Boolean);
 }
 
 async function getDirectoryHandleByPath(

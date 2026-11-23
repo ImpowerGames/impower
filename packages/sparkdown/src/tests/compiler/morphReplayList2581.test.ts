@@ -39,12 +39,12 @@ const TALK = `morph talk {
 
 const withStart = (text: string) => `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
 
-function compile(text: string) {
+function compile(text: string, portrait = PORTRAIT) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
-      { uri: "file:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: PORTRAIT },
+      { uri: "file:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: portrait },
     ],
   } as any);
   return compiler.compile({ textDocument: { uri: URI } }).program;
@@ -170,5 +170,22 @@ describe("an inherited list of replays (#2581)", () => {
       { text: "0", message: "`count` is the most replays this range makes in one play: a whole number from 1 to 1000.", severity: 1 },
       { text: "talk", message: "`replay.count`, inherited: `count` is the most replays this range makes in one play: a whole number from 1 to 1000.", severity: 1 },
     ]);
+  });
+});
+
+describe("a list of replay entries is not part of a morph's recipe (#2697)", () => {
+  const BUNNY = `${TALK}\nimage bunny_talk = bunny\n`;
+  const LABELLED = PORTRAIT.replace(/data-name="[^"]*"/g, (name) => name.replace(/:/g, " "));
+  const recipesOf = (text: string) => {
+    const program = compile(text, LABELLED);
+    return { recipes: program.morphs?.recipes, variants: JSON.stringify(program.morphs?.variants) };
+  };
+
+  test("a morph with no replay, a two-entry list and an edited two-entry list have the same recipes and reference keys", () => {
+    const listed = recipesOf(BUNNY);
+    expect(listed.recipes?.["talk"]).toBeDefined();
+    expect(listed.variants).toContain('"morphs":["talk"]');
+    expect(recipesOf(BUNNY.replace(/  replay \{[\s\S]*?\n  \}\n/, ""))).toEqual(listed);
+    expect(recipesOf(BUNNY.replace("chance = 50% }", "chance = 75%; count = 3 }").replace("to = 80%", "to = 100%"))).toEqual(listed);
   });
 });

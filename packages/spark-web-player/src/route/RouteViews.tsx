@@ -349,7 +349,7 @@ export function RouteList({
                               <button
                                 type="button"
                                 data-route-text
-                                class={`relative control-overlay block w-full cursor-pointer rounded-control px-1 py-[3px] text-left leading-[normal] focus-inset ${ROUTE_TEXT_CLASS}`}
+                                class={`relative control-overlay -my-[3px] block w-full cursor-pointer rounded-control px-1 py-[3px] text-left leading-[normal] focus-inset ${ROUTE_TEXT_CLASS}`}
                                 aria-expanded={open}
                                 title={
                                   open

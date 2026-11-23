@@ -1,7 +1,7 @@
 import { clock } from "@impower/impower-ui/components";
 import { assetNameOf, isWritableImageName } from "@impower/sparkdown/src/attributes/imageFileName";
 import { addMenuKindsOf, type AddMenuFolders, type AddMenuKind } from "./addMenuFolders";
-import { endingOf, type AssetType } from "./assetTypes";
+import { addressEndingOf, endingOf, type AssetType } from "./assetTypes";
 import { bytesLabel, plural } from "./fileListModel";
 
 export interface DetailRow {
@@ -53,7 +53,7 @@ const folderOf = (path: string) => {
 };
 
 export const typeLine = (asset: Pick<InspectedAsset, "path" | "type" | "link" | "address">): string => {
-  const ending = asset.link ? endingOf(asset.address ?? "") : endingOf(asset.path);
+  const ending = asset.link ? addressEndingOf(asset.address ?? "") : endingOf(asset.path);
   return [TYPE_LABELS[asset.type], ending ? ending.toUpperCase() : null, asset.link ? "link" : null]
     .filter(Boolean)
     .join(" · ");
