@@ -121,4 +121,31 @@ describe("Popover under preact/compat", () => {
     expect(panel()).toBeNull();
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
+
+  it("opens inside an open modal portal-host dialog so it paints above it and takes focus", async () => {
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.setAttribute("data-portal-host", "");
+    dialog.setAttribute("open", "");
+    host = dialog.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button">Saves</button>
+          </PopoverTrigger>
+          <PopoverContent>
+            <button type="button">New save</button>
+          </PopoverContent>
+        </Popover>,
+        host!,
+      ),
+    );
+    await open(host.querySelector("button")!);
+    expect(panel()).not.toBeNull();
+    expect(dialog.contains(panel())).toBe(true);
+    expect(panel()!.contains(document.activeElement)).toBe(true);
+    await key(document.activeElement!, "Escape");
+    await settle(250);
+    expect(panel()).toBeNull();
+  });
 });
