@@ -154,6 +154,10 @@ export const validName = (value: string, extension = ""): string => {
   if (extension && leaf.toLowerCase().endsWith(extension.toLowerCase())) {
     leaf = leaf.slice(0, -extension.length);
   }
+  return checkedName(leaf) + extension;
+};
+
+export const checkedName = (leaf: string): string => {
   if (!leaf || leaf === "." || leaf === "..") {
     throw new NameError(NAME_MESSAGES.empty);
   }
@@ -166,7 +170,7 @@ export const validName = (value: string, extension = ""): string => {
   if (leaf.length > 120) {
     throw new NameError(NAME_MESSAGES.length);
   }
-  return leaf + extension;
+  return leaf;
 };
 
 export const availableName = (

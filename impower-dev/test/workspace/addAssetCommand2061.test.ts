@@ -121,6 +121,18 @@ describe("an upload whose name some computers cannot hold", () => {
     expect(notAdded().map(([name]) => name)).toEqual(["hero.png"]);
   });
 
+  it("checks the name as it arrived, so a trailing space or an edge tab is refused and a leading space is kept", async () => {
+    await addAssetFiles(
+      [file("hero.png "), file("\thero.png"), file("hero.png\n"), file("Cast /hero.png"), file(" lead.png"), file(" lead dir/x.png")],
+      "",
+    );
+    expect(mocks.upload).toHaveBeenCalledWith(
+      [expect.objectContaining({ name: " lead.png" }), expect.objectContaining({ name: " lead dir/x.png" })],
+      "",
+    );
+    expect(notAdded().map(([name]) => name)).toEqual(["hero.png ", "\thero.png", "hero.png\n", "hero.png"]);
+  });
+
   it("adds nothing when every name is refused", async () => {
     expect(await addAssetFiles([file("CON.png"), file("trailing.")], "")).toEqual([]);
     expect(mocks.upload).not.toHaveBeenCalled();

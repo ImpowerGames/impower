@@ -6,7 +6,7 @@ import type { MissingAsset } from "@impower/sparkdown/src/compiler/utils/missing
 import { landingFolder, typeFolder } from "./assetsListing";
 import { isInside, joinPath, parentOf } from "./scriptsListing";
 import { isDroppedFolder, walkDrop, type DropItem, type WalkedDrop } from "../utils/fileDrops";
-import { NameError, validName } from "../utils/fileListModel";
+import { checkedName, NameError } from "../utils/fileListModel";
 import { storageLeft } from "../utils/storageLeft";
 import { beginUploadBatch, endUploadBatch, findingUploads, refuseUploads, withUploadGroup } from "./uploadSession";
 import type { DroppedFile } from "./WorkspaceAssets";
@@ -62,7 +62,7 @@ const nameProblemOf = (path: string): string | null => {
       continue;
     }
     try {
-      validName(part);
+      checkedName(part);
     } catch (error) {
       if (error instanceof NameError) {
         return error.message;
