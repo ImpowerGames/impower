@@ -12,6 +12,7 @@ import { routeOfPane, routeOfState } from "../../workspace/routes";
 import { useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import { useNaming } from "./naming";
+import { SCREEN_PANEL_ID } from "./screenPanel";
 import { withWindow } from "./workspaceWindow";
 
 export default function BottomNavigation() {
@@ -35,10 +36,11 @@ export default function BottomNavigation() {
       aria-label="Project"
       data-bottom-navigation
       hidden={naming || sheetOpen || editing || panelOpen}
-      class="min-h-[65px] flex-none border-t border-edge bg-bg pb-[env(safe-area-inset-bottom)] [.keyboard-open_&]:hidden"
+      class="min-h-[var(--bottom-navigation-height)] flex-none border-t border-edge bg-bg pb-[env(safe-area-inset-bottom)] [.keyboard-open_&]:hidden"
     >
       {typeof window !== "undefined" && (
         <Tabs
+          panel={SCREEN_PANEL_ID}
           value={current}
           onChange={onChange}
           variant="bar"

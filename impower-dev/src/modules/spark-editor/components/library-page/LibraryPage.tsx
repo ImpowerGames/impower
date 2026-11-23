@@ -5,12 +5,14 @@ import {
   DropdownRoot,
   DropdownTrigger,
   PlusIcon,
+  TabPanel,
   VirtualList,
   type VirtualListGrid,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import type { Layout } from "@impower/impower-ui/layout";
 import type { ComponentChildren, JSX, Ref, RefObject } from "preact";
+import { useId } from "preact/hooks";
 import LibraryToolbar from "./LibraryToolbar";
 import SearchBox from "./SearchBox";
 
@@ -36,7 +38,7 @@ export type LibraryPageProps<T> = {
   newMenu: ComponentChildren;
   newAttributes?: Record<string, string>;
   newRef?: RefObject<HTMLButtonElement>;
-  tabs?: ComponentChildren;
+  tabs?: { value: string; render: (panel: string) => ComponentChildren };
   bar: ComponentChildren;
   creating?: ComponentChildren;
   list: LibraryList<T> | null;
@@ -68,6 +70,7 @@ export default function LibraryPage<T>({
   children,
 }: LibraryPageProps<T>) {
   const rowHeight = libraryRowHeight(useLayout());
+  const panel = useId();
   return (
     <div class="flex min-h-0 flex-1 flex-col" {...area}>
       <div ref={bodyRef} class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
@@ -87,27 +90,29 @@ export default function LibraryPage<T>({
             </DropdownRoot>
           </LibraryToolbar>
           <div class="relative flex min-h-0 flex-1 flex-col">
-            {tabs}
-            <div class="flex min-h-[52px] flex-none items-center justify-between border-b border-edge [:root[data-layout=desktop]_&]:gap-2">
-              {bar}
-            </div>
-            {creating && <div class="flex-none pt-2">{creating}</div>}
-            {list && list.items.length ? (
-              <VirtualList
-                listRef={list.listRef}
-                label={list.label}
-                class={cn("-mr-4 flex-1 pt-2 pr-gutter-4 pb-5", list.grid && "pt-4")}
-                items={list.items}
-                getKey={list.getKey}
-                renderItem={list.renderItem}
-                itemHeight={list.itemHeight ?? (() => rowHeight)}
-                grid={list.grid}
-                revealIndex={list.revealIndex}
-                revealRequest={list.revealRequest}
-              />
-            ) : (
-              empty
-            )}
+            {tabs?.render(panel)}
+            <TabPanel panel={panel} value={tabs?.value ?? null} class="flex min-h-0 flex-1 flex-col">
+              <div class="flex min-h-[52px] flex-none items-center justify-between border-b border-edge [:root[data-layout=desktop]_&]:gap-2">
+                {bar}
+              </div>
+              {creating && <div class="flex-none pt-2">{creating}</div>}
+              {list && list.items.length ? (
+                <VirtualList
+                  listRef={list.listRef}
+                  label={list.label}
+                  class={cn("-mr-4 flex-1 pt-2 pr-gutter-4 pb-5", list.grid && "pt-4")}
+                  items={list.items}
+                  getKey={list.getKey}
+                  renderItem={list.renderItem}
+                  itemHeight={list.itemHeight ?? (() => rowHeight)}
+                  grid={list.grid}
+                  revealIndex={list.revealIndex}
+                  revealRequest={list.revealRequest}
+                />
+              ) : (
+                empty
+              )}
+            </TabPanel>
             {overlay}
           </div>
           {foot}

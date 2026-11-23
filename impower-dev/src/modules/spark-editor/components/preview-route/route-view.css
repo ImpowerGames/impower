@@ -41,6 +41,19 @@
   --control-radius: 3px;
 }
 
+:root swp-route-view .sv-tab {
+  --list-row-compact-height: var(--swp-route-row-height);
+  --list-row-compact-padding-x: 8px;
+  --list-row-compact-padding-y: 0px;
+  --list-row-compact-gap: 8px;
+}
+
+:root .sv-badge-popup {
+  --radius: 6px;
+  --float-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+  --popover-width: 280px;
+}
+
 :root[data-pointer="coarse"] swp-route-view {
   --swp-route-row-height: 44px;
   --swp-route-control-size: 44px;

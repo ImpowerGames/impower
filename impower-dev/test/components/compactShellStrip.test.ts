@@ -281,6 +281,43 @@ describe("the compact layout", () => {
     expect(handle.getAttribute("aria-valuenow")).toBe("280");
   });
 
+  it("keeps a strip height moved by hand while Problems was open, even back to the raised height", async () => {
+    const { default: problems } = await import(
+      "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
+    );
+    await mount(900);
+    await act(async () => {
+      workspace.current = { ...workspace.current, shell: { stripHeight: 334 } };
+    });
+    await settle();
+    const handle = host!.querySelector<HTMLElement>(
+      '[role="separator"][aria-label="Resize preview"]',
+    )!;
+    await act(async () => {
+      problems.togglePanel();
+    });
+    await settle();
+    const raised = workspace.current.shell?.stripHeight;
+    expect(raised).toBeGreaterThan(334);
+
+    const key = (k: string) =>
+      act(async () => {
+        handle.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+      });
+    await key("ArrowUp");
+    await settle();
+    expect(workspace.current.shell?.stripHeight).not.toBe(raised);
+    await key("ArrowDown");
+    await settle();
+    expect(workspace.current.shell?.stripHeight).toBe(raised);
+
+    await act(async () => {
+      problems.togglePanel();
+    });
+    await settle();
+    expect(workspace.current.shell?.stripHeight).toBe(raised);
+  });
+
   it("draws the strip above the script while the player stays the last panel", async () => {
     await mount(900);
     const panels = host!.querySelectorAll("[data-panel]");

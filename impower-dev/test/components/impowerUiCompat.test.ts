@@ -47,7 +47,7 @@ it("renders Radix tabs from the real component kit", async () => {
   const root = await mount(
     h(
       Tabs,
-      { value: "logic", onChange: () => {}, indicator: "none" },
+      { panel: "panel", value: "logic", onChange: () => {}, indicator: "none" },
       h(Tab, { value: "logic" }, "Logic"),
       h(Tab, { value: "assets" }, "Assets"),
     ),

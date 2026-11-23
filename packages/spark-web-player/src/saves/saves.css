@@ -257,7 +257,12 @@
 }
 
 :is(spark-web-player, swp-route-view) .saves-values .sv-row {
+  display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: center;
+  gap: 8px;
+  height: var(--swp-route-row-height);
+  padding-left: 8px;
 }
 
 :is(spark-web-player, swp-route-view) .saves-values-foot {

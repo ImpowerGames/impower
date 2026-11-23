@@ -1,6 +1,6 @@
 import * as RadixTabs from "@radix-ui/react-tabs";
 import { cva, type VariantProps } from "class-variance-authority";
-import { type ComponentChildren, type Ref } from "preact";
+import { type ComponentChildren, type JSX, type Ref } from "preact";
 import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
@@ -93,7 +93,12 @@ export type TabsVariant = NonNullable<
   VariantProps<typeof tabTrigger>["variant"]
 >;
 
+const tabId = (panel: string, value: string) => `${panel}-trigger-${value}`;
+
+export type TabsPanel = string | ((value: string) => string);
+
 type TabsContextValue = {
+  panel: TabsPanel;
   variant: TabsVariant;
   indicator: "underline" | "none";
   vertical: boolean;
@@ -101,6 +106,7 @@ type TabsContextValue = {
   iconSize: number;
 };
 const TabsContext = createContext<TabsContextValue>({
+  panel: "",
   variant: "default",
   indicator: "underline",
   vertical: false,
@@ -109,6 +115,7 @@ const TabsContext = createContext<TabsContextValue>({
 });
 
 export type TabsProps = {
+  panel: TabsPanel;
   value: string | null;
   onChange: (value: string) => void;
   variant?: TabsVariant;
@@ -122,6 +129,7 @@ export type TabsProps = {
 };
 
 export default function Tabs({
+  panel,
   value,
   onChange,
   variant = "default",
@@ -189,7 +197,7 @@ export default function Tabs({
 
   return (
     <TabsContext.Provider
-      value={{ variant, indicator, vertical, iconLayout, iconSize }}
+      value={{ panel, variant, indicator, vertical, iconLayout, iconSize }}
     >
       <RadixTabs.Root
         value={value ?? undefined}
@@ -256,8 +264,6 @@ export default function Tabs({
 
 export type TabProps = {
   value: string;
-  id?: string;
-  controls?: string;
   icon?: IconComponent;
   activeIcon?: IconComponent;
   disabled?: boolean;
@@ -268,8 +274,6 @@ export type TabProps = {
 
 export function Tab({
   value,
-  id,
-  controls,
   icon,
   activeIcon,
   disabled,
@@ -278,6 +282,7 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
+  const panel = typeof ctx.panel === "function" ? ctx.panel(value) : ctx.panel;
   const accented = ctx.variant !== "default";
   const activeColorClass = accented ? "text-accent" : "text-tab-ink";
   const inactiveColor = color || (accented ? "text-muted" : "text-tab-muted");
@@ -286,8 +291,8 @@ export function Tab({
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       <button
         type="button"
-        {...(id ? { id } : {})}
-        {...(controls ? { "aria-controls": controls } : {})}
+        id={panel ? tabId(panel, value) : undefined}
+        aria-controls={panel || undefined}
         class={cn(
           tabTrigger({
             orientation: ctx.vertical ? "vertical" : "horizontal",
@@ -373,5 +378,21 @@ export function Tab({
         </span>
       </button>
     </RadixTabs.Trigger>
+  );
+}
+
+export type TabPanelProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "id" | "role"> & {
+  panel: string;
+  value: string | null;
+};
+
+export function TabPanel({ panel, value, ...rest }: TabPanelProps) {
+  return (
+    <div
+      {...rest}
+      id={panel}
+      role={value ? "tabpanel" : undefined}
+      aria-labelledby={value ? tabId(panel, value) : undefined}
+    />
   );
 }

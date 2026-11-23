@@ -1,12 +1,13 @@
 import { Button } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
+import { useId, useRef } from "preact/hooks";
 import { plural } from "../../workspace/problems/problemEntries";
 import problems from "../../workspace/problems/ProblemsStore";
 
 export default function StoryProblemCount() {
   const ref = useRef<HTMLButtonElement | null>(null);
   const count = useComputed(() => problems.counts.value).value;
+  const id = useId();
 
   if (!count.problems) {
     return null;
@@ -22,6 +23,8 @@ export default function StoryProblemCount() {
           ref={ref}
           variant="quiet"
           data-tone={count.errors ? "error" : "warning"}
+          id={id}
+          aria-labelledby={id}
           title="Show problems"
           class="min-h-0 min-w-0 px-1 py-0 text-[12px]/[18px] font-normal in-data-[layout=phone]:text-[11px]/[1.4] in-data-[layout=compact]:text-[11px]/[1.4] data-[tone=error]:text-error-strong data-[tone=warning]:text-warning-strong"
           onClick={() => problems.showProblems(() => ref.current)}

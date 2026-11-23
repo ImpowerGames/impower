@@ -356,9 +356,9 @@ function Cards({
           }
         >
           {items.map((item) => (
-            <button
+            <Button
               key={item.id}
-              type="button"
+              variant="bare"
               class="flex flex-col items-stretch text-left focus-inset"
               aria-label={`Add ${spoken(item)}`}
               data-picker-item={item.reference}
@@ -375,7 +375,7 @@ function Cards({
                   </small>
                 )}
               </span>
-            </button>
+            </Button>
           ))}
         </Carousel>
         {below}

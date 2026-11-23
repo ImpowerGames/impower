@@ -309,12 +309,12 @@ export function renderMarkdown(report) {
     const summary = [...report.targets.summary, ...(device?.targets.summary ?? [])];
     const failures = [...report.targets.failures, ...(device?.targets.failures ?? [])];
     push("### Touch targets", "", `Every rendered control under a coarse pointer, scrolled to the centre of its scroller first, measured by hit testing outward from its centre: the hit area counts the points where a tap lands on the control or on its label, up to ${report.targets.min}px each way. ${report.targets.viewports}${device ? `; and the Android emulator at its own width of ${device.width}px (${device.device}), run on ${device.date} at commit \`${device.commit}\` with \`audit --device android\`` : "; the Android emulator was not run"}.`, "");
-    push("| Viewport | Surface | Controls | Under 44×44 |", "|---|---|---|---|");
-    for (const row of summary) push(`| ${row.viewport} | ${cell(row.surface)} | ${row.controls} | ${row.failures} |`);
+    push("| Theme | Viewport | Surface | Controls | Under 44×44 |", "|---|---|---|---|---|");
+    for (const row of summary) push(`| ${row.theme ?? "–"} | ${row.viewport} | ${cell(row.surface)} | ${row.controls} | ${row.failures} |`);
     push("");
     if (failures.length) {
-      push("| Viewport | Surface | Control | Name | Box | Hit area |", "|---|---|---|---|---|---|");
-      for (const f of failures) push(`| ${f.viewport} | ${cell(f.surface)} | ${cell(f.where)} | ${cell(f.name)} | ${f.box} | ${f.hit} |`);
+      push("| Theme | Viewport | Surface | Control | Name | Box | Hit area |", "|---|---|---|---|---|---|---|");
+      for (const f of failures) push(`| ${f.theme ?? "–"} | ${f.viewport} | ${cell(f.surface)} | ${cell(f.where)} | ${cell(f.name)} | ${f.box} | ${f.hit} |`);
       push("");
     }
   }
@@ -325,10 +325,16 @@ export function renderMarkdown(report) {
     push("");
   }
   if (report.keyboard) {
-    push("### Keyboard order", "", "Tab from the page start until the order repeats, on the desktop layout in Charcoal. Each stop: its role and accessible name as Chromium's accessibility tree computes them, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.", "");
+    push("### Keyboard order", "", "Tab from the page start until the order repeats, on the desktop layout in Charcoal and again in Chalk; the stops are listed once when both themes give the same order. Each stop: its role and accessible name as Chromium's accessibility tree computes them, whether the focus edge is visible (a computed style of the control, its pseudo-elements or its two nearest ancestors differs between focused and blurred). Inside the script, Escape then Tab leaves the editor. Enter and Space are not pressed: a stop counts as operable when it is a native control or carries a role, and a focusable element with neither is marked.", "");
+    const stopLine = (s, i) => `${i + 1}. ${s.role}${s.name ? ` “${cell(s.name)}”` : ""}${s.caret ? " — focus shown by the caret" : ""}${s.visible === false ? " — **no visible focus**" : ""}${s.custom ? " — **no role**" : ""}`;
+    const listed = new Map();
     for (const route of report.keyboard.routes) {
-      push(`#### ${route.name}`, "", `${route.stops.length} stops${route.cycled ? "" : ", stopped at the limit before the order repeated"}; ${route.invisible} without a visible focus edge; ${route.custom} focusable without a role.`, "");
-      push(route.stops.map((s, i) => `${i + 1}. ${s.role}${s.name ? ` “${cell(s.name)}”` : ""}${s.caret ? " — focus shown by the caret" : ""}${s.visible === false ? " — **no visible focus**" : ""}${s.custom ? " — **no role**" : ""}`).join("\n"), "");
+      const lines = route.stops.map(stopLine).join("\n");
+      const theme = route.theme ? `${route.theme}: ` : "";
+      if (!listed.has(route.route)) push(`#### ${route.name}`, "");
+      push(`${theme}${route.stops.length} stops${route.cycled ? "" : ", stopped at the limit before the order repeated"}; ${route.invisible} without a visible focus edge; ${route.custom} focusable without a role.`, "");
+      if (listed.get(route.route) !== lines) push(lines, "");
+      if (!listed.has(route.route)) listed.set(route.route, lines);
     }
   }
   if (report.escape) {
@@ -350,7 +356,7 @@ export function renderMarkdown(report) {
     push("| Viewport | Kind | Name | Element | Duration | Route |", "|---|---|---|---|---|---|");
     for (const m of report.motion.moving) push(`| ${m.viewport} | ${m.kind} | ${cell(m.name)} | ${cell(m.target)} | ${m.ms == null ? "?" : `${m.ms}ms`} | ${cell(m.route)} |`);
     if (!report.motion.moving.length) push("| all | none | | | | |");
-    push("", `Recordings: ${report.motion.videos.join(", ") || "none"} (kept out of the repository).`, "");
+    push("", `Recordings: ${report.motion.videos.map((v) => `${path.basename(path.dirname(v))}/${path.basename(v)}`).join(", ") || "none"} under the run's \`--out\` folder (kept out of the repository).`, "");
   }
   if (report.forced) {
     push("### Forced colors", "", "With `forced-colors: active` emulated on the desktop layout, the first stops of each route's Tab order and a screenshot of each route and surface, inspected by eye.", "");
@@ -573,7 +579,7 @@ async function shortcutPass(page, deps) {
       folds: document.querySelectorAll(".cm-foldPlaceholder").length,
       selections: document.querySelectorAll(".cm-selectionBackground").length,
       active: document.activeElement ? `${document.activeElement.localName}.${document.activeElement.className}` : "",
-      expanded: [...document.querySelectorAll("[aria-expanded]")].filter((el) => !el.closest('.cm-editor, aside, nav, [aria-label^="Scene outline"]')).map((el) => `${el.getAttribute("aria-label") ?? ""}=${el.getAttribute("aria-expanded")}`).join("|"),
+      expanded: [...document.querySelectorAll("[aria-expanded]")].filter((el) => !el.closest('.cm-editor, aside[aria-label="Sidebar"], nav, [aria-label^="Scene outline"]')).map((el) => `${el.getAttribute("aria-label") ?? ""}=${el.getAttribute("aria-expanded")}`).join("|"),
       problemsPanel: !!document.querySelector("#problems-panel")?.checkVisibility(),
     }));
     return { text: editor?.textDocument.text, selection: JSON.stringify(editor?.selection ?? null), ...dom };
@@ -656,10 +662,14 @@ async function devicePass({ deps, record, fixtureDir, outDir, report }) {
     result.width = await page.evaluate(() => innerWidth);
     const viewport = `emulator ${result.width}`;
     const scan = async (surface) => {
-      const found = await page.evaluate(auditScan, { parts: ["targets"], coarse: true, minTarget: 44 });
-      const failures = found.targets.filter((t) => !t.ok);
-      result.targets.summary.push({ viewport, surface, controls: found.targets.length, failures: failures.length });
-      for (const f of failures) result.targets.failures.push({ viewport, surface, ...f });
+      for (const theme of AUDIT_THEMES.filter((t) => t.bar)) {
+        await setTheme(page, theme);
+        const found = await page.evaluate(auditScan, { parts: ["targets"], coarse: true, minTarget: 44 });
+        const failures = found.targets.filter((t) => !t.ok);
+        result.targets.summary.push({ theme: theme.name, viewport, surface, controls: found.targets.length, failures: failures.length });
+        for (const f of failures) result.targets.failures.push({ theme: theme.name, viewport, surface, ...f });
+      }
+      await setTheme(page, AUDIT_THEMES[0]);
     };
     for (const route of report.routes) {
       progress(`${viewport} ${ROUTE_NAMES[route]}`);
@@ -711,6 +721,7 @@ export async function audit(args, deps) {
   const has = (part) => options.parts.includes(part);
   const themes = AUDIT_THEMES.filter((t) => options.themes.includes(t.id));
   const barThemes = themes.filter((t) => t.bar);
+  const passThemes = AUDIT_THEMES.filter((t) => t.bar);
   const record = deps.readState();
   if (!record?.url) deps.die("no editor URL — run `node .agents/skills/drive-web-editor/driver.mjs up` first");
   const commit = options.commit ?? deps.headCommit();
@@ -759,12 +770,17 @@ export async function audit(args, deps) {
     await setTheme(page, AUDIT_THEMES[0]);
   };
   const scanOthers = async (page, viewport, surface, coarse) => {
-    const scan = await page.evaluate(auditScan, { parts: ["targets", "copy", "structure"], coarse, minTarget: 44 });
+    const scan = await page.evaluate(auditScan, { parts: ["copy", "structure"], coarse, minTarget: 44 });
     for (const s of scan.strings) if (!strings.has(s.text)) strings.set(s.text, { ...s, surface });
     if (coarse && has("targets")) {
-      const failures = scan.targets.filter((t) => !t.ok);
-      targetSummary.push({ viewport, surface, controls: scan.targets.length, failures: failures.length });
-      for (const f of failures) targetFailures.push({ viewport, surface, ...f });
+      for (const theme of passThemes) {
+        await setTheme(page, theme);
+        const found = await page.evaluate(auditScan, { parts: ["targets"], coarse, minTarget: 44 });
+        const failures = found.targets.filter((t) => !t.ok);
+        targetSummary.push({ theme: theme.name, viewport, surface, controls: found.targets.length, failures: failures.length });
+        for (const f of failures) targetFailures.push({ theme: theme.name, viewport, surface, ...f });
+      }
+      await setTheme(page, AUDIT_THEMES[0]);
     }
     return scan;
   };
@@ -829,9 +845,12 @@ export async function audit(args, deps) {
           if (has("structure")) structure.push({ viewport: vp.name, name: surface, landmarks: await landmarks(page), liveRegions: scan.liveRegions, lists: scan.lists });
           if (has("keyboard") && !vp.coarse) {
             progress(`${vp.name} ${surface} tab order`);
-            const order = await tabOrder(page, { limit: 160, deps });
-            keyboard.push({ route, name: surface, ...order, invisible: order.stops.filter((s) => s.visible === false).length, custom: order.stops.filter((s) => s.custom).length });
-            await goRoute(page, route, deps);
+            for (const theme of passThemes) {
+              await setTheme(page, theme);
+              const order = await tabOrder(page, { limit: 160, deps });
+              keyboard.push({ theme: theme.name, route, name: surface, ...order, invisible: order.stops.filter((s) => s.visible === false).length, custom: order.stops.filter((s) => s.custom).length });
+              await goRoute(page, route, deps);
+            }
           }
           const surfaces = ["contrast", "axe", "targets", "escape", "copy"].some(has) ? SURFACES.filter((x) => x.route === route) : [];
           for (const s of surfaces) {
@@ -945,7 +964,7 @@ export async function audit(args, deps) {
     contrastFailures: report.contrast?.failures.length,
     axeViolations: report.axe?.violations.length,
     targetFailures: report.targets?.failures.length,
-    keyboard: report.keyboard?.routes.map((r) => ({ route: r.route, stops: r.stops.length, invisible: r.invisible, custom: r.custom, cycled: r.cycled })),
+    keyboard: report.keyboard?.routes.map((r) => ({ theme: r.theme, route: r.route, stops: r.stops.length, invisible: r.invisible, custom: r.custom, cycled: r.cycled })),
     escape: report.escape?.filter((e) => e.opened && !e.panel && (!e.closed || !e.returned)).map((e) => `${e.viewport} ${e.step}`),
     shortcutsWithoutEffect: report.shortcuts?.filter((s) => !s.effects.length).map((s) => s.id),
     motion: report.motion?.moving.length,

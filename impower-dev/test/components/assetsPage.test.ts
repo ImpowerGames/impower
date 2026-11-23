@@ -257,6 +257,10 @@ describe("the Assets page", () => {
       expect(tabs().map((tab) => tab.id.replace(/^.*-trigger-/, ""))).toEqual(["image", "audio", "video", "text", "font", "other"]);
       expect(tabs().every((tab, i) => tab.textContent!.startsWith(["Images", "Audio", "Video", "Text", "Fonts", "Other"][i]!))).toBe(true);
       expect(tabs()[0]!.getAttribute("aria-selected")).toBe("true");
+      const panels = tabs().map((tab) => document.getElementById(tab.getAttribute("aria-controls") ?? ""));
+      expect(panels.every((panel) => panel !== null && panel === panels[0])).toBe(true);
+      expect(panels[0]!.getAttribute("role")).toBe("tabpanel");
+      expect(document.getElementById(panels[0]!.getAttribute("aria-labelledby")!)).toBe(tabs()[0]);
       expect(host!.querySelector('[data-assets-action="add"]')?.textContent).toBe("Add");
       expect(host!.querySelector('input[aria-label="Search assets"]')).not.toBeNull();
     });
@@ -2416,8 +2420,8 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     });
     await settle();
     await vi.waitFor(() => expect(shape()).toEqual(FOLDER));
-    const visited: string[] = [];
-    for (let step = 0; step < 7; step += 1) {
+    const visited: string[] = [(document.activeElement?.textContent ?? "").trim()];
+    for (let step = 0; step < 6; step += 1) {
       await act(async () => {
         (document.activeElement ?? document.body).dispatchEvent(
           new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),

@@ -129,8 +129,8 @@ describe("the replay block's checks (#2580)", () => {
     ["chance", "fast", "`chance` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `chance = 50%`."],
     ["from", "-5%", "`from` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `from = 0%`."],
     ["to", "2", "`to` is a percentage from `0%` to `100%` or a number from 0 to 1, such as `to = 66.667%`."],
-    ["count", "0", "`count` is the most replays one play makes: a whole number of at least 1."],
-    ["count", "1.5", "`count` is the most replays one play makes: a whole number of at least 1."],
+    ["count", "0", "`count` is the most replays this range makes in one play: a whole number of at least 1."],
+    ["count", "1.5", "`count` is the most replays this range makes in one play: a whole number of at least 1."],
   ])("`%s = %s` is reported at the value", (field, value, message) => {
     const block = `  replay {\n    ${field === "chance" ? "" : "chance = 50%\n    "}${field} = ${value}\n  }\n`;
     expect(reported(withReplay(block))).toEqual([{ text: value, message, severity: 1 }]);
@@ -178,16 +178,6 @@ describe("the replay block's checks (#2580)", () => {
     ]);
   });
 
-  test("a block of entries is an error on the block", () => {
-    expect(reported(withReplay("  replay {\n    { chance = 50% }\n  }\n"))).toEqual([
-      {
-        text: "replay",
-        message: "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, not `{ … }` entries.",
-        severity: 1,
-      },
-    ]);
-  });
-
   test("a curve whose early peak falls far short of `to` is not taken to reach it, so no zero-time warning", () => {
     const text = withReplay("  replay {\n    from = 20%\n    to = 80%\n    chance = 50%\n  }\n").replace(
       "easing = linear",
@@ -221,8 +211,8 @@ describe("an inherited replay (#2580)", () => {
   test("an invalid inherited value is reported where the child names its parent", () => {
     const text = `${TALK.replace("chance = 50%", "chance = 50%\n    count = 0")}\nmorph quiet as talk {\n  default = true\n  replay {\n    chance = 25%\n  }\n}\n`;
     expect(reported(text)).toEqual([
-      { text: "0", message: "`count` is the most replays one play makes: a whole number of at least 1.", severity: 1 },
-      { text: "talk", message: "`replay.count`, inherited: `count` is the most replays one play makes: a whole number of at least 1.", severity: 1 },
+      { text: "0", message: "`count` is the most replays this range makes in one play: a whole number of at least 1.", severity: 1 },
+      { text: "talk", message: "`replay.count`, inherited: `count` is the most replays this range makes in one play: a whole number of at least 1.", severity: 1 },
     ]);
   });
 });

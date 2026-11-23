@@ -32,7 +32,7 @@ import {
   parseMorphQualifiedState,
   parseMorphSpan,
   parseMorphSpread,
-  readMorphReplay,
+  readMorphReplayRange,
 } from "./morphSchema";
 import { parseMorphEasing } from "../../morph/easing";
 import { morphReplayStretch } from "../../morph/timeline";
@@ -441,19 +441,30 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
 
   const replay = own["replay"];
   const replaySpan = keySpan(own, "replay");
-  const ownReplay = isRecord(replay) && !("$type" in replay) && !("$name" in replay) ? replay : undefined;
+  const isRange = (value: unknown): value is Record<string, unknown> => isRecord(value) && !("$type" in value) && !("$name" in value);
+  const ownReplay = isRange(replay) ? replay : undefined;
+  const checkRange = (range: Record<string, unknown>) => {
+    checkFields(range, "replay");
+    for (const field of MORPH_REPLAY_FIELDS) {
+      if (!(field in range)) continue;
+      const problem = replayFieldProblem(field, range[field]);
+      if (problem) push(valueSpan(range, field), problem);
+    }
+  };
   if (replay !== undefined) {
     if (Array.isArray(replay)) {
-      push(replaySpan, "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, not `{ … }` entries.");
+      const written = src(replay);
+      const fields = [...(written?.keys.keys() ?? [])];
+      if (fields.some((key) => written!.values.has(key))) push(replaySpan, REPLAY_MIXED);
+      for (const key of fields) if (!written!.values.has(key)) push(written!.lines.get(key) ?? written!.keys.get(key), REPLAY_ITEM);
+      replay.forEach((entry, index) => {
+        if (isRange(entry)) checkRange(entry);
+        else push(written?.items[index] ?? replaySpan, REPLAY_ITEM);
+      });
     } else if (!ownReplay) {
       push(valueSpan(own, "replay") ?? replaySpan, REPLAY_BLOCK);
     } else {
-      checkFields(ownReplay, "replay");
-      for (const field of MORPH_REPLAY_FIELDS) {
-        if (!(field in ownReplay)) continue;
-        const problem = replayFieldProblem(field, ownReplay[field]);
-        if (problem) push(valueSpan(ownReplay, field), problem);
-      }
+      checkRange(ownReplay);
     }
   }
 
@@ -848,28 +859,38 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     }
   }
   const effectiveReplay = effective["replay"];
-  if (isRecord(effectiveReplay) && !("$type" in effectiveReplay) && !("$name" in effectiveReplay)) {
-    const writes = (field: string) => !!ownReplay && Object.hasOwn(ownReplay, field);
+  const effectiveRanges: { range: Record<string, unknown>; mine?: Record<string, unknown>; at?: SourceSpan; kind: string }[] = [];
+  if (isRange(effectiveReplay)) effectiveRanges.push({ range: effectiveReplay, mine: ownReplay, at: replaySpan, kind: "block" });
+  else if (Array.isArray(effectiveReplay)) {
+    const ownList = Array.isArray(replay) ? replay : undefined;
+    effectiveReplay.forEach((range, index) => {
+      if (!isRange(range)) return;
+      const mine = ownList?.[index];
+      effectiveRanges.push({ range, mine: isRange(mine) ? mine : undefined, at: ownList ? src(ownList)?.items[index] : undefined, kind: "entry" });
+    });
+  }
+  for (const { range, mine, at, kind } of effectiveRanges) {
+    const writes = (field: string) => !!mine && Object.hasOwn(mine, field);
     const report = (fields: readonly string[], message: string, severity: MorphIssue["severity"] = "error") => {
       const written = fields.find(writes);
-      if (written) push(valueSpan(ownReplay, written) ?? replaySpan, message, severity);
-      else if (ownReplay || !decl.parent) push(replaySpan ?? decl.name, message, severity);
+      if (written) push(valueSpan(mine, written) ?? at ?? replaySpan, message, severity);
+      else if (mine || !decl.parent) push(at ?? replaySpan ?? decl.name, message, severity);
       else push(decl.parent, `\`replay\`, inherited: ${message}`, severity);
     };
-    if (!("chance" in effectiveReplay)) {
-      report([], "This `replay` block needs a `chance`: how likely each replay is, such as `chance = 50%`.");
+    if (!("chance" in range)) {
+      report([], `This \`replay\` ${kind} needs a \`chance\`: how likely each replay is, such as \`chance = 50%\`.`);
     }
     if (decl.parent) {
       for (const field of MORPH_REPLAY_FIELDS) {
-        if (!(field in effectiveReplay) || writes(field)) continue;
-        const problem = replayFieldProblem(field, effectiveReplay[field]);
+        if (!(field in range) || writes(field)) continue;
+        const problem = replayFieldProblem(field, range[field]);
         if (problem) push(decl.parent, `\`replay.${field}\`, inherited: ${problem}`);
       }
     }
-    for (const { field, message } of replayPairProblems(effectiveReplay)) {
+    for (const { field, message } of replayPairProblems(range)) {
       report(field === "to" ? ["to", "from"] : [field, field === "delay_min" ? "delay_max" : "delay_min"], message);
     }
-    const playable = readMorphReplay(effectiveReplay)?.[0];
+    const playable = readMorphReplayRange(range);
     if (playable && playable.chance > 0) {
       const easingText =
         isRecord(effectiveTiming) && typeof effectiveTiming["easing"] === "string" ? effectiveTiming["easing"] : MORPH_TIMING_DEFAULTS.easing;
@@ -915,6 +936,12 @@ const REPLAY_EXAMPLES: Record<string, string> = { from: "0%", to: "66.667%", cha
 const REPLAY_BLOCK =
   "`replay` is a block of fields: `replay { from = 0%; to = 66.667%; chance = 50% }`.";
 
+const REPLAY_MIXED =
+  "`replay` holds one range's fields, such as `replay { from = 0%; to = 66.667%; chance = 50% }`, or `{ … }` entries, one range each, not both.";
+
+const REPLAY_ITEM =
+  "Each item in `replay` is a range's field, such as `chance = 50%`, or a `{ … }` entry holding one range's fields.";
+
 function replayFieldProblem(field: string, value: unknown): string | null {
   switch (field) {
     case "from":
@@ -924,7 +951,7 @@ function replayFieldProblem(field: string, value: unknown): string | null {
     case "count":
       return typeof value === "number" && Number.isInteger(value) && value >= 1
         ? null
-        : "`count` is the most replays one play makes: a whole number of at least 1.";
+        : "`count` is the most replays this range makes in one play: a whole number of at least 1.";
     case "delay_min":
     case "delay_max":
       return secondsProblem(field, value, false);

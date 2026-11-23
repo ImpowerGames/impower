@@ -24,7 +24,10 @@ const populateDocument = (
     result = result.replace("<style></style>", `<style>\n${css}\n  </style>`);
   }
   if (html) {
-    result = result.replace("<main></main>", `<main>\n${html}\n  </main>`);
+    result = result.replace(
+      '<div id="app"></div>',
+      `<div id="app">\n${html}\n  </div>`,
+    );
   }
   if (js) {
     result = result.replace("<script></script>", `<script>\n${js}\n</script>`);

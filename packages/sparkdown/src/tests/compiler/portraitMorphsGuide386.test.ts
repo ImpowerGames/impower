@@ -39,6 +39,7 @@ const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
   <g data-name="lips mouth.closed default" id="mc"/>
   <g data-name="lips mouth.open" id="mo"/>
   <g data-name="lips mouth.teeth" id="mt"/>
+  <g data-name="lips mouth.wide" id="mw"/>
 </g>
 </svg>`;
 
@@ -159,6 +160,14 @@ describe("the portrait morphs guide chapter", () => {
       expect(diagnosticsOf(text)).toEqual([]);
     },
   );
+
+  test("the replay section shows a block of several entries among its compiled examples (#2581)", () => {
+    const replaying = chapter().slice(chapter().indexOf("### Replaying part of a play"), chapter().indexOf("## Talking"));
+    expect(replaying).toContain("#### Several ranges");
+    const listed = examples().filter((text) => /replay \{\n\s+\{ from = /.test(text));
+    expect(listed).toHaveLength(1);
+    expect(replaying).toContain(listed[0]!);
+  });
 
   test("a skipped label edit is reported where the morph names the label", () => {
     const clip = examples().find((text) => text.includes("clips {"))!;

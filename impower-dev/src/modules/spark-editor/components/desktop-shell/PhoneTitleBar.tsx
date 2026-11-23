@@ -18,8 +18,8 @@ import { FoldedScriptHeader } from "../script-header";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import AppMenu from "./AppMenu";
 import { finishNaming, useNaming } from "./naming";
-import ProjectNameField from "./ProjectNameField";
 import StoryProblemCount from "./StoryProblemCount";
+import TitleBarNameStatus from "./TitleBarNameStatus";
 import TitleBarSearch from "./TitleBarSearch";
 import { withWindow } from "./workspaceWindow";
 
@@ -51,15 +51,10 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
           <span class="flex size-11 flex-none items-center justify-center">
             <SparkLogo layout="mark" size="md" class="[&_svg]:w-6" />
           </span>
-          <div class="flex min-w-0 flex-1 flex-col items-start">
-            <ProjectNameField />
-            <div class="w-full min-w-0">
-              <div class="z-[2] flex items-center fade-edge-over">
-                <SyncStatusLine />
-                <StoryProblemCount />
-              </div>
-            </div>
-          </div>
+          <TitleBarNameStatus bands="always" class="flex-1" statusClass="fade-edge-over">
+            <SyncStatusLine />
+            <StoryProblemCount />
+          </TitleBarNameStatus>
         </>
       )}
       {naming ? (
