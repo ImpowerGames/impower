@@ -17,8 +17,8 @@ export const keysChipVariants = cva(
   {
     variants: {
       state: {
-        keys: "border-edge px-1.5 text-ink",
-        none: "border-edge px-3 text-muted",
+        keys: "border-field-edge px-1.5 text-ink",
+        none: "border-field-edge px-3 text-muted",
         recording: "border-accent px-3 text-accent",
       },
     },

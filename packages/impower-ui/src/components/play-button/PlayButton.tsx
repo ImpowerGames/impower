@@ -19,7 +19,7 @@ export const playButtonVariants = cva(
         large: "size-[52px] [&_svg]:size-[18px]",
       },
       ring: {
-        edge: "border-edge",
+        edge: "border-field-edge",
         accent: "border-accent",
       },
       playing: {

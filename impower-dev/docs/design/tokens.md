@@ -104,7 +104,7 @@ has no margin left.
 | `--warning` | Problem colour: warning | `#edcc8b` | `rgb(237, 204, 139)` | `folio-themes.css:15` `body[data-direction="folio"]` |
 | `--success` | Problem colour: success | `#b4ceb1` | `rgb(180, 206, 177)` | `folio-themes.css:165` `body[data-theme="charcoal"]` |
 | `--edge` | Divider: borders and rules | `#494b50` | `rgb(73, 75, 80)` | `folio-themes.css:159` `body[data-theme="charcoal"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `#747579` | `rgb(116, 117, 121)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `#747579` | `rgb(116, 117, 121)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#4a3d35` | `rgb(74, 61, 53)` | `folio-themes.css:168` `body[data-theme="charcoal"]` |
 | `--syntax-active` | The script's current-line band | `#242427` | `rgb(36, 36, 39)` | `folio-themes.css:169` `body[data-theme="charcoal"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `#73757c` | `rgb(115, 117, 124)` | `folio-themes.css:167` `body[data-theme="charcoal"]` |
@@ -131,7 +131,7 @@ has no margin left.
 | `--warning` | Problem colour: warning | `#9a5a00` | `rgb(154, 90, 0)` | `folio-themes.css:215` `body[data-theme="chalk"]` |
 | `--success` | Problem colour: success | `#33702f` | `rgb(51, 112, 47)` | `folio-themes.css:214` `body[data-theme="chalk"]` |
 | `--edge` | Divider: borders and rules | `#d3d3d7` | `rgb(211, 211, 215)` | `folio-themes.css:208` `body[data-theme="chalk"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `#84858b` | `rgb(132, 133, 139)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `#84858b` | `rgb(132, 133, 139)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#dcdde2` | `rgb(220, 221, 226)` | `folio-themes.css:222` `body[data-theme="chalk"]` |
 | `--syntax-active` | The script's current-line band | `#f0f0f2` | `rgb(240, 240, 242)` | `folio-themes.css:223` `body[data-theme="chalk"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `#c0c0c5` | `rgb(192, 192, 197)` | `folio-themes.css:221` `body[data-theme="chalk"]` |
@@ -158,7 +158,7 @@ has no margin left.
 | `--warning` | Problem colour: warning | `#edcc8b` | `rgb(237, 204, 139)` | `folio-themes.css:15` `body[data-direction="folio"]` |
 | `--success` | Problem colour: success | `#b4ceb1` | `rgb(180, 206, 177)` | `folio-themes.css:141` `body[data-theme="ink"]` |
 | `--edge` | Divider: borders and rules | `#51483f` | `rgb(81, 72, 63)` | `folio-themes.css:135` `body[data-theme="ink"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `#7a6f64` | `rgb(122, 111, 100)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `#7a6f64` | `rgb(122, 111, 100)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#634a3e` | `rgb(99, 74, 62)` | `folio-themes.css:144` `body[data-theme="ink"]` |
 | `--syntax-active` | The script's current-line band | `#2b2622` | `rgb(43, 38, 34)` | `folio-themes.css:145` `body[data-theme="ink"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `#8b7969` | `rgb(139, 121, 105)` | `folio-themes.css:143` `body[data-theme="ink"]` |
@@ -185,7 +185,7 @@ has no margin left.
 | `--warning` | Problem colour: warning | `#8f5400` | `rgb(143, 84, 0)` | `folio-themes.css:187` `body[data-theme="paper"]` |
 | `--success` | Problem colour: success | `#33702f` | `rgb(51, 112, 47)` | `folio-themes.css:186` `body[data-theme="paper"]` |
 | `--edge` | Divider: borders and rules | `#d6cdbb` | `rgb(214, 205, 187)` | `folio-themes.css:180` `body[data-theme="paper"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `#888379` | `rgb(136, 131, 121)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `#888379` | `rgb(136, 131, 121)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#efd6c2` | `rgb(239, 214, 194)` | `folio-themes.css:194` `body[data-theme="paper"]` |
 | `--syntax-active` | The script's current-line band | `#f0ebdd` | `rgb(240, 235, 221)` | `folio-themes.css:195` `body[data-theme="paper"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `#c4bba9` | `rgb(196, 187, 169)` | `folio-themes.css:193` `body[data-theme="paper"]` |
@@ -214,7 +214,7 @@ The editor's `--muted` and `--warning` for Sepia are darker than the prototype's
 | `--warning` | Problem colour: warning | `#edcc8b` | `rgb(237, 204, 139)` | `folio-themes.css:15` `body[data-direction="folio"]` |
 | `--success` | Problem colour: success | `#b4ceb1` | `rgb(180, 206, 177)` | `folio-themes.css:14` `body[data-direction="folio"]` |
 | `--edge` | Divider: borders and rules | `#494b50` | `rgb(73, 75, 80)` | `folio-themes.css:8` `body[data-direction="folio"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `#747579` | `rgb(116, 117, 121)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `#747579` | `rgb(116, 117, 121)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#51413b` | `rgb(81, 65, 59)` | `folio-themes.css:21` `body[data-direction="folio"]` |
 | `--syntax-active` | The script's current-line band | `#242427` | `rgb(36, 36, 39)` | `folio-themes.css:22` `body[data-direction="folio"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `#73757c` | `rgb(115, 117, 124)` | `folio-themes.css:20` `body[data-direction="folio"]` |
@@ -240,7 +240,7 @@ The editor's `--muted` and `--warning` for Sepia are darker than the prototype's
 | `--warning` | Problem colour: warning | `#edcc8b` | `rgb(237, 204, 139)` | `folio-themes.css:15` `body[data-direction="folio"]` |
 | `--success` | Problem colour: success | `#b4ceb1` | `rgb(180, 206, 177)` | `folio-themes.css:75` `body[data-theme="warm"]` |
 | `--edge` | Divider: borders and rules | `#51483f` | `rgb(81, 72, 63)` | `folio-themes.css:69` `body[data-theme="warm"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `#7a6f64` | `rgb(122, 111, 100)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `#7a6f64` | `rgb(122, 111, 100)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#634a3e` | `rgb(99, 74, 62)` | `folio-themes.css:78` `body[data-theme="warm"]` |
 | `--syntax-active` | The script's current-line band | `#2b2622` | `rgb(43, 38, 34)` | `folio-themes.css:149` `body[data-theme="warm"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `#8b7969` | `rgb(139, 121, 105)` | `folio-themes.css:77` `body[data-theme="warm"]` |
@@ -268,7 +268,7 @@ Midnight always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`)
 | `--warning` | Problem colour: warning | `oklch(82.8% 0.189 84.429)` | `oklch(0.828 0.189 84.429)` | `folio-themes.css:93` `body[data-theme="midnight"]` |
 | `--success` | Problem colour: success | `oklch(79.2% 0.209 151.711)` | `oklch(0.792 0.209 151.711)` | `folio-themes.css:92` `body[data-theme="midnight"]` |
 | `--edge` | Divider: borders and rules | `rgb(255 255 255 / 0.12)` | `rgba(255, 255, 255, 0.12)` | `folio-themes.css:86` `body[data-theme="midnight"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `rgb(255 255 255 / 0.4)` | `rgba(255, 255, 255, 0.4)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `rgb(255 255 255 / 0.4)` | `rgba(255, 255, 255, 0.4)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#264f78` | `rgb(38, 79, 120)` | `folio-themes.css:98` `body[data-theme="midnight"]` |
 | `--syntax-active` | The script's current-line band | `#0d263d` | `rgb(13, 38, 61)` | `folio-themes.css:100` `body[data-theme="midnight"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `rgb(255 255 255 / 0.15)` | `rgba(255, 255, 255, 0.15)` | `folio-themes.css:97` `body[data-theme="midnight"]` |
@@ -298,7 +298,7 @@ Dusk always renders with `data-surfaces="layered"` (`folio-themes.js:90-93`), so
 | `--warning` | Problem colour: warning | `oklch(82.8% 0.189 84.429)` | `oklch(0.828 0.189 84.429)` | `folio-themes.css:117` `body[data-theme="dusk"]` |
 | `--success` | Problem colour: success | `oklch(79.2% 0.209 151.711)` | `oklch(0.792 0.209 151.711)` | `folio-themes.css:116` `body[data-theme="dusk"]` |
 | `--edge` | Divider: borders and rules | `rgb(255 255 255 / 0.12)` | `rgba(255, 255, 255, 0.12)` | `folio-themes.css:110` `body[data-theme="dusk"]` |
-| `--field-edge` | Field edge: the boundary of a text field, select or switch, at least 3:1 against `--bg`, `--panel` and `--paper` | `rgb(255 255 255 / 0.4)` | `rgba(255, 255, 255, 0.4)` | Not in the prototype, which draws fields in `--edge` |
+| `--field-edge` | Field edge: the boundary of a text field, select or switch, and the outline of an outlined button or chip, at least 3:1 against `--bg`, `--panel` and `--paper` | `rgb(255 255 255 / 0.4)` | `rgba(255, 255, 255, 0.4)` | Not in the prototype, which draws fields in `--edge` |
 | `--selection` | Selection: selected text in the script | `#264f78` | `rgb(38, 79, 120)` | `folio-themes.css:122` `body[data-theme="dusk"]` |
 | `--syntax-active` | The script's current-line band | `#0d263d` | `rgb(13, 38, 61)` | `folio-themes.css:123` `body[data-theme="dusk"]` |
 | `--scrollbar` | Scrollbar thumb (no track) | `rgb(255 255 255 / 0.15)` | `rgba(255, 255, 255, 0.15)` | `folio-themes.css:121` `body[data-theme="dusk"]` |
