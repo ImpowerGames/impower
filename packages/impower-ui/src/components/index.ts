@@ -17,6 +17,7 @@ export {
   default as Dialog,
   Sheet,
   Lightbox,
+  DockedDialog,
   DialogTitle,
   DialogDescription,
   DialogActions,
@@ -28,6 +29,7 @@ export {
   type SheetWidth,
   type SheetProps,
   type LightboxProps,
+  type DockedDialogProps,
   type SheetSize,
   type DialogSize,
 } from "./dialog/Dialog";
@@ -333,7 +335,6 @@ export {
   type HoldRepeatHandlers,
 } from "../hooks/useHoldRepeat";
 export * from "./icon/icons.generated";
-export * from "./icon/icons.aliases";
 export * from "./registry";
 export { useEscapeWithin } from "../utils/escapeWithin";
 export * from "../layout";

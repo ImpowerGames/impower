@@ -4,7 +4,7 @@ import type { ComponentChildren, JSX, Ref } from "preact";
 import { forwardRef } from "preact/compat";
 import { cn } from "../../utils/cn";
 
-export const buttonVariants = cva(
+const styledButtonVariants = cva(
   [
     "relative control-overlay",
     "inline-flex shrink-0 items-center justify-center whitespace-nowrap select-none cursor-pointer",
@@ -69,6 +69,18 @@ export const buttonVariants = cva(
   },
 );
 
+type StyledButtonVariantProps = VariantProps<typeof styledButtonVariants>;
+
+export const buttonVariants = ({
+  variant,
+  class: className,
+  ...rest
+}: Omit<StyledButtonVariantProps, "variant"> & {
+  variant?: StyledButtonVariantProps["variant"] | "bare";
+  class?: string;
+} = {}): string =>
+  variant === "bare" ? (className ?? "") : styledButtonVariants({ variant, ...rest, class: className });
+
 export type ButtonVariant = NonNullable<
   VariantProps<typeof buttonVariants>["variant"]
 >;
@@ -96,7 +108,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant, size, glyph, raised, asChild, class: className, type = "button", children, ...rest },
   ref,
 ) {
-  const classes = cn(buttonVariants({ variant, size, glyph, raised }), className);
+  const classes =
+    variant === "bare"
+      ? className
+      : cn(buttonVariants({ variant, size, glyph, raised }), className);
   if (asChild) {
     return (
       <Slot ref={ref as Ref<HTMLElement>} class={classes} {...rest}>

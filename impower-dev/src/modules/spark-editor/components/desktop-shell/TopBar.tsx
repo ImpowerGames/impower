@@ -3,7 +3,7 @@ import { useLayout } from "@impower/impower-ui/layout";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import StoryProblemCount from "./StoryProblemCount";
-import ProjectNameField from "./ProjectNameField";
+import TitleBarNameStatus from "./TitleBarNameStatus";
 import TitleBarSearch from "./TitleBarSearch";
 
 function CompactTopBar() {
@@ -13,15 +13,10 @@ function CompactTopBar() {
       <span class={cn("flex w-[61px] flex-none items-center", collapsed ? "pl-[31px]" : "pl-5")}>
         <SparkLogo layout="mark" size="md" class="[&_svg]:w-6" />
       </span>
-      <div class="flex min-w-0 flex-1 flex-col items-start">
-        <ProjectNameField />
-        <div class="w-full min-w-0">
-          <div class="z-[2] flex items-center fade-edge-over">
-            <SyncStatusLine />
-            <StoryProblemCount />
-          </div>
-        </div>
-      </div>
+      <TitleBarNameStatus bands="coarse" class="flex-1" statusClass="fade-edge-over">
+        <SyncStatusLine />
+        <StoryProblemCount />
+      </TitleBarNameStatus>
       <div class="flex flex-none items-center gap-[7px]">
         <SyncButton />
         {collapsed && <TitleBarSearch />}
@@ -45,12 +40,13 @@ export default function TopBar() {
           class="mx-auto hidden group-data-[sidebar=collapsed]/sidebar:inline-flex"
         />
       </div>
-      <div class="flex min-w-0 flex-col items-start gap-[1px] pl-[1px] -ml-[7px]">
-        <ProjectNameField />
-        <div class="flex items-center pl-1.5">
-          <SyncStatusLine />
-        </div>
-      </div>
+      <TitleBarNameStatus
+        bands="coarse"
+        class="gap-[1px] pl-[1px] -ml-[7px] pointer-coarse:gap-0"
+        statusClass="pl-1.5"
+      >
+        <SyncStatusLine />
+      </TitleBarNameStatus>
       <div class="flex items-center">
         <SyncButton />
       </div>
