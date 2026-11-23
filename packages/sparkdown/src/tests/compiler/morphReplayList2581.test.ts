@@ -172,3 +172,18 @@ describe("an inherited list of replays (#2581)", () => {
     ]);
   });
 });
+
+describe("a list of replay entries is not part of a morph's recipe (#2697)", () => {
+  const BUNNY = `${TALK}\nimage bunny_talk = bunny\n`;
+  const recipesOf = (text: string) => {
+    const program = compile(text);
+    return { recipes: program.morphs?.recipes, variants: JSON.stringify(program.morphs?.variants) };
+  };
+
+  test("a morph with no replay, a two-entry list and an edited two-entry list have the same recipes and reference keys", () => {
+    const listed = recipesOf(BUNNY);
+    expect(listed.recipes?.["talk"]).toBeDefined();
+    expect(recipesOf(BUNNY.replace(/  replay \{[\s\S]*?\n  \}\n/, ""))).toEqual(listed);
+    expect(recipesOf(BUNNY.replace("chance = 50% }", "chance = 75%; count = 3 }").replace("to = 80%", "to = 100%"))).toEqual(listed);
+  });
+});

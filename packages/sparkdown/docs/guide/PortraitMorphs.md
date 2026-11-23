@@ -622,7 +622,7 @@ morph blink {
 }
 ```
 
-About one blink in eight is double, with the eyes held open for 0.17 to 0.35 seconds between the two.
+About one blink in eight is double. The pause of 0.17 to 0.35 seconds, holding the open pose at `to`, is added to the play's own frames on either side of it: the play's last, half-open frame before it and the replay's first, open frame after it. So the eyes stay fully open for about 0.25 to 0.42 seconds between the two closures.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
@@ -1026,6 +1026,7 @@ For a `replay` block:
 - `delay_min` without `delay_max`, or the other way round, or a `delay_max` below its `delay_min`, is an error on the field, worded as for `iteration_delay_min` and `iteration_delay_max`.
 - A field the block does not take, and a `replay` field written outside the block, are told where they belong.
 - A value a child morph inherits from its parent's `replay` is reported where the child names its parent.
+- Fields and `{ … }` entries written together in one block are an error on the `replay` block, which holds one range's fields or `{ … }` entries, one range each, not both. An item in the block that is neither a field nor an entry is an error on that item.
 - A warning on the block that its stretch takes no time: under a step easing, `from` and `to` can fall on the same step, so the play gets from one to the other in no time and never replays. Move them onto different steps.
 
 `morph` is a built-in type name, so a variable called `morph` is reported, as `style` or `animation` would be.
