@@ -10,6 +10,7 @@ import {
   buildImagePreviewMarkup,
   getImagePreviewSrc,
 } from "./getImagePreviewSrc";
+import type { PictureLook } from "../../morph/look";
 import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
 
 export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
@@ -32,7 +33,23 @@ export interface ImageCompositeOptions {
     struct: any,
     pick?: ImagePick,
   ) => (ImageLayer & { shown?: true })[];
+  look?: (
+    context: { [type: string]: { [name: string]: any } } | undefined,
+    struct: any,
+    pick?: ImagePick,
+  ) => PictureLook;
 }
+
+const shownLayersOf = (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  struct: any,
+  options?: ImageCompositeOptions,
+): (ImageLayer & { shown?: true })[] =>
+  options?.look
+    ? options.look(context, struct, options.pick).rest
+    : options?.shownLayers
+      ? options.shownLayers(context, struct, options.pick)
+      : resolveImageLayers(context, struct);
 
 // workaround(vscode): the markdown hover sanitizer drops style and class, so a layered image is flattened to one <img src> instead of a CSS stack (https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/markdownRenderer.ts)
 
@@ -130,8 +147,13 @@ export const resolvePreviewLayers = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
+): Promise<(ImageLayer & { rest?: true; shown?: true })[]> => restOfLayers(context, shownLayersOf(context, struct, options), options);
+
+const restOfLayers = async (
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  layers: (ImageLayer & { shown?: true })[],
+  options?: ImageCompositeOptions,
 ): Promise<(ImageLayer & { rest?: true; shown?: true })[]> => {
-  const layers = options?.shownLayers ? options.shownLayers(context, struct, options.pick) : resolveImageLayers(context, struct);
   const morphRest = options?.morphRest;
   if (!morphRest) return layers;
   return Promise.all(
@@ -146,8 +168,12 @@ export const getImageCompositeSrc = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
+): Promise<string | undefined> => compositeOfLayers(await resolvePreviewLayers(context, struct, options), options);
+
+const compositeOfLayers = async (
+  layers: (ImageLayer & { rest?: true; shown?: true })[],
+  options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
-  const layers = await resolvePreviewLayers(context, struct, options);
   if (layers.length === 0) {
     return undefined;
   }
@@ -215,13 +241,19 @@ export const getImagePreviewComposited = async (
   struct: any,
   options?: ImageCompositeOptions,
 ): Promise<{ src: string; composited: boolean } | undefined> => {
-  const rest = await options?.morphRest?.(context, struct, layerPick(options?.pick, resolveImageLayers(context, struct)[0] ?? { src: "", struct }));
+  const look = options?.look?.(context, struct, options.pick);
+  const picked = look ? look.pick : layerPick(options?.pick, resolveImageLayers(context, struct)[0] ?? { src: "", struct });
+  const rest = await options?.morphRest?.(context, struct, picked);
   if (rest) {
     return { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, composited: false };
   }
-  const composite = await getImageCompositeSrc(context, struct, options);
+  const layers = await restOfLayers(context, look ? look.rest : shownLayersOf(context, struct, options), options);
+  const composite = await compositeOfLayers(layers, options);
   if (composite !== undefined) {
     return { src: composite, composited: true };
+  }
+  if (look ? look.empty : layers.length === 0 && resolveImageLayers(context, struct).length > 0) {
+    return undefined;
   }
   const single = getImagePreviewSrc(context, struct);
   return single === undefined ? undefined : { src: single, composited: false };

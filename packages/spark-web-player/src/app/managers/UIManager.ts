@@ -40,6 +40,7 @@ import {
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { MorphArtifactMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphNeedMessage";
+import { MorphStillMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphStillMessage";
 import {
   SpeechMessage,
   type SpeechParams,
@@ -293,6 +294,7 @@ export default class UIManager extends Manager {
     const morphs = this.morphs;
     if (morphs) {
       morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
+      morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
     }
     this.beginReconcilePass();
     this.endCutscene(true);
