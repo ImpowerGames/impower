@@ -419,8 +419,8 @@ export default class WorkspaceFileSystem {
   async getFileImageSize(uri: string) {
     await this._initialFilesRef.settled();
     try {
-      const buffer = await this.readFile({ file: { uri } });
-      return imageSizeOf(new Uint8Array(buffer, 0, Math.min(buffer.byteLength, IMAGE_HEADER_BYTES))) ?? null;
+      const buffer = await this.readFile({ file: { uri }, length: IMAGE_HEADER_BYTES });
+      return imageSizeOf(new Uint8Array(buffer)) ?? null;
     } catch {
       return null;
     }
@@ -1082,7 +1082,7 @@ export default class WorkspaceFileSystem {
     const { uri } = params.file;
     const unstored = this._unstoredUris.has(uri) ? this._files?.[uri]?.text : undefined;
     if (unstored !== undefined) {
-      return new TextEncoder().encode(unstored).buffer as ArrayBuffer;
+      return new TextEncoder().encode(unstored).buffer.slice(0, params.length) as ArrayBuffer;
     }
     return this.sendRequest(ReadFileMessage.type, params);
   }

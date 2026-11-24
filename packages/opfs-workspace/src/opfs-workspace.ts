@@ -970,8 +970,11 @@ onmessage = async (e) => {
   }
   if (ReadFileMessage.type.isRequest(message)) {
     try {
-      const { file } = message.params;
-      const buffer = await readFile(file.uri);
+      const { file, length } = message.params;
+      const buffer =
+        length === undefined
+          ? await readFile(file.uri)
+          : await readFileStart(file.uri, length);
       const response = ReadFileMessage.type.response(message.id, buffer);
       respond(response, [buffer]);
     } catch (err: any) {
@@ -2241,6 +2244,13 @@ const readFile = (fileUri: string) =>
       announceStoredChange(fileUri, before, floor);
     }
     return buffer;
+  });
+
+const readFileStart = (fileUri: string, length: number) =>
+  withCommitLock(fileUri, async () => {
+    const fileHandle = await storedFileHandle(fileUri);
+    const fileRef = await fileHandle.getFile();
+    return fileRef.slice(0, length).arrayBuffer();
   });
 
 const zipFiles = async (
