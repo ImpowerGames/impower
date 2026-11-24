@@ -18,6 +18,7 @@ interface Harness {
   useTallScript(): void;
   setCaretLine(line: number): void;
   setCaretAt(x: number, y: number): number | null;
+  setCaretAtRowEnd(x: number, y: number): { head: number; assoc: number } | null;
   caretLine(): number;
   caretAtLineStart(): boolean;
   caretRow(): Box | null;
@@ -234,6 +235,38 @@ describe("Edit keeps the script still", () => {
         );
         expect(after.caretRow!.bottom).toBeLessThanOrEqual(after.scroller.bottom + 1);
       }
+    } finally {
+      await page.context().close();
+    }
+  });
+
+  it("leaves a caret at the end of a wrapped row where it is when the next row is below the screen", async () => {
+    const page = await open();
+    try {
+      await page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.useTallScript());
+      await scrollTo(page, 1200);
+      const caret = await page.evaluate(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        const r = h.scrollerBox();
+        const left = h.view.contentDOM.getBoundingClientRect().left;
+        const placed = h.setCaretAtRowEnd(left + 20, r.bottom - 40)!;
+        const row = h.caretRow()!;
+        h.view.scrollDOM.scrollTop += row.bottom - (r.bottom - 2);
+        return placed;
+      });
+      await frames(page);
+      const before = await read(page);
+      expect(caret.assoc).toBe(-1);
+      expect(before.head).toBe(caret.head);
+      expect(before.caretRow!.bottom).toBeLessThanOrEqual(before.scroller.bottom);
+      expect(before.caretRow!.bottom).toBeGreaterThan(before.scroller.bottom - 6);
+
+      await edit(page);
+      const after = await read(page);
+
+      expect(after.head).toBe(before.head);
+      expect(after.scrollTop).toBe(before.scrollTop);
+      expect(after.focused).toBe(true);
     } finally {
       await page.context().close();
     }

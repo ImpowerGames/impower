@@ -31,7 +31,8 @@ const visibleBand = (view: EditorView, clearance: number) => {
 
 export const isCaretOnScreen = (view: EditorView): boolean => {
   const { top, bottom } = visibleBand(view, 0);
-  const caret = view.coordsAtPos(view.state.selection.main.head);
+  const { head, assoc } = view.state.selection.main;
+  const caret = view.coordsAtPos(head, assoc || 1);
   return (
     caret != null &&
     caret.top >= top - EDGE_TOLERANCE &&

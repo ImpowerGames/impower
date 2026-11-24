@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import EDITOR_EXTENSIONS from "../../src/modules/script-editor/constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../../src/modules/script-editor/constants/EDITOR_THEME";
@@ -58,6 +58,15 @@ const setCaretAt = (x: number, y: number) => {
   return pos;
 };
 
+const setCaretAtRowEnd = (x: number, y: number) => {
+  const pos = view.posAtCoords({ x, y });
+  if (pos == null) return null;
+  const end = view.moveToLineBoundary(EditorSelection.cursor(pos, 1), true, true);
+  view.dispatch({ selection: EditorSelection.create([end]) });
+  const { head, assoc } = view.state.selection.main;
+  return { head, assoc };
+};
+
 const caretLine = () => view.state.doc.lineAt(view.state.selection.main.head).number;
 
 const caretAtLineStart = () => {
@@ -67,7 +76,7 @@ const caretAtLineStart = () => {
 
 const caretRow = () => {
   const { head, assoc } = view.state.selection.main;
-  const rect = view.coordsAtPos(head, assoc < 0 ? -1 : 1);
+  const rect = view.coordsAtPos(head, assoc || 1);
   return rect ? { top: rect.top, bottom: rect.bottom } : null;
 };
 
@@ -99,6 +108,7 @@ Object.assign(window, {
     useTallScript,
     setCaretLine,
     setCaretAt,
+    setCaretAtRowEnd,
     caretLine,
     caretAtLineStart,
     caretRow,
