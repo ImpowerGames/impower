@@ -339,9 +339,12 @@ const THEME: {
     zIndex: "2",
   },
   "& .cm-panels.cm-panels-bottom": {
-    borderTop: "1px solid var(--editor-panel-edge)",
+    borderTop: "none",
     display: "flex",
     flexDirection: "column",
+  },
+  "& .cm-panels-bottom > .cm-status": {
+    borderTop: "1px solid var(--editor-panel-edge)",
   },
   "& .cm-panel.cm-keyboard-toolbar": {
     order: "100",

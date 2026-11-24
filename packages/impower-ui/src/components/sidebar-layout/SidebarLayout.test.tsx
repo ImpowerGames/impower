@@ -119,6 +119,20 @@ describe("SidebarLayout", () => {
     }
   });
 
+  it("offers only the icon rail, with no handle, when the reserve leaves less than the minimum beside it", async () => {
+    const width = vi
+      .spyOn(HTMLElement.prototype, "clientWidth", "get")
+      .mockReturnValue(768);
+    try {
+      const { root, separator } = await mount(232, 624);
+      expect(root.style.getPropertyValue("--sidebar-width")).toBe("76px");
+      expect(root.dataset["sidebar"]).toBe("collapsed");
+      expect(separator.hidden).toBe(true);
+    } finally {
+      width.mockRestore();
+    }
+  });
+
   it("resets to the default on double-click and on Enter", async () => {
     const { root, separator } = await mount(300);
     expect(root.style.getPropertyValue("--sidebar-width")).toBe("300px");

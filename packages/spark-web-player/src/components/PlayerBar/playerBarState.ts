@@ -286,7 +286,7 @@ export const completionStatusText = (
     case "preparing":
       return "Preparing suggestion preview…";
     case "showing":
-      return "Previewing suggestion";
+      return "Previewing";
     case "unavailable":
       return hasFrame
         ? "Cannot preview this suggestion yet — showing the last valid preview"

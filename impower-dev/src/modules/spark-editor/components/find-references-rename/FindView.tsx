@@ -58,6 +58,7 @@ export default function FindView() {
             onValueChange={(value) => withSearch((search) => search.setTerm(value))}
           />
           <FormButton
+            size="small"
             name="prev"
             label="Previous match"
             title="Previous match (Shift Enter)"
@@ -66,6 +67,7 @@ export default function FindView() {
             <UpIcon />
           </FormButton>
           <FormButton
+            size="small"
             name="next"
             label="Next match"
             title="Next match (Enter)"
@@ -90,6 +92,7 @@ export default function FindView() {
             }
           />
           <FormButton
+            size="small"
             name="replace"
             label="Replace this match"
             title={reading ? "Tap Edit to replace." : undefined}
@@ -99,6 +102,7 @@ export default function FindView() {
             <ReplaceIcon />
           </FormButton>
           <FormButton
+            size="small"
             name="replaceAll"
             label="Replace all matches"
             title={reading ? "Tap Edit to replace." : undefined}
@@ -108,7 +112,7 @@ export default function FindView() {
             <ReplaceAllIcon />
           </FormButton>
         </div>
-        <MatchSwitches options={options} size="glyph" class="mt-0.5 flex gap-px" />
+        <MatchSwitches options={options} size="small" class="mt-0.5 flex gap-px" />
         {line && (
           <p
             role="status"
@@ -129,6 +133,7 @@ export default function FindView() {
           </p>
         )}
         <UsesList
+          rows="rail"
           groups={groups}
           current={position.current}
           onOpen={(use) => withSearch((search) => search.openUse(use))}

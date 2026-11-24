@@ -29,6 +29,7 @@ const SIZES: Record<ButtonSize, string> = {
   compact: "Compact text button",
   action: "Action button: 12px, 38px tall, 44px on a coarse pointer",
   glyph: "Small glyph button",
+  small: "Glyph button: 32px, 44px on a coarse pointer",
   inset: "Inside a field",
   field: "Menu field: 38px, in a 44px target on a coarse pointer",
   pill: "Phone pill",

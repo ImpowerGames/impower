@@ -207,6 +207,7 @@ describe("the Add panel on desktop", () => {
     expect(calls.searchClosed).toBe(1);
     expect(panel()).not.toBeNull();
     expect(panel()!.querySelector("h2")?.textContent).toBe("Add to script");
+    expect(panel()!.style.getPropertyValue("--popover-width")).toBe("340px");
     expect(panel()!.querySelector('[aria-label="Close add menu"]')).toBeNull();
     expect(trigger()!.getAttribute("aria-label")).toBe("Close add menu");
     expect(trigger()!.getAttribute("aria-expanded")).toBe("true");
@@ -437,6 +438,9 @@ describe("the pickers on desktop", () => {
       "Preview door, 0:02",
       "Preview click, 1:05 · ui",
     ]);
+    for (const card of cards("Sound")) {
+      expect(card.querySelector("[data-thumbnail]")!.getAttribute("class")).toContain("bg-paper");
+    }
     await act(async () => cards("Sound")[0]!.click());
     await settle();
     expect(calls.auditions).toEqual(["revert", "show blob:door"]);

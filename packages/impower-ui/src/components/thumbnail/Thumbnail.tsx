@@ -16,6 +16,7 @@ export const thumbnailVariants = cva(
       surface: {
         muted: "bg-muted/12",
         stage: "bg-stage",
+        paper: "bg-paper",
       },
     },
     defaultVariants: { size: "row", surface: "muted" },

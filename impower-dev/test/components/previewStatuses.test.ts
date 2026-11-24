@@ -105,7 +105,7 @@ const ERRORED: GameStatuses = {
 };
 
 const PREVIEWING: GameStatuses = {
-  completion: { text: "Previewing suggestion", status: "showing" },
+  completion: { text: "Previewing", status: "showing" },
   ending: null,
 };
 
@@ -160,10 +160,10 @@ describe("the statuses over the game", () => {
   it("shows the suggestion preview's status and drops each status when the player clears it", async () => {
     await mount();
     await report(PREVIEWING);
-    expect(badges().map((badge) => badge.textContent)).toEqual(["Previewing suggestion"]);
+    expect(badges().map((badge) => badge.textContent)).toEqual(["Previewing"]);
     await report({ ...PREVIEWING, ending: ENDED.ending });
     expect(badges().map((badge) => badge.textContent)).toEqual([
-      "Previewing suggestion",
+      "Previewing",
       "End of story",
     ]);
     await report(NO_GAME_STATUSES);
