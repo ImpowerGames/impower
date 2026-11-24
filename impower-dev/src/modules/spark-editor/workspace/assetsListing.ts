@@ -18,7 +18,8 @@ import {
 } from "../utils/fileListModel";
 import { ASSETS_HOME } from "@impower/spark-editor-protocol/src/utils/assetFolders";
 import { isScriptPath } from "../utils/scriptFiles";
-import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
+import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
+import { imageStacks, isStacked, portraitOfFolder, stackFolderOf, type ImageStack } from "../utils/imageStacks";
 import { storyPlace, usesOf, type AssetUsage } from "./assetUsage";
 import { INTO_ITSELF, isInside, joinPath, nameOf, outermost, parentOf } from "./scriptsListing";
 
@@ -311,10 +312,18 @@ export const assetLevel = ({
   const at = folder && folder !== root && reachable(folder) ? folder : root;
   const atRoot = at === root;
 
+  const layerFolderOf = (path: string): string | undefined => {
+    const portrait = type === "image" ? portraitOfFolder(path) : undefined;
+    return portrait !== undefined && ofType.some((p) => isInside(p, path) && stackFolderOf(p) === portrait)
+      ? portrait
+      : undefined;
+  };
+
   const folderRow = (path: string): AssetRow => {
     const inside = ofType.filter((p) => isInside(p, path));
-    const stacks = type === "image" ? imageStacks(inside) : [];
-    const things = type === "image" ? stacks.length : inside.length;
+    const layered = layerFolderOf(path) !== undefined;
+    const stacks = type === "image" && !layered ? imageStacks(inside) : [];
+    const things = type === "image" && !layered ? stacks.length : inside.length;
     const subfolders = folders.filter(
       (f) =>
         parentOf(f) === path &&
@@ -331,7 +340,7 @@ export const assetLevel = ({
       position: UNREACHED,
       type,
       holdings: things
-        ? plural(things, assetTypeSpec(type).unit)
+        ? plural(things, layered ? "file" : assetTypeSpec(type).unit)
         : subfolders
           ? plural(subfolders, "folder")
           : "Empty",
@@ -351,10 +360,15 @@ export const assetLevel = ({
       ).sort(byFolderName)
     : [];
   const folderRows = withUsage(listing, [...childFolders, ...strays].map(folderRow), usage);
+  const portrait = layerFolderOf(at);
+  const listedHere = (path: string): boolean =>
+    type !== "image"
+      ? parentOf(path) === at
+      : stackFolderOf(path) === at || (portrait !== undefined && stackFolderOf(path) === portrait && rasterLayerOfPath(path) !== undefined);
   const fileRows: AssetRow[] = [
     ...stackedRows(
       listing,
-      ofType.filter((path) => parentOf(path) === at),
+      ofType.filter(listedHere),
       type,
       () => (outside(at) ? at : undefined),
     ),
@@ -438,9 +452,9 @@ export const stackOfPath = (
   if (!Object.hasOwn(listing.files, path) || typeOf(listing, path, endings) !== "image") {
     return [path];
   }
-  const folder = parentOf(path);
+  const folder = stackFolderOf(path);
   const pictures = Object.keys(listing.files).filter(
-    (p) => parentOf(p) === folder && typeOf(listing, p, endings) === "image",
+    (p) => stackFolderOf(p) === folder && typeOf(listing, p, endings) === "image",
   );
   return imageStacks(pictures).find((stack) => stack.paths.includes(path))?.paths ?? [path];
 };

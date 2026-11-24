@@ -1,13 +1,16 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { createRasterImageDefinitions } from "@impower/sparkdown/src/attributes/rasterSource";
+import { resolveAttributes } from "@impower/sparkdown/src/attributes/resolveAttributes";
+import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { describe, expect, it } from "vitest";
 import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
 import {
   ALTERNATE,
   AS_IS,
+  changedGroups,
   defaultForm,
   fileRows,
   filesSummary,
-  isChanged,
   referenceOf,
   testerGroups,
   variantOf,
@@ -67,10 +70,10 @@ describe("the tester's groups", () => {
   });
 
   it("tells when a choice differs from the resting variant", () => {
-    expect(isChanged(one(IMANI), {})).toBe(false);
-    expect(isChanged(one(IMANI), { mouth: "open" })).toBe(false);
-    expect(isChanged(one(IMANI), { face: "happy" })).toBe(true);
-    expect(isChanged(one(IMANI), { [ALTERNATE]: "night" })).toBe(true);
+    expect(changedGroups(one(IMANI), {}).size > 0).toBe(false);
+    expect(changedGroups(one(IMANI), { mouth: "open" }).size > 0).toBe(false);
+    expect(changedGroups(one(IMANI), { face: "happy" }).size > 0).toBe(true);
+    expect(changedGroups(one(IMANI), { [ALTERNATE]: "night" }).size > 0).toBe(true);
   });
 });
 
@@ -171,8 +174,8 @@ describe("the Files rows", () => {
       ["2 face.happy.png", "Layer 2 · face.happy"],
       ["10 hat.on.png", "Layer 10 · hat.on"],
       ["11 face.sad.png", "Layer 11 · face.sad"],
-      ["30 face.happy.png", "Layer 30 · face.happy"],
       ["30 face.neutral default.png", "Layer 30 · face.neutral · default"],
+      ["30 face.happy.png", "Layer 30 · face.happy"],
       ["90 body.png", "Base"],
     ]);
   });
@@ -203,5 +206,169 @@ describe("the snippet the tester offers to copy or insert", () => {
     expect(snippet(["a.png", "a@-b.png"])).toBe("[[show backdrop a]]");
     expect(snippet(["ava.png", "ava@night.png"], { [ALTERNATE]: "night" }, "portrait")).toBe("[[ava@night]]");
     expect(snippet(["ava.png", "ava face.happy.png"], { face: "happy" }, "portrait")).toBe("[[ava:happy]]");
+  });
+});
+
+describe("a portrait folder with layer folders", () => {
+  const MIA = `${P}/mia`;
+  const NESTED = [
+    `${MIA}/90 body.png`,
+    `${MIA}/60 face.happy/40 pupils eyes.open default.png`,
+    `${MIA}/60 face.happy/40 lids eyes.closed.png`,
+    `${MIA}/60 face.happy/30 mouth.png`,
+    `${MIA}/60 face.neutral default/40 pupils eyes.open look.camera default.png`,
+    `${MIA}/60 face.neutral default/40 pupils eyes.open look.left.png`,
+    `${MIA}/60 face.neutral default/40 lids eyes.closed.png`,
+    `${MIA}/60 face.neutral default/30 mouth.png`,
+    `${MIA}/20 hair-top hat.off.png`,
+    `${MIA}/10 hat.on.png`,
+  ];
+
+  it("lists the Files rows in stacking order, top first, naming a nested file by its path from the portrait folder and its folders' conditions", () => {
+    expect(fileRows(one(NESTED), {}).map((row) => [row.name, row.role])).toEqual([
+      ["10 hat.on.png", "Layer 10 · hat.on"],
+      ["20 hair-top hat.off.png", "Layer 20 · hat.off"],
+      ["60 face.neutral default/30 mouth.png", "Layer 30 · face.neutral"],
+      ["60 face.neutral default/40 pupils eyes.open look.left.png", "Layer 40 · face.neutral · eyes.open · look.left"],
+      ["60 face.neutral default/40 pupils eyes.open look.camera default.png", "Layer 40 · face.neutral · eyes.open · look.camera · default"],
+      ["60 face.neutral default/40 lids eyes.closed.png", "Layer 40 · face.neutral · eyes.closed"],
+      ["60 face.happy/30 mouth.png", "Layer 30 · face.happy"],
+      ["60 face.happy/40 pupils eyes.open default.png", "Layer 40 · face.happy · eyes.open · default"],
+      ["60 face.happy/40 lids eyes.closed.png", "Layer 40 · face.happy · eyes.closed"],
+      ["90 body.png", "Base"],
+    ]);
+  });
+
+  it("lists equally numbered files and folders top first in the reverse of the order the game draws them", () => {
+    const tied = [
+      `${MIA}/90 body.png`,
+      `${MIA}/60 shirt/40 cloth.png`,
+      `${MIA}/60 pants/40 cloth.png`,
+      `${MIA}/50 clothes/40 a.png`,
+      `${MIA}/50 clothes/40 b.png`,
+    ];
+    const files = tied.map((path) => ({
+      uri: `file:///project/${path}`,
+      type: "image" as const,
+      name: path.slice(path.lastIndexOf("/") + 1, path.lastIndexOf(".")),
+      ext: "png",
+      src: `/${path}`,
+    }));
+    const drawn = createRasterImageDefinitions(files as never).layeredImages["mia"].assets.map((asset: { $name: string }) =>
+      asset.$name.slice("$raster:file:///project/".length),
+    ) as string[];
+    expect(drawn).toEqual([
+      `${MIA}/90 body.png`,
+      `${MIA}/60 pants/40 cloth.png`,
+      `${MIA}/60 shirt/40 cloth.png`,
+      `${MIA}/50 clothes/40 a.png`,
+      `${MIA}/50 clothes/40 b.png`,
+    ]);
+    expect(fileRows(one(tied), {}).map((row) => row.path)).toEqual([...drawn].reverse());
+    for (const paths of [NESTED, MIA_FOLDER]) {
+      expect(fileRows(one(paths), {}).map((row) => row.path)).toEqual([...one(paths).members].reverse().map((member) => member.path));
+    }
+  });
+
+  it("offers the options nested files name, with eyes resting open in each face", () => {
+    expect(summary(NESTED)).toEqual([
+      ["face", ["neutral", "happy"], "neutral"],
+      ["eyes", ["open", "closed"], "open"],
+      ["look", ["camera", "left"], "camera"],
+      ["hat", ["off", "on"], "off"],
+    ]);
+    expect(summary(NESTED, { face: "happy" }).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
+    expect(variantOf(one(NESTED), { face: "happy" })).toEqual({ image: "mia", attributes: ["happy"] });
+  });
+
+  it("rests a group on the option the shown face's own folder marks", () => {
+    const sleepy = NESTED.map((path) =>
+      path
+        .replace("happy/40 pupils eyes.open default", "happy/40 pupils eyes.open")
+        .replace("happy/40 lids eyes.closed", "happy/40 lids eyes.closed default"),
+    );
+    expect(summary(sleepy, { face: "happy" }).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "closed"]);
+    expect(summary(sleepy).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
+    expect(variantOf(one(sleepy), { face: "happy", eyes: "open" })).toEqual({ image: "mia", attributes: ["happy", "open"] });
+    expect(variantOf(one(sleepy), { face: "happy", eyes: "closed" })).toEqual({ image: "mia", attributes: ["happy"] });
+  });
+
+  it("writes a reference that shows what every choice in the tester shows", () => {
+    const sleepy = NESTED.map((path) =>
+      path
+        .replace("happy/40 pupils eyes.open default", "happy/40 pupils eyes.open")
+        .replace("happy/40 lids eyes.closed", "happy/40 lids eyes.closed default"),
+    );
+    const selfNamed = [
+      `${MIA}/60 face.happy default/20 paint face.happy default.png`,
+      `${MIA}/60 face.sad/20 paint face.sad default.png`,
+    ];
+    const crossed = [
+      `${MIA}/60 outfit.formal/40 paint face.smile default.png`,
+      `${MIA}/60 outfit.formal/40 paint face.frown.png`,
+      `${MIA}/60 face.smile/40 coat outfit.formal default.png`,
+      `${MIA}/60 face.smile/40 coat outfit.casual.png`,
+    ];
+    const scoped = [
+      `${MIA}/90 body.png`,
+      `${MIA}/70 shirt/20 cloth color.red default.png`,
+      `${MIA}/70 shirt/20 cloth color.blue.png`,
+      `${MIA}/60 pants/20 cloth color.blue default.png`,
+      `${MIA}/60 pants/20 cloth color.red.png`,
+    ];
+    for (const paths of [NESTED, sleepy, selfNamed, crossed, scoped]) {
+      const stack = one(paths);
+      const vocabulary = stack.pictures[0]!.vocabulary!;
+      const groups = testerGroups(stack, {});
+      const selections = groups.reduce<VariantSelection[]>(
+        (all, group) => all.flatMap((chosen) => group.options.map((option) => ({ ...chosen, [group.key]: option }))),
+        [{}],
+      );
+      selections.push({});
+      for (const selection of selections) {
+        const picked = Object.fromEntries(Object.entries(selection).filter(([, option]) => option !== AS_IS));
+        const written = resolveAttributes(vocabulary, variantOf(stack, selection).attributes).selection;
+        expect([selection, evaluateAttributeVisibility(vocabulary, written).visible]).toEqual([
+          selection,
+          evaluateAttributeVisibility(vocabulary, picked).visible,
+        ]);
+      }
+    }
+    expect(variantOf(one(selfNamed), { face: "sad" })).toEqual({ image: "mia", attributes: ["sad"] });
+    expect(changedGroups(one(selfNamed), { face: "sad" }).size > 0).toBe(true);
+    expect(variantOf(one(crossed), { face: "smile", outfit: "formal" })).toEqual({ image: "mia", attributes: ["smile", "formal"] });
+    expect([variantOf(one(scoped), {}), changedGroups(one(scoped), {}).size > 0]).toEqual([{ image: "mia", attributes: [] }, false]);
+    expect([variantOf(one(scoped), { color: "red" }), changedGroups(one(scoped), { color: "red" }).size > 0]).toEqual([
+      { image: "mia", attributes: ["red"] },
+      true,
+    ]);
+  });
+
+  it("marks a group changed exactly when the reference it writes names that group's choice", () => {
+    const scoped = [
+      `${MIA}/90 body.png`,
+      `${MIA}/70 shirt/20 cloth color.red default.png`,
+      `${MIA}/70 shirt/20 cloth color.blue.png`,
+      `${MIA}/60 pants/20 cloth color.blue default.png`,
+      `${MIA}/60 pants/20 cloth color.red.png`,
+    ];
+    expect([...changedGroups(one(scoped), {})]).toEqual([]);
+    expect([...changedGroups(one(scoped), { color: "red" })]).toEqual(["color"]);
+    expect([...changedGroups(one(NESTED), { face: "happy", eyes: "open" })]).toEqual(["face"]);
+    expect([...changedGroups(one(MIA_FOLDER), { face: "happy" })]).toEqual(["face"]);
+    expect([...changedGroups(one(MIA_FOLDER), { face: "neutral" })]).toEqual([]);
+  });
+
+  it("rests a group on the nearest folder's option over the portrait folder's own, as the game does", () => {
+    const sleepy = [
+      ...NESTED.map((path) =>
+        path
+          .replace("happy/40 pupils eyes.open default", "happy/40 pupils eyes.open")
+          .replace("happy/40 lids eyes.closed", "happy/40 lids eyes.closed default"),
+      ),
+      `${MIA}/95 whites eyes.open default.png`,
+    ];
+    expect(summary(sleepy, { face: "happy" }).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "closed"]);
+    expect(summary(sleepy).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
   });
 });

@@ -37,7 +37,8 @@ export type FilesSectionProps = {
 const report = (error: unknown) =>
   showSnackbar({ message: reasonOf(error) });
 
-const stemAndExtension = (name: string) => {
+const stemAndExtension = (path: string) => {
+  const name = path.slice(path.lastIndexOf("/") + 1);
   const dot = name.lastIndexOf(".");
   return dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
 };
@@ -176,7 +177,8 @@ export default function FilesSection({ stack, sizes, sources, soloed, onSolo, in
           {stack.kind === "folder" ? (
             <>
               A file named <code class="font-mono text-[11px] text-ink">NN group.option.png</code> in this folder adds a layer; NN
-              sets where it stacks.
+              sets where it stacks. A folder named <code class="font-mono text-[11px] text-ink">NN group.option</code> holds layers
+              that show only with it.
             </>
           ) : (
             <>

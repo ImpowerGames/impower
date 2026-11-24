@@ -88,23 +88,50 @@ interface RasterEntry {
   filename: string;
 }
 
+export interface RasterStackItem {
+  path: string;
+  layer: RasterLayerPath;
+}
+
 const folderKeyOf = (layer: RasterLayerPath, depth: number): string =>
   layer.folders.slice(0, depth).map((folder) => folder.segment).join("/");
 
-const stackItemOf = (entry: RasterEntry, depth: number) => {
-  const below = entry.layer.folders.length - depth;
-  const folder = entry.layer.folders[depth];
+const stackItemOf = ({ path, layer }: RasterStackItem, depth: number) => {
+  const below = layer.folders.length - depth;
+  const folder = layer.folders[depth];
   return folder
-    ? { segment: folder.segment, order: folder.order, path: entry.file.uri.split("/").slice(0, -below).join("/") }
-    : { segment: undefined, order: entry.layer.order, path: entry.file.uri };
+    ? { segment: folder.segment, order: folder.order, path: path.split("/").slice(0, -below).join("/") }
+    : { segment: undefined, order: layer.order, path };
 };
 
-const byStacking = (a: RasterEntry, b: RasterEntry): number => {
+export const byRasterStacking = (a: RasterStackItem, b: RasterStackItem): number => {
   for (let depth = 0; ; depth++) {
     const x = stackItemOf(a, depth);
     const y = stackItemOf(b, depth);
     if (x.segment === undefined || x.segment !== y.segment) return byRasterOrder(x, y);
   }
+};
+
+export const byRasterStackingTopFirst = (a: RasterStackItem, b: RasterStackItem): number => byRasterStacking(b, a);
+
+export const rasterLayerInputs = (
+  layers: readonly RasterLayerPath[],
+  onFolder: (key: string, folder: RasterLayerFolder, index: number) => void = () => {},
+): AttributeLayerInput[] => {
+  const inputs: AttributeLayerInput[] = [];
+  const seen = new Set<string>();
+  layers.forEach((layer, index) => {
+    for (let depth = 1; depth <= layer.folders.length; depth++) {
+      const key = folderKeyOf(layer, depth);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const folder = layer.folders[depth - 1]!;
+      onFolder(key, folder, index);
+      inputs.push({ key, name: folder.name, ...(depth > 1 ? { parent: folderKeyOf(layer, depth - 1) } : {}) });
+    }
+    inputs.push({ key: String(index), name: layer.name, ...(layer.folders.length ? { parent: folderKeyOf(layer, layer.folders.length) } : {}) });
+  });
+  return inputs;
 };
 
 const conflictingDefaults = (
@@ -157,7 +184,7 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
   const collisions: { name: string; firstUri: string; otherUri: string }[] = [];
   const diagnostics: { uri: string; folder: string; message: string }[] = [];
   for (const [directory, entries] of [...portraits].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
-    entries.sort(byStacking);
+    entries.sort((a, b) => byRasterStacking({ path: a.file.uri, layer: a.layer }, { path: b.file.uri, layer: b.layer }));
     const portrait = entries[0]!.layer.folder;
     const enclosing = ownerOf(directory.slice(0, directory.lastIndexOf("/")));
     if (enclosing) {
@@ -175,19 +202,12 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
       continue;
     }
     origins[portrait] = entries[0]!.file.uri;
-    const inputs: AttributeLayerInput[] = [];
     const labels = new Map<string, { label: string; firstFile: string }>();
-    const assets = entries.map(({ file, layer, filename }, index) => {
-      for (let depth = 1; depth <= layer.folders.length; depth++) {
-        const key = folderKeyOf(layer, depth);
-        if (labels.has(key)) continue;
-        const folder = layer.folders[depth - 1]!;
-        labels.set(key, { label: folder.segment.replaceAll("%20", " "), firstFile: String(index) });
-        inputs.push({ key, name: folder.name, ...(depth > 1 ? { parent: folderKeyOf(layer, depth - 1) } : {}) });
-      }
+    const inputs = rasterLayerInputs(entries.map((entry) => entry.layer), (key, folder, index) =>
+      labels.set(key, { label: folder.segment.replaceAll("%20", " "), firstFile: String(index) }));
+    const assets = entries.map(({ file, filename }, index) => {
       const key = String(index);
       labels.set(key, { label: filename, firstFile: key });
-      inputs.push({ key, name: layer.name, ...(layer.folders.length ? { parent: folderKeyOf(layer, layer.folders.length) } : {}) });
       const name = `$raster:${file.uri}`;
       images[name] = { ...file, $type: "image", $name: name };
       return { $type: "image", $name: name };

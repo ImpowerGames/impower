@@ -1,7 +1,17 @@
 import { isWritableImageName, stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
+import { byRasterStackingTopFirst, rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
+import type { AttributeVocabulary } from "@impower/sparkdown/src/attributes/types";
+import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { bytesLabel, compareNames, plural } from "./fileListModel";
-import { AS_IS, choicesOf, type ImageStack, type StackMember, type StackPicture } from "./imageStacks";
+import {
+  AS_IS,
+  choicesOf,
+  restingOptions,
+  type ImageStack,
+  type StackMember,
+  type StackPicture,
+} from "./imageStacks";
 
 export { AS_IS };
 
@@ -51,9 +61,21 @@ export const testerGroups = (stack: ImageStack, selection: VariantSelection): Te
     });
   }
   const offered: TesterGroup[] = [];
-  for (const group of pictureFor(stack, selection).groups) {
-    const resting = group.default ?? (group.switch ? "off" : AS_IS);
-    const options = choicesOf(group);
+  const picture = pictureFor(stack, selection);
+  const chosen = Object.fromEntries(
+    picture.groups.flatMap((group) => {
+      const value = selection[group.name];
+      return value !== undefined && value !== AS_IS && group.options.includes(value) ? [[group.name, value]] : [];
+    }),
+  );
+  const restingWithout = (name: string): string | undefined => {
+    const { [name]: _own, ...others } = chosen;
+    return restingOptions(picture.vocabulary!, others)[name];
+  };
+  for (const group of picture.groups) {
+    const own = picture.vocabulary ? { ...group, default: restingWithout(group.name) } : group;
+    const resting = own.default ?? (group.switch ? "off" : AS_IS);
+    const options = choicesOf(own);
     if (options.length > 1) {
       offered.push({ key: group.name, label: group.name, options, default: resting, switch: group.switch });
     }
@@ -70,8 +92,47 @@ export const chosenIn = (group: TesterGroup, selection: VariantSelection): strin
   return value !== undefined && group.options.includes(value) ? value : group.default;
 };
 
-export const isChanged = (stack: ImageStack, selection: VariantSelection): boolean =>
-  testerGroups(stack, selection).some((group) => chosenIn(group, selection) !== group.default);
+export const changedGroups = (stack: ImageStack, selection: VariantSelection): ReadonlySet<string> => {
+  const groups = testerGroups(stack, selection);
+  const vocabulary = pictureFor(stack, selection).vocabulary;
+  const moved = (group: TesterGroup) => chosenIn(group, selection) !== group.default;
+  if (!vocabulary) {
+    return new Set(groups.filter(moved).map((group) => group.key));
+  }
+  const needed = neededGroups(vocabulary, groups.filter((group) => group.key !== ALTERNATE), selection);
+  return new Set(
+    groups.filter((group) => (group.key === ALTERNATE ? moved(group) : needed.has(group.key))).map((group) => group.key),
+  );
+};
+
+const shownBy = (vocabulary: AttributeVocabulary, chosen: Readonly<Record<string, string>>): string => {
+  const { visible } = evaluateAttributeVisibility(vocabulary, { ...chosen });
+  return vocabulary.layers.map((layer) => (visible[layer.key] ? "1" : "0")).join("");
+};
+
+const neededGroups = (
+  vocabulary: AttributeVocabulary,
+  groups: readonly TesterGroup[],
+  selection: VariantSelection,
+): Set<string> => {
+  let chosen: Record<string, string> = Object.fromEntries(
+    groups.flatMap((group) => {
+      const value = selection[group.key];
+      return value !== undefined && value !== AS_IS && group.options.includes(value) ? [[group.key, value]] : [];
+    }),
+  );
+  const wanted = shownBy(vocabulary, chosen);
+  for (const group of groups) {
+    if (!Object.hasOwn(chosen, group.key)) {
+      continue;
+    }
+    const { [group.key]: _dropped, ...rest } = chosen;
+    if (shownBy(vocabulary, rest) === wanted) {
+      chosen = rest;
+    }
+  }
+  return new Set(Object.keys(chosen));
+};
 
 export const variantOf = (stack: ImageStack, selection: VariantSelection): ImageVariant => {
   const picture = pictureFor(stack, selection);
@@ -80,11 +141,12 @@ export const variantOf = (stack: ImageStack, selection: VariantSelection): Image
   const accepting = (option: string) =>
     picture.groups.filter((group) => group.options.includes(option)).length;
   const named = new Set(picture.groups.map((group) => group.name));
-  const attributes = testerGroups(stack, selection)
-    .filter((group) => group.key !== ALTERNATE)
+  const groups = testerGroups(stack, selection).filter((group) => group.key !== ALTERNATE);
+  const needed = picture.vocabulary ? neededGroups(picture.vocabulary, groups, selection) : undefined;
+  const attributes = groups
     .flatMap((group) => {
       const value = chosenIn(group, selection);
-      if (value === group.default) {
+      if (needed ? !needed.has(group.key) : value === group.default) {
         return [];
       }
       if (group.switch) {
@@ -144,14 +206,18 @@ export const fileRole = (stack: ImageStack, member: StackMember): string => {
     }
     return stack.pictures.length > 1 ? "Alternate · plain" : "Base";
   }
-  const conditions = conditionsOf(member.layer);
+  const own = conditionsOf(member.layer);
+  const inherited = (stack.kind === "folder" ? (rasterLayerOfPath(member.path)?.folders ?? []) : []).flatMap(
+    (folder) => conditionsOf(folder.name) ?? [folder.name],
+  );
+  const conditions = [...inherited, ...(own ?? [member.layer])];
   const isDefault = parseLayerName(member.layer).default;
-  if (stack.kind === "folder" && stack.members[0]?.path === member.path && conditions?.length === 0 && !isDefault) {
+  if (stack.kind === "folder" && stack.members[0]?.path === member.path && own?.length === 0 && !inherited.length && !isDefault) {
     return "Base";
   }
   return [
     member.order === undefined ? "Layer" : `Layer ${member.order}`,
-    ...(conditions === null ? [member.layer] : conditions.length ? conditions : ["always shown"]),
+    ...(conditions.length ? conditions : ["always shown"]),
     isDefault ? "default" : "",
     member.alternate !== null ? `on ${member.alternate}` : "",
   ]
@@ -168,15 +234,25 @@ export interface FileRow {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] =>
-  [...stack.members]
-    .sort((a, b) => compareNames(stemOf(a.path), stemOf(b.path)) || compareNames(leafOf(a.path), leafOf(b.path)))
+export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] => {
+  const nameOf = (path: string) => (stack.kind === "folder" ? path.slice(stack.folder.length + 1) : leafOf(path));
+  return [...stack.members]
+    .sort(
+      stack.kind === "folder"
+        ? (a, b) =>
+            byRasterStackingTopFirst(
+              { path: a.path, layer: rasterLayerOfPath(a.path)! },
+              { path: b.path, layer: rasterLayerOfPath(b.path)! },
+            )
+        : (a, b) => compareNames(stemOf(a.path), stemOf(b.path)) || compareNames(leafOf(a.path), leafOf(b.path)),
+    )
     .map((member) => ({
       path: member.path,
-      name: leafOf(member.path),
+      name: nameOf(member.path),
       role: fileRole(stack, member),
       size: sizes[member.path] ?? 0,
     }));
+};
 
 export const filesSummary = (rows: readonly FileRow[]): string =>
   `${plural(rows.length, "file")} · ${bytesLabel(rows.reduce((sum, row) => sum + row.size, 0))}`;
