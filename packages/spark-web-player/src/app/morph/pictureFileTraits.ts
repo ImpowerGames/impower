@@ -1,8 +1,10 @@
+import { looksLikeSvg } from "./svgLayerFile";
+
 export interface PictureFileTraits {
   animated: boolean;
   profile: boolean;
   unread?: true;
-  element?: true;
+  svg?: true;
 }
 
 export type Inflate = (data: Uint8Array) => Promise<Uint8Array | undefined>;
@@ -155,7 +157,7 @@ export async function pictureFileTraits(bytes: Uint8Array, inflate?: Inflate): P
   if (bytes[0] === 0xff && bytes[1] === 0xd8) return jpegTraits(bytes);
   if (ascii(bytes, 4, 4) === "ftyp" && ascii(bytes, 8, 4) === "avis") return { animated: true, profile: false };
   if (ascii(bytes, 4, 4) === "ftyp") return { animated: false, profile: false };
-  return { animated: false, profile: false, element: true };
+  return { animated: false, profile: false, ...(looksLikeSvg(bytes) ? { svg: true as const } : {}) };
 }
 
 function pngComplete(bytes: Uint8Array): boolean {

@@ -96,7 +96,7 @@ interface Picture {
   groups: string[];
 }
 
-async function draw(picture: Picture, progress: number) {
+async function draw(picture: Picture, progress: number, shift = 0) {
   document.body.replaceChildren();
   const motion = buildMorphMotion(picture.keyframes);
   if (!motion?.[picture.moved]) throw new Error("The keyframes moved nothing.");
@@ -128,7 +128,9 @@ async function draw(picture: Picture, progress: number) {
   };
   const [bottom, ...moved] = picture.shown;
   theirs.appendChild(image(picture.files[bottom!]!));
-  const group = theirs.appendChild(document.createElementNS(SVG_NS, "g"));
+  const offset = theirs.appendChild(document.createElementNS(SVG_NS, "g"));
+  if (shift) offset.setAttribute("transform", `translate(${shift} 0)`);
+  const group = offset.appendChild(document.createElementNS(SVG_NS, "g"));
   group.setAttribute("style", "transform-box:fill-box;transform-origin:50% 50%");
   for (const name of moved) group.appendChild(image(picture.files[name]!));
   const animation = group.animate(morphMotionKeyframes(motion[picture.moved]!) as Keyframe[], { duration: 1000, fill: "both" });
@@ -167,8 +169,86 @@ async function draw(picture: Picture, progress: number) {
   await nextFrame();
 }
 
-const show = (moved: Record<string, string>, progress: number) =>
-  draw(
+type Matrix = [number, number, number, number, number, number];
+
+const times = ([a, b, c, d, e, f]: Matrix, [g, h, i, j, k, l]: Matrix): Matrix => [
+  a * g + c * h,
+  b * g + d * h,
+  a * i + c * j,
+  b * i + d * j,
+  a * k + c * l + e,
+  b * k + d * l + f,
+];
+
+const shifted = (x: number, y: number): Matrix => [1, 0, 0, 1, x, y];
+const turned = (degrees: number): Matrix => {
+  const r = (degrees * Math.PI) / 180;
+  return [Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), 0, 0];
+};
+const scaled = (x: number, y: number): Matrix => [x, 0, 0, y, 0, 0];
+
+const length = (value: string, of: number) => (value.endsWith("%") ? (parseFloat(value) / 100) * of : parseFloat(value));
+
+function listMatrix(list: string, progress: number): Matrix {
+  let matrix: Matrix = [1, 0, 0, 1, 0, 0];
+  for (const [, name, args] of list.matchAll(/(rotate|translate|scale)\(([^)]*)\)/g)) {
+    const values = args!.split(/[\s,]+/).filter(Boolean);
+    if (name === "rotate") matrix = times(matrix, turned(parseFloat(values[0]!) * progress));
+    if (name === "translate") matrix = times(matrix, shifted(length(values[0]!, WIDTH) * progress, length(values[1] ?? "0", HEIGHT) * progress));
+    if (name === "scale") {
+      const x = parseFloat(values[0]!);
+      const y = values[1] === undefined ? x : parseFloat(values[1]);
+      matrix = times(matrix, scaled(1 + (x - 1) * progress, 1 + (y - 1) * progress));
+    }
+  }
+  return matrix;
+}
+
+function expectedPose(moved: Record<string, string>, progress: number): Matrix {
+  const [tx = "0", ty = "0"] = (moved["translate"] ?? "0").split(/\s+/);
+  const [sx = "1", sy = sx] = (moved["scale"] ?? "1").split(/\s+/);
+  const [ox = "50%", oy = "50%"] = (moved["transform_origin"] ?? "50% 50%").split(/\s+/);
+  const origin = [WIDTH / 2 + (length(ox, WIDTH) - WIDTH / 2) * progress, HEIGHT / 2 + (length(oy, HEIGHT) - HEIGHT / 2) * progress] as const;
+  let matrix = shifted(origin[0], origin[1]);
+  matrix = times(matrix, shifted(length(tx, WIDTH) * progress, length(ty, HEIGHT) * progress));
+  matrix = times(matrix, turned(parseFloat(moved["rotate"] ?? "0") * progress));
+  matrix = times(matrix, scaled(1 + (parseFloat(sx) - 1) * progress, 1 + (parseFloat(sy) - 1) * progress));
+  matrix = times(matrix, listMatrix(moved["transform"] ?? "", progress));
+  return times(matrix, shifted(-origin[0], -origin[1]));
+}
+
+const decoded = new Map<string, Promise<HTMLImageElement>>();
+const decode = (src: string) => {
+  let image = decoded.get(src);
+  if (!image) {
+    const element = new Image();
+    element.src = src;
+    image = element.decode().then(() => element);
+    decoded.set(src, image);
+  }
+  return image;
+};
+
+async function independentStill(moved: Record<string, string>, progress: number, shift: number) {
+  const canvas = document.body.firstElementChild!.appendChild(document.createElement("canvas"));
+  canvas.id = "still";
+  canvas.width = Math.round(SHOWN_WIDTH * devicePixelRatio);
+  canvas.height = Math.round(SHOWN_HEIGHT * devicePixelRatio);
+  canvas.setAttribute("style", `display:block;flex:none;width:${SHOWN_WIDTH}px;height:${SHOWN_HEIGHT}px`);
+  const context = canvas.getContext("2d")!;
+  const [base, brows] = await Promise.all([decode(FILES.base), decode(FILES.brows)]);
+  context.drawImage(base, 0, 0, canvas.width, canvas.height);
+  const [a, b, c, d, e, f] = times(shifted(shift, 0), expectedPose(moved, progress));
+  const kx = canvas.width / WIDTH;
+  const ky = canvas.height / HEIGHT;
+  context.setTransform(a, (b * ky) / kx, (c * kx) / ky, d, e * kx, f * ky);
+  context.drawImage(brows, 0, 0, canvas.width, canvas.height);
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  await nextFrame();
+}
+
+const show = async (moved: Record<string, string>, progress: number, options: { shift?: number; stillShift?: number } = {}) => {
+  await draw(
     {
       files: FILES,
       shown: ["base", "brows"],
@@ -182,7 +262,10 @@ const show = (moved: Record<string, string>, progress: number) =>
       groups: ["lids"],
     },
     progress,
+    options.shift,
   );
+  await independentStill(moved, progress, options.stillShift ?? 0);
+};
 
 const showGroup = (moved: Record<string, string>, progress: number) =>
   draw(
@@ -418,7 +501,7 @@ async function cssFit(kind: string, width: number, height: number) {
     "background",
     "portrait:0",
   );
-  await until(() => !!ours.querySelector("span.morph")?.shadowRoot?.querySelector("img"));
+  await until(() => !!ours.querySelector("span.morph")?.shadowRoot?.querySelector("canvas"));
   playback.advance(0.5);
   await nextFrame();
 }

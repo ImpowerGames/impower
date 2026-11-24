@@ -48,6 +48,9 @@ const SVG_LAYER_ALLOWANCE = 0.02;
 
 const LEVELS = 8;
 const ALLOWANCE = 0.001;
+const CANVAS_ALLOWANCE = 0.0001;
+const MISPLACED = 2;
+const MISPLACED_REFERENCE = 4;
 
 let outDir: string;
 let pageUrl: string;
@@ -85,7 +88,7 @@ const share = (a: Buffer, b: Buffer) => {
   return over / (a.length / 4);
 };
 
-type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number) => Promise<void>> & {
+type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number, options?: { shift?: number; stillShift?: number }) => Promise<void>> & {
   load(src: string): Promise<{ accepted: boolean; painted: number }>;
   sparse(dot: number): Promise<boolean>;
   svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number, sibling?: boolean): Promise<void>;
@@ -94,12 +97,23 @@ type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number) =
 };
 
 
-async function differing(page: Page, moved: Record<string, string>, progress: number, picture: "show" | "showGroup" = "show") {
-  await page.evaluate(({ moved, progress, picture }) => (window as unknown as { layeredMotion: Harness }).layeredMotion[picture](moved, progress), { moved, progress, picture });
+async function differing(page: Page, moved: Record<string, string>, progress: number, picture: "show" | "showGroup" = "show", options: { shift?: number; stillShift?: number } = {}) {
+  await page.evaluate(
+    ({ moved, progress, picture, options }) => (window as unknown as { layeredMotion: Harness }).layeredMotion[picture](moved, progress, options),
+    { moved, progress, picture, options },
+  );
   const ours = await pixels(page, "#ours");
   const theirs = await pixels(page, "#theirs");
   expect([ours.width, ours.height]).toEqual([theirs.width, theirs.height]);
   return { share: share(ours.data, theirs.data), ours: ours.data };
+}
+
+async function independent(page: Page, moved: Record<string, string>, progress: number, options: { shift?: number; stillShift?: number } = {}) {
+  const drawn = await differing(page, moved, progress, "show", options);
+  const still = await pixels(page, "#still");
+  const theirs = await pixels(page, "#theirs");
+  expect([still.width, still.height]).toEqual([theirs.width, theirs.height]);
+  return { ...drawn, baseline: share(still.data, theirs.data), canvas: share(drawn.ours, still.data) };
 }
 
 describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matches the browser moving it as SVG (#2631)", (name, engine, need) => {
@@ -118,7 +132,7 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
       console.log(`${name}: not installed here, so its comparison is skipped`);
       return;
     }
-    const context = await browser.newContext({ viewport: { width: 480, height: 360 }, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ viewport: { width: 720, height: 360 }, deviceScaleFactor: 1 });
     page = await context.newPage();
     page.on("pageerror", (error) => console.error(`${name}: ${error.message}`));
     await page.goto(pageUrl);
@@ -133,13 +147,33 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     await browser?.close();
   });
 
-  test.for(CASES)("%s, at half and full progress", async ([label, moved], context) => {
+  test.for(CASES)(
+    "%s, at half and full progress, differs from the browser by at most the allowance more than the same pose held still on a plain canvas, and matches that still",
+    async ([label, moved], context) => {
+      if (!browser) return context.skip();
+      for (const progress of [0.5, 1]) {
+        const drawn = await independent(page, moved, progress);
+        console.log(
+          `${name}: ${label} at ${progress}: ${(drawn.share * 100).toFixed(3)}% moved, ${(drawn.baseline * 100).toFixed(3)}% held still, ${(drawn.canvas * 100).toFixed(3)}% from the still`,
+        );
+        expect(share(drawn.ours, still)).toBeGreaterThan(0.01);
+        expect(drawn.share).toBeLessThanOrEqual(drawn.baseline + ALLOWANCE);
+        expect(drawn.canvas).toBeLessThanOrEqual(CANVAS_ALLOWANCE);
+      }
+    },
+  );
+
+  test.for(CASES)("%s, against a still two picture pixels away, or a browser layer four pixels away, differs by more than either allowance", async ([label, moved], context) => {
     if (!browser) return context.skip();
     for (const progress of [0.5, 1]) {
-      const drawn = await differing(page, moved, progress);
-      console.log(`${name}: ${label} at ${progress}: ${(drawn.share * 100).toFixed(3)}%`);
-      expect(share(drawn.ours, still)).toBeGreaterThan(0.01);
-      expect(drawn.share).toBeLessThanOrEqual(rest + ALLOWANCE);
+      const still = await independent(page, moved, progress, { stillShift: MISPLACED });
+      const held = await independent(page, moved, progress);
+      const off = await independent(page, moved, progress, { shift: MISPLACED_REFERENCE });
+      console.log(
+        `${name}: ${label} at ${progress}: ${(still.canvas * 100).toFixed(3)}% from a still ${MISPLACED}px away, ${(off.share * 100).toFixed(3)}% from a browser layer ${MISPLACED_REFERENCE}px away against ${(held.baseline * 100).toFixed(3)}% held still`,
+      );
+      expect(still.canvas).toBeGreaterThan(CANVAS_ALLOWANCE);
+      expect(off.share).toBeGreaterThan(held.baseline + ALLOWANCE);
     }
   });
 

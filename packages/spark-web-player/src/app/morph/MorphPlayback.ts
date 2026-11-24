@@ -34,6 +34,7 @@ import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from
 import { IDENTITY, multiply, type Affine } from "../../../../sparkdown/src/morph/affine";
 import { computedMotionPose, type MotionBox, type MotionPose } from "./motionPose";
 import { dataUrlBytes, pictureFileComplete, pictureFileTraits, streamInflate } from "./pictureFileTraits";
+import { browserSvgLayerRasterizer, readSvgLayer, type SvgLayerRasterizer, type SvgLayerSource } from "./svgLayerFile";
 
 export type { MorphImageContent, MorphLayerPlay };
 
@@ -44,7 +45,8 @@ export interface PictureBitmap {
   animated?: boolean;
   profile?: boolean;
   unread?: boolean;
-  element?: boolean;
+  unsized?: boolean;
+  vector?: SvgLayerSource;
 }
 
 export type PictureLoader = (src: string, doc: Document) => Promise<PictureBitmap | undefined>;
@@ -64,6 +66,18 @@ interface PictureFiles {
   bitmaps: Map<number, PictureBitmap>;
   width: number;
   height: number;
+  rasters: Map<number, FileRaster>;
+  released?: boolean;
+}
+
+interface FileRaster {
+  image: CanvasImageSource;
+  release(): void;
+  width: number;
+  height: number;
+  want?: { width: number; height: number };
+  busy?: boolean;
+  refused?: string;
 }
 
 interface CanvasRun {
@@ -122,12 +136,18 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
   } catch {
     decoded = false;
   }
+  const bytes = await readPictureBytes(src, view);
+  const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
+  const svg = bytes && traits?.svg && view.DOMParser ? readSvgLayer(new TextDecoder().decode(bytes), new view.DOMParser()) : undefined;
+  const size = { image: img, width: img.naturalWidth, height: img.naturalHeight };
+  if (svg && "reason" in svg) {
+    return { ...size, animated: svg.reason === "animated", unread: svg.reason === "unread", unsized: svg.reason === "unsized" };
+  }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
   if (!decoded && !(img.complete && paintsAnything(img, img.naturalWidth, img.naturalHeight, doc))) return undefined;
-  const bytes = await readPictureBytes(src, view);
   if (bytes && !pictureFileComplete(bytes)) return undefined;
-  const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
-  return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...(traits ?? { unread: true }) };
+  if (!traits) return { ...size, unread: true };
+  return { ...size, animated: traits.animated, profile: traits.profile, ...(traits.unread ? { unread: true } : {}), ...(svg ? { vector: svg.source } : {}) };
 };
 
 const PAINT_PROBE_BAND_PIXELS = 1 << 20;
@@ -287,6 +307,7 @@ export interface MorphPlaybackOptions {
   loadPicture?: PictureLoader;
   pictureCanvas?: PictureCanvasFactory;
   readPose?: MorphPoseReader;
+  rasterizeSvgLayer?: SvgLayerRasterizer;
 }
 
 export class MorphPlayback {
@@ -305,6 +326,7 @@ export class MorphPlayback {
   loadPicture: PictureLoader;
   pictureCanvas: PictureCanvasFactory;
   readPose: MorphPoseReader;
+  rasterizeSvgLayer: SvgLayerRasterizer;
   reportStill?: (params: MorphStillParams) => void;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
   protected static readonly PICTURE_LIMIT = 256;
@@ -333,6 +355,7 @@ export class MorphPlayback {
     this.loadPicture = options.loadPicture ?? browserPictureLoader;
     this.pictureCanvas = options.pictureCanvas ?? browserCanvas;
     this.readPose = options.readPose ?? computedMotionPose;
+    this.rasterizeSvgLayer = options.rasterizeSvgLayer ?? browserSvgLayerRasterizer;
     const host = (view ?? window) as Window & typeof globalThis;
     const frames = typeof host.requestAnimationFrame === "function";
     this.requestFrame =
@@ -360,6 +383,7 @@ export class MorphPlayback {
     }
     if (options.pictureCanvas) this.pictureCanvas = options.pictureCanvas;
     if (options.readPose) this.readPose = options.readPose;
+    if (options.rasterizeSvgLayer) this.rasterizeSvgLayer = options.rasterizeSvgLayer;
   }
 
   picture(src: string): Promise<PictureBitmap | undefined> {
@@ -893,6 +917,7 @@ export class MorphLayer {
     const artifact = image.slot.state === "ready" ? image.slot.artifact : undefined;
     if (!image.picture || !artifact || artifact.status !== "live") return Promise.resolve();
     if (image.loading?.artifact === artifact) return image.loading.done;
+    releaseFiles(image.files);
     image.files = undefined;
     image.broken = false;
     const done = this.decodePicture(image, image.picture, artifact);
@@ -918,7 +943,15 @@ export class MorphLayer {
     const bottom = bitmaps.get(0);
     const unfaithful = indices.flatMap((index) => {
       const bitmap = bitmaps.get(index);
-      const reason = bitmap?.animated ? ("animated" as const) : bitmap?.profile ? ("profile" as const) : bitmap?.unread ? ("unread" as const) : undefined;
+      const reason = bitmap?.animated
+        ? ("animated" as const)
+        : bitmap?.profile
+          ? ("profile" as const)
+          : bitmap?.unread
+            ? ("unread" as const)
+            : bitmap?.unsized
+              ? ("unsized" as const)
+              : undefined;
       return reason ? [{ index, reason }] : [];
     });
     for (const { index, reason } of unfaithful) {
@@ -938,7 +971,34 @@ export class MorphLayer {
       image.broken = true;
       return;
     }
-    image.files = { model, bitmaps, width, height };
+    const pixels = width * height;
+    const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
+    const first = { width: Math.max(1, Math.round(width * shrink)), height: Math.max(1, Math.round(height * shrink)) };
+    const doc = this.span.ownerDocument;
+    const made = await Promise.all(
+      [...bitmaps]
+        .filter(([, bitmap]) => bitmap.vector)
+        .map(async ([index, bitmap]) => {
+          const raster = await this.playback
+            .rasterizeSvgLayer(bitmap.vector!, { width: bitmap.width, height: bitmap.height }, first.width, first.height, doc)
+            .catch(() => undefined);
+          return [index, raster] as const;
+        }),
+    );
+    const current = image.loading?.artifact === artifact;
+    const refused = made.filter(([, raster]) => !raster);
+    if (!current || refused.length > 0) {
+      for (const [, raster] of made) raster?.release();
+      if (!current) return;
+      for (const [index] of refused) {
+        this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason: "undrawn" });
+      }
+      image.broken = true;
+      return;
+    }
+    const rasters = new Map<number, FileRaster>();
+    for (const [index, raster] of made) rasters.set(index, { image: raster!.image, release: raster!.release, ...first });
+    image.files = { model, bitmaps, width, height, rasters };
   }
 
   commit() {
@@ -1208,16 +1268,6 @@ export class MorphLayer {
       inner.view = view;
       views.set(inner.file, view);
     }
-    for (const [file, bitmap] of files.bitmaps) {
-      if (!bitmap.element || views.has(file)) continue;
-      const src = state.picture!.files[file]?.src;
-      if (!src) continue;
-      const element = doc.createElement("img");
-      element.setAttribute("alt", "");
-      element.setAttribute("draggable", "false");
-      element.setAttribute("src", src);
-      views.set(file, { box: element });
-    }
     const motions = layeredMorphMotions(files.model);
     const held = new Set<number>();
     files.model.chains.forEach(({ file }, at) => {
@@ -1303,7 +1353,43 @@ export class MorphLayer {
       }
     }
     view.size = { width, height };
+    for (const [file, raster] of view.files.rasters) {
+      raster.want = { width: w, height: h };
+      this.refitRaster(view.files, file, raster);
+    }
     this.paint(view);
+  }
+
+  protected refitRaster(files: PictureFiles, file: number, raster: FileRaster) {
+    const want = raster.want;
+    const bitmap = files.bitmaps.get(file);
+    if (raster.busy || files.released || !want || !bitmap?.vector) return;
+    const key = `${want.width}x${want.height}`;
+    if ((raster.width === want.width && raster.height === want.height) || raster.refused === key) return;
+    raster.busy = true;
+    void this.playback
+      .rasterizeSvgLayer(bitmap.vector, { width: bitmap.width, height: bitmap.height }, want.width, want.height, this.span.ownerDocument)
+      .catch(() => undefined)
+      .then((made) => {
+        raster.busy = false;
+        if (files.released) {
+          made?.release();
+          return;
+        }
+        if (made) {
+          raster.release();
+          raster.image = made.image;
+          raster.release = made.release;
+          raster.width = want.width;
+          raster.height = want.height;
+          const view = this.images.find((image) => image.files === files)?.canvas;
+          if (view) {
+            for (const run of view.runs) run.painted = undefined;
+            this.paint(view);
+          }
+        } else raster.refused = key;
+        this.refitRaster(files, file, raster);
+      });
   }
 
   protected paint(view: CanvasView) {
@@ -1393,7 +1479,7 @@ export class MorphLayer {
       const sy = canvas.height / files.height;
       context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
     }
-    context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
+    context.drawImage(files.rasters.get(layer.file)?.image ?? bitmap.image, 0, 0, canvas.width, canvas.height);
     if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
   }
@@ -1567,6 +1653,7 @@ export class MorphLayer {
     this.releaseMotions();
     for (const image of this.images) {
       image.slot.dispose();
+      releaseFiles(image.files);
       image.view = undefined;
       image.canvas = undefined;
       for (const inner of image.inner) {
@@ -1577,6 +1664,12 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+function releaseFiles(files: PictureFiles | undefined) {
+  if (!files || files.released) return;
+  files.released = true;
+  for (const raster of files.rasters.values()) raster.release();
 }
 
 function clearCanvas(context: PictureCanvasContext, canvas: HTMLCanvasElement) {

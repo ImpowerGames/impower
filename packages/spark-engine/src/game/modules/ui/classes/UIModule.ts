@@ -2012,7 +2012,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ? "is animated, so its layers cannot be drawn together faithfully"
         : params.reason === "profile"
           ? "carries a colour profile wider than sRGB, so its layers cannot be drawn together faithfully"
-          : "could not be read to check that it is a still sRGB image";
+          : params.reason === "unsized"
+            ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
+            : params.reason === "undrawn"
+              ? "is an SVG the browser would not draw at the picture's size"
+              : "could not be read to check that it is a still sRGB image";
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 
