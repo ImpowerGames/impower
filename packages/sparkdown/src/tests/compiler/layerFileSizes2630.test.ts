@@ -114,6 +114,29 @@ describe("a layered picture whose layer files differ in pixel size (#2630)", () 
     expect(sizeWarnings(program)).toEqual([]);
   });
 
+  test("sizes that arrive after a first compile take the reference away and add the warning on the next compile", () => {
+    const compiler = new SparkdownCompiler();
+    const script = {
+      uri: MAIN,
+      type: "script",
+      name: "main",
+      ext: "sd",
+      text: `${BLINK}\nscene start\n  [[ava]]\nend\n`,
+      version: 1,
+      languageId: "sparkdown",
+    };
+    compiler.configure({ files: [script, imageFile(BASE, undefined), imageFile(MOUTH, undefined), imageFile(LIDS, undefined)] as never });
+    const before = compiler.compile({ textDocument: { uri: MAIN } }).program;
+    expect(before.morphs?.variants["ava"]).toHaveLength(1);
+    expect(sizeWarnings(before)).toEqual([]);
+    for (const [uri, size] of [[BASE, DOC], [MOUTH, DOC], [LIDS, SMALL]] as const) {
+      compiler.updateFile({ file: imageFile(uri, size) as never });
+    }
+    const after = compiler.compile({ textDocument: { uri: MAIN } }).program;
+    expect(sizeWarnings(after).map(({ uri }) => uri)).toEqual([LIDS]);
+    expect(after.morphs?.variants["ava"]).toBeUndefined();
+  });
+
   test("a picture whose files all match keeps its reference, and its artwork carries the picture's rectangle", () => {
     const program = compile(BLINK, { [BASE]: DOC, [MOUTH]: DOC, [LIDS]: DOC });
     expect(sizeWarnings(program)).toEqual([]);
