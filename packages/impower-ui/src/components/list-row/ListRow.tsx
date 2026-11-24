@@ -121,7 +121,7 @@ export const listRowBodyVariants = cva(
       },
     },
     compoundVariants: [
-      { size: "library", control: true, class: "pl-2 [:root[data-layout=desktop]_&]:pl-3" },
+      { size: "library", control: true, class: "pl-2.5 [:root[data-layout=desktop]_&]:pl-[13px]" },
     ],
     defaultVariants: { size: "default", interactive: true, selection: "none", leading: false, control: false, glyph: "muted" },
   },
@@ -172,7 +172,7 @@ export const listRowControlVariants = cva("relative flex flex-none items-center"
   variants: {
     size: {
       default: "pl-2",
-      library: "pl-2",
+      library: "pl-2 [:root[data-layout=desktop]_&]:pl-3",
       compact: "pl-1",
       block: "pl-2",
       dense: "pl-2",

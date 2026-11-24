@@ -309,11 +309,12 @@ describe("ListRow", () => {
     );
   });
 
-  it("starts a library row's text after its control at the row's own inset, not the control inset", async () => {
+  it("insets a library row's control as its icon and starts the text one icon gap after it", async () => {
     const root = await mount(<ListRow size="library" label="door" control={<button type="button">Play door</button>} onClick={() => {}} />);
+    const slot = root.querySelector("[data-list-row-control]")!.className.split(" ");
+    expect(slot).toEqual(expect.arrayContaining(["pl-2", "[:root[data-layout=desktop]_&]:pl-3"]));
     const classes = root.querySelectorAll("button")[1]!.className.split(" ");
-    expect(classes).toEqual(expect.arrayContaining(["pl-2", "[:root[data-layout=desktop]_&]:pl-3"]));
-    expect(classes).not.toContain("pl-[13px]");
+    expect(classes).toEqual(expect.arrayContaining(["pl-2.5", "[:root[data-layout=desktop]_&]:pl-[13px]"]));
   });
 
   it("draws a file row 52px tall with an 18px glyph centred in a 28px column after a 6px inset, and 13px names", async () => {
