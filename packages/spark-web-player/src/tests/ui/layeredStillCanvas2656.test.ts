@@ -246,7 +246,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(loads).toEqual([]);
   });
 
-  test("the asset cache inspects only files loaded as layer files", async () => {
+  test("the asset cache inspects only files loaded as layer files, and a line waiting on a file it first loaded as a plain image waits for that file's inspection", async () => {
     const inspected: string[] = [];
     const cache = new AssetCache({
       createImage: () => {
@@ -258,6 +258,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
       },
       inspectImage: async (src) => {
         inspected.push(src);
+        if (src === "single.png") await new Promise((resolve) => setTimeout(resolve, 30));
         return { animated: src === "gif.png", profile: false };
       },
     });
@@ -273,8 +274,17 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(inspected).toEqual(["gif.png"]);
     expect(cache.picture("single.png")).toBeUndefined();
     expect(cache.picture("gif.png")).toMatchObject({ animated: true, width: 40, height: 30 });
-    await cache.request([{ kind: "image", src: "single.png", layer: true }], 0, "next", undefined);
-    await until(() => !!cache.picture("single.png"), "the late inspection");
+    const result = await cache.request(
+      [
+        { kind: "image", src: "single.png", layer: true },
+        { kind: "image", src: "gif.png", layer: true },
+      ],
+      0,
+      "next",
+      undefined,
+    );
+    expect(result.loaded).toEqual(["single.png", "gif.png"]);
+    expect(cache.picture("single.png")).toMatchObject({ animated: false, profile: false, width: 40, height: 30 });
     expect(inspected).toEqual(["gif.png", "single.png"]);
   });
 });

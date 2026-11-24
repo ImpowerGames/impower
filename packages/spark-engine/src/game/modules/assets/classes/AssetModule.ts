@@ -148,14 +148,17 @@ export class AssetModule extends Module<
       if (srcs) {
         const layer = ui.layeredImageFiles(name) !== undefined;
         for (const src of srcs) {
-          if (
-            typeof src === "string" &&
-            src &&
-            !src.startsWith("data:") &&
-            !seen.has(src)
-          ) {
+          if (typeof src !== "string" || !src || src.startsWith("data:")) {
+            continue;
+          }
+          if (!seen.has(src)) {
             seen.add(src);
             items.push(layer ? { kind: "image", src, layer } : { kind: "image", src });
+          } else if (layer) {
+            const index = items.findIndex((item) => item.kind === "image" && item.src === src);
+            if (index >= 0) {
+              items[index] = { kind: "image", src, layer };
+            }
           }
         }
         continue;

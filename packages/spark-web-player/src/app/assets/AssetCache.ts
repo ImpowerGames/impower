@@ -104,6 +104,7 @@ interface Entry {
   videoUrl?: string;
   waiters: Array<() => void>;
   traits?: PictureFileTraits;
+  inspecting?: Promise<void>;
 }
 
 interface Tracked {
@@ -386,19 +387,26 @@ export class AssetCache {
     const pending = entries.filter(
       (e) => e.state !== "resident" && e.state !== "failed",
     );
-    if (pending.length === 0) {
+    const inspecting = entries.flatMap((e) =>
+      e.state === "resident" && e.inspecting ? [e.inspecting] : [],
+    );
+    if (pending.length === 0 && inspecting.length === 0) {
       return Promise.resolve(settle());
     }
     return new Promise((resolve) => {
-      let remaining = pending.length;
+      let remaining = pending.length + inspecting.length;
+      const done = () => {
+        remaining--;
+        this.emitProgress(pin);
+        if (remaining === 0) {
+          resolve(settle());
+        }
+      };
       for (const e of pending) {
-        e.waiters.push(() => {
-          remaining--;
-          this.emitProgress(pin);
-          if (remaining === 0) {
-            resolve(settle());
-          }
-        });
+        e.waiters.push(done);
+      }
+      for (const inspection of inspecting) {
+        void inspection.then(done);
       }
       this.pump();
     });
@@ -580,11 +588,13 @@ export class AssetCache {
       entry.lastUsed = this._tick;
       if (item.kind === "image" && item.layer && entry.item.kind === "image" && !entry.item.layer) {
         entry.item = item;
-        if (entry.state === "resident") {
-          void this.inspect(entry).then((traits) => {
-            if (this._entries.get(entry!.key) === entry && entry!.image) {
-              entry!.traits = traits;
+        if (entry.state === "resident" && this._deps.inspectImage) {
+          const promoted = entry;
+          promoted.inspecting = this.inspect(promoted).then((traits) => {
+            if (this._entries.get(promoted.key) === promoted && promoted.image) {
+              promoted.traits = traits;
             }
+            promoted.inspecting = undefined;
           });
         }
       }

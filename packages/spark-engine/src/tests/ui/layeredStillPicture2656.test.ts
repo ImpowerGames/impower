@@ -129,6 +129,18 @@ describe("an image write of a layered picture made of image files (#2656)", () =
     ]);
   });
 
+  test("marks a file as a layer file when one picture shows it alone and another as one of its layers", async () => {
+    const kit = ["define kit as layered_image with", "  assets = {", '    ["base"] = sky,', '    ["top"] = prop,', "  }", "end"];
+    const source = [...kit, "", "scene start", "  HERO:", "    Line one.", "end", ""].join("\n");
+    const harness = createHarness(source, 0, { assets: [...FILES, file("prop.png")] });
+    await harness.ready;
+    const assets = (harness.game as any).module.assets;
+    expect(assets.resolveImageItems(["sky", "kit"])).toEqual([
+      { kind: "image", src: "/src/sky.png", layer: true },
+      { kind: "image", src: "/src/prop.png", layer: true },
+    ]);
+  });
+
   test("marks a hand-written layered_image of image files", async () => {
     const prelude = `define kit as layered_image with\n  assets = {\n    ["base"] = sky,\n    ["top"] = office,\n  }\nend\n`;
     const [content] = await written("backdrop kit", prelude);
