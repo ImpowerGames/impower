@@ -35,11 +35,6 @@ export function textstreamOpenAfter(
   return game.module.ui.openedLayoutsAfter(events).includes(TEXTSTREAM_LAYOUT);
 }
 
-function label(name: string): string {
-  const words = name.replace(/_/g, " ").trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
 function visible(events: TextInstruction[] | undefined): boolean {
   return (events ?? []).some((event) => event.text.trim().length > 0);
 }
@@ -140,17 +135,6 @@ export class InteractiveFictionPresenter implements Presenter {
     const options = (instructions.choices ?? []).map(
       (target) => text[target] ?? [],
     );
-    for (const [target, events] of Object.entries(instructions.image ?? {})) {
-      for (const event of events) {
-        if (event.control === "show" && event.assets?.length) {
-          entries.push({
-            kind: "caption",
-            scene,
-            caption: `${label(target)}: ${event.assets.join(", ")}`,
-          });
-        }
-      }
-    }
     for (const [channel, events] of Object.entries(instructions.audio ?? {})) {
       const name = CAPTIONED_CHANNELS[channel];
       if (!name) {

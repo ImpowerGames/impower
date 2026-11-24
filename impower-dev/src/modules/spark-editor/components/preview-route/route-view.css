@@ -57,7 +57,6 @@
 :root[data-pointer="coarse"] swp-route-view {
   --swp-route-row-height: 44px;
   --swp-route-control-size: 44px;
-  --swp-saves-control-size: 44px;
 }
 
 :root swp-route-view .saves-menu {

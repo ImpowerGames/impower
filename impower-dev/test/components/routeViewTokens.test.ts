@@ -87,7 +87,6 @@ describe("the hosted route list's tokens", () => {
     for (const [token, css] of [
       ["--swp-route-row-height", ROUTE_LIST],
       ["--swp-route-control-size", ROUTE_LIST],
-      ["--swp-saves-control-size", SAVES],
     ] as const) {
       const hostRules = [...HOST_TOKENS.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(
         ([, , body]) => body!.includes(`${token}:`),
@@ -105,9 +104,6 @@ describe("the hosted route list's tokens", () => {
     );
     expect(VALUES_VIEW).toMatch(/sv-clear-slot [^"]*w-\(--swp-route-control-size\)/);
     expect(SAVES).toMatch(/\.saves-values \.sv-row \{[^}]*height: var\(--swp-route-row-height\);/);
-    expect(SAVES).toMatch(
-      /\.saves-row \{[^}]*grid-template-columns: [^;]* var\(--swp-saves-control-size\);/,
-    );
   });
 
   it("cap the top bar's Saves menu at the popup's available height, outranking the player's own default", () => {
