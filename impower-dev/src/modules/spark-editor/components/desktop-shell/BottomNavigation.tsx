@@ -1,6 +1,7 @@
 import {
   ArtIcon,
   BookIcon,
+  CogIcon,
   ShareIcon,
   Tab,
   Tabs,
@@ -12,7 +13,7 @@ import { routeOfPane, routeOfState } from "../../workspace/routes";
 import { useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import { useNaming } from "./naming";
-import { SCREEN_PANEL_ID } from "./screenPanel";
+import { SCREEN_PANEL_ID, SETTINGS_TAB } from "./screenPanel";
 import { withWindow } from "./workspaceWindow";
 
 export default function BottomNavigation() {
@@ -24,12 +25,16 @@ export default function BottomNavigation() {
   ).value;
   const current = useComputed(() =>
     routeOfState(workspace.state.value) === "settings"
-      ? ""
+      ? SETTINGS_TAB
       : workspace.signals.pane.value,
   ).value;
 
   const onChange = (next: string) =>
-    void withWindow((win) => win.navigateTo(routeOfPane(next as PaneType)));
+    void withWindow((win) =>
+      win.navigateTo(
+        next === SETTINGS_TAB ? "settings" : routeOfPane(next as PaneType),
+      ),
+    );
 
   return (
     <nav
@@ -55,6 +60,9 @@ export default function BottomNavigation() {
           </Tab>
           <Tab value="share" icon={ShareIcon}>
             Share
+          </Tab>
+          <Tab value={SETTINGS_TAB} icon={CogIcon}>
+            Settings
           </Tab>
         </Tabs>
       )}

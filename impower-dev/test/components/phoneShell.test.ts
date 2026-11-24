@@ -258,8 +258,8 @@ describe("the phone shell", () => {
     expect(titleBar().querySelector('svg, [class*="spark"]')).not.toBeNull();
     expect(nameField()).not.toBeNull();
     const tabs = Array.from(navigation().querySelectorAll('[role="tab"]'));
-    expect(tabs).toHaveLength(3);
-    ["Story", "Assets", "Share"].forEach((name, i) =>
+    expect(tabs).toHaveLength(4);
+    ["Story", "Assets", "Share", "Settings"].forEach((name, i) =>
       expect(tabs[i]!.textContent).toContain(name),
     );
     expect(navigation().className).toContain(
@@ -428,14 +428,32 @@ describe("the phone shell", () => {
     expect(calls.finds).toBe(2);
   });
 
-  it("opens Settings in place of the route with no tab current, returns to Story from its tab, and closes the full view on Escape", async () => {
+  it("opens Settings from its tab in place of the route with that tab current, returns to Story from its tab, and closes the full view on Escape", async () => {
     await mount();
-    await go("settings");
+    const tabs = () => Array.from(navigation().querySelectorAll<HTMLElement>('[role="tab"]'));
+    const settingsTab = tabs().find((tab) => tab.textContent?.includes("Settings"))!;
+    expect(settingsTab.getAttribute("data-state")).toBe("inactive");
+    await act(async () => {
+      settingsTab.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+        }),
+      );
+    });
+    await settle();
+    expect(calls.routes).toEqual(["settings"]);
+    calls.routes.length = 0;
     expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
     expect(host!.querySelector('[data-route="logic"]')).toBeNull();
     expect(navigation().hidden).toBe(false);
-    expect(navigation().querySelector('[data-state="active"]')).toBeNull();
-    const story = navigation().querySelector('[role="tab"]')!;
+    const active = tabs().filter((tab) => tab.getAttribute("data-state") === "active");
+    expect(active.map((tab) => tab.textContent?.trim())).toEqual([expect.stringContaining("Settings")]);
+    const panel = document.getElementById(active[0]!.getAttribute("aria-controls")!)!;
+    expect(panel.getAttribute("role")).toBe("tabpanel");
+    expect(document.getElementById(panel.getAttribute("aria-labelledby")!)).toBe(active[0]);
+    const story = tabs()[0]!;
     await act(async () => {
       story.dispatchEvent(
         new MouseEvent("mousedown", {
@@ -890,18 +908,14 @@ describe("the app menu on a phone", () => {
     await settle(250);
     const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
     expect(sheet.className).toContain("rounded-t-sheet");
-    expect(sheet.textContent).toContain("Settings");
+    expect(sheet.textContent).toContain("Help & guide");
+    expect(sheet.textContent).not.toContain("Settings");
     expect(sheet.textContent).not.toContain("No account needed");
     expect(button("Close app menu")).not.toBeNull();
     expect(navigation().hidden).toBe(true);
 
-    const settings = Array.from(
-      sheet.querySelectorAll<HTMLElement>('[role="menuitem"]'),
-    ).find((item) => item.textContent?.includes("Settings"))!;
-    await act(async () => settings.click());
+    await act(async () => button("Close app menu")!.click());
     await settle(250);
-    expect(calls.routes).toEqual(["settings"]);
-    expect(host!.querySelector("[data-settings-page]")).not.toBeNull();
     expect(navigation().hidden).toBe(false);
   });
 });

@@ -11,7 +11,7 @@ import { PhoneSearch } from "../find-references-rename";
 import BottomNavigation from "./BottomNavigation";
 import { useNaming } from "./naming";
 import PhoneTitleBar from "./PhoneTitleBar";
-import { SCREEN_PANEL_ID } from "./screenPanel";
+import { SCREEN_PANEL_ID, SETTINGS_TAB } from "./screenPanel";
 import ShellRail from "./ShellRail";
 import TopBar from "./TopBar";
 import { withWindow, workspaceWindow } from "./workspaceWindow";
@@ -161,7 +161,7 @@ export default function WorkspaceShell({
       >
         <TabPanel
           panel={SCREEN_PANEL_ID}
-          value={route === "settings" ? null : pane}
+          value={route === "settings" ? SETTINGS_TAB : pane}
           class="relative flex h-full min-h-0 w-full"
           onScrollCapture={
             phone

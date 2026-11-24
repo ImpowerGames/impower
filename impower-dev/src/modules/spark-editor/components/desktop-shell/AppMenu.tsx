@@ -15,7 +15,6 @@ import {
   HelpIcon,
   MenuIcon,
   PencilIcon,
-  SettingsIcon,
   SignOutIcon,
 } from "@impower/impower-ui/components";
 import { useCoarsePointer } from "@impower/impower-ui/layout";
@@ -171,12 +170,6 @@ export default function AppMenu({ trigger = "rail" }: AppMenuProps) {
             {RENAME_PROJECT}
           </DropdownItem>
         )}
-        <DropdownItem
-          onSelect={() => void withWindow((win) => win.navigateTo("settings"))}
-        >
-          <SettingsIcon />
-          Settings
-        </DropdownItem>
         <DropdownSeparator />
         <DropdownItem
           onSelect={() => {

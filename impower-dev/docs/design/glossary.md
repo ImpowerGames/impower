@@ -30,7 +30,7 @@ The prototype's own notes state these further renames. The live markup is checke
 
 ## App menu
 
-The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts).
+The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is a navigation entry at the foot of the rail and the fourth bottom navigation tab.
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
@@ -39,7 +39,7 @@ The app menu is a dialog. It opens from the sidebar footer on desktop and tablet
 | `Saving locally…` | heading / footer label while a save is pending | app.js:633 |  |
 | `No account needed to start writing.` | description under the heading | app.js:3577 |  |
 | `Sync with Google Drive` | menu item (button) | app.js:3577 |  |
-| `Settings` | menu item (button) | app.js:2297, app.js:3577 |  |
+| `Settings` | menu item (button) | app.js:2297, app.js:3577 | Not in the editor's app menu: Settings is a navigation label (rail link and bottom navigation tab) |
 | `Help & guide` | menu item (button) | app.js:3577 |  |
 | `Report a bug` | menu item (button) | app.js:3577 |  |
 | `Close app menu` | aria-label of the dialog's close button | app.js:3577 |  |
@@ -106,7 +106,7 @@ The rail holds the three project destinations, the Outline and the app menu foot
 | `Whole story` | context line in the Problems to fix dialog when opened from the story count | app.js:1930 |  |
 | `Back to outline` | aria-label and tooltip of the close button in the rail's Search and References views | app.js:1983, app.js:1985 |  |
 | `References` | heading of the rail's References view | app.js:1985 |  |
-| `Settings` | heading of the rail on the Settings page | app.js:2297, app.js:3577 |  |
+| `Settings` | heading of the rail on the Settings page | app.js:2297, app.js:3577 | Not drawn: the index keeps only its `Settings sections` name |
 | `Settings sections` | aria-label of the Settings page index | folio-settings.js:606, folio-settings.js:610 |  |
 | `Resize sidebar` | aria-label of the sidebar divider | folio-split.js:80 |  |
 | `Drag to resize. Arrow keys adjust; Enter or double-click resets.` | tooltip of the sidebar and pane dividers | folio-split.js:80, folio-split.js:81 |  |
@@ -127,7 +127,7 @@ The header holds the line-number toggle, the open script's name, Browse scripts 
 | `Show line numbers` | aria-label of the line-number toggle | app.js:2023, folio-themes.js:124 |  |
 | `Hide line numbers` | aria-label of the line-number toggle when numbers are on | folio-themes.js:124 |  |
 | `Browse scripts` | button (label and aria-label) that opens the Scripts page | app.js:2023 |  |
-| `Back to story` | button on the Scripts, Assets, Share and Settings pages | app.js:2023, app.js:2190, app.js:2197 |  |
+| `Back to story` | button on the Scripts, Assets, Share and Settings pages | app.js:2023, app.js:2190, app.js:2197 | Not on the Settings page, which is left through the navigation |
 | `Rename this script` | tooltip of the script name field (every script except Main) | app.js:1997 |  |
 | `Script name` | aria-label of the script name field | app.js:1997 |  |
 | `Keep the script's name` | aria-label of the phone Done button while the name field has focus | app.js:2023 |  |
@@ -1066,7 +1066,7 @@ The Settings page has two halves, Editor preferences and Project preferences, an
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `Settings` | page heading and rail heading | app.js:2297, app.js:3577 |  |
+| `Settings` | page heading and rail heading | app.js:2297, app.js:3577 | Drawn as the page heading only |
 | `Editor & Project Preferences` | eyebrow above the heading | app.js:2298 | Not drawn: app pages have no eyebrow |
 | `Customize the look and behavior of the editor and adjust your project settings.` | page description | app.js:2299 |  |
 | `Settings sections` | aria-label of the index and of the chip row | folio-settings.js:606, folio-settings.js:610 |  |

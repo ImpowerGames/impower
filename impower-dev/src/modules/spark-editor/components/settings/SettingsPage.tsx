@@ -6,7 +6,6 @@ import {
 import { useLayout } from "@impower/impower-ui/layout";
 import type { FunctionComponent } from "preact";
 import { useEffect } from "preact/hooks";
-import { backToStory } from "../../workspace/backToStory";
 import { sectionOfHash } from "../../workspace/routes";
 import AddMenuSection from "./AddMenuSection";
 import AppearanceSection from "./AppearanceSection";
@@ -70,7 +69,6 @@ export default function SettingsPage() {
       id={SETTINGS_PAGE_ID}
       title="Settings"
       line="Customize the look and behavior of the editor and adjust your project settings."
-      onBack={() => void backToStory()}
     >
       <JumpChips
         label="Settings sections"

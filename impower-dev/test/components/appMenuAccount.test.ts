@@ -199,7 +199,7 @@ describe("the app menu's children", () => {
     "holds only menu items, groups and separators when opened as a menu, %s",
     async (state) => {
       if (state === "signed in") workspace.account.value = account;
-      await mountOpen("drive-file", "synced", "Settings");
+      await mountOpen("drive-file", "synced", "Help & guide");
       const menu = await waitFor("menu", () => document.querySelector('[role="menu"]'));
       expect(disallowedInMenu(menu)).toEqual([]);
     },
@@ -224,12 +224,21 @@ describe("the app menu's children", () => {
     const menu = await waitFor("sheet menu", () =>
       document.querySelector('[role="dialog"] [role="menu"]'),
     );
-    await menuItem("Settings");
+    await menuItem("Help & guide");
     expect(disallowedInMenu(menu)).toEqual([]);
   });
 
+  it.each([["signed out"], ["signed in"]])(
+    "offers no Settings item, which the navigation holds instead, %s",
+    async (state) => {
+      if (state === "signed in") workspace.account.value = account;
+      await mountOpen("drive-file", "synced", "Help & guide");
+      expect(items().map((el) => el.textContent?.trim())).not.toContain("Settings");
+    },
+  );
+
   it("closes from its Close app menu item", async () => {
-    await mountOpen("local", "cached", "Settings");
+    await mountOpen("local", "cached", "Help & guide");
     const close = await waitFor("close item", () =>
       document.querySelector<HTMLElement>('[role="menuitem"][aria-label="Close app menu"]'),
     );
@@ -261,7 +270,7 @@ describe("the app menu's Rename project item", () => {
   });
 
   it("is not offered with a mouse", async () => {
-    await mountOpen("drive-file", "synced", "Settings");
+    await mountOpen("drive-file", "synced", "Help & guide");
     expect(item("Rename project")).toBeUndefined();
   });
 
@@ -271,7 +280,7 @@ describe("the app menu's Rename project item", () => {
     await act(async () => render(h(Naming, null), probe!));
     await mountOpen("drive-file", "synced", "Rename project");
     const labels = items().map((el) => el.textContent?.trim());
-    expect(labels.indexOf("Rename project")).toBe(labels.indexOf("Settings") - 1);
+    expect(labels.indexOf("Rename project")).toBe(labels.indexOf("Help & guide") - 1);
     await select("Rename project");
     await vi.waitFor(() => {
       expect(actions.setAppMenuOpen).toHaveBeenCalledWith(false);

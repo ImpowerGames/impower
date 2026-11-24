@@ -11,9 +11,9 @@ script from any of them:
 - **Settings**: how the editor looks and behaves, and your project's own preferences.
 
 Story, Assets and Share are in the rail down the left side on a computer, and in the
-bar along the bottom on a phone; Scripts opens from Story. Settings is in the app
-menu: on a computer, press the save status at the foot of the rail (it says *Saved
-locally* in the pictures); on a phone, press the menu button at the top right.
+bar along the bottom on a phone; Scripts opens from Story. Settings is at the foot of
+the rail, just above the save status, and is the fourth tab of the bar on a phone. To
+leave Settings, pick Story, Assets or Share.
 
 The pictures below show a small sample project at two sizes: a computer screen 1440
 pixels wide and a phone 430 pixels wide.
@@ -105,9 +105,9 @@ extension. Working together and publishing online are on their way too.
 
 ## Settings
 
-![The Settings page on a computer: the list of sections down the left, from Appearance to Save & sync, and the Appearance section with its nine themes](./images/web-editor/settings-1440.png)
+![The Settings page on a computer: the list of sections down the left, from Appearance to Save & sync, Settings selected at the foot of the rail, and the Appearance section with its nine themes](./images/web-editor/settings-1440.png)
 
-![The Appearance section of Settings on a phone, with the nine themes one under another](./images/web-editor/settings-430.png)
+![The Appearance section of Settings on a phone, with the nine themes one under another and the Settings tab selected at the bottom](./images/web-editor/settings-430.png)
 
 Settings has two halves. **Editor preferences** belong to you and this browser:
 
