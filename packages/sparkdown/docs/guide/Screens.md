@@ -239,7 +239,7 @@ screen menu {
   }
 }
 
-layout title in menu {
+layout home in menu {
   button "Play" @click=start
 }
 
@@ -248,7 +248,7 @@ layout settings in menu {
 }
 ```
 
-Here `panel` and its `header` stay on screen while the menu moves between `title` and `settings`, and each page's button appears inside `panel`, below the header. With no `slot`, the layout is placed after the screen's own elements. A screen with an empty body has no elements of its own and only groups its layouts.
+Here `panel` and its `header` stay on screen while the menu moves between `home` and `settings`, and each page's button appears inside `panel`, below the header. With no `slot`, the layout is placed after the screen's own elements. A screen with an empty body has no elements of its own and only groups its layouts.
 
 The screen's root element is named after the screen, so `style menu { … }` styles it, unless the body holds an element of that name, in which case the root is named `screen_menu`. Checkpoints and saves restore a screen's elements with its open layout.
 
