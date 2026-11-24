@@ -1,7 +1,14 @@
 import { isWritableImageName, stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
 import { bytesLabel, compareNames, plural } from "./fileListModel";
-import { AS_IS, choicesOf, type ImageStack, type StackMember, type StackPicture } from "./imageStacks";
+import {
+  AS_IS,
+  choicesOf,
+  restingOptions,
+  type ImageStack,
+  type StackMember,
+  type StackPicture,
+} from "./imageStacks";
 
 export { AS_IS };
 
@@ -51,9 +58,22 @@ export const testerGroups = (stack: ImageStack, selection: VariantSelection): Te
     });
   }
   const offered: TesterGroup[] = [];
-  for (const group of pictureFor(stack, selection).groups) {
-    const resting = group.default ?? (group.switch ? "off" : AS_IS);
-    const options = choicesOf(group);
+  const picture = pictureFor(stack, selection);
+  const scoped = picture.vocabulary
+    ? restingOptions(
+        picture.vocabulary,
+        Object.fromEntries(
+          picture.groups.flatMap((group) => {
+            const value = selection[group.name];
+            return value !== undefined && value !== AS_IS && group.options.includes(value) ? [[group.name, value]] : [];
+          }),
+        ),
+      )
+    : undefined;
+  for (const group of picture.groups) {
+    const own = scoped ? { ...group, default: scoped[group.name] } : group;
+    const resting = own.default ?? (group.switch ? "off" : AS_IS);
+    const options = choicesOf(own);
     if (options.length > 1) {
       offered.push({ key: group.name, label: group.name, options, default: resting, switch: group.switch });
     }
@@ -168,15 +188,33 @@ export interface FileRow {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] =>
-  [...stack.members]
-    .sort((a, b) => compareNames(stemOf(a.path), stemOf(b.path)) || compareNames(leafOf(a.path), leafOf(b.path)))
+const bySegments = (a: string, b: string): number => {
+  const x = a.split("/");
+  const y = b.split("/");
+  for (let index = 0; index < Math.min(x.length, y.length); index++) {
+    const order = compareNames(x[index]!, y[index]!);
+    if (order) {
+      return order;
+    }
+  }
+  return x.length - y.length;
+};
+
+export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] => {
+  const nameOf = (path: string) => (stack.kind === "folder" ? path.slice(stack.folder.length + 1) : leafOf(path));
+  return [...stack.members]
+    .sort(
+      stack.kind === "folder"
+        ? (a, b) => bySegments(nameOf(a.path), nameOf(b.path))
+        : (a, b) => compareNames(stemOf(a.path), stemOf(b.path)) || compareNames(leafOf(a.path), leafOf(b.path)),
+    )
     .map((member) => ({
       path: member.path,
-      name: leafOf(member.path),
+      name: nameOf(member.path),
       role: fileRole(stack, member),
       size: sizes[member.path] ?? 0,
     }));
+};
 
 export const filesSummary = (rows: readonly FileRow[]): string =>
   `${plural(rows.length, "file")} · ${bytesLabel(rows.reduce((sum, row) => sum + row.size, 0))}`;

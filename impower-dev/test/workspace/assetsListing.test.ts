@@ -597,3 +597,47 @@ describe("whether the Assets page lists a file (#2171)", () => {
     expect(assetsPageLists("Assets/notes.sd", ["Assets"])).toBe(false);
   });
 });
+
+describe("a portrait folder with layer folders in the Assets page", () => {
+  const PORTRAITS = "Assets/Images/Portraits";
+  const MIA = `${PORTRAITS}/mia`;
+  const HAPPY = `${MIA}/60 face.happy`;
+  const NEUTRAL = `${MIA}/60 face.neutral default`;
+  const project = listing(
+    {
+      [`${MIA}/90 body.png`]: 4000,
+      [`${HAPPY}/40 pupils eyes.open default.png`]: 100,
+      [`${HAPPY}/40 lids eyes.closed.png`]: 100,
+      [`${NEUTRAL}/40 pupils eyes.open default.png`]: 100,
+      [`${NEUTRAL}/40 lids eyes.closed.png`]: 100,
+      [`${MIA}/10 hat.on.png`]: 1000,
+    },
+    ["Assets", "Assets/Images", PORTRAITS, MIA, HAPPY, NEUTRAL],
+  );
+  const level = (folder: string) => assetLevel({ listing: project, type: "image", folder, sort: "name-asc", endings: ENDINGS });
+
+  it("counts the portrait folder as one picture in its parent", () => {
+    expect(level(PORTRAITS).rows.map((row) => [row.name, row.holdings])).toEqual([["mia", "1 image"]]);
+  });
+
+  it("shows the whole portrait, nested files included, as one picture in the portrait folder", () => {
+    const rows = level(MIA).rows;
+    expect(rows.map((row) => [row.kind, row.name])).toEqual([
+      ["folder", "60 face.happy"],
+      ["folder", "60 face.neutral default"],
+      ["file", "mia"],
+    ]);
+    expect(rows[2]!.paths?.length).toBe(6);
+    expect(rows[2]!.size).toBe(5400);
+  });
+
+  it("draws a layer folder as an ordinary folder with no cover and no variants", () => {
+    const happy = level(MIA).rows.find((row) => row.path === HAPPY)!;
+    expect([happy.holdings, happy.covers, happy.variantCount]).toEqual(["2 files", [], undefined]);
+  });
+
+  it("shows the portrait a layer folder belongs to inside that folder", () => {
+    const rows = level(HAPPY).rows;
+    expect(rows.map((row) => [row.kind, row.name, row.paths?.length])).toEqual([["file", "mia", 6]]);
+  });
+});

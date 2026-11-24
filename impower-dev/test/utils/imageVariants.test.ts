@@ -205,3 +205,57 @@ describe("the snippet the tester offers to copy or insert", () => {
     expect(snippet(["ava.png", "ava face.happy.png"], { face: "happy" }, "portrait")).toBe("[[ava:happy]]");
   });
 });
+
+describe("a portrait folder with layer folders", () => {
+  const MIA = `${P}/mia`;
+  const NESTED = [
+    `${MIA}/90 body.png`,
+    `${MIA}/60 face.happy/40 pupils eyes.open default.png`,
+    `${MIA}/60 face.happy/40 lids eyes.closed.png`,
+    `${MIA}/60 face.happy/30 mouth.png`,
+    `${MIA}/60 face.neutral default/40 pupils eyes.open look.camera default.png`,
+    `${MIA}/60 face.neutral default/40 pupils eyes.open look.left.png`,
+    `${MIA}/60 face.neutral default/40 lids eyes.closed.png`,
+    `${MIA}/60 face.neutral default/30 mouth.png`,
+    `${MIA}/20 hair-top hat.off.png`,
+    `${MIA}/10 hat.on.png`,
+  ];
+
+  it("lists the Files rows in stacking order, top first, naming a nested file by its path from the portrait folder", () => {
+    expect(fileRows(one(NESTED), {}).map((row) => [row.name, row.role])).toEqual([
+      ["10 hat.on.png", "Layer 10 · hat.on"],
+      ["20 hair-top hat.off.png", "Layer 20 · hat.off"],
+      ["60 face.happy/30 mouth.png", "Layer 30 · always shown"],
+      ["60 face.happy/40 lids eyes.closed.png", "Layer 40 · eyes.closed"],
+      ["60 face.happy/40 pupils eyes.open default.png", "Layer 40 · eyes.open · default"],
+      ["60 face.neutral default/30 mouth.png", "Layer 30 · always shown"],
+      ["60 face.neutral default/40 lids eyes.closed.png", "Layer 40 · eyes.closed"],
+      ["60 face.neutral default/40 pupils eyes.open look.camera default.png", "Layer 40 · eyes.open · look.camera · default"],
+      ["60 face.neutral default/40 pupils eyes.open look.left.png", "Layer 40 · eyes.open · look.left"],
+      ["90 body.png", "Base"],
+    ]);
+  });
+
+  it("offers the options nested files name, with eyes resting open in each face", () => {
+    expect(summary(NESTED)).toEqual([
+      ["face", ["neutral", "happy"], "neutral"],
+      ["eyes", ["open", "closed"], "open"],
+      ["look", ["camera", "left"], "camera"],
+      ["hat", ["off", "on"], "off"],
+    ]);
+    expect(summary(NESTED, { face: "happy" }).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
+    expect(variantOf(one(NESTED), { face: "happy" })).toEqual({ image: "mia", attributes: ["happy"] });
+  });
+
+  it("rests a group on the option the shown face's own folder marks", () => {
+    const sleepy = NESTED.map((path) =>
+      path
+        .replace("happy/40 pupils eyes.open default", "happy/40 pupils eyes.open")
+        .replace("happy/40 lids eyes.closed", "happy/40 lids eyes.closed default"),
+    );
+    expect(summary(sleepy, { face: "happy" }).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "closed"]);
+    expect(summary(sleepy).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
+    expect(variantOf(one(sleepy), { face: "happy", eyes: "open" })).toEqual({ image: "mia", attributes: ["happy", "open"] });
+    expect(variantOf(one(sleepy), { face: "happy", eyes: "closed" })).toEqual({ image: "mia", attributes: ["happy"] });
+  });
+});

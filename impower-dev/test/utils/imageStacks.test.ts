@@ -211,3 +211,42 @@ describe("a folder stack", () => {
     expect(testerGroups(kai!, {}).map((group) => group.options)).toEqual([[AS_IS, "angry", "sad"]]);
   });
 });
+
+describe("a portrait folder with layer folders", () => {
+  const MIA = "Assets/Images/Portraits/mia";
+  const NESTED = [
+    `${MIA}/90 body.png`,
+    `${MIA}/60 face.happy/40 pupils eyes.open default.png`,
+    `${MIA}/60 face.happy/40 lids eyes.closed.png`,
+    `${MIA}/60 face.happy/30 mouth.png`,
+    `${MIA}/60 face.neutral default/40 pupils eyes.open look.camera default.png`,
+    `${MIA}/60 face.neutral default/40 pupils eyes.open look.left.png`,
+    `${MIA}/60 face.neutral default/40 lids eyes.closed.png`,
+    `${MIA}/60 face.neutral default/30 mouth.png`,
+    `${MIA}/20 hair-top hat.off.png`,
+    `${MIA}/10 hat.on.png`,
+  ];
+
+  it("makes one stack named after the portrait folder that holds the nested files, and none for a layer folder", () => {
+    const stacks = imageStacks(NESTED);
+    expect(stacks.map((stack) => [stack.kind, stack.name, stack.folder])).toEqual([["folder", "mia", MIA]]);
+    expect([...stacks[0]!.paths].sort()).toEqual([...NESTED].sort());
+  });
+
+  it("orders the members bottom first, each layer folder stacking as a unit by its own number", () => {
+    const [mia] = imageStacks(NESTED);
+    expect(mia!.members.map((member) => member.path.slice(MIA.length + 1))).toEqual([
+      "90 body.png",
+      "60 face.happy/40 lids eyes.closed.png",
+      "60 face.happy/40 pupils eyes.open default.png",
+      "60 face.happy/30 mouth.png",
+      "60 face.neutral default/40 lids eyes.closed.png",
+      "60 face.neutral default/40 pupils eyes.open look.camera default.png",
+      "60 face.neutral default/40 pupils eyes.open look.left.png",
+      "60 face.neutral default/30 mouth.png",
+      "20 hair-top hat.off.png",
+      "10 hat.on.png",
+    ]);
+    expect(mia!.cover).toBe(`${MIA}/90 body.png`);
+  });
+});

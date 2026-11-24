@@ -15,7 +15,7 @@ import { reasonOf, type FileMove } from "../utils/fileMoves";
 import { recordMove, recordMoves, recordReplace, renameFile, renameFiles, REPLACED_MESSAGE } from "../utils/fileUndo";
 import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { imageFileNameOf, imageThingsOf, stackNameOf } from "@impower/sparkdown/src/attributes/imageFileName";
-import { imageStacks, isStacked, type ImageStack } from "../utils/imageStacks";
+import { imageStacks, isStacked, stackFolderOf, type ImageStack } from "../utils/imageStacks";
 import { variantOf, type ImageVariant } from "../utils/imageVariants";
 import { importFiles } from "../utils/importDroppedFiles";
 import { renameFailureMessage, renameOrReport } from "../utils/renameOrReport";
@@ -353,7 +353,7 @@ export default class WorkspaceAssets {
   }
 
   async addBeside(files: readonly DroppedFile[], path: string): Promise<string[]> {
-    return this.importAt(files, (file) => joinPath(parentOf(path), validName(file.name)));
+    return this.importAt(files, (file) => joinPath(stackFolderOf(path), validName(file.name)));
   }
 
   protected async importAt(

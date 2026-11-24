@@ -3,7 +3,9 @@ import {
   type ImagePicture,
   type ImageThing,
 } from "@impower/sparkdown/src/attributes/imageFileName";
-import { byRasterOrder, rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
+import { rasterLayerOfPath, type RasterLayerPath } from "@impower/sparkdown/src/attributes/rasterSource";
+import type { AttributeLayerInput, AttributeVocabulary } from "@impower/sparkdown/src/attributes/types";
+import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { ATTRIBUTE_ROOT, buildAttributeVocabulary } from "@impower/sparkdown/src/attributes/vocabulary";
 
 export interface StackGroup {
@@ -20,6 +22,7 @@ export interface StackPicture {
   layers: string[];
   groups: StackGroup[];
   variants: number;
+  vocabulary?: AttributeVocabulary;
 }
 
 export interface StackMember {
@@ -48,6 +51,13 @@ const folderOf = (path: string) => {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
+export const stackFolderOf = (path: string): string => rasterLayerOfPath(path)?.directory ?? folderOf(path);
+
+export const portraitOfFolder = (folder: string): string | undefined => {
+  const directory = rasterLayerOfPath(`${folder}/0 layer.png`)?.directory;
+  return directory !== undefined && directory !== folder ? directory : undefined;
+};
+
 export const AS_IS = "";
 
 export const choicesOf = (group: StackGroup): string[] =>
@@ -58,13 +68,25 @@ const variantsOf = (groups: readonly StackGroup[]): number =>
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-const groupsOf = (names: readonly string[]): StackGroup[] => {
-  const vocabulary = buildAttributeVocabulary(
-    names.map((name, index) => ({ key: String(index), name })),
-  );
-  const defaults = vocabulary.folders[ATTRIBUTE_ROOT]!.defaults;
+export const restingOptions = (
+  vocabulary: AttributeVocabulary,
+  selection: Readonly<Record<string, string>> = {},
+): Record<string, string> => {
+  const { visible } = evaluateAttributeVisibility(vocabulary, { ...selection });
+  const resting: Record<string, string> = Object.create(null);
+  for (const [key, scope] of Object.entries(vocabulary.folders)) {
+    if (key !== ATTRIBUTE_ROOT && !visible[key]) continue;
+    for (const [group, options] of Object.entries(scope.defaults)) {
+      if (!Object.hasOwn(resting, group) && options[0] !== undefined) resting[group] = options[0];
+    }
+  }
+  return resting;
+};
+
+const groupsOf = (vocabulary: AttributeVocabulary): StackGroup[] => {
+  const defaults = restingOptions(vocabulary);
   return Object.entries(vocabulary.groups).map(([name, group]) => {
-    const resting = defaults[name]?.[0];
+    const resting = defaults[name];
     return {
       name,
       options: group.switch
@@ -83,9 +105,10 @@ const pictureOf = (
   name: string,
   own: string | undefined,
   layers: string[],
-  names: readonly string[],
+  inputs: readonly AttributeLayerInput[],
 ): StackPicture => {
-  const groups = groupsOf(names);
+  const vocabulary = buildAttributeVocabulary(inputs);
+  const groups = groupsOf(vocabulary);
   return {
     alternate,
     name,
@@ -93,8 +116,12 @@ const pictureOf = (
     layers,
     groups,
     variants: variantsOf(groups),
+    ...(inputs.some((input) => input.parent !== undefined) ? { vocabulary } : {}),
   };
 };
+
+const flatInputs = (names: readonly string[]): AttributeLayerInput[] =>
+  names.map((name, index) => ({ key: String(index), name }));
 
 const membersOf = ({ alternate, path, duplicates, layers }: ImagePicture): StackMember[] => [
   ...(path === undefined ? [] : [{ path, alternate }]),
@@ -115,7 +142,7 @@ const stackOf = (folder: string, thing: ImageThing): ImageStack => {
       picture.name,
       picture.path,
       picture.layers.map((layer) => layer.path),
-      [...picture.layers].sort((a, b) => compare(a.path, b.path)).map((layer) => layer.layer),
+      flatInputs([...picture.layers].sort((a, b) => compare(a.path, b.path)).map((layer) => layer.layer)),
     ),
   );
   const paths = members.map((member) => member.path);
@@ -132,20 +159,69 @@ const stackOf = (folder: string, thing: ImageThing): ImageStack => {
   };
 };
 
+interface FolderLayer {
+  path: string;
+  layer: RasterLayerPath;
+}
+
+const stackingItemOf = ({ path, layer }: FolderLayer, depth: number) => {
+  const folder = layer.folders[depth];
+  return folder
+    ? { segment: folder.segment, order: folder.order, path: path.split("/").slice(0, depth - layer.folders.length).join("/") }
+    : { segment: undefined, order: layer.order, path };
+};
+
+const byStacking = (a: FolderLayer, b: FolderLayer): number => {
+  for (let depth = 0; ; depth++) {
+    const x = stackingItemOf(a, depth);
+    const y = stackingItemOf(b, depth);
+    if (x.segment === undefined || x.segment !== y.segment) {
+      return y.order - x.order || x.path.localeCompare(y.path);
+    }
+  }
+};
+
+const folderKeyOf = (layer: RasterLayerPath, depth: number): string =>
+  `/${layer.folders.slice(0, depth).map((folder) => folder.segment).join("/")}`;
+
+const folderInputs = (layers: readonly FolderLayer[]): AttributeLayerInput[] => {
+  const inputs: AttributeLayerInput[] = [];
+  const seen = new Set<string>();
+  layers.forEach(({ layer }, index) => {
+    for (let depth = 1; depth <= layer.folders.length; depth++) {
+      const key = folderKeyOf(layer, depth);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      inputs.push({
+        key,
+        name: layer.folders[depth - 1]!.name,
+        ...(depth > 1 ? { parent: folderKeyOf(layer, depth - 1) } : {}),
+      });
+    }
+    inputs.push({
+      key: String(index),
+      name: layer.name,
+      ...(layer.folders.length ? { parent: folderKeyOf(layer, layer.folders.length) } : {}),
+    });
+  });
+  return inputs;
+};
+
 const folderStackOf = (directory: string, paths: string[]): ImageStack => {
-  const members = paths
-    .map((path) => {
-      const layer = rasterLayerOfPath(path)!;
-      return { path, alternate: null, layer: layer.name, order: layer.order };
-    })
-    .sort((a, b) => byRasterOrder(a, b));
+  const layers = paths.map((path) => ({ path, layer: rasterLayerOfPath(path)! })).sort(byStacking);
+  const members = layers.map(({ path, layer }) => ({
+    path,
+    alternate: null,
+    layer: layer.name,
+    order: layer.order,
+  }));
   const name = leafOf(directory);
   const picture = pictureOf(
     null,
     name,
     undefined,
     members.map((member) => member.path),
-    members.map((member) => member.layer),
+    folderInputs(layers),
   );
   return {
     kind: "folder",
@@ -169,8 +245,8 @@ export const imageStacks = (paths: readonly string[]): ImageStack[] => {
   const sorted = [...paths].sort(compare);
   const folders = new Map<string, { layers: string[]; files: string[] }>();
   for (const path of sorted) {
-    const folder = folders.get(folderOf(path)) ?? { layers: [], files: [] };
-    folders.set(folderOf(path), folder);
+    const folder = folders.get(stackFolderOf(path)) ?? { layers: [], files: [] };
+    folders.set(stackFolderOf(path), folder);
     (rasterLayerOfPath(path) ? folder.layers : folder.files).push(path);
   }
   const stackFor = new Map<string, ImageStack>();
