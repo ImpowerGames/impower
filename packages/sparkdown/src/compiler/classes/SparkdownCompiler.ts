@@ -196,6 +196,8 @@ import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
+import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
+import { SHOWING_STATE } from "../constants/selectorStates";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -641,8 +643,6 @@ const nextCompilerOrdinal = (): number => {
   registry[CONTEXT_REVISION_ORDINAL] = next;
   return next;
 };
-
-const WRITE_CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "image", "stroke", "mask"]);
 
 export class SparkdownCompiler {
   protected _profilerId?: string;
@@ -1720,6 +1720,7 @@ export class SparkdownCompiler {
       this.validateImageAttributes(program);
       this.validateMorphs(program);
       this.validateWriteTargets(program);
+      this.validateShowingNames(program);
       this.validateLints(program);
       this.validateTypes(program);
       this.validateStores(program);
@@ -5214,45 +5215,7 @@ export class SparkdownCompiler {
   validateWriteTargets(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateWriteTargets", uri);
-    const named = new Set<string>();
-    const classed = new Map<string, string>();
-    const visit = (value: unknown): void => {
-      if (Array.isArray(value)) {
-        value.forEach(visit);
-        return;
-      }
-      if (!value || typeof value !== "object") return;
-      const node = value as Record<string, unknown>;
-      if (node["kind"] === "element") {
-        for (const key of ["tag", "name"]) {
-          const name = node[key];
-          if (typeof name === "string" && !WRITE_CONTENT_TAGS.has(name)) named.add(name);
-        }
-        const classes = node["classes"];
-        if (Array.isArray(classes)) {
-          for (const c of classes) {
-            if (typeof c === "string" && !classed.has(c)) classed.set(c, `${node["tag"]}.${classes.join(".")}`);
-          }
-        }
-      }
-      for (const v of Object.values(node)) {
-        if (v !== null && typeof v === "object") visit(v);
-      }
-    };
-    for (const kind of ["layouts", "screens", "components"] as const) {
-      visit(Object.values(program.sparkle?.[kind] ?? {}));
-    }
-    for (const struct of Object.values(program.context?.["layout"] ?? {})) {
-      const walk = (value: unknown) => {
-        if (!value || typeof value !== "object") return;
-        for (const [key, v] of Object.entries(value)) {
-          const [name] = key.split(" ");
-          if (name && !WRITE_CONTENT_TAGS.has(name)) named.add(name);
-          walk(v);
-        }
-      };
-      walk(struct);
-    }
+    const { named, classed } = layoutElementNames(program);
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = doc ? this.documents.tree(scriptUri) : undefined;
@@ -5289,6 +5252,40 @@ export class SparkdownCompiler {
       });
     }
     profile("end", this._profilerId, "validateWriteTargets", uri);
+  }
+
+  validateShowingNames(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateShowingNames", uri);
+    const known = showingNames(program);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "SelectorStateName" || doc.read(node.from, node.to) !== SHOWING_STATE) {
+            return undefined;
+          }
+          const parameters = /^\(([^()\r\n]*)\)/.exec(doc.read(node.to, node.to + 128));
+          const name = parameters?.[1]?.trim();
+          if (!parameters || !name || known.has(name)) return false;
+          const start = node.to + 1 + parameters[1]!.indexOf(name);
+          ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+            range: doc.range(start, start + name.length),
+            code: "showing-name",
+            severity: DiagnosticSeverity.Warning,
+            message: {
+              kind: "markdown",
+              value: `No layout or element is named \`${name}\`.`,
+            },
+            source: LANGUAGE_NAME,
+          });
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateShowingNames", uri);
   }
 
   validateLints(program: SparkProgram) {

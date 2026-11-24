@@ -8,12 +8,13 @@ import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils
 import {
   anchorSelfTargeted,
   COLOR_SCHEME_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
   writeSparkleSelector,
 } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
-export { anchorSelfTargeted, COLOR_SCHEME_ATTRIBUTE };
+export { anchorSelfTargeted, COLOR_SCHEME_ATTRIBUTE, SHOWING_ATTRIBUTE };
 
 const attributeName = (name: string): string =>
   ARIA_ATTRIBUTE_ALIASES.get(name) ?? (DATA_ATTRIBUTE_PROPS.has(name) ? `data-${name}` : name);

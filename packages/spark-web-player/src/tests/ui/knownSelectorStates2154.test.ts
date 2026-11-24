@@ -45,6 +45,7 @@ const PLAIN_STANDARD_STATES = [
 
 const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["theme", "@theme(dark)", ':where([data-color-scheme="dark"]) &'],
+  ["showing", "@showing(action)", ':where([data-showing~="action"]) &'],
   ["hovered", "@hovered", ":hover"],
   ["focused", "@focused", ":focus"],
   ["pressed", "@pressed", ":active"],

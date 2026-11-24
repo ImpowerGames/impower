@@ -68,6 +68,26 @@ const getLayoutControlHover = (
   };
 };
 
+const SHOWING_HOVER =
+  "`@showing(name)` applies while a layout or an element named `name` is on screen: a layout while it is open, an element while it has content. It holds across the whole game, so any element's style can use it.";
+
+const getShowingHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  const state = stack.find((node) => node.name === "SelectorStateName");
+  if (!state || document.read(state.from, state.to) !== "showing") {
+    return null;
+  }
+  return {
+    contents: { kind: MarkupKind.Markdown, value: SHOWING_HOVER },
+    range: document.range(state.from - 1, state.to),
+  };
+};
+
 const getGlueHover = (
   document: SparkdownDocument,
   tree: Tree,
@@ -259,6 +279,10 @@ export const getHover = async (
     const glueHover = getGlueHover(document, tree, position);
     if (glueHover) {
       return glueHover;
+    }
+    const showingHover = getShowingHover(document, tree, position);
+    if (showingHover) {
+      return showingHover;
     }
     const alternatorHover = getAlternatorKeywordHover(document, tree, position);
     if (alternatorHover) {

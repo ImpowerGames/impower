@@ -28,6 +28,8 @@ import {
   PlayCutsceneMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import { ShowingMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
+import { SHOWING_ATTRIBUTE } from "../../../../spark-dom/src/utils/getStyleContent";
 import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
@@ -1442,6 +1444,18 @@ export default class UIManager extends Manager {
     }
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
+    }
+    if (ShowingMessage.type.isNotification(msg)) {
+      const overlay = this.app.overlay;
+      if (overlay) {
+        const names = msg.params.names.join(" ");
+        if (names) {
+          overlay.setAttribute(SHOWING_ATTRIBUTE, names);
+        } else {
+          overlay.removeAttribute(SHOWING_ATTRIBUTE);
+        }
+      }
+      return;
     }
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass(msg.params?.content === true);

@@ -92,8 +92,23 @@ style button {
 - `@screen-size(xs|sm|md|lg|xl) { … }` is a responsive breakpoint.
 - `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
   `@disabled { … }` target interaction states.
+- `@showing(name) { … }` applies while a layout or an element named `name` is on screen (see [What is on screen](#what-is-on-screen)).
 - A rule's properties are separated by a new line or a `;`, as the entries of
   any block are (see [Blocks](./Structure.md#blocks)).
+
+#### What is on screen
+
+`@showing(name)` applies while a layout or an element named `name` is on screen. A layout is on screen while it is open, and while it plays the animation it leaves with. An element is on screen while it has content: the text of the line it shows, or a picture. A style that hides an element does not change what is on screen.
+
+The condition holds across the whole game, so a style can react to what another layout shows. This frame changes colour while an action line is on screen, wherever the frame is:
+
+```sparkdown
+style frame {
+  @showing(action) { background-color = neutral_95 }
+}
+```
+
+A name that is no layout and no element gets a warning, because the block would never apply.
 
 > **Inline vs block:** inline props take a `#` and can be dynamic (`#child-gap={n}`);
 > `style`-block properties use `key = value` and are evaluated once. For a value

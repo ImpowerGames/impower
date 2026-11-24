@@ -159,6 +159,10 @@ import {
   type ColorSchemeSetting,
 } from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
+  ShowingMessage,
+  type ShowingMessageMap,
+} from "./messages/ShowingMessage";
+import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
 } from "./messages/SkipCutsceneMessage";
@@ -236,6 +240,7 @@ interface PictureView {
 }
 
 interface Retirement {
+  name: string;
   element: Element;
   epoch: number;
   pin?: string;
@@ -454,6 +459,8 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 const CUTSCENE_MUSIC_FADE = 0.5;
 
+const SHOWING_CONDITION = /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*)\s*\)/gu;
+
 export const UNKNOWN_COLOR_SCHEME_MESSAGE =
   "ui.color_scheme must be system, light or dark. Using system.";
 
@@ -467,6 +474,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
   SetThemeMessageMap &
+  ShowingMessageMap &
   SkipCutsceneMessageMap &
   SpeechMessageMap &
   SweepReconcileMessageMap &
@@ -499,6 +507,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  protected _showingStyles?: unknown;
+
+  protected _showingWatched: ReadonlySet<string> = new Set();
+
+  protected _showingSent?: string;
 
   protected _reactive = false;
 
@@ -917,6 +931,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphWritten.clear();
     this._morphBaking = new Set();
     this.discardCompose();
+    this._showingSent = undefined;
     this._standing = undefined;
     this._restoredEdits = undefined;
     this._tree = undefined;
@@ -1060,12 +1075,93 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
     this.markDisplayTargets();
+    this.noteShowing();
     if (this._uiBatch.length === 0) {
       return;
     }
     const messages = this._uiBatch;
     this._uiBatch = [];
     this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
+  protected showingWatched(): ReadonlySet<string> {
+    const styles = this.context?.style;
+    if (styles !== this._showingStyles) {
+      this._showingStyles = styles;
+      const watched = new Set<string>();
+      if (styles) {
+        for (const match of JSON.stringify(styles).matchAll(SHOWING_CONDITION)) {
+          watched.add(match[1]!);
+        }
+      }
+      this._showingWatched = watched;
+    }
+    return this._showingWatched;
+  }
+
+  protected pictureShown(events: ImageState[] | undefined): boolean {
+    const picture = events?.findLast((e) => e.assets?.length);
+    const layer = events?.findLast(
+      (e) => !e.assets?.length && e.control !== "animate",
+    );
+    return picture?.control === "show" && layer?.control !== "hide";
+  }
+
+  showingNames(): string[] {
+    const watched = this.showingWatched();
+    const names = new Set<string>();
+    const addTarget = (target: string) => {
+      const name = target.split("#")[0] ?? "";
+      if (
+        watched.has(name) &&
+        !names.has(name) &&
+        this.findElements(target, true).length > 0
+      ) {
+        names.add(name);
+      }
+    };
+    for (const name of this._mountedLayouts.keys()) {
+      if (watched.has(name)) {
+        names.add(name);
+      }
+    }
+    for (const { name } of this._retiring) {
+      if (watched.has(name)) {
+        names.add(name);
+      }
+    }
+    for (const [target, state] of Object.entries(this._state.text ?? {})) {
+      if (state?.length) {
+        addTarget(target);
+      }
+    }
+    for (const [target, events] of Object.entries(this._state.image ?? {})) {
+      if (this.pictureShown(events)) {
+        addTarget(target);
+      }
+    }
+    return [...names].sort();
+  }
+
+  protected noteShowing(retired = false): void {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return;
+    }
+    if (this.showingWatched().size === 0 && !this._showingSent) {
+      return;
+    }
+    const names = this.showingNames();
+    const sent = names.join(" ");
+    if (sent === this._showingSent) {
+      return;
+    }
+    this._showingSent = sent;
+    this._uiBatch.push(
+      ShowingMessage.type.notification({
+        names,
+        ...(retired ? { retired } : {}),
+      }),
+    );
   }
 
   protected displayTargetElements(root: Element, target: string): Element[] {
@@ -4155,6 +4251,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
+        name,
         element: entry.element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),
@@ -4176,12 +4273,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected retire(r: Retirement): void {
-    if (!this._retiring.delete(r)) {
+    if (!this._retiring.has(r)) {
       return;
     }
-    if (!this.superseded(r.epoch)) {
+    if (this.superseded(r.epoch)) {
+      this._retiring.delete(r);
+    } else {
       this.flushUIBatch();
+      this._retiring.delete(r);
       this.destroyElement(r.element, true);
+      this.noteShowing(true);
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {

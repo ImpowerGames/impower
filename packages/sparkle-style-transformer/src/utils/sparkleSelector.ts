@@ -1,6 +1,12 @@
 export const COLOR_SCHEME_ATTRIBUTE = "data-color-scheme";
 
+export const SHOWING_ATTRIBUTE = "data-showing";
+
 const COLOR_SCHEME_STATE = "theme";
+
+export const SHOWING_STATE = "showing";
+
+export const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*$/u;
 
 const table = (entries: Record<string, string>): ReadonlyMap<string, string> => new Map(Object.entries(entries));
 
@@ -130,6 +136,7 @@ const STANDARD_PSEUDO_CLASSES: ReadonlySet<string> = new Set([
 
 export const WRITTEN_SELECTOR_STATES: ReadonlySet<string> = new Set([
   COLOR_SCHEME_STATE,
+  SHOWING_STATE,
   ...SELECTOR_STATE_ALIASES.keys(),
   ...ARGUMENT_STATE_ALIASES.keys(),
   ...AT_RULE_STATES.keys(),
@@ -156,7 +163,12 @@ const OPTIONAL_ARGUMENT_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["host"]);
 export type SelectorStateArguments = "required" | "optional" | "none";
 
 export const selectorStateArguments = (name: string): SelectorStateArguments | undefined => {
-  if (name === COLOR_SCHEME_STATE || SIZE_STATES.has(name) || ARGUMENT_STATE_ALIASES.has(name)) {
+  if (
+    name === COLOR_SCHEME_STATE ||
+    name === SHOWING_STATE ||
+    SIZE_STATES.has(name) ||
+    ARGUMENT_STATE_ALIASES.has(name)
+  ) {
     return "required";
   }
   if (AT_RULE_STATES.has(name) || OPTIONAL_ARGUMENT_PSEUDO_CLASSES.has(name)) {
@@ -400,6 +412,10 @@ class SparkleSelectorWriter {
         ? { text: `@media(prefers-color-scheme:${text}${close}`, atRule: "@media" }
         : { text: `@${COLOR_SCHEME_STATE}(${text}${close}` };
     }
+    if (name === SHOWING_STATE && called) {
+      const { text, close } = this.argument(() => this.value());
+      return { text: `@${SHOWING_STATE}(${text}${close}` };
+    }
     const size = SIZE_STATES.get(name);
     if (size && called) {
       const { text, close } = this.argument(() => this.value());
@@ -498,7 +514,7 @@ class SparkleSelectorWriter {
 
 const QUOTED_PART = /("(?:\\[^]|[^"\\])*"|'(?:\\[^]|[^'\\])*')/;
 
-const COLOR_SCHEME_VARIANT = /@theme[(](light|dark)[)]/g;
+const ROOT_CONDITION = /@(theme|showing)[(]([^()]*)[)]/g;
 
 const unquoted = (selector: string) =>
   selector
@@ -533,38 +549,51 @@ const splitTopLevelCommas = (selector: string): string[] => {
   return parts;
 };
 
-const liftColorScheme = (selector: string): string => {
-  if (!unquoted(selector).includes(`@${COLOR_SCHEME_STATE}(`)) {
+const rootCondition = (state: string, value: string, scheme: boolean): string | undefined => {
+  const argument = value.trim();
+  if (state === COLOR_SCHEME_STATE) {
+    return scheme && (argument === "light" || argument === "dark")
+      ? `[${COLOR_SCHEME_ATTRIBUTE}="${argument}"]`
+      : undefined;
+  }
+  return SHOWING_NAME.test(argument) ? `[${SHOWING_ATTRIBUTE}~="${argument}"]` : undefined;
+};
+
+const liftRootConditions = (selector: string, scheme: boolean): string => {
+  const text = unquoted(selector);
+  if (!text.includes(`@${COLOR_SCHEME_STATE}(`) && !text.includes(`@${SHOWING_STATE}(`)) {
     return selector;
   }
   return splitTopLevelCommas(selector)
     .map((part) => {
-      let scheme: string | undefined;
+      let root = "";
       const rest = part
         .split(QUOTED_PART)
         .map((piece, i) =>
           i & 1
             ? piece
-            : piece.replace(COLOR_SCHEME_VARIANT, (_m, s: string) => {
-                scheme = s;
+            : piece.replace(ROOT_CONDITION, (written, state: string, value: string) => {
+                const condition = rootCondition(state, value, scheme);
+                if (!condition) {
+                  return written;
+                }
+                root += condition;
                 return "";
               }),
         )
         .join("")
         .trim();
-      if (!scheme) {
+      if (!root) {
         return part.trim();
       }
       const target = !rest ? "&" : hasNestingSelector(rest) ? rest : /^[:[]/.test(rest) ? `&${rest}` : `& ${rest}`;
-      return `:where([${COLOR_SCHEME_ATTRIBUTE}="${scheme}"]) ${target}`;
+      return `:where(${root}) ${target}`;
     })
     .join(", ");
 };
 
-export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string => {
-  const css = new SparkleSelectorWriter(selector, options).write();
-  return options.colorScheme === "attribute" ? liftColorScheme(css) : css;
-};
+export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string =>
+  liftRootConditions(new SparkleSelectorWriter(selector, options).write(), options.colorScheme === "attribute");
 
 export const anchorSelfTargeted = (selector: string): string =>
   splitTopLevelCommas(selector)
