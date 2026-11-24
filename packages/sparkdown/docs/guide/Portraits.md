@@ -338,10 +338,13 @@ assets/mia/
   60 face.happy/
     40 pupils eyes.open default.png
     40 lids eyes.closed.png
+    30 mouth.png
   60 face.neutral default/
     40 pupils eyes.open look.camera default.png
     40 pupils eyes.open look.left.png
     40 lids eyes.closed.png
+    30 mouth.png
+  20 hair-top hat.off.png
   10 hat.on.png
 ```
 
@@ -354,10 +357,10 @@ scene start
 end
 ```
 
-- `[[mia]]` shows the body, the neutral face and its pupils looking at the camera.
-- `[[mia:happy]]` shows the body and the happy face's open pupils, and none of the neutral face's files.
-- `[[mia:happy:eyes.closed]]` shows the body and the happy face's lids.
-- `[[mia:look.left]]` shows the body and the neutral face's pupils looking left.
+- `[[mia]]` shows the body, the neutral face with its pupils looking at the camera and its mouth, and the hair-top, since the hat is off.
+- `[[mia:happy]]` shows the body, the happy face's open pupils and its mouth, and the hair-top, and none of the neutral face's files.
+- `[[mia:happy:eyes.closed]]` shows the body, the happy face's lids and its mouth, and the hair-top.
+- `[[mia:look.left]]` shows the body, the neutral face's pupils looking left and its mouth, and the hair-top.
 
 The rules:
 
