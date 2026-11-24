@@ -893,7 +893,7 @@ export class MorphLayer {
     const values = computed ? STYLE_KEYS.map((name) => computed.getPropertyValue(name)).join("|") : "";
     const parent = this.span.parentElement;
     const parentDisplay = parent && view ? view.getComputedStyle(parent).getPropertyValue("display") : "";
-    return `${values}#${parentDisplay}#${animatesStacking(this.span)}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
+    return `${values}#${parentDisplay}#${animatesStacking(this.span, zIndexApplies(computed, parentDisplay))}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
   }
 
   restyled(): boolean {
@@ -1809,8 +1809,9 @@ export class MorphLayer {
       .split(",")
       .some((mode) => mode.trim() !== "" && mode.trim() !== "normal");
     const parent = this.span.parentElement;
+    const parentComputed = parent ? this.span.ownerDocument.defaultView?.getComputedStyle(parent) : undefined;
     const beneath =
-      stackingContext(computed, parent ? this.span.ownerDocument.defaultView?.getComputedStyle(parent) : undefined) || animatesStacking(this.span);
+      stackingContext(computed, parentComputed) || animatesStacking(this.span, zIndexApplies(computed, parentComputed?.getPropertyValue("display") ?? ""));
     const hostStyle = `${HOST_STYLE}${beneath ? ";z-index:-2147483648" : ""}${blending ? ";isolation:isolate" : ""}`;
     if (host.getAttribute("style") !== hostStyle) host.setAttribute("style", hostStyle);
     if (!blending) {
@@ -1965,15 +1966,19 @@ function stackingContext(computed: CSSStyleDeclaration | undefined, parent: CSSS
   if (/layout|paint|strict|content/.test(value("contain"))) return true;
   const visibility = value("content-visibility");
   if (visibility === "auto" || visibility === "hidden") return true;
-  const flexItem = /flex|grid/.test(parentDisplay);
-  const positioned = position !== "" && position !== "static";
+  const applies = zIndexApplies(computed, parentDisplay);
   return value("will-change")
     .split(",")
     .map((name) => name.trim().toLowerCase())
-    .some((name) => STACKING_CHANGES.has(name) && (name !== "z-index" || positioned || flexItem));
+    .some((name) => STACKING_CHANGES.has(name) && (name !== "z-index" || applies));
 }
 
-function animatesStacking(span: HTMLElement): boolean {
+function zIndexApplies(computed: CSSStyleDeclaration | undefined, parentDisplay: string): boolean {
+  const position = computed?.getPropertyValue("position").trim() ?? "";
+  return (position !== "" && position !== "static") || /flex|grid/.test(parentDisplay);
+}
+
+function animatesStacking(span: HTMLElement, zIndex: boolean): boolean {
   if (typeof span.getAnimations !== "function") return false;
   return span.getAnimations().some((animation) => {
     const effect = animation.effect as KeyframeEffect | null;
@@ -1985,7 +1990,12 @@ function animatesStacking(span: HTMLElement): boolean {
     if (local === null || local === undefined || Number(local) < start || Number(local) >= end) return false;
     return effect
       .getKeyframes()
-      .some((frame) => Object.keys(frame).some((name) => STACKING_CHANGES.has(name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`))));
+      .some((frame) =>
+        Object.keys(frame).some((key) => {
+          const name = key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+          return STACKING_CHANGES.has(name) && (name !== "z-index" || zIndex);
+        }),
+      );
   });
 }
 

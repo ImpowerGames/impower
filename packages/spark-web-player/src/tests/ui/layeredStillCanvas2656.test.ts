@@ -507,6 +507,50 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(host.style.getPropertyValue("z-index")).toBe(beneath ? "-2147483648" : "");
   });
 
+  test.each([
+    { name: "an active fade", frames: [{ offset: 0, opacity: "0" }, { offset: 1, opacity: "1" }], beneath: true },
+    { name: "an active z-index animation on a static block", frames: [{ offset: 0, zIndex: "0" }, { offset: 1, zIndex: "2" }], beneath: false },
+    { name: "an active z-index animation on a flex item", frames: [{ offset: 0, zIndex: "0" }, { offset: 1, zIndex: "2" }], parent: "flex", beneath: true },
+    { name: "a fade that has ended", frames: [{ offset: 0, opacity: "0" }, { offset: 1, opacity: "1" }], ended: true, beneath: false },
+  ])("$name places the picture host as the engines stack the element", ({ frames, parent, ended, beneath }) => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    if (parent) {
+      const wrapper = span.ownerDocument.createElement("div");
+      wrapper.style.setProperty("display", parent);
+      span.parentElement!.appendChild(wrapper);
+      wrapper.appendChild(span);
+    }
+    const effect = {
+      target: span,
+      getComputedTiming: () => ({ localTime: ended ? 100 : 50, delay: 0, activeDuration: 100 }),
+      getKeyframes: () => frames,
+    };
+    (span as unknown as { getAnimations: () => unknown[] }).getAnimations = () => [{ effect }];
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(host.style.getPropertyValue("z-index")).toBe(beneath ? "-2147483648" : "");
+  });
+
+  test("a shown picture moves its host when an animation of a stacking property starts and ends", () => {
+    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    let local: number | null = null;
+    const effect = {
+      target: span,
+      getComputedTiming: () => ({ localTime: local, delay: 0, activeDuration: 100 }),
+      getKeyframes: () => [{ offset: 0, transform: "none" }, { offset: 1, transform: "translateX(10px)" }],
+    };
+    (span as unknown as { getAnimations: () => unknown[] }).getAnimations = () => [{ effect }];
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(host.style.getPropertyValue("z-index")).toBe("");
+    local = 10;
+    flushFrame();
+    expect(host.style.getPropertyValue("z-index")).toBe("-2147483648");
+    local = 100;
+    flushFrame();
+    expect(host.style.getPropertyValue("z-index")).toBe("");
+  });
+
   test("a shown picture moves its host when only its content visibility changes", () => {
     const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
