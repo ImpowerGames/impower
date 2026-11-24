@@ -127,6 +127,24 @@ const STYLE_KEYS = [
   "background-clip",
   "background-blend-mode",
   "background-color",
+  "position",
+  "z-index",
+  "opacity",
+  "transform",
+  "translate",
+  "rotate",
+  "scale",
+  "perspective",
+  "filter",
+  "backdrop-filter",
+  "clip-path",
+  "mask-image",
+  "isolation",
+  "mix-blend-mode",
+  "contain",
+  "container-type",
+  "will-change",
+  "view-transition-name",
   "background-attachment",
   "image-rendering",
 ];
@@ -428,7 +446,14 @@ export class MorphPlayback {
     if (this.watching !== undefined || ![...this.layers].some((layer) => layer.watched)) return;
     this.watching = this.requestFrame(() => {
       this.watching = undefined;
-      for (const layer of [...this.layers]) if (layer.watched && layer.restyled()) layer.layout();
+      for (const layer of [...this.layers]) {
+        if (!layer.watched) continue;
+        if (!layer.span.isConnected) {
+          layer.dispose();
+          continue;
+        }
+        if (layer.restyled()) layer.layout();
+      }
       this.watchShown();
     });
   }
@@ -878,7 +903,7 @@ export class MorphLayer {
   }
 
   get watched(): boolean {
-    return this.drawable || (!this.disposed && this.stills.some((still) => still.canvases));
+    return this.drawable || (!this.disposed && this.stills.some((still) => still.canvases || (still.files && !still.broken)));
   }
 
   get drawable(): boolean {
@@ -976,8 +1001,6 @@ export class MorphLayer {
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
-    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    if (!this.stillPlans(still, computed)) still.broken = true;
   }
 
   protected occurrenceKey(play: MorphPlay, at: number | string): string {
@@ -1114,7 +1137,13 @@ export class MorphLayer {
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    const stills = this.stills.filter((still) => still.files && !still.broken);
+    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const stills = this.stills.filter((still) => still.files && !still.broken && !!this.stillPlans(still, computed));
+    for (const still of this.stills) {
+      if (stills.includes(still)) continue;
+      still.canvases = undefined;
+      still.segments = undefined;
+    }
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     const alone = (i: number, picture: ImageState | undefined) => {
       const inner = picture?.inner.find((entry) => picture.picture!.files[entry.file]?.layer === i);
@@ -1126,6 +1155,8 @@ export class MorphLayer {
       !fallen.some((image) => image.inner.some((inner) => this.liveArtifact(inner.slot) && image.picture!.files[inner.file]?.layer !== undefined))
     ) {
       this.unbuild();
+      this.styled = this.styleKey();
+      this.playback.watchShown();
       return;
     }
     const doc = this.span.ownerDocument;
@@ -1134,13 +1165,12 @@ export class MorphLayer {
       host.className = "morph";
       host.setAttribute("style", HOST_STYLE);
       host.attachShadow({ mode: "open" });
-      this.span.appendChild(host);
+      this.span.insertBefore(host, this.span.firstChild);
       this.shadowHost = host;
     }
     const root = this.shadowHost.shadowRoot!;
     root.replaceChildren();
     this.statics = [];
-    const computed = doc.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
     const still = (i: number) => {
       const div = doc.createElement("div");
@@ -1710,8 +1740,13 @@ export class MorphLayer {
   }
 
   layout() {
-    if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    if (!this.shadowHost) {
+      if (this.disposed) return;
+      this.styled = this.styleKey();
+      if (this.stills.some((still) => still.files && !still.broken && this.stillPlans(still, computed))) this.build();
+      return;
+    }
     const count = this.layers.length;
     for (const { inner, layer } of this.alone) {
       if (inner.broken) continue;
@@ -1732,6 +1767,13 @@ export class MorphLayer {
         return;
       }
     }
+    for (const still of this.stills) {
+      if (!still.files || still.broken) continue;
+      if (!!this.stillPlans(still, computed) !== !!still.canvases) {
+        this.build();
+        return;
+      }
+    }
     const content = this.layerBoxes(computed).content;
     const padding = this.layerBoxes(computed).padding;
     const inner = this.cornerRadii(computed, this.layerBoxes(computed), padding);
@@ -1743,7 +1785,7 @@ export class MorphLayer {
       const style = `position:absolute;${frame};background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
-    this.isolateBackground(computed, frame);
+    this.styleHost(computed, frame);
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
     const rendering = computed?.getPropertyValue("image-rendering") ?? "";
@@ -1776,12 +1818,14 @@ export class MorphLayer {
     for (const { inner, layer } of this.alone) if (inner.view) place(inner.view, layer);
   }
 
-  protected isolateBackground(computed: CSSStyleDeclaration | undefined, frame: string) {
+  protected styleHost(computed: CSSStyleDeclaration | undefined, frame: string) {
     const host = this.shadowHost!;
     const blending = (computed?.getPropertyValue("background-blend-mode") ?? "")
       .split(",")
       .some((mode) => mode.trim() !== "" && mode.trim() !== "normal");
-    const hostStyle = blending ? `${HOST_STYLE};isolation:isolate` : HOST_STYLE;
+    const parent = this.span.parentElement;
+    const beneath = stackingContext(computed, parent ? this.span.ownerDocument.defaultView?.getComputedStyle(parent) : undefined);
+    const hostStyle = `${HOST_STYLE}${beneath ? ";z-index:-2147483648" : ""}${blending ? ";isolation:isolate" : ""}`;
     if (host.getAttribute("style") !== hostStyle) host.setAttribute("style", hostStyle);
     if (!blending) {
       this.backdrop?.remove();
@@ -1892,6 +1936,51 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+const STACKING_CHANGES = new Set([
+  "transform",
+  "translate",
+  "rotate",
+  "scale",
+  "perspective",
+  "opacity",
+  "filter",
+  "backdrop-filter",
+  "clip-path",
+  "mask",
+  "mask-image",
+  "isolation",
+  "mix-blend-mode",
+  "z-index",
+  "contain",
+  "view-transition-name",
+]);
+
+function stackingContext(computed: CSSStyleDeclaration | undefined, parent: CSSStyleDeclaration | undefined): boolean {
+  if (!computed) return false;
+  const value = (name: string) => computed.getPropertyValue(name).trim();
+  const none = (name: string) => {
+    const v = value(name);
+    return v === "" || v === "none";
+  };
+  const position = value("position");
+  const zIndex = value("z-index");
+  const placed = zIndex !== "" && zIndex !== "auto";
+  const parentDisplay = parent?.getPropertyValue("display") ?? "";
+  if (position === "fixed" || position === "sticky") return true;
+  if (placed && (position === "absolute" || position === "relative" || /flex|grid/.test(parentDisplay))) return true;
+  const opacity = Number.parseFloat(value("opacity"));
+  if (Number.isFinite(opacity) && opacity < 1) return true;
+  if (!["transform", "translate", "rotate", "scale", "perspective", "filter", "backdrop-filter", "clip-path", "mask-image", "view-transition-name"].every(none)) return true;
+  if (value("isolation") === "isolate") return true;
+  const blend = value("mix-blend-mode");
+  if (blend !== "" && blend !== "normal") return true;
+  if (/layout|paint|strict|content/.test(value("contain"))) return true;
+  if (/size/.test(value("container-type"))) return true;
+  return value("will-change")
+    .split(",")
+    .some((name) => STACKING_CHANGES.has(name.trim()) && (name.trim() !== "z-index" || position !== "static"));
 }
 
 function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {

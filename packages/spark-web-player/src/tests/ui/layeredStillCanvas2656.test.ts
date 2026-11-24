@@ -439,6 +439,49 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect([canvasOf(span)!.width, canvasOf(span)!.height]).toEqual([400, 200]);
   });
 
+  test("a picture element that forms a stacking context has its canvas painted beneath its own content and decorations, as CSS paints backgrounds", () => {
+    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    const decoration = span.ownerDocument.createElement("i");
+    span.appendChild(decoration);
+    span.style.setProperty("opacity", "0.9");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(span.firstElementChild).toBe(host);
+    expect(host.style.getPropertyValue("z-index")).toBe("-2147483648");
+    span.style.setProperty("opacity", "1");
+    flushFrame();
+    expect(host.style.getPropertyValue("z-index")).toBe("");
+    expect(span.firstElementChild).toBe(host);
+  });
+
+  test("a layer clipped to text keeps its CSS background while the clip lasts, and is drawn on its canvas again once the clip is a box", () => {
+    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-clip", "text");
+    expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("background-clip")).toBe("text");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvasOf(span)).toBeNull();
+    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(SRCS.slice(0, 2)));
+    span.style.setProperty("background-clip", "padding-box");
+    flushFrame();
+    expect(canvasOf(span)).not.toBeNull();
+    expect(span.style.getPropertyValue("background-image")).toBe("none, none");
+    span.style.setProperty("background-clip", "text");
+    flushFrame();
+    expect(canvasOf(span)).toBeNull();
+    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(SRCS.slice(0, 2)));
+  });
+
+  test("a picture whose element leaves the document stops being checked and is released", () => {
+    const { playback, span, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvasOf(span)).not.toBeNull();
+    expect(playback.stats.layers).toBe(1);
+    span.remove();
+    flushFrame();
+    expect(playback.stats.layers).toBe(0);
+    expect(frames).toHaveLength(0);
+  });
+
   test("a picture whose exit has started keeps following its style until it is removed", () => {
     const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     const layer = mount(SRCS, [OFFICE]);
