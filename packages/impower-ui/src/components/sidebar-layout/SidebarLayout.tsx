@@ -31,7 +31,7 @@ export const sidebarLayoutVariants = cva(
 const handle = [
   "relative z-20 col-start-1 row-start-2 w-2 translate-x-1/2 justify-self-end self-stretch",
   "cursor-col-resize touch-none select-none bg-transparent outline-none",
-  "after:pointer-events-none after:absolute after:inset-y-0 after:left-[2px] after:w-1 after:bg-accent after:opacity-0",
+  "after:pointer-events-none after:absolute after:inset-y-0 after:left-[3px] after:w-px after:bg-accent after:opacity-0",
   "motion-safe:after:transition-opacity motion-safe:after:duration-150 motion-safe:after:ease-in-out",
   "hover:after:opacity-100 focus-visible:after:opacity-100 data-[active]:after:opacity-100",
 ].join(" ");

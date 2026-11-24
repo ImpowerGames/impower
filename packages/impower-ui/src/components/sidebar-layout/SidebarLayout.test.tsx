@@ -190,4 +190,15 @@ describe("SidebarLayout", () => {
     expect(host.querySelector('[data-testid="footer"]')).not.toBeNull();
     expect(host.querySelector("main")).toBe(main);
   });
+
+  it("highlights a 1px accent line on the rail's edge, not a 4px bar", async () => {
+    await mount();
+    const classes = Array.from(
+      host!.querySelector<HTMLElement>('[role="separator"]')!.classList,
+    );
+    for (const thin of ["after:left-[3px]", "after:w-px", "after:bg-accent"]) {
+      expect(classes).toContain(thin);
+    }
+    expect(classes).not.toContain("after:w-1");
+  });
 });
