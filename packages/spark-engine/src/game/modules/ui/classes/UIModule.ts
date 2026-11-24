@@ -3846,10 +3846,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const skipped = skippedInitialLayouts(this._game, this);
     for (const structName of Object.keys(this.context?.layout || {})) {
       if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
-        const layout = this.context.layout?.[structName];
-        if (layout) {
-          this.initLayout(layout);
-        }
         const layouts = this._game.program?.sparkle?.layouts;
         const seen = new Set<string>();
         for (
@@ -3886,32 +3882,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.initClearTargets(node.else);
       } else if (node.kind === "fill") {
         this.initClearTargets(node.children);
-      }
-    }
-  }
-
-  initLayout(layout: Record<string, any>) {
-    const properties = getAllProperties(layout);
-    for (const [k, v] of Object.entries(properties)) {
-      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
-      const isValidNode = !path.at(-1)?.startsWith("$");
-      if (isValidNode) {
-        for (let i = 0; i < path.length; i += 1) {
-          const parent = path.at(-1);
-          const parentClasses = parent?.split(" ") || [];
-          const isText = parentClasses.includes("text");
-          const isStroke = parentClasses.includes("stroke");
-          const isImage = parentClasses.includes("image");
-          const isMask = parentClasses.includes("mask");
-          if (isText || isStroke || isImage || isMask) {
-            if (v && typeof v === "object" && Object.keys(v).length === 0) {
-              const grandParent = path.at(-2);
-              if (grandParent) {
-                this._clearOnContinue.add(grandParent);
-              }
-            }
-          }
-        }
       }
     }
   }
