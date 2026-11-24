@@ -7,24 +7,24 @@ const SCREEN = `define HERO as character with
 end
 
 layout main {
-  title {
+  title #clear {
     text
   }
-  heading {
+  heading #clear {
     text
   }
-  transitional {
+  transitional #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
-  dialogue {
+  dialogue #clear {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }
@@ -43,16 +43,16 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
-  action {
+  action #clear {
     text
   }
-  dialogue {
+  dialogue #clear {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }

@@ -183,7 +183,7 @@ dialogue/stage pattern the production `ui.sd` uses):
 layout main {
   stage {
     backdrop { image "black" }
-    portrait {
+    portrait #clear {
       mask.shadow_1
       image
     }
@@ -774,7 +774,7 @@ layout inventory {
   column.panel #gap=8 {
     text.headline "Inventory"
     for item in player.bag do
-      row.item {
+      row.item #clear {
         image #src={item.icon} #width=32 #height=32
         text "{item.name}"
         if item.equipped then

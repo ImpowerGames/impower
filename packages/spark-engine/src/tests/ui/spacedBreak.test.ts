@@ -22,20 +22,20 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
-    action {
+    action #clear {
       text
     }
   }

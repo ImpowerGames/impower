@@ -11,17 +11,17 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -88,10 +88,10 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
-    portrait {
+    portrait #clear {
       image
     }
   }
@@ -157,13 +157,13 @@ describe("dom render · image lifecycle", () => {
 });
 
 const CHOICE_SCREEN = `layout main {
-  dialogue {
+  dialogue #clear {
     text
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  choice.1 {
+  choice.1 #clear {
     text
   }
 }

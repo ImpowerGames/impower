@@ -32,23 +32,23 @@ end
 
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
-    action {
+    action #clear {
       text
     }
   }

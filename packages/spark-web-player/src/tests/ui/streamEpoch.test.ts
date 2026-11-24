@@ -6,7 +6,7 @@ import { createDOMHarness, flushMicrotasks, serializeDOM } from "./domTestHarnes
 
 const EARLIER = `layout main {
   stage {
-    earlier_panel {
+    earlier_panel #clear {
       text
     }
   }
@@ -15,7 +15,7 @@ const EARLIER = `layout main {
 
 const LATER = `layout main {
   stage {
-    later_panel {
+    later_panel #clear {
       text
     }
   }

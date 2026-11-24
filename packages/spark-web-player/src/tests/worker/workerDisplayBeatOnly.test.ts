@@ -96,7 +96,7 @@ layout main {
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -121,11 +121,11 @@ end
 layout main {
   textbox {
     if mode then
-      dialogue {
+      dialogue #clear {
         text
       }
     else
-      dialogue {
+      dialogue #clear {
         text
       }
     end
@@ -162,7 +162,7 @@ const BRANCHED_INSIDE = BRANCHED.replace(
 
 const SHARED = `layout main {
   textbox {
-    character_name.dialogue {
+    character_name.dialogue #clear {
       text
     }
   }
@@ -253,7 +253,7 @@ layout main {
         text "{bump()}"
       }
     end
-    dialogue {
+    dialogue #clear {
       text
     }
     badge {
@@ -275,12 +275,12 @@ end
 
 layout main {
   stage {
-    backdrop.portrait {
+    backdrop.portrait #clear {
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -325,13 +325,13 @@ const ACTS = lineIn(PERSISTENT, "> Second.");
 
 const PLACEHOLDER = `layout main {
   textbox {
-    character_name {
+    character_name #clear {
       text
     }
     dialogue {
       text "Says:"
     }
-    action {
+    action #clear {
       text
     }
   }
@@ -353,7 +353,7 @@ end
 
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       image
     }
     badge {
@@ -361,7 +361,7 @@ layout main {
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -380,7 +380,7 @@ const IMPLIES = lineIn(IMPLIED, "[[show portrait HAPPY:sad]]");
 
 const OPENS = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -443,7 +443,7 @@ layout main {
     text "{mode}"
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -485,7 +485,7 @@ layout main {
     text "{counter.n}"
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -504,7 +504,7 @@ const READS = (binding: string) => `layout main {
     text "{${binding}}"
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -527,7 +527,7 @@ layout main {
     text "{count.visits(-> f)}"
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -550,7 +550,7 @@ layout main {
     text "{${bound}}"
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -571,7 +571,7 @@ layout main {
     text "{stamp}"
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -593,15 +593,15 @@ layout main {
     text "{stamp}"
   }
   choices {
-    choice.0 {
+    choice.0 #clear {
       text
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
-    action {
+    action #clear {
       text
     }
   }
@@ -628,7 +628,7 @@ const TYPED = `store name = "Zelda"
 layout main {
   input #value={name} @input={ }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

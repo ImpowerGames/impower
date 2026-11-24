@@ -8,38 +8,38 @@ const SOURCE = `define HERO as character with
 end
 
 layout main {
-  title {
+  title #clear {
     text
   }
-  heading {
+  heading #clear {
     text
   }
-  transitional {
+  transitional #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  choice.1 {
+  choice.1 #clear {
     text
   }
-  choice.2 {
+  choice.2 #clear {
     text
   }
 }
@@ -196,14 +196,14 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  choice.1 {
+  choice.1 #clear {
     text
   }
 }

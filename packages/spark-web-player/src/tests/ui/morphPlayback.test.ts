@@ -614,7 +614,7 @@ ${TIMING}  clips {
     const source = `${SOURCE}
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       mask.outline
       mask.rim
       image

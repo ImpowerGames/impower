@@ -15,10 +15,10 @@ layout hud {
     if busy then
       text.busy "Busy"
     end
-    choice.0 { text }
-    title { stroke; text }
+    choice.0 #clear { text }
+    title #clear { stroke; text }
   }
-  stage {
+  stage #clear {
     mask.shadow_1
   }
 }

@@ -368,11 +368,11 @@ describe("a composed beat on the page, round 1 of PR #1865", () => {
 const HUD = `layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -458,11 +458,11 @@ describe("a composed beat applies its ops in order, round 2 of PR #1865", () => 
 layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
       if alternate then
         text "NEW"
@@ -498,10 +498,10 @@ end
   test("a write to an indexed target reaches the element it named, though the beat moves it after", async () => {
     const h = await playing(`layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -544,11 +544,11 @@ end
 const TRANSITIONS = `layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -1047,7 +1047,7 @@ const NAMED = `layout main {
     character_name {
       text "Name:"
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }

@@ -5,7 +5,7 @@ import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SOURCE = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

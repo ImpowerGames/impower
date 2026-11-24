@@ -25,17 +25,17 @@ end
 
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }

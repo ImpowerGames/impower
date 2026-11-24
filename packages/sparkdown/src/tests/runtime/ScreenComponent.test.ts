@@ -48,7 +48,7 @@ describe("screen · named-element tree", () => {
     backdrop {
       image = "black"
     }
-    portrait {
+    portrait #clear {
       mask.shadow_1
       mask.shadow_2
       image
@@ -78,7 +78,7 @@ end
 describe("screen · classed element with content", () => {
   test("`text.h1 \"…\"` splits into key = tag + classes, value = content", () => {
     const r = compileUI(`layout main {
-  column {
+  column #clear {
     text.h1 "Sparkle x Pico"
     text "plain"
     image
@@ -176,7 +176,7 @@ end
 describe("screen · classes", () => {
   test("classes stay in the static struct key; content is the value", () => {
     const r = compileUI(`layout main {
-  stage {
+  stage #clear {
     mask.shadow_1
     text.title "Inventory"
   }
@@ -289,7 +289,7 @@ describe("screen · coexistence", () => {
 }
 layout s {
   textbox {
-    title {
+    title #clear {
       text
     }
   }
