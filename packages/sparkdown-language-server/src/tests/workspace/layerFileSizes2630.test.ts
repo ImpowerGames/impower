@@ -140,7 +140,7 @@ describe("layer files of different pixel sizes in the language server (#2630)", 
   it("sizes the layer files a compiled program requests and recompiles", async () => {
     const { workspace, sendRequest } = setup();
     const { compilerRequests, debouncedCompile } = watch(workspace);
-    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [lids] }]);
     await vi.waitFor(() => expect(debouncedCompile).toHaveBeenCalledWith(main, true));
     expect(asked(sendRequest)).toEqual([lids]);
     expect((workspace as any)._watchedFiles.get(lids)).toMatchObject({ width: 480, height: 640 });
@@ -160,7 +160,7 @@ describe("the language server reads only the sizes the compiler requests (#2755)
   it("asks the host for nothing and does not recompile when a program requests no sizes", async () => {
     const { workspace, sendRequest } = setup();
     const { debouncedCompile } = watch(workspace);
-    (workspace as any).requestImageSizes({});
+    (workspace as any).requestImageSizes([{}]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(asked(sendRequest)).toEqual([]);
     expect(debouncedCompile).not.toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe("the language server reads only the sizes the compiler requests (#2755)
   it("does not ask for an SVG or an already-sized file even when requested", async () => {
     const { workspace, sendRequest } = setup();
     const { debouncedCompile, svg } = watch(workspace);
-    (workspace as any).requestImageSizes({ imageSizeRequests: [svg.uri, base] });
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [svg.uri, base] }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(asked(sendRequest)).toEqual([]);
     expect(debouncedCompile).not.toHaveBeenCalled();
@@ -179,10 +179,10 @@ describe("the language server reads only the sizes the compiler requests (#2755)
     const { workspace, sendRequest } = setup();
     sendRequest.mockImplementation(async () => null as never);
     const { debouncedCompile } = watch(workspace);
-    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
-    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [lids] }]);
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [lids] }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [lids] }]);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(asked(sendRequest)).toEqual([lids]);
     expect(debouncedCompile).not.toHaveBeenCalled();
@@ -193,14 +193,14 @@ describe("the language server reads only the sizes the compiler requests (#2755)
     let answer!: (size: { width: number; height: number }) => void;
     sendRequest.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve as never)) as never);
     const { compilerRequests, debouncedCompile } = watch(workspace);
-    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
-    (workspace as any).requestImageSizes({});
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [lids] }]);
+    (workspace as any).requestImageSizes([{}]);
     answer({ width: 480, height: 640 });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect((workspace as any)._watchedFiles.get(lids).width).toBeUndefined();
     expect(compilerRequests).toEqual([]);
     expect(debouncedCompile).not.toHaveBeenCalled();
-    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    (workspace as any).requestImageSizes([{ imageSizeRequests: [lids] }]);
     await vi.waitFor(() => expect(debouncedCompile).toHaveBeenCalledWith(main, true));
     expect(asked(sendRequest)).toEqual([lids, lids]);
   });

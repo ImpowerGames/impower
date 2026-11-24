@@ -548,8 +548,10 @@ export abstract class SparkdownWorkspace {
 
   protected _imageSizesRead = new WeakSet<object>();
 
-  protected requestImageSizes(program: SparkProgram) {
-    this._imageSizeRequests = new Set(program.imageSizeRequests);
+  protected requestImageSizes(programs: (SparkProgram | undefined)[]) {
+    this._imageSizeRequests = new Set(
+      programs.flatMap((program) => program?.imageSizeRequests ?? []),
+    );
     const unsized: File[] = [];
     for (const uri of this._imageSizeRequests) {
       const file = this._watchedFiles.get(uri);
@@ -1080,12 +1082,10 @@ export abstract class SparkdownWorkspace {
         }
         throw e;
       }
-      const mainProgram = mainScriptUri
-        ? this.getProgramState(mainScriptUri).program
-        : undefined;
-      if (mainProgram) {
-        this.requestImageSizes(mainProgram);
-      }
+      this.requestImageSizes([
+        mainScriptUri ? this.getProgramState(mainScriptUri).program : undefined,
+        result?.program,
+      ]);
       if (result?.program) {
         this.publishCompiled(uri, result, programUnchanged);
       }
