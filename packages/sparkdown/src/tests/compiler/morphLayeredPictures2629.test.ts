@@ -126,4 +126,13 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     expect(after).toBeDefined();
     expect(after).not.toBe(before);
   });
+
+  test("a morph clause that names a painted portrait's speech morph is accepted", () => {
+    const talk = `morph talk {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = closed\n      }\n    }\n    50% {\n      mouth {\n        state = open\n      }\n    }\n    to {\n      mouth {\n        state = closed\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const text = `define ava as character with\n  name = "AVA"\nend\n\n${talk}\nscene start\n  AVA:\n    [[ava morph talk]]\n    Hello.\nend\n`;
+    const painted = compile(text);
+    const messages = (painted.diagnostics?.[MAIN] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+    expect(painted.morphs?.picks?.["ava"]?.["talk"]).toHaveLength(1);
+    expect(messages.filter((message) => message.includes("plays on no image"))).toEqual([]);
+  });
 });

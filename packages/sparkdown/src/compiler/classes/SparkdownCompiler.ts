@@ -5070,8 +5070,8 @@ export class SparkdownCompiler {
       };
     }
     const plays = images.some((image) =>
-      resolveImageLayers(program.context, image).some(
-        (layer) => layer.struct && speechMorphsForStruct(program.context, program.morphs, layer.struct).includes(name),
+      [image, ...resolveImageLayers(program.context, image).map((layer) => layer.struct)].some(
+        (struct) => struct && speechMorphsForStruct(program.context, program.morphs, struct).includes(name),
       ),
     );
     if (plays) return undefined;

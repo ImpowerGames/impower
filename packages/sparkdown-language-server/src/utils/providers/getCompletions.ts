@@ -581,8 +581,8 @@ const addMorphPickCompletions = (
   const names = new Set<string>();
   for (const asset of assets) {
     const image = resolveImageReference(context, { $type: "", $name: sortFilteredName(asset) });
-    for (const layer of resolveImageLayers(context, image)) {
-      for (const name of speechMorphsForStruct(context, channel, layer.struct)) names.add(name);
+    for (const struct of [image, ...resolveImageLayers(context, image).map((layer) => layer.struct)]) {
+      if (struct) for (const name of speechMorphsForStruct(context, channel, struct)) names.add(name);
     }
   }
   for (const name of [...names].sort()) {

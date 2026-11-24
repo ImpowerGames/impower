@@ -1829,7 +1829,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const imageName = sortFilteredName(asset);
     const speaker = event.speaker || undefined;
     const decide = (layer: ImageLayer) => linePick(context, imageName, layer, event.morph, speaker);
-    const picks = resolveImageLayers(context, resolveImageReference(context, { $type: "", $name: imageName })).map(decide);
+    const image = resolveImageReference(context, { $type: "", $name: imageName });
+    const picks = [{ src: "", struct: image }, ...resolveImageLayers(context, image)].map(decide);
     if (picks.every((pick) => pick === event.morph)) {
       return event.morph;
     }

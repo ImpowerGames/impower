@@ -175,4 +175,26 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(["kit", "base_file"].map((asset) => ui.getBackgroundImageFromString(asset)).reverse().join(", ")).toBe('url("/src/base_file.png"), none');
     expect(ui.getImageUrlsFromBackground(ui.getBackgroundImageFromString("kit"))).toEqual([]);
   });
+
+  test("an overlay-only picture of a character listening on another's line rests in its own look, not its speech morph's rest", async () => {
+    const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
+    const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const write = async (speaker: string) => {
+      const source = `define ava as character with\n  name = "AVA"\nend\n\n${chatter}\ndefine ava as layered_image with\n  assets = {\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  ${speaker}:\n    [[show portrait ava]]\n    Line one.\nend\n`;
+      const harness = createHarness(source, 0, { assets: files });
+      await harness.ready;
+      await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const writes = flattenMessages(harness.messages).filter(
+        (message: any) => message?.method === "ui/write-image" && message.params.target === "portrait" && message.params.instructions[0]?.content,
+      );
+      return writes.at(-1).params.instructions[0].content;
+    };
+    const listening = await write("BOB");
+    expect(listening.background).toBe("none");
+    expect(listening.morph).toBeUndefined();
+    const speaking = await write("AVA");
+    expect(speaking.background).toBe('url("/src/overlay.png")');
+    expect(speaking.morph?.plays.map((play: any) => play.morph)).toEqual(["chatter"]);
+  });
 });

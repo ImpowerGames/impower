@@ -146,8 +146,12 @@ export const getImageCompositeSrc = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
   options?: ImageCompositeOptions,
+): Promise<string | undefined> => compositeOfLayers(await resolvePreviewLayers(context, struct, options), options);
+
+const compositeOfLayers = async (
+  layers: (ImageLayer & { rest?: true; shown?: true })[],
+  options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
-  const layers = await resolvePreviewLayers(context, struct, options);
   if (layers.length === 0) {
     return undefined;
   }
@@ -219,9 +223,13 @@ export const getImagePreviewComposited = async (
   if (rest) {
     return { src: `data:image/svg+xml,${encodeURIComponent(rest)}`, composited: false };
   }
-  const composite = await getImageCompositeSrc(context, struct, options);
+  const layers = await resolvePreviewLayers(context, struct, options);
+  const composite = await compositeOfLayers(layers, options);
   if (composite !== undefined) {
     return { src: composite, composited: true };
+  }
+  if (layers.length === 0 && resolveImageLayers(context, struct).length > 0) {
+    return undefined;
   }
   const single = getImagePreviewSrc(context, struct);
   return single === undefined ? undefined : { src: single, composited: false };

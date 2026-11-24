@@ -384,7 +384,11 @@ export function shownImageLayers(
   if (playsOnPicture(picture)) {
     const look = shownLook(context, channel, struct, poseOf, picture.pick);
     if (!look?.attributes.length) return layers;
-    return resolveImageLayers(context, shownLookStruct(struct, look.attributes)).map((layer) => ({ ...layer, shown: true as const }));
+    const posed =
+      struct?.$type === "filtered_image"
+        ? { ...struct, attributes: [...(Array.isArray(struct.attributes) ? struct.attributes : []), ...look.attributes] }
+        : shownLookStruct(struct, look.attributes);
+    return resolveImageLayers(context, posed).map((layer) => ({ ...layer, shown: true as const }));
   }
   return layers.map((layer) => {
     const layerPick = typeof pick === "function" ? pick(layer) : pick;
