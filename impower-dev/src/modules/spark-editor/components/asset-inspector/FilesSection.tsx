@@ -60,7 +60,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: FileActi
         </DropdownItem>
         <DropdownItem onSelect={() => onAction("replace")}>
           <ReplaceSwapIcon class="text-muted" />
-          Replace…
+          Replace
         </DropdownItem>
         <DropdownItem onSelect={() => onAction("download")}>
           <DownloadIcon class="text-muted" />
@@ -69,7 +69,7 @@ function FileMenu({ row, onAction }: { row: FileRow; onAction: (action: FileActi
         <DropdownSeparator inset />
         <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
           <TrashIcon class="text-muted" />
-          Delete…
+          Delete
         </DropdownItem>
       </DropdownContent>
     </DropdownRoot>

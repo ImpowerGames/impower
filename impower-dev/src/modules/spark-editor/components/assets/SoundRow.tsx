@@ -38,21 +38,12 @@ const lengthOf = (sound: Sound): number | null => {
   return workspace.assetDurations.value[sound.src] ?? (shape?.ok ? shape.duration : null);
 };
 
-const playbackTime = (known: number | null): string => {
-  const length = audioSession.playback.value!.duration ?? known;
-  const elapsed = clock(audioSession.time.value);
-  return length === null ? elapsed : `${elapsed} / ${clock(length)}`;
-};
-
 export const soundLineText = (sound: Sound, line: string): string => {
   const failed = audioSession.failureOf(sound);
   if (failed) {
     return PLAYBACK_FAILURES[failed];
   }
   const known = lengthOf(sound);
-  if (statusOf(sound.owner)) {
-    return `${playbackTime(known)} · ${line}`;
-  }
   return known === null ? line : `${clock(known)} · ${line}`;
 };
 
@@ -73,16 +64,5 @@ export function SoundLine({
   if (failed) {
     return <span data-asset-sound-failed>{PLAYBACK_FAILURES[failed]}</span>;
   }
-  const known = lengthOf(sound);
-  if (!statusOf(sound.owner)) {
-    return <span data-asset-sound-line>{soundLineText(sound, line)}</span>;
-  }
-  return (
-    <span data-asset-sound-line>
-      <span class="tabular-nums" data-asset-sound-time>
-        {playbackTime(known)}
-      </span>
-      {` · ${line}`}
-    </span>
-  );
+  return <span data-asset-sound-line>{soundLineText(sound, line)}</span>;
 }

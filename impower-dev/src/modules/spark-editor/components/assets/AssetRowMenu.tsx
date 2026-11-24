@@ -43,10 +43,10 @@ const ENTRIES: Record<AssetRowAction, EntrySpec> = {
   open: { label: "Open", Icon: FolderIcon },
   select: { label: "Select", Icon: SelectIcon },
   variants: { label: "Variants", Icon: VariantsIcon },
-  upload: { label: "Upload here…", Icon: UploadIcon },
-  newFolder: { label: "New folder inside…", Icon: PlusIcon, returnFocus: false },
+  upload: { label: "Upload here", Icon: UploadIcon },
+  newFolder: { label: "New folder inside", Icon: PlusIcon, returnFocus: false },
   rename: { label: "Rename", Icon: PencilPlainIcon, kept: true, returnFocus: false },
-  move: { label: "Move…", Icon: FolderIcon, kept: true },
+  move: { label: "Move", Icon: FolderIcon, kept: true },
   download: { label: "Download", Icon: DownloadIcon },
   delete: { label: "Delete", Icon: TrashIcon, danger: true },
 };

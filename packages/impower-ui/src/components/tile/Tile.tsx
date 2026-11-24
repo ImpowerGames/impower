@@ -161,8 +161,7 @@ export const tileMarkVariants = cva(
     variants: {
       size: bySize("mark"),
       selection: {
-        available:
-          "pointer-events-none opacity-0 group-hover/tile:pointer-events-auto group-hover/tile:opacity-100 has-focus-visible:opacity-100",
+        available: "pointer-events-none opacity-0 has-focus-visible:opacity-100",
         active: "",
       },
     },

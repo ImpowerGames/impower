@@ -141,7 +141,7 @@ describe("selecting scripts on the Scripts page", () => {
     await pick("intro.sd", "outro.sd");
     expect(byLabel("Folder path")).toBeUndefined();
     expect(all('[role="status"]').some((el) => el.textContent === "2 selected")).toBe(true);
-    for (const name of ["Select all", "Move…", "Download", "Delete…"]) {
+    for (const name of ["Select all", "Move", "Download", "Delete"]) {
       expect(buttonNamed(name), name).toBeTruthy();
     }
     expect(mark("intro.sd")!.checked).toBe(true);
@@ -174,7 +174,7 @@ describe("selecting scripts on the Scripts page", () => {
   it("deletes every picked row at once when nothing references them", async () => {
     await mount();
     await pick("intro.sd", "Drafts");
-    await click(buttonNamed("Delete…"));
+    await click(buttonNamed("Delete"));
     expect(scripts.remove).toHaveBeenCalledWith(["Scripts/Drafts", "Scripts/intro.sd"]);
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(selection.active.value).toBe(false);
@@ -184,14 +184,14 @@ describe("selecting scripts on the Scripts page", () => {
     workspace.scriptReferences.value = [{ from: "main.sd", to: "Scripts/Drafts/old.sd", divert: true }];
     await mount();
     await pick("intro.sd", "Drafts");
-    await click(buttonNamed("Delete…"));
+    await click(buttonNamed("Delete"));
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain("Delete 2 items?");
     expect(dialog.textContent).toContain("Referenced by main.sd");
     await click([...dialog.querySelectorAll("button")].find((b) => b.textContent === "Cancel"));
     expect(scripts.remove).not.toHaveBeenCalled();
     expect(selection.selected.value).toEqual(["Scripts/Drafts", "Scripts/intro.sd"]);
-    await click(buttonNamed("Delete…"));
+    await click(buttonNamed("Delete"));
     const again = document.querySelector('[role="dialog"]')!;
     await click([...again.querySelectorAll("button")].find((b) => b.textContent === "Delete"));
     expect(scripts.remove).toHaveBeenCalledWith(["Scripts/Drafts", "Scripts/intro.sd"]);
@@ -216,7 +216,7 @@ describe("selecting scripts on the Scripts page", () => {
     scripts.referencing.mockResolvedValueOnce(null);
     await mount();
     await pick("intro.sd");
-    await click(buttonNamed("Delete…"));
+    await click(buttonNamed("Delete"));
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain("Delete intro.sd?");
     expect(dialog.textContent).toContain("Couldn't check which scripts reference it.");
@@ -228,7 +228,7 @@ describe("selecting scripts on the Scripts page", () => {
     await pick("intro.sd", "outro.sd");
     await click(buttonNamed("Download"));
     expect(scripts.download).toHaveBeenCalledWith(["Scripts/intro.sd", "Scripts/outro.sd"]);
-    await click(buttonNamed("Move…"));
+    await click(buttonNamed("Move"));
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain("Move 2 items");
     await click([...dialog.querySelectorAll<HTMLElement>('[role="option"]')].find((o) => o.textContent?.includes("Drafts")));

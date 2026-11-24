@@ -185,6 +185,7 @@ describe("Tile", () => {
     const mark = host.querySelector<HTMLInputElement>('input[aria-label="Select imani"]')!;
     expect(mark.closest("button")).toBeNull();
     expect(mark.closest("label")!.className).toContain("opacity-0");
+    expect(mark.closest("label")!.className).not.toMatch(/group-hover/);
     expect(host.querySelector('button[aria-label="Open imani"]')!.hasAttribute("aria-pressed")).toBe(false);
     await act(async () => mark.click());
     expect(onSelectedChange).toHaveBeenCalledWith(true);

@@ -77,12 +77,12 @@ describe("the Change color intents", () => {
     expect(workspace.state.value.screen.writingTools?.color).toBeUndefined();
   });
 
-  it("opens as a Writing tools view whose Back returns to the menu and drops the value", () => {
+  it("opens from a swatch as a Writing tools view with no way back to the menu, and the menu drops the value", () => {
     const w = mount();
     w.openChangeColor("main.sd", RANGE, "#ff8800", ORANGE);
     expect(workspace.state.value.screen.writingTools).toMatchObject({
       view: "color",
-      fromMenu: true,
+      fromMenu: false,
     });
     w.showWritingToolsView("menu");
     expect(workspace.state.value.screen.writingTools).toEqual({

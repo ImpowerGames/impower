@@ -83,7 +83,7 @@ export const listRowBodyVariants = cva(
         default:
           "min-h-[60px] gap-[13px] px-3 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px]",
         library:
-          "min-h-[62px] gap-2.5 px-2 py-2.5 text-[14px]/[1.5] [&>svg:first-child]:size-[21px] [:root[data-layout=desktop]_&]:min-h-[60px] [:root[data-layout=desktop]_&]:gap-[13px] [:root[data-layout=desktop]_&]:px-3",
+          "min-h-[62px] gap-2.5 px-2 py-2 text-[14px]/[1.5] [&>svg:first-child]:size-[21px] [:root[data-layout=desktop]_&]:min-h-[60px] [:root[data-layout=desktop]_&]:gap-[13px] [:root[data-layout=desktop]_&]:px-3",
         compact:
           "min-h-[var(--list-row-compact-height)] gap-[var(--list-row-compact-gap)] px-[var(--list-row-compact-padding-x)] py-[var(--list-row-compact-padding-y)] text-[length:var(--list-row-compact-font-size)]/[1.4] [&>svg:first-child]:size-[18px]",
         block:

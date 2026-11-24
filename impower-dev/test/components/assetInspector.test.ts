@@ -962,7 +962,7 @@ describe("the inspector when its item is renamed, moved or deleted from the page
     await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
     expect(all<HTMLElement>('[role="menuitem"]').map((item) => item.textContent)).toEqual([
       "Rename",
-      "Move…",
+      "Move",
       "Download",
       "Delete",
     ]);
@@ -1440,10 +1440,10 @@ describe("the Variants tester and the Files section", () => {
   };
 
   for (const pointer of ["mouse", "touch"] as const) {
-    it(`offers Rename, Replace…, Download and Delete… on a file, opened with a ${pointer}`, async () => {
+    it(`offers Rename, Replace, Download and Delete on a file, opened with a ${pointer}`, async () => {
       await mount();
       await open("imani");
-      expect(await fileMenuShape("imani@night.png", pointer)).toEqual(["Rename", "Replace…", "Download", "—", "Delete…"]);
+      expect(await fileMenuShape("imani@night.png", pointer)).toEqual(["Rename", "Replace", "Download", "—", "Delete"]);
       expect(all<HTMLElement>('[role="menuitem"]')[0]!.querySelector("svg")!.innerHTML).toBe(
         '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
       );
@@ -1463,7 +1463,7 @@ describe("the Variants tester and the Files section", () => {
     expect(picker.multiple).toBe(false);
     const opened = vi.spyOn(HTMLInputElement.prototype, "click");
     try {
-      await fileMenu("imani face.sad.png", "Replace…");
+      await fileMenu("imani face.sad.png", "Replace");
       expect(opened.mock.contexts).toEqual([picker]);
     } finally {
       opened.mockRestore();
@@ -1638,7 +1638,11 @@ describe("the Variants tester and the Files section", () => {
     await open("imani");
     await tap(group("face"));
     expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
-    expect(document.querySelector("[data-wheel-sheet]")!.className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "max-w-[560px]"]));
+    const sheet = document.querySelector<HTMLElement>("[data-wheel-sheet]")!;
+    expect(sheet.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "inset-x-0", "bottom-0"]));
+    expect(sheet.className).not.toMatch(/max-w-|mx-auto/);
+    expect(sheet.getAttribute("aria-modal")).toBe("false");
+    expect(region()!.contains(sheet)).toBe(true);
     expect(all('[role="menuitemradio"]')).toEqual([]);
   });
 
@@ -1962,7 +1966,7 @@ describe("the Variants tester and the Files section", () => {
     await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
     const items = all<HTMLElement>('[role="menuitem"]');
     const reason = "mia is made of the numbered files in its folder. Rename or move the folder mia instead.";
-    for (const label of ["Rename", "Move…"]) {
+    for (const label of ["Rename", "Move"]) {
       const item = items.find((el) => el.textContent?.startsWith(label))!;
       expect(item.getAttribute("aria-disabled")).toBe("true");
       expect(item.textContent).toBe(label + reason);
