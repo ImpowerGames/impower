@@ -29,7 +29,8 @@ import type {
   MorphPicture,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
-import { computedMotionPose, IDENTITY, multiply, type Matrix2D, type MotionBox, type MotionPose } from "./motionPose";
+import { IDENTITY, multiply, type Affine } from "../../../../sparkdown/src/morph/affine";
+import { computedMotionPose, type MotionBox, type MotionPose } from "./motionPose";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
@@ -1126,7 +1127,7 @@ export class MorphLayer {
   protected paint(view: CanvasView) {
     const { canvas, context, files } = view;
     const layers = view.drawn.map(({ file, opacity, motions }) => {
-      let matrix: Matrix2D | undefined;
+      let matrix: Affine | undefined;
       let alpha = opacity;
       for (const label of motions) {
         const pose = view.standIns.get(label)?.pose;

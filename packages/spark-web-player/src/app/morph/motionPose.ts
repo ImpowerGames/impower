@@ -1,7 +1,7 @@
-export type Matrix2D = readonly [number, number, number, number, number, number];
+import { IDENTITY, multiply, type Affine } from "../../../../sparkdown/src/morph/affine";
 
 export interface MotionPose {
-  matrix: Matrix2D;
+  matrix: Affine;
   opacity: number;
 }
 
@@ -19,20 +19,7 @@ export interface MotionBox {
   height: number;
 }
 
-export const IDENTITY: Matrix2D = [1, 0, 0, 1, 0, 0];
-
-export function multiply(m: Matrix2D, n: Matrix2D): Matrix2D {
-  return [
-    m[0] * n[0] + m[2] * n[1],
-    m[1] * n[0] + m[3] * n[1],
-    m[0] * n[2] + m[2] * n[3],
-    m[1] * n[2] + m[3] * n[3],
-    m[0] * n[4] + m[2] * n[5] + m[4],
-    m[1] * n[4] + m[3] * n[5] + m[5],
-  ];
-}
-
-const translation = (x: number, y: number): Matrix2D => [1, 0, 0, 1, x, y];
+const translation = (x: number, y: number): Affine => [1, 0, 0, 1, x, y];
 
 const ANGLE: Record<string, number> = { deg: Math.PI / 180, rad: 1, grad: Math.PI / 200, turn: Math.PI * 2 };
 
@@ -127,7 +114,7 @@ const none = (text: string) => {
   return value === "" || value === "none";
 };
 
-function translateMatrix(text: string, box: MotionBox): Matrix2D | undefined {
+function translateMatrix(text: string, box: MotionBox): Affine | undefined {
   if (none(text)) return IDENTITY;
   const [x, y] = splitWords(text);
   const dx = x === undefined ? undefined : length(x, box.width);
@@ -135,7 +122,7 @@ function translateMatrix(text: string, box: MotionBox): Matrix2D | undefined {
   return dx === undefined || dy === undefined ? undefined : translation(dx, dy);
 }
 
-function rotateMatrix(text: string): Matrix2D | undefined {
+function rotateMatrix(text: string): Affine | undefined {
   if (none(text)) return IDENTITY;
   const words = splitWords(text);
   const turn = angle(words.at(-1) ?? "");
@@ -157,7 +144,7 @@ function rotateMatrix(text: string): Matrix2D | undefined {
   return [cos, sin, -sin, cos, 0, 0];
 }
 
-function scaleMatrix(text: string): Matrix2D | undefined {
+function scaleMatrix(text: string): Affine | undefined {
   if (none(text)) return IDENTITY;
   const [x, y] = splitWords(text);
   const sx = x === undefined ? undefined : factor(x);
@@ -165,25 +152,25 @@ function scaleMatrix(text: string): Matrix2D | undefined {
   return sx === undefined || sy === undefined ? undefined : [sx, 0, 0, sy, 0, 0];
 }
 
-function transformMatrix(text: string, box: MotionBox): Matrix2D | undefined {
+function transformMatrix(text: string, box: MotionBox): Affine | undefined {
   if (none(text)) return IDENTITY;
   const match = /^\s*(matrix|matrix3d)\(([^)]*)\)\s*$/i.exec(text);
   if (!match) return transformList(text, box);
   const values = match[2]!.split(",").map((value) => Number(value.trim()));
   if (values.some((value) => !Number.isFinite(value))) return undefined;
-  if (match[1]!.toLowerCase() === "matrix") return values.length === 6 ? (values as unknown as Matrix2D) : undefined;
+  if (match[1]!.toLowerCase() === "matrix") return values.length === 6 ? (values as Affine) : undefined;
   if (values.length !== 16) return undefined;
   return [values[0]!, values[1]!, values[4]!, values[5]!, values[12]!, values[13]!];
 }
 
-function transformList(text: string, box: MotionBox): Matrix2D | undefined {
+function transformList(text: string, box: MotionBox): Affine | undefined {
   let matrix = IDENTITY;
   for (const word of splitWords(text)) {
     const match = /^([a-z0-9]+)\((.*)\)$/i.exec(word);
     if (!match) return undefined;
     const name = match[1]!.toLowerCase();
     const args = match[2]!.split(",").map((arg) => arg.trim());
-    let step: Matrix2D | undefined;
+    let step: Affine | undefined;
     if (name === "translate" || name === "translatex" || name === "translatey") {
       const x = name === "translatey" ? "0px" : args[0]!;
       const y = name === "translatex" ? "0px" : name === "translatey" ? args[0]! : (args[1] ?? "0px");
