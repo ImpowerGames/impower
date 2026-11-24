@@ -11,9 +11,46 @@ const ascii = (bytes: Uint8Array, at: number, length: number) =>
 const sized = (width: number, height: number): ImageSize | undefined =>
   width > 0 && height > 0 ? { width, height } : undefined;
 
+const EXIF_ORIENTATION_TAG = 0x0112;
+
+const exifOrientation = (bytes: Uint8Array, start: number, blockEnd: number): number | undefined => {
+  const end = Math.min(blockEnd, bytes.length);
+  const order = ascii(bytes, start, 2);
+  const little = order === "II";
+  if ((!little && order !== "MM") || start + 8 > end) return undefined;
+  const view = new DataView(bytes.buffer, bytes.byteOffset + start, end - start);
+  if (view.getUint16(2, little) !== 42) return undefined;
+  const directory = view.getUint32(4, little);
+  if (directory + 2 > view.byteLength) return undefined;
+  const count = view.getUint16(directory, little);
+  for (let index = 0; index < count; index++) {
+    const entry = directory + 2 + index * 12;
+    if (entry + 12 > view.byteLength) return undefined;
+    if (view.getUint16(entry, little) === EXIF_ORIENTATION_TAG) return view.getUint16(entry + 8, little);
+  }
+  return undefined;
+};
+
+const oriented = (size: ImageSize | undefined, orientation: number | undefined) =>
+  size && orientation !== undefined && orientation >= 5 && orientation <= 8
+    ? { width: size.height, height: size.width }
+    : size;
+
+const pngOrientation = (bytes: Uint8Array, view: DataView) => {
+  let at = 8;
+  while (at + 8 <= bytes.length) {
+    const length = view.getUint32(at);
+    const type = ascii(bytes, at + 4, 4);
+    if (type === "eXIf") return exifOrientation(bytes, at + 8, at + 8 + length);
+    if (type === "IDAT" || type === "IEND") return undefined;
+    at += 12 + length;
+  }
+  return undefined;
+};
+
 const pngSize = (bytes: Uint8Array, view: DataView) =>
   bytes.length >= 24 && ascii(bytes, 1, 3) === "PNG" && ascii(bytes, 12, 4) === "IHDR"
-    ? sized(view.getUint32(16), view.getUint32(20))
+    ? oriented(sized(view.getUint32(16), view.getUint32(20)), pngOrientation(bytes, view))
     : undefined;
 
 const gifSize = (bytes: Uint8Array, view: DataView) =>
@@ -51,6 +88,7 @@ const jpegSize = (bytes: Uint8Array, view: DataView) => {
     return undefined;
   }
   let at = 2;
+  let orientation: number | undefined;
   while (at + 9 < bytes.length) {
     if (bytes[at] !== 0xff) {
       return undefined;
@@ -61,9 +99,12 @@ const jpegSize = (bytes: Uint8Array, view: DataView) => {
       continue;
     }
     const length = view.getUint16(at + 2);
+    if (marker === 0xe1 && orientation === undefined && ascii(bytes, at + 4, 6) === "Exif\0\0") {
+      orientation = exifOrientation(bytes, at + 10, at + 2 + length);
+    }
     const frame = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
     if (frame) {
-      return sized(view.getUint16(at + 7), view.getUint16(at + 5));
+      return oriented(sized(view.getUint16(at + 7), view.getUint16(at + 5)), orientation);
     }
     at += 2 + length;
   }

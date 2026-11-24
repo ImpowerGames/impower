@@ -84,12 +84,15 @@ function layeredMorphStack(context: Context | undefined, image: any): LayeredMor
     if (resolved.length === 0) return undefined;
     if (resolved.length > 1) return null;
     const drawn = resolved[0]!;
-    const size = sizeOf(drawn.struct);
+    const root = drawn.struct?.$type === "filtered_image" ? resolveImageRoot(context, drawn.struct) : drawn.struct;
+    const file = root?.$type === "image" ? root : undefined;
+    const size = sizeOf(file);
+    const uri = typeof drawn.uri === "string" ? drawn.uri : typeof file?.uri === "string" ? file.uri : undefined;
     return {
       key: layer.key,
       name: layer.name,
       src: drawn.src,
-      ...(typeof drawn.uri === "string" ? { uri: drawn.uri } : {}),
+      ...(uri === undefined ? {} : { uri }),
       struct: drawn.struct,
       ...(size ? { size } : {}),
     };

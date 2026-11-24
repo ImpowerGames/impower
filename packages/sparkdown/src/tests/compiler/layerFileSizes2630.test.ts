@@ -114,6 +114,45 @@ describe("a layered picture whose layer files differ in pixel size (#2630)", () 
     expect(sizeWarnings(program)).toEqual([]);
   });
 
+  test.each([
+    ["an overlay", "kit_base", "lid_look", "file:///proj/lid_file.png"],
+    ["the bottom layer", "base_look", "lid_file", "file:///proj/lid_file.png"],
+  ])("a layer drawn through a filtered_image is sized by its file: %s", (_which, base, lids, warnedUri) => {
+    const compiler = new SparkdownCompiler();
+    const text = `${BLINK}
+define base_look as filtered_image with
+  image = kit_base,
+  attributes = {}
+end
+
+define lid_look as filtered_image with
+  image = lid_file,
+  attributes = {}
+end
+
+define kit as layered_image with
+  assets = {
+    ["base"] = ${base},
+    ["lids.on"] = ${lids},
+  }
+end
+
+scene start
+  [[kit]]
+end
+`;
+    compiler.configure({
+      files: [
+        { uri: MAIN, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+        { ...imageFile("file:///proj/kit_base.png", DOC), name: "kit_base" },
+        { ...imageFile("file:///proj/lid_file.png", SMALL), name: "lid_file" },
+      ] as never,
+    });
+    const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
+    expect(sizeWarnings(program).map(({ uri }) => uri)).toEqual([warnedUri]);
+    expect(program.morphs?.variants["kit"]).toBeUndefined();
+  });
+
   test("sizes that arrive after a first compile take the reference away and add the warning on the next compile", () => {
     const compiler = new SparkdownCompiler();
     const script = {
