@@ -215,7 +215,7 @@ export const schema_style: Create<Schema<any>> = () => {
     ],
     filter: FILTERS,
     backdrop_filter: FILTERS,
-    transition: [],
+    transition: TRANSITION_PROPERTY_NAMES,
     transition_delay: [1, 0, 100],
     transition_duration: [1, 0, 100],
     transition_easing: [...TIMING_FUNCTIONS, { $type: "ease" }],

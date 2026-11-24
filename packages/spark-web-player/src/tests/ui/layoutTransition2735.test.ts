@@ -187,7 +187,7 @@ end
 
   test("the style schema offers layout among transition properties and nowhere else", () => {
     const schema = schema_style() as Record<string, unknown>;
-    for (const property of ["transition_property", "transition-property"]) {
+    for (const property of ["transition", "transition_property", "transition-property"]) {
       expect(schema[property]).toEqual(expect.arrayContaining(["layout", "opacity", "translate"]));
     }
     for (const property of ["will_change", "will-change"]) {

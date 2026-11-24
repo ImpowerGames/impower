@@ -11,6 +11,7 @@ const program = {
       $schema: {
         $type: "style",
         $name: "$schema",
+        transition: TRANSITION_PROPERTY_NAMES,
         transition_property: TRANSITION_PROPERTY_NAMES,
         "transition-property": TRANSITION_PROPERTY_NAMES,
       },
@@ -60,8 +61,8 @@ style line {
 `;
 
 describe("editor help for layout in a transition (I-2735)", () => {
-  test("transition-property offers layout with its description, beside the other property names", () => {
-    for (const property of ["transition-property", "transition_property"]) {
+  test("transition and transition-property offer layout with its description, beside the other property names", () => {
+    for (const property of ["transition", "transition-property", "transition_property"]) {
       const items = valuesAt(`style frame {
   ${property} = @1
 }
