@@ -23,6 +23,7 @@ import { type SyntaxNode, type Tree } from "@lezer/common";
 import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
+import { getClearPropHover } from "./clearPropHelp";
 import {
   MarkupKind,
   type Hover,
@@ -267,6 +268,10 @@ export const getHover = async (
     const layoutControlHover = getLayoutControlHover(document, tree, position);
     if (layoutControlHover) {
       return layoutControlHover;
+    }
+    const clearPropHover = getClearPropHover(document, tree, position);
+    if (clearPropHover) {
+      return clearPropHover;
     }
     const morphFieldHover = getMorphFieldHover(document, tree, position);
     if (morphFieldHover) {
