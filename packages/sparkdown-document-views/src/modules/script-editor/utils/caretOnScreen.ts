@@ -1,24 +1,28 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { caretScrollMarginY } from "./extensions/caretScrollMargin";
+import {
+  caretBottomInsetOf,
+  caretScrollMarginY,
+} from "./extensions/caretScrollMargin";
 
 const EDGE_TOLERANCE = 1;
 const MAX_ROW_STEPS = 4;
 
-const scrollMargins = (view: EditorView) => {
+const scrollMargins = (view: EditorView, withCaretInset: boolean) => {
   let top = 0;
   let bottom = 0;
   for (const margins of view.state.facet(EditorView.scrollMargins)) {
     const rect = margins(view);
+    const inset = withCaretInset ? 0 : caretBottomInsetOf(margins);
     top = Math.max(top, rect?.top ?? 0);
-    bottom = Math.max(bottom, rect?.bottom ?? 0);
+    bottom = Math.max(bottom, (rect?.bottom ?? 0) - inset);
   }
   return { top, bottom };
 };
 
 const visibleBand = (view: EditorView, clearance: number) => {
   const scroller = view.scrollDOM.getBoundingClientRect();
-  const margins = scrollMargins(view);
+  const margins = scrollMargins(view, clearance > 0);
   const viewport = window.visualViewport;
   const screenBottom = viewport
     ? viewport.offsetTop + viewport.height

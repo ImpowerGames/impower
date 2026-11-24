@@ -271,4 +271,50 @@ describe("Edit keeps the script still", () => {
       await page.context().close();
     }
   });
+
+  for (const [edge, visibleHeight] of [
+    ["the scroller", null],
+    ["an open keyboard", 500],
+  ] as const) {
+    it(`leaves a caret fully visible at the bottom edge of ${edge} where it is`, async () => {
+      const page = await open();
+      try {
+        if (visibleHeight != null) {
+          await page.evaluate(
+            (height) => (window as unknown as HarnessWindow).caretOnScreen.openKeyboard(height),
+            visibleHeight,
+          );
+          await frames(page);
+        }
+        await scrollTo(page, 2000);
+        await page.evaluate((visibleHeight) => {
+          const h = (window as unknown as HarnessWindow).caretOnScreen;
+          const r = h.scrollerBox();
+          const bottom = Math.min(r.bottom, visibleHeight ?? r.bottom);
+          const left = h.view.contentDOM.getBoundingClientRect().left;
+          h.setCaretAt(left + 20, bottom - 60);
+          const row = h.caretRow()!;
+          h.view.scrollDOM.scrollTop += row.bottom - (bottom - 2);
+        }, visibleHeight);
+        await frames(page);
+        const before = await read(page);
+        const bottom = Math.min(before.scroller.bottom, visibleHeight ?? before.scroller.bottom);
+        expect(before.caretRow!.bottom).toBeLessThanOrEqual(bottom);
+        expect(before.caretRow!.bottom).toBeGreaterThan(bottom - 6);
+
+        await edit(page);
+        const after = await read(page);
+
+        expect(after.head).toBe(before.head);
+        expect(after.focused).toBe(true);
+        if (visibleHeight == null) {
+          expect(after.scrollTop).toBe(before.scrollTop);
+        } else {
+          expect(after.caretRow!.bottom).toBeLessThanOrEqual(visibleHeight);
+        }
+      } finally {
+        await page.context().close();
+      }
+    });
+  }
 });

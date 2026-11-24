@@ -3,7 +3,10 @@ import { EditorView } from "@codemirror/view";
 import EDITOR_EXTENSIONS from "../../src/modules/script-editor/constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../../src/modules/script-editor/constants/EDITOR_THEME";
 import { focusOnScreen } from "../../src/modules/script-editor/utils/caretOnScreen";
-import { caretScrollMarginY } from "../../src/modules/script-editor/utils/extensions/caretScrollMargin";
+import {
+  caretScrollMargin,
+  caretScrollMarginY,
+} from "../../src/modules/script-editor/utils/extensions/caretScrollMargin";
 import { mobileViewportManager } from "../../src/modules/script-editor/utils/extensions/mobileViewportManager";
 import { scriptMode } from "../../src/modules/script-editor/utils/extensions/scriptMode";
 
@@ -38,6 +41,7 @@ const view = new EditorView({
       EditorView.lineWrapping,
       scriptMode("reading"),
       mobileViewportManager(),
+      caretScrollMargin(),
       EditorView.scrollMargins.of(() => ({ top: STICKY_TOP })),
     ],
   }),
