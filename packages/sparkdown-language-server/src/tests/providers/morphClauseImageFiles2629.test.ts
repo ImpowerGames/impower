@@ -62,7 +62,7 @@ describe("completion after `morph` on pictures made of image files (#2629)", () 
     expect(labelsAt("  [[jaw morph |]]")).toEqual(["chatter", "none"]);
   });
 
-  test("a picture whose layer plays a morph of its own does not offer the picture's speech morph, which cannot play on it", () => {
+  test("a picture whose SVG layer plays a morph of its own still offers the picture's speech morph, which plays on it (#2632)", () => {
     const face = {
       uri: "file:///proj/face.svg",
       type: "image",
@@ -79,6 +79,6 @@ describe("completion after `morph` on pictures made of image files (#2629)", () 
       files: [{ uri, type: "script", name: "main", ext: "sd", text: source.replace("|", ""), version: 1, languageId: "sparkdown" }, ...FILES, face],
     } as any);
     const program = compiler.compile({ textDocument: { uri } }).program;
-    expect(completeAt(source, program).map((item) => String(item.label))).toEqual(["none"]);
+    expect(completeAt(source, program).map((item) => String(item.label))).toEqual(["none", "chatter"]);
   });
 });

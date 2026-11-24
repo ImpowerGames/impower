@@ -11,6 +11,7 @@ type Setup = {
   lists?: Record<string, unknown>;
   pictures?: number;
   extraPictures?: readonly string[];
+  extraFiles?: readonly string[];
   counted?: boolean;
   reveal?: readonly string[];
 };
@@ -44,7 +45,7 @@ declare global {
 }
 
 window.assetsPage = {
-  mount: ({ width, lists = {}, pictures = 3, extraPictures = [], counted = false, reveal }) => {
+  mount: ({ width, lists = {}, pictures = 3, extraPictures = [], extraFiles = [], counted = false, reveal }) => {
     const files: Record<string, { modified: number; size: number; src: string }> = {
       "Assets/Images/Cast/Crew/one.png": { modified: Date.now() - 86_400_000, size: 900, src: picture(99, 300, 400) },
     };
@@ -55,6 +56,9 @@ window.assetsPage = {
     }
     extraPictures.forEach((name, index) => {
       files[name] = { modified: Date.now() - 3 * 86_400_000, size: 2000 + index, src: picture(200 + index, 300, 400) };
+    });
+    extraFiles.forEach((name, index) => {
+      files[name] = { modified: Date.now() - 3 * 86_400_000, size: 3000 + index, src: `/${name}` };
     });
     files["Assets/Audio/Sounds/chime.wav"] = { modified: Date.now(), size: 10, src: "/chime.wav" };
     setAssetFiles({

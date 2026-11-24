@@ -104,8 +104,8 @@ export const listRowBodyVariants = cva(
       selection: {
         none: "",
         available:
-          "group-hover/row:[&>svg:first-child]:invisible group-has-[input:focus-visible]/row:[&>svg:first-child]:invisible",
-        active: "[&>svg:first-child]:invisible",
+          "group-hover/row:[&>svg:first-child]:invisible group-has-[input:focus-visible]/row:[&>svg:first-child]:invisible group-hover/row:[&>[data-thumbnail]:first-child]:invisible group-has-[input:focus-visible]/row:[&>[data-thumbnail]:first-child]:invisible",
+        active: "[&>svg:first-child]:invisible [&>[data-thumbnail]:first-child]:invisible",
       },
       leading: {
         true: "pl-0",
@@ -121,7 +121,7 @@ export const listRowBodyVariants = cva(
       },
     },
     compoundVariants: [
-      { size: "library", control: true, class: "pl-2 [:root[data-layout=desktop]_&]:pl-3" },
+      { size: "library", control: true, class: "pl-2.5 [:root[data-layout=desktop]_&]:pl-[13px]" },
     ],
     defaultVariants: { size: "default", interactive: true, selection: "none", leading: false, control: false, glyph: "muted" },
   },
@@ -139,7 +139,7 @@ export const listRowMarkVariants = cva(
     variants: {
       size: {
         default: "left-3 [&>span]:size-[21px] [&_svg]:size-3.5",
-        library: "left-2 [&>span]:size-[21px] [&_svg]:size-3.5 [:root[data-layout=desktop]_&]:left-3",
+        library: "left-2 [&>span]:size-[21px] [&_svg]:size-3.5 [:root[data-layout=desktop]_&]:left-3 group-has-[[data-thumbnail]]/row:w-11",
         compact: "left-2 [&>span]:size-[18px] [&_svg]:size-3",
         block: "left-2.5 [&>span]:size-[22px] [&_svg]:size-3.5",
         dense: "left-2.5 [&>span]:size-[18px] [&_svg]:size-3",
@@ -163,6 +163,7 @@ export const listRowMarkVariants = cva(
         control: true,
         class: "group-hover/row:pointer-events-none group-hover/row:opacity-0",
       },
+      { size: "library", control: true, class: "w-11" },
     ],
     defaultVariants: { size: "default", selection: "active", control: false },
   },
@@ -172,7 +173,7 @@ export const listRowControlVariants = cva("relative flex flex-none items-center"
   variants: {
     size: {
       default: "pl-2",
-      library: "pl-2",
+      library: "pl-2 [:root[data-layout=desktop]_&]:pl-3",
       compact: "pl-1",
       block: "pl-2",
       dense: "pl-2",

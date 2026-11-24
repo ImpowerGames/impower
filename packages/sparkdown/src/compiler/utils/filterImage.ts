@@ -176,6 +176,15 @@ export const resolveImageAttributes = (context: ImageContext, struct: any, optio
     diagnostics: [...derivation.diagnostics, ...visibility.diagnostics] };
 };
 
+export const layeredImageShownKeys = (context: ImageContext, struct: any): string[] | undefined => {
+  const { image, attributes } = resolveChain(context, struct);
+  if (!image || typeof image !== "object" || image.$type !== "layered_image") return undefined;
+  const entry = rootMemo(image);
+  const derivation = entry.vocabulary ? derivationOf(entry, attributes) : undefined;
+  const visible = derivation && entry.vocabulary ? visibilityOf(entry, derivation).visible : undefined;
+  return Object.keys(image.assets ?? {}).filter((key) => !visible || visible[key] !== false);
+};
+
 export interface FilteredImageResult {
   src?: string;
   layers?: any[];
