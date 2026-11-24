@@ -13,6 +13,7 @@ import {
 } from "../../../../sparkdown/src/morph/render";
 import {
   layeredMorphDrawn,
+  layeredMorphMotions,
   layeredMorphModel,
   type LayeredMorphDrawn,
   type LayeredMorphModel,
@@ -75,6 +76,7 @@ interface CanvasView {
   box: HTMLElement;
   runs: CanvasRun[];
   views: Map<number, LiveView>;
+  containers: Map<number, Container>;
   files: PictureFiles;
   drawn: LayeredMorphDrawn[];
   standIns: Map<string, StandIn>;
@@ -82,6 +84,13 @@ interface CanvasView {
   size?: { width: number; height: number };
   last?: string;
 }
+
+interface Container {
+  element: HTMLElement;
+  label: string;
+}
+
+const CONTAINER_STYLE = "position:absolute;inset:0;transform-origin:0 0";
 
 interface PaintedLayer {
   file: number;
@@ -1184,7 +1193,7 @@ export class MorphLayer {
   protected canvasView(state: ImageState, doc: Document): CanvasView | undefined {
     const files = state.files!;
     const box = doc.createElement("div");
-    box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0");
+    box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0;overflow:hidden");
     const views = new Map<number, LiveView>();
     for (const inner of state.inner) {
       const artifact = this.liveArtifact(inner.slot);
@@ -1193,13 +1202,33 @@ export class MorphLayer {
       inner.view = view;
       views.set(inner.file, view);
     }
+    const motions = layeredMorphMotions(files.model);
+    const held = new Set<number>();
+    files.model.chains.forEach(({ file }, at) => {
+      if (views.has(file)) for (const { wrapper } of motions[at]!) held.add(wrapper);
+    });
+    const containers = new Map<number, Container>();
     const runs: CanvasRun[] = [];
     let current: CanvasRun | undefined;
-    for (const { file } of files.model.chains) {
+    let open: number[] = [];
+    const parent = () => (open.length ? containers.get(open[open.length - 1]!)!.element : box);
+    for (const [at, { file }] of files.model.chains.entries()) {
+      const path = motions[at]!.filter(({ wrapper }) => held.has(wrapper));
+      let kept = 0;
+      while (kept < open.length && kept < path.length && open[kept] === path[kept]!.wrapper) kept += 1;
+      if (kept < open.length || kept < path.length) current = undefined;
+      open = open.slice(0, kept);
+      for (const { wrapper, label } of path.slice(kept)) {
+        const element = doc.createElement("div");
+        element.setAttribute("style", CONTAINER_STYLE);
+        parent().appendChild(element);
+        containers.set(wrapper, { element, label });
+        open.push(wrapper);
+      }
       const view = views.get(file);
       if (view) {
         current = undefined;
-        box.appendChild(view.box);
+        parent().appendChild(view.box);
         continue;
       }
       if (!current) {
@@ -1207,14 +1236,14 @@ export class MorphLayer {
         const context = this.playback.pictureCanvas(canvas);
         if (!context) return undefined;
         canvas.setAttribute("style", "position:absolute;inset:0;width:100%;height:100%;display:block");
-        box.appendChild(canvas);
+        parent().appendChild(canvas);
         current = { canvas, context, files: new Set() };
         runs.push(current);
       }
       current.files.add(file);
     }
     const standIns = new Map<string, StandIn>();
-    const labels = new Set(files.model.chains.flatMap(({ chain }) => chain.flatMap((element) => element.attributes["data-morph-motion"] ?? [])));
+    const labels = new Set(motions.flatMap((chain) => chain.map(({ label }) => label)));
     if (labels.size) {
       const stage = doc.createElement("div");
       stage.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none");
@@ -1226,7 +1255,7 @@ export class MorphLayer {
       }
       box.appendChild(stage);
     }
-    return { box, runs, views, files, drawn: layeredMorphDrawn(files.model), standIns, groups: [] };
+    return { box, runs, views, containers, files, drawn: layeredMorphDrawn(files.model), standIns, groups: [] };
   }
 
   protected placeCanvas(view: CanvasView, rect: Rect) {
@@ -1244,7 +1273,7 @@ export class MorphLayer {
       x = left;
       y = top;
     }
-    const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px`;
+    const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;overflow:hidden`;
     if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
     const pixels = Math.max(1, width * dpr) * Math.max(1, height * dpr);
     const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
@@ -1263,8 +1292,9 @@ export class MorphLayer {
 
   protected paint(view: CanvasView) {
     const layers = view.drawn.map(({ file, opacity, motions }): PaintedLayer => {
+      const drawnHere = motions.filter(({ wrapper }) => !view.containers.has(wrapper));
       let matrix: Affine | undefined;
-      for (const { label } of motions) {
+      for (const { label } of drawnHere) {
         const pose = view.standIns.get(label)?.pose;
         if (pose) matrix = multiply(matrix ?? IDENTITY, pose.matrix);
       }
@@ -1272,8 +1302,8 @@ export class MorphLayer {
         file,
         alpha: opacity,
         ...(matrix ? { matrix } : {}),
-        wrappers: motions.map(({ wrapper }) => wrapper),
-        fades: motions.map(({ label }) => view.standIns.get(label)?.pose?.opacity ?? 1),
+        wrappers: drawnHere.map(({ wrapper }) => wrapper),
+        fades: drawnHere.map(({ label }) => view.standIns.get(label)?.pose?.opacity ?? 1),
       };
     });
     for (const run of view.runs) {
@@ -1287,21 +1317,21 @@ export class MorphLayer {
     }
     for (const [file, live] of view.views) {
       const layer = layers.find((entry) => entry.file === file);
-      write(live.box, "style", `position:absolute;left:0;top:0;width:100%;height:100%;${layer ? this.liveStyle(view, layer) : "display:none"}`);
+      const opacity = layer ? layer.fades.reduce((product, fade) => product * fade, layer.alpha) : 0;
+      write(live.box, "style", `position:absolute;left:0;top:0;width:100%;height:100%;${layer ? (opacity < 1 ? `opacity:${opacity}` : "") : "display:none"}`);
     }
-  }
-
-  protected liveStyle(view: CanvasView, layer: PaintedLayer): string {
-    const opacity = layer.fades.reduce((product, fade) => product * fade, layer.alpha);
-    const declarations: string[] = [];
-    if (layer.matrix && view.size) {
-      const [a, b, c, d, e, f] = layer.matrix;
-      const sx = view.size.width / view.files.width;
-      const sy = view.size.height / view.files.height;
-      declarations.push("transform-origin:0 0", `transform:matrix(${a}, ${(b * sy) / sx}, ${(c * sx) / sy}, ${d}, ${e * sx}, ${f * sy})`);
+    for (const { element, label } of view.containers.values()) {
+      const pose = view.standIns.get(label)?.pose;
+      const declarations = [CONTAINER_STYLE];
+      if (pose && view.size) {
+        const [a, b, c, d, e, f] = pose.matrix;
+        const sx = view.size.width / view.files.width;
+        const sy = view.size.height / view.files.height;
+        declarations.push(`transform:matrix(${a}, ${(b * sy) / sx}, ${(c * sx) / sy}, ${d}, ${e * sx}, ${f * sy})`);
+      }
+      if (pose && pose.opacity < 1) declarations.push(`opacity:${pose.opacity}`);
+      write(element, "style", declarations.join(";"));
     }
-    if (opacity < 1) declarations.push(`opacity:${opacity}`);
-    return declarations.join(";");
   }
 
   protected paintLayers(view: CanvasView, run: CanvasRun, context: PictureCanvasContext, layers: PaintedLayer[], depth: number, alpha: number) {
