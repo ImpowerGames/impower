@@ -30,7 +30,7 @@ const resize = (next: number) => {
 };
 
 describe("the script's effective mode across a window resize", () => {
-  it("follows the window across the phone breakpoint in both directions", () => {
+  it("follows the window across the desktop breakpoint in both directions", () => {
     workspace.scriptMode.value = "reading";
     expect(workspace.effectiveScriptMode.value).toBe("reading");
 
@@ -40,7 +40,7 @@ describe("the script's effective mode across a window resize", () => {
 
     resize(800);
     expect(workspace.layout.value).toBe("compact");
-    expect(workspace.effectiveScriptMode.value).toBeUndefined();
+    expect(workspace.effectiveScriptMode.value).toBe("reading");
 
     resize(360);
     expect(workspace.layout.value).toBe("phone");
@@ -49,6 +49,8 @@ describe("the script's effective mode across a window resize", () => {
     workspace.scriptMode.value = "editing";
     resize(1440);
     expect(workspace.effectiveScriptMode.value).toBeUndefined();
+    resize(800);
+    expect(workspace.effectiveScriptMode.value).toBe("editing");
     resize(360);
     expect(workspace.effectiveScriptMode.value).toBe("editing");
   });

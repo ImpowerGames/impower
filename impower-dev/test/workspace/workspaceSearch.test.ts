@@ -378,7 +378,7 @@ describe("reading mode", () => {
   it.each([
     ["phone", "reading", 0],
     ["phone", "editing", 1],
-    ["compact", "reading", 1],
+    ["compact", "reading", 0],
     ["compact", "editing", 1],
     ["desktop", "reading", 1],
     ["desktop", "editing", 1],

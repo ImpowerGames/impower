@@ -10,8 +10,8 @@ describe("the script's effective mode", () => {
   it.each([
     ["phone", "reading", "reading"],
     ["phone", "editing", "editing"],
-    ["compact", "reading", undefined],
-    ["compact", "editing", undefined],
+    ["compact", "reading", "reading"],
+    ["compact", "editing", "editing"],
     ["desktop", "reading", undefined],
     ["desktop", "editing", undefined],
   ] as const)(

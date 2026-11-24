@@ -88,6 +88,8 @@ beforeEach(() => {
   calls.commands.length = 0;
   layout.value = "desktop";
   workspace.layout.value = layout.value as Layout;
+  workspace.scriptMode.value = "reading";
+  calls.started.length = 0;
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local" },
@@ -138,10 +140,29 @@ describe("WriterBar tools by layout", () => {
     expect(labelled("Writing tools")).not.toBeNull();
   });
 
-  it("shows Indent, Dedent and Format on a compact layout and sends each to the editor", async () => {
+  it("keeps a compact reading bar to the tools, the readout and Edit, which starts editing", async () => {
     layout.value = "compact";
     workspace.layout.value = layout.value as Layout;
     await mount("scripts/intro.sd");
+    expect(labelled("Indent")).toBeNull();
+    expect(labelled("Dedent")).toBeNull();
+    expect(labelled("Format script")).toBeNull();
+    expect(host!.querySelector("[data-add-trigger]")).toBeNull();
+    expect(labelled("Writing tools")).not.toBeNull();
+    const edit = host!.querySelector<HTMLButtonElement>("[data-edit-script]")!;
+    expect(edit.textContent).toContain("Edit");
+    await act(async () => edit.click());
+    await settle();
+    expect(calls.started).toEqual(["scripts/intro.sd"]);
+  });
+
+  it("shows Indent, Dedent, Format and Add while editing on a compact layout and sends each to the editor", async () => {
+    layout.value = "compact";
+    workspace.layout.value = layout.value as Layout;
+    workspace.scriptMode.value = "editing";
+    await mount("scripts/intro.sd");
+    expect(host!.querySelector("[data-edit-script]")).toBeNull();
+    expect(host!.querySelector("[data-add-trigger]")).not.toBeNull();
     for (const label of ["Indent", "Dedent", "Format script"]) {
       await act(async () => labelled(label)!.click());
     }

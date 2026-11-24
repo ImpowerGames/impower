@@ -270,7 +270,7 @@ class WorkspaceStore {
   }
 
   readonly effectiveScriptMode = computed<ScriptMode | undefined>(() =>
-    this.layout.value === "phone" ? this.scriptMode.value : undefined,
+    this.layout.value === "desktop" ? undefined : this.scriptMode.value,
   );
 
   readonly keyboardPanels = signal<readonly KeyboardPanel[]>([]);
