@@ -7,8 +7,10 @@ import UsesList from "./UsesList";
 import { withSearch } from "./withSearch";
 
 export default function ReferencesView({
+  rows,
   onOpened,
 }: {
+  rows?: "default" | "rail";
   onOpened?: () => void;
 }) {
   const { subject, references, files } = workspace.search.value;
@@ -26,6 +28,7 @@ export default function ReferencesView({
         </p>
       )}
       <UsesList
+        rows={rows}
         groups={references}
         onOpen={(use) =>
           withSearch(async (search) => {

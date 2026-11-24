@@ -6,10 +6,12 @@ import { visibleTextInName } from "../../../packages/impower-ui/test/visibleText
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
+  coarse: false,
 }));
 vi.mock("@impower/impower-ui/layout", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@impower/impower-ui/layout")>()),
   useLayout: () => layout.value,
+  useCoarsePointer: () => layout.coarse,
 }));
 
 const assets = vi.hoisted(() => ({
@@ -175,6 +177,7 @@ const setListing = (files: Record<string, ReturnType<typeof facts> & { address?:
 
 beforeEach(() => {
   layout.value = "desktop";
+  layout.coarse = false;
   measured.sizes = {};
   workspace.assetSizes.value = {};
   assets.measureImages.mockImplementation(async (paths: string[]) => {
@@ -341,39 +344,64 @@ describe("the Assets page", () => {
     expect(text()).toContain("No files match.");
   });
 
-  it("says what each empty tab is for, and what an empty folder or project is", async () => {
+  const emptyState = () => {
+    const heading = host!.querySelector("h2");
+    const box = heading?.parentElement;
+    return {
+      title: heading?.textContent ?? null,
+      sentences: [...(box?.querySelectorAll("p") ?? [])].map((p) => p.textContent),
+      button: [...(box?.querySelectorAll("button") ?? [])].map((b) => b.textContent?.trim()),
+    };
+  };
+  const shows = (title: string) => ({ title, sentences: [], button: ["Add files from this device"] });
+
+  for (const coarse of [false, true]) {
+    it(`gives every empty state one title and the upload button ${coarse ? "under touch" : "where files can be dropped"}`, async () => {
+      layout.coarse = coarse;
+      setListing({ "Assets/Images/bunny.png": facts() }, ["Assets/Images/Empty"]);
+      await mount();
+      const tabTitles = coarse
+        ? { Audio: "No audio yet", Video: "No video yet", Text: "No text yet", Fonts: "No fonts yet", Other: "Nothing yet" }
+        : {
+            Audio: "Drop audio here",
+            Video: "Drop video here",
+            Text: "Drop text here",
+            Fonts: "Drop fonts here",
+            Other: "Drop files here",
+          };
+      for (const [tab, title] of Object.entries(tabTitles)) {
+        await showTab(tab);
+        expect(emptyState()).toEqual(shows(title));
+      }
+      await showTab("Images");
+      await click(all<HTMLElement>('button[aria-label^="Open folder Empty"]')[0]);
+      expect(emptyState()).toEqual(shows(coarse ? "This folder is empty" : "Drop files here"));
+      await act(async () => {
+        setListing({});
+      });
+      await settle();
+      expect(emptyState()).toEqual(shows(coarse ? "No files yet" : "Drop files here"));
+      await act(async () => {
+        setListing({ "Assets/Audio/theme.ogg": facts() });
+      });
+      await settle();
+      await showTab("Images");
+      expect(emptyState()).toEqual(shows(coarse ? "No images yet" : "Drop images here"));
+      expect(text()).not.toMatch(/Add button|A collection of your art|will appear here/);
+    });
+  }
+
+  it("adds into the empty folder on screen from its upload button", async () => {
     setListing({ "Assets/Images/bunny.png": facts() }, ["Assets/Images/Empty"]);
     await mount();
-    await showTab("Audio");
-    expect(text()).toContain("No audio yet");
-    expect(text()).toContain("Add sounds and music with the Add button.");
-    expect(text()).not.toContain("New button");
-    await showTab("Video");
-    expect(text()).toContain("Add a video with the Add button.");
-    await showTab("Text");
-    expect(text()).toContain("Add notes with the Add button.");
-    await showTab("Fonts");
-    expect(text()).toContain("Add a font with the Add button.");
-    await showTab("Other");
-    expect(text()).toContain("Files of any other type land here when you add them.");
-    await showTab("Images");
     await click(all<HTMLElement>('button[aria-label^="Open folder Empty"]')[0]);
-    expect(text()).toContain("This folder is empty");
-    expect(text()).toContain("Add files to it with the Add button, or drop files on it from its parent folder.");
-    await act(async () => {
-      setListing({});
-    });
-    await settle();
-    expect(text()).toContain("A collection of your art");
-    expect(text()).toContain("Your portraits, backgrounds, sounds and music will appear here.");
-    expect(all<HTMLButtonElement>("button").some((b) => b.textContent?.includes("Add files from this device"))).toBe(true);
-    await act(async () => {
-      setListing({ "Assets/Audio/theme.ogg": facts() });
-    });
-    await settle();
-    await showTab("Images");
-    expect(text()).toContain("No images yet");
-    expect(text()).toContain("Add portraits and backgrounds with the Add button.");
+    const button = all<HTMLButtonElement>("button").find((b) => b.textContent?.includes("Add files from this device"))!;
+    const picker = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const opened = vi.spyOn(picker, "click").mockImplementation(() => {});
+    await click(button);
+    expect(opened).toHaveBeenCalled();
+    await chooseFiles("cat.png");
+    expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "cat.png" })], "Assets/Images/Empty");
   });
 
   it("opens the inspector on a press and the row menu from its own button", async () => {
