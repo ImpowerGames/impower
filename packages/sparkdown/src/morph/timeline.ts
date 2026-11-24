@@ -63,7 +63,6 @@ interface Step {
   segment: number;
   r: number;
   q: number;
-  turn: number;
 }
 
 interface Hit {
@@ -117,8 +116,8 @@ export class MorphTimeline {
     if (typeof min === "number" && typeof max === "number" && Number.isFinite(min) && Number.isFinite(max) && min >= 0 && max >= min) {
       this.gap = { min, max };
     }
-    (timing.replay ?? []).forEach((replay, range) => {
-      if (!(replay.chance > 0 && isMorphReplayCount(replay.count))) return;
+    (timing.replay ?? []).filter((replay) => isMorphReplayCount(replay.count)).forEach((replay, range) => {
+      if (!(replay.chance > 0)) return;
       const found = morphReplayStretch(timing.easing, replay.from, replay.to);
       if (!found) return;
       const { delay_min: least, delay_max: most } = replay;
@@ -311,36 +310,6 @@ export class MorphTimeline {
     return found ?? { tail: left };
   }
 
-  protected step(play: Play, k: number): Step | undefined {
-    let at = play.start;
-    let held: number | undefined;
-    let ordinal = 0;
-    let found = undefined as Step | undefined;
-    this.visit(play, (segment, i, r, q) => {
-      const run = this.runOf(segment, r, q);
-      at = held === undefined ? at + run : at + (held + run);
-      if (ordinal++ === k) {
-        found = { segment: i, r, q, turn: at };
-        return true;
-      }
-      held = this.pauseOf(play, segment, r, q);
-      return false;
-    });
-    return found;
-  }
-
-  protected steps(play: Play): number {
-    const last = this.path(play).at(-1);
-    return last ? last.ordinal + last.reps * last.cycle.length : 0;
-  }
-
-  protected before(play: Play, elapsed: number): number {
-    const found = this.seek(play, elapsed);
-    if ("tail" in found) return this.steps(play) - 1;
-    const segment = this.path(play)[found.segment]!;
-    return segment.ordinal + found.r * segment.cycle.length + found.q - 1;
-  }
-
   protected length(play: Play): number {
     if (play.length !== undefined) return play.length;
     let total = this.duration;
@@ -404,18 +373,29 @@ export class MorphTimeline {
     const play = this.runs[index];
     if (!play || !this.stretches.length) return;
     for (;;) {
-      const found = this.step(play, play.settled);
-      if (!found) return;
-      const at = found.turn;
-      if (at > t) return;
-      const span = this.spanFrom(at);
-      if (!span) {
-        this.skip(play, found);
-        continue;
-      }
-      const least = Math.max(0, span[0] - at);
-      if (least > this.pauseOf(play, this.path(play)[found.segment]!, found.r, found.q)) this.wait(play, found, least);
-      play.settled = Math.max(play.settled + 1, this.before(play, Math.min(span[1], t) - play.start));
+      let then = undefined as (() => void) | undefined;
+      let at = play.start;
+      let held: number | undefined;
+      let ordinal = 0;
+      this.visit(play, (segment, i, r, q) => {
+        const run = this.runOf(segment, r, q);
+        at = held === undefined ? at + run : at + (held + run);
+        held = this.pauseOf(play, segment, r, q);
+        if (ordinal++ < play.settled) return false;
+        if (at > t) return true;
+        const found: Step = { segment: i, r, q };
+        const span = this.spanFrom(at);
+        if (!span) {
+          then = () => this.skip(play, found);
+          return true;
+        }
+        play.settled = ordinal;
+        const least = Math.max(0, span[0] - at);
+        if (least > held) then = () => this.wait(play, found, least);
+        return Boolean(then);
+      });
+      if (!then) return;
+      then();
     }
   }
 

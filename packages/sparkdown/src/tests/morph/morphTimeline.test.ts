@@ -834,7 +834,8 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
 describe("a play computes its replays from the seed and keeps nothing per replay (#2704)", () => {
   const range = (from: number, to: number, overrides: Partial<MorphReplay> = {}): MorphReplay => ({ from, to, chance: 1, count: 1, ...overrides });
   const pause = { delay_min: 0.17, delay_max: 0.35 };
-  const retained = (timeline: MorphTimeline) => JSON.stringify((timeline as unknown as { runs: unknown }).runs).length;
+  const runsOf = (timeline: MorphTimeline) => (timeline as unknown as { runs: { waits: Map<number, number> }[] }).runs;
+  const retained = (timeline: MorphTimeline) => JSON.stringify(runsOf(timeline), (_, value: unknown) => (value instanceof Map ? [...value] : value)).length;
 
   test("a count above the compiler's bound, or not a whole number, drops its range as readMorphReplay drops it", () => {
     const frames = (replay?: MorphReplay[]) => {
@@ -846,6 +847,9 @@ describe("a play computes its replays from the seed and keeps nothing per replay
     expect(frames([range(0, 1, { count: 2.5 })])).toEqual(plain);
     expect(frames([range(0, 1, { count: 1000 })])).not.toEqual(plain);
     expect(frames([range(0, 1, { count: 1001 }), range(0, 0.5, { count: 2 })])).toEqual(frames([range(0, 0.5, { count: 2 })]));
+    const drawn = { chance: 0.6, count: 5, delay_min: 0.05, delay_max: 0.2 };
+    expect(frames([range(0, 1, { count: 1001 }), range(0, 0.5, drawn)])).toEqual(frames([range(0, 0.5, drawn)]));
+    expect(frames([range(0, 1, { count: 0 }), range(0, 0.5, drawn), range(0, 1, { count: Number.NaN })])).toEqual(frames([range(0, 0.5, drawn)]));
   });
 
   test("at the bound of 1000 replays a range, the first frame and a late frame each take under 5 ms, forward and reversed, and nothing kept grows with the count or the frames asked", () => {
@@ -870,6 +874,7 @@ describe("a play computes its replays from the seed and keeps nothing per replay
         expect(kept, label).toBeLessThan(retained(few) + 64);
         for (let frame = 0; frame < 2000; frame++) timeline.at(frame * 0.1);
         expect(retained(timeline), label).toBeLessThan(kept + 64);
+        for (const play of runsOf(timeline)) expect(play.waits.size, label).toBe(0);
       }
     }
   });
@@ -1120,5 +1125,36 @@ describe("a play computes its replays from the seed and keeps nothing per replay
     }
     expect(timeline.at(4.05)).toMatchObject({ phase: "playing", play: 0 });
     expect(timeline.at(4.15)).toMatchObject({ phase: "playing", play: 1 });
+  });
+
+  test("speech settles each turn at its own summed moment, however short the stretch, so none at or after the speech's end is taken", () => {
+    const steep = new MorphTimeline(
+      timing({ trigger: "speech", duration: 0.3, direction: "reverse", easing: "linear(0 0%, 0 25%, 1 25.0000000000001%, 1 100%)", replay: [range(0.2, 0.8, { count: 1000 })] }),
+      () => 0.5,
+    );
+    steep.speak([[0, 0.22500000000001916]], 0);
+    expect(steep.at(0.22500000000001916)).toEqual({ phase: "playing", play: 0, offset: 0 });
+    expect(steep.at(0.22500000000001916 + 0.6)).toEqual({ phase: "off" });
+    const narrow = new MorphTimeline(
+      timing({ trigger: "speech", duration: 0.001, direction: "reverse", replay: [range(0.1, 0.1000000000000001, { count: 1000 })] }),
+      () => 0.5,
+    );
+    narrow.speak([[0, 0.0009000000000000108]], 0);
+    expect(narrow.at(0.0009000000000000108)).toEqual({ phase: "playing", play: 0, offset: 0.0999999999999989 });
+    expect(narrow.at(0.0009000000000000108 + 0.00001)).toEqual({ phase: "playing", play: 0, offset: 0.0899999999999988 });
+  });
+
+  test("each speech play keeps its own holds, one at most for each gap in the speech", () => {
+    const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 0.5, replay: [range(0, 0.5, { count: 1000 })] }), () => 0.5);
+    const gaps: [number, number][] = [];
+    for (let k = 0; k < 40; k++) gaps.push([k * 0.6, k * 0.6 + 0.45]);
+    timeline.speak(gaps, 0);
+    for (let t = 0; t < 25; t += 0.013) timeline.at(t);
+    const plays = runsOf(timeline);
+    expect(plays.length).toBeGreaterThan(0);
+    const holds = plays.reduce((sum, play) => sum + play.waits.size, 0);
+    expect(holds).toBeGreaterThan(0);
+    expect(holds).toBeLessThanOrEqual(gaps.length - 1);
+    expect(new Set(plays.map((play) => play.waits)).size).toBe(plays.length);
   });
 });
