@@ -11,6 +11,7 @@ import {
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
 import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
+import { layeredSizeWarnings, type LayeredSizeWarning } from "../../morph/layered";
 import { resolvePictureLook } from "../../morph/look";
 import { MORPH_PICK_NONE } from "../../morph/types";
 import {
@@ -713,7 +714,7 @@ export class SparkdownCompiler {
     string,
     { source: object; value: { [name: string]: any } }
   >;
-  protected _morphChannelCache?: { signature: string; channel: MorphProgramChannel };
+  protected _morphChannelCache?: { signature: string; channel: MorphProgramChannel; warnings: LayeredSizeWarning[] };
   protected _implicitDefCache?: Map<string, any>;
   protected _referenceCache?: ReferenceValidationCache;
   protected _referenceValidationStats = {
@@ -5122,13 +5123,28 @@ export class SparkdownCompiler {
     } else {
       const signature = JSON.stringify([program.contextRevision, ...effective]);
       const cached = this._morphChannelCache;
+      let warnings: LayeredSizeWarning[];
       if (cached && cached.signature === signature) {
         program.morphs = cached.channel;
+        warnings = cached.warnings;
       } else {
-        const channel = buildMorphChannel(program.context, effective);
+        const context = program.context;
+        warnings = [];
+        const channel = buildMorphChannel(context, effective, (picture, mismatches) =>
+          warnings.push(...layeredSizeWarnings(picture, getContextEntry(context, "layered_image", picture)?.uri, mismatches)),
+        );
         if (channel) program.morphs = channel;
         else delete program.morphs;
-        this._morphChannelCache = channel ? { signature, channel } : undefined;
+        this._morphChannelCache = channel ? { signature, channel, warnings } : undefined;
+      }
+      for (const warning of warnings) {
+        const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
+        ((program.diagnostics ??= {})[warning.uri] ??= []).push({
+          range,
+          severity: DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: warning.message },
+          source: LANGUAGE_NAME,
+        });
       }
     }
     profile("end", this._profilerId, "populateMorphChannel", uri);

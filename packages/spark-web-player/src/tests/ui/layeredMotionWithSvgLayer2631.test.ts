@@ -255,7 +255,7 @@ describe("a picture's morph moves its image-file layers while an SVG layer plays
 
 describe("a faded label holding an image-file layer and an SVG layer is faded once, as a group (#2631, #2632)", () => {
   const GROUPED =
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">' +
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
     '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
     '<g data-name="face">' +
     '<image data-name="shade" data-layer="1" x="0" y="0" width="100" height="100"/>' +

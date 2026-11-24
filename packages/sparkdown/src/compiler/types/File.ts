@@ -8,6 +8,8 @@ export interface File {
   src?: string;
   text?: string;
   data?: string;
+  width?: number;
+  height?: number;
   attribute_vocabulary?: AttributeVocabulary;
   version?: number | null;
   languageId?: string | null;

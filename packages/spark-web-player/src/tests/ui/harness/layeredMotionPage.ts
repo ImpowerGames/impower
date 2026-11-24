@@ -72,7 +72,7 @@ const GROUP_FILES = {
 };
 
 const GROUP_ARTWORK =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
   '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
   '<g data-name="face"><image data-name="red" data-layer="1" x="0" y="0" width="100" height="100"/>' +
   '<image data-name="blue" data-layer="2" x="0" y="0" width="100" height="100"/></g></svg>';

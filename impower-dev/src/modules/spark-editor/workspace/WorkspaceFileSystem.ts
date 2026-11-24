@@ -99,6 +99,7 @@ import {
   planFolderMigration,
 } from "../utils/fileTree";
 import { getWorkerUrl } from "../../../workers/workerUrl";
+import { IMAGE_HEADER_BYTES, imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -389,6 +390,10 @@ export default class WorkspaceFileSystem {
       const result = await this.getFileSrc(uri);
       return result;
     }
+    if (params.command === "sparkdown.getFileImageSize") {
+      const [uri] = params.arguments || [];
+      return this.getFileImageSize(uri);
+    }
     if (params.command === "sparkdown.getFileVersion") {
       const [uri] = params.arguments || [];
       const result = await this.getFileVersion(uri);
@@ -409,6 +414,16 @@ export default class WorkspaceFileSystem {
     await this._initialFilesRef.settled();
     const buffer = await this.readFile({ file: { uri } });
     return new TextDecoder("utf-8").decode(buffer);
+  }
+
+  async getFileImageSize(uri: string) {
+    await this._initialFilesRef.settled();
+    try {
+      const buffer = await this.readFile({ file: { uri } });
+      return imageSizeOf(new Uint8Array(buffer, 0, Math.min(buffer.byteLength, IMAGE_HEADER_BYTES))) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   hasFile(uri: string) {

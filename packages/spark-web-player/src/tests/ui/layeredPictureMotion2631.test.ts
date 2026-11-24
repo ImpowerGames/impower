@@ -195,7 +195,7 @@ describe("a morph moves the layers of a picture made of image files on its canva
 
   test("a faded label holding two files is drawn on a canvas of its own and faded once, as a whole", async () => {
     const source =
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
       '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
       '<g data-name="brows"><image data-name="left" data-layer="1" x="0" y="0" width="100" height="100"/>' +
       '<image data-name="right" data-layer="2" x="0" y="0" width="100" height="100"/></g></svg>';

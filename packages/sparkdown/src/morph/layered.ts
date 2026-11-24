@@ -13,12 +13,18 @@ type Element = Exclude<Node, string | null>;
 
 export const LAYERED_MORPH_EXTENT = 100;
 
+export interface LayeredMorphSize {
+  width: number;
+  height: number;
+}
+
 export interface LayeredMorphFile {
   key: string;
   name: string;
   src: string;
   uri?: string;
   struct: any;
+  size?: LayeredMorphSize;
 }
 
 export interface LayeredMorphArtwork {
@@ -26,6 +32,7 @@ export interface LayeredMorphArtwork {
   files: LayeredMorphFile[];
   paths: Record<string, number>;
   uri?: string;
+  size?: LayeredMorphSize;
 }
 
 export const layeredMorphRoot = (context: Context | undefined, struct: any): any => {
@@ -36,7 +43,28 @@ export const layeredMorphRoot = (context: Context | undefined, struct: any): any
 const escapeAttribute = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export function layeredMorphArtwork(context: Context | undefined, image: any): LayeredMorphArtwork | undefined {
+const sizeOf = (struct: any): LayeredMorphSize | undefined => {
+  const width = struct?.width;
+  const height = struct?.height;
+  return typeof width === "number" && typeof height === "number" && width > 0 && height > 0 && Number.isFinite(width) && Number.isFinite(height)
+    ? { width, height }
+    : undefined;
+};
+
+interface LayeredMorphNode {
+  name: string;
+  file?: number;
+  children?: LayeredMorphNode[];
+}
+
+interface LayeredMorphStack {
+  nodes: LayeredMorphNode[];
+  files: LayeredMorphFile[];
+  paths: Record<string, number>;
+  uri?: string;
+}
+
+function layeredMorphStack(context: Context | undefined, image: any): LayeredMorphStack | undefined {
   if (!context || image?.$type !== "layered_image") return undefined;
   const vocabulary = resolveImageAttributes(context, image, { visibility: false }).vocabulary;
   if (!vocabulary) return undefined;
@@ -56,44 +84,127 @@ export function layeredMorphArtwork(context: Context | undefined, image: any): L
     if (resolved.length === 0) return undefined;
     if (resolved.length > 1) return null;
     const drawn = resolved[0]!;
+    const root = drawn.struct?.$type === "filtered_image" ? resolveImageRoot(context, drawn.struct) : drawn.struct;
+    const file = root?.$type === "image" ? root : undefined;
+    const size = sizeOf(file);
+    const uri = typeof drawn.uri === "string" ? drawn.uri : typeof file?.uri === "string" ? file.uri : undefined;
     return {
       key: layer.key,
       name: layer.name,
       src: drawn.src,
-      ...(typeof drawn.uri === "string" ? { uri: drawn.uri } : {}),
+      ...(uri === undefined ? {} : { uri }),
       struct: drawn.struct,
+      ...(size ? { size } : {}),
     };
   };
-  const box = `x="0" y="0" width="${LAYERED_MORPH_EXTENT}" height="${LAYERED_MORPH_EXTENT}"`;
   let unreadable = false;
-  const emit = (parent: string, path: string, start = 0): string =>
-    (children.get(parent) ?? [])
-      .map((layer, offset) => {
-        const at = `${path}/${start + offset}`;
-        const file = fileOf(layer);
-        if (file === null) unreadable = true;
-        const nested = children.get(layer.key)?.length;
-        const name = `data-name="${escapeAttribute(layer.name)}"`;
-        const drawn = (named: boolean, where: string) => {
-          if (!file) return "";
-          paths[where] = files.length;
-          files.push(file);
-          return `<image ${named ? `${name} ` : ""}data-layer="${files.length - 1}" ${box}/>`;
-        };
-        if (!nested) return file ? drawn(true, at) : `<g ${name}/>`;
-        const own = drawn(false, `${at}/0`);
-        return `<g ${name}>${own}${emit(layer.key, at, own ? 1 : 0)}</g>`;
+  const collect = (parent: string, path: string, start = 0): LayeredMorphNode[] =>
+    (children.get(parent) ?? []).map((layer, offset) => {
+      const at = `${path}/${start + offset}`;
+      const file = fileOf(layer);
+      if (file === null) unreadable = true;
+      const nested = children.get(layer.key)?.length;
+      const add = (where: string) => {
+        if (!file) return undefined;
+        paths[where] = files.length;
+        files.push(file);
+        return files.length - 1;
+      };
+      if (!nested) {
+        const index = add(at);
+        return index === undefined ? { name: layer.name } : { name: layer.name, file: index };
+      }
+      const index = add(`${at}/0`);
+      const below = collect(layer.key, at, index === undefined ? 0 : 1);
+      return index === undefined ? { name: layer.name, children: below } : { name: layer.name, file: index, children: below };
+    });
+  const nodes = collect(ATTRIBUTE_ROOT, "/0");
+  if (unreadable || files.length === 0) return undefined;
+  const uri = files[0]!.uri ?? (typeof image.uri === "string" ? image.uri : undefined);
+  return { nodes, files, paths, ...(uri === undefined ? {} : { uri }) };
+}
+
+export interface LayeredSizeMismatch {
+  file: LayeredMorphFile;
+  size: LayeredMorphSize;
+  bottom: LayeredMorphFile;
+  pictureSize: LayeredMorphSize;
+}
+
+const mismatchesOf = (files: readonly LayeredMorphFile[]): LayeredSizeMismatch[] => {
+  const bottom = files[0];
+  const pictureSize = bottom?.size;
+  if (!bottom || !pictureSize) return [];
+  return files.flatMap((file) =>
+    file.size && (file.size.width !== pictureSize.width || file.size.height !== pictureSize.height)
+      ? [{ file, size: file.size, bottom, pictureSize }]
+      : [],
+  );
+};
+
+export function layeredSizeMismatches(context: Context | undefined, image: any): LayeredSizeMismatch[] {
+  const stack = layeredMorphStack(context, image);
+  return stack ? mismatchesOf(stack.files) : [];
+}
+
+export interface LayeredSizeWarning {
+  uri: string;
+  message: string;
+}
+
+const fileLabel = (file: LayeredMorphFile) => {
+  if (!file.uri) return file.name;
+  const leaf = file.uri.slice(file.uri.lastIndexOf("/") + 1);
+  try {
+    return decodeURIComponent(leaf);
+  } catch {
+    return leaf;
+  }
+};
+
+const sizeLabel = (size: LayeredMorphSize) => `${size.width}×${size.height}`;
+
+export function layeredSizeWarnings(
+  picture: string,
+  pictureUri: string | undefined,
+  mismatches: readonly LayeredSizeMismatch[],
+): LayeredSizeWarning[] {
+  return mismatches.flatMap(({ file, size, bottom, pictureSize }) => {
+    const uri = file.uri ?? bottom.uri ?? pictureUri;
+    if (!uri) return [];
+    return [
+      {
+        uri,
+        message: `Layer file "${fileLabel(file)}" is ${sizeLabel(size)} pixels, but picture "${picture}" is ${sizeLabel(pictureSize)}, the size of its bottom layer "${fileLabel(bottom)}". Morphs do not play on "${picture}" while its layer files differ in size. Export every layer at the document size.`,
+      },
+    ];
+  });
+}
+
+export function layeredMorphArtwork(context: Context | undefined, image: any): LayeredMorphArtwork | undefined {
+  const stack = layeredMorphStack(context, image);
+  if (!stack || mismatchesOf(stack.files).length > 0) return undefined;
+  const size = stack.files[0]!.size;
+  const width = size?.width ?? LAYERED_MORPH_EXTENT;
+  const height = size?.height ?? LAYERED_MORPH_EXTENT;
+  const box = `x="0" y="0" width="${width}" height="${height}"`;
+  const render = (nodes: readonly LayeredMorphNode[]): string =>
+    nodes
+      .map((node) => {
+        const name = `data-name="${escapeAttribute(node.name)}"`;
+        const drawn = (named: boolean) =>
+          node.file === undefined ? "" : `<image ${named ? `${name} ` : ""}data-layer="${node.file}" ${box}/>`;
+        if (!node.children) return node.file === undefined ? `<g ${name}/>` : drawn(true);
+        return `<g ${name}>${drawn(false)}${render(node.children)}</g>`;
       })
       .join("");
-  const body = emit(ATTRIBUTE_ROOT, "/0");
-  if (unreadable || files.length === 0) return undefined;
-  const bottom = files[0]!;
-  const uri = bottom.uri ?? (typeof image.uri === "string" ? image.uri : undefined);
+  const extent = size ? ` width="${width}" height="${height}"` : "";
   return {
-    text: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LAYERED_MORPH_EXTENT} ${LAYERED_MORPH_EXTENT}" width="${LAYERED_MORPH_EXTENT}" height="${LAYERED_MORPH_EXTENT}">${body}</svg>`,
-    files,
-    paths,
-    ...(uri === undefined ? {} : { uri }),
+    text: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"${extent}>${render(stack.nodes)}</svg>`,
+    files: stack.files,
+    paths: stack.paths,
+    ...(stack.uri === undefined ? {} : { uri: stack.uri }),
+    ...(size ? { size } : {}),
   };
 }
 

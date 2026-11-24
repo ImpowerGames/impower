@@ -160,6 +160,7 @@ try {
       .sendRequest(SemanticTokensRefreshRequest.type)
       .catch(ignoreRefusal);
     connection.sendRequest(DiagnosticRefreshRequest.type).catch(ignoreRefusal);
+    void workspace.loadImageSizes();
   });
 
   connection.onDidChangeConfiguration(async () => {
