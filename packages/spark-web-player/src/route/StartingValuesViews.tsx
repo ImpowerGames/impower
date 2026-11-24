@@ -172,7 +172,7 @@ function StatusBadge({ badge }: { badge: NonNullable<ValueRow["badge"]> }) {
             }
           }}
         >
-          <RouteIconSvg icon={status} class="size-3.5" />
+          <RouteIconSvg icon={status} size="size-3.5" />
         </button>
       </PopoverTrigger>
       <PopoverContent

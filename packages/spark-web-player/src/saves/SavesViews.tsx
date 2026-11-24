@@ -181,7 +181,7 @@ export function SaveRowLabel({ row }: { row: SaveRow }) {
       >
         {row.gone ? (
           <>
-            <RouteIconSvg icon="warning" class="size-3" />
+            <RouteIconSvg icon="warning" size="size-3" />
             <span>{SAVE_TEXT.gone}</span>
           </>
         ) : (
@@ -420,12 +420,12 @@ function ValueField({
             tabIndex={0}
             aria-label={row.badge.message}
           >
-            <RouteIconSvg icon={row.badge.status} class="size-3.5" />
+            <RouteIconSvg icon={row.badge.status} size="size-3.5" />
             <span
               class="sv-popup pointer-events-none invisible absolute -right-1 bottom-[calc(100%+6px)] z-2 flex w-max max-w-[280px] flex-row items-start gap-1.5 whitespace-normal rounded-[6px] border border-solid border-edge bg-panel px-2 py-1.5 leading-[1.4] text-ink shadow-[0_4px_14px_rgba(0,0,0,0.45)] group-hover/badge:visible group-focus/badge:visible"
               role="tooltip"
             >
-              <RouteIconSvg icon={row.badge.status} class="size-3.5" />
+              <RouteIconSvg icon={row.badge.status} size="size-3.5" />
               <span>{row.badge.message}</span>
             </span>
           </span>
@@ -629,7 +629,7 @@ export function SaveNote({
     >
       {note.failed !== undefined ? (
         <>
-          <RouteIconSvg icon="error" class="size-3.5" />
+          <RouteIconSvg icon="error" size="size-3.5" />
           <span>{`${note.play ? SAVE_TEXT.notPlayed : SAVE_TEXT.notSaved}: ${note.failed}`}</span>
         </>
       ) : (
