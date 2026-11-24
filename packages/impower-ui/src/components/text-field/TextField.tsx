@@ -92,7 +92,17 @@ export type TextFieldProps = Omit<
     onCommit?: (value: string) => void;
     suffix?: ComponentChildren;
     characters?: number;
+    zoomSafe?: boolean;
   };
+
+const ZOOM_SAFE_FRAME = "block min-w-0 flex-1 self-stretch";
+const ZOOM_SAFE_INPUT = [
+  "h-full w-full",
+  "[:root:not([data-layout=desktop])_&]:text-[16px]",
+  "[:root:not([data-layout=desktop])_&]:w-[114.286%]",
+  "[:root:not([data-layout=desktop])_&]:origin-left",
+  "[:root:not([data-layout=desktop])_&]:scale-[0.875]",
+].join(" ");
 
 const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
   {
@@ -109,6 +119,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     onInput,
     suffix,
     characters,
+    zoomSafe,
     ...rest
   },
   ref,
@@ -135,11 +146,12 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
   const input = (
     <input
       ref={setRef}
-      class={
+      class={cn(
         suffix === undefined
           ? cn(textFieldVariants({ frame, size, width, font }), className)
-          : cn(textFieldVariants({ frame: "inset", size, font }), "self-stretch px-3", className)
-      }
+          : cn(textFieldVariants({ frame: "inset", size, font }), "self-stretch px-3", className),
+        zoomSafe && ZOOM_SAFE_INPUT,
+      )}
       {...textFieldPurposeAttributes(purpose)}
       {...rest}
       size={characters}
@@ -160,6 +172,9 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
     />
   );
 
+  if (zoomSafe && suffix === undefined) {
+    return <span class={ZOOM_SAFE_FRAME}>{input}</span>;
+  }
   if (suffix === undefined) {
     return input;
   }

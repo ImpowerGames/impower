@@ -148,6 +148,22 @@ describe("TextField", () => {
     expect(dialog.some((name) => name.startsWith("compact:") || name.startsWith("phone:"))).toBe(false);
   });
 
+  it("keeps 16px type drawn at 87.5% across a widened input inside a frame of its own when zoom-safe, outside the desktop layout", async () => {
+    const input = await mount(<TextField aria-label="Search" frame="inset" zoomSafe />);
+    const frame = input.parentElement!;
+    expect(frame.className.split(/\s+/)).toEqual(expect.arrayContaining(["block", "min-w-0", "flex-1", "self-stretch"]));
+    const names = input.className.split(/\s+/);
+    const touch = "[:root:not([data-layout=desktop])_&]:";
+    expect(names).toEqual(
+      expect.arrayContaining(["h-full", "w-full", `${touch}text-[16px]`, `${touch}w-[114.286%]`, `${touch}origin-left`, `${touch}scale-[0.875]`]),
+    );
+    expect(names).not.toContain("w-auto");
+    await act(async () => render(<TextField aria-label="Search" frame="inset" />, host!));
+    const plain = host!.querySelector("input")!;
+    expect(plain.parentElement).toBe(host);
+    expect(plain.className).not.toContain("scale-");
+  });
+
   it("draws a suffix inside its own frame, keeping the input and its purpose inside", async () => {
     const input = await mount(<TextField aria-label="Name" purpose="literal" size="dialog" width="full" suffix=".url" />);
     const frame = input.parentElement!;
