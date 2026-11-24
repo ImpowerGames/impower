@@ -15,6 +15,10 @@ import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimat
 
 const geometry = new Map<Element, () => LayoutBox>();
 
+const offsetParents = new Map<Element, Element>();
+
+const borders = new Map<Element, () => number>();
+
 let restore: (() => void) | undefined;
 
 const installLayout = (win: Window & typeof globalThis) => {
@@ -29,6 +33,8 @@ const installLayout = (win: Window & typeof globalThis) => {
     offsetLeft: own("offsetLeft"),
     offsetTop: own("offsetTop"),
     offsetParent: own("offsetParent"),
+    clientLeft: own("clientLeft"),
+    clientTop: own("clientTop"),
     getClientRects: (win.Element.prototype as any).getClientRects,
   };
   animations.length = 0;
@@ -39,7 +45,9 @@ const installLayout = (win: Window & typeof globalThis) => {
   const boxOf = (el: Element) => geometry.get(el)?.();
   Object.defineProperty(proto, "offsetLeft", { configurable: true, get() { return boxOf(this)?.x ?? 0; } });
   Object.defineProperty(proto, "offsetTop", { configurable: true, get() { return boxOf(this)?.y ?? 0; } });
-  Object.defineProperty(proto, "offsetParent", { configurable: true, get() { return null; } });
+  Object.defineProperty(proto, "offsetParent", { configurable: true, get() { return offsetParents.get(this) ?? null; } });
+  Object.defineProperty(proto, "clientLeft", { configurable: true, get() { return borders.get(this)?.() ?? 0; } });
+  Object.defineProperty(proto, "clientTop", { configurable: true, get() { return borders.get(this)?.() ?? 0; } });
   (win.Element.prototype as any).getClientRects = function (this: Element) {
     return boxOf(this) ? [{}] : [];
   };
@@ -66,7 +74,7 @@ const installLayout = (win: Window & typeof globalThis) => {
       delete (win.document as any).timeline;
     }
     win.getComputedStyle = previous.getComputedStyle;
-    for (const name of ["offsetLeft", "offsetTop", "offsetParent"] as const) {
+    for (const name of ["offsetLeft", "offsetTop", "offsetParent", "clientLeft", "clientTop"] as const) {
       const descriptor = previous[name];
       if (descriptor) {
         Object.defineProperty(proto, name, descriptor);
@@ -76,6 +84,8 @@ const installLayout = (win: Window & typeof globalThis) => {
     }
     (win.Element.prototype as any).getClientRects = previous.getClientRects;
     geometry.clear();
+    offsetParents.clear();
+    borders.clear();
   };
 };
 
@@ -215,6 +225,14 @@ end
     ).toEqual({ duration: 250, delay: 0, easing: "linear" });
     expect(
       getLayoutTiming({
+        transitionProperty: "layout, opacity, layout",
+        transitionDuration: "0.1s, 0.2s, 0.8s",
+        transitionDelay: "0s, 0s, 0.3s",
+        transitionTimingFunction: "linear, ease, ease-in",
+      }),
+    ).toEqual({ duration: 800, delay: 300, easing: "ease-in" });
+    expect(
+      getLayoutTiming({
         transitionProperty: "all",
         transitionDuration: "0.2s",
         transitionDelay: "0s",
@@ -263,7 +281,7 @@ end
     const motion = new LayoutMotion(hold);
 
     const boxes = motion.measure(root);
-    expect([...boxes!.keys()]).toEqual([top, under]);
+    expect([...boxes!.keys()]).toEqual([top, under, plain]);
     grown = true;
     motion.play(boxes);
 
@@ -351,6 +369,43 @@ end
     motion.play(boxes);
     expect(keyframesOf(sizeOf(anchored)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
     expect(moveOf(anchored)).toBeUndefined();
+    root.remove();
+  });
+
+  test("a change in an ancestor's border moves the element", () => {
+    installLayout(document.defaultView as Window & typeof globalThis);
+    const root = document.createElement("div");
+    root.innerHTML = `<style>${STYLE}</style><div class="frame"><div class="box inner"></div></div>`;
+    document.body.append(root);
+    const frame = root.querySelector(".frame") as HTMLElement;
+    const inner = root.querySelector(".inner") as HTMLElement;
+    let border = 0;
+    geometry.set(frame, () => box(0, 0, 200, 80 + 2 * border));
+    geometry.set(inner, () => box(0, 0, 200, 20));
+    offsetParents.set(inner, frame);
+    borders.set(frame, () => border);
+    const motion = new LayoutMotion();
+    const boxes = motion.measure(root);
+    border = 80;
+    motion.play(boxes);
+    expect(keyframesOf(moveOf(inner)!)).toEqual([{ translate: "-80px -80px" }, { translate: "0px 0px" }]);
+    root.remove();
+  });
+
+  test("a style that names layout in the same beat that resizes the element animates it", () => {
+    installLayout(document.defaultView as Window & typeof globalThis);
+    const root = document.createElement("div");
+    root.innerHTML = `<style>${STYLE}</style><div class="late"></div>`;
+    document.body.append(root);
+    const late = root.querySelector(".late") as HTMLElement;
+    let grown = false;
+    geometry.set(late, () => box(0, 0, 200, grown ? 120 : 40));
+    const motion = new LayoutMotion();
+    const boxes = motion.measure(root);
+    grown = true;
+    late.classList.add("box");
+    motion.play(boxes);
+    expect(keyframesOf(sizeOf(late)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
     root.remove();
   });
 

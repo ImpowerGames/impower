@@ -75,7 +75,7 @@ const toMilliseconds = (time: string): number => {
 export const getLayoutTiming = (
   style: TransitionStyle,
 ): LayoutTiming | undefined => {
-  const index = splitCssList(style.transitionProperty).indexOf("layout");
+  const index = splitCssList(style.transitionProperty).lastIndexOf("layout");
   if (index < 0) {
     return undefined;
   }
@@ -163,10 +163,7 @@ export default class LayoutMotion {
     }
     const boxes = new Map<HTMLElement, LayoutBox>();
     for (const node of Array.from(root.querySelectorAll("*"))) {
-      if (
-        node instanceof view.HTMLElement &&
-        getLayoutTiming(view.getComputedStyle(node))
-      ) {
+      if (node instanceof view.HTMLElement) {
         const box = this.boxOf(node, root);
         if (box) {
           boxes.set(node, box);
@@ -275,6 +272,11 @@ export default class LayoutMotion {
     ) {
       x += node.offsetLeft;
       y += node.offsetTop;
+      const parent = node.offsetParent as HTMLElement | null;
+      if (parent) {
+        x += parent.clientLeft;
+        y += parent.clientTop;
+      }
     }
     return { x, y };
   }
