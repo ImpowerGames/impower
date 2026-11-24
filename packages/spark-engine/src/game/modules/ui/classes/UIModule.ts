@@ -3845,6 +3845,42 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (layout) {
           this.initLayout(layout);
         }
+        const layouts = this._game.program?.sparkle?.layouts;
+        const seen = new Set<string>();
+        for (
+          let ast = layouts?.[structName];
+          ast && !seen.has(ast.name);
+          ast = ast.extends ? layouts?.[ast.extends] : undefined
+        ) {
+          seen.add(ast.name);
+          this.initClearTargets(ast.children);
+        }
+      }
+    }
+  }
+
+  protected initClearTargets(nodes: BodyNode[] | undefined): void {
+    for (const node of nodes ?? []) {
+      if (node.kind === "element") {
+        if (node.props["clear"]) {
+          this._clearOnContinue.add([node.tag, ...node.classes].join(" "));
+        }
+        this.initClearTargets(node.children);
+      } else if (node.kind === "if") {
+        for (const branch of node.branches) {
+          this.initClearTargets(branch.children);
+        }
+        this.initClearTargets(node.else);
+      } else if (node.kind === "for") {
+        this.initClearTargets(node.children);
+        this.initClearTargets(node.else);
+      } else if (node.kind === "match") {
+        for (const c of node.cases) {
+          this.initClearTargets(c.children);
+        }
+        this.initClearTargets(node.else);
+      } else if (node.kind === "fill") {
+        this.initClearTargets(node.children);
       }
     }
   }
