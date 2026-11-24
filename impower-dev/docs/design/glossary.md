@@ -1026,24 +1026,33 @@ The panel opens from the problems toggle in the bar under the game. It has a row
 
 ## Share cards
 
-The Share page is a heading block with Back to story, then four cards. Each card has an icon, a title, a description and a tag.
+The prototype's Share page is a heading block with Back to story, then four cards, each with an icon, a title, a description and a tag. The editor draws no heading block: two cards, Export a screenplay and Export your project, then a `Coming soon` label over three one-line rows for the cards that do nothing yet.
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `Share your story` | page heading | app.js:2201 |  |
+| `Share your story` | page heading | app.js:2201 | Not drawn: the page starts with its first card, and its section is named `Share` |
 | `Download, Collaborate & Publish` | eyebrow above the heading | app.js:2202 | Not drawn: app pages have no eyebrow |
-| `Export a shareable game or screenplay. Collaborate with others. Publish it online.` | page description | app.js:2203 |  |
-| `Back to story` | button | app.js:2023, app.js:2190, app.js:2197 |  |
-| `Export a game` | card title | app.js:2207 |  |
+| `Export a shareable game or screenplay. Collaborate with others. Publish it online.` | page description | app.js:2203 | Not drawn |
+| `Back to story` | button | app.js:2023, app.js:2190, app.js:2197 | Not drawn on the Share page |
+| `Export a game` | Coming soon row title | app.js:2207 | A row under `Coming soon`, not a card |
 | `Package your game for Web, Desktop, or Mobile.` | card description | app.js:2208 |  |
 | `Export a screenplay` | card title | app.js:2213 |  |
 | `Print your story to PDF or HTML.` | card description | app.js:2214 |  |
-| `Screenplay settings` | link on the Export a screenplay card (opens Settings, Screenplay) | app.js:2216 |  |
-| `Make it together` | card title | app.js:2220 |  |
+| `Screenplay settings` | link on the Export a screenplay card (opens Settings, Screenplay) | app.js:2216 | Not drawn: `Change` after the summary line opens the same section |
+| `Change` | link after the Export a screenplay summary line (opens Settings, Screenplay; named `Change screenplay settings`) | none | Not in the prototype |
+| `Download PDF` | filled button on the Export a screenplay card | none | Not in the prototype |
+| `Download HTML` | outlined button on the Export a screenplay card | none | Not in the prototype |
+| `Export your project` | card title | none | Not in the prototype |
+| `Download every script and asset as a .zip.` | card description | none | Not in the prototype |
+| `Download .zip` | filled button on the Export your project card; the Settings, Save & sync download | none | Not in the prototype |
+| `Preparing the .zip…` | line under the button while the .zip is prepared | none | Not in the prototype; the Settings row says the same |
+| `Could not create the .zip. Try again.` | line under the button when the .zip fails, also announced | none | Not in the prototype |
+| `Open your project in VS Code` | link beside Download .zip on the Export your project card | none | Not in the prototype |
+| `Make it together` | Coming soon row title | app.js:2220 | A row under `Coming soon`, not a card |
 | `Invite someone to collaborate with you.` | card description | app.js:2221 |  |
-| `Publish it online` | card title | app.js:2226 |  |
+| `Publish it online` | Coming soon row title | app.js:2226 | A row under `Coming soon`, not a card |
 | `Create a playable link you can share with others.` | card description | app.js:2227 |  |
-| `Coming soon` | tag on every card | app.js:2209, app.js:2215, app.js:2222, app.js:2228 |  |
+| `Coming soon` | tag on every card | app.js:2209, app.js:2215, app.js:2222, app.js:2228 | Drawn once, as the label over the three rows |
 
 The Export a screenplay card also shows one summary line: the paper size, then `Title page` or `No title page`, then the scene-number wording, joined with ` · `. The wordings are `No scene numbers`, `Scene numbers on the left`, `Scene numbers on the right` and `Scene numbers on both sides`, and the paper sizes `US Letter` and `A4` (folio-settings.js).
 

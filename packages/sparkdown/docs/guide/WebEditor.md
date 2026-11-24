@@ -94,14 +94,16 @@ button has **Rename**, **Move…**, **Download** and **Delete**.
 
 ## Share
 
-![The Share page on a computer: Export a game, Export a screenplay with Download PDF and Download HTML, Make it together and Publish it online](./images/web-editor/share-1440.png)
+![The Share page on a computer: the Export a screenplay card with Download PDF and Download HTML, the Export your project card with Download .zip and Open your project in VS Code, then Export a game, Make it together and Publish it online under Coming soon](./images/web-editor/share-1440.png)
 
-![The Share page on a phone, with the same cards one under another](./images/web-editor/share-430.png)
+![The Share page on a phone, with the same two cards and the Coming soon rows under them](./images/web-editor/share-430.png)
 
 Share is where your story leaves the editor. **Export a screenplay** downloads your
-story as a PDF or a web page, laid out the way Settings, Screenplay says. Packaging a game is
-coming soon; until then, **Open your project in VS Code** takes it to the VS Code
-extension. Working together and publishing online are on their way too.
+story as a PDF or a web page, laid out the way Settings, Screenplay says; **Change**
+beside the settings it uses opens that section. **Export your project** downloads
+every script and asset as a .zip, the same backup Settings, Save & sync offers, and
+**Open your project in VS Code** takes it to the VS Code extension. Packaging a game,
+working together and publishing online are listed under Coming soon.
 
 ## Settings
 
