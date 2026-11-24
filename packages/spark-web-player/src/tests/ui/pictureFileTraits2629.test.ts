@@ -124,7 +124,13 @@ describe("reading a layer file's traits (#2629)", () => {
     const apng = png(IHDR, pngChunk("acTL", new Array(8).fill(0)));
     const base64 = `data:image/png;base64,${btoa(String.fromCharCode(...apng))}`;
     expect(await pictureFileTraits(dataUrlBytes(base64)!)).toEqual({ animated: true, profile: false });
-    expect(dataUrlBytes("data:image/svg+xml,%3Csvg%2F%3E")).toEqual(new TextEncoder().encode("<svg/>"));
+    expect(Array.from(dataUrlBytes("data:image/svg+xml,%3Csvg%2F%3E")!)).toEqual([...Buffer.from("<svg/>", "utf8")]);
+    expect(Array.from(dataUrlBytes("data:image/svg+xml,<svg>é</svg>")!)).toEqual([...Buffer.from("<svg>é</svg>", "utf8")]);
+    const percent = `data:image/png,${[...apng].map((b) => `%${b.toString(16).padStart(2, "0")}`).join("")}`;
+    expect(dataUrlBytes(percent)).toEqual(apng);
+    expect(await pictureFileTraits(dataUrlBytes(percent)!)).toEqual({ animated: true, profile: false });
+    const escapedBase64 = `data:image/png;base64,${[...btoa(String.fromCharCode(...apng))].map((c) => `%${c.charCodeAt(0).toString(16)}`).join("")}`;
+    expect(dataUrlBytes(escapedBase64)).toEqual(apng);
     expect(dataUrlBytes("data:image/png;base64,%%%")).toBeUndefined();
     expect(dataUrlBytes("/not-a-data-url.png")).toBeUndefined();
   });
@@ -171,11 +177,14 @@ describe("the browser picture loader (#2629)", () => {
     expect(bitmap?.unread).toBeUndefined();
   });
 
-  test("a data URL is read without a fetch", async () => {
+  test("a data URL is read without a fetch, base64 or percent-encoded", async () => {
     const apng = png(IHDR, pngChunk("acTL", new Array(8).fill(0)));
     const { doc, fetched } = documentWith(() => Promise.reject(new Error("no fetch expected")));
     const bitmap = await browserPictureLoader(`data:image/png;base64,${btoa(String.fromCharCode(...apng))}`, doc);
     expect(bitmap).toMatchObject({ animated: true });
+    const percent = await browserPictureLoader(`data:image/png,${[...apng].map((b) => `%${b.toString(16).padStart(2, "0")}`).join("")}`, doc);
+    expect(percent).toMatchObject({ animated: true });
+    expect(percent?.unread).toBeUndefined();
     expect(fetched).toEqual([]);
   });
 });

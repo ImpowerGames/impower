@@ -36,61 +36,8 @@ export const layeredMorphRoot = (context: Context | undefined, struct: any): any
 const escapeAttribute = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-interface ArtworkMemo {
-  context: Context;
-  assets: unknown;
-  vocabulary: unknown;
-  sources: { struct: any; type: unknown; name: unknown; src: unknown; data: unknown; uri: unknown; version: unknown }[];
-  artwork: LayeredMorphArtwork;
-}
-
-const memo = new WeakMap<object, ArtworkMemo>();
-
-const sourceOf = (struct: any) => ({
-  struct,
-  type: struct?.$type,
-  name: struct?.$name,
-  src: struct?.src,
-  data: struct?.data,
-  uri: struct?.uri,
-  version: struct?.version,
-});
-
-const stillCurrent = (context: Context, image: any, cached: ArtworkMemo) =>
-  cached.context === context &&
-  cached.assets === image.assets &&
-  cached.vocabulary === image.attribute_vocabulary &&
-  cached.sources.every((source) => {
-    const now = sourceOf(source.struct);
-    return (
-      own(context[now.type as string] ?? {}, now.name as string) === source.struct &&
-      now.src === source.src &&
-      now.data === source.data &&
-      now.uri === source.uri &&
-      now.version === source.version
-    );
-  });
-
 export function layeredMorphArtwork(context: Context | undefined, image: any): LayeredMorphArtwork | undefined {
   if (!context || image?.$type !== "layered_image") return undefined;
-  const cached = memo.get(image);
-  if (cached && stillCurrent(context, image, cached)) return cached.artwork;
-  const artwork = buildArtwork(context, image);
-  if (artwork) {
-    memo.set(image, {
-      context,
-      assets: image.assets,
-      vocabulary: image.attribute_vocabulary,
-      sources: artwork.files.map((file) => sourceOf(file.struct)),
-      artwork,
-    });
-  } else {
-    memo.delete(image);
-  }
-  return artwork;
-}
-
-function buildArtwork(context: Context, image: any): LayeredMorphArtwork | undefined {
   const vocabulary = resolveImageAttributes(context, image, { visibility: false }).vocabulary;
   if (!vocabulary) return undefined;
   const children = new Map<string, AttributeLayer[]>();

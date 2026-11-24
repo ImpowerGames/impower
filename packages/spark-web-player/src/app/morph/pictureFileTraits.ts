@@ -156,15 +156,37 @@ export async function pictureFileTraits(bytes: Uint8Array, inflate?: Inflate): P
   return { animated: false, profile: false };
 }
 
+function percentDecodedBytes(text: string): Uint8Array {
+  const out: number[] = [];
+  const encoder = new TextEncoder();
+  for (let i = 0; i < text.length; i++) {
+    const escaped = text[i] === "%" ? /^[0-9a-f]{2}$/i.exec(text.slice(i + 1, i + 3)) : null;
+    if (escaped) {
+      out.push(Number.parseInt(escaped[0], 16));
+      i += 2;
+      continue;
+    }
+    const code = text.codePointAt(i)!;
+    if (code < 0x80) out.push(code);
+    else {
+      const char = String.fromCodePoint(code);
+      out.push(...encoder.encode(char));
+      i += char.length - 1;
+    }
+  }
+  return Uint8Array.from(out);
+}
+
 export function dataUrlBytes(src: string): Uint8Array | undefined {
   const match = /^data:([^,]*),(.*)$/is.exec(src);
   if (!match) return undefined;
+  const payload = percentDecodedBytes(match[2]!);
+  if (!/;base64$/i.test(match[1]!)) return payload;
+  let text = "";
+  for (let at = 0; at < payload.length; at += 0x8000) text += String.fromCharCode(...payload.subarray(at, at + 0x8000));
   try {
-    if (/;base64$/i.test(match[1]!)) {
-      const binary = atob(match[2]!.replace(/\s+/g, ""));
-      return Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    }
-    return new TextEncoder().encode(decodeURIComponent(match[2]!));
+    const binary = atob(text.replace(/[\t\n\f\r ]+/g, ""));
+    return Uint8Array.from(binary, (c) => c.charCodeAt(0));
   } catch {
     return undefined;
   }
