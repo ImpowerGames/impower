@@ -77,9 +77,6 @@ const { default: Preview } = await import(
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
-const { ROUTE_LIST_STYLESHEET_ID } = await import(
-  "@impower/spark-web-player/src/route/routeListStylesheet"
-);
 const { RouteSheet } = await import(
   "../../src/modules/spark-editor/components/preview-route"
 );
@@ -548,7 +545,7 @@ describe("the bar under the game", () => {
     expect(stored().previewPanelHeight).toBe(62);
   });
 
-  it("mounts the player's own route list, which closes the panel on Escape and brings its own stylesheets", async () => {
+  it("mounts the player's own route list, which closes the panel on Escape", async () => {
     await mount();
     await act(() => {
       route.view.value = forcedRoute;
@@ -556,7 +553,6 @@ describe("the bar under the game", () => {
     await act(async () => route.toggle());
     await settle();
     expect(document.querySelector("#route-panel swp-route-view > section.route-list")).not.toBeNull();
-    expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
     await key(document.body, "Escape");
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();

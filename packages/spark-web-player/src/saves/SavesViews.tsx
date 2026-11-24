@@ -1,4 +1,5 @@
 import {
+  cn,
   ListRow,
   Popover,
   PopoverAnchor,
@@ -7,10 +8,22 @@ import {
 } from "@impower/impower-ui/components";
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { checkStartingValue } from "@impower/sparkdown/src/program/startingValueLiterals";
-import { useStylesheet } from "../utils/useStylesheet";
-import savesCss from "./saves.css?inline";
-import { RouteIconSvg } from "../route/RouteIcons";
-import { useRouteListStylesheet } from "../route/routeListStylesheet";
+import { ROUTE_ICON_CLASS, RouteIconSvg } from "../route/RouteIcons";
+import {
+  TOOLBAR_BUTTON_CLASS,
+  VALUE_FIELD_CLASS,
+  VALUE_GROUP_HEAD_CLASS,
+  VALUE_ROW_SET_CLASS,
+  VALUE_SEARCH_CLASS,
+  VALUE_SLOT_CLASS,
+  VALUES_ACTION_CLASS,
+  VALUES_FOOT_CLASS,
+  VALUES_PANEL_CLASS,
+  VALUES_STATUS_CLASS,
+  ValueName,
+  valueBadgeClass,
+  valueInputClass,
+} from "../route/routeViewParts";
 import {
   SAVE_TEXT,
   saveDetail,
@@ -45,17 +58,22 @@ export interface SavesEvents {
 
 const keepKeys = (e: KeyboardEvent) => e.stopPropagation();
 
-export const SAVES_STYLESHEET_ID = "swp-saves-css";
+const SAVES_ACTION_CLASS =
+  "cursor-pointer whitespace-nowrap rounded-[3px] border-none bg-transparent px-1.5 py-0.5 text-accent font-semibold disabled:cursor-default disabled:text-muted pointer-fine:hover:not-disabled:bg-control-hover";
 
-const useSavesStylesheet = () => {
-  useRouteListStylesheet();
-  useStylesheet(SAVES_STYLESHEET_ID, savesCss);
-};
+const SAVES_MENU_CLASS =
+  "saves-menu pointer-events-auto box-border max-h-[var(--swp-saves-menu-max-height,calc(100cqh-12px))] w-[300px] max-w-[calc(100cqw-12px)] [overflow:auto] rounded-[6px] border border-solid border-edge bg-panel px-0 py-1 text-(length:--swp-toolbar-font-size) text-ink shadow-[0_4px_14px_rgba(0,0,0,0.45)]";
+
+const SAVES_MENU_ROW_CLASS =
+  "box-border flex w-full cursor-pointer flex-row items-center gap-1.5 border-none bg-transparent px-2 py-[5px] text-left text-inherit pointer-fine:hover:not-disabled:bg-control-hover";
+
+const SAVES_GROUP_HEAD_CLASS =
+  "saves-group-head mx-0 mt-1 mb-0 px-2 py-0.5 [font-size:inherit] font-semibold tracking-[0.04em] text-muted uppercase";
 
 export function SaveIcon({ icon }: { icon: "saves" | "back" | "more" }) {
   return (
     <svg
-      class="route-icon saves-icon"
+      class={`${ROUTE_ICON_CLASS} saves-icon`}
       data-icon={icon}
       width="16"
       height="16"
@@ -89,11 +107,10 @@ export function SavesButton({
   state: SavesViewState;
   events: SavesEvents;
 }) {
-  useSavesStylesheet();
   return (
     <button
       type="button"
-      class="saves-button"
+      class={`saves-button gap-1 ${TOOLBAR_BUTTON_CLASS}`}
       aria-haspopup="menu"
       aria-expanded={state.open}
       title="Saves"
@@ -127,7 +144,7 @@ function RenameField({
   return (
     <input
       type="text"
-      class="saves-rename w-full"
+      class="saves-rename box-border h-[22px] w-full min-w-0 rounded-[3px] border border-solid border-accent bg-(--swp-route-field-background-color) px-1.5 py-0 text-inherit outline-none"
       aria-label={`Rename ${row.name}`}
       value={row.name}
       ref={(input) => {
@@ -151,12 +168,20 @@ function RenameField({
 
 export function SaveRowLabel({ row }: { row: SaveRow }) {
   return (
-    <span class="saves-row-text">
-      <span class="saves-row-name">{row.name}</span>
-      <span class="saves-row-detail" data-gone={row.gone ? "" : undefined}>
+    <span class="saves-row-text flex min-w-0 flex-col">
+      <span class="saves-row-name min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+        {row.name}
+      </span>
+      <span
+        class={cn(
+          "saves-row-detail flex min-w-0 flex-row items-center gap-1 whitespace-nowrap",
+          row.gone ? "text-warning" : "text-muted",
+        )}
+        data-gone={row.gone ? "" : undefined}
+      >
         {row.gone ? (
           <>
-            <RouteIconSvg icon="warning" />
+            <RouteIconSvg icon="warning" class="size-3" />
             <span>{SAVE_TEXT.gone}</span>
           </>
         ) : (
@@ -316,7 +341,7 @@ function SaveListRow({
               <span class="flex flex-none items-center gap-1.5 py-[var(--list-row-compact-padding-y)] pr-1">
                 <button
                   type="button"
-                  class="saves-play"
+                  class={`saves-play ${SAVES_ACTION_CLASS}`}
                   disabled={row.gone}
                   onClick={() => events.onPlay(row.id)}
                 >
@@ -367,10 +392,10 @@ function ValueField({
   };
   const status = row.badge?.status;
   return (
-    <span class="sv-field" data-status={status} data-set={row.differs ? "" : undefined}>
+    <span class={VALUE_FIELD_CLASS} data-status={status} data-set={row.differs ? "" : undefined}>
       <input
         type="text"
-        class="sv-input"
+        class={valueInputClass({ status, set: row.differs })}
         spellcheck={false}
         autocomplete="off"
         aria-label={row.name}
@@ -387,17 +412,20 @@ function ValueField({
         }}
         onBlur={(e) => commit(e.currentTarget)}
       />
-      <span class="sv-slot">
+      <span class={VALUE_SLOT_CLASS}>
         {row.badge ? (
           <span
-            class="sv-badge"
+            class={cn(valueBadgeClass(row.badge.status), "group/badge")}
             data-status={row.badge.status}
             tabIndex={0}
             aria-label={row.badge.message}
           >
-            <RouteIconSvg icon={row.badge.status} />
-            <span class="sv-popup" role="tooltip">
-              <RouteIconSvg icon={row.badge.status} />
+            <RouteIconSvg icon={row.badge.status} class="size-3.5" />
+            <span
+              class="sv-popup pointer-events-none invisible absolute -right-1 bottom-[calc(100%+6px)] z-2 flex w-max max-w-[280px] flex-row items-start gap-1.5 whitespace-normal rounded-[6px] border border-solid border-edge bg-panel px-2 py-1.5 leading-[1.4] text-ink shadow-[0_4px_14px_rgba(0,0,0,0.45)] group-hover/badge:visible group-focus/badge:visible"
+              role="tooltip"
+            >
+              <RouteIconSvg icon={row.badge.status} class="size-3.5" />
               <span>{row.badge.message}</span>
             </span>
           </span>
@@ -416,25 +444,32 @@ function SaveValuesPanel({
 }) {
   const save = values.save;
   return (
-    <div class="saves-values sv-tab" aria-label={`Values of ${save.name}`}>
-      <header class="saves-values-head">
+    <div
+      class={cn(VALUES_PANEL_CLASS, "saves-values pt-0")}
+      aria-label={`Values of ${save.name}`}
+    >
+      <header class="saves-values-head flex min-w-0 flex-row items-center gap-1.5">
         <button
           type="button"
-          class="saves-back"
+          class="saves-back flex size-[22px] cursor-pointer items-center justify-center rounded-[3px] border-none bg-transparent p-0 text-inherit pointer-fine:hover:bg-control-hover"
           aria-label="Back to the saves"
           title="Back"
           onClick={events.onBack}
         >
           <SaveIcon icon="back" />
         </button>
-        <span class="saves-values-title">{save.name}</span>
+        <span class="saves-values-title min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
+          {save.name}
+        </span>
         {save.name !== savedName(save.scene, save.line) ? (
-          <span class="saves-values-place">{savedName(save.scene, save.line)}</span>
+          <span class="saves-values-place flex-none text-muted">
+            {savedName(save.scene, save.line)}
+          </span>
         ) : null}
       </header>
       <input
         type="search"
-        class="sv-search"
+        class={VALUE_SEARCH_CLASS}
         placeholder="Search values"
         aria-label="Search values"
         value={values.search}
@@ -448,36 +483,39 @@ function SaveValuesPanel({
             data-group={group.group}
             aria-label={group.label}
           >
-            <h3 class="sv-group-head">
+            <h3
+              class={cn(
+                VALUE_GROUP_HEAD_CLASS,
+                group.group === "unresolved" ? "text-warning" : "text-muted",
+              )}
+            >
               <span>{group.label}</span>
             </h3>
             {group.rows.map((row) => (
               <div
                 key={row.key}
-                class="sv-row saves-value-row"
+                class={cn(
+                  "sv-row saves-value-row relative [display:grid] h-(--list-row-compact-height) grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-2 pl-2",
+                  row.differs && VALUE_ROW_SET_CLASS,
+                )}
                 data-key={row.key}
                 data-set={row.differs ? "" : undefined}
                 data-field={row.field ? "" : undefined}
               >
-                <span class="sv-name" title={row.name}>
-                  <span class="sv-name-text">{row.name}</span>
-                  {row.line !== undefined ? (
-                    <span class="sv-line">{`· ${row.line}`}</span>
-                  ) : null}
-                </span>
+                <ValueName name={row.name} line={row.line} field={!!row.field} />
                 <ValueField row={row} events={events} />
               </div>
             ))}
           </section>
         ))}
       </div>
-      <div class="sv-status" role="status">
+      <div class={VALUES_STATUS_CLASS} role="status">
         {saveValuesStatus(values)}
       </div>
-      <footer class="sv-foot saves-values-foot">
+      <footer class={cn(VALUES_FOOT_CLASS, "saves-values-foot justify-between")}>
         <button
           type="button"
-          class="saves-play"
+          class={`saves-play ${SAVES_ACTION_CLASS}`}
           disabled={save.gone}
           onClick={() => events.onPlay(save.id)}
         >
@@ -485,7 +523,7 @@ function SaveValuesPanel({
         </button>
         <button
           type="button"
-          class="saves-delete"
+          class={cn("saves-delete", VALUES_ACTION_CLASS, "text-error")}
           onClick={() => events.onDelete(save.id)}
         >
           {SAVE_TEXT.delete}
@@ -512,25 +550,28 @@ export function SavesMenu({
   state: SavesViewState;
   events: SavesEvents;
 }) {
-  useSavesStylesheet();
   const requested = useRequestedRowMenu(state.rowMenu);
   if (!state.open) {
     return null;
   }
   if (state.values) {
     return (
-      <section class="saves-menu" aria-label="Saves" onKeyDown={keepKeys}>
+      <section class={SAVES_MENU_CLASS} aria-label="Saves" onKeyDown={keepKeys}>
         <SaveValuesPanel values={state.values} events={events} />
       </section>
     );
   }
   const groups = saveGroups(state.saves);
   return (
-    <section class="saves-menu" role="menu" aria-label="Saves" onKeyDown={keepKeys}>
+    <section class={SAVES_MENU_CLASS} role="menu" aria-label="Saves" onKeyDown={keepKeys}>
       <button
         type="button"
         role="menuitem"
-        class="saves-here"
+        class={cn(
+          "saves-here",
+          SAVES_MENU_ROW_CLASS,
+          "mb-0.5 border-b border-solid border-edge disabled:cursor-default disabled:text-muted",
+        )}
         disabled={!state.playing}
         onClick={events.onSaveHere}
       >
@@ -538,7 +579,7 @@ export function SavesMenu({
         <span>{SAVE_TEXT.saveHere}</span>
       </button>
       {groups.length === 0 ? (
-        <p class="saves-none">{SAVE_TEXT.none}</p>
+        <p class="saves-none m-0 px-2 py-1.5 text-muted">{SAVE_TEXT.none}</p>
       ) : (
         groups.map((group) => (
           <section
@@ -547,8 +588,8 @@ export function SavesMenu({
             data-group={group.kind}
             aria-label={group.label}
           >
-            <h3 class="saves-group-head">{group.label}</h3>
-            <ul class="saves-rows">
+            <h3 class={SAVES_GROUP_HEAD_CLASS}>{group.label}</h3>
+            <ul class="saves-rows m-0 list-none p-0">
               {group.rows.map((row) => (
                 <SaveListRow
                   key={row.id}
@@ -573,21 +614,32 @@ export function SaveNote({
   note: SaveNoteState | null;
   events: SavesEvents;
 }) {
-  useSavesStylesheet();
   if (!note) {
     return null;
   }
   return (
-    <div class="save-note" role="status" data-failed={note.failed ? "" : undefined} onKeyDown={keepKeys}>
+    <div
+      class={cn(
+        "save-note pointer-events-auto flex animate-[swp-save-note_4s_forwards] flex-row items-center gap-2 whitespace-nowrap rounded-[6px] border border-solid border-edge bg-panel py-1 pr-1.5 pl-2.5 text-(length:--swp-toolbar-font-size) text-ink shadow-[0_4px_14px_rgba(0,0,0,0.45)]",
+        note.failed && "text-error",
+      )}
+      role="status"
+      data-failed={note.failed ? "" : undefined}
+      onKeyDown={keepKeys}
+    >
       {note.failed !== undefined ? (
         <>
-          <RouteIconSvg icon="error" />
+          <RouteIconSvg icon="error" class="size-3.5" />
           <span>{`${note.play ? SAVE_TEXT.notPlayed : SAVE_TEXT.notSaved}: ${note.failed}`}</span>
         </>
       ) : (
         <>
           <span>{savedAs(note.name)}</span>
-          <button type="button" class="save-note-rename" onClick={events.onNoteRename}>
+          <button
+            type="button"
+            class={`save-note-rename ${SAVES_ACTION_CLASS}`}
+            onClick={events.onNoteRename}
+          >
             {SAVE_TEXT.rename}
           </button>
         </>
@@ -604,7 +656,6 @@ export interface LoadSaveProps {
 }
 
 export function LoadSave({ saves, open, onOpen, onPick }: LoadSaveProps) {
-  useSavesStylesheet();
   const root = useRef<HTMLSpanElement>(null);
   const none = saves.length === 0;
   const shown = open && !none;
@@ -634,10 +685,14 @@ export function LoadSave({ saves, open, onOpen, onPick }: LoadSaveProps) {
     };
   }, [shown, onOpen]);
   return (
-    <span ref={root} class="sv-load" title={none ? SAVE_TEXT.none : undefined}>
+    <span
+      ref={root}
+      class="sv-load relative mr-auto"
+      title={none ? SAVE_TEXT.none : undefined}
+    >
       <button
         type="button"
-        class="sv-load-button"
+        class={`sv-load-button ${VALUES_ACTION_CLASS}`}
         disabled={none}
         aria-haspopup="menu"
         aria-expanded={open && !none}
@@ -646,7 +701,11 @@ export function LoadSave({ saves, open, onOpen, onPick }: LoadSaveProps) {
         {SAVE_TEXT.loadSave}
       </button>
       {open && !none ? (
-        <div class="saves-menu sv-load-menu" role="menu" aria-label={SAVE_TEXT.loadSave}>
+        <div
+          class={cn(SAVES_MENU_CLASS, "sv-load-menu absolute bottom-[calc(100%+4px)] left-0 z-4 max-h-[240px]")}
+          role="menu"
+          aria-label={SAVE_TEXT.loadSave}
+        >
           {saveGroups(saves).map((group) => (
             <section
               key={group.kind}
@@ -654,13 +713,13 @@ export function LoadSave({ saves, open, onOpen, onPick }: LoadSaveProps) {
               data-group={group.kind}
               aria-label={group.label}
             >
-              <h3 class="saves-group-head">{group.label}</h3>
+              <h3 class={SAVES_GROUP_HEAD_CLASS}>{group.label}</h3>
               {group.rows.map((row) => (
                 <button
                   key={row.id}
                   type="button"
                   role="menuitem"
-                  class="sv-load-row"
+                  class={`sv-load-row ${SAVES_MENU_ROW_CLASS}`}
                   data-id={row.id}
                   onClick={() => onPick(row.id)}
                 >
