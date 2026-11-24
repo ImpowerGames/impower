@@ -63,4 +63,31 @@ describe("a bare prop on a layout element (I-2732)", () => {
       note: {},
     });
   });
+
+  const warningsOf = (layout: string) => {
+    const { program } = compileScript(`${layout}\n\nscene start\n  Hello.\nend\n`);
+    return Object.values(program.diagnostics ?? {})
+      .flat()
+      .filter((d) => d.severity === 2)
+      .map((d) => [
+        d.range.start.line,
+        d.range.start.character,
+        typeof d.message === "string" ? d.message : d.message.value,
+      ]);
+  };
+
+  test("warns when clear is written without # after an element on the same line", () => {
+    const warnings = warningsOf("layout main {\n  stage {\n    portrait clear { image }\n  }\n}");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.slice(0, 2)).toEqual([2, 13]);
+    expect(warnings[0]![2]).toContain("Write `portrait #clear`");
+  });
+
+  test.each([
+    ["a ; between the two elements", "layout main {\n  stage {\n    portrait; clear { image }\n  }\n}"],
+    ["clear on a line of its own", "layout main {\n  stage {\n    portrait\n    clear { image }\n  }\n}"],
+    ["a component body", "component card {\n  portrait clear { image }\n}"],
+  ])("does not warn about an element named clear with %s", (_, layout) => {
+    expect(warningsOf(layout)).toEqual([]);
+  });
 });
