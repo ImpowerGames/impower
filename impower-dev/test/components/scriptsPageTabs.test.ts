@@ -362,6 +362,49 @@ describe("the Scripts page off the phone", () => {
   });
 });
 
+describe("the Scripts page's way back to the story", () => {
+  const back = () => [...host!.querySelectorAll<HTMLButtonElement>('button[aria-label="Back to story"]')];
+  const goBack = async (button: HTMLButtonElement) => {
+    await act(async () => button.click());
+    await settle();
+    expect(window.navigateTo).toHaveBeenCalledWith("story");
+  };
+
+  it.each([
+    ["phone", false],
+    ["compact", true],
+    ["desktop", true],
+  ] as const)("at %s with tabs shows no header and closes from the end of the tab row", async (next, railCollapsed) => {
+    layout.value = next;
+    workspace.layout.value = next as Layout;
+    await mount(railCollapsed);
+    const section = host!.querySelector("section")!;
+    expect(section.querySelector("header, h1")).toBeNull();
+    expect(back()).toHaveLength(1);
+    const row = host!.querySelector('[role="tablist"]')!.parentElement!.parentElement!;
+    expect(row.lastElementChild).toBe(back()[0]);
+    expect(row.parentElement).toBe(section);
+    expect(row).toBe(section.firstElementChild);
+    expect(back()[0]!.title).toBe("Back to story");
+    expect(back()[0]!.querySelector("svg")).not.toBeNull();
+    await goBack(back()[0]!);
+  });
+
+  it.each(["compact", "desktop"] as const)("at %s without tabs shows no header and goes back from the start of the search row", async (next) => {
+    layout.value = next;
+    workspace.layout.value = next as Layout;
+    await mount(false);
+    const section = host!.querySelector("section")!;
+    expect(section.querySelector("header, h1")).toBeNull();
+    expect(back()).toHaveLength(1);
+    const input = search("Search scripts");
+    const toolbar = back()[0]!.parentElement!;
+    expect(toolbar.firstElementChild).toBe(back()[0]);
+    expect(toolbar.contains(input)).toBe(true);
+    await goBack(back()[0]!);
+  });
+});
+
 describe("the Scripts page's Sort menu", () => {
   it.each(["phone", "desktop"] as const)("offers the sort fields with no hint under Uses at %s", async (next) => {
     layout.value = next;

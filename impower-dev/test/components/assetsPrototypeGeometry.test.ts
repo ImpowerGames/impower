@@ -469,22 +469,11 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
     expect({ glyphTop: measured.glyphTop, glyph: measured.glyph, labelTop: measured.labelTop }).toEqual({ glyphTop: 12.09, glyph: 19, labelTop: 35.09 });
   });
 
-  const page = () =>
-    h(ui.TabbedPage, {
-      title: "Scripts",
-      icon: h(ui.ArtIcon, { class: "flex-none text-accent" }),
-      tabs: [{ value: "images", label: "Images", content: h("div", {}) }],
-      value: "images",
-      onValueChange: () => {},
-      onBack: () => {},
-    });
-
-  const assetsPage = (header: "present" | "absent") =>
+  const assetsPage = () =>
     h(
       "div",
       { style: "height:600px;display:flex;flex-direction:column" },
       h(ui.TabbedPage, {
-        ...(header === "present" ? { icon: h(ui.ArtIcon, {}), onBack: () => {} } : { header }),
         title: "Assets",
         showTabs: false,
         tabs: [{ value: "page", label: "Assets", content: h("div", { "data-first-row": "", style: "height:120px" }) }],
@@ -503,35 +492,12 @@ describe("Shared parts the Assets page shows against the Folio prototype (I-2441
   };
 
   it.each([
-    [1440, "desktop", "charcoal", 68],
-    [820, "compact", "chalk", 56],
-    [430, "phone", "charcoal", 56],
-  ] as const)("I-2464: at %i (%s, %s) the Assets page draws no title bar and its first row moves up by the bar's %ipx", async (width, layout, theme, bar) => {
-    const options = { width, theme, layout, touch: layout === "phone" };
-    const before = await inChromium(assetsPage("present"), options, firstRow);
-    const after = await inChromium(assetsPage("absent"), options, firstRow);
-    expect(before).toEqual({ top: bar, header: true, name: "Assets" });
+    [1440, "desktop", "charcoal"],
+    [820, "compact", "chalk"],
+    [430, "phone", "charcoal"],
+  ] as const)("I-2464: at %i (%s, %s) the Assets page draws no title bar and its first row starts the page", async (width, layout, theme) => {
+    const after = await inChromium(assetsPage(), { width, theme, layout, touch: layout === "phone" }, firstRow);
     expect(after).toEqual({ top: 0, header: false, name: "Assets" });
-  });
-
-  const titleBox = () => {
-    const header = document.querySelector("header")!;
-    const title = header.querySelector("h1")!;
-    return {
-      lineHeight: getComputedStyle(title).lineHeight,
-      glyph: header.querySelector(":scope > svg")!.getBoundingClientRect().width,
-      titleLeft: title.getBoundingClientRect().x - header.getBoundingClientRect().x,
-    };
-  };
-
-  it.each([
-    [1440, "desktop", "charcoal", { lineHeight: "22.1px", glyph: 20, titleLeft: 54 }],
-    [1440, "desktop", "chalk", { lineHeight: "22.1px", glyph: 20, titleLeft: 54 }],
-    [768, "compact", "charcoal", { lineHeight: "18.9px", glyph: 19, titleLeft: 45 }],
-    [430, "phone", "chalk", { lineHeight: "18.9px", glyph: 19, titleLeft: 45 }],
-  ] as const)("A5: at %i (%s, %s) the page title stands on the prototype's line beside its glyph", async (width, layout, theme, expected) => {
-    const measured = await inChromium(page(), { width, theme, layout, touch: layout === "phone" }, titleBox);
-    expect(measured).toEqual(expected);
   });
 
   it.each(THEMES)("A6: at 1440 in %s the rail's Saved locally starts 45px into its trigger, as the prototype's account trigger", async (theme) => {
@@ -677,18 +643,6 @@ describe("The Assets page's and app frame's last differences from the Folio prot
     );
     expect(fill).toBe("rgba(0, 0, 0, 0.6)");
   });
-
-  it.each([
-    [768, "compact", false],
-    [430, "phone", true],
-  ] as const)("G11: at %i the Scripts page header glyph is 19 wide and 20 tall", async (width, layout, touch) => {
-    const size = await inChromium(h(ui.TabbedPage, { title: "Scripts", icon: h(ui.ArtIcon, {}), onBack: () => {}, tabs: [], value: "", onValueChange: () => {} }), { width, layout, touch }, () => {
-      const glyph = document.querySelector("section svg")!.getBoundingClientRect();
-      return [glyph.width, glyph.height];
-    });
-    expect(size).toEqual([19, 20]);
-  });
-
   it.each(THEMES)("G18: in %s the row's play glyph is an 18px svg filled with its colour and not stroked", async (theme) => {
     const measured = await inChromium(h(ui.PlayButton, { name: "amb_rain" }), { width: 1440, theme }, () => {
       const glyph = document.querySelector("button svg")!;

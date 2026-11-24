@@ -1260,7 +1260,6 @@ function AssetsBrowser() {
 export default function Assets(_props: AssetsProps) {
   return (
     <TabbedPage
-      header="absent"
       title="Assets"
       showTabs={false}
       value={PAGE_TAB}

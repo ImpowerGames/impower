@@ -38,8 +38,6 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useTapOutside",
   "portraitThumbnailVariants",
   "portraitCropLabel",
-  "tabbedPageHeaderVariants",
-  "tabbedPageTitleVariants",
   "tabbedPageVariants",
   "textFieldVariants",
   "textFieldPurposeAttributes",

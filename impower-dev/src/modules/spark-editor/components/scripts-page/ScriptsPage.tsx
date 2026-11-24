@@ -1,6 +1,7 @@
 import {
-  BookIcon,
+  BackIcon,
   Button,
+  CloseIcon,
   ChevronIcon,
   DropdownItem,
   FileIcon,
@@ -20,6 +21,7 @@ import {
   worstProblem,
 } from "@impower/codemirror-vscode-lsp-client/src/symbolProblems";
 import { useComputed } from "@preact/signals";
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { plural, referencedByLabel, rowLine } from "../../utils/fileListModel";
 import { showSnackbar } from "../../utils/snackbar";
@@ -106,7 +108,27 @@ function ScriptProblemBadge({ path, name }: { path: string; name: string }) {
 
 const ALL_TAB = "all";
 
-function AllScripts() {
+const BACK_LABEL = "Back to story";
+
+const backToStory = () => void intents().then((Workspace) => Workspace.window.navigateTo("story"));
+
+function BackButton({ children }: { children: ComponentChildren }) {
+  return (
+    <Button
+      variant="quiet"
+      size="glyph"
+      class="flex-none text-muted"
+      aria-label={BACK_LABEL}
+      title={BACK_LABEL}
+      data-scripts-back
+      onClick={backToStory}
+    >
+      {children}
+    </Button>
+  );
+}
+
+function AllScripts({ lead }: { lead?: ComponentChildren }) {
   const projectId = workspace.signals.projectId.value;
   const current = workspace.scriptListing.value;
   const loaded = current?.projectId === projectId ? current : null;
@@ -302,6 +324,7 @@ function AllScripts() {
   return (
     <LibraryPage
       area={drag.area}
+      lead={lead}
       searchLabel="Search scripts"
       query={query}
       onQueryChange={setQuery}
@@ -450,15 +473,14 @@ export default function ScriptsPage() {
   return (
     <TabbedPage
       title="Scripts"
-      icon={<BookIcon class="flex-none text-accent" />}
-      onBack={() => void intents().then((Workspace) => Workspace.window.navigateTo("story"))}
       showTabs={showTabs}
+      tabAction={<BackButton><CloseIcon /></BackButton>}
       value={tab === OUTLINE_TAB ? OUTLINE_TAB : ALL_TAB}
       onValueChange={(next) =>
         void intents().then((Workspace) => Workspace.window.setListState({ scriptsTab: next }))
       }
       tabs={[
-        { value: ALL_TAB, label: "All scripts", content: <AllScripts /> },
+        { value: ALL_TAB, label: "All scripts", content: <AllScripts lead={showTabs ? undefined : <BackButton><BackIcon /></BackButton>} /> },
         { value: OUTLINE_TAB, label: "In this script", content: <ScriptOutlineTab /> },
       ]}
     />
