@@ -39,6 +39,7 @@ import {
   HANDLER_ATTRIBUTE,
   isAttributeProp,
   isReservedAttribute,
+  PRESENCE_ATTRIBUTE,
   toDataAttributeName,
   WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
@@ -146,6 +147,11 @@ import {
   type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
+  PresenceElementsMessage,
+  type PresenceElementsMessageMap,
+  type PresenceMotion,
+} from "./messages/PresenceElementsMessage";
+import {
   PlayCutsceneMessage,
   type PlayCutsceneMessageMap,
   type PlayCutsceneParams,
@@ -240,6 +246,18 @@ interface Retirement {
   epoch: number;
   pin?: string;
 }
+
+type ContentKind = "text" | "image";
+
+const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
+  show: /@(?:initial|show)(?![\p{L}\p{N}_-])/u,
+  hide: /@hide(?![\p{L}\p{N}_-])/u,
+};
+
+const STYLE_CLASS_WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/gu;
+
+const presenceAttributes = (mark: Record<string, string | null>) =>
+  Object.keys(mark).length > 0 ? { attributes: mark } : {};
 
 interface Composition {
   kind: "display" | "beat";
@@ -466,6 +484,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   MoveElementMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
+  PresenceElementsMessageMap &
   SetThemeMessageMap &
   SkipCutsceneMessageMap &
   SpeechMessageMap &
@@ -491,6 +510,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   >();
 
   protected _retiring = new Set<Retirement>();
+
+  protected _motion = false;
+
+  protected _contents = new WeakMap<Element, Set<ContentKind>>();
+
+  protected _presence = new Map<Element, { presence: PresenceMotion }>();
+
+  protected _leaving = new Map<Element, () => void>();
+
+  protected _leavingScheduled = false;
+
+  protected _presenceStyles?: {
+    styles: unknown;
+    moves: Record<PresenceMotion, Set<string>>;
+  };
 
   protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
 
@@ -778,6 +812,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   async onRedisplay() {
     const standing = this._standing;
     this.discardCompose();
+    this.forgetPresence();
     this._presentation += 1;
     this._standing = undefined;
     this._building = undefined;
@@ -917,6 +952,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphWritten.clear();
     this._morphBaking = new Set();
     this.discardCompose();
+    this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
     this._tree = undefined;
@@ -1346,7 +1382,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       c.messages.push(structuredClone(msg));
       return { result: params.target };
     }
-    if (AnimateElementsMessage.type.isRequest(msg as any)) {
+    if (
+      AnimateElementsMessage.type.isRequest(msg as any) ||
+      PresenceElementsMessage.type.isRequest(msg as any)
+    ) {
       c.messages.push(structuredClone(msg));
       c.expected.push((msg as RequestMessage).id);
       return {
@@ -1535,6 +1574,216 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         })),
       }),
     );
+  }
+
+  setMotion(motion: boolean): void {
+    this._motion = motion;
+  }
+
+  protected moving(): boolean {
+    return (
+      this._motion &&
+      this._reactive &&
+      !this._game.replaying &&
+      !this.context?.system?.simulating &&
+      this.context?.system?.transitions !== false &&
+      this._compose?.kind !== "display"
+    );
+  }
+
+  protected presenceMoves(): Record<PresenceMotion, Set<string>> {
+    const styles = this.context?.style;
+    let cached = this._presenceStyles;
+    if (!cached || cached.styles !== styles) {
+      const holds = (value: unknown, block: RegExp): boolean =>
+        value != null &&
+        typeof value === "object" &&
+        Object.entries(value).some(
+          ([key, inner]) =>
+            (block.test(key) && inner != null && typeof inner === "object") ||
+            holds(inner, block),
+        );
+      const moves: Record<PresenceMotion, Set<string>> = {
+        show: new Set(),
+        hide: new Set(),
+      };
+      for (const [name, style] of Object.entries(styles ?? {})) {
+        if (name.startsWith("$")) {
+          continue;
+        }
+        for (const presence of ["show", "hide"] as const) {
+          if (holds(style, PRESENCE_BLOCKS[presence])) {
+            for (const word of name.match(STYLE_CLASS_WORD) ?? []) {
+              moves[presence].add(word);
+            }
+          }
+        }
+      }
+      cached = { styles, moves };
+      this._presenceStyles = cached;
+    }
+    return cached.moves;
+  }
+
+  protected movesIn(element: Element, presence: PresenceMotion): boolean {
+    const moves = this.presenceMoves()[presence];
+    if (moves.size === 0) {
+      return false;
+    }
+    const named = (el: Element) => el.name.split(" ").some((c) => moves.has(c));
+    for (let node: Element | null = element; node; node = node.parent) {
+      if (named(node)) {
+        return true;
+      }
+    }
+    const within = (el: Element): boolean =>
+      el.children.some((child) => named(child) || within(child));
+    return within(element);
+  }
+
+  protected attached(element: Element): boolean {
+    let node = element;
+    while (node.parent) {
+      if (!node.parent.children.includes(node)) {
+        return false;
+      }
+      node = node.parent;
+    }
+    return node === this._root;
+  }
+
+  protected contentsOf(element: Element): Set<ContentKind> {
+    let contents = this._contents.get(element);
+    if (!contents) {
+      contents = new Set();
+      this._contents.set(element, contents);
+    }
+    return contents;
+  }
+
+  protected arrives(element: Element, kind: ContentKind, moving: boolean): boolean {
+    const contents = this.contentsOf(element);
+    const shown = this._leaving.delete(element) || contents.size > 0;
+    contents.add(kind);
+    return !shown && moving && this.movesIn(element, "show");
+  }
+
+  protected leaves(
+    element: Element,
+    kind: ContentKind,
+    hide: () => void,
+  ): boolean {
+    if (
+      this.moving() &&
+      (this._leaving.has(element) ||
+        this._presence.get(element)?.presence === "hide")
+    ) {
+      return true;
+    }
+    const contents = this.contentsOf(element);
+    if (
+      !contents.delete(kind) ||
+      contents.size > 0 ||
+      !this.moving() ||
+      !this.movesIn(element, "hide")
+    ) {
+      return false;
+    }
+    this._presence.delete(element);
+    this._leaving.set(element, hide);
+    if (!this._leavingScheduled) {
+      this._leavingScheduled = true;
+      queueMicrotask(() => this.startLeaving());
+    }
+    return true;
+  }
+
+  protected startLeaving(): void {
+    this._leavingScheduled = false;
+    const leaving = [...this._leaving];
+    this._leaving.clear();
+    if (leaving.length === 0) {
+      return;
+    }
+    void this.present(
+      leaving.map(([element]) => element),
+      "hide",
+    ).then((ended) => {
+      for (const [element, hide] of leaving) {
+        if (ended.has(element) && this.attached(element)) {
+          hide();
+        }
+      }
+    });
+  }
+
+  protected presenceMark(
+    element: Element,
+    arrives: boolean,
+  ): Record<string, string | null> {
+    this._leaving.delete(element);
+    const moving = this._presence.delete(element);
+    if (arrives) {
+      return { [PRESENCE_ATTRIBUTE]: "initial" };
+    }
+    return moving ? { [PRESENCE_ATTRIBUTE]: null } : {};
+  }
+
+  protected present(
+    elements: Element[],
+    presence: PresenceMotion,
+  ): Promise<Set<Element>> {
+    const motion = { presence };
+    for (const element of elements) {
+      this._presence.set(element, motion);
+    }
+    this.flushUIBatch();
+    return this.emitSettled(
+      PresenceElementsMessage.type.request({
+        effects: elements.map((element) => ({
+          element: element.id,
+          presence,
+        })),
+      }),
+    ).then(() => {
+      const ended = new Set<Element>();
+      for (const element of elements) {
+        if (this._presence.get(element) === motion) {
+          this._presence.delete(element);
+          ended.add(element);
+        }
+      }
+      return ended;
+    });
+  }
+
+  protected arrive(elements: Element[]): void {
+    if (elements.length === 0) {
+      return;
+    }
+    for (const element of elements) {
+      this.updateElement(element, {
+        attributes: this.presenceMark(element, true),
+      });
+    }
+    void this.present(elements, "show");
+  }
+
+  protected retireElement(element: Element, pin?: string): void {
+    const retiring: Retirement = {
+      element,
+      epoch: this._game.connection.epoch,
+      ...(pin ? { pin } : {}),
+    };
+    element.remove();
+    this._retiring.add(retiring);
+    void this.present([element], "hide").then(() => this.retire(retiring));
+  }
+
+  protected forgetPresence(): void {
+    this._motion = false;
+    this._presence.clear();
+    this._leaving.clear();
   }
 
   protected conceal() {
@@ -3703,9 +3952,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const next = this.selectBranch(region.node, region.scope.env);
       region.deps = vs.endReactiveRead();
       if (next !== region.active) {
-        for (const el of this.collectNodes(region.content)) {
-          this.destroyElement(el);
-        }
+        this.removeGroup(region.content);
         region.scope = this.makeScope(region.scope.env, region.scope.slots);
         region.active = next;
         region.content = this.mountChildren(
@@ -3715,6 +3962,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.anchorFor(region),
           region,
         );
+        this.arriveGroup(region.content);
         return;
       }
     }
@@ -3737,14 +3985,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.refreshScope(region.elseScope, changes);
       } else {
         this.mountForElse(region, parentEnv, this.anchorFor(region));
+        this.arriveGroup(region.elseContent ?? []);
       }
       return;
     }
 
     if (region.elseScope && region.elseContent) {
-      for (const el of this.collectNodes(region.elseContent)) {
-        this.destroyElement(el);
-      }
+      this.removeGroup(region.elseContent);
       region.elseScope = undefined;
       region.elseContent = undefined;
     }
@@ -3777,15 +4024,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.refreshScope(reused.scope, changes);
         next.push(reused);
       } else {
-        next.push(
-          this.mountIteration(
-            region,
-            parentEnv,
-            entryKey,
-            value,
-            this.anchorFor(region),
-          ),
+        const iteration = this.mountIteration(
+          region,
+          parentEnv,
+          entryKey,
+          value,
+          this.anchorFor(region),
         );
+        this.arriveGroup(iteration.content);
+        next.push(iteration);
       }
     }
 
@@ -3832,8 +4079,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected destroyIteration(it: ForIteration): void {
-    for (const el of this.collectNodes(it.content)) {
-      this.destroyElement(el);
+    this.removeGroup(it.content);
+  }
+
+  protected removeGroup(group: ReactiveGroup): void {
+    const moving = this.moving();
+    for (const el of this.collectNodes(group)) {
+      if (moving && this.movesIn(el, "hide")) {
+        this.retireElement(el);
+      } else {
+        this.destroyElement(el);
+      }
+    }
+  }
+
+  protected arriveGroup(group: ReactiveGroup): void {
+    if (this.moving()) {
+      this.arrive(
+        this.collectNodes(group).filter((el) => this.movesIn(el, "show")),
+      );
     }
   }
 
@@ -4123,6 +4387,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     } finally {
       mounted?.();
     }
+    if (!clauses?.with && !instant && this.moving() && this.movesIn(element, "show")) {
+      this.arrive([element]);
+      return;
+    }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
       const entering = this.animateElements([{ element, animations: [enter] }]);
@@ -4150,6 +4418,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const entry = name ? this._mountedLayouts.get(name) : undefined;
     if (!entry) {
+      return;
+    }
+    if (
+      !clauses?.with &&
+      !instant &&
+      this.moving() &&
+      this.movesIn(entry.element, "hide")
+    ) {
+      this._mountedLayouts.delete(name);
+      this.retireElement(
+        entry.element,
+        this._game.module.assets?.retireLayout(name),
+      );
       return;
     }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
@@ -4976,33 +5257,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!sequence && $.knownEmpty("text", targetEls)) {
           return;
         }
-        for (const targetEl of targetEls) {
-          if (targetEl) {
-            if (sequence) {
-              $.updateElement(targetEl, {
-                style: { display: null },
-                attributes: {
-                  text: sequence?.map((t) => t.text).join("") ?? null,
-                },
-              });
-            } else {
-              $.updateElement(targetEl, {
-                style: { display: "none" },
-                attributes: {
-                  text: null,
-                },
-              });
+        const moving = !instant && $.moving();
+        const arriving: Element[] = [];
+        const leaving = targetEls.filter(
+          (targetEl) =>
+            !sequence &&
+            $.leaves(targetEl, "text", () => this.hide(target, targetEl)),
+        );
+        const writing = targetEls.filter((el) => !leaving.includes(el));
+        for (const targetEl of writing) {
+          if (sequence) {
+            const arrives = $.arrives(targetEl, "text", moving);
+            if (arrives) {
+              arriving.push(targetEl);
             }
+            $.updateElement(targetEl, {
+              style: { display: null },
+              attributes: {
+                text: sequence?.map((t) => t.text).join("") ?? null,
+                ...$.presenceMark(targetEl, arrives),
+              },
+            });
+          } else {
+            $.updateElement(targetEl, {
+              style: { display: "none" },
+              attributes: {
+                text: null,
+                ...$.presenceMark(targetEl, false),
+              },
+            });
           }
         }
-        $.noteContent("text", targetEls, !sequence);
+        $.noteContent("text", writing, !sequence);
         if (targetEls.length === 0) {
           if (sequence) {
             $.warnUndeclaredWriteTarget(target);
           }
           return;
         }
+        if (writing.length === 0) {
+          return;
+        }
         $.flushUIBatch();
+        if (arriving.length > 0) {
+          void $.present(arriving, "show");
+        }
         await $.emitSettled(
           WriteTextMessage.type.request({
             target,
@@ -5010,9 +5309,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             ...(time != null ? { time } : {}),
             ...(shown > 0 ? { shown } : {}),
-            ...($.namesWriteElements(target, targetEls)
-              ? { elements: targetEls.map((el) => el.id) }
+            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+              ? { elements: writing.map((el) => el.id) }
               : {}),
+          }),
+        );
+      }
+
+      protected hide(target: string, targetEl: Element) {
+        $.updateElement(targetEl, {
+          style: { display: "none" },
+          attributes: { text: null, [PRESENCE_ATTRIBUTE]: null },
+        });
+        $.noteContent("text", [targetEl], true);
+        $.flushUIBatch();
+        void $.emitSettled(
+          WriteTextMessage.type.request({
+            target,
+            instructions: [],
+            instant: true,
+            elements: [targetEl.id],
           }),
         );
       }
@@ -5482,33 +5798,65 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
         }
-        for (const targetEl of targetEls) {
-          if (targetEl) {
-            if (sequence) {
-              $.updateElement(targetEl, {
-                style: { display: null },
-              });
-            } else {
-              $.updateElement(targetEl, {
-                style: { display: "none" },
-              });
+        const moving = !instant && $.moving();
+        const arriving: Element[] = [];
+        const leaving = targetEls.filter(
+          (targetEl) =>
+            !sequence &&
+            $.leaves(targetEl, "image", () => this.hide(target, targetEl)),
+        );
+        const writing = targetEls.filter((el) => !leaving.includes(el));
+        for (const targetEl of writing) {
+          if (sequence) {
+            const arrives = $.arrives(targetEl, "image", moving);
+            if (arrives) {
+              arriving.push(targetEl);
             }
+            $.updateElement(targetEl, {
+              style: { display: null },
+              ...presenceAttributes($.presenceMark(targetEl, arrives)),
+            });
+          } else {
+            $.updateElement(targetEl, {
+              style: { display: "none" },
+              ...presenceAttributes($.presenceMark(targetEl, false)),
+            });
           }
         }
-        $.noteContent("image", targetEls, !sequence);
-        if (targetEls.length === 0) {
+        $.noteContent("image", writing, !sequence);
+        if (writing.length === 0) {
           return;
         }
         $.flushUIBatch();
+        if (arriving.length > 0) {
+          void $.present(arriving, "show");
+        }
         await $.emitSettled(
           WriteImageMessage.type.request({
             target,
             instructions: sequence ? this.resolve(sequence, instant, view) : [],
             instant,
             ...(time != null ? { time } : {}),
-            ...($.namesWriteElements(target, targetEls)
-              ? { elements: targetEls.map((el) => el.id) }
+            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+              ? { elements: writing.map((el) => el.id) }
               : {}),
+          }),
+        );
+      }
+
+      protected hide(target: string, targetEl: Element) {
+        $.updateElement(targetEl, {
+          style: { display: "none" },
+          attributes: { [PRESENCE_ATTRIBUTE]: null },
+        });
+        $.noteContent("image", [targetEl], true);
+        $.flushUIBatch();
+        void $.emitSettled(
+          WriteImageMessage.type.request({
+            target,
+            instructions: [],
+            instant: true,
+            elements: [targetEl.id],
           }),
         );
       }

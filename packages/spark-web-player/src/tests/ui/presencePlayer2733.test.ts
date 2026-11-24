@@ -1,0 +1,194 @@
+import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
+import { afterEach, describe, expect, test } from "vitest";
+import { createDOMHarness, flushMicrotasks, untilShown } from "./domTestHarness";
+
+const PRESENCE = "data-presence";
+
+class FakeTransition {
+  transitionProperty: string;
+  playState: AnimationPlayState = "running";
+  replaceState: AnimationReplaceState = "active";
+  playbackRate = 1;
+  startTime: number | null = 0;
+  currentTime: number | null = 0;
+  timeline = { currentTime: 0 };
+  finished: Promise<FakeTransition>;
+  effect: { target: Element; getComputedTiming: () => { endTime: number } };
+  protected done!: () => void;
+  constructor(target: Element, property: string, duration: number) {
+    this.transitionProperty = property;
+    this.effect = { target, getComputedTiming: () => ({ endTime: duration }) };
+    this.finished = new Promise((resolve) => {
+      this.done = () => {
+        this.playState = "finished";
+        resolve(this);
+      };
+    });
+  }
+  finish() {
+    this.done();
+  }
+  pause() {
+    this.playState = "paused";
+  }
+}
+
+const started = new Map<string, FakeTransition>();
+
+const motionOf = (element: Element, presence: string) =>
+  started.get(`${element.id}:${presence}`);
+
+const installTransitions = (win: any) => {
+  win.Element.prototype.getAnimations = function (this: Element) {
+    const presence = this.getAttribute(PRESENCE);
+    if (presence !== "show" && presence !== "hide") {
+      return [];
+    }
+    const key = `${this.id}:${presence}`;
+    if (!started.has(key)) {
+      started.set(key, new FakeTransition(this, "opacity", presence === "show" ? 280 : 120));
+    }
+    const motion = started.get(key)!;
+    return motion.playState === "finished" ? [] : [motion];
+  };
+};
+
+const FADING_BOX = `define ui as config with
+  layouts_initial = { }
+end
+
+style dialogue {
+  opacity = 1
+  transition-duration = 80ms
+  @initial { opacity = 0 }
+  @show { transition-duration = 280ms }
+  @hide { opacity = 0; transition-duration = 120ms }
+}
+
+layout main {
+  dialogue {
+    text
+  }
+  action {
+    text
+  }
+}
+`;
+
+async function playing(src: string) {
+  const h = createDOMHarness(src, 0, { compose: true, autoOpenAll: false });
+  await h.ready;
+  installTransitions(h.overlay.ownerDocument.defaultView);
+  h.game.module.ui.sweepReconcile();
+  await flushMicrotasks(10);
+  h.game.context.system.previewing = undefined;
+  return h;
+}
+
+async function play(h: Awaited<ReturnType<typeof playing>>, beat: Record<string, unknown>) {
+  const coordinator = new Coordinator(h.game, { end: 0, ...beat } as any);
+  for (let i = 0; i < 10; i += 1) {
+    await flushMicrotasks();
+    coordinator.onUpdate({ deltaMS: 0 } as any);
+  }
+  await flushMicrotasks(10);
+  await untilShown(h.overlay);
+  await flushMicrotasks(20);
+}
+
+const marks = (element: Element) => {
+  const records: MutationRecord[] = [];
+  const observer = new (element.ownerDocument.defaultView as any).MutationObserver(
+    (delivered: MutationRecord[]) => {
+      records.push(...delivered);
+    },
+  );
+  observer.observe(element, {
+    attributes: true,
+    attributeOldValue: true,
+    attributeFilter: [PRESENCE],
+  });
+  return async () => {
+    await flushMicrotasks(5);
+    records.push(...observer.takeRecords());
+    observer.disconnect();
+    return records.map((_, i) =>
+      i + 1 < records.length ? records[i + 1]!.oldValue : element.getAttribute(PRESENCE),
+    );
+  };
+};
+
+afterEach(() => {
+  started.clear();
+});
+
+describe("the player plays an element's @initial, @show and @hide (#2733)", () => {
+  test("an appearing element takes its @initial look, then its @show properties until its arrival ends", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    expect(box.style.display).toBe("none");
+    const recorded = marks(box);
+    await play(h, { text: { dialogue: [{ text: "Hi." }] } });
+    expect(box.style.display).toBe("");
+    expect(box.getAttribute(PRESENCE)).toBe("show");
+    expect(box.matches(':is([data-presence="show"],[data-presence="show"] *)')).toBe(true);
+    const arrival = motionOf(box, "show");
+    expect(arrival?.transitionProperty).toBe("opacity");
+    arrival!.finish();
+    await flushMicrotasks(20);
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+    expect(await recorded()).toEqual(["initial", "show", null]);
+  });
+
+  test("a leaving element stays mounted with its text until its transition ends", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    await play(h, { text: { dialogue: [{ text: "Hi." }] } });
+    motionOf(box, "show")!.finish();
+    await flushMicrotasks(20);
+    await play(h, { text: { action: [{ text: "Then." }] } });
+    expect(box.getAttribute(PRESENCE)).toBe("hide");
+    expect(box.style.display).toBe("");
+    expect(box.textContent).toContain("Hi.");
+    motionOf(box, "hide")!.finish();
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(10);
+    }
+    await untilShown(h.overlay);
+    expect(box.style.display).toBe("none");
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+    expect(box.textContent).not.toContain("Hi.");
+  });
+
+  test("the game's pause holds a running arrival", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    await play(h, { text: { dialogue: [{ text: "Hi." }] } });
+    const arrival = motionOf(box, "show")!;
+    expect(arrival.playState).toBe("running");
+    (h.ui as any).onPause();
+    expect(arrival.playState).toBe("paused");
+    await flushMicrotasks(20);
+    expect(box.getAttribute(PRESENCE)).toBe("show");
+    (h.ui as any).onUnpause();
+    arrival.finish();
+    await flushMicrotasks(20);
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+  });
+
+  test("under reduced motion a move ends at once and a fade still plays", async () => {
+    const h = await playing(FADING_BOX);
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.matchMedia = (query: string) => ({ matches: query.includes("prefers-reduced-motion") });
+    const fade = new FakeTransition(h.overlay, "opacity", 200);
+    const move = new FakeTransition(h.overlay, "translate", 200);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    box.setAttribute(PRESENCE, "initial");
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "show" ? [fade, move] : []) as any;
+    void (h.ui as any)._presence.play(box, "show");
+    await flushMicrotasks(5);
+    expect(move.playState).toBe("finished");
+    expect(fade.playState).toBe("running");
+  });
+});
