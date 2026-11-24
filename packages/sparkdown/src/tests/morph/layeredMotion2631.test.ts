@@ -48,7 +48,7 @@ describe("a morph moves and fades the layers of a picture made of image files (#
     expect(live).toMatch(/<g data-morph-motion=['"]brows['"][^>]*><image[^>]*data-name=['"]brows['"]/);
     expect(drawnAt(artifact, 0.5)).toEqual([
       { file: 0, opacity: 1, motions: [] },
-      { file: 1, opacity: 1, motions: ["brows"] },
+      { file: 1, opacity: 1, motions: [{ label: "brows", wrapper: 0 }] },
       { file: 2, opacity: 1, motions: [] },
     ]);
   });

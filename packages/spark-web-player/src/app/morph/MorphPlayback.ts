@@ -70,8 +70,17 @@ interface CanvasView {
   files: PictureFiles;
   drawn: LayeredMorphDrawn[];
   standIns: Map<string, StandIn>;
+  groups: { canvas: HTMLCanvasElement; context: PictureCanvasContext }[];
   painted?: string;
   last?: string;
+}
+
+interface PaintedLayer {
+  file: number;
+  alpha: number;
+  matrix?: Affine;
+  wrappers: number[];
+  fades: number[];
 }
 
 interface StandIn {
@@ -89,16 +98,35 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
   const img = new Img();
   img.decoding = "async";
   img.src = src;
+  let decoded = true;
   try {
     await img.decode();
   } catch {
-    if (!img.complete) return undefined;
+    decoded = false;
   }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
+  if (!decoded && !(img.complete && paintsAnything(img, doc))) return undefined;
   const bytes = await readPictureBytes(src, view);
   const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
   return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...(traits ?? { unread: true }) };
 };
+
+const PAINT_PROBE_SIZE = 256;
+
+function paintsAnything(image: CanvasImageSource, doc: Document): boolean {
+  const canvas = doc.createElement("canvas");
+  canvas.width = PAINT_PROBE_SIZE;
+  canvas.height = PAINT_PROBE_SIZE;
+  try {
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.drawImage(image, 0, 0, PAINT_PROBE_SIZE, PAINT_PROBE_SIZE);
+    const pixels = context.getImageData(0, 0, PAINT_PROBE_SIZE, PAINT_PROBE_SIZE).data;
+    for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 0) return true;
+  } catch {
+  }
+  return false;
+}
 
 async function readPictureBytes(src: string, view: Window & typeof globalThis): Promise<Uint8Array | undefined> {
   if (/^data:/i.test(src)) return dataUrlBytes(src);
@@ -1092,7 +1120,7 @@ export class MorphLayer {
       }
       box.appendChild(stage);
     }
-    return { box, canvas, context, files, drawn: layeredMorphDrawn(files.model), standIns };
+    return { box, canvas, context, files, drawn: layeredMorphDrawn(files.model), standIns, groups: [] };
   }
 
   protected placeCanvas(view: CanvasView, rect: Rect) {
@@ -1125,39 +1153,86 @@ export class MorphLayer {
   }
 
   protected paint(view: CanvasView) {
-    const { canvas, context, files } = view;
-    const layers = view.drawn.map(({ file, opacity, motions }) => {
+    const { canvas, context } = view;
+    const layers = view.drawn.map(({ file, opacity, motions }): PaintedLayer => {
       let matrix: Affine | undefined;
-      let alpha = opacity;
-      for (const label of motions) {
+      for (const { label } of motions) {
         const pose = view.standIns.get(label)?.pose;
-        if (!pose) continue;
-        matrix = multiply(matrix ?? IDENTITY, pose.matrix);
-        alpha *= pose.opacity;
+        if (pose) matrix = multiply(matrix ?? IDENTITY, pose.matrix);
       }
-      return { file, alpha, matrix };
+      return {
+        file,
+        alpha: opacity,
+        ...(matrix ? { matrix } : {}),
+        wrappers: motions.map(({ wrapper }) => wrapper),
+        fades: motions.map(({ label }) => view.standIns.get(label)?.pose?.opacity ?? 1),
+      };
     });
-    const key = `${canvas.width}x${canvas.height}|${layers.map(({ file, alpha, matrix }) => `${file}:${alpha}${matrix ? `:${matrix.join(" ")}` : ""}`).join(",")}`;
+    const key = `${canvas.width}x${canvas.height}|${layers.map(({ file, alpha, matrix, fades }) => `${file}:${alpha}:${fades.join(" ")}${matrix ? `:${matrix.join(" ")}` : ""}`).join(",")}`;
     if (view.painted === key) return;
     view.painted = key;
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.globalAlpha = 1;
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.imageSmoothingEnabled = true;
-    const sx = canvas.width / files.width;
-    const sy = canvas.height / files.height;
-    for (const { file, alpha, matrix } of layers) {
-      const bitmap = files.bitmaps.get(file);
-      if (!bitmap || alpha <= 0) continue;
-      context.globalAlpha = alpha;
-      if (matrix) {
-        const [a, b, c, d, e, f] = matrix;
-        context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
+    clearCanvas(context, canvas);
+    this.paintLayers(view, context, layers, 0, 1);
+  }
+
+  protected paintLayers(view: CanvasView, context: PictureCanvasContext, layers: PaintedLayer[], depth: number, alpha: number) {
+    for (let start = 0; start < layers.length; ) {
+      const first = layers[start]!;
+      const wrapper = first.wrappers[depth];
+      let end = start + 1;
+      while (wrapper !== undefined && end < layers.length && layers[end]!.wrappers[depth] === wrapper) end += 1;
+      const run = layers.slice(start, end);
+      start = end;
+      if (run.length === 1) {
+        this.paintLayer(view, context, first, first.fades.slice(depth).reduce((product, fade) => product * fade, alpha));
+        continue;
       }
-      context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
-      if (matrix) context.setTransform(1, 0, 0, 1, 0, 0);
+      const fade = first.fades[depth]!;
+      if (fade <= 0) continue;
+      const group = fade < 1 ? this.groupCanvas(view, depth) : undefined;
+      if (!group) {
+        this.paintLayers(view, context, run, depth + 1, alpha * fade);
+        continue;
+      }
+      clearCanvas(group.context, group.canvas);
+      this.paintLayers(view, group.context, run, depth + 1, 1);
+      context.globalAlpha = alpha * fade;
+      context.drawImage(group.canvas, 0, 0, view.canvas.width, view.canvas.height);
+      context.globalAlpha = 1;
     }
+  }
+
+  protected paintLayer(view: CanvasView, context: PictureCanvasContext, layer: PaintedLayer, alpha: number) {
+    const { canvas, files } = view;
+    const bitmap = files.bitmaps.get(layer.file);
+    const opacity = layer.alpha * alpha;
+    if (!bitmap || opacity <= 0) return;
+    context.globalAlpha = opacity;
+    if (layer.matrix) {
+      const [a, b, c, d, e, f] = layer.matrix;
+      const sx = canvas.width / files.width;
+      const sy = canvas.height / files.height;
+      context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
+    }
+    context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
+    if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
+  }
+
+  protected groupCanvas(view: CanvasView, depth: number) {
+    let group = view.groups[depth];
+    if (!group) {
+      const canvas = view.canvas.ownerDocument.createElement("canvas");
+      const context = this.playback.pictureCanvas(canvas);
+      if (!context) return undefined;
+      group = { canvas, context };
+      view.groups[depth] = group;
+    }
+    if (group.canvas.width !== view.canvas.width || group.canvas.height !== view.canvas.height) {
+      group.canvas.width = view.canvas.width;
+      group.canvas.height = view.canvas.height;
+    }
+    return group;
   }
 
   layout() {
@@ -1294,6 +1369,13 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+function clearCanvas(context: PictureCanvasContext, canvas: HTMLCanvasElement) {
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.globalAlpha = 1;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = true;
 }
 
 function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {

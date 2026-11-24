@@ -21,6 +21,14 @@ const CASES: [string, Record<string, string>][] = [
   ["an origin away from the centre", { rotate: "8deg", transform_origin: "60px 90px" }],
 ];
 
+const GROUP_CASES: [string, Record<string, string>][] = [
+  ["a faded label holding two overlapping files", { opacity: "50%" }],
+  ["a faded and moved label holding two overlapping files", { opacity: "50%", translate: "20px 12px" }],
+];
+
+const CORRUPT_WEBP =
+  "data:image/webp;base64,UklGRkwAAABXRUJQVlA4IEAAAABwAwCdASog/////////////yIhKAgAgA2JZQDKLoB+AABBlBAA/vCbQ//ILlhdcjX/8gP+QH/ID/+PfYwoMAAA";
+
 const LEVELS = 8;
 const ALLOWANCE = 0.001;
 
@@ -60,11 +68,14 @@ const share = (a: Buffer, b: Buffer) => {
   return over / (a.length / 4);
 };
 
-async function differing(page: Page, moved: Record<string, string>, progress: number) {
-  await page.evaluate(
-    ({ moved, progress }) => (window as unknown as { layeredMotion: { show(m: unknown, p: number): Promise<void> } }).layeredMotion.show(moved, progress),
-    { moved, progress },
-  );
+type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number) => Promise<void>> & {
+  load(src: string): Promise<{ accepted: boolean; painted: number }>;
+  wholePng: string;
+};
+
+
+async function differing(page: Page, moved: Record<string, string>, progress: number, picture: "show" | "showGroup" = "show") {
+  await page.evaluate(({ moved, progress, picture }) => (window as unknown as { layeredMotion: Harness }).layeredMotion[picture](moved, progress), { moved, progress, picture });
   const ours = await pixels(page, "#ours");
   const theirs = await pixels(page, "#theirs");
   expect([ours.width, ours.height]).toEqual([theirs.width, theirs.height]);
@@ -76,6 +87,8 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
   let page: Page;
   let rest = 0;
   let still: Buffer;
+  let groupRest = 0;
+  let groupStill: Buffer;
 
   beforeAll(async () => {
     try {
@@ -92,6 +105,8 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     await page.waitForFunction(() => "layeredMotion" in window);
     ({ share: rest, ours: still } = await differing(page, CASES[0]![1], 0));
     console.log(`${name}: ${(rest * 100).toFixed(3)}% of pixels differ by more than ${LEVELS} levels with nothing moved`);
+    ({ share: groupRest, ours: groupStill } = await differing(page, GROUP_CASES[0]![1], 0, "showGroup"));
+    console.log(`${name}: ${(groupRest * 100).toFixed(3)}% of the grouped picture's pixels differ with nothing faded`);
   }, 120_000);
 
   afterAll(async () => {
@@ -106,5 +121,30 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
       expect(share(drawn.ours, still)).toBeGreaterThan(0.01);
       expect(drawn.share).toBeLessThanOrEqual(rest + ALLOWANCE);
     }
+  });
+
+  test.for(GROUP_CASES)("%s is composited before it fades, at half and full progress", async ([label, moved], context) => {
+    if (!browser) return context.skip();
+    for (const progress of [0.5, 1]) {
+      const drawn = await differing(page, moved, progress, "showGroup");
+      console.log(`${name}: ${label} at ${progress}: ${(drawn.share * 100).toFixed(3)}%`);
+      expect(share(drawn.ours, groupStill)).toBeGreaterThan(0.01);
+      expect(drawn.share).toBeLessThanOrEqual(groupRest + ALLOWANCE);
+    }
+  });
+
+  test("a corrupt file whose decode is refused is not loaded, and every loaded file draws", async (context) => {
+    if (!browser) return context.skip();
+    const whole = await page.evaluate(() => (window as unknown as { layeredMotion: Harness }).layeredMotion.wholePng);
+    const bytes = Buffer.from(whole.slice(whole.indexOf(",") + 1), "base64");
+    const truncated = `data:image/png;base64,${bytes.subarray(0, Math.floor(bytes.length / 2)).toString("base64")}`;
+    const [corrupt, half, full] = await page.evaluate(
+      (sources) => Promise.all(sources.map((src) => (window as unknown as { layeredMotion: Harness }).layeredMotion.load(src))),
+      [CORRUPT_WEBP, truncated, whole],
+    );
+    console.log(`${name}: corrupt ${JSON.stringify(corrupt)}, truncated ${JSON.stringify(half)}, whole ${JSON.stringify(full)}`);
+    expect(corrupt!.accepted).toBe(false);
+    expect(!half!.accepted || half!.painted > 0).toBe(true);
+    expect(full).toMatchObject({ accepted: true, painted: 40 * 30 });
   });
 });

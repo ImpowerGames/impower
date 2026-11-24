@@ -2,7 +2,7 @@ import { createMorphHost, layeredMorphSource } from "@impower/sparkdown/src/morp
 import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/morph/motion";
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
-import { MorphPlayback } from "../../../app/morph/MorphPlayback";
+import { browserPictureLoader, MorphPlayback } from "../../../app/morph/MorphPlayback";
 
 const WIDTH = 400;
 const HEIGHT = 600;
@@ -56,6 +56,27 @@ const CONTEXT = {
   },
 };
 
+const GROUP_FILES = {
+  base: paintFile((context) => {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, WIDTH, HEIGHT);
+  }),
+  red: paintFile((context) => {
+    context.fillStyle = "#e02020";
+    context.fillRect(80, 160, 180, 220);
+  }),
+  blue: paintFile((context) => {
+    context.fillStyle = "#2040e0";
+    context.fillRect(160, 240, 160, 200);
+  }),
+};
+
+const GROUP_ARTWORK =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">' +
+  '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
+  '<g data-name="face"><image data-name="red" data-layer="1" x="0" y="0" width="100" height="100"/>' +
+  '<image data-name="blue" data-layer="2" x="0" y="0" width="100" height="100"/></g></svg>';
+
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
 async function until(check: () => boolean) {
@@ -66,21 +87,25 @@ async function until(check: () => boolean) {
   throw new Error("The picture's canvas never appeared.");
 }
 
-async function show(moved: Record<string, string>, progress: number) {
+interface Picture {
+  files: Record<string, string>;
+  shown: string[];
+  moved: string;
+  keyframes: Record<string, unknown>[];
+  readSource: Parameters<typeof createMorphHost>[0]["readSource"];
+  groups: string[];
+}
+
+async function draw(picture: Picture, progress: number) {
   document.body.replaceChildren();
-  const keyframes = [
-    { offset: 0, lids: { state: "off" } },
-    { offset: 0.5, lids: { state: "on" } },
-    { offset: 1, lids: { state: "off" }, brows: moved },
-  ];
-  const motion = buildMorphMotion(keyframes);
-  if (!motion?.["brows"]) throw new Error("The keyframes moved nothing.");
+  const motion = buildMorphMotion(picture.keyframes);
+  if (!motion?.[picture.moved]) throw new Error("The keyframes moved nothing.");
 
   const overlay = document.body.appendChild(document.createElement("div"));
   overlay.setAttribute("style", "display:flex;gap:20px;padding:10px;background:#fff");
   const ours = overlay.appendChild(document.createElement("span"));
   ours.id = "ours";
-  const background = `url("${FILES.brows}"), url("${FILES.base}")`;
+  const background = [...picture.shown].reverse().map((name) => `url("${picture.files[name]}")`).join(", ");
   ours.setAttribute(
     "style",
     `display:block;position:relative;width:${SHOWN_WIDTH}px;height:${SHOWN_HEIGHT}px;background-image:${background};background-size:100% 100%;background-repeat:no-repeat`,
@@ -101,19 +126,20 @@ async function show(moved: Record<string, string>, progress: number) {
     element.setAttribute("preserveAspectRatio", "none");
     return element;
   };
-  theirs.appendChild(image(FILES.base));
+  const [bottom, ...moved] = picture.shown;
+  theirs.appendChild(image(picture.files[bottom!]!));
   const group = theirs.appendChild(document.createElementNS(SVG_NS, "g"));
   group.setAttribute("style", "transform-box:fill-box;transform-origin:50% 50%");
-  group.appendChild(image(FILES.brows));
-  const animation = group.animate(morphMotionKeyframes(motion["brows"]) as Keyframe[], { duration: 1000, fill: "both" });
+  for (const name of moved) group.appendChild(image(picture.files[name]!));
+  const animation = group.animate(morphMotionKeyframes(motion[picture.moved]!) as Keyframe[], { duration: 1000, fill: "both" });
   animation.pause();
   animation.currentTime = progress * 1000;
 
-  const recipe = serializeMorphRecipe(buildMorphRecipe("m", { blend: "cut", keyframes } as never));
+  const recipe = serializeMorphRecipe(buildMorphRecipe("m", { blend: "cut", keyframes: picture.keyframes } as never));
   const host = createMorphHost({
     service: new MorphBakeService(),
     channel: () => ({ recipes: { m: recipe }, variants: {} }),
-    readSource: layeredMorphSource(() => CONTEXT as never),
+    readSource: picture.readSource,
   });
   const playback = new MorphPlayback(overlay, { host, seed: "s", requestFrame: () => 0, cancelFrame: () => {} });
   playback.mount(
@@ -122,8 +148,8 @@ async function show(moved: Record<string, string>, progress: number) {
       plays: [
         {
           layer: 0,
-          picture: { span: 2, files: Object.entries(FILES).map(([name, src]) => ({ src, name: `${name}.png` })) },
-          ref: { morphs: ["m"], key: "kit", image: "kit", selection: "{}", groups: ["lids"] },
+          picture: { span: picture.shown.length, files: Object.entries(picture.files).map(([name, src]) => ({ src, name: `${name}.png` })) },
+          ref: { morphs: ["m"], key: "kit", image: "kit", selection: "{}", groups: picture.groups },
           morph: "m",
           timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" },
           motion,
@@ -141,4 +167,56 @@ async function show(moved: Record<string, string>, progress: number) {
   await nextFrame();
 }
 
-(window as unknown as { layeredMotion: unknown }).layeredMotion = { show };
+const show = (moved: Record<string, string>, progress: number) =>
+  draw(
+    {
+      files: FILES,
+      shown: ["base", "brows"],
+      moved: "brows",
+      keyframes: [
+        { offset: 0, lids: { state: "off" } },
+        { offset: 0.5, lids: { state: "on" } },
+        { offset: 1, lids: { state: "off" }, brows: moved },
+      ],
+      readSource: layeredMorphSource(() => CONTEXT as never),
+      groups: ["lids"],
+    },
+    progress,
+  );
+
+const showGroup = (moved: Record<string, string>, progress: number) =>
+  draw(
+    {
+      files: GROUP_FILES,
+      shown: ["base", "red", "blue"],
+      moved: "face",
+      keyframes: [
+        { offset: 0, face: { opacity: "1" } },
+        { offset: 1, face: moved },
+      ],
+      readSource: async () => ({ text: GROUP_ARTWORK }),
+      groups: [],
+    },
+    progress,
+  );
+
+async function load(src: string) {
+  const loaded = await browserPictureLoader(src, document);
+  if (!loaded) return { accepted: false, painted: 0 };
+  const canvas = document.createElement("canvas");
+  canvas.width = 40;
+  canvas.height = 30;
+  const context = canvas.getContext("2d")!;
+  context.drawImage(loaded.image, 0, 0, 40, 30);
+  const pixels = context.getImageData(0, 0, 40, 30).data;
+  let painted = 0;
+  for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) painted += 1;
+  return { accepted: true, painted, width: loaded.width, height: loaded.height };
+}
+
+const WHOLE_PNG = paintFile((context) => {
+  context.fillStyle = "#3a6ea5";
+  context.fillRect(0, 0, WIDTH, HEIGHT);
+});
+
+(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, wholePng: WHOLE_PNG };

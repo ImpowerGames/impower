@@ -100,7 +100,12 @@ export function layeredMorphArtwork(context: Context | undefined, image: any): L
 export interface LayeredMorphDrawn {
   file: number;
   opacity: number;
-  motions: string[];
+  motions: LayeredMorphMotion[];
+}
+
+export interface LayeredMorphMotion {
+  label: string;
+  wrapper: number;
 }
 
 export interface LayeredMorphModel {
@@ -140,13 +145,17 @@ const posed = (element: Element, frame: MorphFrameState | undefined): Element =>
 
 export function layeredMorphDrawn(model: LayeredMorphModel, frame?: MorphFrameState): LayeredMorphDrawn[] {
   const drawn: LayeredMorphDrawn[] = [];
+  const wrappers = new Map<Element, number>();
   for (const { file, chain } of model.chains) {
     let opacity = 1;
     let shown = true;
-    const motions: string[] = [];
+    const motions: LayeredMorphMotion[] = [];
     chain.forEach((element, index) => {
       const label = element.attributes["data-morph-motion"];
-      if (label) motions.push(label);
+      if (label) {
+        if (!wrappers.has(element)) wrappers.set(element, wrappers.size);
+        motions.push({ label, wrapper: wrappers.get(element)! });
+      }
       const pose = posed(element, frame);
       const display = styleProperty(pose, "display") ?? pose.attributes["display"];
       if (display?.trim().toLowerCase() === "none") shown = false;

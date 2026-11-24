@@ -4,7 +4,7 @@ import { morphMotionKeyframes, type MorphMotion } from "@impower/sparkdown/src/m
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
-import { MorphPlayback, type MorphImageContent, type PictureCanvasContext } from "../../app/morph/MorphPlayback";
+import { MorphPlayback, type MorphImageContent, type PictureCanvasContext, type PictureCanvasFactory } from "../../app/morph/MorphPlayback";
 import type { MotionPose } from "../../app/morph/motionPose";
 import { installJSDOM } from "./domTestHarness";
 
@@ -100,13 +100,13 @@ function recordingCanvas() {
 
 const POSE: MotionPose = { matrix: [1, 0, 0, 1, 0, 8], opacity: 0.5 };
 
-function setup(recipeText: string) {
+function setup(recipeText: string, options: { source?: string; pictureCanvas?: PictureCanvasFactory; pose?: MotionPose } = {}) {
   const env = installJSDOM();
   restore = env.restore;
   const host = createMorphHost({
     service: new MorphBakeService(),
     channel: () => ({ recipes: { m: recipeText }, variants: {} }),
-    readSource: layeredMorphSource(() => CONTEXT as never),
+    readSource: options.source === undefined ? layeredMorphSource(() => CONTEXT as never) : async () => ({ text: options.source! }),
   });
   const canvas = recordingCanvas();
   const effects: { element: Element; keyframes: Keyframe[]; samples: number[]; cancels: number }[] = [];
@@ -116,7 +116,7 @@ function setup(recipeText: string) {
     seed: "s",
     requestFrame: () => 0,
     cancelFrame: () => {},
-    pictureCanvas: canvas.factory,
+    pictureCanvas: options.pictureCanvas ?? canvas.factory,
     loadPicture: async (src) => ({ image: { src } as never, width: 40, height: 30 }),
     animate: (element, keyframes) => {
       const effect = { element, keyframes, samples: [] as number[], cancels: 0 };
@@ -125,7 +125,7 @@ function setup(recipeText: string) {
     },
     readPose: (element, box) => {
       reads.push({ element, box });
-      return POSE;
+      return options.pose ?? POSE;
     },
   });
   const span = env.overlay.ownerDocument.createElement("span");
@@ -191,5 +191,43 @@ describe("a morph moves the layers of a picture made of image files on its canva
     const brows = canvas.frames.at(-1)!.find((painted) => painted.src === "brows.png")!;
     expect(brows.alpha).toBeCloseTo(0.125, 6);
     expect(canvas.frames.at(-1)!.map((painted) => painted.src)).toEqual(["base.png", "brows.png", "lids.png"]);
+  });
+
+  test("a faded label holding two files is drawn on a canvas of its own and faded once, as a whole", async () => {
+    const source =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">' +
+      '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
+      '<g data-name="brows"><image data-name="left" data-layer="1" x="0" y="0" width="100" height="100"/>' +
+      '<image data-name="right" data-layer="2" x="0" y="0" width="100" height="100"/></g></svg>';
+    const log: { canvas: number; src: string; alpha: number }[] = [];
+    const canvases: HTMLCanvasElement[] = [];
+    const factory: PictureCanvasFactory = (element) => {
+      canvases.push(element);
+      const index = canvases.length - 1;
+      const context: PictureCanvasContext = {
+        globalAlpha: 1,
+        imageSmoothingEnabled: true,
+        setTransform: () => {},
+        clearRect: () => {
+          if (index === 0) log.length = 0;
+        },
+        drawImage(image) {
+          const drawn = canvases.indexOf(image as HTMLCanvasElement);
+          log.push({ canvas: index, src: drawn >= 0 ? `canvas ${drawn}` : (image as unknown as { src: string }).src, alpha: context.globalAlpha });
+        },
+      };
+      return context;
+    };
+    const fade = serializeMorphRecipe(buildMorphRecipe("m", { blend: "cut", keyframes: [{ offset: 0, brows: { opacity: "1" } }, { offset: 1, brows: { opacity: "50%" } }] } as never));
+    const { playback, span } = setup(fade, { source, pictureCanvas: factory, pose: { matrix: [1, 0, 0, 1, 0, 0], opacity: 0.5 } });
+    playback.mount(span, content(), BACKGROUND, "background", "portrait:0");
+    await until(() => !!canvasOf(span), "the canvas");
+    playback.advance(0.5);
+    expect(log).toEqual([
+      { canvas: 0, src: "base.png", alpha: 1 },
+      { canvas: 1, src: "brows.png", alpha: 1 },
+      { canvas: 1, src: "lids.png", alpha: 1 },
+      { canvas: 0, src: "canvas 1", alpha: 0.5 },
+    ]);
   });
 });
