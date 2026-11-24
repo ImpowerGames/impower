@@ -10,17 +10,16 @@ script from any of them:
 - **Share**: exporting your game and your screenplay.
 - **Settings**: how the editor looks and behaves, and your project's own preferences.
 
-Story, Assets and Share are in the rail down the left side on a computer, and in the
-bar along the bottom on a phone; Scripts opens from Story. Settings is at the foot of
-the rail, just above the save status, and is the fourth tab of the bar on a phone. To
-leave Settings, pick Story, Assets or Share.
+Story, Assets, Share and Settings are in the rail down the left side on a computer, and
+in the bar along the bottom on a phone; Scripts opens from Story. To leave Settings,
+pick Story, Assets or Share.
 
 The pictures below show a small sample project at two sizes: a computer screen 1440
 pixels wide and a phone 430 pixels wide.
 
 ## Story
 
-![The Story page on a computer: the rail with Story, Assets and Share on the left, the Outline under them and Settings at its foot, the script in the middle, and the game preview on the right with the Problems panel open under it](./images/web-editor/story-1440.png)
+![The Story page on a computer: the rail with Story, Assets, Share and Settings on the left and the Outline under them, the script in the middle, and the game preview on the right with the Problems panel open under it](./images/web-editor/story-1440.png)
 
 ![The Story page on a phone: the project name and a menu at the top, a Your game strip with a Play button, the script, an Edit button, and the Story, Assets, Share and Settings tabs at the bottom](./images/web-editor/story-430.png)
 
@@ -105,7 +104,7 @@ extension. Working together and publishing online are on their way too.
 
 ## Settings
 
-![The Settings page on a computer: the list of sections down the left, from Appearance to Save & sync, Settings selected at the foot of the rail, and the Appearance section with its nine themes](./images/web-editor/settings-1440.png)
+![The Settings page on a computer: the list of sections down the left, from Appearance to Save & sync, Settings selected in the rail under Share, and the Appearance section with its nine themes](./images/web-editor/settings-1440.png)
 
 ![The Appearance section of Settings on a phone, with the nine themes one under another and the Settings tab selected at the bottom](./images/web-editor/settings-430.png)
 
