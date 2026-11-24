@@ -127,7 +127,7 @@ describe("a layer name is words separated by spaces (#2572)", () => {
 describe("a layer file in a portrait folder starts with digits and a space (#2572)", () => {
   it("reads 20 hair-top hat.off.png as layer 20 named hair-top hat.off", () => {
     expect(rasterLayerOfPath("/proj/assets/Images/mia/20 hair-top hat.off.png")).toEqual({
-      folder: "mia", directory: "/proj/assets/Images/mia", order: 20, name: "hair-top hat.off",
+      folder: "mia", directory: "/proj/assets/Images/mia", order: 20, name: "hair-top hat.off", folders: [],
     });
     expect(rasterLayerOfPath("/proj/assets/Images/mia/7 face.happy.png")?.order).toBe(7);
   });
