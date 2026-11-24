@@ -162,6 +162,11 @@ describe("TextField", () => {
     const plain = host!.querySelector("input")!;
     expect(plain.parentElement).toBe(host);
     expect(plain.className).not.toContain("scale-");
+    await act(async () => render(<TextField aria-label="Name" suffix=".url" zoomSafe />, host!));
+    const suffixed = host!.querySelector("input")!;
+    expect(suffixed.parentElement!.hasAttribute("data-text-field-frame")).toBe(true);
+    expect(suffixed.className).not.toContain("scale-");
+    expect(suffixed.className).not.toContain("114.286%");
   });
 
   it("draws a suffix inside its own frame, keeping the input and its purpose inside", async () => {

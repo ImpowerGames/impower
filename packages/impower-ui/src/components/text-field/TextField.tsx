@@ -150,7 +150,7 @@ const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextFiel
         suffix === undefined
           ? cn(textFieldVariants({ frame, size, width, font }), className)
           : cn(textFieldVariants({ frame: "inset", size, font }), "self-stretch px-3", className),
-        zoomSafe && ZOOM_SAFE_INPUT,
+        zoomSafe && suffix === undefined && ZOOM_SAFE_INPUT,
       )}
       {...textFieldPurposeAttributes(purpose)}
       {...rest}
