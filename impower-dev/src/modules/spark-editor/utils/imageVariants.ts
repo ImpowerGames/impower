@@ -59,19 +59,18 @@ export const testerGroups = (stack: ImageStack, selection: VariantSelection): Te
   }
   const offered: TesterGroup[] = [];
   const picture = pictureFor(stack, selection);
-  const scoped = picture.vocabulary
-    ? restingOptions(
-        picture.vocabulary,
-        Object.fromEntries(
-          picture.groups.flatMap((group) => {
-            const value = selection[group.name];
-            return value !== undefined && value !== AS_IS && group.options.includes(value) ? [[group.name, value]] : [];
-          }),
-        ),
-      )
-    : undefined;
+  const chosen = Object.fromEntries(
+    picture.groups.flatMap((group) => {
+      const value = selection[group.name];
+      return value !== undefined && value !== AS_IS && group.options.includes(value) ? [[group.name, value]] : [];
+    }),
+  );
+  const restingWithout = (name: string): string | undefined => {
+    const { [name]: _own, ...others } = chosen;
+    return restingOptions(picture.vocabulary!, others)[name];
+  };
   for (const group of picture.groups) {
-    const own = scoped ? { ...group, default: scoped[group.name] } : group;
+    const own = picture.vocabulary ? { ...group, default: restingWithout(group.name) } : group;
     const resting = own.default ?? (group.switch ? "off" : AS_IS);
     const options = choicesOf(own);
     if (options.length > 1) {

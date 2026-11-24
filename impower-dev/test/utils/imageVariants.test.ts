@@ -1,4 +1,6 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { resolveAttributes } from "@impower/sparkdown/src/attributes/resolveAttributes";
+import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { describe, expect, it } from "vitest";
 import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
 import {
@@ -257,6 +259,36 @@ describe("a portrait folder with layer folders", () => {
     expect(summary(sleepy).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
     expect(variantOf(one(sleepy), { face: "happy", eyes: "open" })).toEqual({ image: "mia", attributes: ["happy", "open"] });
     expect(variantOf(one(sleepy), { face: "happy", eyes: "closed" })).toEqual({ image: "mia", attributes: ["happy"] });
+  });
+
+  it("writes a reference that shows what every choice in the tester shows", () => {
+    const sleepy = NESTED.map((path) =>
+      path
+        .replace("happy/40 pupils eyes.open default", "happy/40 pupils eyes.open")
+        .replace("happy/40 lids eyes.closed", "happy/40 lids eyes.closed default"),
+    );
+    const selfNamed = [
+      `${MIA}/60 face.happy default/20 paint face.happy default.png`,
+      `${MIA}/60 face.sad/20 paint face.sad default.png`,
+    ];
+    for (const paths of [NESTED, sleepy, selfNamed]) {
+      const stack = one(paths);
+      const vocabulary = stack.pictures[0]!.vocabulary!;
+      const groups = testerGroups(stack, {});
+      const selections = groups.reduce<VariantSelection[]>(
+        (all, group) => all.flatMap((chosen) => group.options.map((option) => ({ ...chosen, [group.key]: option }))),
+        [{}],
+      );
+      for (const selection of selections) {
+        const picked = Object.fromEntries(Object.entries(selection).filter(([, option]) => option !== AS_IS));
+        const written = resolveAttributes(vocabulary, variantOf(stack, selection).attributes).selection;
+        expect([selection, evaluateAttributeVisibility(vocabulary, written).visible]).toEqual([
+          selection,
+          evaluateAttributeVisibility(vocabulary, picked).visible,
+        ]);
+      }
+    }
+    expect(variantOf(one(selfNamed), { face: "sad" })).toEqual({ image: "mia", attributes: ["sad"] });
   });
 
   it("rests a group on the nearest folder's option over the portrait folder's own, as the game does", () => {
