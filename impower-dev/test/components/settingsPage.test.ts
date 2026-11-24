@@ -2,16 +2,10 @@ import { h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const navigation = vi.hoisted(() => ({ routes: [] as string[] }));
-
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: {
     sync: { google: { getCurrentAccount: async () => null } },
-    window: {
-      navigateTo: (route: string) => {
-        navigation.routes.push(route);
-      },
-    },
+    window: { navigateTo: () => {} },
   },
 }));
 
@@ -86,7 +80,6 @@ const pause = (ms: number) =>
 beforeEach(() => {
   localStorage.clear();
   observers.length = 0;
-  navigation.routes.length = 0;
   window.history.replaceState(null, "", "#settings");
 });
 
@@ -212,13 +205,9 @@ describe("the Settings page", () => {
       ),
     );
     expect(document.getElementById("save-settings")!.querySelector("[data-settings-placeholder]")).toBeNull();
-    const back = [...host!.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
-    await act(async () => back.click());
-    await pause(0);
-    expect(navigation.routes).toEqual(["story"]);
   });
 
-  it("takes its frame, heading, intro and Back to story action from PageFrame", async () => {
+  it("takes its frame, heading and intro from PageFrame, with no Back to story action", async () => {
     await mount(h(SettingsPage, null));
     const page = document.getElementById("settings-page")!;
     expect(page.getAttribute("aria-label")).toBe("Settings");
@@ -232,11 +221,14 @@ describe("the Settings page", () => {
     expect(heading.nextElementSibling!.textContent).toBe(
       "Customize the look and behavior of the editor and adjust your project settings.",
     );
-    const back = [...page.querySelectorAll("button")].find((button) => button.textContent?.includes("Back to story"))!;
-    expect(back.parentElement!.className).toBe(pageFrameBackVariants());
-    await act(async () => back.click());
-    await pause(0);
-    expect(navigation.routes).toEqual(["story"]);
+    expect([...page.querySelectorAll("button")].some((button) => button.textContent?.includes("Back to story"))).toBe(false);
+    expect(page.getElementsByClassName(pageFrameBackVariants())).toHaveLength(0);
+  });
+
+  it("gives its sidebar section list no visible heading and keeps its accessible name", async () => {
+    await mount(h(SettingsIndex, null));
+    expect(host!.querySelector("h2")).toBeNull();
+    expect(host!.querySelector("nav")!.getAttribute("aria-label")).toBe("Settings sections");
   });
 });
 

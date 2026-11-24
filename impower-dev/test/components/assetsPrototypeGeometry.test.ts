@@ -520,8 +520,33 @@ describe("The Assets page's and app frame's last differences from the Folio prot
           [5, 65],
           [5, 65],
           [5, 65],
+          [5, 65],
         ],
       });
+    } finally {
+      await setMedia(() => false);
+    }
+  });
+
+  it.each(THEMES)("at 1440 in %s the rail's Settings entry sits just above the footer, the same size as Story, Assets and Share", async (theme) => {
+    await setMedia((query) => query.includes("701px") || query.includes("1101px"));
+    try {
+      const measured = await inChromium(rail(false), { width: 1440, theme }, () => {
+        const tabs = [...document.querySelectorAll<HTMLElement>('[role="tab"]')];
+        const footer = document.querySelector("aside > div:last-child")!.getBoundingClientRect();
+        const settings = tabs[3]!.closest("nav")!.getBoundingClientRect();
+        return {
+          labels: tabs.map((tab) => tab.textContent!.trim().slice(0, tab.textContent!.trim().length / 2)),
+          boxes: tabs.map((tab) => {
+            const box = tab.getBoundingClientRect();
+            return [box.x, box.width, box.height];
+          }),
+          settingsMeetsFooter: settings.bottom === footer.top,
+        };
+      });
+      expect(measured.labels).toEqual(["Story", "Assets", "Share", "Settings"]);
+      expect(new Set(measured.boxes.map((box) => box.join()))).toHaveProperty("size", 1);
+      expect(measured.settingsMeetsFooter).toBe(true);
     } finally {
       await setMedia(() => false);
     }

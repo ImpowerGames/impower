@@ -128,16 +128,20 @@ describe("the desktop shell's docked preview", () => {
       expect(host.querySelector("[data-player]")).toBe(player);
     }
 
-    await act(async () => {
-      workspace.current = {
-        ...workspace.current,
-        screen: { ...workspace.current.screen, settingsOpen: true },
-      };
-    });
-    await settle();
+    await pressTab(railTab("Settings"));
     expect(host.querySelector("#settings-page")).not.toBeNull();
     expect(host.querySelector('aside [data-index-jump="save-settings"]')).not.toBeNull();
-    expect(host.querySelector('aside [role="tab"][aria-selected="true"]')).toBeNull();
+    const selected = [...host.querySelectorAll<HTMLElement>('aside [role="tab"][aria-selected="true"]')];
+    expect(selected).toEqual([railTab("Settings")]);
+    const panel = document.getElementById(selected[0]!.getAttribute("aria-controls")!)!;
+    expect(panel.getAttribute("role")).toBe("tabpanel");
+    expect(document.getElementById(panel.getAttribute("aria-labelledby")!)).toBe(selected[0]);
+    expect(host.querySelector("[data-player]")).toBe(player);
+
+    await pressTab(railTab("Story"));
+    expect(host.querySelector("#settings-page")).toBeNull();
+    expect(host.querySelector('[data-route="logic"]')).not.toBeNull();
+    expect(railTab("Settings").getAttribute("aria-selected")).toBe("false");
     expect(host.querySelector("[data-player]")).toBe(player);
 
     expect(players.mounted).toBe(1);

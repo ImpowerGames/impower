@@ -126,3 +126,4 @@ The editor follows the prototype except where the table below says otherwise. Ea
 | Asset inspector (Variants) | phone, tablet | The inspector's Face picker is 44px tall under touch | #1025 |
 | Assets page tiles | desktop, tablet | Hovering a tile with a mouse shows an empty round select circle in its top-left corner | #1025 |
 | Assets inspector, Used in | desktop, tablet, phone | The unused hint for a single-file picture stops after the first sentence | #1025, #2544 |
+| Shell rail, bottom navigation, app menu, Settings page | desktop, tablet, phone | Settings is a navigation entry at the foot of the rail, above the save status, and the fourth bottom navigation tab, not an app menu item; the Settings page has no Back to story and its index has no heading | #2723 |

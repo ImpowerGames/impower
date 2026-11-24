@@ -49,6 +49,13 @@ describe("RailIndex", () => {
     ]);
   });
 
+  it("draws no heading when its caller gives no title, and keeps the list's accessible name", async () => {
+    await mount(<RailIndex label="Settings sections" groups={GROUPS} onJump={() => {}} />);
+    expect(host!.querySelector("h2")).toBeNull();
+    expect(host!.querySelector("nav")!.getAttribute("aria-label")).toBe("Settings sections");
+    expect(host!.querySelectorAll("[data-index-jump]")).toHaveLength(6);
+  });
+
   it("marks the current item and the group holding it", async () => {
     await mount(<RailIndex title="Settings" label="Sections" groups={GROUPS} current="editor" onJump={() => {}} />);
     const marked = Array.from(host!.querySelectorAll('[aria-current="true"]'));

@@ -84,13 +84,14 @@ describe("the phone bottom navigation on the Settings page", () => {
   it.each([
     ["logic", "Story", "logic"],
     ["assets", "Assets", "assets"],
-  ] as const)("selects no tab over %s and returns to it when its own tab is pressed", async (pane, label, route) => {
+  ] as const)("selects only the Settings tab over %s and returns to it when its own tab is pressed", async (pane, label, route) => {
     workspace.current = stateForRoute({ ...workspace.current, pane }, "settings");
     host = document.body.appendChild(document.createElement("div"));
     await act(async () => render(h(MainWindow, null), host!));
     await settle();
     expect(host.querySelector("#settings-page")).not.toBeNull();
-    expect(host.querySelector('[role="tab"][aria-selected="true"]')).toBeNull();
+    expect([...host.querySelectorAll('[role="tab"][aria-selected="true"]')]).toEqual([bottomTab("Settings")]);
+    expect(bottomTab(label).getAttribute("aria-selected")).toBe("false");
     const tab = bottomTab(label);
     await act(async () => {
       tab.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));

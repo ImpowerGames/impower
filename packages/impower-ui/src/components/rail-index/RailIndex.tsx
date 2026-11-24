@@ -47,7 +47,7 @@ export type RailIndexGroup = RailIndexItem & {
 };
 
 export type RailIndexProps = {
-  title: string;
+  title?: string;
   label: string;
   groups: readonly RailIndexGroup[];
   current?: string;
@@ -90,9 +90,11 @@ function Row({
 export default function RailIndex({ title, label, groups, current, onJump, class: className }: RailIndexProps) {
   return (
     <div class={cn("flex min-h-0 flex-1 flex-col overflow-hidden pt-3", className)}>
-      <div class="flex h-11 flex-none items-center pr-[14px] pl-9">
-        <h2 class="m-0 text-[14px]/[1.4] font-semibold text-ink">{title}</h2>
-      </div>
+      {title && (
+        <div class="flex h-11 flex-none items-center pr-[14px] pl-9">
+          <h2 class="m-0 text-[14px]/[1.4] font-semibold text-ink">{title}</h2>
+        </div>
+      )}
       <nav
         aria-label={label}
         class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pt-0.5 pr-gutter-[14px] pl-[26px] in-data-[layout=compact]:pr-gutter-2.5"
