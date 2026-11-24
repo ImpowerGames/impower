@@ -704,4 +704,39 @@ describe("Assets rows against the review (I-2717)", () => {
     const measured = await inChromium(rows, display, heights);
     expect(measured).toEqual({ folder: height, image: height, sound: height, video: height, text: height, font: height, other: height });
   });
+
+  it("at 1440 with a mouse no hover rule shows an available tile's select mark, and an active selection shows it", async () => {
+    const tile = (selection: "available" | "active") =>
+      h("div", { "data-selection": selection, style: "width:200px" }, h(ui.Tile, { media: null, label: "harbor", "aria-label": `Open image harbor ${selection}`, selection, selectLabel: "Select harbor", onClick: () => {} }));
+    const measured = await inChromium(h("div", {}, [tile("available"), tile("active")]), { width: 1440 }, () => {
+      const hoverRules: string[] = [];
+      const resolved = (rule: CSSStyleRule): string => {
+        let parent = rule.parentRule;
+        while (parent && !(parent instanceof CSSStyleRule)) parent = parent.parentRule;
+        return parent ? rule.selectorText.replace(/&/g, `:is(${resolved(parent as CSSStyleRule)})`) : rule.selectorText;
+      };
+      const visit = (rules: CSSRuleList) => {
+        for (const rule of rules) {
+          if (rule instanceof CSSStyleRule && rule.selectorText.includes(":hover")) hoverRules.push(resolved(rule));
+          if ("cssRules" in rule && (rule as CSSGroupingRule).cssRules.length) visit((rule as CSSGroupingRule).cssRules);
+        }
+      };
+      for (const sheet of document.styleSheets) visit(sheet.cssRules);
+      const mark = (selection: string) => document.querySelector(`[data-selection="${selection}"] label`)!;
+      const unhovered = (selector: string) => selector.replace(/:hover/g, "");
+      const reaches = (label: Element, selector: string) => {
+        try {
+          return label.matches(unhovered(selector)) || [...label.querySelectorAll("*")].some((element) => element.matches(unhovered(selector)));
+        } catch {
+          return false;
+        }
+      };
+      return {
+        hoverRulesOnAvailableMark: hoverRules.filter((selector) => reaches(mark("available"), selector)),
+        availableOpacity: getComputedStyle(mark("available")).opacity,
+        activeOpacity: getComputedStyle(mark("active")).opacity,
+      };
+    });
+    expect(measured).toEqual({ hoverRulesOnAvailableMark: [], availableOpacity: "0", activeOpacity: "1" });
+  });
 });
