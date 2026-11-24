@@ -2075,15 +2075,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const posed = poseOf || pick !== undefined ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
-    const srcs = posed?.length ? posed : this.getImageSrcsByName(value);
-    if (srcs) {
+    const named = resolveImageReference(this.context, { $type: "", $name: sortFilteredName(value) }) != null;
+    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
+    const srcs = posed ?? this.getImageSrcsByName(value);
+    if (srcs?.length) {
       return srcs
         .map((src) => this.getUrl(src))
         .reverse()
         .join(", ");
     }
-    return this.getBackgroundImageFromLiteral(value);
+    return named ? "none" : this.getBackgroundImageFromLiteral(value);
   }
 
   getBackgroundImageFromValue(value: unknown) {

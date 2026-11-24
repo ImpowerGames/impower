@@ -143,4 +143,17 @@ describe("an image write of a picture made of image files (#2629)", () => {
     const content = ui.getMorphContent(["cy", "kit"], pick);
     expect(content.plays.map((play: any) => [play.morph, play.layer, play.picture?.span])).toEqual([["lids_blink", 1, 1]]);
   });
+
+  test("a picked look that shows no layer paints nothing, rather than the unpicked look", async () => {
+    const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
+    const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const source = `${chatter}\ndefine kit as layered_image with\n  assets = {\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const harness = createHarness(source, 0, { assets: files });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    const ui = (harness.game as any).module.ui;
+    expect(ui.getBackgroundImageFromString("kit")).toBe('url("/src/overlay.png")');
+    expect(ui.getBackgroundImageFromString("kit", undefined, "none")).toBe("none");
+    expect(ui.getBackgroundImageFromString("teal", undefined, "none")).toBe("linear-gradient(teal)");
+  });
 });
