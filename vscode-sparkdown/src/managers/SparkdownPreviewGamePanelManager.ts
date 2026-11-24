@@ -965,11 +965,6 @@ export class SparkdownPreviewGamePanelManager {
               --control-size: 22px;
               --popover-width: 320px;
               --swp-toolbar-color: var(--ink);
-              --swp-route-popup-background-color: var(--panel);
-              --swp-route-popup-border-color: var(--edge);
-              --swp-route-accent-color: var(--accent);
-              --swp-route-warning-color: var(--warning);
-              --swp-route-error-color: var(--error);
               --swp-route-field-background-color: var(--vscode-input-background);
               --swp-route-field-border-color: var(--vscode-input-border, var(--edge));
             }

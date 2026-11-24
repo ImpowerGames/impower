@@ -40,7 +40,7 @@ import {
   variantsLabel,
   VideoIcon,
 } from "@impower/impower-ui/components";
-import { useLayout } from "@impower/impower-ui/layout";
+import { useCoarsePointer, useLayout } from "@impower/impower-ui/layout";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { computed, useComputed } from "@preact/signals";
 import type { VNode } from "preact";
@@ -170,13 +170,13 @@ const TYPE_NOUNS: Record<AssetType, string> = {
   other: "file",
 };
 
-const EMPTY_TYPES: Record<AssetType, readonly [string, string]> = {
-  image: ["No images yet", "Add portraits and backgrounds with the Add button."],
-  audio: ["No audio yet", "Add sounds and music with the Add button."],
-  video: ["No video yet", "Add a video with the Add button."],
-  text: ["No text yet", "Add notes with the Add button."],
-  font: ["No fonts yet", "Add a font with the Add button."],
-  other: ["Nothing yet", "Files of any other type land here when you add them."],
+const EMPTY_TITLES: Record<AssetType, { drop: string; touch: string }> = {
+  image: { drop: "Drop images here", touch: "No images yet" },
+  audio: { drop: "Drop audio here", touch: "No audio yet" },
+  video: { drop: "Drop video here", touch: "No video yet" },
+  text: { drop: "Drop text here", touch: "No text yet" },
+  font: { drop: "Drop fonts here", touch: "No fonts yet" },
+  other: { drop: "Drop files here", touch: "Nothing yet" },
 };
 
 type Heading = { kind: "heading"; type: AssetType; title: string };
@@ -389,6 +389,7 @@ function AssetsBrowser() {
   const narrowPane = useNarrowPane(body);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const layoutName = useLayout();
+  const coarse = useCoarsePointer();
   const dock = useInspectorDock();
   const host = inspectorHost(layoutName, dock);
   const holds = (row: AssetRow, path: string) => row.path === path || !!row.paths?.includes(path);
@@ -959,7 +960,7 @@ function AssetsBrowser() {
   const trail = assetTrail(listing, level.root, level.folder);
   const atRoot = level.folder === level.root;
   const addingInto = folderTitle(listing, level.folder);
-  const [emptyTitle, emptyBody] = EMPTY_TYPES[type];
+  const emptyTitles = EMPTY_TITLES[type];
   const uploadAction = (
     <Button disabled={busy} onClick={() => pickFiles()}>
       <UploadIcon />
@@ -1142,19 +1143,18 @@ function AssetsBrowser() {
             action={<Button variant="quiet" onClick={() => setQuery("")}>Clear search</Button>}
           />
         ) : level.none ? (
+          <EmptyState icon={<ImageIcon />} title={coarse ? "No files yet" : "Drop files here"} action={uploadAction} />
+        ) : atRoot ? (
           <EmptyState
-            icon={<ImageIcon />}
-            title="A collection of your art"
-            body="Your portraits, backgrounds, sounds and music will appear here."
+            icon={<TypeGlyph />}
+            title={coarse ? emptyTitles.touch : emptyTitles.drop}
             action={uploadAction}
           />
-        ) : atRoot ? (
-          <EmptyState icon={<TypeGlyph />} title={emptyTitle} body={emptyBody} />
         ) : (
           <EmptyState
             icon={<FolderIcon />}
-            title="This folder is empty"
-            body="Add files to it with the Add button, or drop files on it from its parent folder."
+            title={coarse ? "This folder is empty" : "Drop files here"}
+            action={uploadAction}
           />
         )
       }

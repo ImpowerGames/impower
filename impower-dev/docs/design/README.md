@@ -104,6 +104,7 @@ The editor follows the prototype except where the table below says otherwise. Ea
 | Search and replace rail | desktop, tablet | Search rail buttons and result rows are 44px, and match marks use the accent wash | #1004 |
 | Change color view | desktop, tablet | Change color opened from a swatch shows a Back button | #1005 |
 | Writing tools menu | desktop, tablet, phone | Go to definition is disabled on a dialogue cue in Writing tools | #1006 |
+| Writing tools menu | desktop, tablet, phone | The Sparkdown guide and Keyboard shortcuts rows show their label with no description | #2763 |
 | Outline rail | desktop, tablet | Outline row labels are drawn in full ink instead of muted | #1008 |
 | Assets inspector, Variants tester on touch | tablet, phone | The variant wheel sheet dims the picture and spans the window | #1032 |
 | Assets Audio tab and inspector player | desktop, tablet, phone | Sound rows are 63px instead of 60px; Restart and Loop are 44px instead of 40px | #1029, #2162 |
@@ -126,5 +127,5 @@ The editor follows the prototype except where the table below says otherwise. Ea
 | Asset inspector (Variants) | phone, tablet | The inspector's Face picker is 44px tall under touch | #1025 |
 | Assets page tiles | desktop, tablet | Hovering a tile with a mouse shows an empty round select circle in its top-left corner | #1025 |
 | Assets inspector, Used in | desktop, tablet, phone | The unused hint for a single-file picture stops after the first sentence | #1025, #2544 |
-| Shell rail, bottom navigation, app menu, Settings page | desktop, tablet, phone | Settings is a navigation entry at the foot of the rail, above the save status, and the fourth bottom navigation tab, not an app menu item; the Settings page has no Back to story and its index has no heading | #2723 |
+| Shell rail, bottom navigation, app menu, Settings page | desktop, tablet, phone | Settings is the fourth navigation entry of the rail, under Share, and the fourth bottom navigation tab, not an app menu item; the Settings page has no Back to story and its index has no heading | #2723, #2763 |
 | Share page | desktop, tablet, phone | No heading block: the page starts with an Export a screenplay card (summary line with a Change link, Download PDF filled and Download HTML outlined side by side) and an Export your project card (Download .zip and Open your project in VS Code), one column at every width; Export a game, Make it together and Publish it online are one-line rows under a Coming soon label, not cards | #2767 |

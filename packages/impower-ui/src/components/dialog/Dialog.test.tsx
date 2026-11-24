@@ -313,9 +313,36 @@ describe("Dialog under preact/compat", () => {
       expect(dialog()!.contains(active)).toBe(true);
       expect(active.tagName).toBe("BUTTON");
       const last = calls.filter(([element]) => element === active).at(-1);
-      expect(last?.[1]).toEqual({ focusVisible });
+      expect(last?.[1]).toEqual({ preventScroll: true, focusVisible });
     },
   );
+
+  it("focuses a sheet's text field on open without scrolling the page to it", async () => {
+    const calls: [Element, unknown][] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi
+      .spyOn(HTMLElement.prototype, "focus")
+      .mockImplementation(function (this: HTMLElement, options?: FocusOptions) {
+        calls.push([this, options]);
+        focus.call(this, options);
+      });
+    host = document.body.appendChild(document.createElement("div"));
+    await act(async () =>
+      render(
+        <Sheet open onOpenChange={() => {}}>
+          <DialogTitle>Rename</DialogTitle>
+          <input type="text" />
+        </Sheet>,
+        host!,
+      ),
+    );
+    await settle(50);
+    spy.mockRestore();
+    const active = document.activeElement as HTMLElement;
+    expect(active.tagName).toBe("INPUT");
+    const last = calls.filter(([element]) => element === active).at(-1);
+    expect(last?.[1]).toEqual({ preventScroll: true });
+  });
 
   it("traps focus inside the card", async () => {
     const opener = await mount();

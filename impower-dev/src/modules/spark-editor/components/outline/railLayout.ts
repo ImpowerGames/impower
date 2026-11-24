@@ -1,4 +1,4 @@
-export const OUTLINE_RAIL_ROW = { size: "rail", indent: "row", tone: "muted", badgePlacement: "gutter" } as const;
+export const OUTLINE_RAIL_ROW = { size: "rail", indent: "row", tone: "muted" } as const;
 
 const RAIL_ROW_HEIGHT = 44;
 const RAIL_ROW_GAP = 2;

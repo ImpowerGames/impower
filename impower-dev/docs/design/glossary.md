@@ -30,7 +30,7 @@ The prototype's own notes state these further renames. The live markup is checke
 
 ## App menu
 
-The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is a navigation entry at the foot of the rail and the fourth bottom navigation tab.
+The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is the fourth navigation entry of the rail, under Story, Assets and Share, and the fourth bottom navigation tab.
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
@@ -215,9 +215,9 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `picture in your assets` | kind in that description | folio-tools.js:15 |  |
 | `sound in your assets` | kind in that description | folio-tools.js:16 |  |
 | `Sparkdown guide` | row title and view title | folio-tools.js:206, folio-tools.js:249 |  |
-| `A quick reference while you write.` | row description | folio-tools.js:249 |  |
+| `A quick reference while you write.` | row description | folio-tools.js:249 | Not drawn: the row shows its label only |
 | `Keyboard shortcuts` | row title and view title | folio-tools.js:207, folio-tools.js:250 |  |
-| `For a connected keyboard.` | row description | folio-tools.js:250 |  |
+| `For a connected keyboard.` | row description | folio-tools.js:250 | Not drawn: the row shows its label only |
 | `Search` | view title | folio-tools.js:205 |  |
 | `References to ` | view title prefix, followed by the name | folio-tools.js:208 |  |
 | `Rename ` | view title prefix, followed by the name | folio-tools.js:209, folio-tools.js:243 |  |
@@ -683,25 +683,23 @@ A caption joins its parts with ` · `: where the file is (when searching), `link
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `No images yet` | heading (Images tab) | folio-assets.js:111 |  |
-| `Add portraits and backgrounds with the Add button.` | description (Images tab) | folio-assets.js:112 | prototype: `Upload portraits and backgrounds with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No audio yet` | heading (Audio tab) | folio-assets.js:114 |  |
-| `Add sounds and music with the Add button.` | description (Audio tab) | folio-assets.js:114 | prototype: `Upload sounds and music with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No video yet` | heading (Video tab) | folio-assets.js:115 |  |
-| `Add a video with the Add button.` | description (Video tab) | folio-assets.js:115 | prototype: `Upload a video with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No text yet` | heading (Text tab) | folio-assets.js:116 |  |
-| `Add notes with the Add button.` | description (Text tab) | folio-assets.js:116 | prototype: `Upload notes with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No fonts yet` | heading (Fonts tab) | folio-assets.js:117 |  |
-| `Add a font with the Add button.` | description (Fonts tab) | folio-assets.js:117 | prototype: `Upload a font with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `Nothing yet` | heading (Other tab) | folio-assets.js:119 |  |
-| `Files of any other type land here when you add them.` | description (Other tab) | folio-assets.js:120 | prototype: `Files of any other type land here when you upload them.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `Drop images here` | heading (Images tab, where files can be dropped) | folio-assets.js:111 | prototype: `No images yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No images yet` | heading (Images tab, under touch) | folio-assets.js:111 |  |
+| `Drop audio here` | heading (Audio tab, where files can be dropped) | folio-assets.js:114 | prototype: `No audio yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No audio yet` | heading (Audio tab, under touch) | folio-assets.js:114 |  |
+| `Drop video here` | heading (Video tab, where files can be dropped) | folio-assets.js:115 | prototype: `No video yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No video yet` | heading (Video tab, under touch) | folio-assets.js:115 |  |
+| `Drop text here` | heading (Text tab, where files can be dropped) | folio-assets.js:116 | prototype: `No text yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No text yet` | heading (Text tab, under touch) | folio-assets.js:116 |  |
+| `Drop fonts here` | heading (Fonts tab, where files can be dropped) | folio-assets.js:117 | prototype: `No fonts yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No fonts yet` | heading (Fonts tab, under touch) | folio-assets.js:117 |  |
+| `Drop files here` | heading (Other tab, empty folder or project with no assets at all, where files can be dropped) | folio-assets.js:119, folio-assets.js:1335, folio-assets.js:1339 | prototype: `Nothing yet` and `This folder is empty`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `Nothing yet` | heading (Other tab, under touch) | folio-assets.js:119 |  |
 | `No matching assets` | heading (search) | folio-assets.js:1315 |  |
 | `Try a different name, or a kind such as music or location.` | description (search) | folio-assets.js:1315 |  |
-| `A collection of your art` | heading (project with no assets at all) | folio-assets.js:1335 |  |
-| `Your portraits, backgrounds, sounds and music will appear here.` | description (project with no assets at all) | folio-assets.js:1335 |  |
-| `Add files from this device` | button (project with no assets at all) | folio-assets.js:1335, folio-assets.js:2788 | prototype: `Upload files`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `This folder is empty` | heading (empty folder) | folio-assets.js:1339 |  |
-| `Add files to it with the Add button, or drop files on it from its parent folder.` | description (empty folder) | folio-assets.js:1339 | prototype: `Upload into it with the Add button, or drop files on it from its parent folder.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `No files yet` | heading (project with no assets at all, under touch) | folio-assets.js:1335 | replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `Add files from this device` | button (every empty state but search) | folio-assets.js:1335, folio-assets.js:2788 | prototype: `Upload files`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `This folder is empty` | heading (empty folder, under touch) | folio-assets.js:1339 |  |
 
 ### Inspector
 
