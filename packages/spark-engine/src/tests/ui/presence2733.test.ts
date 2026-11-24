@@ -194,6 +194,54 @@ describe("an element that loses its content (#2733)", () => {
   });
 });
 
+describe("a picture element that gains or loses its picture (#2733)", () => {
+  const PICTURE = `${NO_BOX}
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+style portrait {
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+
+layout main {
+  portrait {
+    image
+  }
+}
+
+scene start
+  [[show portrait SPRITE]]
+end
+`;
+
+  test("arrives from its @initial look and stays until its @hide ends", async () => {
+    const h = harness(PICTURE);
+    await h.ready;
+    h.jumpToFlow("start");
+    const beat = h.nextBeat();
+    const ui = h.game.module.ui;
+    ui.setMotion(true);
+    h.reset();
+    await ui.image.write("portrait", beat!.image!["portrait"]! as any, false);
+    const [portrait] = ui.findIds("portrait");
+    expect(presenceOf(h, portrait!)).toBe("initial");
+    expect(motions(h)).toEqual([{ element: portrait, presence: "show" }]);
+    await settle(h);
+    h.reset();
+    void ui.image.clear("portrait");
+    await flushMicrotasks(10);
+    expect(motions(h)).toEqual([{ element: portrait, presence: "hide" }]);
+    expect(displayOf(h, portrait!)).toBeUndefined();
+    await settle(h);
+    expect(displayOf(h, portrait!)).toBe("none");
+    expect(presenceOf(h, portrait!)).toBeNull();
+    const cleared = wire(h.messages).filter((m: any) => m?.method === "ui/write-image");
+    expect(cleared.at(-1)?.params).toMatchObject({ instructions: [], elements: [portrait] });
+  });
+});
+
 describe("a beat displayed instantly shows no motion (#2733)", () => {
   test("in the editor preview on a line", async () => {
     const h = harness(lines(FADING), { live: false });
