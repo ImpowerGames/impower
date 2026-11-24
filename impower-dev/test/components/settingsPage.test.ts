@@ -228,7 +228,7 @@ describe("the Settings page", () => {
     expect(heading.className).toBe(pageFrameTitleVariants());
     const intro = heading.parentElement!;
     expect(intro.parentElement!.className).toBe(pageFrameIntroVariants());
-    expect(intro.firstElementChild!.textContent).toBe("Editor & project preferences");
+    expect(intro.firstElementChild).toBe(heading);
     expect(heading.nextElementSibling!.textContent).toBe(
       "Customize the look and behavior of the editor and adjust your project settings.",
     );

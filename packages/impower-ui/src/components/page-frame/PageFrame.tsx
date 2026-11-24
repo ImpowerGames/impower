@@ -76,7 +76,6 @@ export type PageFrameSize = NonNullable<VariantProps<typeof pageFrameVariants>["
 
 export type PageFrameProps = VariantProps<typeof pageFrameVariants> & {
   id?: string;
-  eyebrow: string;
   title: string;
   line: string;
   backLabel?: string;
@@ -87,7 +86,6 @@ export type PageFrameProps = VariantProps<typeof pageFrameVariants> & {
 
 export default function PageFrame({
   id,
-  eyebrow,
   title,
   line,
   backLabel = "Back to story",
@@ -101,7 +99,6 @@ export default function PageFrame({
       <div class={pageFrameInnerVariants({ size })}>
         <div class={pageFrameIntroVariants({ size })}>
           <div>
-            <div class="text-eyebrow text-accent uppercase">{eyebrow}</div>
             <h1 class={pageFrameTitleVariants({ size })}>{title}</h1>
             <p class="m-0 max-w-[550px] text-body text-muted">{line}</p>
           </div>

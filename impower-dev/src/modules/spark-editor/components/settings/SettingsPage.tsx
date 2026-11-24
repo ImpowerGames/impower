@@ -68,7 +68,6 @@ export default function SettingsPage() {
   return (
     <PageFrame
       id={SETTINGS_PAGE_ID}
-      eyebrow="Editor & project preferences"
       title="Settings"
       line="Customize the look and behavior of the editor and adjust your project settings."
       onBack={() => void backToStory()}
