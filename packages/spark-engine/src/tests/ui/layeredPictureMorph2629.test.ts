@@ -114,4 +114,33 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(plays.map((play: any) => [play.morph, play.ref.image, play.picture])).toEqual([["talk", "bunny", undefined]]);
     expect(warnings).toEqual(["`lids_blink` does not play on `kit`: one of its layers plays morphs of its own, and those keep playing."]);
   });
+
+  test("a layer with morphs of its own that is hidden at rest still keeps the picture's own morph off it", async () => {
+    const svg = { uri: "inmemory:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: talkingPortrait() } as any;
+    const base = { uri: "inmemory:///base_file.png", type: "image", name: "base_file", ext: "png", src: "/src/base_file.png" } as any;
+    const source = `${LIDS}\n${talkScript()}\ndefine kit as layered_image with\n  assets = {\n    ["base"] = base_file,\n    ["lids.on"] = bunny,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\n    Line two.\nend\n`;
+    const { contents, warnings } = await written(source, [svg, base], "kit");
+    expect(contents.flatMap((content: any) => content.morph?.plays ?? []).filter((play: any) => play.picture)).toEqual([]);
+    expect(warnings).toEqual(["`lids_blink` does not play on `kit`: one of its layers plays morphs of its own, and those keep playing."]);
+  });
+
+  test("a picture after one whose pick changes its layer count gets its play at its own CSS layer", async () => {
+    const files = [
+      { uri: `${P}/cy.png`, type: "image", name: "cy", ext: "png", src: "/src/cy.png" },
+      { uri: `${P}/cy mouth.on.png`, type: "image", name: "cy mouth.on", ext: "png", src: "/src/cy mouth.on.png" },
+      { uri: "inmemory:///kit_base.png", type: "image", name: "kit_base", ext: "png", src: "/src/kit_base.png" },
+      { uri: "inmemory:///kit_lids.png", type: "image", name: "kit_lids", ext: "png", src: "/src/kit_lids.png" },
+    ] as any[];
+    const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = off\n      }\n    }\n    to {\n      mouth {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const source = `${LIDS}\n${chatter}\ndefine kit as layered_image with\n  assets = {\n    ["base"] = kit_base,\n    ["lids.on"] = kit_lids,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const harness = createHarness(source, 0, { assets: files });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    const ui = (harness.game as any).module.ui;
+    const pick = (asset: string) => (asset === "cy" ? "none" : undefined);
+    expect(ui.getBackgroundImageFromString("cy").split("url(").length - 1).toBe(2);
+    expect(ui.getBackgroundImageFromString("cy", undefined, "none").split("url(").length - 1).toBe(1);
+    const content = ui.getMorphContent(["cy", "kit"], pick);
+    expect(content.plays.map((play: any) => [play.morph, play.layer, play.picture?.span])).toEqual([["lids_blink", 1, 1]]);
+  });
 });

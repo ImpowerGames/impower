@@ -29,7 +29,7 @@ import type {
   MorphPicture,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
-import { pictureFileTraits, streamInflate } from "./pictureFileTraits";
+import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
 
@@ -39,6 +39,7 @@ export interface PictureBitmap {
   height: number;
   animated?: boolean;
   profile?: boolean;
+  unread?: boolean;
 }
 
 export type PictureLoader = (src: string, doc: Document) => Promise<PictureBitmap | undefined>;
@@ -83,14 +84,20 @@ const browserPictureLoader: PictureLoader = async (src, doc) => {
     return undefined;
   }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
-  let traits = { animated: false, profile: false };
+  const bytes = await readPictureBytes(src, view);
+  const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
+  return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...(traits ?? { unread: true }) };
+};
+
+async function readPictureBytes(src: string, view: Window & typeof globalThis): Promise<Uint8Array | undefined> {
+  if (/^data:/i.test(src)) return dataUrlBytes(src);
   try {
     const response = await view.fetch(src);
-    if (response.ok) traits = await pictureFileTraits(new Uint8Array(await response.arrayBuffer()), streamInflate(view));
+    return response.ok ? new Uint8Array(await response.arrayBuffer()) : undefined;
   } catch {
+    return undefined;
   }
-  return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...traits };
-};
+}
 
 const browserCanvas: PictureCanvasFactory = (canvas) => {
   try {
@@ -172,7 +179,7 @@ interface ImageState {
   view?: LiveView;
   canvas?: CanvasView;
   files?: PictureFiles;
-  loaded?: MorphArtifact;
+  loading?: { artifact: MorphArtifact; done: Promise<void> };
   broken?: boolean;
 }
 
@@ -779,21 +786,27 @@ export class MorphLayer {
     await Promise.all([...this.maskUrls().values()].map((url) => decodeImage(doc, url)));
   }
 
-  protected async loadPicture(image: ImageState) {
+  protected loadPicture(image: ImageState): Promise<void> {
     const artifact = image.slot.state === "ready" ? image.slot.artifact : undefined;
-    if (!image.picture || !artifact || artifact.status !== "live" || image.loaded === artifact) return;
-    image.loaded = artifact;
+    if (!image.picture || !artifact || artifact.status !== "live") return Promise.resolve();
+    if (image.loading?.artifact === artifact) return image.loading.done;
     image.files = undefined;
     image.broken = false;
+    const done = this.decodePicture(image, image.picture, artifact);
+    image.loading = { artifact, done };
+    return done;
+  }
+
+  protected async decodePicture(image: ImageState, picture: MorphPicture, artifact: MorphArtifact) {
     const model = layeredMorphModel(artifact);
-    const files = image.picture.files;
+    const files = picture.files;
     const indices = model ? [...new Set([0, ...model.files])] : [];
     if (!model || indices.some((index) => !files[index])) {
       image.broken = true;
       return;
     }
     const loaded = await Promise.all(indices.map((index) => this.playback.picture(files[index]!.src)));
-    if (image.loaded !== artifact) return;
+    if (image.loading?.artifact !== artifact) return;
     const bitmaps = new Map<number, PictureBitmap>();
     indices.forEach((index, i) => {
       const bitmap = loaded[i];
@@ -802,7 +815,7 @@ export class MorphLayer {
     const bottom = bitmaps.get(0);
     const unfaithful = indices.flatMap((index) => {
       const bitmap = bitmaps.get(index);
-      const reason = bitmap?.animated ? ("animated" as const) : bitmap?.profile ? ("profile" as const) : undefined;
+      const reason = bitmap?.animated ? ("animated" as const) : bitmap?.profile ? ("profile" as const) : bitmap?.unread ? ("unread" as const) : undefined;
       return reason ? [{ index, reason }] : [];
     });
     for (const { index, reason } of unfaithful) {

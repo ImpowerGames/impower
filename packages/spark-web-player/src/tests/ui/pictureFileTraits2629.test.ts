@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { iccDescription, pictureFileTraits } from "../../app/morph/pictureFileTraits";
+import { dataUrlBytes, iccDescription, pictureFileTraits } from "../../app/morph/pictureFileTraits";
 
 const bytes = (...parts: (number[] | string | Uint8Array)[]) => {
   const out: number[] = [];
@@ -84,5 +84,14 @@ describe("reading a layer file's traits (#2629)", () => {
 
   test("an ICC description is read from a desc tag", () => {
     expect(iccDescription(icc("Display P3"))).toBe("Display P3");
+  });
+
+  test("a data URL is read in place, base64 or percent-encoded, so an APNG layer given as one is still found animated", async () => {
+    const apng = png(IHDR, pngChunk("acTL", new Array(8).fill(0)));
+    const base64 = `data:image/png;base64,${btoa(String.fromCharCode(...apng))}`;
+    expect(await pictureFileTraits(dataUrlBytes(base64)!)).toEqual({ animated: true, profile: false });
+    expect(dataUrlBytes("data:image/svg+xml,%3Csvg%2F%3E")).toEqual(new TextEncoder().encode("<svg/>"));
+    expect(dataUrlBytes("data:image/png;base64,%%%")).toBeUndefined();
+    expect(dataUrlBytes("/not-a-data-url.png")).toBeUndefined();
   });
 });

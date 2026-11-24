@@ -11,8 +11,8 @@ import {
 import { resolveImageLayers, type ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { morphRefsForStruct, pictureMorphRefs, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
-import { layeredMorphArtwork, type LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
+import { morphRefsForStruct, pictureMorphRefs, playsOnPicture, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import type { LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
@@ -1862,7 +1862,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     let next = 0;
     for (const asset of assets) {
       const first = next;
-      const count = cssList(this.getBackgroundImageFromString(asset)).length;
+      const pick = pickOf(asset);
+      const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
       next += count;
       if (asset.at(0) === '"' && asset.at(-1) === '"') {
         continue;
@@ -1870,19 +1871,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const imageName = sortFilteredName(asset);
       const image = resolveImageReference(this.context, { $type: "", $name: imageName });
       const owner = getImageOwner(this.context, imageName);
-      const pick = pickOf(asset);
       const whole = pictureMorphRefs(this.context, channel, image, pick);
       if (whole?.layered) {
         this.reportLayeredMorphConflict(imageName, whole.refs);
       } else if (whole && whole.refs.length > 1) {
         this.reportMorphConflict(imageName, whole.refs);
         continue;
-      } else if (whole?.refs.length === 1) {
-        const artwork = layeredMorphArtwork(this.context, whole.root);
-        if (artwork && count > 0) {
+      } else if (playsOnPicture(whole)) {
+        if (count > 0) {
           play(whole.refs[0]!, first, owner ?? getImageOwner(this.context, whole.root.$name), {
             span: count,
-            files: artwork.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
+            files: whole.artwork.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
           });
         }
         continue;
@@ -1945,12 +1944,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphStills.add(key);
     const why =
       params.reason === "animated"
-        ? "is animated"
-        : "carries a colour profile other than sRGB";
-    this._game.log(
-      `\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, so its layers cannot be drawn together faithfully and no morph plays on it.`,
-      "warning",
-    );
+        ? "is animated, so its layers cannot be drawn together faithfully"
+        : params.reason === "profile"
+          ? "carries a colour profile other than sRGB, so its layers cannot be drawn together faithfully"
+          : "could not be read to check that it is a still sRGB image";
+    this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 
   protected _speaking = false;

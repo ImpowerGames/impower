@@ -13,7 +13,7 @@ import { filterImage, resolveImageAttributes } from "../compiler/utils/filterIma
 import { resolveImageLayers, type ImageLayer } from "../compiler/utils/resolveImageLayers";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
-import { layeredMorphArtwork, layeredMorphRoot } from "./layered";
+import { layeredMorphArtwork, layeredMorphRoot, type LayeredMorphArtwork } from "./layered";
 import { own, table } from "./own";
 import { buildMorphRecipe, morphOverlaps, morphRestPose, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
 import { MORPH_BAKE_FORMAT, MORPH_PICK_NONE, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
@@ -344,6 +344,7 @@ export interface PictureMorphRefs {
   pick?: string;
   refs: MorphRef[];
   layered: boolean;
+  artwork?: LayeredMorphArtwork;
 }
 
 export function pictureMorphRefs(
@@ -356,12 +357,19 @@ export function pictureMorphRefs(
   if (!context || !channel || !root) return undefined;
   const picked = typeof pick === "function" ? pick({ src: "", struct }) : pick;
   const refs = morphRefsForStruct(context, channel, struct, picked);
-  const layered = refs.length > 0 &&
-    resolveImageLayers(context, struct).some((layer) =>
-      layer.struct ? morphRefsForStruct(context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick).length > 0 : false,
-    );
-  return { root, ...(picked === undefined ? {} : { pick: picked }), refs, layered };
+  if (refs.length === 0) return { root, ...(picked === undefined ? {} : { pick: picked }), refs, layered: false };
+  const artwork = layeredMorphArtwork(context, root);
+  const children: ImageLayer[] = artwork
+    ? artwork.files.map((file) => ({ src: file.src, struct: file.struct }))
+    : resolveImageLayers(context, struct);
+  const layered = children.some((layer) =>
+    layer.struct ? morphRefsForStruct(context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick).length > 0 : false,
+  );
+  return { root, ...(picked === undefined ? {} : { pick: picked }), refs, layered, ...(artwork ? { artwork } : {}) };
 }
+
+export const playsOnPicture = (picture: PictureMorphRefs | undefined): picture is PictureMorphRefs & { artwork: LayeredMorphArtwork } =>
+  !!picture && !picture.layered && picture.refs.length === 1 && !!picture.artwork;
 
 export function shownImageLayers(
   context: Context | undefined,
@@ -373,7 +381,7 @@ export function shownImageLayers(
   const layers = resolveImageLayers(context, struct);
   if (!context || !channel) return layers;
   const picture = pictureMorphRefs(context, channel, struct, pick);
-  if (picture && !picture.layered && picture.refs.length === 1) {
+  if (playsOnPicture(picture)) {
     const look = shownLook(context, channel, struct, poseOf, picture.pick);
     if (!look?.attributes.length) return layers;
     return resolveImageLayers(context, shownLookStruct(struct, look.attributes)).map((layer) => ({ ...layer, shown: true as const }));

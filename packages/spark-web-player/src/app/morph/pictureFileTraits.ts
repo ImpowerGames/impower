@@ -147,6 +147,20 @@ export async function pictureFileTraits(bytes: Uint8Array, inflate?: Inflate): P
   return { animated: false, profile: false };
 }
 
+export function dataUrlBytes(src: string): Uint8Array | undefined {
+  const match = /^data:([^,]*),(.*)$/is.exec(src);
+  if (!match) return undefined;
+  try {
+    if (/;base64$/i.test(match[1]!)) {
+      const binary = atob(match[2]!.replace(/\s+/g, ""));
+      return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    }
+    return new TextEncoder().encode(decodeURIComponent(match[2]!));
+  } catch {
+    return undefined;
+  }
+}
+
 export const streamInflate =
   (scope: { DecompressionStream?: typeof DecompressionStream; Response?: typeof Response }): Inflate | undefined => {
     const Decompression = scope.DecompressionStream;

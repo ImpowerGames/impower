@@ -4,6 +4,7 @@ import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/m
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import {
+  MorphGroup,
   MorphPlayback,
   type MorphImageContent,
   type PictureBitmap,
@@ -223,5 +224,44 @@ describe("a picture made of image files is drawn on a canvas (#2629)", () => {
     expect(loads).toEqual([]);
     expect(canvas.frames).toEqual([]);
     expect(span.style.getPropertyValue("mask-image")).toBe(BACKGROUND);
+  });
+
+  test("a group update while a picture decodes waits for that decode, and the picture is drawn once it resolves", async () => {
+    const waiting = new Map<string, ((bitmap: PictureBitmap) => void)[]>();
+    const { playback, span, canvas } = setup(recipe("cut", "lids", ["off", "on", "off"]), (src) =>
+      new Promise((resolve) => waiting.set(src, [...(waiting.get(src) ?? []), resolve])),
+    );
+    const group = new MorphGroup();
+    const other = span.ownerDocument.createElement("span");
+    other.style.setProperty("background-image", BACKGROUND);
+    span.parentElement!.appendChild(other);
+    playback.mount(span, content("lids"), BACKGROUND, "background", "portrait:0", group);
+    playback.mount(other, content("lids"), BACKGROUND, "background", "portrait:1", group);
+    await until(() => waiting.size === 3, "the decodes to start");
+    playback.releaseWithin(other);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    for (const [src, resolvers] of waiting) for (const resolve of resolvers) resolve({ image: { src } as never, width: 40, height: 30 });
+    await until(() => !!canvasOf(span), "the canvas");
+    expect(canvas.frames.at(-1)).toEqual([
+      { src: "base.png", alpha: 1 },
+      { src: "closed.png", alpha: 1 },
+    ]);
+  });
+
+  test("a layer file whose bytes cannot be read keeps the CSS background, and the game is told", async () => {
+    const { playback, span, canvas, stills } = setup(recipe("cut", "lids", ["off", "on", "off"]), async (src) => ({
+      image: { src } as never,
+      width: 40,
+      height: 30,
+      ...(src === "closed.png" ? { unread: true } : {}),
+    }));
+    playback.mount(span, content("lids"), BACKGROUND, "background", "portrait:0");
+    await until(() => stills.length > 0, "the still report");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    playback.advance(0.5);
+    expect(canvasOf(span)).toBeNull();
+    expect(canvas.frames).toEqual([]);
+    expect(span.style.getPropertyValue("background-image")).toBe(BACKGROUND);
+    expect(stills).toEqual([{ image: "kit", file: "closed.png", reason: "unread" }]);
   });
 });

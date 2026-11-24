@@ -1059,7 +1059,7 @@ A file has no outline, so a morph shows, hides and fades whole layers. On a laye
 
 The picture's size is its bottom layer's pixel size, and every layer covers the whole picture. A morph plays only when every layer file has that size; a picture with a layer file of another size stays still. Export every layer of a painted portrait at the canvas size.
 
-A picture also stays still, with a warning in the game naming the file, when one of its layer files is animated (an animated GIF, WebP or PNG) or carries a colour profile other than sRGB: its layers could not be drawn together the way the browser draws them alone. Export layers as still sRGB images. A picture one of whose layers is a drawn portrait with morphs of its own keeps those morphs playing, and the picture's own morph does not play on it, with a warning naming the picture.
+A picture also stays still, with a warning in the game naming the file, when one of its layer files is animated (an animated GIF, WebP or PNG) or carries a colour profile other than sRGB: its layers could not be drawn together the way the browser draws them alone. Export layers as still sRGB images. A layer file the game cannot read to check this, such as an image on another site that does not allow it, keeps the picture still with a warning too. A picture one of whose layers, shown or not at rest, is a drawn portrait with morphs of its own keeps those morphs playing, and the picture's own morph does not play on it, with a warning naming the picture.
 
 Before its first play a painted portrait loads every file any pose can show, and shows its still until they are ready. Problems found while preparing it appear on the layer file they name, or else on the picture's bottom file.
 
