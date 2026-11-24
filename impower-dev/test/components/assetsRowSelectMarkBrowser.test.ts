@@ -6,6 +6,7 @@ import { bundlePage, frames, openPage, stylesFor } from "./pageBundle";
 const PICTURE = "Assets/Images/Cast/picture_000.png";
 const FOLDER = "Assets/Images/Cast/Crew";
 const ICON = "Assets/Text/notes.txt";
+const SOUND = "Assets/Audio/Sounds/chime.wav";
 
 const LISTS = [
   { tab: null, paths: [PICTURE, FOLDER] },
@@ -34,7 +35,7 @@ const open = async (touch: boolean, tab: string | null, first: string) => {
       extraFiles: ["Assets/Text/notes.txt", "Assets/Text/tides.txt"],
       lists: {
         assetsLayouts: { "Assets/Images/Cast": "rows" },
-        assetsFolders: { image: "Assets/Images/Cast", text: "Assets/Text" },
+        assetsFolders: { image: "Assets/Images/Cast", text: "Assets/Text", audio: "Assets/Audio/Sounds" },
       },
     }),
   );
@@ -54,7 +55,7 @@ const leadingOf = (page: Page, path: string) =>
   page.evaluate((path): Leading => {
     const body = document.querySelector<HTMLElement>(`[data-asset-path="${CSS.escape(path)}"]`)!;
     const row = body.closest<HTMLElement>('[class*="group/row"]')!;
-    const lead = body.firstElementChild as HTMLElement;
+    const lead = row.querySelector<HTMLElement>("[data-asset-play]") ?? (body.firstElementChild as HTMLElement);
     const circle = row.querySelector<HTMLElement>("label > span")!;
     const centre = (r: DOMRect) => [r.left + r.width / 2, r.top + r.height / 2] as const;
     const [ax, ay] = centre(lead.getBoundingClientRect());
@@ -101,8 +102,8 @@ describe("Assets list rows under the select circle", () => {
       }
     });
 
-    it(`with ${input}, hide every row's leading box under a circle centred in it while a selection is active`, async () => {
-      for (const { tab, paths } of LISTS) {
+    it(`with ${input}, hide every row's leading box and a sound's play button under a circle centred in it while a selection is active`, async () => {
+      for (const { tab, paths } of [...LISTS, { tab: "Audio", paths: [SOUND] }]) {
         const page = await open(touch, tab, paths[0]);
         await page.locator(`input[aria-label="Select ${nameOf(paths[0])}"]`).evaluate((box: HTMLInputElement) => box.click());
         await page.mouse.move(0, 0);
