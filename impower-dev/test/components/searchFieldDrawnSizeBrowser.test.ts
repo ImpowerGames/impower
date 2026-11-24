@@ -19,7 +19,7 @@ afterAll(async () => {
   await browser?.close();
 });
 
-type Drawn = { computed: string; drawn: number; label: number; rightGap: number; height: number; centreOffset: number };
+type Drawn = { computed: string; drawn: number; drawnHeight: number; label: number; rightGap: number; height: number; centreOffset: number };
 
 const measure = async (width: number, touch: boolean, query: string) => {
   const page = await openPage(browser, script, css, { width, touch, theme: "charcoal" });
@@ -45,6 +45,7 @@ const measure = async (width: number, touch: boolean, query: string) => {
     return {
       computed,
       drawn: Math.round(parseFloat(computed) * (box.width / input.offsetWidth) * 10) / 10,
+      drawnHeight: Math.round(parseFloat(computed) * (box.height / input.offsetHeight) * 10) / 10,
       label,
       rightGap: Math.round(Math.abs(field.right - box.right)),
       height: frame.getBoundingClientRect().height,
@@ -60,13 +61,13 @@ describe("the library search field's drawn size", () => {
     for (const query of ["", "pic", "a query much longer than the field can show at once, running on"]) {
       it(`at ${width} with touch and ${query ? `the query "${query.slice(0, 12)}"` : "no query"}, keeps a 16px font drawn at a 14px row label's size across the whole field`, async () => {
         const drawn = await measure(width, width < 768, query);
-        expect(drawn).toEqual({ computed: "16px", drawn: drawn.label, label: 14, rightGap: 0, height: 44, centreOffset: 0 });
+        expect(drawn).toEqual({ computed: "16px", drawn: drawn.label, drawnHeight: drawn.label, label: 14, rightGap: 0, height: 44, centreOffset: 0 });
       });
     }
   }
 
   it("at 1440 with a mouse, draws 13px with no scaling", async () => {
     const drawn = await measure(1440, false, "");
-    expect(drawn).toMatchObject({ computed: "13px", drawn: 13, rightGap: 0, height: 44 });
+    expect(drawn).toMatchObject({ computed: "13px", drawn: 13, drawnHeight: 13, rightGap: 0, height: 44 });
   });
 });
