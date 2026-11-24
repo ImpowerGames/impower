@@ -308,10 +308,10 @@ function AssetFolderCover({
 }
 
 function RowGlyph({ row, listing }: { row: AssetRow; listing: AssetListing }) {
-  if (row.kind === "folder") return <FolderIcon />;
+  if (row.kind === "folder") return <Thumbnail glyph={<FolderIcon />} />;
   if (pictured(row)) return <AssetThumbnail listing={listing} picture={row} fit="contain" />;
   const Glyph = row.link && row.type === "other" ? LinkIcon : TYPE_ICONS[row.type];
-  return <Glyph />;
+  return <Thumbnail glyph={<Glyph />} />;
 }
 
 function AssetsBrowser() {
@@ -1107,7 +1107,7 @@ function AssetsBrowser() {
         creating !== null && (
           <NameRow
             size="library"
-            icon={<FolderIcon />}
+            icon={<Thumbnail glyph={<FolderIcon />} />}
             label="New folder name"
             returnFocus={() => newButton.current}
             onCancel={() => setCreating(null)}
