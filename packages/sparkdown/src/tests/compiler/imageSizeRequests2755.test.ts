@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { programSummary } from "../../compiler/utils/programSummary";
 
 const MAIN = "file:///proj/main.sd";
 const P = "file:///proj/assets/Images/Portraits";
@@ -80,6 +81,12 @@ describe("the image files the compiler asks to have sized (#2755)", () => {
   test("a morph-fitted layered picture asks for exactly its unsized layer files", () => {
     const program = compile(BLINK, { [BASE]: undefined, [MOUTH]: undefined, [LIDS]: undefined, [BACKDROP]: undefined });
     expect([...(program.imageSizeRequests ?? [])].sort()).toEqual([BASE, LIDS, MOUTH].sort());
+  });
+
+  test("the summary a player's compiler sends carries the requests", () => {
+    const program = compile(BLINK, { [BASE]: undefined, [MOUTH]: DOC, [LIDS]: DOC });
+    expect(programSummary(program, true).imageSizeRequests).toEqual([BASE]);
+    expect("imageSizeRequests" in programSummary(compile("", { [BASE]: undefined }), true)).toBe(false);
   });
 
   test("a layer file whose size is known is not asked for again", () => {

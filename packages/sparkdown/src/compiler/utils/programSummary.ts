@@ -17,6 +17,7 @@ export const programSummary = (
   playRefusal: playRefusalOf(program),
   sceneSpans: program.sceneSpans,
   frontMatter: program.frontMatter,
+  ...(program.imageSizeRequests ? { imageSizeRequests: program.imageSizeRequests } : {}),
 });
 
 export const isSameProgram = (
