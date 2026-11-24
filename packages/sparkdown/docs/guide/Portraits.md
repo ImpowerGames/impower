@@ -237,6 +237,21 @@ If a bare word is an option in two groups where choosing both would be a mistake
 
 The editor's autocomplete, after you type `:`, lists only the options this portrait actually has. A portrait with no `hat` layer does not offer `hat`.
 
+## How long a portrait stays
+
+A picture written with no layer, such as `[[mia:happy]]`, goes to the `portrait` element of the built-in `main` layout. That element is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so the portrait lasts as long as the line it came with: the next line that shows no portrait empties the slot, and a line that shows another portrait replaces it. The `backdrop` element has no `#clear`, so a backdrop stays until another one replaces it or the script hides it.
+
+In a `layout main` of your own, write `#clear` on each picture slot that should empty after its line, and leave it off a slot whose picture should stay:
+
+```sparkdown
+layout main {
+  stage {
+    backdrop { image }
+    portrait #clear { image }
+  }
+}
+```
+
 ## Choosing an expression
 
 The quickest way to choose between expressions is to look at them in the scene. With the Game Preview open and stopped, type the portrait's name and a colon, then move through the suggestions with the arrow keys: the preview shows the scene with each highlighted option in place, full size, with the character's other options and the order you wrote them in kept as they are. Highlighting `sad` while completing `[[mia:hat:|]]` shows exactly what `[[mia:hat:sad]]` would show.

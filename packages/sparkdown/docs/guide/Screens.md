@@ -33,6 +33,18 @@ end
 
 An initial layout with a dialogue box (a `textbox` or `dialogue` element) is skipped when `main` already holds text elements, so a project whose own `layout main` shows dialogue keeps one dialogue box. Any other layout in the list always opens. An explicit `[[open textbox]]` still opens the built-in layout.
 
+Each part of the built-in box is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so it shows only what the current line puts in it. A box of your own needs the same marks on every part a line can leave out, or the last speaker's name stays up through a line of action:
+
+```sparkdown
+layout main {
+  textbox {
+    character_name #clear { text }
+    dialogue #clear { text }
+    action #clear { text }
+  }
+}
+```
+
 To hide the dialogue box, use the ordinary directives, and checkpoints and saves remember the result:
 
 ```sparkdown

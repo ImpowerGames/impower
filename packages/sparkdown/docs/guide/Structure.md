@@ -26,7 +26,7 @@ end
 - **Blocks** (`{ … }`) hold an element's children.
 - **Classes** (written with a dot, like `.start`) let `style` blocks target an element.
 - **Content** (in quotes) is what the player sees.
-- **Props** (`#name=value`) customize layout, style, or behavior.
+- **Props** (`#name=value`, or `#name` alone to switch one on) customize layout, style, or behavior.
 - **Events** (`@name=action`) respond to interactions.
 
 ---
@@ -258,6 +258,28 @@ row #background-color={team_color} {
 ```
 
 > Inline props take a leading `#` (`#child-gap=16`). Properties inside a `style` block use `key = value` instead (`child-gap = 16`) — see [Styling](./StyleProps.md).
+
+### `#clear`: content that lasts one line
+
+A prop written with no value, such as `#clear`, is switched on. `#clear` decides how long the content the story writes into an element lasts:
+
+```sparkdown
+layout main {
+  stage {
+    backdrop { image }
+    portrait #clear { image }
+  }
+}
+```
+
+- Without `#clear`, an element keeps its content until something replaces it or the script hides it. Here the backdrop stays up from line to line.
+- With `#clear`, its content lasts as long as the line that put it there is on screen. A line is on screen until the next line shows, and a beat that carries on in the same box after a `>` break is still the same line. Here a portrait shown for one line is gone on the next line that shows no portrait.
+- If the next line writes to the same element, the content is replaced, not emptied.
+- An element with no content is not on screen.
+
+A text part that a line can leave out, such as the speaker's name or a parenthetical, needs `#clear`, or it keeps showing the last one. The built-in text box marks each of its parts `#clear`. Leaving it off gives a heading or a caption that stays until the next one.
+
+In the editor, typing `#` after an element in a layout offers `clear`, and hovering over `#clear` describes it.
 
 ---
 
