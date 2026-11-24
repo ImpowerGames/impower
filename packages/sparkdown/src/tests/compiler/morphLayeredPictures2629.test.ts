@@ -146,7 +146,7 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     expect(messages.filter((message) => message.includes("chatter"))).toEqual([]);
   });
 
-  test("a morph clause naming a picture's speech morph that a layer's own morph keeps off the picture says it plays on no image", () => {
+  test("a morph clause naming a picture's speech morph plays on the picture beside its SVG layer's own morph (#2632)", () => {
     const face = { uri: "file:///proj/face.svg", type: "image", name: "face", ext: "svg", data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30"><rect data-name="mouth.closed default" width="40" height="30"/><circle data-name="mouth.open" cx="20" cy="15" r="10"/></svg>' };
     const smile = `morph smile {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = closed\n      }\n    }\n    to {\n      mouth {\n        state = open\n      }\n    }\n  }\n}\n`;
     const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
@@ -159,10 +159,10 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     const messages = (compiler.compile({ textDocument: { uri: MAIN } }).program.diagnostics?.[MAIN] ?? []).map((d) =>
       typeof d.message === "string" ? d.message : d.message.value,
     );
-    expect(messages.filter((message) => message.startsWith("`chatter` plays on no image"))).toHaveLength(1);
+    expect(messages.filter((message) => message.startsWith("`chatter` plays on no image"))).toEqual([]);
   });
 
-  test("a picture whose own morph a layer's morph keeps from playing gets attribute diagnostics for the look it shows, not that morph's rest", () => {
+  test("a picture whose SVG layer plays a morph of its own gets the same diagnostics for its own morph's rest as a picture without one (#2632)", () => {
     const face = { uri: "file:///proj/face.svg", type: "image", name: "face", ext: "svg", data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30"><rect data-name="mouth.closed default" width="40" height="30"/><circle data-name="mouth.open" cx="20" cy="15" r="10"/></svg>' };
     const cut = (name: string, group: string, from: string, to: string) =>
       `morph ${name} {\n  blend = cut\n  keyframes {\n    from {\n      ${group} {\n        state = ${from}\n      }\n    }\n    to {\n      ${group} {\n        state = ${to}\n      }\n    }\n  }\n}\n`;
@@ -174,7 +174,7 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     });
     const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
     const messages = (program.diagnostics?.[MAIN] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
-    expect(messages.filter((message) => message.includes("closed eyes"))).toEqual([]);
+    expect(messages.filter((message) => message.includes("closed eyes"))).toHaveLength(1);
     const shown = compile(`${cut("shut", "eyes", "open", "closed")}\n${define}\nscene start\n  [[pip:look.left]]\nend\n`);
     const warned = (shown.diagnostics?.[MAIN] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
     expect(warned.filter((message) => message.includes("closed eyes"))).toHaveLength(1);

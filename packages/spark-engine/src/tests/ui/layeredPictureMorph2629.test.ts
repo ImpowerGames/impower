@@ -1,5 +1,4 @@
 import { describe, expect, test } from "vitest";
-import { talkingPortrait, talkScript } from "@impower/sparkdown/src/tests/morph/fixtures";
 import { createHarness, flattenMessages } from "./harness/uiTestHarness";
 
 const P = "inmemory:///assets/Images/Portraits";
@@ -103,25 +102,6 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0].artifact).toMatchObject({ status: "live", diagnostics: [] });
     expect(warnings).toEqual([]);
-  });
-
-  test("a hand-written layered_image whose SVG layer plays a morph of its own keeps that morph, and the picture's own morph does not play", async () => {
-    const svg = { uri: "inmemory:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: talkingPortrait() } as any;
-    const lids = { uri: "inmemory:///lid_file.png", type: "image", name: "lid_file", ext: "png", src: "/src/lid_file.png" } as any;
-    const source = `${LIDS}\n${talkScript()}\ndefine kit as layered_image with\n  assets = {\n    ["face"] = bunny,\n    ["lids.on"] = lid_file,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\n    Line two.\nend\n`;
-    const { contents, warnings } = await written(source, [svg, lids]);
-    const plays = contents.at(-1).morph.plays;
-    expect(plays.map((play: any) => [play.morph, play.ref.image, play.picture])).toEqual([["talk", "bunny", undefined]]);
-    expect(warnings).toEqual(["`lids_blink` does not play on `kit`: one of its layers plays morphs of its own, and those keep playing."]);
-  });
-
-  test("a layer with morphs of its own that is hidden at rest still keeps the picture's own morph off it", async () => {
-    const svg = { uri: "inmemory:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: talkingPortrait() } as any;
-    const base = { uri: "inmemory:///base_file.png", type: "image", name: "base_file", ext: "png", src: "/src/base_file.png" } as any;
-    const source = `${LIDS}\n${talkScript()}\ndefine kit as layered_image with\n  assets = {\n    ["base"] = base_file,\n    ["lids.on"] = bunny,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\n    Line two.\nend\n`;
-    const { contents, warnings } = await written(source, [svg, base], "kit");
-    expect(contents.flatMap((content: any) => content.morph?.plays ?? []).filter((play: any) => play.picture)).toEqual([]);
-    expect(warnings).toEqual(["`lids_blink` does not play on `kit`: one of its layers plays morphs of its own, and those keep playing."]);
   });
 
   test("a picture after one whose pick changes its layer count gets its play at its own CSS layer", async () => {

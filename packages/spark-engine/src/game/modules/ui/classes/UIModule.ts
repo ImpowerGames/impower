@@ -178,6 +178,7 @@ import {
   type MorphLayerPlay,
   type MorphPicture,
   type LayeredPicture,
+  type MorphPlay,
   type PictureFraming,
   type PictureTravel,
   type WriteImageInstruction,
@@ -1926,22 +1927,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const plays: MorphLayerPlay[] = [];
-    const play = (ref: MorphRef, layer: number, owner: string | undefined, picture?: MorphPicture) => {
+    const playsOf = (ref: MorphRef, owner: string | undefined): MorphPlay[] => {
       this.deliverMorphArtifact(ref);
-      for (const morph of ref.morphs) {
+      return ref.morphs.map((morph) => {
         const timing = this.morphTiming(morph);
         const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
-        plays.push({
-          layer,
-          ...(picture ? { picture } : {}),
+        return {
           ref,
           morph,
           timing,
           ...(motion ? { motion } : {}),
           ...(owner ? { owner } : {}),
           definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
-        });
-      }
+        };
+      });
+    };
+    const play = (ref: MorphRef, layer: number, owner: string | undefined, picture?: MorphPicture) => {
+      for (const each of playsOf(ref, owner)) plays.push({ layer, ...(picture ? { picture } : {}), ...each });
     };
     let next = 0;
     for (const asset of assets) {
@@ -1958,17 +1960,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const owner = getImageOwner(this.context, imageName);
-      if (look.conflict === "layers") {
-        this.reportLayeredMorphConflict(imageName, look.refs);
-      } else if (look.conflict === "overlap") {
+      if (look.conflict === "overlap") {
         this.reportMorphConflict(imageName, look.refs);
-        continue;
-      } else if (look.plays) {
+      }
+      if (look.plays) {
         if (count > 0) {
-          play(look.refs[0]!, first, owner ?? getImageOwner(this.context, look.root?.$name), {
-            span: count,
-            files: look.artwork!.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
+          const files = look.artwork!.files.map((file, index) => {
+            const refs = look.files[index]?.refs ?? [];
+            if (refs.length > 1) this.reportMorphConflict(file.struct?.$name ?? pictureFileName(file), refs);
+            const own = refs.length === 1 ? playsOf(refs[0]!, owner ?? getImageOwner(this.context, file.struct?.$name)) : [];
+            const at = own.length && look.rest.length === count ? look.files[index]?.rest : undefined;
+            return { src: file.src, name: pictureFileName(file), ...(own.length ? { plays: own } : {}), ...(at === undefined ? {} : { layer: first + at }) };
           });
+          play(look.refs[0]!, first, owner ?? getImageOwner(this.context, look.root?.$name), { span: count, files });
         }
         continue;
       }
@@ -2035,20 +2039,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       });
     }
     return pictures;
-  }
-
-  protected _layeredMorphConflicts = new Set<string>();
-
-  protected reportLayeredMorphConflict(image: string, refs: MorphRef[]) {
-    if (this._layeredMorphConflicts.has(image)) {
-      return;
-    }
-    this._layeredMorphConflicts.add(image);
-    const names = [...new Set(refs.flatMap((ref) => ref.morphs))].sort().map((name) => `\`${name}\``);
-    this._game.log(
-      `${names.join(", ")} ${names.length > 1 ? "do" : "does"} not play on \`${image}\`: one of its layers plays morphs of its own, and those keep playing.`,
-      "warning",
-    );
   }
 
   protected _morphStills = new Set<string>();

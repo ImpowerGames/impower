@@ -4877,15 +4877,17 @@ export class SparkdownCompiler {
         const look = picture.root && !picture.plays ? undefined : shownLook(program.context, program.morphs, struct, undefined, MORPH_PICK_NONE);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
         const layered = resolveImageAttributes(program.context!, struct).image?.$type === "layered_image";
-        const looks =
-          layered && !picture.plays
-            ? picture.layers.flatMap((layer) => {
+        const looks = layered
+          ? [
+              ...(picture.plays && look ? [look] : []),
+              ...picture.layers.flatMap((layer) => {
                 const layerLook = layer.struct ? shownLook(program.context, program.morphs, layer.struct, undefined, MORPH_PICK_NONE) : undefined;
                 return layerLook ? [layerLook] : [];
-              })
-            : look
-              ? [look]
-              : [];
+              }),
+            ]
+          : look
+            ? [look]
+            : [];
         const warned = new Set<string>();
         for (const look of written.length > 0 ? looks : []) {
           const chosen = resolveAttributes(look.vocabulary, written).selection;
