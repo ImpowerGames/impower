@@ -53,8 +53,8 @@ function unwrapped(code: string): string {
 const EXAMPLES = sceneExamples();
 
 describe("Portraits.md image-line examples", () => {
-  test("ten examples are written inside scene start", () => {
-    expect(EXAMPLES.length).toBe(10);
+  test("eleven examples are written inside scene start", () => {
+    expect(EXAMPLES.length).toBe(11);
   });
 
   test.each(EXAMPLES.map((e) => [e.line, e] as const))(
