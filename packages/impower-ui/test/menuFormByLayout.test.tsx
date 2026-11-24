@@ -400,20 +400,52 @@ const HOVER = [...HOVER_ENTRY, "pointerout", "pointerleave", "mouseout", "mousel
 const recordUnderneath = (page: Page) =>
   page.evaluateHandle((types) => {
     const log: string[] = [];
-    const heard = { beforePress: [] as string[], fromPress: [] as string[], log };
-    let pressed = false;
+    const heard = { beforePress: [] as string[], inContact: [] as string[], afterRelease: [] as string[], log };
+    let phase: "beforePress" | "inContact" | "afterRelease" = "beforePress";
+    let pointerDown = false;
+    let touching = false;
+    const settle = () => {
+      if (phase === "inContact" && !pointerDown && !touching) {
+        phase = "afterRelease";
+      }
+    };
     window.addEventListener("pointerdown", () => {
-      pressed = true;
+      pointerDown = true;
+      if (phase === "beforePress") {
+        phase = "inContact";
+      }
     }, true);
+    window.addEventListener("touchstart", () => {
+      touching = true;
+    }, true);
+    for (const type of ["pointerup", "pointercancel"]) {
+      window.addEventListener(type, () => {
+        pointerDown = false;
+        settle();
+      });
+    }
+    for (const type of ["touchend", "touchcancel"]) {
+      window.addEventListener(type, (event) => {
+        touching = (event as TouchEvent).touches.length > 0;
+        settle();
+      });
+    }
     const left = document.querySelector("[data-left]")!;
     for (const type of types) {
       left.addEventListener(type, () => {
         log.push(type);
-        (pressed ? heard.fromPress : heard.beforePress).push(type);
+        heard[phase].push(type);
       });
     }
     return heard;
   }, [...UNDERNEATH_EVENTS]);
+
+const heardByPhase = (heard: Awaited<ReturnType<typeof recordUnderneath>>) =>
+  heard.evaluate(({ beforePress, inContact, afterRelease }) => ({
+    beforePress: [...new Set(beforePress)],
+    inContact: [...new Set(inContact)],
+    afterRelease: [...new Set(afterRelease)],
+  }));
 
 const surfaceOpen = (page: Page, surface: Surface) =>
   page.evaluate((selector) => !!document.querySelector(selector), SURFACES[surface].open());
@@ -425,16 +457,14 @@ const leftCentre = async (page: Page) => {
 
 const penTap = async (page: Page, x: number, y: number) => {
   const cdp = await page.context().newCDPSession(page);
-  for (const type of ["mouseMoved", "mousePressed", "mouseReleased"] as const) {
-    await cdp.send("Input.dispatchMouseEvent", {
-      type,
-      x,
-      y,
-      button: type === "mouseMoved" ? "none" : "left",
-      buttons: type === "mousePressed" ? 1 : 0,
-      clickCount: type === "mouseMoved" ? 0 : 1,
-      pointerType: "pen",
-    });
+  const steps = [
+    { type: "mouseMoved", x, button: "none", buttons: 0, clickCount: 0 },
+    { type: "mousePressed", x, button: "left", buttons: 1, clickCount: 1 },
+    { type: "mouseMoved", x: x + 3, button: "left", buttons: 1, clickCount: 0 },
+    { type: "mouseReleased", x: x + 3, button: "left", buttons: 0, clickCount: 1 },
+  ] as const;
+  for (const step of steps) {
+    await cdp.send("Input.dispatchMouseEvent", { ...step, y, pointerType: "pen" });
   }
   await cdp.detach();
 };
@@ -462,9 +492,12 @@ describe.skipIf(!browserAvailable)("a tap outside an open surface only closes it
       }
       await page.waitForTimeout(500);
       expect(await surfaceOpen(page, surface), "the surface closed").toBe(false);
-      const { beforePress, fromPress } = await heard.evaluate(({ beforePress, fromPress }) => ({ beforePress: [...new Set(beforePress)], fromPress: [...new Set(fromPress)] }));
-      const pressing = input === "touch" ? fromPress : fromPress.filter((type) => !HOVER.includes(type));
-      expect(pressing, input === "touch" ? "events the control underneath heard from the press on" : "events other than the still-hovering pen's hover the control underneath heard from the press on").toEqual([]);
+      const { beforePress, inContact, afterRelease } = await heardByPhase(heard);
+      expect(inContact, "events the control underneath heard while the tap was in contact").toEqual([]);
+      expect(
+        input === "touch" ? afterRelease : afterRelease.filter((type) => !HOVER.includes(type)),
+        input === "touch" ? "events the control underneath heard after the finger lifted" : "events other than the still-hovering pen's hover the control underneath heard after the pen lifted",
+      ).toEqual([]);
       expect(beforePress.filter((type) => !HOVER_ENTRY.includes(type)), "events other than hover entry the control underneath heard before the press").toEqual([]);
       expect(await page.evaluate(() => document.activeElement?.hasAttribute("data-left") ?? false), "the control underneath took focus").toBe(false);
     }, { touchScreen: true });
@@ -503,6 +536,32 @@ describe.skipIf(!browserAvailable)("a tap outside an open surface only closes it
       const events = [...new Set(await heard.evaluate(({ log }) => log))];
       expect(events).toEqual(MOUSE_OUTSIDE[surface]);
     });
+  }, 20000);
+
+  test.each([768, 1440])("at %ipx wide, a swipe that starts on the control under the open panel and holds past a second before lifting closes the panel, scrolls the page and reaches the control with nothing", async (width) => {
+    await withPage(width, ["panel", "scroll", "bottom"], async (page) => {
+      await openSurface(page, "the non-modal panel");
+      const heard = await recordUnderneath(page);
+      const cdp = await page.context().newCDPSession(page);
+      const start = await leftCentre(page);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: start.x, y: start.y }] });
+      for (let step = 1; step <= 8; step += 1) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start.x, y: start.y - step * 15 }] });
+      }
+      await page.waitForTimeout(1300);
+      for (let step = 9; step <= 12; step += 1) {
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start.x, y: start.y - step * 15 }] });
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await cdp.detach();
+      await page.waitForTimeout(500);
+      expect(await surfaceOpen(page, "the non-modal panel"), "the panel closed").toBe(false);
+      expect(await page.evaluate(() => scrollY), "the page scrolled").toBeGreaterThan(0);
+      const { beforePress, inContact, afterRelease } = await heardByPhase(heard);
+      expect(inContact, "events the control heard while the finger was down").toEqual([]);
+      expect(afterRelease, "events the control heard after the finger lifted").toEqual([]);
+      expect(beforePress.filter((type) => !HOVER_ENTRY.includes(type))).toEqual([]);
+    }, { touchScreen: true });
   }, 20000);
 
   test.each([768, 1440])("at %ipx wide, a scroll gesture starting outside the open panel closes it and scrolls the page, and the page still scrolls after", async (width) => {

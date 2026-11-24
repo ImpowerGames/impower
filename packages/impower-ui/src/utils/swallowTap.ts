@@ -28,7 +28,10 @@ const WITHHELD = [
   "contextmenu",
 ] as const;
 
-const GESTURE_ENDS = new Set(["pointerup", "pointercancel", "touchend", "touchcancel"]);
+const gestureEnded = (pressing: PointerEvent, event: Event) =>
+  pressing.pointerType === "touch" && typeof TouchEvent !== "undefined"
+    ? (event.type === "touchend" || event.type === "touchcancel") && (event as TouchEvent).touches.length === 0
+    : (event.type === "pointerup" || event.type === "pointercancel") && (event as PointerEvent).pointerId === pressing.pointerId;
 
 const CANCELABLE = new Set(["mousedown", "mouseup", "click", "dblclick", "auxclick", "contextmenu"]);
 
@@ -50,7 +53,7 @@ export const swallowTap = (pressing: PointerEvent) => {
     if (CANCELABLE.has(event.type) && event.cancelable) {
       event.preventDefault();
     }
-    if (GESTURE_ENDS.has(event.type)) {
+    if (gestureEnded(pressing, event)) {
       ended = event.timeStamp;
     }
     if (event.type === "click") {
