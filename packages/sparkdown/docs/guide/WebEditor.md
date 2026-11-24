@@ -51,9 +51,9 @@ game and starts it from that line.
 
 ## Scripts
 
-![The Scripts page on a computer: a search box and a New button, then the list of scripts, with Main pinned at the top as the entry script](./images/web-editor/scripts-1440.png)
+![The Scripts page on a computer: a back arrow, a search box and a New button, then the list of scripts, with Main pinned at the top as the entry script](./images/web-editor/scripts-1440.png)
 
-![The Scripts page on a phone: All scripts and In this script tabs, a search box and a New button, and the list of scripts](./images/web-editor/scripts-430.png)
+![The Scripts page on a phone: All scripts and In this script tabs with a close button, a search box and a New button, and the list of scripts](./images/web-editor/scripts-430.png)
 
 Scripts lists every script in your project. **Main** is pinned at the top: it is
 where your story starts. Use **New** to add a script or a folder, the search box to find
@@ -61,7 +61,8 @@ one, and the sort button to order them by name, date, size, how often they are u
 the story reaches them. Each script's menu selects, renames, moves, duplicates,
 downloads or deletes it, except Main's, which only duplicates or downloads it, since your story
 always starts there; a script with a problem shows an
-icon beside its name. **Back to story** returns to the script you were writing.
+icon beside its name. **Back to story**, the close button at the end of the tabs or the back
+arrow before the search box where there are no tabs, returns to the script you were writing.
 
 On a phone, the **In this script** tab is the outline of the script you were
 writing.

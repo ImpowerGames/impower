@@ -17,7 +17,6 @@ function PageFrameDemo() {
           <div class="h-[320px] max-w-[760px] overflow-hidden rounded border border-solid border-edge">
             <PageFrame
               size={size}
-              eyebrow="Download, Collaborate & Publish"
               title="Share your story"
               line="Export a shareable game or screenplay. Collaborate with others. Publish it online."
               onBack={() => setBacks((count) => count + 1)}

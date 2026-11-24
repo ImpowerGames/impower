@@ -676,7 +676,6 @@ listed (see inconsistencies).
 | Page title (Share, Settings) | `.page-intro h1` | Georgia 400 40px / 1.12, −0.035em | 32px / 1.15 | `folio-type.css:176-179`, `:368-371`; measured; the one display style |
 | Page and card body | `.page-intro p`, `.feature-card p` | 400 14px / 1.6 | same | `folio-type.css:180-185`; measured |
 | Share card title | `.feature-card h2` | 600 22px / 1.25, −0.02em | same | `folio-type.css:203-206`, `:419-422`; measured |
-| Eyebrow | `.eyebrow` | 700 11px / 1.5, 0.12em | same | `app.css:137-141`, `folio-type.css:57-62`; measured |
 | Tag | `.tag` | 600 11px / 1.4 | same | `folio-type.css:63-67`; measured |
 | Bottom navigation label | `.mobile-nav a` | | 400 12px / 1.4 (phones) | `folio-type.css:433-436`; measured |
 | Add menu title | `.insert-heading h2` | 600 15px / 1.4 | same | `folio-insert.css:12`; measured |
@@ -872,7 +871,6 @@ takes, and why in one line.
 | Current-line band | `folio-editor.css:21` paints it `--tint`; `folio-themes.css:336-338` repaints it `--syntax-active`, which wins | `--syntax-active` |
 | Hover overlay | The ticket gives 6%; Chalk uses black at 5% (`folio-themes.css:203`), the dark themes and Sepia 6% | Per theme, as declared |
 | Floating shadow | `0 12px 40px #0006` (`folio-insert.css:10`, `folio-playback.css:64`, `:327`), `0 12px 40px #0005` (`folio-hierarchy.css:624`), `0 12px 34px #0005` (`folio-hierarchy.css:918`, `folio-language.css:80`, `folio-tools.css:485`), `0 10px 30px #0006` (`folio-hierarchy.css:1018`, `folio-playback.css:312`), `0 8px 24px #0004` (Scripts menus, `folio-scripts.css:99`), `0 5px 25px #0005` (toast, `app.css:1082`); dialogs and sheets have none (all measured open) | `0 12px 40px #0006` for every floating surface, the toast included |
-| Eyebrow | `app.css:137-141` sets `.eyebrow` to 700 at 0.18em; `folio-type.css:57-62` sets 0.12em and loads later | 11px, 700, 0.12em |
 | Compact script header | `folio-hierarchy.css:812-814` sets 48px; `folio-tools.css:96-98` sets 56px and loads later (measured 56px at 768 wide) | 56px |
 | Toast type | `app.css:1079` sets 12px; `folio-type.css` sets 13px / 1.5 (computed 13px) | 13px / 1.5 |
 | Bottom navigation | `app.css:1816-1836` sets a `--panel` fill and 10px labels; `folio-themes.css:320-322` sets `--bg` and `folio-type.css` 12px / 1.4, both loading later (computed: `--bg`, 12px) | `--bg`, 12px / 1.4 |

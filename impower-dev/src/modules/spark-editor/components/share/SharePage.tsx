@@ -114,7 +114,6 @@ export default function SharePage() {
   return (
     <PageFrame
       id="share-page"
-      eyebrow="Download, Collaborate & Publish"
       title="Share your story"
       line="Export a shareable game or screenplay. Collaborate with others. Publish it online."
     >

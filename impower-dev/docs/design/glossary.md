@@ -1031,7 +1031,7 @@ The Share page is a heading block with Back to story, then four cards. Each card
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
 | `Share your story` | page heading | app.js:2201 |  |
-| `Download, Collaborate & Publish` | eyebrow above the heading | app.js:2202 |  |
+| `Download, Collaborate & Publish` | eyebrow above the heading | app.js:2202 | Not drawn: app pages have no eyebrow |
 | `Export a shareable game or screenplay. Collaborate with others. Publish it online.` | page description | app.js:2203 |  |
 | `Back to story` | button | app.js:2023, app.js:2190, app.js:2197 |  |
 | `Export a game` | card title | app.js:2207 |  |
@@ -1067,7 +1067,7 @@ The Settings page has two halves, Editor preferences and Project preferences, an
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
 | `Settings` | page heading and rail heading | app.js:2297, app.js:3577 |  |
-| `Editor & Project Preferences` | eyebrow above the heading | app.js:2298 |  |
+| `Editor & Project Preferences` | eyebrow above the heading | app.js:2298 | Not drawn: app pages have no eyebrow |
 | `Customize the look and behavior of the editor and adjust your project settings.` | page description | app.js:2299 |  |
 | `Settings sections` | aria-label of the index and of the chip row | folio-settings.js:606, folio-settings.js:610 |  |
 | `Reset to defaults` | button beside a section heading | folio-settings.js:25 |  |
@@ -1713,7 +1713,7 @@ Live markup wins over the notes. Where the live markup itself uses two wordings,
 - Metadata section: change-list.md:26, change-list.md:31 and folio/decisions.md:165 call it "Story details". The live markup uses `Project metadata` as the section heading (app.js:2310) and `Metadata` as its index entry (folio-settings.js:592); the section id is still story-details.
 - Search: README.md:144 says Ctrl or Command F opens "Find & replace". The live markup uses `Search` everywhere (app.js:876, folio-tools.js:205, folio-shortcuts.js:33).
 - Main's marker: change-list.md:198 and folio/decisions.md:21 describe a "Start" badge on Main. The live markup uses the caption `Entry script` (folio-scripts.js:442).
-- Settings name: README.md:21 and README.md:110 write "Project & preferences". The live markup uses `Settings` as the page heading and rail heading (app.js:2297), with `Editor & Project Preferences` as the eyebrow (app.js:2298).
+- Settings name: README.md:21 and README.md:110 write "Project & preferences". The live markup uses `Settings` as the page heading and rail heading (app.js:2297).
 - Themes: README.md:7 compares four themes (Graphite, Warm Folio, Midnight, Dusk). The live markup offers nine, adding `Automatic`, `Charcoal`, `Chalk`, `Ink` and `Sepia` (folio-themes.js:5 to folio-themes.js:15).
 - Choice menu: the Add entry is `Choice Menu` (folio-insert.js:114) but the outline row prefix is `Choose: ` (app.js:1843) and the source keyword is choose.
 - Starting playback: the button is `Play From Here` (folio-playback.js:585), its tooltip is `Play from the selected beat` (folio-playback.js:967) and the phone strip button is `Play from this line` (app.js:827).
