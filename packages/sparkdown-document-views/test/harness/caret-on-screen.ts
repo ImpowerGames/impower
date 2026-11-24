@@ -3,6 +3,10 @@ import { EditorView } from "@codemirror/view";
 import EDITOR_EXTENSIONS from "../../src/modules/script-editor/constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../../src/modules/script-editor/constants/EDITOR_THEME";
 import { focusOnScreen } from "../../src/modules/script-editor/utils/caretOnScreen";
+import {
+  caretScrollMarginY,
+  scrollCaretIntoView,
+} from "../../src/modules/script-editor/utils/extensions/caretScrollMargin";
 import { scriptMode } from "../../src/modules/script-editor/utils/extensions/scriptMode";
 
 const scene = (n: number) =>
@@ -59,6 +63,8 @@ const scrollerBox = () => {
 
 const edit = () => focusOnScreen(view);
 
+const revealCaret = () => scrollCaretIntoView(view);
+
 Object.assign(window, {
-  caretOnScreen: { stickyTop: STICKY_TOP, view, setCaretLine, caretLine, caretAtLineStart, lineBox, scrollerBox, edit },
+  caretOnScreen: { stickyTop: STICKY_TOP, caretMargin: caretScrollMarginY, revealCaret, view, setCaretLine, caretLine, caretAtLineStart, lineBox, scrollerBox, edit },
 });

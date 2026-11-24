@@ -1,5 +1,6 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { caretScrollMarginY } from "./extensions/caretScrollMargin";
 
 const EDGE_TOLERANCE = 1;
 
@@ -22,8 +23,11 @@ const visibleBand = (view: EditorView) => {
     ? viewport.offsetTop + viewport.height
     : window.innerHeight;
   return {
-    top: Math.max(scroller.top, 0) + margins.top,
-    bottom: Math.min(scroller.bottom, screenBottom) - margins.bottom,
+    top: Math.max(scroller.top, 0) + margins.top + caretScrollMarginY,
+    bottom:
+      Math.min(scroller.bottom, screenBottom) -
+      margins.bottom -
+      caretScrollMarginY,
   };
 };
 

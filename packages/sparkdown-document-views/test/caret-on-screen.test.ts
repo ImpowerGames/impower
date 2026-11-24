@@ -13,6 +13,8 @@ interface Box {
 
 interface Harness {
   stickyTop: number;
+  caretMargin: number;
+  revealCaret(): void;
   view: { scrollDOM: HTMLElement; contentDOM: HTMLElement; state: { selection: { main: { head: number } } } };
   setCaretLine(line: number): void;
   caretLine(): number;
@@ -78,6 +80,7 @@ const read = (page: Page) =>
       aboveBox: line > 1 ? h.lineBox(line - 1) : null,
       scroller: h.scrollerBox(),
       stickyTop: h.stickyTop,
+      caretMargin: h.caretMargin,
       focused: document.activeElement === h.view.contentDOM,
     };
   });
@@ -87,14 +90,25 @@ const edit = async (page: Page) => {
   await frames(page);
 };
 
+const revealCaret = async (page: Page) => {
+  await page.evaluate(() => (window as unknown as { caretOnScreen: Harness }).caretOnScreen.revealCaret());
+  await frames(page);
+};
+
 describe("Edit keeps the script still", () => {
-  it("moves an off-screen caret to the start of the first line fully on screen, below the sticky headers, without scrolling", async () => {
+  it("moves an off-screen caret to the start of the first line fully on screen, below the sticky headers, so neither Edit nor the keyboard's caret reveal scrolls", async () => {
     const page = await open();
     try {
       await page.evaluate(() => (window as unknown as { caretOnScreen: Harness }).caretOnScreen.setCaretLine(11));
       await scrollTo(page, 4081);
+      await page.evaluate(() => {
+        const h = (window as unknown as { caretOnScreen: Harness }).caretOnScreen;
+        const line = h.lineBox(150);
+        h.view.scrollDOM.scrollTop += line.top - (h.scrollerBox().top + h.stickyTop + 3);
+      });
+      await frames(page);
       const before = await read(page);
-      expect(before.scrollTop).toBeGreaterThan(4000);
+      expect(before.scrollTop).toBeGreaterThan(1000);
       expect(before.caretBox.bottom).toBeLessThan(before.scroller.top);
 
       await edit(page);
@@ -105,13 +119,18 @@ describe("Edit keeps the script still", () => {
       expect(after.atLineStart).toBe(true);
       expect(after.caretBox.top).toBeGreaterThanOrEqual(after.scroller.top + after.stickyTop - 1);
       expect(after.caretBox.bottom).toBeLessThanOrEqual(after.scroller.bottom + 1);
-      expect(after.aboveBox!.top).toBeLessThan(after.scroller.top + after.stickyTop - 1);
+      expect(after.aboveBox!.top).toBeLessThan(
+        after.scroller.top + after.stickyTop + after.caretMargin - 1,
+      );
+
+      await revealCaret(page);
+      expect((await read(page)).scrollTop).toBe(before.scrollTop);
     } finally {
       await page.context().close();
     }
   });
 
-  it("leaves a caret already on screen where it is without scrolling", async () => {
+  it("leaves a caret already on screen where it is, and the keyboard's caret reveal scrolls nothing", async () => {
     const page = await open();
     try {
       await scrollTo(page, 4081);
@@ -140,6 +159,9 @@ describe("Edit keeps the script still", () => {
       expect(after.scrollTop).toBe(before.scrollTop);
       expect(after.focused).toBe(true);
       expect(after.head).toBe(target);
+
+      await revealCaret(page);
+      expect((await read(page)).scrollTop).toBe(before.scrollTop);
     } finally {
       await page.context().close();
     }
