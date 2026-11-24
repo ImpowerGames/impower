@@ -2,6 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
+import { PREVIEW_FADE_MS } from "../../layout/motion";
 import { cn } from "../../utils/cn";
 import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
@@ -20,9 +21,7 @@ export const previewStripVariants = cva(
   },
 );
 
-export const PREVIEW_FADE_MS = 180;
-
-const PICTURE_HEIGHT ={ phone: "h-[72px]", tablet: "h-[83px]" } as const;
+const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
 
 export type PreviewStripSize = keyof typeof PICTURE_HEIGHT;
 

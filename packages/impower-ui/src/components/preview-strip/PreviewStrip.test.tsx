@@ -6,7 +6,8 @@ import { portalContainer } from "../../utils/portalContainer";
 import { topToastLayer } from "../../utils/toastLayer";
 import { applied, compiledRules, edgeTreatment } from "../../../test/fadeEdge";
 import { blockExtent, hitArea } from "../../../test/hitArea";
-import PreviewStrip, { PREVIEW_FADE_MS, type PreviewStripStatus } from "./PreviewStrip";
+import { PREVIEW_FADE_MS } from "../../layout/motion";
+import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
 
 let host: HTMLDivElement | undefined;
 

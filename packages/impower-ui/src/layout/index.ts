@@ -6,6 +6,7 @@ export { useKeyboardFit } from "../hooks/useKeyboardFit";
 export { useScrollbarSize } from "../hooks/useScrollbarSize";
 export { fitToKeyboard, keyboard, type Keyboard } from "./keyboard";
 export { menuFormFor, type MenuForm, type MenuSheetOn } from "./menuForm";
+export { PREVIEW_FADE_MS } from "./motion";
 export {
   layoutState,
   pointerState,

@@ -1,3 +1,4 @@
+import { PREVIEW_FADE_MS } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { effect } from "@preact/signals";
 import { act } from "preact/test-utils";
@@ -538,6 +539,9 @@ describe("the phone's preview strip", () => {
       dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     });
     await settle();
+    expect(dialog.open).toBe(true);
+    expect(players()[0]).toBe(player);
+    await settle(PREVIEW_FADE_MS);
     expect(dialog.open).toBe(false);
     expect(players()[0]).toBe(player);
     expect(document.activeElement).toBe(button("Play from this line"));

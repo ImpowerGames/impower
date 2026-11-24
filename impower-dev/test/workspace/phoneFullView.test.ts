@@ -26,6 +26,10 @@ const { default: workspace, cacheableWorkspaceState } =
 const { default: workspaceSettings } =
   await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
 
+const { PREVIEW_FADE_MS } = await import("@impower/impower-ui/layout");
+
+const faded = () => new Promise((resolve) => setTimeout(resolve, PREVIEW_FADE_MS + 20));
+
 let win: InstanceType<typeof WorkspaceWindow> | undefined;
 const sent = { started: 0, stopped: 0 };
 
@@ -106,7 +110,7 @@ describe("the phone's full view", () => {
     expect(workspaceSettings.preferences.peek().previewMode).toBe("textstream");
   });
 
-  it.each(["phone", "compact"])("stops playback when the full view closes in the %s layout, as the prototype does", (name) => {
+  it.each(["phone", "compact"])("keeps playing through the full view's fade out, then stops playback, in the %s layout", async (name) => {
     layout.value = name;
     const w = mount();
     w.connectPlayer();
@@ -114,18 +118,35 @@ describe("the phone's full view", () => {
     w.syncGameStarted();
     w.collapsePreviewPane();
     expect(workspace.current.preview.revealed).toBe(false);
+    expect(sent.stopped).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, PREVIEW_FADE_MS / 2));
+    expect(sent.stopped).toBe(0);
+    await faded();
     expect(sent.stopped).toBe(1);
   });
 
-  it.each(["phone", "compact"])("returns to the script when Stop ends a run played from the strip in the %s layout", (name) => {
+  it("keeps the game running when the full view opens again before its fade out ends", async () => {
+    const w = mount();
+    w.connectPlayer();
+    w.playInFullView();
+    w.syncGameStarted();
+    w.collapsePreviewPane();
+    w.openFullView();
+    await faded();
+    expect(sent.stopped).toBe(0);
+    expect(workspace.current.preview.revealed).toBe(true);
+  });
+
+  it.each(["phone", "compact"])("returns to the script when Stop ends a run played from the strip in the %s layout", async (name) => {
     layout.value = name;
     const w = mount();
     w.connectPlayer();
     w.playInFullView();
     w.syncGameStarted();
     w.toggleGameRunning();
-    expect(sent.stopped).toBe(1);
     expect(workspace.current.preview.revealed).toBe(false);
+    await faded();
+    expect(sent.stopped).toBe(1);
   });
 
   it("opens the full view from the thumbnail without starting a run", () => {
