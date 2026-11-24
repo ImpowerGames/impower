@@ -45,6 +45,7 @@ const { stateForRoute } = await import(
 const { INITIAL_SEARCH, INITIAL_SEARCH_POSITION } = await import(
   "../../src/modules/spark-editor/workspace/searchState"
 );
+const { DIALOG_TRANSITION_MS } = await import("@impower/impower-ui/components");
 const { dismissSnackbar, snackbar } = await import(
   "../../src/modules/spark-editor/utils/snackbar"
 );
@@ -247,6 +248,25 @@ describe("the phone's References and Rename", () => {
     );
     await vi.waitFor(() => expect(search.dismiss).toHaveBeenCalledTimes(1));
     expect(search.close).not.toHaveBeenCalled();
+  });
+
+  it("slides the sheet out when it is dismissed, keeping its contents until it has gone", async () => {
+    const open = { ...INITIAL_SEARCH, open: true, view: "references" as const, subject, references };
+    await mount(open);
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    expect(dialog()!.className).toContain("translate-none");
+    await act(async () => {
+      workspace.search.value = { ...open, open: false };
+    });
+    expect(dialog()?.textContent).toContain("References to imani");
+    expect(dialog()!.className).toContain("translate-y-full");
+    expect(dialog()!.className).toContain("motion-safe:transition-transform");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, DIALOG_TRANSITION_MS + 20));
+    });
+    expect(dialog()).toBeNull();
   });
 
   it("opens Rename as a sheet", async () => {

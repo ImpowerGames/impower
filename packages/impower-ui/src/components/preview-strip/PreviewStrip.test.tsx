@@ -6,7 +6,7 @@ import { portalContainer } from "../../utils/portalContainer";
 import { topToastLayer } from "../../utils/toastLayer";
 import { applied, compiledRules, edgeTreatment } from "../../../test/fadeEdge";
 import { blockExtent, hitArea } from "../../../test/hitArea";
-import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
+import PreviewStrip, { PREVIEW_FADE_MS, type PreviewStripStatus } from "./PreviewStrip";
 
 let host: HTMLDivElement | undefined;
 
@@ -15,6 +15,13 @@ const mount = async (node: ComponentChild) => {
   await act(async () => render(node, host!));
   return host;
 };
+
+const faded = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, PREVIEW_FADE_MS + 20));
+  });
+
+const animated = (className: string) => className.split(/\s+/).filter((name) => name.includes("anim-"));
 
 const play = () =>
   host!.querySelector<HTMLButtonElement>('button[aria-label="Play from this line"]')!;
@@ -226,6 +233,29 @@ describe("PreviewStrip", () => {
     showModal.mockRestore();
   });
 
+  it("fades the full preview and its backdrop in from the strip and out on collapse in 180ms, with the same picture throughout", async () => {
+    const picture = <div data-player>game</div>;
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} />);
+    const player = host!.querySelector("[data-player]");
+    expect(animated(dialog().className)).toEqual([]);
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} expanded />);
+    expect(dialog().open).toBe(true);
+    expect(animated(dialog().className)).toEqual(["motion-safe:anim-scrim-in", "motion-safe:backdrop:anim-scrim-in"]);
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} expanded={false} />);
+    expect(dialog().open).toBe(true);
+    expect(dialog().className).toContain("fixed");
+    expect(dialog().inert || dialog().hasAttribute("inert")).toBe(true);
+    expect(animated(dialog().className)).toEqual(["motion-safe:anim-scrim-out", "motion-safe:backdrop:anim-scrim-out"]);
+    expect(dialog().className).toContain("motion-reduce:invisible");
+    expect(dialog().className).toContain("motion-reduce:backdrop:invisible");
+    expect(host!.querySelector("[data-player]")).toBe(player);
+    await faded();
+    expect(dialog().open).toBe(false);
+    expect(dialog().className).toContain("scale-[0.1666667]");
+    expect(animated(dialog().className)).toEqual([]);
+    expect(host!.querySelector("[data-player]")).toBe(player);
+  });
+
   it("asks to collapse on Escape and returns focus to Play when it collapses", async () => {
     const onCollapse = vi.fn();
     await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapse={onCollapse} />);
@@ -234,6 +264,7 @@ describe("PreviewStrip", () => {
     expect(cancel.defaultPrevented).toBe(true);
     expect(onCollapse).toHaveBeenCalledTimes(1);
     await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapse={onCollapse} />);
+    await faded();
     expect(dialog().open).toBe(false);
     expect(dialog().style.display).toBe("");
     expect(document.activeElement).toBe(play());
@@ -244,6 +275,7 @@ describe("PreviewStrip", () => {
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded playDisabled />);
     expect(document.activeElement).toBe(document.body);
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded={false} playDisabled />);
+    await faded();
     expect(dialog().open).toBe(false);
     expect(document.activeElement).not.toBe(play());
     await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} />);
@@ -253,6 +285,7 @@ describe("PreviewStrip", () => {
   it("leaves focus where the author put it when Play is enabled only after they acted", async () => {
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded playDisabled />);
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded={false} playDisabled />);
+    await faded();
     const field = document.body.appendChild(document.createElement("input"));
     try {
       field.dispatchEvent(new Event("pointerdown", { bubbles: true }));

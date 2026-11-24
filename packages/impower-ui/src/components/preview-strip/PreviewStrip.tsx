@@ -1,6 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef } from "preact/hooks";
+import { useMountTransition } from "../../hooks/useMountTransition";
 import { cn } from "../../utils/cn";
 import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
@@ -19,7 +20,9 @@ export const previewStripVariants = cva(
   },
 );
 
-const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
+export const PREVIEW_FADE_MS = 180;
+
+const PICTURE_HEIGHT ={ phone: "h-[72px]", tablet: "h-[83px]" } as const;
 
 export type PreviewStripSize = keyof typeof PICTURE_HEIGHT;
 
@@ -105,6 +108,8 @@ export default function PreviewStrip({
   const playRef = useRef<HTMLButtonElement | null>(null);
   const focusPlayRef = useRef(false);
   const open = expanded && !docked;
+  const closing = useMountTransition(open, PREVIEW_FADE_MS).mounted && !open;
+  const full = open || closing;
   const collapseRef = useRef(onCollapse);
   collapseRef.current = onCollapse;
   const expandedRef = useRef(open);
@@ -138,9 +143,9 @@ export default function PreviewStrip({
     if (!dialog) {
       return;
     }
-    if (open && !dialog.open) {
+    if (full && !dialog.open) {
       dialog.showModal();
-    } else if (!open && dialog.open) {
+    } else if (!full && dialog.open) {
       const active = document.activeElement;
       const hadFocus = !active || active === document.body || dialog.contains(active);
       dialog.close();
@@ -150,10 +155,10 @@ export default function PreviewStrip({
       dialog.style.removeProperty("display");
       focusPlayRef.current = hadFocus;
     }
-  }, [open]);
+  }, [full]);
 
   useEffect(() => {
-    if (open) {
+    if (full) {
       focusPlayRef.current = false;
       return;
     }
@@ -174,7 +179,7 @@ export default function PreviewStrip({
       document.removeEventListener("pointerdown", cancel, true);
       document.removeEventListener("keydown", cancel, true);
     };
-  }, [open, playDisabled]);
+  }, [full, playDisabled]);
 
   const shown = statuses.slice(0, 2);
 
@@ -220,8 +225,13 @@ export default function PreviewStrip({
               "m-0 block max-h-none max-w-none overflow-hidden border-0 p-0 text-ink backdrop:bg-stage",
               docked
                 ? "relative h-full w-full bg-transparent"
-                : open
-                  ? "fixed inset-0 h-full w-full bg-preview-mat"
+                : full
+                  ? cn(
+                      "fixed inset-0 h-full w-full bg-preview-mat",
+                      open
+                        ? "motion-safe:anim-scrim-in motion-safe:backdrop:anim-scrim-in"
+                        : "motion-safe:anim-scrim-out motion-safe:backdrop:anim-scrim-out motion-reduce:invisible motion-reduce:backdrop:invisible",
+                    )
                   : "pointer-events-none absolute top-0 left-0 h-[600%] w-[600%] origin-top-left scale-[0.1666667] bg-stage",
             )}
           >

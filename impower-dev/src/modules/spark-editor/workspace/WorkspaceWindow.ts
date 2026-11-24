@@ -193,7 +193,6 @@ import {
   routeOfState,
   sectionOfHash,
   stateForRoute,
-  transitionRoute,
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
@@ -296,7 +295,7 @@ export default class WorkspaceWindow {
         return;
       }
       if (route !== routeOfState(this.store)) {
-        transitionRoute(() => this.openRoute(route));
+        this.openRoute(route);
       } else {
         this.syncRouteHash();
       }
@@ -353,10 +352,10 @@ export default class WorkspaceWindow {
     this.update(stateForRoute(this.store, route));
   }
 
-  navigateTo(route: Route, section?: string): Promise<void> {
+  navigateTo(route: Route, section?: string) {
     if (typeof window === "undefined") {
       this.openRoute(route);
-      return Promise.resolve();
+      return;
     }
     const hash = hashOfRoute(route, section);
     if (window.location.hash !== hash) {
@@ -365,7 +364,7 @@ export default class WorkspaceWindow {
         window.dispatchEvent(new HashChangeEvent("hashchange"));
       }
     }
-    return transitionRoute(() => this.openRoute(route));
+    this.openRoute(route);
   }
 
   setListState(lists: Partial<ListsState>) {
