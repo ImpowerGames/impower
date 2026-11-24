@@ -127,24 +127,6 @@ const STYLE_KEYS = [
   "background-clip",
   "background-blend-mode",
   "background-color",
-  "position",
-  "z-index",
-  "opacity",
-  "transform",
-  "translate",
-  "rotate",
-  "scale",
-  "perspective",
-  "filter",
-  "backdrop-filter",
-  "clip-path",
-  "mask-image",
-  "isolation",
-  "mix-blend-mode",
-  "contain",
-  "content-visibility",
-  "will-change",
-  "view-transition-name",
   "background-attachment",
   "image-rendering",
 ];
@@ -891,9 +873,7 @@ export class MorphLayer {
     const view = this.span.ownerDocument.defaultView;
     const computed = view?.getComputedStyle(this.span);
     const values = computed ? STYLE_KEYS.map((name) => computed.getPropertyValue(name)).join("|") : "";
-    const parent = this.span.parentElement;
-    const parentDisplay = parent && view ? view.getComputedStyle(parent).getPropertyValue("display") : "";
-    return `${values}#${parentDisplay}#${animatesStacking(this.span, zIndexApplies(computed, parentDisplay))}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
+    return `${values}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
   }
 
   restyled(): boolean {
@@ -1770,7 +1750,7 @@ export class MorphLayer {
       const style = `position:absolute;${frame};background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
-    this.styleHost(computed, frame);
+    this.isolateBackground(computed, frame);
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
     const rendering = computed?.getPropertyValue("image-rendering") ?? "";
@@ -1803,16 +1783,12 @@ export class MorphLayer {
     for (const { inner, layer } of this.alone) if (inner.view) place(inner.view, layer);
   }
 
-  protected styleHost(computed: CSSStyleDeclaration | undefined, frame: string) {
+  protected isolateBackground(computed: CSSStyleDeclaration | undefined, frame: string) {
     const host = this.shadowHost!;
     const blending = (computed?.getPropertyValue("background-blend-mode") ?? "")
       .split(",")
       .some((mode) => mode.trim() !== "" && mode.trim() !== "normal");
-    const parent = this.span.parentElement;
-    const parentComputed = parent ? this.span.ownerDocument.defaultView?.getComputedStyle(parent) : undefined;
-    const beneath =
-      stackingContext(computed, parentComputed) || animatesStacking(this.span, zIndexApplies(computed, parentComputed?.getPropertyValue("display") ?? ""));
-    const hostStyle = `${HOST_STYLE}${beneath ? ";z-index:-2147483648" : ""}${blending ? ";isolation:isolate" : ""}`;
+    const hostStyle = blending ? `${HOST_STYLE};isolation:isolate` : HOST_STYLE;
     if (host.getAttribute("style") !== hostStyle) host.setAttribute("style", hostStyle);
     if (!blending) {
       this.backdrop?.remove();
@@ -1923,80 +1899,6 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
-}
-
-const STACKING_CHANGES = new Set([
-  "transform",
-  "translate",
-  "rotate",
-  "scale",
-  "perspective",
-  "opacity",
-  "filter",
-  "backdrop-filter",
-  "clip-path",
-  "mask",
-  "mask-image",
-  "isolation",
-  "mix-blend-mode",
-  "z-index",
-  "contain",
-  "view-transition-name",
-]);
-
-function stackingContext(computed: CSSStyleDeclaration | undefined, parent: CSSStyleDeclaration | undefined): boolean {
-  if (!computed) return false;
-  const value = (name: string) => computed.getPropertyValue(name).trim();
-  const none = (name: string) => {
-    const v = value(name);
-    return v === "" || v === "none";
-  };
-  const position = value("position");
-  const zIndex = value("z-index");
-  const placed = zIndex !== "" && zIndex !== "auto";
-  const parentDisplay = parent?.getPropertyValue("display") ?? "";
-  if (position === "fixed" || position === "sticky") return true;
-  if (placed && (position === "absolute" || position === "relative" || /flex|grid/.test(parentDisplay))) return true;
-  const opacity = Number.parseFloat(value("opacity"));
-  if (Number.isFinite(opacity) && opacity < 1) return true;
-  if (!["transform", "translate", "rotate", "scale", "perspective", "filter", "backdrop-filter", "clip-path", "mask-image", "view-transition-name"].every(none)) return true;
-  if (value("isolation") === "isolate") return true;
-  const blend = value("mix-blend-mode");
-  if (blend !== "" && blend !== "normal") return true;
-  if (/layout|paint|strict|content/.test(value("contain"))) return true;
-  const visibility = value("content-visibility");
-  if (visibility === "auto" || visibility === "hidden") return true;
-  const applies = zIndexApplies(computed, parentDisplay);
-  return value("will-change")
-    .split(",")
-    .map((name) => name.trim().toLowerCase())
-    .some((name) => STACKING_CHANGES.has(name) && (name !== "z-index" || applies));
-}
-
-function zIndexApplies(computed: CSSStyleDeclaration | undefined, parentDisplay: string): boolean {
-  const position = computed?.getPropertyValue("position").trim() ?? "";
-  return (position !== "" && position !== "static") || /flex|grid/.test(parentDisplay);
-}
-
-function animatesStacking(span: HTMLElement, zIndex: boolean): boolean {
-  if (typeof span.getAnimations !== "function") return false;
-  return span.getAnimations().some((animation) => {
-    const effect = animation.effect as KeyframeEffect | null;
-    if (!effect || effect.target !== span || typeof effect.getKeyframes !== "function") return false;
-    const timing = effect.getComputedTiming();
-    const local = timing.localTime;
-    const start = Number(timing.delay ?? 0);
-    const end = start + Number(timing.activeDuration ?? 0);
-    if (local === null || local === undefined || Number(local) < start || Number(local) >= end) return false;
-    return effect
-      .getKeyframes()
-      .some((frame) =>
-        Object.keys(frame).some((key) => {
-          const name = key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
-          return STACKING_CHANGES.has(name) && (name !== "z-index" || zIndex);
-        }),
-      );
-  });
 }
 
 function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {
