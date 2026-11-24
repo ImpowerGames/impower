@@ -975,6 +975,79 @@ When several speech morphs drive the same group on one face, none is picked and 
 
 A speech morph plays beside the face's other morphs, each on its own clock, under the rule every morph shares ([The look a portrait shows](#the-look-a-portrait-shows)): they play together when they drive different groups, move different labels and name different labels in their clips. A blink on `eyes` and a talk on `mouth` share none of them. A talk that also moves the eyebrows a blink moves still overlaps it, and the face stays still with a warning naming both.
 
+## Portraits made of image files
+
+A morph also plays on a painted portrait kept as image files (PNG, WebP, JPEG): a portrait folder, a picture with layer files beside it, or a `layered_image` written in the script. It binds by the rule a drawn portrait uses ([Which portraits a morph plays on](#which-portraits-a-morph-plays-on)): the picture has every group and state the keyframes and `rest` name, and `when` and `unless` admit the look.
+
+A painted face usually has open eyes in its base picture and one overlay file for the closed lids. Name the overlay as a switch, and a morph between `off` and `on` blinks it:
+
+```
+assets/Images/Portraits/
+  ava.png
+  ava lids.on.png
+  ava mouth.closed default.png
+  ava mouth.open.png
+```
+
+```sparkdown
+define ava as character with
+  name = "AVA"
+end
+
+morph blink {
+  blend = cut
+
+  keyframes {
+    from { lids { state = off } }
+    50% { lids { state = on } }
+    to { lids { state = off } }
+  }
+
+  timing {
+    iterations = infinite
+    iteration_delay_min = 2
+    iteration_delay_max = 6
+  }
+}
+
+morph talk {
+  blend = cut
+
+  keyframes {
+    from { mouth { state = closed } }
+    50% { mouth { state = open } }
+    to { mouth { state = closed } }
+  }
+
+  timing {
+    trigger = speech
+    duration = 0.16
+  }
+}
+
+scene start
+  AVA:
+    [[ava]]
+    Good morning.
+end
+```
+
+Ava blinks on her own, and her mouth flaps while her line types and rests between lines. `lids.off` needs no file of its own: `off` shows none of the group's `on` layers.
+
+A file has no outline, so a morph shows, hides and fades whole layers. On a layer file:
+
+- `blend = cut` swaps the layers at the end of each step, and `blend = fade` crossfades them.
+- `blend = morph` takes the layer's `fallback`, as an `<image>` inside a drawn portrait does, with no warning. A morph with no `blend` still needs a `method`, so a project of image files writes `blend = cut` or `blend = fade`. A morph that serves drawn and painted portraits gives its painted layers `blend = cut` by label under `layers`.
+- `blend = scale` and `spread` keep the warnings they give an image.
+- `timing`, speech, `rest`, `when`, `unless`, picks and the `morph none` clause work as on a drawn portrait.
+- A `paints` entry's `fill` and `stroke` do nothing, and `partner` and `depth` do not apply. Layer movement, keyframe `opacity` and a `paints` entry's `opacity` do not move or fade a layer file.
+
+The picture's size is its bottom layer's pixel size, and every layer covers the whole picture. A morph plays only when every layer file has that size; a picture with a layer file of another size stays still. Export every layer of a painted portrait at the canvas size.
+
+A picture also stays still, with a warning in the game naming the file, when one of its layer files is animated (an animated GIF, WebP or PNG) or carries a colour profile other than sRGB: its layers could not be drawn together the way the browser draws them alone. Export layers as still sRGB images. A picture one of whose layers is a drawn portrait with morphs of its own keeps those morphs playing, and the picture's own morph does not play on it, with a warning naming the picture.
+
+Before its first play a painted portrait loads every file any pose can show, and shows its still until they are ready. Problems found while preparing it appear on the layer file they name, or else on the picture's bottom file.
+
 ## Seeing it play
 
 In the editor, the Game Preview plays morphs as soon as it shows a portrait.

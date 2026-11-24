@@ -1,5 +1,6 @@
 import { decodeSVGSource } from "../attributes";
 import { hashText } from "./hash";
+import { layeredMorphArtwork } from "./layered";
 import { own } from "./own";
 import { parseMorphRecipe } from "./recipe";
 import type { MorphBakeService, MorphHandle, MorphLoad } from "./service";
@@ -16,8 +17,15 @@ export type MorphSourceReader = (
 
 type Context = { [type: string]: { [name: string]: any } };
 
-export const inlineMorphSource = (context: () => Context | undefined): MorphSourceReader => async (ref) => {
+export const layeredMorphSource = (context: () => Context | undefined): MorphSourceReader => async (ref) => {
+  const current = context();
+  const artwork = layeredMorphArtwork(current, own(current?.["layered_image"], ref.image));
+  return artwork ? { text: artwork.text, ...(artwork.uri === undefined ? {} : { uri: artwork.uri }) } : undefined;
+};
+
+export const inlineMorphSource = (context: () => Context | undefined): MorphSourceReader => async (ref, signal) => {
   const image = own(context()?.["image"], ref.image);
+  if (!image) return layeredMorphSource(context)(ref, signal);
   const data = image?.data;
   if (typeof data !== "string" || !data) return undefined;
   return { text: decodeSVGSource(data), ...(typeof image.uri === "string" ? { uri: image.uri } : {}) };

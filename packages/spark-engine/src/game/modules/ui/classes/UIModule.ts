@@ -11,7 +11,8 @@ import {
 import { resolveImageLayers, type ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { morphRefsForStruct, pictureMorphRefs, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { layeredMorphArtwork, type LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
@@ -24,6 +25,7 @@ import {
   type MorphArtifactParams,
 } from "./messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "./messages/MorphNeedMessage";
+import { MorphStillMessage, type MorphStillParams } from "./messages/MorphStillMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
@@ -175,6 +177,7 @@ import {
 import {
   type MorphImageContent,
   type MorphLayerPlay,
+  type MorphPicture,
   type PictureFraming,
   type PictureTravel,
   type WriteImageInstruction,
@@ -186,6 +189,16 @@ import {
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
+
+function pictureFileName(file: LayeredMorphFile): string {
+  const path = file.uri ?? file.src;
+  const leaf = path.slice(path.lastIndexOf("/") + 1).split(/[?#]/)[0] ?? "";
+  try {
+    return decodeURIComponent(leaf) || file.name;
+  } catch {
+    return leaf || file.name;
+  }
+}
 
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
@@ -1829,6 +1842,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const plays: MorphLayerPlay[] = [];
+    const play = (ref: MorphRef, layer: number, owner: string | undefined, picture?: MorphPicture) => {
+      this.deliverMorphArtifact(ref);
+      for (const morph of ref.morphs) {
+        const timing = this.morphTiming(morph);
+        const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
+        plays.push({
+          layer,
+          ...(picture ? { picture } : {}),
+          ref,
+          morph,
+          timing,
+          ...(motion ? { motion } : {}),
+          ...(owner ? { owner } : {}),
+          definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
+        });
+      }
+    };
     let next = 0;
     for (const asset of assets) {
       const first = next;
@@ -1839,37 +1869,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const imageName = sortFilteredName(asset);
       const image = resolveImageReference(this.context, { $type: "", $name: imageName });
+      const owner = getImageOwner(this.context, imageName);
+      const pick = pickOf(asset);
+      const whole = pictureMorphRefs(this.context, channel, image, pick);
+      if (whole?.layered) {
+        this.reportLayeredMorphConflict(imageName, whole.refs);
+      } else if (whole && whole.refs.length > 1) {
+        this.reportMorphConflict(imageName, whole.refs);
+        continue;
+      } else if (whole?.refs.length === 1) {
+        const artwork = layeredMorphArtwork(this.context, whole.root);
+        if (artwork && count > 0) {
+          play(whole.refs[0]!, first, owner ?? getImageOwner(this.context, whole.root.$name), {
+            span: count,
+            files: artwork.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
+          });
+        }
+        continue;
+      }
       const resolved = resolveImageLayers(this.context, image);
       if (resolved.length !== count) {
         continue;
       }
-      const owner = getImageOwner(this.context, imageName);
       for (const [offset, layer] of resolved.entries()) {
-        const index = first + offset;
-        const pick = pickOf(asset);
         const refs = morphRefsForStruct(this.context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick);
-        const layerOwner = owner ?? getImageOwner(this.context, layer.struct?.$name);
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
           continue;
         }
         const ref = refs[0];
-        if (!ref) {
-          continue;
-        }
-        this.deliverMorphArtifact(ref);
-        for (const morph of ref.morphs) {
-          const timing = this.morphTiming(morph);
-          const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
-          plays.push({
-            layer: index,
-            ref,
-            morph,
-            timing,
-            ...(motion ? { motion } : {}),
-            ...(layerOwner ? { owner: layerOwner } : {}),
-            definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
-          });
+        if (ref) {
+          play(ref, first + offset, owner ?? getImageOwner(this.context, layer.struct?.$name));
         }
       }
     }
@@ -1877,11 +1907,50 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset))).reverse().join(", ");
-    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset))).reverse().join(", ")) {
+    const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
+    const still = assets
+      .map((asset, index) => {
+        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset));
+        return cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
+      })
+      .reverse()
+      .join(", ");
+    if (still !== [...rests].reverse().join(", ")) {
       content.still = still;
     }
     return content;
+  }
+
+  protected _layeredMorphConflicts = new Set<string>();
+
+  protected reportLayeredMorphConflict(image: string, refs: MorphRef[]) {
+    if (this._layeredMorphConflicts.has(image)) {
+      return;
+    }
+    this._layeredMorphConflicts.add(image);
+    const names = [...new Set(refs.flatMap((ref) => ref.morphs))].sort().map((name) => `\`${name}\``);
+    this._game.log(
+      `${names.join(", ")} ${names.length > 1 ? "do" : "does"} not play on \`${image}\`: one of its layers plays morphs of its own, and those keep playing.`,
+      "warning",
+    );
+  }
+
+  protected _morphStills = new Set<string>();
+
+  reportMorphStill(params: MorphStillParams) {
+    const key = JSON.stringify([params.image, params.file, params.reason]);
+    if (this._morphStills.has(key)) {
+      return;
+    }
+    this._morphStills.add(key);
+    const why =
+      params.reason === "animated"
+        ? "is animated"
+        : "carries a colour profile other than sRGB";
+    this._game.log(
+      `\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, so its layers cannot be drawn together faithfully and no morph plays on it.`,
+      "warning",
+    );
   }
 
   protected _speaking = false;
@@ -5873,6 +5942,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (ref) {
         this.deliverMorphArtifact(ref, true);
       }
+      return;
+    }
+    if (MorphStillMessage.type.isNotification(msg)) {
+      this.reportMorphStill(msg.params);
       return;
     }
     if (EventMessage.type.isNotification(msg)) {

@@ -13,6 +13,7 @@ import { filterImage, resolveImageAttributes } from "../compiler/utils/filterIma
 import { resolveImageLayers, type ImageLayer } from "../compiler/utils/resolveImageLayers";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
+import { layeredMorphArtwork, layeredMorphRoot } from "./layered";
 import { own, table } from "./own";
 import { buildMorphRecipe, morphOverlaps, morphRestPose, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
 import { MORPH_BAKE_FORMAT, MORPH_PICK_NONE, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
@@ -33,7 +34,14 @@ const sourceToken = (image: any): string | undefined => {
   return typeof src === "string" && src ? `src:${src}` : undefined;
 };
 
-const startsEveryGroup = (requirements: MorphRequirements): boolean =>
+const layeredToken = (context: Context | undefined, image: any): string | undefined => {
+  const artwork = layeredMorphArtwork(context, image);
+  if (!artwork) return undefined;
+  const sources = artwork.files.map((file) => sourceToken(file.struct) ?? `src:${file.src}`);
+  return `layered:${hashText(JSON.stringify([artwork.text, sources]))}`;
+};
+
+const startsEveryGroup =(requirements: MorphRequirements): boolean =>
   [...requirements.groups.keys()].every((group) => requirements.start.has(group));
 
 const canonicalSelection =(selection: Record<string, string>): string =>
@@ -47,12 +55,13 @@ interface MorphMember {
 }
 
 function makeRef(
+  context: Context | undefined,
   members: readonly MorphMember[],
   imageName: string,
   image: any,
   selection: Record<string, string>,
 ): MorphRef | undefined {
-  const token = sourceToken(image);
+  const token = image?.$type === "layered_image" ? layeredToken(context, image) : sourceToken(image);
   if (!token) return undefined;
   const canonical = canonicalSelection(selection);
   const texts = members.map((member) => member.text);
@@ -64,7 +73,7 @@ function makeRef(
     selection: canonical,
     groups: members.flatMap((member) => member.groups),
   };
-  if (!image?.data) {
+  if (image?.$type === "image" && !image.data) {
     const filtered = buildFilteredSrc(image, selection);
     if (filtered?.includes("attributes=")) {
       ref.src = `${filtered}${texts.map((text) => `&morph=${encodeURIComponent(text)}`).join("")}&key=${key}`;
@@ -109,6 +118,7 @@ export function chooseSpeechMorphs<T extends { name: string; groups: readonly st
 const choiceMembers = (members: readonly MorphMember[]) => members.map((member) => ({ ...member, name: member.recipe.name }));
 
 function makeRefs(
+  context: Context | undefined,
   members: readonly MorphMember[],
   imageName: string,
   image: any,
@@ -117,7 +127,7 @@ function makeRefs(
   if (members.length === 0) return [];
   const sorted = [...members].sort((a, b) => (a.recipe.name < b.recipe.name ? -1 : a.recipe.name > b.recipe.name ? 1 : 0));
   const sets = morphOverlaps(sorted.map((member) => member.recipe)).length ? sorted.map((member) => [member]) : [sorted];
-  return sets.flatMap((set) => makeRef(set, imageName, image, selection) ?? []);
+  return sets.flatMap((set) => makeRef(context, set, imageName, image, selection) ?? []);
 }
 
 export function buildMorphChannel(
@@ -127,7 +137,7 @@ export function buildMorphChannel(
   if (morphs.size === 0) return undefined;
   const channel: MorphProgramChannel = { recipes: table(), variants: table() };
   const images = morphImages(context);
-  const playing = new Map<string, { image: string; selection: Record<string, string>; members: MorphMember[] }>();
+  const playing = new Map<string, { image: string; type: "image" | "layered_image"; selection: Record<string, string>; members: MorphMember[] }>();
   for (const [name, effective] of morphs) {
     const recipe = buildMorphRecipe(name, effective);
     const text = serializeMorphRecipe(recipe);
@@ -142,19 +152,19 @@ export function buildMorphChannel(
     if (!startsEveryGroup(binding.requirements)) continue;
     const member: MorphMember = { recipe, text, groups: [...binding.requirements.groups.keys()] };
     for (const candidate of binding.candidates) {
-      if (!candidate.compatible || candidate.type !== "image") continue;
+      if (!candidate.compatible) continue;
       for (const variant of candidate.variants) {
         if (variant.status !== "active") continue;
-        const entry = playing.get(variant.name) ?? { image: candidate.image, selection: variant.selection, members: [] };
+        const entry = playing.get(variant.name) ?? { image: candidate.image, type: candidate.type, selection: variant.selection, members: [] };
         entry.members.push(member);
         playing.set(variant.name, entry);
       }
     }
   }
-  for (const [variant, { image, selection, members }] of playing) {
-    const struct = own(context["image"], image);
+  for (const [variant, { image, type, selection, members }] of playing) {
+    const struct = own(context[type], image);
     const refsFor = (pick: string | undefined) =>
-      makeRefs(chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image, struct, selection);
+      makeRefs(context, chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image, struct, selection);
     const refs = refsFor(undefined);
     if (refs.length) channel.variants[variant] = refs;
     const speech = members.map((member) => member.recipe.name).filter((name) => own(channel.speech, name) !== undefined);
@@ -227,7 +237,7 @@ export function morphRefsForStruct(
   if (listed || picks) return listed ?? [];
   const { image, selection, members } = playingMembers(context, channel, struct);
   if (!image || members.length === 0) return [];
-  return makeRefs(chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image.$name, image, selection);
+  return makeRefs(context, chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image.$name, image, selection);
 }
 
 function playingMembers(
@@ -239,7 +249,7 @@ function playingMembers(
   const resolved = resolveImageAttributes(context, struct, { visibility: false });
   const image = resolved.image;
   const vocabulary = resolved.vocabulary;
-  if (!image || image.$type !== "image" || !vocabulary || typeof image.$name !== "string") {
+  if (!image || (image.$type !== "image" && image.$type !== "layered_image") || !vocabulary || typeof image.$name !== "string") {
     return { selection: resolved.selection, members: [] };
   }
   const members: MorphMember[] = [];
@@ -329,6 +339,30 @@ export function shownLookStruct(struct: any, attributes: readonly string[]): any
   return { $type: "filtered_image", $name: struct.$name, image: { $type: struct.$type, $name: struct.$name }, attributes: [...attributes] };
 }
 
+export interface PictureMorphRefs {
+  root: any;
+  pick?: string;
+  refs: MorphRef[];
+  layered: boolean;
+}
+
+export function pictureMorphRefs(
+  context: Context | undefined,
+  channel: MorphProgramChannel | undefined,
+  struct: any,
+  pick?: string | ((layer: ImageLayer) => string | undefined),
+): PictureMorphRefs | undefined {
+  const root = layeredMorphRoot(context, struct);
+  if (!context || !channel || !root) return undefined;
+  const picked = typeof pick === "function" ? pick({ src: "", struct }) : pick;
+  const refs = morphRefsForStruct(context, channel, struct, picked);
+  const layered = refs.length > 0 &&
+    resolveImageLayers(context, struct).some((layer) =>
+      layer.struct ? morphRefsForStruct(context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick).length > 0 : false,
+    );
+  return { root, ...(picked === undefined ? {} : { pick: picked }), refs, layered };
+}
+
 export function shownImageLayers(
   context: Context | undefined,
   channel: MorphProgramChannel | undefined,
@@ -338,6 +372,12 @@ export function shownImageLayers(
 ): (ImageLayer & { shown?: true })[] {
   const layers = resolveImageLayers(context, struct);
   if (!context || !channel) return layers;
+  const picture = pictureMorphRefs(context, channel, struct, pick);
+  if (picture && !picture.layered && picture.refs.length === 1) {
+    const look = shownLook(context, channel, struct, poseOf, picture.pick);
+    if (!look?.attributes.length) return layers;
+    return resolveImageLayers(context, shownLookStruct(struct, look.attributes)).map((layer) => ({ ...layer, shown: true as const }));
+  }
   return layers.map((layer) => {
     const layerPick = typeof pick === "function" ? pick(layer) : pick;
     const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, layerPick) : undefined;

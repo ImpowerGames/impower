@@ -41,8 +41,19 @@ export interface WriteImageInstruction {
   };
 }
 
+export interface MorphPictureFile {
+  src: string;
+  name: string;
+}
+
+export interface MorphPicture {
+  span: number;
+  files: MorphPictureFile[];
+}
+
 export interface MorphLayerPlay {
   layer: number;
+  picture?: MorphPicture;
   ref: MorphRef;
   morph: string;
   timing: MorphTiming;
