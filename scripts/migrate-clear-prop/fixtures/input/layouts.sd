@@ -1,0 +1,48 @@
+component card(title) {
+  heading {
+    text
+  }
+}
+
+layout board {
+  stage {
+    backdrop { image }
+    portrait {
+      image
+    }
+    poster {
+      image #src="poster.png"
+    }
+  }
+  panel {
+    caption {
+      stroke
+      text
+    }
+    sign {
+      text "Open"
+    }
+    stamp {
+      text = ■
+    }
+    label {
+      note.text
+    }
+    badge #clear {
+      text
+    }
+    frame #gap=4 {
+      mask {}
+    }
+    holder {
+      inner {
+        text
+      }
+    }
+  }
+  text
+}
+
+scene start
+  Hello.
+end
