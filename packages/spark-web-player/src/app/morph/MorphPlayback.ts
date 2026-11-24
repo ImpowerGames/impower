@@ -190,7 +190,7 @@ interface ImageState {
   span: number;
   picture?: MorphPicture;
   slot: MorphArtifactSlot;
-  plays: { play: MorphLayerPlay; occurrence?: Occurrence }[];
+  plays: { play: MorphLayerPlay; occurrence?: Occurrence; started?: true }[];
   inner: FileState[];
   view?: LiveView;
   canvas?: CanvasView;
@@ -428,6 +428,10 @@ export class MorphPlayback {
     this.speech = undefined;
     this.restartAll();
     this.render();
+  }
+
+  startChange(occurrence: Occurrence) {
+    this.restart(occurrence);
   }
 
   protected restartAll() {
@@ -890,9 +894,21 @@ export class MorphLayer {
       this.applyMask();
       return;
     }
+    this.startChanges();
     this.build();
     this.showStill();
     this.playback.track(this);
+  }
+
+  protected startChanges() {
+    for (const image of this.images) {
+      if (image.slot.state !== "ready" || image.slot.artifact?.status !== "live" || (image.picture && (!image.files || image.broken))) continue;
+      for (const entry of image.plays) {
+        if (entry.started || !entry.occurrence || entry.play.timing.trigger !== "change") continue;
+        entry.started = true;
+        this.playback.startChange(entry.occurrence);
+      }
+    }
   }
 
   protected maskUrls(): Map<number, string> {

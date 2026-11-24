@@ -58,10 +58,19 @@ async function until(check: () => boolean, what: string) {
 
 const numbers = (d: string) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
 
-async function played(beatCount: number, instant: (index: number) => boolean = () => false) {
+async function played(beatCount: number, instant: (index: number) => boolean = () => false, gate?: Promise<void>) {
   const h = createDOMHarness(SOURCE, 0, { files: FILES });
   const playback = MorphPlayback.for(h.overlay);
-  playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", requestFrame: () => 0, cancelFrame: () => {} });
+  const inner = inProcessHost(() => h.game.program);
+  const host: MorphHost = gate
+    ? {
+        resolve: async (ref, options) => {
+          await gate;
+          return inner.resolve(ref, options);
+        },
+      }
+    : inner;
+  playback.configure({ host, seed: "test", requestFrame: () => 0, cancelFrame: () => {} });
   await h.ready;
   h.jumpTo("start");
   for (let index = 0; index < beatCount; index++) {
@@ -95,6 +104,22 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     expect(numbers(lips()[0]!)).toEqual(frown);
     playback.advance(1);
     expect(numbers(lips()[0]!)).toEqual(frown);
+  });
+
+  test("starts from the drawing on screen once its pair is baked, however long the bake took", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const { playback, span, shadow, lips } = await played(2, undefined, gate);
+    await flushMicrotasks(20);
+    expect(shadow()).toBeNull();
+    expect(decodeURIComponent(span()!.style.backgroundImage)).toContain("mouth.smile");
+    playback.advance(1);
+    expect(decodeURIComponent(span()!.style.backgroundImage)).toContain("mouth.smile");
+    release();
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the change morph's view");
+    expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
+    playback.advance(0.5);
+    expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
   });
 
   test("does not run when the same options are shown again or a different picture is shown", async () => {
