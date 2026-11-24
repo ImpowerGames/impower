@@ -2,6 +2,7 @@ import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
+import { inChromium } from "./geometryHarness";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
@@ -962,7 +963,7 @@ describe("the inspector when its item is renamed, moved or deleted from the page
     await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
     expect(all<HTMLElement>('[role="menuitem"]').map((item) => item.textContent)).toEqual([
       "Rename",
-      "Move…",
+      "Move",
       "Download",
       "Delete",
     ]);
@@ -1440,10 +1441,10 @@ describe("the Variants tester and the Files section", () => {
   };
 
   for (const pointer of ["mouse", "touch"] as const) {
-    it(`offers Rename, Replace…, Download and Delete… on a file, opened with a ${pointer}`, async () => {
+    it(`offers Rename, Replace, Download and Delete on a file, opened with a ${pointer}`, async () => {
       await mount();
       await open("imani");
-      expect(await fileMenuShape("imani@night.png", pointer)).toEqual(["Rename", "Replace…", "Download", "—", "Delete…"]);
+      expect(await fileMenuShape("imani@night.png", pointer)).toEqual(["Rename", "Replace", "Download", "—", "Delete"]);
       expect(all<HTMLElement>('[role="menuitem"]')[0]!.querySelector("svg")!.innerHTML).toBe(
         '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
       );
@@ -1463,7 +1464,7 @@ describe("the Variants tester and the Files section", () => {
     expect(picker.multiple).toBe(false);
     const opened = vi.spyOn(HTMLInputElement.prototype, "click");
     try {
-      await fileMenu("imani face.sad.png", "Replace…");
+      await fileMenu("imani face.sad.png", "Replace");
       expect(opened.mock.contexts).toEqual([picker]);
     } finally {
       opened.mockRestore();
@@ -1638,8 +1639,48 @@ describe("the Variants tester and the Files section", () => {
     await open("imani");
     await tap(group("face"));
     expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
-    expect(document.querySelector("[data-wheel-sheet]")!.className.split(" ")).toEqual(expect.arrayContaining(["mx-auto", "max-w-[560px]"]));
+    const sheet = document.querySelector<HTMLElement>("[data-wheel-sheet]")!;
+    expect(sheet.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "inset-x-0", "bottom-0"]));
+    expect(sheet.className).not.toMatch(/max-w-|mx-auto/);
+    expect(sheet.getAttribute("aria-modal")).toBe("false");
+    expect(region()!.contains(sheet)).toBe(true);
     expect(all('[role="menuitemradio"]')).toEqual([]);
+  });
+
+  it.each([
+    [430, "phone"],
+    [768, "compact"],
+  ] as const)("at %i under touch the opened wheel sheet spans the inspector edge to edge and nothing dims or covers the picture", async (width, host) => {
+    layout.value = host;
+    layout.coarse = true;
+    await mount();
+    await open("imani");
+    await tap(group("face"));
+    expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
+    const measured = await inChromium(document.body.innerHTML, { width, touch: true, layout: host }, () => {
+      const inspector = document.querySelector<HTMLElement>('section[aria-label="Asset details"]')!;
+      inspector.style.height = `${innerHeight}px`;
+      const frame = inspector.getBoundingClientRect();
+      const sheet = document.querySelector("[data-wheel-sheet]")!.getBoundingClientRect();
+      const picture = inspector.querySelector("[data-variant-bench] > div")!;
+      const shown = picture.getBoundingClientRect();
+      const veils = [...document.querySelectorAll<HTMLElement>("body *")].filter((element) => {
+        if (picture.contains(element) || element.contains(picture)) return false;
+        const style = getComputedStyle(element);
+        if (style.position !== "fixed" && !(style.position === "absolute" && inspector.contains(element))) return false;
+        const box = element.getBoundingClientRect();
+        const overlaps = box.right > shown.left && box.left < shown.right && box.bottom > shown.top && box.top < shown.bottom;
+        return overlaps && (style.backgroundColor !== "rgba(0, 0, 0, 0)" || style.backdropFilter !== "none");
+      });
+      return {
+        left: sheet.left - frame.left,
+        right: frame.right - sheet.right,
+        inspector: frame.width,
+        pictureShown: shown.height > 100,
+        veils: veils.map((element) => element.className.toString().slice(0, 60)),
+      };
+    });
+    expect(measured).toEqual({ left: 0, right: 0, inspector: width, pictureShown: true, veils: [] });
   });
 
   it("opens the wheel sheet when a finger opens a group and its click arrives with detail 0", async () => {
@@ -1962,7 +2003,7 @@ describe("the Variants tester and the Files section", () => {
     await vi.waitFor(() => expect(all('[role="menuitem"]').length).toBeGreaterThan(0));
     const items = all<HTMLElement>('[role="menuitem"]');
     const reason = "mia is made of the numbered files in its folder. Rename or move the folder mia instead.";
-    for (const label of ["Rename", "Move…"]) {
+    for (const label of ["Rename", "Move"]) {
       const item = items.find((el) => el.textContent?.startsWith(label))!;
       expect(item.getAttribute("aria-disabled")).toBe("true");
       expect(item.textContent).toBe(label + reason);

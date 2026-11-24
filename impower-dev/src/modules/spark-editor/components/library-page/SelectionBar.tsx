@@ -17,9 +17,9 @@ export type SelectionBarProps = {
 };
 
 const ACTIONS: { action: SelectionAction; label: string; icon: JSX.Element }[] = [
-  { action: "move", label: "Move…", icon: <FolderIcon /> },
+  { action: "move", label: "Move", icon: <FolderIcon /> },
   { action: "download", label: "Download", icon: <DownloadIcon /> },
-  { action: "delete", label: "Delete…", icon: <TrashIcon /> },
+  { action: "delete", label: "Delete", icon: <TrashIcon /> },
 ];
 
 export default function SelectionBar({ count, onSelectAll, onAction, onClose }: SelectionBarProps) {

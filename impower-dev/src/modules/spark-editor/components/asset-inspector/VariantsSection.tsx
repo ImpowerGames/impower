@@ -130,7 +130,6 @@ function GroupChoices({
   if (form === "sheet") {
     return (
       <WheelSheet
-        width="menu"
         container={sheetContainer}
         keepClear={keepClear}
         returnFocus={() => button.current}

@@ -76,7 +76,7 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
     { width: 1440, touch: false, other: 60, otherPitch: 63 },
     { width: 820, touch: false, other: 62, otherPitch: 65 },
     { width: 430, touch: true, other: 62, otherPitch: 65 },
-  ])("a picture row is 64 tall on a 67 pitch at $width, and a folder row keeps its $other on $otherPitch", async ({ width, touch, other, otherPitch }) => {
+  ])("a picture row and a folder row are both $other tall on a $otherPitch pitch at $width (I-2717)", async ({ width, touch, other, otherPitch }) => {
     const page = await open({ width, touch });
     try {
       const rows = await page.evaluate(() =>
@@ -88,8 +88,8 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
       const folder = rows.findIndex((row) => row.path === "Assets/Images/Cast/Crew");
       const pictures = rows.filter((row) => row.path.endsWith(".png"));
       expect(pictures.length).toBeGreaterThanOrEqual(3);
-      expect(pictures.map((row) => row.height)).toEqual(pictures.map(() => 64));
-      expect(pictures.slice(1).map((row, index) => row.top - pictures[index]!.top)).toEqual(pictures.slice(1).map(() => 67));
+      expect(pictures.map((row) => row.height)).toEqual(pictures.map(() => other));
+      expect(pictures.slice(1).map((row, index) => row.top - pictures[index]!.top)).toEqual(pictures.slice(1).map(() => otherPitch));
       expect(rows[folder]!.height).toBe(other);
       expect(rows[folder + 1]!.top - rows[folder]!.top).toBe(otherPitch);
     } finally {
@@ -97,7 +97,7 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
     }
   });
 
-  it.each<Theme>(["charcoal", "chalk"])("the list row's variants chip is 19 tall and stands 14.3px below the row's top in %s", async (theme) => {
+  it.each<Theme>(["charcoal", "chalk"])("the list row's variants chip is 19 tall and stands 12.3px below the top of the 60px row in %s", async (theme) => {
     const page = await open({ width: 1440, theme });
     try {
       const chip = await page.evaluate(() => {
@@ -105,7 +105,7 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
         const row = document.querySelector("[data-variants-chip]")!.closest("[data-asset-path]")!.getBoundingClientRect();
         return { height: box.height, top: Math.round((box.top - row.top) * 10) / 10 };
       });
-      expect(chip).toEqual({ height: 19, top: 14.3 });
+      expect(chip).toEqual({ height: 19, top: 12.3 });
     } finally {
       await close(page);
     }

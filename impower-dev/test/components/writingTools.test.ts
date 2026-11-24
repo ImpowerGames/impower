@@ -532,7 +532,7 @@ describe("Change color focus", () => {
           ...workspace.current.screen,
           writingTools: {
             view: "color",
-            fromMenu: true,
+            fromMenu: false,
             color: {
               filename: "main.sd",
               range: { start: { line: 5, character: 28 }, end: { line: 5, character: 35 } },
@@ -561,6 +561,14 @@ describe("Change color focus", () => {
     item.setAttribute("role", "menuitem");
     return item;
   };
+
+  it.each(["phone", "desktop"] as const)("on %s, draws no Back on Change color opened from a swatch", async (host) => {
+    if (host === "phone") phone();
+    await mount();
+    await openColor();
+    expect(panel()!.querySelector('[aria-label="Back to writing tools"]')).toBeNull();
+    expect(panel()!.querySelector('[aria-label="Close writing tools"]')).not.toBeNull();
+  });
 
   it("on a phone, puts focus back in the script after Use color from the long-press menu", async () => {
     phone();

@@ -131,8 +131,6 @@ const PAGE_TAB = "all";
 
 const HEADING_HEIGHT = 48;
 
-const PICTURE_ROW_HEIGHT = 67;
-
 const SHOWN_USES = 3;
 
 const COUNTING_NOTE = "Counting uses…";
@@ -1133,8 +1131,7 @@ function AssetsBrowser() {
         items,
         getKey: (item) => (item.kind === "heading" ? `heading:${item.type}` : item.path),
         renderItem,
-        itemHeight: (item) =>
-          item.kind === "heading" ? HEADING_HEIGHT : pictured(item) ? PICTURE_ROW_HEIGHT : libraryRowHeight(layoutName),
+        itemHeight: (item) => (item.kind === "heading" ? HEADING_HEIGHT : libraryRowHeight(layoutName)),
         grid: tiles ? tileGrid(size, track) : undefined,
       }}
       empty={

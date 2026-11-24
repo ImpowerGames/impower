@@ -384,7 +384,7 @@ describe("the Assets page", () => {
     expect(inspector.querySelector("[data-zoom-frame] img")!.getAttribute("src")).toBe("/p/600");
     await click(inspector.querySelector<HTMLElement>("[data-inspector-close]")!);
     await openMenu(all<HTMLElement>('button[aria-label="Options for bunny"]')[0]);
-    await vi.waitFor(() => expect(menuItems()).toEqual(["Select", "Rename", "Move…", "Delete"]));
+    await vi.waitFor(() => expect(menuItems()).toEqual(["Select", "Rename", "Move", "Delete"]));
     await click(all<HTMLElement>('[role="menuitem"]').find((el) => el.textContent?.includes("Delete")));
     expect(assets.usedBy).toHaveBeenCalledWith(["Assets/Images/bunny.png"]);
     expect(assets.remove).toHaveBeenCalledWith(["Assets/Images/bunny.png"]);
@@ -887,8 +887,8 @@ describe("renaming from the row menu", () => {
 
   it("offers the same actions for a single file and a stacked picture, with Variants for the stacked one", async () => {
     await mount();
-    expect(await menuOf("bunny")).toEqual(["Select", "Rename", "Move…", "Delete"]);
-    expect(await menuOf("imani")).toEqual(["Select", "Variants", "Rename", "Move…", "Delete"]);
+    expect(await menuOf("bunny")).toEqual(["Select", "Rename", "Move", "Delete"]);
+    expect(await menuOf("imani")).toEqual(["Select", "Variants", "Rename", "Move", "Delete"]);
   });
 
   it("renames a stacked picture from its tile, holding the name as the script writes it", async () => {
@@ -1035,7 +1035,7 @@ describe("selecting, moving and deleting", () => {
     await check("bunny");
     await click(barButton("Download"));
     expect(assets.downloadAll).toHaveBeenCalledWith([`${P}/bunny.png`, `${P}/imani.png`]);
-    await click(barButton("Move…"));
+    await click(barButton("Move"));
     expect(dialog()!.querySelector("h2")!.textContent).toBe("Move 2 items");
     await click([...dialog()!.querySelectorAll<HTMLElement>('[role="option"]')].find((el) => el.textContent?.includes("Cast")));
     await click([...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === "Move here"));
@@ -1046,7 +1046,7 @@ describe("selecting, moving and deleting", () => {
   it("deletes an unused selection at once, and asks first with its lines when a script uses it", async () => {
     await mount();
     await check("bunny");
-    await click(barButton("Delete…"));
+    await click(barButton("Delete"));
     expect(assets.remove).toHaveBeenCalledWith([`${P}/bunny.png`]);
     expect(dialog()).toBeNull();
     const use = (line: number, text: string) => ({
@@ -1068,7 +1068,7 @@ describe("selecting, moving and deleting", () => {
     ]);
     assets.remove.mockClear();
     await check("imani");
-    await click(barButton("Delete…"));
+    await click(barButton("Delete"));
     expect(dialog()!.querySelector("h2")!.textContent).toBe("Delete imani?");
     expect(dialog()!.textContent).toContain("Used in 4 lines");
     expect(dialog()!.querySelectorAll("[data-delete-uses] li")).toHaveLength(3);
@@ -1082,7 +1082,7 @@ describe("selecting, moving and deleting", () => {
     assets.usedBy.mockResolvedValueOnce(null);
     await mount();
     await check("bunny");
-    await click(barButton("Delete…"));
+    await click(barButton("Delete"));
     expect(dialog()!.textContent).toContain("Couldn't check which scripts use it.");
     expect(assets.remove).not.toHaveBeenCalled();
   });
@@ -1143,14 +1143,16 @@ describe("playing sounds from their rows", () => {
     }
   });
 
-  it("plays one sound at a time, turning Play to Pause, with the elapsed time in the row's line, and never opens the inspector", async () => {
+  it("plays one sound at a time, turning Play to Pause, keeps the row's idle line while it plays, and never opens the inspector", async () => {
     await openSounds();
+    const idle = rowOf("door_chime").querySelector("[data-asset-sound-line]")!.textContent;
     await click(playButton("door_chime"));
     expect(inspector()).toBeNull();
     expect(playButton("door_chime").getAttribute("aria-label")).toBe("Pause door_chime");
     await tell("loadedmetadata", () => (speaker.audio.duration = 5));
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
-    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-line]")!.textContent).toBe(idle);
     await click(playButton("footsteps"));
     expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
     expect(playButton("footsteps").getAttribute("aria-label")).toBe("Pause footsteps");
@@ -1161,7 +1163,7 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.log).toEqual(["play /p/512", "stop /p/512", "play /p/768", "stop /p/768"]);
   });
 
-  it("leads a row's line with the sound's length floored to whole seconds, read once for the rows shown, and keeps it beside the elapsed time while playing", async () => {
+  it("leads a row's line with the sound's length floored to whole seconds, read once for the rows shown, and keeps the same line while playing and paused", async () => {
     setListing({
       "Assets/Audio/Sounds/bell.wav": facts(5121),
       "Assets/Audio/Sounds/creak.wav": facts(5122),
@@ -1183,24 +1185,25 @@ describe("playing sounds from their rows", () => {
     await click(playButton("bell"));
     await tell("loadedmetadata", () => (speaker.audio.duration = 5.6));
     await tell("timeupdate", () => (speaker.audio.currentTime = 2.4));
-    expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
-    expect(rowOf("bell").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:02 / 0:05");
+    expect(playButton("bell").getAttribute("aria-label")).toBe("Pause bell");
+    expect(line("bell")).toBe("0:05 · Modified 2d · 5 kB");
+    expect(rowOf("bell").querySelector("[data-asset-sound-time]")).toBeNull();
     const open = () => rowOf("bell").querySelector<HTMLElement>('button[aria-label^="Open audio bell"]')!;
-    expect(open().getAttribute("aria-label")).toBe("Open audio bell, 0:02 / 0:05 · Modified 2d · 5 kB");
+    expect(open().getAttribute("aria-label")).toBe("Open audio bell, 0:05 · Modified 2d · 5 kB");
     expect(visibleTextInName(open())).toMatchObject({ contained: true });
     await click(playButton("bell"));
-    expect(line("bell")).toMatch(/^0:02 \/ 0:05 · Modified 2d · 5 kB$/);
+    expect(line("bell")).toBe("0:05 · Modified 2d · 5 kB");
     expect(visibleTextInName(open())).toMatchObject({ contained: true });
   });
 
-  it("pauses a row's sound in place, holding its time in the row and in the inspector, and resumes it there", async () => {
+  it("pauses a row's sound in place, holding its time in the inspector, and resumes it there", async () => {
     await openSounds();
     await click(playButton("door_chime"));
     await tell("loadedmetadata", () => (speaker.audio.duration = 5));
     await tell("timeupdate", () => (speaker.audio.currentTime = 3.2));
     await click(playButton("door_chime"));
     expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
-    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:03 / 0:05");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
     expect(speaker.audio.src).toBe("/p/512");
     await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
     const player = () => inspector()!.querySelector<HTMLElement>("[data-audio-player]")!;
@@ -1295,7 +1298,7 @@ describe("playing sounds from their rows", () => {
     expect(speaker.audio.src).toBe("");
   });
 
-  it("shows a sound cued in the inspector before it ever plays at the same time in its row", async () => {
+  it("cues a sound in the inspector before it ever plays, leaving its row's line as it was", async () => {
     await openSounds();
     await click(rowOf("door_chime").querySelector<HTMLElement>('button[aria-label^="Open audio door_chime"]')!);
     const slider = inspector()!.querySelector<HTMLElement>('[data-audio-player] [role="slider"]')!;
@@ -1305,7 +1308,7 @@ describe("playing sounds from their rows", () => {
     await settle();
     expect(inspector()!.querySelector("[data-audio-player]")!.getAttribute("data-state")).toBe("ready");
     expect(inspector()!.querySelector("[data-audio-elapsed]")!.textContent).toBe("0:05");
-    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:05 / 0:05");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
     expect(playButton("door_chime").getAttribute("aria-label")).toBe("Play door_chime");
     expect(speaker.audio.log).toEqual([]);
   });
@@ -1368,7 +1371,7 @@ describe("playing sounds from their rows", () => {
     await tell("timeupdate", () => (speaker.audio.currentTime = 1.2));
     expect(player().getAttribute("data-state")).toBe("playing");
     expect(toggle()!.getAttribute("aria-label")).toBe("Pause door_chime");
-    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")!.textContent).toBe("0:01");
+    expect(rowOf("door_chime").querySelector("[data-asset-sound-time]")).toBeNull();
     await click(toggle()!);
     expect(player().getAttribute("data-state")).toBe("paused");
     expect(toggle()!.getAttribute("aria-label")).toBe("Play door_chime");
@@ -1558,11 +1561,7 @@ describe("the rows and the inspector show one session's state", () => {
       expect(label, where(`${name}'s row button`)).toBe(`${want.sounding === name ? "Pause" : "Play"} ${name}`);
       const failedLine = rowOf(name)!.querySelector("[data-asset-sound-failed]");
       expect(!!failedLine, where(`${name}'s row failure line`)).toBe(want.failed === name);
-      const time = rowTime(name);
-      expect(time !== null, where(`${name}'s row time`)).toBe(want.held === name && want.failed !== name);
-      if (time !== null && want.at) {
-        expect(time.split(" / ")[0], where(`${name}'s row time`)).toBe(want.at);
-      }
+      expect(rowTime(name), where(`${name}'s row line, which never shows the playhead`)).toBeNull();
     }
     const shown = player();
     if (shown) {
@@ -1580,9 +1579,6 @@ describe("the rows and the inspector show one session's state", () => {
         );
         const elapsed = shown.querySelector("[data-audio-elapsed]")!.textContent;
         if (held) {
-          if (playButton(inspected)) {
-            expect(elapsed, where("inspector and row time")).toBe(rowTime(inspected)!.split(" / ")[0]);
-          }
           if (want.at) {
             expect(elapsed, where("inspector time")).toBe(want.at);
           }
@@ -1605,8 +1601,9 @@ describe("the rows and the inspector show one session's state", () => {
     }
     const whole = Math.floor(speaker.audio.currentTime);
     const playhead = `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
-    const shownTime = rowTime(want.held)?.split(" / ")[0] ?? shown?.querySelector("[data-audio-elapsed]")?.textContent;
-    expect(shownTime, where("the element's time against the time shown")).toBe(playhead);
+    if (shown?.closest("[data-sound-frame]")!.getAttribute("aria-label") === `${want.held} player`) {
+      expect(shown.querySelector("[data-audio-elapsed]")!.textContent, where("the element's time against the time shown")).toBe(playhead);
+    }
     const loop = shown?.querySelector("[data-audio-loop]");
     if (loop && shown!.closest("[data-sound-frame]")!.getAttribute("aria-label") === `${want.held} player`) {
       expect(loop.getAttribute("aria-pressed"), where("Loop against the element's loop")).toBe(String(speaker.audio.loop));
@@ -2114,7 +2111,7 @@ describe("the inspector of an asset that moves", () => {
     await press("Open image ava");
     await act(async () => host!.querySelector<HTMLInputElement>('input[aria-label="Select ava"]')!.click());
     await settle();
-    await click(all<HTMLButtonElement>("button").find((button) => button.textContent?.trim() === "Move…"));
+    await click(all<HTMLButtonElement>("button").find((button) => button.textContent?.trim() === "Move"));
     await moveHere("Cast");
     expectStackAtCast();
   });
@@ -2311,15 +2308,15 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     Open: '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
     Select: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="m8 12 3 3 5-6"></path>',
     Variants: '<circle cx="12" cy="12" r="3"></circle><path d="M2 12c3-5 6-7 10-7s7 2 10 7c-3 5-6 7-10 7s-7-2-10-7z"></path>',
-    "Upload here…": '<path d="M12 21V9m-5 5 5-5 5 5M4 3h16"></path>',
-    "New folder inside…": '<path d="M12 4v16M4 12h16"></path>',
+    "Upload here": '<path d="M12 21V9m-5 5 5-5 5 5M4 3h16"></path>',
+    "New folder inside": '<path d="M12 4v16M4 12h16"></path>',
     Rename: '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
-    "Move…": '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
+    Move: '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
     Delete: '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"></path>',
   };
-  const THING = ["Select", "Variants", "Rename", "Move…", "Delete"];
-  const PLAIN = ["Select", "Rename", "Move…", "Delete"];
-  const FOLDER = ["Open", "Select", "Upload here…", "New folder inside…", "—", "Rename", "Move…", "Delete"];
+  const THING = ["Select", "Variants", "Rename", "Move", "Delete"];
+  const PLAIN = ["Select", "Rename", "Move", "Delete"];
+  const FOLDER = ["Open", "Select", "Upload here", "New folder inside", "—", "Rename", "Move", "Delete"];
 
   beforeEach(() => {
     selection.end();
@@ -2393,7 +2390,7 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
         await expectMenu(THING);
       });
 
-      it("offers Open, Select, Upload here… and New folder inside… above a divider on a folder tile", async () => {
+      it("offers Open, Select, Upload here and New folder inside above a divider on a folder tile", async () => {
         await mount();
         await press(options("Cast"), pointer);
         await expectMenu(FOLDER);
@@ -2458,13 +2455,13 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     await settle();
   };
 
-  it("uploads into a nested folder from its Upload here…, and a cancelled picker leaves Add uploading into the open folder", async () => {
+  it("uploads into a nested folder from its Upload here, and a cancelled picker leaves Add uploading into the open folder", async () => {
     await mount();
     const picker = host!.querySelector<HTMLInputElement>('input[type="file"]')!;
     const opened = vi.spyOn(HTMLInputElement.prototype, "click");
     try {
       await press(options("Cast"), "mouse");
-      await choose("Upload here…");
+      await choose("Upload here");
       expect(opened.mock.contexts).toEqual([picker]);
       expect(picker.multiple).toBe(true);
     } finally {
@@ -2478,7 +2475,7 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
 
     assets.upload.mockClear();
     await press(options("Cast"), "mouse");
-    await choose("Upload here…");
+    await choose("Upload here");
     await act(async () => {
       host!.querySelector<HTMLInputElement>('input[type="file"]')!.dispatchEvent(new Event("cancel"));
     });
@@ -2495,11 +2492,11 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     await vi.waitFor(() => expect(assets.upload).toHaveBeenCalledWith([expect.objectContaining({ name: "rain.png" })], P));
   });
 
-  it("creates a folder inside the folder from New folder inside…, naming it in that folder", async () => {
+  it("creates a folder inside the folder from New folder inside, naming it in that folder", async () => {
     assets.createFolder.mockResolvedValueOnce(`${P}/Cast/Extras`);
     await mount();
     await press(options("Cast"), "mouse");
-    await choose("New folder inside…");
+    await choose("New folder inside");
     expect(workspace.current.lists?.assetsFolders).toMatchObject({ image: `${P}/Cast` });
     const input = await vi.waitFor(() => {
       const found = host!.querySelector<HTMLInputElement>('input[aria-label="New folder name"]');
@@ -2534,7 +2531,7 @@ describe("the options and Sort menus take the prototype's entries (I-2449)", () 
     });
     await settle();
     await press(options("Cast"), "mouse");
-    await choose("Move…");
+    await choose("Move");
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     await escape();
     await press(options("Cast"), "mouse");

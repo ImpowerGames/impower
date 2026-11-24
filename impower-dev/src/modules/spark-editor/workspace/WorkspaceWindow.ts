@@ -422,7 +422,7 @@ export default class WorkspaceWindow {
         appMenuOpen: false,
         writingTools: {
           view: "color",
-          fromMenu: true,
+          fromMenu: false,
           color: { filename, range, value, color },
         },
       },

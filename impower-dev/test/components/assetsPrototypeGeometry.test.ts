@@ -706,3 +706,62 @@ describe("Real menus and sheets at their elevations (I-2448)", () => {
     expect(await inChromium(markup, { width: 430, theme, touch: true, layout: "phone" }, dialogLook)).toEqual({ radius: "12px 12px 0px 0px", shadow: "none" });
   });
 });
+
+describe("Assets rows against the review (I-2717)", () => {
+  const row = (kind: string, leading: Record<string, unknown>) =>
+    h("div", { "data-kind": kind }, h(ui.ListRow, { size: "library", label: kind, description: "Modified just now · 16 kB", onClick: () => {}, ...leading }));
+  const rows = h("div", { style: "width:600px" }, [
+    row("folder", { icon: h(ui.FolderIcon, {}), trailing: h(ui.ChevronIcon, {}) }),
+    row("image", { icon: h(ui.Thumbnail, { src: "data:image/gif;base64,R0lGODlhAQABAAAAACw=", fit: "contain" }) }),
+    row("sound", { control: h(ui.PlayButton, { name: "gull", playing: false, onClick: () => {} }) }),
+    row("video", { icon: h(ui.VideoIcon, {}) }),
+    row("text", { icon: h(ui.FileIcon, {}) }),
+    row("font", { icon: h(ui.FileIcon, {}) }),
+    row("other", { icon: h(ui.FileIcon, {}) }),
+  ]);
+  const heights = () =>
+    Object.fromEntries([...document.querySelectorAll<HTMLElement>("[data-kind]")].map((el) => [el.dataset.kind, (el.firstElementChild as HTMLElement).getBoundingClientRect().height]));
+
+  it.each([
+    ["1440 with a mouse", { width: 1440, layout: "desktop" as const, touch: false }, 60],
+    ["430 under touch", { width: 430, layout: "phone" as const, touch: true }, 62],
+  ])("at %s every file type's row, the 44px picture's included, is the same height", async (_name, display, height) => {
+    const measured = await inChromium(rows, display, heights);
+    expect(measured).toEqual({ folder: height, image: height, sound: height, video: height, text: height, font: height, other: height });
+  });
+
+  it("at 1440 with a mouse no hover rule shows an available tile's select mark, and an active selection shows it", async () => {
+    const tile = (selection: "available" | "active") =>
+      h("div", { "data-selection": selection, style: "width:200px" }, h(ui.Tile, { media: null, label: "harbor", "aria-label": `Open image harbor ${selection}`, selection, selectLabel: "Select harbor", onClick: () => {} }));
+    const measured = await inChromium(h("div", {}, [tile("available"), tile("active")]), { width: 1440 }, () => {
+      const hoverRules: string[] = [];
+      const resolved = (rule: CSSStyleRule): string => {
+        let parent = rule.parentRule;
+        while (parent && !(parent instanceof CSSStyleRule)) parent = parent.parentRule;
+        return parent ? rule.selectorText.replace(/&/g, `:is(${resolved(parent as CSSStyleRule)})`) : rule.selectorText;
+      };
+      const visit = (rules: CSSRuleList) => {
+        for (const rule of rules) {
+          if (rule instanceof CSSStyleRule && rule.selectorText.includes(":hover")) hoverRules.push(resolved(rule));
+          if ("cssRules" in rule && (rule as CSSGroupingRule).cssRules.length) visit((rule as CSSGroupingRule).cssRules);
+        }
+      };
+      for (const sheet of document.styleSheets) visit(sheet.cssRules);
+      const mark = (selection: string) => document.querySelector(`[data-selection="${selection}"] label`)!;
+      const unhovered = (selector: string) => selector.replace(/:hover/g, "");
+      const reaches = (label: Element, selector: string) => {
+        try {
+          return label.matches(unhovered(selector)) || [...label.querySelectorAll("*")].some((element) => element.matches(unhovered(selector)));
+        } catch {
+          return false;
+        }
+      };
+      return {
+        hoverRulesOnAvailableMark: hoverRules.filter((selector) => reaches(mark("available"), selector)),
+        availableOpacity: getComputedStyle(mark("available")).opacity,
+        activeOpacity: getComputedStyle(mark("active")).opacity,
+      };
+    });
+    expect(measured).toEqual({ hoverRulesOnAvailableMark: [], availableOpacity: "0", activeOpacity: "1" });
+  });
+});

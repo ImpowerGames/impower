@@ -424,7 +424,6 @@ export {
   type WheelPickerSize,
   type WheelSheetProps,
   type WheelSheetSize,
-  type WheelSheetWidth,
   type WheelSheetFit,
 } from "./wheel-picker/WheelPicker";
 export {
