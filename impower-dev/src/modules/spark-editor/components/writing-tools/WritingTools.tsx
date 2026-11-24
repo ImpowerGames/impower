@@ -6,7 +6,10 @@ import { useComputed } from "@preact/signals";
 import type { ComponentChildren, VNode } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { isScriptUri, type NameAtCaret } from "../../workspace/nameAtCaret";
-import { useCaretPosition } from "../../workspace/useActiveEditor";
+import {
+  useCaretPosition,
+  useScriptMode,
+} from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import { openFind, withSearch } from "../find-references-rename";
 import {
@@ -91,6 +94,7 @@ export default function WritingTools({
   const open = !!state;
   const view = state?.view ?? "menu";
   const phone = useLayout() === "phone";
+  const reading = useScriptMode() === "reading";
   const coarse = useCoarsePointer();
   const caret = useCaretPosition(filename);
 
@@ -246,7 +250,7 @@ export default function WritingTools({
             name={name}
             canEdit={canEdit}
             coarse={coarse}
-            phone={phone}
+            reading={reading}
             onView={show}
             onName={onName}
             onCommand={onCommand}

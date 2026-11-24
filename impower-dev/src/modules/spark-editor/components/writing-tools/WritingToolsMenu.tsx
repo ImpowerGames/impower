@@ -50,7 +50,7 @@ export type WritingToolsMenuProps = {
   name: NameAtCaret | null;
   canEdit: boolean;
   coarse: boolean;
-  phone: boolean;
+  reading: boolean;
   onView: (view: WritingToolsView) => void;
   onName: (action: NameAction) => void;
   onCommand: (row: CommandRow) => void;
@@ -98,7 +98,7 @@ export default function WritingToolsMenu({
   name,
   canEdit,
   coarse,
-  phone,
+  reading,
   onView,
   onName,
   onCommand,
@@ -111,9 +111,9 @@ export default function WritingToolsMenu({
             icon={<PencilIcon />}
             label={`Rename ${name.name}`}
             description={
-              canEdit || !phone
-                ? "Rename all uses and linked assets."
-                : "Tap Edit to rename."
+              reading
+                ? "Tap Edit to rename."
+                : "Rename all uses and linked assets."
             }
             disabled={!canEdit}
             onClick={() => onName("rename")}
