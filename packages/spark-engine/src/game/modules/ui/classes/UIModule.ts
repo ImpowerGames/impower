@@ -389,7 +389,7 @@ type SlotMap = Map<
 interface ScreenFrame {
   element: Element;
   scope: ReactiveScope;
-  slot?: SlotRegion;
+  hosts: WeakSet<SlotRegion>;
 }
 
 interface ReactiveScope {
@@ -1766,6 +1766,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     visit(layout?.children);
+    const screen = layout?.screen
+      ? this._game.program?.sparkle?.screens?.[layout.screen]
+      : undefined;
+    if (screen?.children?.length) {
+      classes.add(this.screenRootName(screen));
+      visit(screen.children);
+    }
     const byFamily = new Map<string, string[]>();
     for (const fontName of fontNames) {
       const family = fonts[fontName]?.font_family;
@@ -2435,7 +2442,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _mountedLayouts: Map<
     string,
-    { element: Element; scope: ReactiveScope; screen?: string }
+    {
+      element: Element;
+      scope: ReactiveScope;
+      screen?: string;
+      slot?: SlotRegion;
+    }
   > = new Map();
 
   protected _mountedScreens: Map<string, ScreenFrame> = new Map();
@@ -2494,7 +2506,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
     });
     const scope = this.makeScope({});
-    const frame: ScreenFrame = { element, scope };
+    const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
     scope.slots = new Map([
       [
         "",
@@ -2502,7 +2514,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           children: [],
           scope,
           host: (region) => {
-            frame.slot ??= region;
+            frame.hosts.add(region);
           },
         },
       ],
@@ -2549,11 +2561,73 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  protected screenSlot(frame: ScreenFrame): SlotRegion | undefined {
+    const find = (scope: ReactiveScope): SlotRegion | undefined => {
+      for (const region of scope.regions) {
+        let found: SlotRegion | undefined;
+        if (region.kind === "slot") {
+          found = frame.hosts.has(region) ? region : undefined;
+        } else if (region.kind === "for") {
+          for (const iteration of region.iterations) {
+            found ??= find(iteration.scope);
+          }
+          if (region.elseScope) {
+            found ??= find(region.elseScope);
+          }
+        } else {
+          found = find(region.scope);
+        }
+        if (found) {
+          return found;
+        }
+      }
+      return undefined;
+    };
+    return find(frame.scope);
+  }
+
+  protected isWithin(element: Element, ancestor: Element): boolean {
+    for (let node: Element | null = element; node; node = node.parent) {
+      if (node === ancestor) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected rehostScreenLayouts(screen: string, frame: ScreenFrame): void {
+    const layouts = this._game.program?.sparkle?.layouts;
+    const slot = this.screenSlot(frame);
+    for (const [name, entry] of [...this._mountedLayouts]) {
+      if (entry.screen !== screen) {
+        continue;
+      }
+      const placed = this.isWithin(entry.element, frame.element);
+      if (placed && entry.slot === slot) {
+        continue;
+      }
+      if (placed) {
+        this.destroyElement(entry.element);
+      }
+      if (entry.slot) {
+        entry.slot.content = entry.slot.content.filter(
+          (it) => !("el" in it && it.el === entry.element),
+        );
+      }
+      const layout = layouts?.[name];
+      if (layout) {
+        this.hideUnwrittenTargets(this.constructLayoutFromAst(layout));
+      } else {
+        this._mountedLayouts.delete(name);
+      }
+    }
+  }
+
   protected constructLayoutFromAst(layout: LayoutNode): Element {
     const frame = layout.screen
       ? this.mountScreenFrame(layout.screen)
       : undefined;
-    const slot = frame?.slot;
+    const slot = frame ? this.screenSlot(frame) : undefined;
     const parent =
       slot?.parent ?? frame?.element ?? this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(
@@ -2578,6 +2652,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       element: uiEl,
       scope,
       ...(layout.screen ? { screen: layout.screen } : {}),
+      ...(slot ? { slot } : {}),
     });
     this.mountChildren(uiEl, layout.children, scope, null);
     if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
@@ -3705,8 +3780,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const changes = this._game.story.variablesState.takeReactiveChanges();
     this._refreshing = true;
     try {
-      for (const { scope } of this._mountedScreens.values()) {
-        this.refreshScope(scope, changes);
+      for (const [screen, frame] of this._mountedScreens) {
+        this.refreshScope(frame.scope, changes);
+        this.rehostScreenLayouts(screen, frame);
       }
       for (const { scope } of this._mountedLayouts.values()) {
         this.refreshScope(scope, changes);
@@ -4277,8 +4353,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       frame && !this.screenHeld(entry.screen!, name) ? frame : undefined;
     if (leaving) {
       this._mountedScreens.delete(entry.screen!);
-    } else if (frame?.slot) {
-      frame.slot.content = frame.slot.content.filter(
+    } else if (entry.slot) {
+      entry.slot.content = entry.slot.content.filter(
         (it) => !("el" in it && it.el === entry.element),
       );
     }
@@ -4304,6 +4380,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.destroyElement(element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
+    if (frame && !leaving) {
+      this.releaseIdleScreen(entry.screen!);
+    }
   }
 
   protected retire(r: Retirement): void {

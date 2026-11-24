@@ -113,3 +113,23 @@ end
     });
   });
 });
+
+describe("a screen's elements are layers a directive can name", () => {
+  test("hiding an element that only a screen's body holds is not reported missing", () => {
+    const { diagnostics } = compile(`screen menu {
+  weather_overlay
+  slot
+}
+
+layout home in menu {
+  home_page
+}
+
+scene start
+  [[navigate menu to home]] One.
+  [[hide weather_overlay]] Two.
+end
+`);
+    expect(diagnostics).toEqual([]);
+  });
+});

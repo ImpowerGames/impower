@@ -69,3 +69,38 @@ describe("hover on screen", () => {
     expect(hover?.value).toContain("`slot`");
   });
 });
+
+describe("write targets in a screen's body", () => {
+  test("an element a screen's body holds is offered as a write target", () => {
+    const project = `screen menu {
+  caption { text }
+  slot
+}
+
+layout home in menu {
+  home_page
+}
+
+scene start
+end
+`;
+    const labels = labelsAt(`${project}\nscene other\n  @ca@0: Hello.\nend\n`, {
+      program: compileProject(project),
+    });
+    expect(labels).toContain("caption");
+  });
+
+  test("an element a layout holds is offered as a write target", () => {
+    const project = `layout home {
+  caption { text }
+}
+
+scene start
+end
+`;
+    const labels = labelsAt(`${project}\nscene other\n  @ca@0: Hello.\nend\n`, {
+      program: compileProject(project),
+    });
+    expect(labels).toContain("caption");
+  });
+}, 120000);

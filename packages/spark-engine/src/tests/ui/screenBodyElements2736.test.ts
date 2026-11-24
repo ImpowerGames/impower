@@ -163,3 +163,130 @@ describe("a screen's own elements stay while any of its layouts is open", () => 
     expect(only(restored, "title_page").parent?.name).toBe("title");
   });
 });
+
+const ui = (h: Harness): any => h.game.module.ui;
+
+async function bare(source: string, assets?: any[]) {
+  const h = createHarness(source, 0, {
+    reactive: true,
+    autoOpenAll: false,
+    ...(assets ? { assets } : {}),
+  });
+  await h.ready;
+  return h;
+}
+
+describe("a screen's elements follow its layouts through every route", () => {
+  test("a slot that moves to another branch takes the open layout with it", async () => {
+    const h = await bare(`store left = true
+screen menu {
+  if left then
+    left_panel { slot }
+  else
+    right_panel { slot }
+  end
+}
+
+layout home in menu {
+  home_page { text "Home" }
+}
+
+layout options in menu {
+  options_page { text "Options" }
+}
+`);
+    await ui(h).openLayout("home", undefined, true);
+    expect(only(h, "home_page").parent?.parent?.name).toBe("left_panel");
+
+    (h.game.story as any).variablesState.$("left", false);
+    ui(h).refreshLayouts();
+    expect(findAll(h, "left_panel")).toEqual([]);
+    expect(only(h, "home").parent?.name).toBe("right_panel");
+    expect(only(h, "home_page").parent?.name).toBe("home");
+
+    await ui(h).navigateScreen("options", "menu", undefined, true);
+    expect(findAll(h, "home")).toEqual([]);
+    expect(only(h, "options").parent?.name).toBe("right_panel");
+  });
+
+  test("a slot whose branch leaves puts the open layout after the screen's elements", async () => {
+    const h = await bare(`store framed = true
+screen menu {
+  banner { text "Banner" }
+  if framed then
+    frame { slot }
+  end
+}
+
+layout home in menu {
+  home_page { text "Home" }
+}
+`);
+    await ui(h).openLayout("home", undefined, true);
+    expect(only(h, "home").parent?.name).toBe("frame");
+
+    (h.game.story as any).variablesState.$("framed", false);
+    ui(h).refreshLayouts();
+    expect(findAll(h, "frame")).toEqual([]);
+    expect(childNames(only(h, "menu"))).toEqual(["banner", "home"]);
+  });
+
+  test("closing every open layout of a screen together with an animation removes its elements", async () => {
+    const h = await bare(`screen menu {
+  shared_heading { text "My Game" }
+  slot
+}
+
+layout home in menu { home_page }
+layout options in menu { options_page }
+layout elsewhere { other_page }
+`);
+    await ui(h).openLayout("home", undefined, true);
+    await ui(h).openLayout("options", undefined, true);
+    only(h, "shared_heading");
+
+    await ui(h).navigateScreen(
+      "elsewhere",
+      undefined,
+      { with: "fade", over: 0.1 },
+      false,
+    );
+    await flushMicrotasks();
+    expect(findAll(h, "home")).toEqual([]);
+    expect(findAll(h, "options")).toEqual([]);
+    only(h, "other_page");
+    expect(findAll(h, "shared_heading")).toEqual([]);
+    expect(ui(h)._mountedScreens.size).toBe(0);
+  });
+
+  test("opening a screen's layout loads a font only the screen's elements use", async () => {
+    const h = await bare(
+      `screen menu {
+  shared_heading { text "My Game" #font_family="Fancy" }
+  slot
+}
+
+layout home in menu {
+  home_page { text "Home" }
+}
+`,
+      [
+        {
+          uri: "inmemory:///Fancy.ttf",
+          type: "font",
+          name: "Fancy",
+          ext: "ttf",
+          src: "/file:/proj/Fancy.ttf?v=1",
+        },
+      ],
+    );
+    h.reset();
+    await ui(h).openLayout("home", undefined, true);
+    await flushMicrotasks();
+    const fonts = h
+      .snapshotFiltered("assets/load")
+      .flatMap((m: any) => m.params.items)
+      .filter((item: any) => item.kind === "font");
+    expect(fonts).toContainEqual(expect.objectContaining({ family: "Fancy" }));
+  });
+});

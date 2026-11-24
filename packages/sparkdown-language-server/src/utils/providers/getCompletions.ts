@@ -745,9 +745,11 @@ const addScreenElementReferenceCompletions = (
   insertTextSuffix = "",
 ) => {
   for (const contentType of contentTypes) {
-    const structs = program?.context?.["layout"];
-    if (structs) {
-      for (const v of Object.values(structs)) {
+    for (const structs of [
+      program?.context?.["layout"],
+      program?.context?.["screen"],
+    ]) {
+      for (const v of Object.values(structs ?? {})) {
         traverse(v, (fieldPath) => {
           if (fieldPath.endsWith(`.${contentType}`)) {
             const layer = fieldPath.split(".").at(-2);
