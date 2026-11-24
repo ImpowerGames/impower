@@ -70,26 +70,25 @@ const FILL_PANEL = "flex-1 basis-0";
 
 export const splitPaneSeparatorVariants = cva(
   "relative z-10 shrink-0 self-stretch select-none touch-none " +
-    "before:content-[''] before:absolute before:pointer-events-none " +
-    "after:content-[''] after:absolute after:pointer-events-none after:bg-primary " +
+    "before:content-[''] before:absolute " +
+    "after:content-[''] after:absolute after:pointer-events-none " +
     "after:opacity-0 motion-safe:after:transition-opacity motion-safe:after:duration-150 motion-safe:after:ease-in-out " +
     "hover:after:opacity-100 focus-visible:after:opacity-100 " +
     "data-[separator=active]:after:opacity-100",
   {
     variants: {
       orientation: {
-        horizontal:
-          "w-2 cursor-col-resize " +
-          "before:inset-y-0 before:left-[3px] before:w-px " +
-          "after:inset-y-0 after:left-[2px] after:w-1",
-        vertical:
-          "h-2 cursor-row-resize " +
-          "before:inset-x-0 before:top-[3px] before:h-px " +
-          "after:inset-x-0 after:top-[2px] after:h-1",
+        horizontal: "cursor-col-resize",
+        vertical: "cursor-row-resize",
       },
       line: {
-        edge: "before:bg-edge",
-        none: "before:bg-transparent",
+        edge: "before:pointer-events-none before:bg-edge after:bg-accent",
+        none: "before:pointer-events-none before:bg-transparent after:bg-accent",
+        grip:
+          "before:bg-transparent after:rounded-[2px] after:bg-muted " +
+          "hover:after:bg-accent focus-visible:after:bg-accent data-[separator=active]:after:bg-accent " +
+          "focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-1 " +
+          "focus-visible:after:outline-accent focus-visible:after:outline-offset-2",
       },
       reverse: {
         false: "",
@@ -97,6 +96,36 @@ export const splitPaneSeparatorVariants = cva(
       },
     },
     compoundVariants: [
+      {
+        line: ["edge", "none"],
+        orientation: "horizontal",
+        class:
+          "w-2 before:inset-y-0 before:left-[3px] before:w-px " +
+          "after:inset-y-0 after:left-[3px] after:w-px",
+      },
+      {
+        line: ["edge", "none"],
+        orientation: "vertical",
+        class:
+          "h-2 before:inset-x-0 before:top-[3px] before:h-px " +
+          "after:inset-x-0 after:top-[3px] after:h-px",
+      },
+      {
+        line: "grip",
+        orientation: "horizontal",
+        class:
+          "w-3 -mx-1.5 " +
+          "before:top-[calc(50%-24px)] before:left-[calc(50%-22px)] before:h-12 before:w-11 " +
+          "after:top-[calc(50%-16px)] after:left-[calc(50%+4px)] after:h-8 after:w-[3px]",
+      },
+      {
+        line: "grip",
+        orientation: "vertical",
+        class:
+          "h-3 -my-1.5 " +
+          "before:left-[calc(50%-24px)] before:top-[calc(50%-22px)] before:w-12 before:h-11 " +
+          "after:left-[calc(50%-16px)] after:top-[calc(50%+4px)] after:w-8 after:h-[3px]",
+      },
       {
         line: "edge",
         orientation: "horizontal",
@@ -154,6 +183,7 @@ export default function SplitPane({
   const startHidden = collapsed && activePanel === "end";
   const endHidden = collapsed && activePanel === "start";
   const horizontal = orientation === "horizontal";
+  const divider = line === "grip" ? 0 : DIVIDER_PX;
 
   const [size, setSize] = useState(defaultSizes[0]);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -181,14 +211,14 @@ export default function SplitPane({
     const measure = () => {
       const extent = horizontal ? el.clientWidth : el.clientHeight;
       setTrack(
-        extent > 0 ? extent - DIVIDER_PX : Number.POSITIVE_INFINITY,
+        extent > 0 ? extent - divider : Number.POSITIVE_INFINITY,
       );
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [tracksPinned, horizontal]);
+  }, [tracksPinned, horizontal, divider]);
 
   const limits: CollapsibleLimits | null = pinned
     ? {
@@ -213,7 +243,7 @@ export default function SplitPane({
     const c = containerRef.current;
     if (!c) return 0;
     const r = c.getBoundingClientRect();
-    return (horizontal ? r.width : r.height) - DIVIDER_PX;
+    return (horizontal ? r.width : r.height) - divider;
   };
 
   const pointerPos = (e: PointerEvent) => (horizontal ? e.clientX : e.clientY);
@@ -247,10 +277,10 @@ export default function SplitPane({
     const c = containerRef.current;
     if (!c) return;
     const r = c.getBoundingClientRect();
-    const track = (horizontal ? r.width : r.height) - DIVIDER_PX;
+    const track = (horizontal ? r.width : r.height) - divider;
     if (track <= 0) return;
     const pos =
-      (horizontal ? e.clientX - r.left : e.clientY - r.top) - DIVIDER_PX / 2;
+      (horizontal ? e.clientX - r.left : e.clientY - r.top) - divider / 2;
     const startPx = Math.max(
       minToPx(minStart, track),
       Math.min(track - minToPx(minEnd, track), pos),

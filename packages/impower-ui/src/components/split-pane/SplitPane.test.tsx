@@ -396,3 +396,73 @@ describe("SplitPane with a pinned panel", () => {
     expect(onSizeChange).toHaveBeenLastCalledWith(266);
   });
 });
+
+const declaration = async (
+  classes: string[],
+  className: string,
+  expected: string,
+) => {
+  expect(classes).toContain(className);
+  expect(await packageCss([className])).toContain(expected);
+};
+
+describe("SplitPane highlights", () => {
+  it("lights the 1px line itself in the accent colour, at the rest line's place", async () => {
+    for (const orientation of ["horizontal", "vertical"] as const) {
+      for (const line of ["edge", "none"] as const) {
+        const classes = Array.from(
+          (await mount({ orientation, line })).separator.classList,
+        );
+        const horizontal = orientation === "horizontal";
+        await declaration(classes, horizontal ? "after:left-[3px]" : "after:top-[3px]", horizontal ? "left: 3px;" : "top: 3px;");
+        await declaration(classes, horizontal ? "after:w-px" : "after:h-px", horizontal ? "width: 1px;" : "height: 1px;");
+        await declaration(classes, "after:bg-accent", "background-color: var(--accent);");
+        expect(classes).toContain(horizontal ? "w-2" : "h-2");
+        for (const thick of ["after:w-1", "after:h-1", "after:bg-primary"]) {
+          expect(classes).not.toContain(thick);
+        }
+      }
+    }
+  });
+
+  it("draws the grip as a zero-height overlay with a 32 by 3 pill, muted at rest and accent when hovered, focused or dragged", async () => {
+    const classes = Array.from(
+      (await mount({ orientation: "vertical", line: "grip" })).separator.classList,
+    );
+    await declaration(classes, "h-3", "height: calc(var(--spacing) * 3);");
+    await declaration(classes, "-my-1.5", "margin-block: calc(var(--spacing) * -1.5);");
+    await declaration(classes, "after:w-8", "width: calc(var(--spacing) * 8);");
+    await declaration(classes, "after:h-[3px]", "height: 3px;");
+    await declaration(classes, "after:left-[calc(50%-16px)]", "left: calc(50% - 16px);");
+    await declaration(classes, "after:top-[calc(50%+4px)]", "top: calc(50% + 4px);");
+    await declaration(classes, "after:rounded-[2px]", "border-radius: 2px;");
+    await declaration(classes, "after:bg-muted", "background-color: var(--muted);");
+    await declaration(classes, "before:w-12", "width: calc(var(--spacing) * 12);");
+    await declaration(classes, "before:h-11", "height: calc(var(--spacing) * 11);");
+    for (const kept of [
+      "after:opacity-0",
+      "hover:after:bg-accent",
+      "focus-visible:after:bg-accent",
+      "data-[separator=active]:after:bg-accent",
+      "hover:after:opacity-100",
+      "focus-visible:after:opacity-100",
+      "data-[separator=active]:after:opacity-100",
+    ]) {
+      expect(classes).toContain(kept);
+    }
+    for (const absent of ["h-2", "after:h-px", "before:pointer-events-none"]) {
+      expect(classes).not.toContain(absent);
+    }
+    expect(classes.some((c) => c.startsWith("bg-["))).toBe(false);
+  });
+
+  it("gives a pinned grip pane the whole height, with no divider row taken out", async () => {
+    const { separator, onSizeChange } = await mountPinned(
+      { size: 2000 },
+      { line: "grip" },
+    );
+    expect(pinnedPx(separator)).toBe(HEIGHT - 160);
+    await key(separator, "End");
+    expect(onSizeChange).toHaveBeenLastCalledWith(HEIGHT - 160);
+  });
+});
