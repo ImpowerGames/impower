@@ -1,6 +1,7 @@
 export interface PictureFileTraits {
   animated: boolean;
   profile: boolean;
+  unread?: true;
 }
 
 export type Inflate = (data: Uint8Array) => Promise<Uint8Array | undefined>;
@@ -14,59 +15,67 @@ const u32be = (bytes: Uint8Array, at: number) =>
 const u32le = (bytes: Uint8Array, at: number) =>
   at + 4 <= bytes.length ? (bytes[at]! | (bytes[at + 1]! << 8) | (bytes[at + 2]! << 16) | (bytes[at + 3]! << 24)) >>> 0 : 0;
 
-const SRGB_NAME = /srgb|61966-2/i;
+const SRGB_PRIMARIES_D50: Record<string, readonly [number, number, number]> = {
+  rXYZ: [0.4361, 0.2225, 0.0139],
+  gXYZ: [0.3851, 0.7169, 0.0971],
+  bXYZ: [0.1431, 0.0606, 0.7141],
+};
 
-export function iccDescription(profile: Uint8Array): string | undefined {
+const SRGB_CHROMATICITIES = [0.3127, 0.329, 0.64, 0.33, 0.3, 0.6, 0.15, 0.06];
+
+const PRIMARY_TOLERANCE = 0.01;
+
+const s15Fixed16 = (bytes: Uint8Array, at: number) => (u32be(bytes, at) | 0) / 65536;
+
+function iccXYZ(profile: Uint8Array, signature: string): [number, number, number] | undefined {
   const count = u32be(profile, 128);
   for (let i = 0; i < count && 132 + i * 12 + 12 <= profile.length; i++) {
     const entry = 132 + i * 12;
-    if (ascii(profile, entry, 4) !== "desc") continue;
+    if (ascii(profile, entry, 4) !== signature) continue;
     const at = u32be(profile, entry + 4);
-    const type = ascii(profile, at, 4);
-    if (type === "desc") {
-      const length = u32be(profile, at + 8);
-      return ascii(profile, at + 12, Math.max(0, length - 1));
-    }
-    if (type === "mluc") {
-      const records = u32be(profile, at + 8);
-      if (records === 0) return undefined;
-      const length = u32be(profile, at + 20);
-      const offset = u32be(profile, at + 24);
-      let text = "";
-      for (let k = 0; k + 1 < length && at + offset + k + 1 < profile.length; k += 2) {
-        text += String.fromCharCode((profile[at + offset + k]! << 8) | profile[at + offset + k + 1]!);
-      }
-      return text;
-    }
-    return undefined;
+    if (ascii(profile, at, 4) !== "XYZ " || at + 20 > profile.length) return undefined;
+    return [s15Fixed16(profile, at + 8), s15Fixed16(profile, at + 12), s15Fixed16(profile, at + 16)];
   }
   return undefined;
 }
 
-const isOtherProfile = (profile: Uint8Array | undefined): boolean => {
-  if (!profile) return false;
-  const description = iccDescription(profile);
-  return description !== undefined && !SRGB_NAME.test(description);
-};
+export function iccWiderThanSRGB(profile: Uint8Array): boolean {
+  const space = ascii(profile, 16, 4);
+  if (space === "GRAY") return false;
+  if (space !== "RGB ") return true;
+  return Object.entries(SRGB_PRIMARIES_D50).some(([signature, expected]) => {
+    const primary = iccXYZ(profile, signature);
+    return !primary || primary.some((value, k) => Math.abs(value - expected[k]!) > PRIMARY_TOLERANCE);
+  });
+}
+
+const chromaticitiesWiderThanSRGB = (data: Uint8Array) =>
+  data.length < 32 || SRGB_CHROMATICITIES.some((expected, k) => Math.abs(u32be(data, k * 4) / 100000 - expected) > PRIMARY_TOLERANCE);
 
 async function pngTraits(bytes: Uint8Array, inflate: Inflate | undefined): Promise<PictureFileTraits> {
-  const traits: PictureFileTraits = { animated: false, profile: false };
+  let animated = false;
   let srgb = false;
+  let icc: Uint8Array | undefined | null = null;
+  let chromaticities: Uint8Array | undefined;
   let at = 8;
   while (at + 8 <= bytes.length) {
     const length = u32be(bytes, at);
     const type = ascii(bytes, at + 4, 4);
     const data = bytes.subarray(at + 8, at + 8 + length);
-    if (type === "acTL") traits.animated = true;
+    if (type === "acTL") animated = true;
     if (type === "sRGB") srgb = true;
-    if (type === "iCCP" && inflate) {
+    if (type === "cHRM") chromaticities = data;
+    if (type === "iCCP") {
       const nul = data.indexOf(0);
-      if (nul >= 0) traits.profile = isOtherProfile(await inflate(data.subarray(nul + 2)));
+      icc = nul >= 0 && inflate ? await inflate(data.subarray(nul + 2)) : undefined;
     }
     if (type === "IDAT" || type === "IEND") break;
     at += 12 + length;
   }
-  return srgb ? { ...traits, profile: false } : traits;
+  if (srgb) return { animated, profile: false };
+  if (icc === undefined) return { animated, profile: false, unread: true };
+  if (icc) return { animated, profile: iccWiderThanSRGB(icc) };
+  return { animated, profile: chromaticities ? chromaticitiesWiderThanSRGB(chromaticities) : false };
 }
 
 function gifTraits(bytes: Uint8Array): PictureFileTraits {
@@ -110,7 +119,7 @@ function webpTraits(bytes: Uint8Array): PictureFileTraits {
     const data = bytes.subarray(at + 8, at + 8 + size);
     if (type === "VP8X" && ((data[0] ?? 0) & 0x02)) traits.animated = true;
     if (type === "ANIM" || type === "ANMF") traits.animated = true;
-    if (type === "ICCP") traits.profile = isOtherProfile(data);
+    if (type === "ICCP") traits.profile = iccWiderThanSRGB(data);
     at += 8 + size + (size & 1);
   }
   return traits;
@@ -135,7 +144,7 @@ function jpegTraits(bytes: Uint8Array): PictureFileTraits {
     profile.set(chunk, offset);
     offset += chunk.length;
   }
-  return { animated: false, profile: isOtherProfile(profile) };
+  return { animated: false, profile: iccWiderThanSRGB(profile) };
 }
 
 export async function pictureFileTraits(bytes: Uint8Array, inflate?: Inflate): Promise<PictureFileTraits> {

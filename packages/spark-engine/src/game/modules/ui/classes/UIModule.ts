@@ -1946,7 +1946,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       params.reason === "animated"
         ? "is animated, so its layers cannot be drawn together faithfully"
         : params.reason === "profile"
-          ? "carries a colour profile other than sRGB, so its layers cannot be drawn together faithfully"
+          ? "carries a colour profile wider than sRGB, so its layers cannot be drawn together faithfully"
           : "could not be read to check that it is a still sRGB image";
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }

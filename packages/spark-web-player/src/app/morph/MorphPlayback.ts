@@ -71,7 +71,7 @@ interface CanvasView {
   last?: string;
 }
 
-const browserPictureLoader: PictureLoader = async (src, doc) => {
+export const browserPictureLoader: PictureLoader = async (src, doc) => {
   const view = doc.defaultView as (Window & typeof globalThis) | null;
   const Img = view?.Image;
   if (!view || !Img) return undefined;

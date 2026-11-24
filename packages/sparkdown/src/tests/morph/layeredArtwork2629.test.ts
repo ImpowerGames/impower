@@ -119,4 +119,16 @@ describe("the bake reads a picture made of image files as a stack of <image> lay
     const outer = { $type: "layered_image", $name: "outer", assets: { base: { $name: "base" }, inner: { $type: "layered_image", $name: "kit" } } };
     expect(layeredMorphArtwork(context({ outer, kit: FOUR }) as never, outer)).toBeUndefined();
   });
+
+  test("the artwork follows a file's source, a replaced file and replaced assets changed in place", () => {
+    const ctx = context({ kit: { ...FOUR, assets: { ...FOUR.assets } } }) as any;
+    const kit = ctx.layered_image.kit;
+    expect(layeredMorphArtwork(ctx, kit)!.files.map((file) => file.src)).toEqual(["/base.png", "/closed.png", "/open.png", "/lids.png"]);
+    ctx.image.lids.src = "/lids-2.png";
+    expect(layeredMorphArtwork(ctx, kit)!.files.at(-1)!.src).toBe("/lids-2.png");
+    ctx.image.lids = { ...ctx.image.lids, src: "/lids-3.png" };
+    expect(layeredMorphArtwork(ctx, kit)!.files.at(-1)!.src).toBe("/lids-3.png");
+    kit.assets = { base: { $name: "base" }, "lids.on": { $name: "lids" } };
+    expect(layeredMorphArtwork(ctx, kit)!.files.map((file) => file.name)).toEqual(["base", "lids.on"]);
+  });
 });
