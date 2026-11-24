@@ -126,6 +126,7 @@ const STYLE_KEYS = [
   "background-origin",
   "background-clip",
   "background-blend-mode",
+  "background-color",
   "background-attachment",
   "image-rendering",
 ];
@@ -859,22 +860,7 @@ export class MorphLayer {
 
   protected styled?: string;
 
-  protected isolation?: { value: string; priority: string };
-
-  protected isolate(computed: CSSStyleDeclaration | undefined) {
-    const blending =
-      !!this.shadowHost &&
-      (computed?.getPropertyValue("background-blend-mode") ?? "").split(",").some((mode) => mode.trim() !== "" && mode.trim() !== "normal");
-    if (blending && !this.isolation) {
-      this.isolation = { value: this.span.style.getPropertyValue("isolation"), priority: this.span.style.getPropertyPriority("isolation") };
-      this.span.style.setProperty("isolation", "isolate");
-    } else if (!blending && this.isolation) {
-      const { value, priority } = this.isolation;
-      this.isolation = undefined;
-      if (value) this.span.style.setProperty("isolation", value, priority);
-      else this.span.style.removeProperty("isolation");
-    }
-  }
+  protected backdrop?: HTMLElement;
 
   protected styleKey(): string {
     const view = this.span.ownerDocument.defaultView;
@@ -1499,7 +1485,7 @@ export class MorphLayer {
     this.shadowHost.remove();
     this.shadowHost = undefined;
     this.statics = [];
-    this.isolate(undefined);
+    this.backdrop = undefined;
     this.span.style.setProperty("background-image", this.layers.map((layer, index) => (this.loadingStill(index) ? "none" : layer)).reverse().join(", "));
   }
 
@@ -1746,7 +1732,6 @@ export class MorphLayer {
         return;
       }
     }
-    this.isolate(computed);
     const content = this.layerBoxes(computed).content;
     const padding = this.layerBoxes(computed).padding;
     const inner = this.cornerRadii(computed, this.layerBoxes(computed), padding);
@@ -1758,6 +1743,7 @@ export class MorphLayer {
       const style = `position:absolute;${frame};background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
+    this.isolateBackground(computed, frame);
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
     const rendering = computed?.getPropertyValue("image-rendering") ?? "";
@@ -1788,6 +1774,27 @@ export class MorphLayer {
       if (state.view) place(state.view, state.layer);
     }
     for (const { inner, layer } of this.alone) if (inner.view) place(inner.view, layer);
+  }
+
+  protected isolateBackground(computed: CSSStyleDeclaration | undefined, frame: string) {
+    const host = this.shadowHost!;
+    const blending = (computed?.getPropertyValue("background-blend-mode") ?? "")
+      .split(",")
+      .some((mode) => mode.trim() !== "" && mode.trim() !== "normal");
+    const hostStyle = blending ? `${HOST_STYLE};isolation:isolate` : HOST_STYLE;
+    if (host.getAttribute("style") !== hostStyle) host.setAttribute("style", hostStyle);
+    if (!blending) {
+      this.backdrop?.remove();
+      this.backdrop = undefined;
+      return;
+    }
+    const backdrop = (this.backdrop ??= this.span.ownerDocument.createElement("div"));
+    const clip = layerValue(computed?.getPropertyValue("background-clip") ?? "", this.layers.length - 1);
+    const color = computed?.getPropertyValue("background-color") || "transparent";
+    const style = `position:absolute;${frame};background-color:${color}${clip ? `;background-clip:${clip}` : ""}`;
+    if (backdrop.getAttribute("style") !== style) backdrop.setAttribute("style", style);
+    const root = host.shadowRoot!;
+    if (root.firstChild !== backdrop) root.insertBefore(backdrop, root.firstChild);
   }
 
   render() {

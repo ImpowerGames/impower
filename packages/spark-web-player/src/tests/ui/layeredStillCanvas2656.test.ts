@@ -338,21 +338,29 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(canvas.clips[0]).toEqual({ kind: "round", x: 0, y: 0, width: 100, height: 100, radii: Array(4).fill({ x: 40, y: 40 }) });
   });
 
-  test("a picture whose layers blend is isolated from what lies behind the element, as CSS isolates its backgrounds, until it stops blending", () => {
+  test("a picture whose layers blend is drawn as one isolated group over the element's background colour, as CSS blends its backgrounds, until it stops blending", () => {
     const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("isolation", "auto");
+    span.style.setProperty("background-color", "rgb(255, 255, 0)");
+    span.style.setProperty("background-clip", "padding-box");
     span.style.setProperty("background-blend-mode", "multiply, normal");
     mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
     expect(canvasOf(span)).not.toBeNull();
-    expect(span.style.getPropertyValue("isolation")).toBe("isolate");
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(host.style.getPropertyValue("isolation")).toBe("isolate");
+    const backdrop = shadowOf(span)!.firstElementChild as HTMLElement;
+    expect(backdrop.tagName).toBe("DIV");
+    expect(backdrop.style.getPropertyValue("background-color")).toBe("rgb(255, 255, 0)");
+    expect(backdrop.style.getPropertyValue("background-clip")).toBe("padding-box");
+    expect(span.style.getPropertyValue("isolation")).toBe("auto");
+    span.style.setProperty("background-color", "rgb(0, 128, 0)");
+    flushFrame();
+    expect(shadowOf(span)!.firstElementChild).toBe(backdrop);
+    expect(backdrop.style.getPropertyValue("background-color")).toBe("rgb(0, 128, 0)");
     span.style.setProperty("background-blend-mode", "normal");
     flushFrame();
-    expect(span.style.getPropertyValue("isolation")).toBe("");
-  });
-
-  test("a picture whose layers do not blend leaves the element's isolation alone", () => {
-    const { span, mount } = setup({ resident: (src) => bitmap(src) });
-    span.style.setProperty("isolation", "auto");
-    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(host.style.getPropertyValue("isolation")).toBe("");
+    expect(backdrop.isConnected).toBe(false);
     expect(canvasOf(span)).not.toBeNull();
     expect(span.style.getPropertyValue("isolation")).toBe("auto");
   });
