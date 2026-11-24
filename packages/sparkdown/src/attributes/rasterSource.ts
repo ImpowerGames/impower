@@ -144,18 +144,13 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
     list.push({ file, layer, filename });
     portraits.set(layer.directory, list);
   }
-  const owners = new Map<string, { portrait: string; folder?: string }>();
-  for (const [directory, entries] of portraits) {
-    const portrait = entries[0]!.layer.folder;
-    owners.set(directory, { portrait });
-    for (const { layer } of entries) {
-      for (let depth = 1; depth <= layer.folders.length; depth++) {
-        owners.set(`${directory}/${folderKeyOf(layer, depth)}`, {
-          portrait, folder: layer.folders[depth - 1]!.segment.replaceAll("%20", " "),
-        });
-      }
-    }
-  }
+  const ownerOf = (directory: string): { portrait: string; folder?: string } | undefined => {
+    const { parts, index, folders } = placeOf(`${directory}/`);
+    const entries = portraits.get(parts.slice(0, index + 1).join("/"));
+    if (!entries) return undefined;
+    const folder = folders.at(-1)?.segment.replaceAll("%20", " ");
+    return { portrait: entries[0]!.layer.folder, ...(folder === undefined ? {} : { folder }) };
+  };
   const images: Record<string, any> = Object.create(null);
   const layeredImages: Record<string, any> = Object.create(null);
   const origins: Record<string, string> = Object.create(null);
@@ -164,7 +159,7 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
   for (const [directory, entries] of [...portraits].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
     entries.sort(byStacking);
     const portrait = entries[0]!.layer.folder;
-    const enclosing = owners.get(directory.slice(0, directory.lastIndexOf("/")));
+    const enclosing = ownerOf(directory.slice(0, directory.lastIndexOf("/")));
     if (enclosing) {
       const around = enclosing.folder === undefined
         ? `portrait folder "${enclosing.portrait}"`
@@ -220,7 +215,7 @@ export const createRasterImageDefinitions = (files: readonly File[]) => {
     const path = pathOfFile(file);
     if (path === undefined || rasterLayerOfPath(path)) continue;
     const slash = path.lastIndexOf("/");
-    const owner = owners.get(path.slice(0, slash));
+    const owner = ownerOf(path.slice(0, slash));
     if (!owner) continue;
     const filename = path.slice(slash + 1);
     const where = owner.folder === undefined ? "" : ' in folder "' + owner.folder + '"';

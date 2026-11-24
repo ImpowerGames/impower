@@ -151,9 +151,19 @@ describe("layer folders inside a portrait folder (#2633)", () => {
   });
 
   it("names a folder and its portrait when a file in a layer folder has no number", () => {
-    const program = compile(["mia/90 body.png", "mia/60 face.happy/10 mouth.png", "mia/60 face.happy/blush.png"]);
+    const program = compile(["mia/90 body.png", "mia/60 face.happy/blush.png", "mia/60 face.sad/40 eyes/lids.png"]);
     expect(messagesOn(program, "mia/60 face.happy/blush.png")).toEqual([
       expect.stringMatching(/"blush\.png".*"60 face\.happy".*"mia".*"NN blush\.png"/),
+    ]);
+    expect(messagesOn(program, "mia/60 face.sad/40 eyes/lids.png")).toEqual([
+      expect.stringMatching(/"lids\.png".*"40 eyes".*"mia".*"NN lids\.png"/),
+    ]);
+  });
+
+  it("warns on an unnumbered subfolder inside a layer folder that holds no layer files of its own", () => {
+    const program = compile(["mia/90 body.png", "mia/60 face.happy/extras/10 scarf.png"]);
+    expect(messagesOn(program, "mia/60 face.happy/extras/10 scarf.png")).toEqual([
+      expect.stringMatching(/"extras".*"60 face\.happy".*"mia".*number and a space/),
     ]);
   });
 
