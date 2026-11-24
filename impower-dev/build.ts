@@ -8,8 +8,7 @@ import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
 import { markdownHtmlPlugin } from "./src/build/markdownHtml";
-import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
-import { withManifestColors, withThemeColor } from "./src/build/themeColor.js";
+import { withManifestColors } from "./src/build/themeColor.js";
 import {
   shouldProxyToPlayer,
   stripHopByHopHeaders,
@@ -22,7 +21,6 @@ import {
   dedupe,
   externalWorkerPaths,
   getServiceWorkerDefine,
-  editorTailwindCss,
   indir,
   MINIFY,
   outdir,
@@ -31,12 +29,10 @@ import {
   PRODUCTION,
   publicInDir,
   publicOutDir,
-  readEditorGlobalCss,
-  readThemeColors,
   readManifestColor,
+  renderBuiltPages,
   serviceWorkerPaths,
   ssrNoExternal,
-  staticallyStylePage,
   viteStaticallyRenderedPagesPlugin,
   WATCH,
 } from "./vite.config.js";
@@ -168,71 +164,15 @@ const buildPages = async () => {
 };
 
 const expandPageComponents = async () => {
-  const htmlFilePaths = await glob(`${pagesInDir}/**/*.{html}`);
-
-  console.log("");
-  console.log(STEP_COLOR, "Hoisting CSS...");
-  const documentHtml = withThemeColor(
-    await fs.promises.readFile(`${publicInDir}/document.html`, "utf-8"),
-    readThemeColors(),
-  );
-
-  let tailwindCss = "";
-  {
-    const cssServer = await createServer({
-      configFile: false,
-      root: process.cwd(),
-      resolve: { alias, dedupe },
-      plugins: [tailwindcss()],
-      server: { middlewareMode: true, hmr: false },
-      logLevel: "warn",
-    });
-    try {
-      const tw = await cssServer.transformRequest(
-        "/@fs/" + editorTailwindCss.replace(/\\/g, "/") + "?direct",
-      );
-      if (tw?.code) tailwindCss = tw.code;
-    } catch (err) {
-      console.warn(
-        "[ssg] Failed to compile impower-ui Tailwind CSS:",
-        err instanceof Error ? err.message : err,
-      );
-    } finally {
-      await cssServer.close();
-    }
-  }
-
-  const ssgCss = [readEditorGlobalCss(), tailwindCss]
-    .filter(Boolean)
-    .join("\n");
-
   console.log("");
   console.log(STEP_COLOR, "Expanding HTML...");
+  const pages = await renderBuiltPages();
   await Promise.all(
-    htmlFilePaths.map(async (entryPath) => {
-      const src = entryPath.replace("\\", "/");
-      const dest = src.replace(pagesInDir, publicOutDir);
+    pages.map(async ({ src, dest, html }) => {
       console.log(SRC_COLOR, `  ${getRelativePath(src)}`);
       console.log(OUT_COLOR, `    ⤷ ${getRelativePath(dest)}`);
-      const fileName = path.parse(src).name;
-      const basePath = path.dirname(dest);
-      const cssFilePath = `${basePath}/${fileName}.css`;
-      const jsFilePath = `${basePath}/${fileName}.js`;
-      const cssPath = fs.existsSync(cssFilePath)
-        ? cssFilePath.replace(publicOutDir, "")
-        : "";
-      const mjsPath = fs.existsSync(jsFilePath)
-        ? jsFilePath.replace(publicOutDir, "")
-        : "";
-      const html = await fs.promises.readFile(src, "utf-8").catch(() => "");
-      const renderedHtml = staticallyRenderPage(documentHtml, {
-        html,
-        cssPath,
-        mjsPath,
-      });
-      const styledHtml = staticallyStylePage(renderedHtml, ssgCss);
       await fs.promises.mkdir(path.dirname(dest), { recursive: true });
-      await fs.promises.writeFile(dest, styledHtml, "utf-8");
+      await fs.promises.writeFile(dest, html, "utf-8");
     }),
   );
 };

@@ -60,8 +60,15 @@ describe("app icons", () => {
 
   it("draws the icons as Sparky in Charcoal's accent on Charcoal's background", async () => {
     const themeCss = readFileSync(resolve(__dirname, "../../../packages/impower-ui/src/theme.css"), "utf8");
-    const charcoal = themeCss.match(/\[data-theme="charcoal"\][^{]*\{([^}]*)\}/)![1]!;
-    const token = (name: string) => charcoal.match(new RegExp(`--${name}:\\s*#([0-9a-fA-F]{6})`))![1]!.toLowerCase();
+    const charcoal = [...themeCss.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => m[1]!.split(",").some((s) => s.trim() === '[data-theme="charcoal"]'))
+      .map((m) => m[2]!);
+    const token = (name: string) =>
+      charcoal
+        .map((body) => body.match(new RegExp(`--${name}:\\s*#([0-9a-fA-F]{6})`))?.[1])
+        .filter(Boolean)
+        .at(-1)!
+        .toLowerCase();
     const { data, info } = await sharp(resolve(publicDir, "icon512_maskable.png")).raw().toBuffer({ resolveWithObject: true });
     const colours = new Set<string>();
     for (let i = 0; i < data.length; i += info.channels) {

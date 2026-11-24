@@ -264,9 +264,10 @@ export function bindVariant(
   }
   const problems: MorphVariantProblem[] = [];
   for (const [group, states] of requirements.groups) {
+    const isSwitch = !!vocabulary.groups[group]?.switch;
     for (const [, folder] of drawingFolders(vocabulary, visible, group)) {
       const options = folder.options[group]!;
-      const missing = [...states].filter((state) => !options.includes(state));
+      const missing = [...states].filter((state) => !options.includes(state) && !(isSwitch && state === "off"));
       if (missing.length > 0) {
         problems.push({
           group,

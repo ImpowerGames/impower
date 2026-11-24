@@ -106,12 +106,10 @@ describe("the Share page", () => {
     expect(grid.classList).toContain("phone:grid-cols-1");
   });
 
-  it("goes back to the story from its Back to story action", async () => {
+  it("draws no Back to story action", async () => {
     await mount();
-    const back = [...host!.querySelectorAll("button")].find((el) => el.textContent?.includes("Back to story"))!;
-    await act(async () => back.click());
-    await settle();
-    expect(calls.routes).toEqual(["story"]);
+    expect(host!.textContent).not.toContain("Back to story");
+    expect(host!.querySelector("#share-page h1, #share-page h2")).not.toBeNull();
   });
 
   it("names the screenplay settings and follows them when they change", async () => {

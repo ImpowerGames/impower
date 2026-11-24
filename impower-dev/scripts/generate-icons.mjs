@@ -9,8 +9,11 @@ const componentsDir = resolve(root, "../packages/impower-ui/src/components");
 const themeCss = readFileSync(resolve(root, "../packages/impower-ui/src/theme.css"), "utf8");
 
 const themeValue = (theme, name) => {
-  const block = themeCss.match(new RegExp(`\\[data-theme="${theme}"\\][^{]*\\{([^}]*)\\}`))?.[1];
-  const value = block?.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`))?.[1];
+  const value = [...themeCss.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+    .filter(([, selectors]) => selectors.split(",").some((s) => s.trim() === `[data-theme="${theme}"]`))
+    .map(([, , body]) => body.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`))?.[1])
+    .filter(Boolean)
+    .at(-1);
   if (!value) {
     throw new Error(`theme.css declares no hex --${name} for ${theme}`);
   }

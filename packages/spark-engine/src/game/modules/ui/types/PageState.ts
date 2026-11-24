@@ -1,15 +1,17 @@
 import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import type { TextInstruction } from "../../../core/types/Instruction";
 
-export type PageEntryKind =
-  | "action"
-  | "dialogue"
-  | "heading"
-  | "rule"
-  | "caption"
-  | "options"
-  | "chosen"
-  | "ending";
+export const PAGE_ENTRY_KINDS = [
+  "action",
+  "dialogue",
+  "heading",
+  "rule",
+  "options",
+  "chosen",
+  "ending",
+] as const;
+
+export type PageEntryKind = (typeof PAGE_ENTRY_KINDS)[number];
 
 export interface PageEntry {
   kind: PageEntryKind;
@@ -18,7 +20,6 @@ export interface PageEntry {
   name?: string;
   text?: TextInstruction[];
   shown?: number;
-  caption?: string;
   options?: TextInstruction[][];
   ending?: StoryEnding;
 }
