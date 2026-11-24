@@ -31,6 +31,21 @@ const CORRUPT_WEBP =
 
 const CUT_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAAPUlEQVRYR+3QMQ0AMAzAsJY/6A2Enx4=";
 
+const SVG_LAYER_CASES: [string, Record<string, string>, Record<string, string>][] = [
+  ["movements that cancel", { translate: "-40px 0" }, { translate: "40px 0" }],
+  ["a turn around a nested move", { rotate: "90deg", transform_origin: "50px 50px" }, { translate: "20px -10px" }],
+  ["a move inside a faded label", { opacity: "50%", translate: "10px 10px" }, { opacity: "50%", translate: "20px -10px" }],
+  ["a move past the picture's edge", { translate: "40px 0" }, { translate: "20px 0" }],
+];
+
+const SVG_LAYER_SIZES: [number, number][] = [
+  [200, 200],
+  [200, 150],
+  [100, 200],
+];
+
+const SVG_LAYER_ALLOWANCE = 0.02;
+
 const LEVELS = 8;
 const ALLOWANCE = 0.001;
 
@@ -73,6 +88,7 @@ const share = (a: Buffer, b: Buffer) => {
 type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number) => Promise<void>> & {
   load(src: string): Promise<{ accepted: boolean; painted: number }>;
   sparse(dot: number): Promise<boolean>;
+  svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number): Promise<void>;
   wholePng: string;
 };
 
@@ -151,6 +167,24 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     expect(cut!.accepted).toBe(false);
     expect(full).toMatchObject({ accepted: true, painted: 40 * 30 });
   });
+
+  test.for(SVG_LAYER_CASES)(
+    "an SVG layer drawn as its own live view matches the same layer drawn on the canvas: %s, at uniform and stretched placements",
+    async ([label, outer, inner], context) => {
+      if (!browser) return context.skip();
+      for (const [width, height] of SVG_LAYER_SIZES) {
+        await page.evaluate(
+          ({ outer, inner, width, height }) => (window as unknown as { layeredMotion: Harness }).layeredMotion.svgLayer(outer, inner, width, height),
+          { outer, inner, width, height },
+        );
+        const live = await pixels(page, "#live");
+        const drawn = await pixels(page, "#canvas");
+        const differ = share(live.data, drawn.data);
+        console.log(`${name}: SVG layer ${label} at ${width}x${height}: ${(differ * 100).toFixed(3)}%`);
+        expect(differ).toBeLessThanOrEqual(SVG_LAYER_ALLOWANCE);
+      }
+    },
+  );
 
   test("the paint probe finds a single painted pixel on a large layer, and nothing on an empty one", async (context) => {
     if (!browser) return context.skip();

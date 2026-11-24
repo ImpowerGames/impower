@@ -33,7 +33,7 @@ import type {
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
 import { IDENTITY, multiply, type Affine } from "../../../../sparkdown/src/morph/affine";
 import { computedMotionPose, type MotionBox, type MotionPose } from "./motionPose";
-import { dataUrlBytes, pictureFileComplete, pictureFileTraits, streamInflate } from "./pictureFileTraits";
+import { dataUrlBytes, fittedRect, pictureFileComplete, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
 
@@ -44,6 +44,7 @@ export interface PictureBitmap {
   animated?: boolean;
   profile?: boolean;
   unread?: boolean;
+  aspect?: string;
 }
 
 export type PictureLoader = (src: string, doc: Document) => Promise<PictureBitmap | undefined>;
@@ -81,6 +82,7 @@ interface CanvasView {
   drawn: LayeredMorphDrawn[];
   standIns: Map<string, StandIn>;
   groups: { canvas: HTMLCanvasElement; context: PictureCanvasContext }[];
+  flat?: { canvas: HTMLCanvasElement; context: PictureCanvasContext };
   size?: { width: number; height: number };
   last?: string;
 }
@@ -1375,6 +1377,17 @@ export class MorphLayer {
     const bitmap = files.bitmaps.get(layer.file);
     const opacity = layer.alpha * alpha;
     if (!bitmap || opacity <= 0) return;
+    let source: CanvasImageSource = bitmap.image;
+    let rect = { x: 0, y: 0, width: canvas.width, height: canvas.height };
+    if (bitmap.aspect) {
+      const fitted = fittedRect(bitmap.aspect, canvas.width, canvas.height, files.width, files.height);
+      const flat = layer.matrix ? this.flatCanvas(view, run) : undefined;
+      if (flat) {
+        clearCanvas(flat.context, flat.canvas);
+        flat.context.drawImage(bitmap.image, fitted.x, fitted.y, fitted.width, fitted.height);
+        source = flat.canvas;
+      } else rect = fitted;
+    }
     context.globalAlpha = opacity;
     if (layer.matrix) {
       const [a, b, c, d, e, f] = layer.matrix;
@@ -1382,9 +1395,24 @@ export class MorphLayer {
       const sy = canvas.height / files.height;
       context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
     }
-    context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
+    context.drawImage(source, rect.x, rect.y, rect.width, rect.height);
     if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
+  }
+
+  protected flatCanvas(view: CanvasView, run: CanvasRun) {
+    if (!view.flat) {
+      const canvas = run.canvas.ownerDocument.createElement("canvas");
+      const context = this.playback.pictureCanvas(canvas);
+      if (!context) return undefined;
+      view.flat = { canvas, context };
+    }
+    const { flat } = view;
+    if (flat.canvas.width !== run.canvas.width || flat.canvas.height !== run.canvas.height) {
+      flat.canvas.width = run.canvas.width;
+      flat.canvas.height = run.canvas.height;
+    }
+    return flat;
   }
 
   protected groupCanvas(view: CanvasView, run: CanvasRun, depth: number) {

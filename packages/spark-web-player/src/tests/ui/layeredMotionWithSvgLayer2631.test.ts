@@ -229,6 +229,9 @@ describe("a picture's morph moves its image-file layers while an SVG layer plays
     expect(style).toContain("transform-origin:0 0");
     expect(matrixOf(style)).toEqual([1, 0.75, 0, 1, 8, 24]);
     expect(style).not.toMatch(/opacity/);
+    const parts = Array.from(box().querySelectorAll(":scope > svg > svg"));
+    expect(parts.length).toBeGreaterThan(0);
+    expect(parts.map((part) => part.getAttribute("preserveAspectRatio"))).toEqual(parts.map(() => null));
     const picture = container.parentElement!;
     expect(picture.getAttribute("style")).toMatch(/^position:absolute;left:[\d.]+px;top:[\d.]+px;width:520px;height:420px;overflow:hidden$/);
     expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(1)));

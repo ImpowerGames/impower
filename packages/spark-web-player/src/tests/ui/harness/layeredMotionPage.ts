@@ -232,4 +232,101 @@ async function sparse(dot: number) {
   return paintsAnything(image, image.naturalWidth, image.naturalHeight, document);
 }
 
-(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, wholePng: WHOLE_PNG };
+const LAYER_SVG =
+  `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100">` +
+  '<g data-name="mouth.open default"><path d="M45 35H95V85H45Z" fill="#2040e0"/></g>' +
+  '<g data-name="mouth.closed"><path d="M45 35H95V85H45Z" fill="#2040e0"/></g></svg>';
+
+const smallFile = (color: string, x: number, y: number, w: number, h: number) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 100;
+  canvas.height = 100;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = color;
+  context.fillRect(x, y, w, h);
+  return canvas.toDataURL("image/png");
+};
+
+const SVG_LAYER_FILES = [
+  smallFile("#ffffff", 0, 0, 100, 100),
+  smallFile("#e02020", 20, 20, 60, 60),
+  `data:image/svg+xml,${encodeURIComponent(LAYER_SVG)}`,
+  smallFile("#20c040", 5, 70, 40, 20),
+];
+
+const SVG_LAYER_ARTWORK =
+  `<svg xmlns="${SVG_NS}" viewBox="0 0 100 100">` +
+  '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
+  '<g data-name="outer"><g data-name="inner">' +
+  '<image data-name="red" data-layer="1" x="0" y="0" width="100" height="100"/>' +
+  '<image data-name="blue" data-layer="2" x="0" y="0" width="100" height="100"/></g>' +
+  '<image data-name="green" data-layer="3" x="0" y="0" width="100" height="100"/></g></svg>';
+
+async function svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number) {
+  document.body.replaceChildren();
+  const holder = document.body.appendChild(document.createElement("div"));
+  holder.setAttribute("style", "display:flex;gap:20px;padding:10px;background:#fff");
+  const timing = { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as const;
+  const chomp = serializeMorphRecipe(buildMorphRecipe("chomp", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "open" } }, { offset: 1, mouth: { state: "closed" } }] } as never));
+  const keyframes = [
+    { offset: 0, outer: { translate: "0px", opacity: "100%" }, inner: { translate: "0px", opacity: "100%" } },
+    { offset: 1, outer, inner },
+  ];
+  const motion = buildMorphMotion(keyframes)!;
+  const recipe = serializeMorphRecipe(buildMorphRecipe("shift", { blend: "cut", keyframes } as never));
+  for (const live of [false, true]) {
+    const overlay = holder.appendChild(document.createElement("div"));
+    const span = overlay.appendChild(document.createElement("span"));
+    span.id = live ? "live" : "canvas";
+    const background = [...SVG_LAYER_FILES].reverse().map((src) => `url("${src}")`).join(", ");
+    span.setAttribute(
+      "style",
+      `display:block;position:relative;width:200px;height:200px;background-image:${background};background-size:100% 100%;background-repeat:no-repeat`,
+    );
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { shift: recipe, chomp }, variants: {} }),
+      readSource: async (ref) => ({ text: ref.key === "inner" ? LAYER_SVG : SVG_LAYER_ARTWORK }),
+    });
+    const playback = new MorphPlayback(overlay, { host, seed: "s", requestFrame: () => 0, cancelFrame: () => {} });
+    playback.mount(
+      span,
+      {
+        plays: [
+          {
+            layer: 0,
+            picture: {
+              span: SVG_LAYER_FILES.length,
+              files: SVG_LAYER_FILES.map((src, index) => ({
+                src,
+                name: `${index}.${index === 2 ? "svg" : "png"}`,
+                ...(live && index === 2
+                  ? { plays: [{ ref: { morphs: ["chomp"], key: "inner", image: "blue", selection: "{}", groups: ["mouth"] }, morph: "chomp", timing, definition: "c" }] }
+                  : {}),
+              })),
+            },
+            ref: { morphs: ["shift"], key: "picture", image: "kit", selection: "{}", groups: [] },
+            morph: "shift",
+            timing,
+            motion,
+            definition: "s",
+          },
+        ],
+        epoch: 0,
+      },
+      background,
+      "background",
+      "portrait:0",
+    );
+    const shadow = () => span.querySelector("span.morph")?.shadowRoot;
+    await until(() => !!shadow()?.querySelector("canvas") && (!live || !!shadow()?.querySelector("[data-morph]")));
+    span.style.setProperty("width", `${width}px`);
+    span.style.setProperty("height", `${height}px`);
+    playback.requestRelayout();
+    await nextFrame();
+    playback.advance(1);
+    await nextFrame();
+  }
+}
+
+(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, wholePng: WHOLE_PNG };
