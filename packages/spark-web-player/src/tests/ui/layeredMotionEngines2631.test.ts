@@ -29,6 +29,8 @@ const GROUP_CASES: [string, Record<string, string>][] = [
 const CORRUPT_WEBP =
   "data:image/webp;base64,UklGRkwAAABXRUJQVlA4IEAAAABwAwCdASog/////////////yIhKAgAgA2JZQDKLoB+AABBlBAA/vCbQ//ILlhdcjX/8gP+QH/ID/+PfYwoMAAA";
 
+const CUT_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAAPUlEQVRYR+3QMQ0AMAzAsJY/6A2Enx4=";
+
 const LEVELS = 8;
 const ALLOWANCE = 0.001;
 
@@ -134,18 +136,19 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     }
   });
 
-  test("a corrupt file whose decode is refused is not loaded, and every loaded file draws", async (context) => {
+  test("a corrupt or truncated file is not loaded, and a whole one loads and draws", async (context) => {
     if (!browser) return context.skip();
     const whole = await page.evaluate(() => (window as unknown as { layeredMotion: Harness }).layeredMotion.wholePng);
     const bytes = Buffer.from(whole.slice(whole.indexOf(",") + 1), "base64");
     const truncated = `data:image/png;base64,${bytes.subarray(0, Math.floor(bytes.length / 2)).toString("base64")}`;
-    const [corrupt, half, full] = await page.evaluate(
+    const [corrupt, half, cut, full] = await page.evaluate(
       (sources) => Promise.all(sources.map((src) => (window as unknown as { layeredMotion: Harness }).layeredMotion.load(src))),
-      [CORRUPT_WEBP, truncated, whole],
+      [CORRUPT_WEBP, truncated, CUT_PNG, whole],
     );
-    console.log(`${name}: corrupt ${JSON.stringify(corrupt)}, truncated ${JSON.stringify(half)}, whole ${JSON.stringify(full)}`);
+    console.log(`${name}: corrupt ${JSON.stringify(corrupt)}, half ${JSON.stringify(half)}, cut ${JSON.stringify(cut)}, whole ${JSON.stringify(full)}`);
     expect(corrupt!.accepted).toBe(false);
-    expect(!half!.accepted || half!.painted > 0).toBe(true);
+    expect(half!.accepted).toBe(false);
+    expect(cut!.accepted).toBe(false);
     expect(full).toMatchObject({ accepted: true, painted: 40 * 30 });
   });
 

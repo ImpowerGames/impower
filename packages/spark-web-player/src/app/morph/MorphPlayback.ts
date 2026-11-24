@@ -31,7 +31,7 @@ import type {
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
 import { IDENTITY, multiply, type Affine } from "../../../../sparkdown/src/morph/affine";
 import { computedMotionPose, type MotionBox, type MotionPose } from "./motionPose";
-import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
+import { dataUrlBytes, pictureFileComplete, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
 
@@ -107,6 +107,7 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
   if (!decoded && !(img.complete && paintsAnything(img, img.naturalWidth, img.naturalHeight, doc))) return undefined;
   const bytes = await readPictureBytes(src, view);
+  if (bytes && !pictureFileComplete(bytes)) return undefined;
   const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
   return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...(traits ?? { unread: true }) };
 };
