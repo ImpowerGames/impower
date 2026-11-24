@@ -973,6 +973,54 @@ const addStructPropertyNameContextCompletions = (
   }
 };
 
+const addScreenBodyCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+) => {
+  completions.set("slot", {
+    label: "slot",
+    kind: CompletionItemKind.Keyword,
+    labelDetails: { description: "where the open layout goes" },
+  });
+  const components = program?.sparkle?.components ?? {};
+  for (const name of Object.keys(components)) {
+    if (!completions.has(name)) {
+      completions.set(name, {
+        label: name,
+        kind: CompletionItemKind.Class,
+        labelDetails: { description: "component" },
+      });
+    }
+  }
+  const tags = new Set<string>();
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") {
+      return;
+    }
+    const node = value as { kind?: unknown; tag?: unknown };
+    if (node.kind === "element" && typeof node.tag === "string") {
+      tags.add(node.tag);
+    }
+    Object.values(value).forEach(visit);
+  };
+  visit(program?.sparkle?.layouts);
+  visit(program?.sparkle?.screens);
+  visit(program?.sparkle?.components);
+  for (const tag of tags) {
+    if (!completions.has(tag)) {
+      completions.set(tag, {
+        label: tag,
+        kind: CompletionItemKind.Property,
+        labelDetails: { description: "element" },
+      });
+    }
+  }
+};
+
 const addStructPropertyNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -2233,6 +2281,14 @@ const completionsAt = (
     const keying =
       !entryInsideValue(entryBefore) &&
       !insideElementValue(tree, documentCursorOffset);
+    if (
+      keying &&
+      braceDefine.type === "screen" &&
+      /^\s*(?:[A-Za-z_][\w-]*)?$/.test(entryBefore)
+    ) {
+      addScreenBodyCompletions(completions, program);
+      return buildCompletions();
+    }
     if (
       keying &&
       (!braceStructPath || !braceBlock) &&

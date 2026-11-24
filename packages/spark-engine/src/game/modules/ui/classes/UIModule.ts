@@ -55,6 +55,7 @@ import type {
   PropValue,
   SlotNode,
   LayoutNode,
+  ScreenNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import {
   AbstractValue,
@@ -376,7 +377,20 @@ interface SlotRegion {
 
 type ReactiveRegion = CondRegion | ForRegion | ComponentRegion | SlotRegion;
 
-type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
+type SlotMap = Map<
+  string,
+  {
+    children: BodyNode[];
+    scope: ReactiveScope;
+    host?: (region: SlotRegion) => void;
+  }
+>;
+
+interface ScreenFrame {
+  element: Element;
+  scope: ReactiveScope;
+  slot?: SlotRegion;
+}
 
 interface ReactiveScope {
   env: ReactiveEnv;
@@ -590,6 +604,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onReset() {
     this._events = {};
     this._mountedLayouts = new Map();
+    this._mountedScreens = new Map();
     this._morphEpoch += 1;
     this._clearedPictures = undefined;
   }
@@ -2423,10 +2438,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     { element: Element; scope: ReactiveScope; screen?: string }
   > = new Map();
 
+  protected _mountedScreens: Map<string, ScreenFrame> = new Map();
+
+  protected _screenHolds: Map<string, number> = new Map();
+
   static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
     this._mountedLayouts = new Map();
+    this._mountedScreens = new Map();
     const layouts = this._game.program?.sparkle?.layouts;
     if (!layouts) {
       return;
@@ -2454,11 +2474,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected constructLayoutFromAst(layout: LayoutNode): Element {
-    const parent = this.getOrCreateRootLayoutElement();
-    const uiEl = this.createElement(parent, {
+  protected mountScreenFrame(name: string): ScreenFrame | undefined {
+    const mounted = this._mountedScreens.get(name);
+    if (mounted) {
+      return mounted;
+    }
+    const screen = this._game.program?.sparkle?.screens?.[name];
+    if (!screen?.children?.length) {
+      return undefined;
+    }
+    const element = this.createElement(this.getOrCreateRootLayoutElement(), {
       type: "div",
-      name: this.layoutRootName(layout.name),
+      name: this.screenRootName(screen),
       style: {
         position: "absolute",
         inset: "0",
@@ -2466,6 +2493,86 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
+    const scope = this.makeScope({});
+    const frame: ScreenFrame = { element, scope };
+    scope.slots = new Map([
+      [
+        "",
+        {
+          children: [],
+          scope,
+          host: (region) => {
+            frame.slot ??= region;
+          },
+        },
+      ],
+    ]);
+    this._mountedScreens.set(name, frame);
+    this.mountChildren(element, screen.children, scope, null);
+    this.hideUnwrittenTargets(element);
+    return frame;
+  }
+
+  protected screenRootName(screen: ScreenNode): string {
+    return this.treeHolds(screen.children, new Set([screen.name]))
+      ? `screen_${screen.name}`
+      : screen.name;
+  }
+
+  protected screenHeld(screen: string, except?: string): boolean {
+    if ((this._screenHolds.get(screen) ?? 0) > 0) {
+      return true;
+    }
+    for (const [name, entry] of this._mountedLayouts) {
+      if (name !== except && entry.screen === screen) {
+        return true;
+      }
+    }
+    const layouts = this._game.program?.sparkle?.layouts;
+    for (const [name, opens] of this._pendingOpens) {
+      if (
+        name !== except &&
+        opens.size > 0 &&
+        layouts?.[name]?.screen === screen
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected releaseIdleScreen(screen: string): void {
+    const frame = this._mountedScreens.get(screen);
+    if (frame && !this.screenHeld(screen)) {
+      this._mountedScreens.delete(screen);
+      this.destroyElement(frame.element);
+    }
+  }
+
+  protected constructLayoutFromAst(layout: LayoutNode): Element {
+    const frame = layout.screen
+      ? this.mountScreenFrame(layout.screen)
+      : undefined;
+    const slot = frame?.slot;
+    const parent =
+      slot?.parent ?? frame?.element ?? this.getOrCreateRootLayoutElement();
+    const uiEl = this.createElement(
+      parent,
+      {
+        type: "div",
+        name: this.layoutRootName(layout.name),
+        style: slot
+          ? { display: "flex", flex_direction: "column" }
+          : {
+              position: "absolute",
+              inset: "0",
+              display: "flex",
+              flex_direction: "column",
+            },
+      },
+      slot ? this.anchorFor(slot) : null,
+    );
+    slot?.content.push({ el: uiEl });
     const scope = this.makeScope({});
     this._mountedLayouts.set(layout.name, {
       element: uiEl,
@@ -3385,6 +3492,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     scope.regions.push(region);
     const slot = scope.slots?.get(node.name ?? "");
+    slot?.host?.(region);
     if (slot) {
       region.content = this.mountChildren(
         parent,
@@ -3597,6 +3705,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const changes = this._game.story.variablesState.takeReactiveChanges();
     this._refreshing = true;
     try {
+      for (const { scope } of this._mountedScreens.values()) {
+        this.refreshScope(scope, changes);
+      }
       for (const { scope } of this._mountedLayouts.values()) {
         this.refreshScope(scope, changes);
       }
@@ -3960,6 +4071,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
+    const components = this._game.program?.sparkle?.components ?? {};
+    const expanded = new Set<string>();
+    const visit = (value: unknown): boolean => {
+      if (Array.isArray(value)) {
+        return value.some(visit);
+      }
+      if (!value || typeof value !== "object") {
+        return false;
+      }
+      const node = value as Record<string, any>;
+      if (node["kind"] === "element") {
+        const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
+        if (names.some((n) => typeof n === "string" && wanted.has(n))) {
+          return true;
+        }
+        const tag = node["tag"];
+        const body = typeof tag === "string" ? components[tag] : undefined;
+        if (body && !expanded.has(tag)) {
+          expanded.add(tag);
+          if (visit(body.children)) {
+            return true;
+          }
+        }
+      }
+      return Object.values(node).some(
+        (v) => v !== null && typeof v === "object" && visit(v),
+      );
+    };
+    return visit(children);
+  }
+
   layoutHolds(layoutName: string, elements: readonly string[]): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
@@ -3968,35 +4111,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (!layout) {
         return false;
       }
-      const components = sparkle.components ?? {};
-      const expanded = new Set<string>();
-      const visit = (value: unknown): boolean => {
-        if (Array.isArray(value)) {
-          return value.some(visit);
-        }
-        if (!value || typeof value !== "object") {
-          return false;
-        }
-        const node = value as Record<string, any>;
-        if (node["kind"] === "element") {
-          const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
-          if (names.some((n) => typeof n === "string" && wanted.has(n))) {
-            return true;
-          }
-          const tag = node["tag"];
-          const body = typeof tag === "string" ? components[tag] : undefined;
-          if (body && !expanded.has(tag)) {
-            expanded.add(tag);
-            if (visit(body.children)) {
-              return true;
-            }
-          }
-        }
-        return Object.values(node).some(
-          (v) => v !== null && typeof v === "object" && visit(v),
-        );
-      };
-      return visit(layout.children);
+      return this.treeHolds(layout.children, wanted);
     }
     const layout = this.context.layout?.[layoutName];
     if (!layout) {
@@ -4152,25 +4267,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!entry) {
       return;
     }
+    const frame = entry.screen
+      ? this._mountedScreens.get(entry.screen)
+      : undefined;
+    const leaving =
+      frame && !this.screenHeld(entry.screen!, name) ? frame : undefined;
+    if (leaving) {
+      this._mountedScreens.delete(entry.screen!);
+    } else if (frame?.slot) {
+      frame.slot.content = frame.slot.content.filter(
+        (it) => !("el" in it && it.el === entry.element),
+      );
+    }
+    const element = leaving?.element ?? entry.element;
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
-        element: entry.element,
+        element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),
       };
       this._mountedLayouts.delete(name);
-      entry.element.remove();
+      element.remove();
       this._retiring.add(retiring);
-      void this.animateElements([
-        { element: entry.element, animations: [exit] },
-      ]).then(() => this.retire(retiring));
+      void this.animateElements([{ element, animations: [exit] }]).then(() =>
+        this.retire(retiring),
+      );
       return;
     }
     if (exit && !instant) {
-      await this.animateElements([{ element: entry.element, animations: [exit] }]);
+      await this.animateElements([{ element, animations: [exit] }]);
     }
-    this.destroyElement(entry.element);
+    this.destroyElement(element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
   }
@@ -4450,12 +4578,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         !toClose.includes(n) &&
         (screen ? layouts?.[n]?.screen === screen : true),
     );
-    await Promise.all([
-      ...[...toClose, ...pending].map((n) =>
-        this.closeLayout(n, clauses, instant),
-      ),
-      this.openLayout(name, clauses, instant),
-    ]);
+    const held = layouts?.[name]?.screen;
+    if (held) {
+      this._screenHolds.set(held, (this._screenHolds.get(held) ?? 0) + 1);
+    }
+    try {
+      await Promise.all([
+        ...[...toClose, ...pending].map((n) =>
+          this.closeLayout(n, clauses, instant),
+        ),
+        this.openLayout(name, clauses, instant),
+      ]);
+    } finally {
+      if (held) {
+        const holds = (this._screenHolds.get(held) ?? 1) - 1;
+        if (holds > 0) {
+          this._screenHolds.set(held, holds);
+        } else {
+          this._screenHolds.delete(held);
+        }
+        this.releaseIdleScreen(held);
+      }
+    }
   }
 
   protected nextLayoutState(
