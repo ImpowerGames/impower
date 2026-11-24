@@ -197,7 +197,7 @@ const folderStackOf = (directory: string, paths: string[]): ImageStack => {
     paths,
     members,
     pictures: [picture],
-    cover: members[0]!.path,
+    cover: members.find((member) => folderOf(member.path) === directory)?.path ?? members[0]!.path,
     variantCount: picture.variants,
   };
 };

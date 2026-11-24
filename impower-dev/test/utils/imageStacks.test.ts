@@ -249,4 +249,14 @@ describe("a portrait folder with layer folders", () => {
     ]);
     expect(mia!.cover).toBe(`${MIA}/90 body.png`);
   });
+
+  it("covers it with its bottom file that sits in the portrait folder itself, never one inside a layer folder", () => {
+    const [mia] = imageStacks([
+      `${MIA}/10 body.png`,
+      `${MIA}/60 face.happy/10 mouth.png`,
+      `${MIA}/60 face.happy/40 lids eyes.closed.png`,
+    ]);
+    expect(mia!.members[0]!.path).toBe(`${MIA}/60 face.happy/40 lids eyes.closed.png`);
+    expect(mia!.cover).toBe(`${MIA}/10 body.png`);
+  });
 });
