@@ -4222,6 +4222,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ) {
           this._game.module.assets?.releaseLayout(name);
         }
+        if (layout.screen) {
+          this.releaseIdleScreen(layout.screen);
+        }
         return;
       }
     }
