@@ -30,7 +30,7 @@ The prototype's own notes state these further renames. The live markup is checke
 
 ## App menu
 
-The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is a navigation entry at the foot of the rail and the fourth bottom navigation tab.
+The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is the fourth navigation entry of the rail, under Story, Assets and Share, and the fourth bottom navigation tab.
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
@@ -215,9 +215,9 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `picture in your assets` | kind in that description | folio-tools.js:15 |  |
 | `sound in your assets` | kind in that description | folio-tools.js:16 |  |
 | `Sparkdown guide` | row title and view title | folio-tools.js:206, folio-tools.js:249 |  |
-| `A quick reference while you write.` | row description | folio-tools.js:249 |  |
+| `A quick reference while you write.` | row description | folio-tools.js:249 | Not drawn: the row shows its label only |
 | `Keyboard shortcuts` | row title and view title | folio-tools.js:207, folio-tools.js:250 |  |
-| `For a connected keyboard.` | row description | folio-tools.js:250 |  |
+| `For a connected keyboard.` | row description | folio-tools.js:250 | Not drawn: the row shows its label only |
 | `Search` | view title | folio-tools.js:205 |  |
 | `References to ` | view title prefix, followed by the name | folio-tools.js:208 |  |
 | `Rename ` | view title prefix, followed by the name | folio-tools.js:209, folio-tools.js:243 |  |
