@@ -1952,7 +1952,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const owner = getImageOwner(this.context, imageName);
       if (look.conflict === "overlap") {
         this.reportMorphConflict(imageName, look.refs);
-        continue;
       }
       if (look.plays) {
         if (count > 0) {

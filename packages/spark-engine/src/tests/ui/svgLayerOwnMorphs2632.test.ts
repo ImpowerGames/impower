@@ -108,6 +108,15 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     ]);
   });
 
+  test("two overlapping picture morphs stay off with a warning, and the SVG layer keeps its own morph", async () => {
+    const twin = LIDS.replace("morph lids_blink {", "morph lids_wink {");
+    const source = `${LIDS}\n${twin}\n${talkScript()}\n${kit('    ["face"] = bunny,\n    ["lids.on"] = lid_file,\n')}\n${scene}`;
+    const { contents, warnings } = await written(source, [svg, png("lid_file")]);
+    expect(contents.at(-1).morph.plays.map((play: any) => [play.morph, play.ref.image, play.layer, play.picture])).toEqual([["talk", "bunny", 0, undefined]]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("`kit`");
+  });
+
   test("a morph that fits both the picture and its SVG layer plays once at each level", async () => {
     const mouth = `morph chew {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = open\n      }\n    }\n    to {\n      mouth {\n        state = closed\n      }\n    }\n  }\n}\n`;
     const source = `${mouth}\n${kit('    ["face"] = bunny,\n    ["mouth.open"] = open_file,\n    ["mouth.closed default"] = closed_file,\n')}\n${scene}`;
