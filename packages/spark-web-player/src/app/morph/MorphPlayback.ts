@@ -82,22 +82,51 @@ interface StillPicture {
   span: number;
   picture: MorphPicture;
   files?: PictureFiles;
-  canvas?: CanvasView;
+  canvases?: CanvasView[];
+  segments?: string;
   loading?: boolean;
   broken?: boolean;
 }
 
 interface StillPaint {
   plans: LayerPaint[];
+  layers: number[];
   left: number;
   top: number;
   unitX: number;
   unitY: number;
-  fill?: string;
 }
+
+interface StillSegment {
+  blend: string;
+  layers: number[];
+}
+
+const STYLE_KEYS = [
+  "width",
+  "height",
+  "box-sizing",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+  "border-top-width",
+  "border-right-width",
+  "border-bottom-width",
+  "border-left-width",
+  "background-size",
+  "background-position",
+  "background-repeat",
+  "background-origin",
+  "background-clip",
+  "background-blend-mode",
+  "background-attachment",
+  "image-rendering",
+];
 
 interface CanvasView {
   still?: StillPaint;
+  segment?: StillSegment;
   box: HTMLElement;
   canvas: HTMLCanvasElement;
   context: PictureCanvasContext;
@@ -237,7 +266,6 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 const MAX_CANVAS_PIXELS = 4096 * 4096;
 
-const BACKGROUND_GEOMETRY = new Set(["backgroundposition", "backgroundpositionx", "backgroundpositiony", "backgroundsize"]);
 
 const HOST_STYLE = "position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:normal";
 
@@ -363,77 +391,14 @@ export class MorphPlayback {
     this.delivered.ask = ask;
   }
 
-  protected following?: number;
+  protected watching?: number;
 
-  followGeometry() {
-    if (this.following !== undefined) return;
-    const moving = [...this.layers].filter((layer) => layer.drawable && layer.geometryAnimating);
-    if (!moving.length) return;
-    this.following = this.requestFrame(() => {
-      this.following = undefined;
-      for (const layer of moving) if (layer.drawable) layer.layout();
-      this.followGeometry();
-    });
-  }
-
-  protected restyle?: MutationObserver;
-
-  protected restyleFrame?: number;
-
-  watchStyles() {
-    if (this.restyle) return;
-    const doc = this.overlay.ownerDocument;
-    const view = doc.defaultView as (Window & typeof globalThis) | null;
-    const Observer = view?.MutationObserver;
-    if (!view || !Observer) return;
-    const styling = (node: Node | null) => {
-      const element = node && node.nodeType === 1 ? (node as Element) : node?.parentElement;
-      const name = element?.localName;
-      return name === "style" || name === "link";
-    };
-    this.restyle = new Observer((records) => {
-      const spans = [...this.layers].filter((layer) => layer.followsStyle).map((layer) => layer.span);
-      if (!spans.length) return;
-      const restyled = records.some((record) =>
-        record.type === "attributes"
-          ? spans.some((span) => record.target.contains(span))
-          : styling(record.target) || Array.from(record.addedNodes).concat(Array.from(record.removedNodes)).some(styling),
-      );
-      if (restyled) this.scheduleRestyle();
-    });
-    this.restyle.observe(doc.documentElement, {
-      attributes: true,
-      attributeFilter: ["style", "class"],
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
-    view.addEventListener("resize", () => this.scheduleRestyle());
-    const media = (query: string) => {
-      const list = typeof view.matchMedia === "function" ? view.matchMedia(query) : undefined;
-      list?.addEventListener?.("change", () => this.scheduleRestyle());
-    };
-    media("(prefers-color-scheme: dark)");
-    const resolution = () => {
-      const list = typeof view.matchMedia === "function" ? view.matchMedia(`(resolution: ${view.devicePixelRatio || 1}dppx)`) : undefined;
-      list?.addEventListener?.(
-        "change",
-        () => {
-          this.scheduleRestyle();
-          resolution();
-        },
-        { once: true },
-      );
-    };
-    resolution();
-  }
-
-  scheduleRestyle() {
-    if (this.restyleFrame !== undefined || ![...this.layers].some((layer) => layer.followsStyle)) return;
-    this.restyleFrame = this.requestFrame(() => {
-      this.restyleFrame = undefined;
-      for (const layer of [...this.layers]) if (layer.followsStyle) layer.layout();
-      this.followGeometry();
+  watchShown() {
+    if (this.watching !== undefined || ![...this.layers].some((layer) => layer.drawable)) return;
+    this.watching = this.requestFrame(() => {
+      this.watching = undefined;
+      for (const layer of [...this.layers]) if (layer.drawable && layer.restyled()) layer.layout();
+      this.watchShown();
     });
   }
 
@@ -446,6 +411,7 @@ export class MorphPlayback {
       this.relayoutQueued = false;
       for (const layer of this.layers) layer.layout();
     });
+    this.watchShown();
   }
 
   get now(): number {
@@ -860,18 +826,17 @@ export class MorphLayer {
     this.span.style.setProperty("background-image", this.layers.map((_, index) => this.staticLayer(index)).reverse().join(", "));
   }
 
-  get geometryAnimating(): boolean {
-    const animations = typeof this.span.getAnimations === "function" ? this.span.getAnimations() : [];
-    return animations.some((animation) => {
-      if (animation.playState !== "running") return false;
-      const effect = animation.effect as KeyframeEffect | null;
-      const keyframes = typeof effect?.getKeyframes === "function" ? effect.getKeyframes() : [];
-      return keyframes.some((keyframe) => Object.keys(keyframe).some((name) => BACKGROUND_GEOMETRY.has(name.replace(/-/g, "").toLowerCase())));
-    });
+  protected styled?: string;
+
+  protected styleKey(): string {
+    const view = this.span.ownerDocument.defaultView;
+    const computed = view?.getComputedStyle(this.span);
+    const values = computed ? STYLE_KEYS.map((name) => computed.getPropertyValue(name)).join("|") : "";
+    return `${values}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
   }
 
-  get followsStyle(): boolean {
-    return !this.frozen && !this.disposed && this.stills.some((still) => still.canvas);
+  restyled(): boolean {
+    return this.styleKey() !== this.styled;
   }
 
   get live(): boolean {
@@ -884,7 +849,7 @@ export class MorphLayer {
       !this.disposed &&
       this.kind === "background" &&
       (this.images.some((image) => image.slot.state === "ready" && image.slot.artifact?.status === "live") ||
-        this.stills.some((still) => still.canvas))
+        this.stills.some((still) => still.canvases))
     );
   }
 
@@ -926,7 +891,6 @@ export class MorphLayer {
       if (ready.every((bitmap) => bitmap)) this.settleStill(still, ready);
       else void this.loadStill(still);
     }
-    if (this.stills.length) this.playback.watchStyles();
     if (this.stills.some((still) => still.files)) this.build();
   }
 
@@ -1126,10 +1090,20 @@ export class MorphLayer {
         const span = Math.min(picture.span, count - i);
         const files = picture.files!;
         const drawn = [...files.bitmaps.keys()].map((file) => ({ file, opacity: 1 }));
-        const canvas = picture.canvas ?? this.canvasView(files, drawn, doc);
-        if (canvas) {
-          picture.canvas = canvas;
-          root.appendChild(canvas.box);
+        const plans = this.stillPlans(picture, computed);
+        const segments = plans ? this.stillSegments(plans) : [{ blend: "normal", layers: [...files.bitmaps.keys()] }];
+        const signature = JSON.stringify(segments);
+        if (!picture.canvases || picture.segments !== signature) {
+          const views = segments.map((segment) => {
+            const view = this.canvasView(files, drawn, doc);
+            if (view) view.segment = segment;
+            return view;
+          });
+          picture.canvases = views.every((view) => view) ? (views as CanvasView[]) : undefined;
+          picture.segments = signature;
+        }
+        if (picture.canvases) {
+          for (const view of picture.canvases) root.appendChild(view.box);
           this.sizeObjects(picture);
         } else {
           picture.broken = true;
@@ -1155,6 +1129,7 @@ export class MorphLayer {
     this.span.style.setProperty("background-image", this.layers.map(() => "none").join(", "));
     this.layout();
     this.render();
+    this.playback.watchShown();
   }
 
   protected layerBoxes(computed: CSSStyleDeclaration | undefined): LayerBoxes {
@@ -1171,8 +1146,14 @@ export class MorphLayer {
     };
   }
 
-  protected coversBorder(boxes: LayerBoxes): boolean {
-    return this.images.length === 0 && (boxes.border.width > boxes.padding.width || boxes.border.height > boxes.padding.height);
+  protected stillSegments(plans: LayerPaint[]): StillSegment[] {
+    const segments: StillSegment[] = [];
+    plans.forEach((plan, index) => {
+      const last = segments.at(-1);
+      if (plan.blend === "normal" && last?.blend === "normal") last.layers.push(index);
+      else segments.push({ blend: plan.blend, layers: [index] });
+    });
+    return segments;
   }
 
   protected stillPlans(still: StillPicture, computed: CSSStyleDeclaration | undefined): LayerPaint[] | undefined {
@@ -1202,12 +1183,15 @@ export class MorphLayer {
   }
 
   protected placeStill(still: StillPicture, computed: CSSStyleDeclaration | undefined) {
-    const view = still.canvas;
+    const views = still.canvases;
     const files = still.files;
     const plans = this.stillPlans(still, computed);
-    if (!view || !files || !plans) return;
-    const boxes = this.layerBoxes(computed);
-    const area = this.coversBorder(boxes) ? boxes.border : boxes.padding;
+    if (!views || !files || !plans) return;
+    if (JSON.stringify(this.stillSegments(plans)) !== still.segments) {
+      this.build();
+      return;
+    }
+    const area = this.layerBoxes(computed).padding;
     if (!(area.width > 0 && area.height > 0)) return;
     const win = this.span.ownerDocument.defaultView;
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
@@ -1223,28 +1207,26 @@ export class MorphLayer {
       width = snap(bounds.left + width) - bounds.left - left;
       height = snap(bounds.top + height) - bounds.top - top;
     }
-    const tiles = plans.flatMap((plan) => [...plan.tiles, ...(plan.pattern ? [plan.pattern.tile] : [])]);
+    const tiles = plans.flatMap((plan) => [...plan.tiles.slice(0, 1), ...(plan.pattern ? [plan.pattern.tile] : [])]);
     const resolution = Math.max(0, ...tiles.map((tile) => (tile.width > 0 ? files.width / tile.width : 0)));
     const scale = Math.max(1, Math.min(pictureZoomReach(this.span), resolution / dpr));
     const pixels = Math.max(1, width * dpr * scale) * Math.max(1, height * dpr * scale);
     const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
     const w = Math.max(1, Math.round(width * dpr * scale * shrink));
     const h = Math.max(1, Math.round(height * dpr * scale * shrink));
-    const bottomBlend = plans[0]!.blend;
-    const blended = still.layer > 0 && bottomBlend !== "normal" ? `;mix-blend-mode:${bottomBlend}` : "";
-    const style = `position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${height}px${blended}`;
-    if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-    if (view.canvas.width !== w || view.canvas.height !== h) {
-      view.canvas.width = w;
-      view.canvas.height = h;
-      view.painted = undefined;
+    for (const view of views) {
+      const segment = view.segment!;
+      const blended = segment.blend !== "normal" ? `;mix-blend-mode:${segment.blend}` : "";
+      const style = `position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${height}px${blended}`;
+      if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
+      if (view.canvas.width !== w || view.canvas.height !== h) {
+        view.canvas.width = w;
+        view.canvas.height = h;
+        view.painted = undefined;
+      }
+      view.still = { plans: segment.layers.map((index) => plans[index]!), layers: segment.layers, left, top, unitX: w / width, unitY: h / height };
+      this.paint(view);
     }
-    const color = computed?.getPropertyValue("background-color").trim() ?? "";
-    const compact = color.replace(/ /g, "");
-    const opaque = color !== "" && color !== "transparent" && !(compact.startsWith("rgba(") && compact.endsWith(",0)"));
-    const fill = still.layer === 0 && opaque && plans.some((plan) => plan.blend !== "normal") ? color : undefined;
-    view.still = { plans, left: area.x + left, top: area.y + top, unitX: w / width, unitY: h / height, ...(fill ? { fill } : {}) };
-    this.paint(view);
   }
 
   protected paintStill(view: CanvasView, still: StillPaint) {
@@ -1261,30 +1243,24 @@ export class MorphLayer {
       };
     };
     const plans = still.plans.map((plan) => ({
-      blend: plan.blend,
       clip: device(plan.clip),
       tiles: plan.tiles.map(device),
       pattern: plan.pattern
         ? {
             repeatX: plan.pattern.repeatX,
             repeatY: plan.pattern.repeatY,
-            bands: (plan.pattern.repeatX && plan.pattern.repeatY
-              ? [plan.pattern.tile]
-              : plan.tiles.filter((tile, index, all) =>
-                  plan.pattern!.repeatX
-                    ? all.findIndex((other) => other.y === tile.y) === index
-                    : all.findIndex((other) => other.x === tile.x) === index,
-                )
-            ).map((tile) => ({
-              x: (tile.x - still.left) * still.unitX,
-              y: (tile.y - still.top) * still.unitY,
-              width: tile.width * still.unitX,
-              height: tile.height * still.unitY,
-            })),
+            tile: {
+              x: (plan.pattern.tile.x - still.left) * still.unitX,
+              y: (plan.pattern.tile.y - still.top) * still.unitY,
+              width: plan.pattern.tile.width * still.unitX,
+              height: plan.pattern.tile.height * still.unitY,
+            },
+            stepX: plan.pattern.stepX * still.unitX,
+            stepY: plan.pattern.stepY * still.unitY,
           }
         : undefined,
     }));
-    const key = `${canvas.width}x${canvas.height}|${smooth}|${still.fill ?? ""}|${JSON.stringify(plans)}`;
+    const key = `${canvas.width}x${canvas.height}|${smooth}|${still.layers.join(",")}|${JSON.stringify(plans)}`;
     if (view.painted === key) return;
     view.painted = key;
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -1292,14 +1268,10 @@ export class MorphLayer {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.imageSmoothingEnabled = smooth;
     const covers = (r: Rect) => r.x <= 0 && r.y <= 0 && r.x + r.width >= canvas.width && r.y + r.height >= canvas.height;
-    if (still.fill && context.fillRect) {
-      const clip = plans[0]!.clip;
-      context.fillStyle = still.fill;
-      context.fillRect(clip.x, clip.y, clip.width, clip.height);
-    }
-    const Matrix = this.span.ownerDocument.defaultView?.DOMMatrix;
+    const doc = this.span.ownerDocument;
+    const Matrix = doc.defaultView?.DOMMatrix;
     plans.forEach((plan, index) => {
-      const bitmap = view.files.bitmaps.get(index);
+      const bitmap = view.files.bitmaps.get(still.layers[index]!);
       if (!bitmap) return;
       const clipped = !covers(plan.clip) && !!(context.save && context.beginPath && context.rect && context.clip && context.restore);
       if (clipped) {
@@ -1308,34 +1280,55 @@ export class MorphLayer {
         context.rect!(plan.clip.x, plan.clip.y, plan.clip.width, plan.clip.height);
         context.clip!();
       }
-      if ("globalCompositeOperation" in context) context.globalCompositeOperation = plan.blend === "normal" ? "source-over" : plan.blend;
       const pattern = plan.pattern;
-      const sample = pattern?.bands[0] ?? plan.tiles[0];
+      const sample = pattern?.tile ?? plan.tiles[0];
       if ("imageSmoothingQuality" in context) context.imageSmoothingQuality = sample && sample.width < bitmap.width ? "high" : "low";
-      const repetition = pattern ? (pattern.repeatX && pattern.repeatY ? "repeat" : pattern.repeatX ? "repeat-x" : "repeat-y") : "";
-      const patterns = pattern && context.createPattern && context.fillRect && Matrix ? pattern.bands.map(() => context.createPattern!(bitmap.image, repetition)) : [];
-      if (pattern && patterns.length && patterns.every((fill) => fill)) {
-        for (const [index, band] of pattern.bands.entries()) {
-          const fill = patterns[index]!;
-          fill.setTransform(new Matrix!([band.width / bitmap.width, 0, 0, band.height / bitmap.height, band.x, band.y]));
+      let filled = false;
+      if (pattern && context.createPattern && context.fillRect && Matrix) {
+        const periodX = pattern.repeatX ? pattern.stepX : pattern.tile.width;
+        const periodY = pattern.repeatY ? pattern.stepY : pattern.tile.height;
+        const gapped = Math.abs(periodX - pattern.tile.width) > 0.01 || Math.abs(periodY - pattern.tile.height) > 0.01;
+        let source: CanvasImageSource | undefined = bitmap.image;
+        let sourceWidth = bitmap.width;
+        let sourceHeight = bitmap.height;
+        if (gapped) {
+          const cell = doc.createElement("canvas");
+          cell.width = Math.max(1, Math.round(periodX));
+          cell.height = Math.max(1, Math.round(periodY));
+          const cellContext = this.playback.pictureCanvas(cell);
+          if (cellContext) {
+            cellContext.imageSmoothingEnabled = smooth;
+            cellContext.drawImage(bitmap.image, 0, 0, (pattern.tile.width * cell.width) / periodX, (pattern.tile.height * cell.height) / periodY);
+            source = cell;
+            sourceWidth = cell.width;
+            sourceHeight = cell.height;
+          } else {
+            source = undefined;
+          }
+        }
+        const repetition = pattern.repeatX && pattern.repeatY ? "repeat" : pattern.repeatX ? "repeat-x" : pattern.repeatY ? "repeat-y" : "no-repeat";
+        const fill = source ? context.createPattern(source, repetition) : null;
+        if (fill) {
+          fill.setTransform(new Matrix([periodX / sourceWidth, 0, 0, periodY / sourceHeight, pattern.tile.x, pattern.tile.y]));
           context.fillStyle = fill;
-          const x = Math.round(band.x);
-          const y = Math.round(band.y);
-          context.fillRect!(
+          const x = Math.round(pattern.tile.x);
+          const y = Math.round(pattern.tile.y);
+          context.fillRect(
             pattern.repeatX ? plan.clip.x : x,
             pattern.repeatY ? plan.clip.y : y,
-            pattern.repeatX ? plan.clip.width : Math.round(band.x + band.width) - x,
-            pattern.repeatY ? plan.clip.height : Math.round(band.y + band.height) - y,
+            pattern.repeatX ? plan.clip.width : Math.round(pattern.tile.x + pattern.tile.width) - x,
+            pattern.repeatY ? plan.clip.height : Math.round(pattern.tile.y + pattern.tile.height) - y,
           );
+          filled = true;
         }
-      } else {
+      }
+      if (!filled) {
         for (const tile of plan.tiles) {
           if (tile.width > 0 && tile.height > 0) context.drawImage(bitmap.image, tile.x, tile.y, tile.width, tile.height);
         }
       }
       if (clipped) context.restore!();
     });
-    if ("globalCompositeOperation" in context) context.globalCompositeOperation = "source-over";
   }
 
   protected sizeObjects(still: StillPicture) {
@@ -1362,11 +1355,14 @@ export class MorphLayer {
   protected layerStyle(computed: CSSStyleDeclaration | undefined, cssIndex: number): string {
     if (!computed) return "background-repeat:no-repeat";
     const value = (name: string) => layerValue(computed.getPropertyValue(name), cssIndex);
-    return ["background-size", "background-position", "background-repeat"]
-      .map((name) => {
+    const blend = value("background-blend-mode");
+    return [
+      ...["background-size", "background-position", "background-repeat", "background-origin", "background-clip"].map((name) => {
         const v = value(name);
         return v ? `${name}:${v}` : "";
-      })
+      }),
+      blend && blend !== "normal" ? `mix-blend-mode:${blend}` : "",
+    ]
       .filter(Boolean)
       .join(";");
   }
@@ -1551,15 +1547,9 @@ export class MorphLayer {
         return;
       }
     }
-    const boxes = this.layerBoxes(computed);
-    const cover = this.coversBorder(boxes);
-    const bl = boxes.padding.x - boxes.border.x;
-    const bt = boxes.padding.y - boxes.border.y;
-    const br = boxes.border.width - boxes.padding.width - bl;
-    const bb = boxes.border.height - boxes.padding.height - bt;
-    const hostStyle = cover ? HOST_STYLE.replace("inset:0", `inset:${-bt}px ${-br}px ${-bb}px ${-bl}px`) : HOST_STYLE;
-    if (this.shadowHost.getAttribute("style") !== hostStyle) this.shadowHost.setAttribute("style", hostStyle);
-    const frame = cover ? `top:${bt}px;right:${br}px;bottom:${bb}px;left:${bl}px` : "inset:0";
+    const content = this.layerBoxes(computed).content;
+    const padding = this.layerBoxes(computed).padding;
+    const frame = `inset:0;box-sizing:border-box;padding:${content.y}px ${padding.width - content.x - content.width}px ${padding.height - content.y - content.height}px ${content.x}px`;
     for (const { div, layer } of this.statics) {
       const style = `position:absolute;${frame};background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
@@ -1568,11 +1558,12 @@ export class MorphLayer {
     if (!(area.width > 0 && area.height > 0)) return;
     const rendering = computed?.getPropertyValue("image-rendering") ?? "";
     const smooth = rendering !== "pixelated" && rendering !== "crisp-edges";
-    for (const view of [...this.stills.map((still) => still.canvas), ...this.images.map((image) => image.canvas)]) {
+    for (const view of [...this.stills.flatMap((still) => still.canvases ?? []), ...this.images.map((image) => image.canvas)]) {
       if (view) view.smooth = smooth;
     }
+    this.styled = this.styleKey();
     for (const still of this.stills) {
-      if (still.canvas) this.placeStill(still, computed);
+      if (still.canvases) this.placeStill(still, computed);
     }
     for (const state of this.images) {
       if (state.canvas) {
@@ -1666,7 +1657,7 @@ export class MorphLayer {
       image.view = undefined;
       image.canvas = undefined;
     }
-    for (const still of this.stills) still.canvas = undefined;
+    for (const still of this.stills) still.canvases = undefined;
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }

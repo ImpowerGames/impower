@@ -388,7 +388,7 @@ export class AssetCache {
       (e) => e.state !== "resident" && e.state !== "failed",
     );
     const inspecting = entries.flatMap((e) =>
-      e.state === "resident" && e.inspecting ? [e.inspecting] : [],
+      e.state === "resident" && e.inspecting ? [this.bounded(e.inspecting)] : [],
     );
     if (pending.length === 0 && inspecting.length === 0) {
       return Promise.resolve(settle());
@@ -405,7 +405,7 @@ export class AssetCache {
       for (const e of pending) {
         e.waiters.push(() => {
           if (e.inspecting) {
-            void e.inspecting.then(done);
+            void this.bounded(e.inspecting).then(done);
           } else {
             done();
           }
@@ -975,6 +975,19 @@ export class AssetCache {
       };
       target.onerror = () => resolve(null);
       target.src = src;
+    });
+  }
+
+  protected bounded(inspection: Promise<void>): Promise<void> {
+    if (!(this._loadTimeoutMs > 0)) {
+      return inspection;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, this._loadTimeoutMs);
+      void inspection.then(() => {
+        clearTimeout(timer);
+        resolve();
+      });
     });
   }
 

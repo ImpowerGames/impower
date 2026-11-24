@@ -2297,7 +2297,6 @@ export default class UIManager extends Manager {
       ...playEffects(enterEffects),
       ...playEffects(exitEffects, exiting),
     ]);
-    this.morphs?.followGeometry();
     for (const el of outgoing) {
       this.freezeWhenExitStarts(el, exiting.get(el) ?? []);
     }

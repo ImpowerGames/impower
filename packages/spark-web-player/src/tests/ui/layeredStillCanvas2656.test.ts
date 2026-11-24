@@ -239,79 +239,83 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     );
   });
 
-  test("a change of the picture's CSS placement while it is shown redraws the same canvas at the new placement", async () => {
+  test("a change of the picture's CSS placement while it is shown redraws the same canvas at the new placement before the next frame paints", () => {
     const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     mount(SRCS, [OFFICE]);
     const element = canvasOf(span);
     span.style.setProperty("background-position", "right top");
-    await new Promise((resolve) => setTimeout(resolve, 0));
     flushFrame();
     expect(canvasOf(span)).toBe(element);
     expect(canvas.frames).toHaveLength(2);
     expect(canvas.frames.at(-1)).toEqual(SRCS.map((src) => ({ src, x: 400, y: 0, width: 400, height: 300, alpha: 1 })));
   });
 
-  test("a class change on an ancestor that restyles the picture redraws the same canvas at the new placement", async () => {
+  test("a class change on an ancestor that restyles the picture redraws the same canvas at the new placement", () => {
     const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     const sheet = span.ownerDocument.createElement("style");
     sheet.textContent = "span { background-position: center; } .moved span { background-position: right top; }";
     span.ownerDocument.head.appendChild(sheet);
     span.style.removeProperty("background-position");
     mount(SRCS, [OFFICE]);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    flushFrame();
     const painted = canvas.frames.length;
     span.parentElement!.classList.add("moved");
-    await new Promise((resolve) => setTimeout(resolve, 0));
     flushFrame();
     expect(canvas.frames).toHaveLength(painted + 1);
     expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([400, 400, 400]);
   });
 
-  test("a stylesheet that changes while the picture is shown is followed, and a viewport resize lays the picture out again", async () => {
-    const { span, canvas, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
+  test("a stylesheet that changes while the picture is shown is followed", () => {
+    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     const sheet = span.ownerDocument.createElement("style");
     sheet.textContent = "span { background-position: left top; }";
     span.ownerDocument.head.appendChild(sheet);
     span.style.removeProperty("background-position");
     mount(SRCS, [OFFICE]);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    flushFrame();
     expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([0, 0, 0]);
     sheet.textContent = "span { background-position: right top; }";
-    await new Promise((resolve) => setTimeout(resolve, 0));
     flushFrame();
     expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([400, 400, 400]);
-    span.ownerDocument.defaultView!.dispatchEvent(new span.ownerDocument.defaultView!.Event("resize"));
-    expect(frames).toHaveLength(1);
   });
 
-  test("many style changes in one frame lay the picture out once", async () => {
+  test("while nothing about the picture's style changes, each frame's check lays nothing out and paints nothing, and the check stops once nothing is drawn", () => {
     const { span, canvas, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
-    mount(SRCS, [OFFICE]);
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    flushFrame();
+    const layer = mount(SRCS, [OFFICE]);
     const painted = canvas.frames.length;
+    const layout = vi.spyOn(layer, "layout");
+    for (let i = 0; i < 50; i++) flushFrame();
+    expect(layout).not.toHaveBeenCalled();
+    expect(canvas.frames).toHaveLength(painted);
+    expect(frames).toHaveLength(1);
     for (let i = 0; i < 200; i++) span.parentElement!.classList.toggle("busy");
     span.style.setProperty("background-position", "right top");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(frames).toHaveLength(1);
     flushFrame();
+    expect(layout).toHaveBeenCalledTimes(1);
     expect(canvas.frames).toHaveLength(painted + 1);
+    layer.dispose();
+    flushFrame();
+    expect(frames).toHaveLength(0);
   });
 
-  test("a picture element with a border paints its layers under the border, as CSS's border-box clip does", () => {
-    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
-    span.style.setProperty("border", "10px solid transparent");
-    span.style.setProperty("background-repeat", "repeat-x");
+  test("a picture element with a border keeps its canvas inside the padding box, so the border and anything under it are painted as before", () => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("border", "10px solid rgb(0, 255, 0)");
     mount(SRCS, [OFFICE]);
-    expect(shadowOf(span)!.host.getAttribute("style")).toContain("inset:-10px -10px -10px -10px");
-    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:820px;height:320px");
-    expect(canvas.frames.at(-1)!.filter((drawn) => drawn.src === "office.png").map((drawn) => [drawn.x, drawn.y])).toEqual([
-      [-190, 10],
-      [210, 10],
-      [610, 10],
-    ]);
+    expect(shadowOf(span)!.host.getAttribute("style")).toContain("inset:0");
+    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:800px;height:300px");
+  });
+
+  test("an image beside a still picture keeps its own background origin, clip and the element's padding", () => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("padding", "10px");
+    span.style.setProperty("background-origin", "content-box");
+    span.style.setProperty("background-clip", "content-box");
+    mount([...SRCS, "sky.png"], [OFFICE]);
+    const statics = Array.from(shadowOf(span)!.children).filter((child) => !child.querySelector("canvas")) as HTMLElement[];
+    expect(statics).toHaveLength(1);
+    const style = statics[0]!.getAttribute("style")!;
+    expect(style).toContain("padding:10px 10px 10px 10px");
+    expect(style).toContain("background-origin:content-box");
+    expect(style).toContain("background-clip:content-box");
   });
 
   test("a picture drawn on a canvas keeps that canvas when the compositor rebuilds for a second picture, and both are drawn on canvases", async () => {
@@ -327,28 +331,23 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     span.style.setProperty("background-repeat", "repeat");
     await until(() => waiting.size === 2, "the late loads");
     for (const src of late) waiting.get(src)!(bitmap(src));
-    await until(() => !!(layer as any).stills[1].canvas, "the late picture's canvas");
+    await until(() => !!(layer as any).stills[1].canvases, "the late picture's canvas");
     const canvases = Array.from(shadowOf(span)!.querySelectorAll("canvas"));
     expect(canvases).toHaveLength(2);
     expect(canvases[0]).toBe(first);
     expect((layer as any).stills[1].broken).toBeFalsy();
   });
 
-  test("a picture whose layers blend draws each layer with its blend mode, over the element's background color", () => {
+  test("each layer that blends other than normally is drawn on its own canvas with that blend mode, so it blends with everything painted below it", () => {
     const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
-    span.style.setProperty("background-blend-mode", "normal, multiply, screen");
-    span.style.setProperty("background-color", "rgb(255, 0, 0)");
-    mount(SRCS, [OFFICE]);
-    expect(canvasOf(span)).not.toBeNull();
-    expect(canvas.blends).toEqual(["screen", "multiply", "source-over"]);
-    expect(canvas.fills).toEqual([{ style: "rgb(255, 0, 0)", x: 0, y: 0, width: 800, height: 300 }]);
-  });
-
-  test("a picture above another image blends its bottom layer with that image through the canvas's own blend mode", () => {
-    const { span, mount } = setup({ resident: (src) => bitmap(src) });
-    span.style.setProperty("background-blend-mode", "multiply");
+    span.style.setProperty("background-blend-mode", "normal, normal, multiply");
     mount(["sky.png", ...SRCS], [{ ...OFFICE, layer: 1 }]);
-    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:800px;height:300px;mix-blend-mode:multiply");
+    const boxes = Array.from(shadowOf(span)!.querySelectorAll("canvas"), (element) => element.parentElement!.getAttribute("style"));
+    expect(boxes).toEqual([
+      "position:absolute;left:0px;top:0px;width:800px;height:300px;mix-blend-mode:multiply",
+      "position:absolute;left:0px;top:0px;width:800px;height:300px",
+    ]);
+    expect(canvas.frames.slice(-2).map((frame) => frame.map((drawn) => drawn.src))).toEqual([["office.png"], ["desk.png", "lamp.png"]]);
   });
 
   test("a picture shown with pixelated or crisp image rendering is drawn without smoothing, and with smoothing otherwise", () => {
@@ -360,25 +359,6 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     span.style.setProperty("image-rendering", "auto");
     layer.layout();
     expect(canvas.smoothing).toEqual([false, false, false, true, true, true]);
-  });
-
-  test("an animation of the picture's background position moves the canvas with it, frame by frame, until it ends", () => {
-    const { span, canvas, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
-    let state = "running";
-    (span as any).getAnimations = () => [
-      { playState: state, effect: { getKeyframes: () => [{ backgroundPosition: "left top" }, { backgroundPosition: "right top" }] } },
-    ];
-    span.style.setProperty("background-position", "left top");
-    const layer = mount(SRCS, [OFFICE]);
-    expect(layer.geometryAnimating).toBe(true);
-    expect(canvas.frames.at(-1)![0]).toMatchObject({ x: 0, width: 400 });
-    (layer as any).playback.followGeometry();
-    expect(frames).toHaveLength(1);
-    span.style.setProperty("background-position", "right top");
-    state = "finished";
-    flushFrame();
-    expect(canvas.frames.at(-1)![0]).toMatchObject({ x: 400, width: 400 });
-    expect(frames).toHaveLength(0);
   });
 
   test("a picture whose layer files load late but turn out animated is shown as CSS once loaded, never as a canvas", async () => {
@@ -484,6 +464,34 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(result.loaded).toEqual(["single.png", "gif.png"]);
     expect(cache.picture("single.png")).toMatchObject({ animated: false, profile: false, width: 40, height: 30 });
     expect(inspected).toEqual(["gif.png", "single.png"]);
+  });
+
+  test("a line waiting on a file promoted to a layer file stops waiting for its inspection after the load timeout, and the file is not yet a resident picture", async () => {
+    let release: (() => void) | undefined;
+    const cache = new AssetCache(
+      {
+        createImage: () => {
+          const target = { onload: null, onerror: null, naturalWidth: 40, naturalHeight: 30 } as unknown as ImageTarget;
+          Object.defineProperty(target, "src", {
+            set: () => queueMicrotask(() => target.onload?.call(target, {})),
+          });
+          return target;
+        },
+        inspectImage: () =>
+          new Promise((resolve) => {
+            release = () => resolve({ animated: false, profile: false });
+          }),
+      },
+      { loadTimeoutMs: 30 },
+    );
+    await cache.request([{ kind: "image", src: "plain.png" }], 0, "plain", undefined);
+    const started = Date.now();
+    const result = await cache.request([{ kind: "image", src: "plain.png", layer: true }], 0, "layer", undefined);
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(result.loaded).toEqual(["plain.png"]);
+    expect(cache.picture("plain.png")).toBeUndefined();
+    release!();
+    await until(() => !!cache.picture("plain.png"), "the late inspection");
   });
 
   test("a file asked for as a layer file after its plain load decoded, but before it became resident, is inspected before that request resolves", async () => {

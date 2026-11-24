@@ -17,7 +17,7 @@ export interface LayerBoxes {
 
 export interface LayerPaint {
   tiles: Rect[];
-  pattern?: { tile: Rect; repeatX: boolean; repeatY: boolean };
+  pattern?: { tile: Rect; stepX: number; stepY: number; repeatX: boolean; repeatY: boolean };
   clip: Rect;
   blend: string;
 }
@@ -207,22 +207,26 @@ export function layerRepeat(repeat: string): [Repeat, Repeat] | undefined {
 const boxOf = (boxes: LayerBoxes, name: string): Rect | undefined =>
   name === "border-box" ? boxes.border : name === "padding-box" ? boxes.padding : name === "content-box" ? boxes.content : undefined;
 
-function axisTiles(mode: Repeat, start: number, length: number, area: { at: number; size: number }, clip: { at: number; size: number }) {
-  if (mode === "no-repeat" || !(length > 0)) return { at: [start], size: length };
+interface Run {
+  first: number;
+  step: number;
+  count: number;
+  repeats: boolean;
+}
+
+function axisRun(mode: Repeat, start: number, length: number, area: { at: number; size: number }, clip: { at: number; size: number }): Run {
+  if (mode === "no-repeat" || !(length > 0)) return { first: start, step: length, count: 1, repeats: false };
+  let step = length;
+  let origin = start;
   if (mode === "space") {
-    const count = Math.floor(area.size / length);
-    if (count < 2) return { at: [start], size: length };
-    const gap = (area.size - count * length) / (count - 1);
-    const step = length + gap;
-    const at: number[] = [];
-    const first = area.at - Math.ceil((area.at - clip.at) / step) * step;
-    for (let p = first; p < clip.at + clip.size; p += step) at.push(p);
-    return { at, size: length };
+    const fits = Math.floor(area.size / length);
+    if (fits < 2) return { first: start, step: length, count: 1, repeats: false };
+    step = length + (area.size - fits * length) / (fits - 1);
+    origin = area.at;
   }
-  const first = start - Math.ceil((start - clip.at) / length) * length;
-  const at: number[] = [];
-  for (let p = first; p < clip.at + clip.size; p += length) at.push(p);
-  return { at, size: length };
+  const first = origin - Math.ceil((origin - clip.at) / step) * step;
+  const count = Math.max(1, Math.ceil((clip.at + clip.size - first) / step));
+  return { first, step, count, repeats: true };
 }
 
 export function layerPaint(style: LayerStyle, boxes: LayerBoxes, image: { width: number; height: number }): LayerPaint | undefined {
@@ -244,22 +248,21 @@ export function layerPaint(style: LayerStyle, boxes: LayerBoxes, image: { width:
   const y = axisOffset(position.y, area.height - height);
   if (x === undefined || y === undefined) return undefined;
   const blend = style.blend.trim().toLowerCase() || "normal";
-  const xs = axisTiles(repeat[0], area.x + x, width, { at: area.x, size: area.width }, { at: clip.x, size: clip.width });
-  const ys = axisTiles(repeat[1], area.y + y, height, { at: area.y, size: area.height }, { at: clip.y, size: clip.height });
-  const repeatX = repeat[0] === "repeat" || repeat[0] === "round";
-  const repeatY = repeat[1] === "repeat" || repeat[1] === "round";
-  const patterned = repeatX || repeatY;
+  const xs = axisRun(repeat[0], area.x + x, width, { at: area.x, size: area.width }, { at: clip.x, size: clip.width });
+  const ys = axisRun(repeat[1], area.y + y, height, { at: area.y, size: area.height }, { at: clip.y, size: clip.height });
+  const dense = xs.count * ys.count > MAX_LAYER_TILES;
   const tiles: Rect[] = [];
-  for (const ty of ys.at.slice(0, MAX_LAYER_TILES)) {
-    for (const tx of xs.at.slice(0, MAX_LAYER_TILES)) {
-      tiles.push({ x: tx, y: ty, width, height });
-      if (tiles.length >= MAX_LAYER_TILES) break;
+  if (!dense) {
+    for (let j = 0; j < ys.count; j++) {
+      for (let i = 0; i < xs.count; i++) tiles.push({ x: xs.first + i * xs.step, y: ys.first + j * ys.step, width, height });
     }
-    if (tiles.length >= MAX_LAYER_TILES) break;
   }
+  const patterned = dense || repeat[0] === "repeat" || repeat[0] === "round" || repeat[1] === "repeat" || repeat[1] === "round";
   return {
     tiles,
-    ...(patterned ? { pattern: { tile: { x: xs.at[0]!, y: ys.at[0]!, width, height }, repeatX, repeatY } } : {}),
+    ...(patterned
+      ? { pattern: { tile: { x: xs.first, y: ys.first, width, height }, stepX: xs.step, stepY: ys.step, repeatX: xs.repeats, repeatY: ys.repeats } }
+      : {}),
     clip,
     blend,
   };

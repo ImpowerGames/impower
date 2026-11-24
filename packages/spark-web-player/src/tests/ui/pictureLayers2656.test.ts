@@ -72,11 +72,11 @@ describe("where a background layer of a still picture is painted, as CSS paints 
     expect(plan.clip).toEqual(BOXES.content);
   });
 
-  test("a repeating layer is painted as a pattern from its first tile, and its tile list stops at the drawing cap", () => {
+  test("a repeating layer is painted as a pattern from its first tile, and a layer past the drawing cap lists no tiles", () => {
     const plan = layerPaint(style({ repeat: "repeat", size: "1px 1px", clip: "padding-box" }), BOXES, { width: 1, height: 1 })!;
-    expect(plan.pattern).toEqual({ tile: { x: 0, y: 0, width: 1, height: 1 }, repeatX: true, repeatY: true });
+    expect(plan.pattern).toEqual({ tile: { x: 0, y: 0, width: 1, height: 1 }, stepX: 1, stepY: 1, repeatX: true, repeatY: true });
     expect(200 * 100).toBeGreaterThan(MAX_LAYER_TILES);
-    expect(plan.tiles).toHaveLength(MAX_LAYER_TILES);
+    expect(plan.tiles).toEqual([]);
     const spaced = layerPaint(style({ repeat: "space", size: "60px 20px", clip: "padding-box" }), BOXES, { width: 60, height: 20 })!;
     expect(spaced.pattern).toBeUndefined();
     expect(layerPaint(style({ repeat: "repeat-x", size: "60px 20px" }), BOXES, { width: 60, height: 20 })!.pattern).toMatchObject({ repeatX: true, repeatY: false });
@@ -84,5 +84,17 @@ describe("where a background layer of a still picture is painted, as CSS paints 
 
   test("the blend mode is carried to the plan", () => {
     expect(layerPaint(style({ blend: "multiply" }), BOXES, { width: 10, height: 10 })!.blend).toBe("multiply");
+  });
+  test("a spaced layer with more tiles than the drawing cap is painted as a pattern stepping by tile and gap, and no axis builds an unbounded list", () => {
+    const plan = layerPaint(style({ repeat: "space", size: "1px 1px", clip: "padding-box" }), BOXES, { width: 1, height: 1 })!;
+    expect(plan.tiles).toEqual([]);
+    expect(plan.pattern).toMatchObject({ tile: { x: 0, y: 0, width: 1, height: 1 }, stepX: 1, stepY: 1, repeatX: true, repeatY: true });
+    const gapped = layerPaint(style({ repeat: "space no-repeat", size: "0.03px 10px", clip: "padding-box" }), BOXES, { width: 3, height: 1000 })!;
+    expect(gapped.tiles).toEqual([]);
+    expect(gapped.pattern!.stepX).toBeGreaterThan(0.03 - 1e-9);
+    expect(gapped.pattern!.repeatY).toBe(false);
+    const tiny = layerPaint(style({ repeat: "repeat", size: "0.000001px 0.000001px", clip: "padding-box" }), BOXES, { width: 1, height: 1 })!;
+    expect(tiny.tiles).toEqual([]);
+    expect(tiny.pattern).toBeDefined();
   });
 });
