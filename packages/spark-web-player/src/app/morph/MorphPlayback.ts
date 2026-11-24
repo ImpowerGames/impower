@@ -726,14 +726,19 @@ export class MorphLayer {
     return this.images.some((image) => image.slot.state === "pending");
   }
 
-  protected staticLayer(index: number): string {
-    const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
-    const pending =
+  protected unbuilt(image: ImageState | undefined): boolean {
+    return (
       !!image &&
       (image.slot.state === "idle" ||
         image.slot.state === "pending" ||
-        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.canvas && !image.broken));
-    return pending && this.still && this.playback.animating ? (this.still[index] ?? this.layers[index]!) : this.layers[index]!;
+        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.canvas && !image.broken))
+    );
+  }
+
+  protected staticLayer(index: number): string {
+    const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
+    const aligned = this.still?.length === this.layers.length;
+    return aligned && this.unbuilt(image) && this.playback.animating ? (this.still![index] ?? this.layers[index]!) : this.layers[index]!;
   }
 
   showStill() {
@@ -742,7 +747,9 @@ export class MorphLayer {
       this.layout();
       return;
     }
-    this.span.style.setProperty("background-image", this.layers.map((_, index) => this.staticLayer(index)).reverse().join(", "));
+    const whole = this.still.length !== this.layers.length && this.playback.animating && this.images.some((image) => this.unbuilt(image));
+    const shown = whole ? [...this.still] : this.layers.map((_, index) => this.staticLayer(index));
+    this.span.style.setProperty("background-image", shown.reverse().join(", "));
   }
 
   get live(): boolean {

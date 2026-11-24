@@ -5,6 +5,7 @@ import { createHarness, flattenMessages } from "./harness/uiTestHarness";
 const face = (smile: string, frown: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
 <g data-name="mouth.smile default"><path data-name="lip" d="${smile}" fill="#a33"/></g>
 <g data-name="mouth.frown"><path data-name="lip" d="${frown}" fill="#a33"/></g>
+<g data-name="mouth.neutral"><path data-name="lip" d="M10,55 C30,55 70,55 90,55 C70,58 30,58 10,55Z" fill="#a33"/></g>
 </svg>`;
 
 const SMILE = "M10,50 C30,80 70,80 90,50 C70,60 30,60 10,50Z";
@@ -13,7 +14,16 @@ const FROWN = "M10,60 C30,30 70,30 90,60 C70,50 30,50 10,60Z";
 const ASSETS = [
   { uri: "inmemory:///mia.svg", type: "image", name: "mia", ext: "svg", data: face(SMILE, FROWN) },
   { uri: "inmemory:///tom.svg", type: "image", name: "tom", ext: "svg", data: face(SMILE, FROWN) },
+  { uri: "inmemory:///base.png", type: "image", name: "base", ext: "png", src: "/base.png", width: 100, height: 100 },
+  { uri: "inmemory:///hat.png", type: "image", name: "hat", ext: "png", src: "/hat.png", width: 100, height: 100 },
 ] as any[];
+
+const scene = (lines: string, definitions = "") => `${BEND}
+${definitions}
+scene start
+${lines}
+end
+`;
 
 const BEND = `morph bend {
   method = match
@@ -100,6 +110,62 @@ describe("a `trigger = change` morph in the image write (#2737)", () => {
     const [, changed] = await beats(undefined, SOURCE.replace("scene start", `${BEND.replace("morph bend", "morph sway")}\nscene start`), 2, warnings);
     expect(changed.morph).toBeUndefined();
     expect(warnings).toEqual([expect.stringContaining("`bend`, `sway` share group `mouth`")]);
+  });
+
+  test("starts from the drawing on screen when another morph on the old look rested its group elsewhere", async () => {
+    const smirk = `morph smirk {
+  method = match
+  unless = mouth.neutral
+  keyframes {
+    from { mouth { state = smile } }
+    to { mouth { state = frown } }
+  }
+}
+`;
+    const lines = `  [[show portrait mia:mouth.smile]]
+  First.
+  [[show portrait mia:mouth.neutral]]
+  Changed.`;
+    const [first, changed] = await beats(undefined, scene(lines, smirk), 2);
+    expect(first.morph.plays.map((play: any) => play.morph)).toEqual(["smirk"]);
+    const plays = changed.morph.plays;
+    expect(plays.map((play: any) => play.morph)).toEqual(["bend"]);
+    expect(parseMorphRecipe(plays[0].ref.recipes.bend)?.keyframes.map((keyframe) => keyframe.states)).toEqual([{ mouth: "frown" }, { mouth: "neutral" }]);
+  });
+
+  test("pairs each slot of a directive that shows one picture twice with the slot it replaces", async () => {
+    const lines = `  [[show portrait mia:mouth.smile + mia:mouth.frown]]
+  First.
+  [[show portrait mia:mouth.smile + mia:mouth.frown]]
+  Same.
+  [[show portrait mia:mouth.frown + mia:mouth.frown]]
+  Swapped.`;
+    const [, same, swapped] = await beats(undefined, scene(lines), 3);
+    expect(same.morph).toBeUndefined();
+    expect(swapped.morph.plays.map((play: any) => [play.morph, play.layer])).toEqual([["bend", 0]]);
+    expect(parseMorphRecipe(swapped.morph.plays[0].ref.recipes.bend)?.keyframes.map((keyframe) => keyframe.states)).toEqual([
+      { mouth: "smile" },
+      { mouth: "frown" },
+    ]);
+  });
+
+  test("holds the old drawing of a layered picture while the pair bakes, when the change adds a layer", async () => {
+    const kit = `define kit as layered_image with
+  assets = {
+    ["base"] = base,
+    ["hat.on"] = hat,
+  }
+end
+`;
+    const lines = `  [[show portrait kit:hat.off]]
+  First.
+  [[show portrait kit:hat.on]]
+  Changed.`;
+    const [, changed] = await beats(undefined, scene(lines, kit), 2);
+    expect(changed.morph.plays.map((play: any) => play.morph)).toEqual(["bend"]);
+    expect(changed.background).toContain("/hat.png");
+    expect(changed.morph.still).toContain("/base.png");
+    expect(changed.morph.still).not.toContain("/hat.png");
   });
 
   test("a beat displayed at once shows the new drawing with no play", async () => {

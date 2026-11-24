@@ -294,12 +294,13 @@ function changeMembers(
   const before = resolveImageAttributes(context, from, { visibility: false });
   const vocabulary = resolved.vocabulary!;
   if (before.image !== resolved.image) return [];
+  const was = shownLook(context, channel, from)?.shown ?? before.selection;
   const moves: { group: string; from: string; to: string }[] = [];
   for (const group of Object.keys(vocabulary.groups).sort()) {
     if (driven.has(group)) continue;
-    const was = lookChoices(vocabulary, before.selection, group);
+    const old = lookChoices(vocabulary, was, group);
     const now = lookChoices(vocabulary, resolved.selection, group);
-    if (was.length === 1 && now.length === 1 && was[0] !== now[0]) moves.push({ group, from: was[0]!, to: now[0]! });
+    if (old.length === 1 && now.length === 1 && old[0] !== now[0]) moves.push({ group, from: old[0]!, to: now[0]! });
   }
   if (moves.length === 0) return [];
   const pose = (end: "from" | "to") => {

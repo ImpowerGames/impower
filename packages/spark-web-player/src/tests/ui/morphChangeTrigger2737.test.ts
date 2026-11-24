@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import { createMorphHost, inlineMorphSource, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
-import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
+import { createDOMHarness, flushMicrotasks, installJSDOM } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -129,6 +129,31 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
     playback.advance(0.5);
     expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
+  });
+
+  test("a still with another number of layers stands for the whole background until the pair is baked", async () => {
+    const env = installJSDOM();
+    try {
+      const playback = new MorphPlayback(env.overlay, {
+        host: { resolve: () => new Promise(() => {}) },
+        seed: "s",
+        requestFrame: () => 0,
+        cancelFrame: () => {},
+      });
+      const span = env.overlay.ownerDocument.createElement("span");
+      const background = 'url("hat.png"), url("base.png")';
+      span.style.backgroundImage = background;
+      env.overlay.appendChild(span);
+      const timing = { trigger: "change" as const, duration: 0.5, delay: 0, easing: "linear", iterations: 1, direction: "normal" as const };
+      const ref = { morphs: ["bend"], key: "k-kit", image: "kit", selection: "{}", groups: ["hat"] };
+      playback.mount(span, { plays: [{ layer: 0, ref, morph: "bend", timing, definition: "d" }], epoch: 0, still: 'url("base.png")' }, background, "background", "portrait:0");
+      await flushMicrotasks(10);
+      expect(span.style.backgroundImage).toBe('url("base.png")');
+      playback.setEnabled(false);
+      expect(span.style.backgroundImage).toBe(background);
+    } finally {
+      env.restore();
+    }
   });
 
   test("does not run when the same options are shown again or a different picture is shown", async () => {

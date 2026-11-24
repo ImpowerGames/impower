@@ -1934,14 +1934,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!channel || !this.context) {
       return undefined;
     }
-    const roots = channel.change && shown.length ? new Map(shown.map((asset) => [this.pictureRoot(asset), asset])) : undefined;
-    if (roots) {
+    const unpaired = channel.change ? shown.map((asset) => ({ asset, root: this.pictureRoot(asset) })) : [];
+    if (unpaired.length > 0) {
       this._morphChanges += 1;
     }
-    const fromOf = (asset: string) => {
-      const root = roots?.size ? this.pictureRoot(asset) : undefined;
-      return root === undefined ? undefined : roots!.get(root);
-    };
+    const froms = assets.map((asset) => {
+      const root = unpaired.length > 0 ? this.pictureRoot(asset) : undefined;
+      const at = root === undefined ? -1 : unpaired.findIndex((old) => old.root === root);
+      return at < 0 ? undefined : unpaired.splice(at, 1)[0]!.asset;
+    });
     const plays: MorphLayerPlay[] = [];
     const playsOf = (ref: MorphRef, owner: string | undefined): MorphPlay[] => {
       this.deliverMorphArtifact(ref);
@@ -1966,7 +1967,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       for (const each of playsOf(ref, owner)) plays.push({ layer, ...(picture ? { picture } : {}), ...each });
     };
     let next = 0;
-    for (const asset of assets) {
+    for (const [index, asset] of assets.entries()) {
       const first = next;
       const pick = pickOf(asset);
       const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
@@ -1975,7 +1976,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const imageName = sortFilteredName(asset);
-      const look = this.pictureLook("", asset, pick, fromOf(asset));
+      const look = this.pictureLook("", asset, pick, froms[index]);
       if (!look) {
         continue;
       }
@@ -2018,8 +2019,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
     const still = assets
       .map((asset, index) => {
-        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), fromOf(asset));
-        return cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
+        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
+        return froms[index] !== undefined || cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
       })
       .reverse()
       .join(", ");
