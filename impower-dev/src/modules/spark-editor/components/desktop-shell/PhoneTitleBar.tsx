@@ -1,22 +1,12 @@
-import {
-  Button,
-  CheckIcon,
-  RedoIcon,
-  SparkLogo,
-  UndoIcon,
-} from "@impower/impower-ui/components";
-import type { EditorCommand } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
+import { Button, CheckIcon, SparkLogo } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { cn } from "@impower/impower-ui/components";
-import {
-  storyScriptOf,
-  useEditorHistory,
-  useScriptMode,
-} from "../../workspace/useActiveEditor";
+import { storyScriptOf, useScriptMode } from "../../workspace/useActiveEditor";
 import { SyncButton, SyncStatusLine } from "../drive-sync";
 import { FoldedScriptHeader } from "../script-header";
 import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import AppMenu from "./AppMenu";
+import EditHistory from "./EditHistory";
 import { finishNaming, useNaming } from "./naming";
 import ProjectNameField from "./ProjectNameField";
 import StoryProblemCount from "./StoryProblemCount";
@@ -30,10 +20,6 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
   const editing = useScriptMode() === "editing" && story;
   const naming =
     namingField === "project" || (namingField === "script" && editing);
-  const { canUndo, canRedo } = useEditorHistory(script);
-
-  const run = (command: EditorCommand) =>
-    void withWindow((win) => win.executeEditorCommand(script!, command));
 
   return (
     <header
@@ -74,32 +60,7 @@ export default function PhoneTitleBar({ scrolled }: { scrolled: boolean }) {
       ) : (
         <div class="flex flex-none items-center gap-[7px]">
           {!editing && <SyncButton />}
-          {editing && (
-            <div role="group" aria-label="Edit history" class="flex">
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label="Undo edit"
-                title="Undo"
-                class="text-muted"
-                disabled={!canUndo}
-                onClick={() => run("undo")}
-              >
-                <UndoIcon />
-              </Button>
-              <Button
-                variant="quiet"
-                size="icon"
-                aria-label="Redo edit"
-                title="Redo"
-                class="text-muted"
-                disabled={!canRedo}
-                onClick={() => run("redo")}
-              >
-                <RedoIcon />
-              </Button>
-            </div>
-          )}
+          {editing && <EditHistory script={script!} />}
           <TitleBarSearch />
           {editing ? (
             <Button

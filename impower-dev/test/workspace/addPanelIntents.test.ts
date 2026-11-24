@@ -144,7 +144,7 @@ describe("the Add panel intents", () => {
   it.each([
     ["phone", "reading", "editing"],
     ["phone", "editing", "editing"],
-    ["compact", "reading", "reading"],
+    ["compact", "reading", "editing"],
     ["compact", "editing", "editing"],
     ["desktop", "reading", "reading"],
     ["desktop", "editing", "editing"],

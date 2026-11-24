@@ -71,7 +71,7 @@ export default function WorkspaceShell({
   );
 
   useEffect(() => {
-    if (!editing) {
+    if (!editing || !phone) {
       return;
     }
     const onFocusIn = (event: FocusEvent) => {
@@ -81,7 +81,7 @@ export default function WorkspaceShell({
     };
     document.addEventListener("focusin", onFocusIn);
     return () => document.removeEventListener("focusin", onFocusIn);
-  }, [editing]);
+  }, [editing, phone]);
 
   const onStory = writing && route === "story";
   const stripLayout = phone || compact;
@@ -119,7 +119,7 @@ export default function WorkspaceShell({
     <div
       data-phone-shell={phone ? "" : undefined}
       data-naming={phone ? (naming ?? undefined) : undefined}
-      data-editing={phone && editing ? "" : undefined}
+      data-editing={editing ? "" : undefined}
       data-script-only={scriptOnly ? "" : undefined}
       class="flex h-full w-full min-h-0 flex-col"
     >

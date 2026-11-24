@@ -185,6 +185,7 @@ html.keyboard-open body {
 }
 
 [data-phone-shell]:not([data-editing]) .sparkdown-script-editor-root .cm-keyboard-toolbar,
+[data-editing]:not([data-phone-shell]) .sparkdown-script-editor-root .cm-keyboard-toolbar,
 html:not(.keyboard-open) [data-phone-shell] .sparkdown-script-editor-root .cm-keyboard-toolbar {
   display: none;
 }

@@ -224,11 +224,47 @@ describe("Writing tools menu", () => {
     expect(row("Rename IMANI")).toBeUndefined();
   });
 
+  it.each([
+    ["phone", true],
+    ["compact", true],
+    ["compact", false],
+  ] as const)("disables Rename while reading on a %s layout and says to tap Edit (coarse pointer: %s)", async (at, coarse) => {
+    calls.name = imani;
+    layout.value = at;
+    workspace.layout.value = layout.value as Layout;
+    layout.coarse = coarse;
+    workspace.scriptMode.value = "reading";
+    await mount(false);
+    await open();
+    await until(() => row("Rename IMANI"));
+    const rename = row("Rename IMANI")!;
+    expect(rename.getAttribute("aria-disabled")).toBe("true");
+    expect(rename.textContent).toContain("Tap Edit to rename.");
+    await act(async () => rename.click());
+    expect(calls.names).toEqual([]);
+  });
+
+  it.each(["phone", "compact", "desktop"] as const)(
+    "keeps Rename's own description on a %s layout when the script is busy while editing",
+    async (at) => {
+      calls.name = imani;
+      layout.value = at;
+      workspace.layout.value = layout.value as Layout;
+      await mount(false);
+      await open();
+      await until(() => row("Rename IMANI"));
+      const rename = row("Rename IMANI")!;
+      expect(rename.getAttribute("aria-disabled")).toBe("true");
+      expect(rename.textContent).toContain("Rename all uses and linked assets.");
+    },
+  );
+
   it("disables Rename while the script cannot be edited, and says so on a phone", async () => {
     calls.name = imani;
     layout.value = "phone";
     workspace.layout.value = layout.value as Layout;
     layout.coarse = true;
+    workspace.scriptMode.value = "reading";
     await mount(false);
     await open();
     await until(() => row("Rename IMANI"));

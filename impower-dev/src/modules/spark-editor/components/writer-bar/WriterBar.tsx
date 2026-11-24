@@ -11,6 +11,7 @@ import { cn } from "@impower/impower-ui/components";
 import workspaceShortcuts from "../../workspace/shortcuts/WorkspaceShortcuts";
 import {
   useCaretPosition,
+  useScriptMode,
   useScriptReadonly,
 } from "../../workspace/useActiveEditor";
 import { AddPanel } from "../add-panel";
@@ -28,6 +29,7 @@ export default function WriterBar({
   const layout = useLayout();
   const desktop = layout === "desktop";
   const phone = layout === "phone";
+  const reading = useScriptMode() === "reading";
   const scriptBusy = useScriptReadonly();
   const { line, column } = useCaretPosition(filename);
 
@@ -52,14 +54,15 @@ export default function WriterBar({
             aria-label="Writing"
             data-writer-bar
             class={cn(
-              "flex flex-none items-center justify-between border-t border-edge bg-paper in-data-naming:hidden in-data-editing:hidden in-data-script-only:hidden",
+              "flex flex-none items-center justify-between border-t border-edge bg-paper in-data-naming:hidden in-data-script-only:hidden",
+              phone && "in-data-editing:hidden",
               desktop
                 ? "grid h-[62px] min-h-[62px] grid-cols-[1fr_auto_1fr] gap-1 px-5"
                 : "h-[52px] min-h-[52px] gap-0 px-1",
             )}
           >
             <div class="flex items-center gap-[3px] justify-self-start">
-              {!desktop && !phone && (
+              {!desktop && !phone && !reading && (
                 <>
                   <div role="group" aria-label="Indentation" class="flex">
                     <Button
@@ -105,7 +108,7 @@ export default function WriterBar({
               Line {line}, Col {column}
             </Button>
             <div class="flex items-center justify-self-end">
-              {phone ? (
+              {phone || reading ? (
                 <Button
                   size="pill"
                   data-edit-script

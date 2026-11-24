@@ -357,4 +357,29 @@ describe("the compact layout", () => {
       host!.querySelector('[role="separator"][aria-label="Resize page and preview panes"]')!.className,
     ).not.toContain("hidden");
   });
+
+  it.each([768, 1024])("keeps editing at %ipx while a menu or popover takes the focus", async (at) => {
+    await mount(at);
+    await act(async () => {
+      workspace.scriptMode.value = "editing";
+    });
+    await settle();
+    const shell = host!.querySelector<HTMLElement>("[data-editing]")!;
+    expect(shell).not.toBeNull();
+    expect(host!.querySelector("[data-phone-shell]")).toBeNull();
+    for (const role of ["menu", "dialog"]) {
+      const surface = document.body.appendChild(document.createElement("div"));
+      surface.setAttribute("role", role);
+      const item = surface.appendChild(document.createElement("button"));
+      await act(async () => item.focus());
+      await settle();
+      expect(workspace.scriptMode.value).toBe("editing");
+      surface.remove();
+    }
+    await act(async () => {
+      workspace.scriptMode.value = "reading";
+    });
+    await settle();
+    expect(shell.hasAttribute("data-editing")).toBe(false);
+  });
 });
