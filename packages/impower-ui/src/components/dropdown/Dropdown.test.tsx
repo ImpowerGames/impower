@@ -15,6 +15,7 @@ import {
   DropdownTrigger,
   dropdownContentVariants,
 } from "./Dropdown";
+import type { MenuSheetOn } from "../../layout/menuForm";
 
 let phone = false;
 const mediaListeners = new Set<() => void>();
@@ -85,13 +86,18 @@ const pointer = (target: Element, pointerType: string) =>
 
 const tap = (target: Element) => pointer(target, "touch");
 
+const tapPhone = async (target: Element) => {
+  await setPhone(true);
+  await tap(target);
+};
+
 const sheetMenu = () => menu()?.closest('[role="dialog"]') ?? null;
 
-const mount = async (onSelect = vi.fn()) => {
+const mount = async (onSelect = vi.fn(), sheetOn?: MenuSheetOn) => {
   host = document.body.appendChild(document.createElement("div"));
   await act(async () =>
     render(
-      <DropdownRoot>
+      <DropdownRoot sheetOn={sheetOn}>
         <DropdownTrigger asChild>
           <button type="button">App menu</button>
         </DropdownTrigger>
@@ -161,7 +167,7 @@ describe("Dropdown under preact/compat", () => {
 
   it.each([
     ["menu", false],
-    ["touch-opened sheet", true],
+    ["phone sheet", true],
   ])("leaves focus where an item without focus return sent it, in the %s", async (_mode, sheet) => {
     const field = document.body.appendChild(document.createElement("input"));
     host = document.body.appendChild(document.createElement("div"));
@@ -182,7 +188,7 @@ describe("Dropdown under preact/compat", () => {
     );
     const trigger = host.querySelector("button")!;
     trigger.focus();
-    if (sheet) await tap(trigger);
+    if (sheet) await tapPhone(trigger);
     else await key(trigger, "ArrowDown");
     await settle(300);
     const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
@@ -193,9 +199,9 @@ describe("Dropdown under preact/compat", () => {
     expect(document.activeElement).toBe(field);
   });
 
-  it("shows the label in the touch-opened sheet", async () => {
+  it("shows the label in the phone sheet", async () => {
     const { trigger } = await mount();
-    await tap(trigger);
+    await tapPhone(trigger);
     await settle(300);
     expect(menu()).not.toBeNull();
     expect(menu()!.textContent).toContain(
@@ -203,9 +209,9 @@ describe("Dropdown under preact/compat", () => {
     );
   });
 
-  it("raises the touch-opened sheet as a menu sheet, with the sheet's corners and shadow", async () => {
+  it("raises the phone sheet as a menu sheet, with the sheet's corners and shadow", async () => {
     const { trigger } = await mount();
-    await tap(trigger);
+    await tapPhone(trigger);
     await settle(300);
     const classes = document.querySelector('[role="dialog"]')!.className.split(" ");
     expect(classes).toEqual(expect.arrayContaining(["rounded-t-sheet", "shadow-sheet"]));
@@ -358,9 +364,9 @@ describe("Dropdown radio items under preact/compat", () => {
     expect(checked()[0]).toEqual(["auto", "true"]);
   });
 
-  it("keeps disabled rows from choosing in the touch-opened sheet", async () => {
+  it("keeps disabled rows from choosing in the phone sheet", async () => {
     const { trigger, onValueChange } = await mountRadio("auto", true);
-    await tap(trigger);
+    await tapPhone(trigger);
     await settle(300);
     expect(radios().map((item) => (item as HTMLButtonElement).disabled)).toEqual([
       true,
@@ -373,9 +379,9 @@ describe("Dropdown radio items under preact/compat", () => {
     expect(menu()).not.toBeNull();
   });
 
-  it("offers the same rows in the touch-opened sheet", async () => {
+  it("offers the same rows in the phone sheet", async () => {
     const { trigger, onValueChange } = await mountRadio("9:16");
-    await tap(trigger);
+    await tapPhone(trigger);
     await settle(300);
     expect(checked()).toEqual([
       ["auto", "false"],
@@ -389,7 +395,7 @@ describe("Dropdown radio items under preact/compat", () => {
   });
 });
 
-describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
+describe("Dropdown rows in the menu and in the phone sheet", () => {
   const mountRows = async (handlers: {
     onFocus: (row: string) => void;
     onPointerEnter: (row: string) => void;
@@ -436,14 +442,14 @@ describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
   };
 
   const openRows = async (trigger: HTMLElement, sheet: boolean) => {
-    if (sheet) await tap(trigger);
+    if (sheet) await tapPhone(trigger);
     else await key(trigger, "ArrowDown");
     await settle(300);
   };
 
   it.each([
     ["menu", false],
-    ["touch-opened sheet", true],
+    ["phone sheet", true],
   ])("passes each row's attributes, focus and pointer-enter handlers through in the %s", async (_mode, sheet) => {
     const focused: string[] = [];
     const entered: string[] = [];
@@ -464,7 +470,7 @@ describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
 
   it.each([
     ["menu", false, "menu"],
-    ["touch-opened sheet", true, "menu"],
+    ["phone sheet", true, "menu"],
   ])("marks its trigger expanded while the %s is open, and collapsed after", async (_mode, sheet, popup) => {
     const trigger = await mountRows({ onFocus: () => {}, onPointerEnter: () => {} });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
@@ -479,7 +485,7 @@ describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
     expect(trigger.getAttribute("data-state")).toBe("closed");
   });
 
-  it("opens the touch-opened sheet with focus on the chosen option, so no other option previews", async () => {
+  it("opens the phone sheet with focus on the chosen option, so no other option previews", async () => {
     const focused: string[] = [];
     const trigger = await mountRows({ onFocus: (row) => focused.push(row), onPointerEnter: () => {} });
     await openRows(trigger, true);
@@ -489,7 +495,7 @@ describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
 
   it.each([
     ["menu", false],
-    ["touch-opened sheet", true],
+    ["phone sheet", true],
   ])("keeps the %s open when a checkbox row's onSelect prevents it, and closes it otherwise", async (_mode, sheet) => {
     for (const keepOpen of [true, false]) {
       const trigger = await mountRows({ onFocus: () => {}, onPointerEnter: () => {}, keepOpen });
@@ -506,7 +512,7 @@ describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
 
   it.each([
     ["menu", false],
-    ["touch-opened sheet", true],
+    ["phone sheet", true],
   ])("lets onCloseAutoFocus keep focus from returning to the trigger in the %s", async (_mode, sheet) => {
     const elsewhere = document.body.appendChild(document.createElement("input"));
     const onCloseAutoFocus = vi.fn((event: Event) => {
@@ -524,15 +530,15 @@ describe("Dropdown rows in the menu and in the touch-opened sheet", () => {
   });
 });
 
-describe("the Dropdown's form follows the pointer that opens it, at any width", () => {
+describe("the Dropdown's form follows the layout, whatever opens it", () => {
   const formOf = () => (menu() === null ? "closed" : sheetMenu() ? "sheet" : "menu");
 
   it.each([
     ["phone", "touch", "sheet", true],
-    ["desktop", "touch", "sheet", false],
+    ["desktop", "touch", "menu", false],
     ["phone", "pen", "sheet", true],
-    ["desktop", "pen", "sheet", false],
-    ["phone", "mouse", "menu", true],
+    ["desktop", "pen", "menu", false],
+    ["phone", "mouse", "sheet", true],
     ["desktop", "mouse", "menu", false],
   ])("at the %s width, a menu opened by a %s pointer opens as a %s", async (_width, pointerType, form, phoneWidth) => {
     await setPhone(phoneWidth);
@@ -543,20 +549,23 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
   });
 
   it.each([
-    ["phone", "Enter", true],
-    ["phone", " ", true],
-    ["phone", "ArrowDown", true],
-    ["desktop", "Enter", false],
-  ])("at the %s width, a menu opened from the keyboard with %j opens as a menu", async (_width, name, phoneWidth) => {
+    ["phone", "Enter", "sheet", true],
+    ["phone", " ", "sheet", true],
+    ["phone", "ArrowDown", "sheet", true],
+    ["desktop", "Enter", "menu", false],
+  ])("at the %s width, a menu opened from the keyboard with %j opens as a %s", async (_width, name, form, phoneWidth) => {
     await setPhone(phoneWidth);
     const { trigger } = await mount();
     await key(trigger, name);
     await settle(300);
-    expect(formOf()).toBe("menu");
+    expect(formOf()).toBe(form);
   });
 
-  it("opens as a menu when it is opened with no pointer event, at the phone width", async () => {
-    await setPhone(true);
+  it.each([
+    ["phone", "sheet", true],
+    ["desktop", "menu", false],
+  ])("at the %s width, opens as a %s when it is opened with no pointer event", async (_width, form, phoneWidth) => {
+    await setPhone(phoneWidth);
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
       render(
@@ -572,10 +581,14 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
       ),
     );
     await settle(300);
-    expect(formOf()).toBe("menu");
+    expect(formOf()).toBe(form);
   });
 
-  it("follows each opening on one page: a finger gives the sheet, then a mouse gives the menu, then a finger the sheet again", async () => {
+  it.each([
+    ["phone", "sheet", true],
+    ["desktop", "menu", false],
+  ])("at the %s width, gives every opening on one page the %s, by finger, mouse or finger", async (_width, form, phoneWidth) => {
+    await setPhone(phoneWidth);
     const { trigger } = await mount();
     const seen: string[] = [];
     for (const pointerType of ["touch", "mouse", "touch"]) {
@@ -586,18 +599,19 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
       await settle(400);
       expect(formOf()).toBe("closed");
     }
-    expect(seen).toEqual(["sheet", "menu", "sheet"]);
+    expect(seen).toEqual([form, form, form]);
   });
 
-  it("keeps the sheet a finger opened when the window crosses into the phone width and back, and when a mouse then presses inside it", async () => {
+  it("keeps the sheet opened at the phone width when the window widens and narrows again, and when a mouse then presses inside it", async () => {
+    await setPhone(true);
     const { trigger } = await mount();
     await tap(trigger);
     await settle(300);
     expect(formOf()).toBe("sheet");
-    await setPhone(true);
+    await setPhone(false);
     await settle(50);
     expect(formOf()).toBe("sheet");
-    await setPhone(false);
+    await setPhone(true);
     await settle(50);
     expect(formOf()).toBe("sheet");
     await act(async () => {
@@ -607,13 +621,12 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     expect(formOf()).toBe("sheet");
   });
 
-  it("keeps the menu a mouse opened at the phone width when the window widens, and when a finger then touches inside it", async () => {
-    await setPhone(true);
+  it("keeps the menu opened at the desktop width when the window narrows to the phone width, and when a finger then touches inside it", async () => {
     const { trigger } = await mount();
-    await pointer(trigger, "mouse");
+    await pointer(trigger, "touch");
     await settle(300);
     expect(formOf()).toBe("menu");
-    await setPhone(false);
+    await setPhone(true);
     await settle(50);
     expect(formOf()).toBe("menu");
     await act(async () => {
@@ -624,33 +637,15 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
   });
 
   it.each([
-    ["phone", true],
-    ["desktop", false],
-  ])("at the %s width, opens as a menu from a click no pointer made, as assistive tools send", async (_width, phoneWidth) => {
+    ["phone", "sheet", true],
+    ["desktop", "menu", false],
+  ])("at the %s width, opens as a %s from a click no pointer made, as assistive tools send", async (_width, form, phoneWidth) => {
     await setPhone(phoneWidth);
     const { trigger } = await mount();
     await act(async () => trigger.click());
     await settle(300);
-    expect(formOf()).toBe("menu");
+    expect(formOf()).toBe(form);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-  });
-
-  it.each([
-    ["a pen's secondary button pressed and released", "pen", 2, true],
-    ["a finger press that never became a click", "touch", 0, false],
-  ])("opens as a menu from a click no pointer made after %s on the trigger", async (_press, pointerType, button, released) => {
-    const { trigger } = await mount();
-    await act(async () => {
-      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button }));
-      if (released) {
-        trigger.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType, button }));
-      }
-    });
-    await settle(50);
-    expect(formOf()).toBe("closed");
-    await act(async () => trigger.click());
-    await settle(300);
-    expect(formOf()).toBe("menu");
   });
 
   const typedPress = (target: Element, press: string | null, click: string, detail: number) =>
@@ -664,6 +659,22 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     });
 
   it.each([
+    ["a finger press, then a click typed touch with detail 0", "touch", "touch", 0],
+    ["a finger press, then a click typed touch with detail 1", "touch", "touch", 1],
+    ["a pen press, then a click typed pen with detail 0", "pen", "pen", 0],
+    ["a click typed touch with detail 0 and no press recorded", null, "touch", 0],
+    ["a finger press, then a click typed mouse with detail 1", "touch", "mouse", 1],
+    ["a mouse press, then a click typed mouse with detail 1", "mouse", "mouse", 1],
+    ["a click typed empty with detail 0", null, "", 0],
+  ] as const)("at the phone width, opens as a sheet from %s", async (_case, press, click, detail) => {
+    await setPhone(true);
+    const { trigger } = await mount();
+    await typedPress(trigger, press, click, detail);
+    await settle(300);
+    expect(formOf()).toBe("sheet");
+  });
+
+  it.each([
     ["sheet", "a finger press, then a click typed touch with detail 0", "touch", "touch", 0],
     ["sheet", "a finger press, then a click typed touch with detail 1", "touch", "touch", 1],
     ["sheet", "a pen press, then a click typed pen with detail 0", "pen", "pen", 0],
@@ -671,16 +682,33 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     ["sheet", "a finger press, then a click typed mouse with detail 1", "touch", "mouse", 1],
     ["menu", "a mouse press, then a click typed mouse with detail 1", "mouse", "mouse", 1],
     ["menu", "a click typed empty with detail 0", null, "", 0],
-  ] as const)("opens as a %s from %s", async (form, _case, press, click, detail) => {
-    await setPhone(true);
-    const { trigger } = await mount();
+  ] as const)("at the desktop width, a menu that also comes up as a sheet by touch opens as a %s from %s", async (form, _case, press, click, detail) => {
+    const { trigger } = await mount(vi.fn(), "phone-or-touch");
     await typedPress(trigger, press, click, detail);
     await settle(300);
     expect(formOf()).toBe(form);
   });
 
-  it("opens as a sheet from a finger tap whose click has detail 0 after a mouse click elsewhere on the page", async () => {
-    const { trigger } = await mount();
+  it.each([
+    ["a pen's secondary button pressed and released", "pen", 2, true],
+    ["a finger press that never became a click", "touch", 0, false],
+  ])("at the desktop width, a menu that also comes up as a sheet by touch opens as a menu from a click no pointer made after %s on the trigger", async (_press, pointerType, button, released) => {
+    const { trigger } = await mount(vi.fn(), "phone-or-touch");
+    await act(async () => {
+      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button }));
+      if (released) {
+        trigger.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType, button }));
+      }
+    });
+    await settle(50);
+    expect(formOf()).toBe("closed");
+    await act(async () => trigger.click());
+    await settle(300);
+    expect(formOf()).toBe("menu");
+  });
+
+  it("at the desktop width, a menu that also comes up as a sheet by touch opens as a sheet from a finger tap whose click has detail 0 after a mouse click elsewhere on the page", async () => {
+    const { trigger } = await mount(vi.fn(), "phone-or-touch");
     const elsewhere = document.body.appendChild(document.createElement("div"));
     await act(async () => {
       for (const type of ["pointerdown", "pointerup", "click"]) {
@@ -693,7 +721,24 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     elsewhere.remove();
   });
 
-  it("closes a menu that is not modal when a mouse presses its trigger, and does not reopen it on that press's click", async () => {
+  it("at the desktop width, a menu that also comes up as a sheet by touch gives a finger the sheet, then a mouse the menu, then a finger the sheet again", async () => {
+    const { trigger } = await mount(vi.fn(), "phone-or-touch");
+    const seen: string[] = [];
+    for (const pointerType of ["touch", "mouse", "touch"]) {
+      await pointer(trigger, pointerType);
+      await settle(300);
+      seen.push(formOf());
+      await key(document.activeElement!, "Escape");
+      await settle(400);
+      expect(formOf()).toBe("closed");
+    }
+    expect(seen).toEqual(["sheet", "menu", "sheet"]);
+  });
+
+  it.each([
+    ["mouse", "mouse"],
+    ["finger", "touch"],
+  ])("closes a menu that is not modal when a %s presses its trigger, and does not reopen it on that press's click", async (_name, pointerType) => {
     host = document.body.appendChild(document.createElement("div"));
     await act(async () =>
       render(
@@ -712,39 +757,16 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     await pointer(trigger, "mouse");
     await settle(300);
     expect(formOf()).toBe("menu");
-    await act(async () => {
-      trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse", button: 0 }));
-      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
-    });
+    await typedPress(trigger, pointerType, pointerType, 1);
     await settle(400);
     expect(formOf()).toBe("closed");
   });
 
-  it("closes a menu that is not modal when a finger presses its trigger, and does not reopen it as a sheet", async () => {
-    host = document.body.appendChild(document.createElement("div"));
-    await act(async () =>
-      render(
-        <DropdownRoot modal={false}>
-          <DropdownTrigger asChild>
-            <button type="button">Menu</button>
-          </DropdownTrigger>
-          <DropdownContent>
-            <DropdownItem>Settings</DropdownItem>
-          </DropdownContent>
-        </DropdownRoot>,
-        host!,
-      ),
-    );
-    const trigger = host.querySelector("button")!;
-    await pointer(trigger, "mouse");
-    await settle(300);
-    expect(formOf()).toBe("menu");
-    await tap(trigger);
-    await settle(400);
-    expect(formOf()).toBe("closed");
-  });
-
-  it("does not open from a touch that turns into a scroll, and the next mouse press still gives the menu", async () => {
+  it.each([
+    ["phone", "sheet", true],
+    ["desktop", "menu", false],
+  ])("at the %s width, does not open from a touch that turns into a scroll, and the next mouse press gives the %s", async (_width, form, phoneWidth) => {
+    await setPhone(phoneWidth);
     const { trigger } = await mount();
     await act(async () => {
       trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch" }));
@@ -754,7 +776,7 @@ describe("the Dropdown's form follows the pointer that opens it, at any width", 
     expect(formOf()).toBe("closed");
     await pointer(trigger, "mouse");
     await settle(300);
-    expect(formOf()).toBe("menu");
+    expect(formOf()).toBe(form);
   });
 });
 
@@ -781,10 +803,10 @@ describe("Dropdown in fullscreen", () => {
     expect(stage.contains(menu())).toBe(true);
   });
 
-  it("opens the touch-opened sheet inside the fullscreen element", async () => {
+  it("opens the phone sheet inside the fullscreen element", async () => {
     const stage = enterFullscreen();
     const { trigger } = await mountRadio();
-    await tap(trigger);
+    await tapPhone(trigger);
     await settle(300);
     expect(menu()).not.toBeNull();
     expect(stage.contains(menu())).toBe(true);
@@ -868,7 +890,7 @@ describe("DropdownGroup", () => {
     expect(document.activeElement?.textContent).toBe("Step Over");
   });
 
-  it("keeps the named group and its heading in the touch-opened sheet", async () => {
+  it("keeps the named group and its heading in the phone sheet", async () => {
     await setPhone(true);
     const trigger = await mountGroup();
     await tap(trigger);

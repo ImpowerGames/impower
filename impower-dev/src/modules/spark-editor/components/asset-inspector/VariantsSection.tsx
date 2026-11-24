@@ -76,7 +76,7 @@ function GroupMenu({
   const name = groupLabel(group);
   const button = useRef<HTMLButtonElement | null>(null);
   return (
-    <DropdownRoot onOpenChange={(next) => !next && onPreview(null)}>
+    <DropdownRoot sheetOn="phone-or-touch" onOpenChange={(next) => !next && onPreview(null)}>
       <DropdownTrigger asChild>
         <Button
           ref={button}

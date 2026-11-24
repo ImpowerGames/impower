@@ -236,3 +236,70 @@ describe("the bar presentation", () => {
     expect(host!.querySelector("section")).toBeNull();
   });
 });
+
+describe("the popover and a press outside it", () => {
+  const press = async (target: Element, pointerType: string) => {
+    const event = new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 });
+    await act(async () => {
+      target.dispatchEvent(event);
+    });
+    return event;
+  };
+
+  const mountWithOutside = async (extra: Record<string, unknown> = {}) => {
+    const outside = document.body.appendChild(document.createElement("button"));
+    const toolbar = document.body.appendChild(document.createElement("div"));
+    toolbar.setAttribute("data-toolbar", "");
+    const onClose = await mount(undefined, vi.fn(), {
+      keepOpenOn: (target: Element) => !!target.closest("[data-toolbar]"),
+      ...extra,
+    });
+    return { outside, toolbar, onClose };
+  };
+
+  it.each(["touch", "pen"])("closes it the moment a %s presses outside, cancelling the press so nothing under it acts on mousedown", async (pointerType) => {
+    const { outside, onClose } = await mountWithOutside();
+    const event = await press(outside, pointerType);
+    expect(onClose).toHaveBeenCalledWith("dismiss");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ["touch", 0],
+    ["pen", 0],
+    ["mouse", 1],
+  ])("lets a %s press outside reach the control under it %i times", async (pointerType, reached) => {
+    const { outside } = await mountWithOutside();
+    const heard = vi.fn();
+    outside.addEventListener("pointerdown", heard);
+    await press(outside, pointerType);
+    expect(heard).toHaveBeenCalledTimes(reached);
+  });
+
+  it("leaves a mouse press outside to the popover's own dismissal", async () => {
+    const { outside, onClose } = await mountWithOutside();
+    const event = await press(outside, "mouse");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("stays open when a finger presses inside it or on what keeps it open", async () => {
+    const { toolbar, onClose } = await mountWithOutside();
+    await press(panel()!.querySelector('[aria-label="Words to find"]')!, "touch");
+    await press(toolbar, "touch");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("stays open when a finger presses outside a panel that does not close on outside presses", async () => {
+    const { outside, onClose } = await mountWithOutside({ closeOnOutside: false });
+    await press(outside, "touch");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves the phone's sheet to its own dismissal", async () => {
+    layout.value = "phone";
+    const { outside, onClose } = await mountWithOutside();
+    await press(outside, "touch");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});

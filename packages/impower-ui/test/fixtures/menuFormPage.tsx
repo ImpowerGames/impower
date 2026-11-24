@@ -1,19 +1,21 @@
 import { Fragment, render } from "preact";
-import { useRef } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { DropdownContent, DropdownItem, DropdownRoot, DropdownSeparator, DropdownTrigger } from "../../src/components/dropdown/Dropdown";
 import { DialogTitle, Sheet } from "../../src/components/dialog/Dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "../../src/components/popover/Popover";
 import type { KeepClear } from "../../src/utils/keepClear";
+import { useTapOutside } from "../../src/utils/swallowTap";
 
 const options = new Set(location.hash.slice(1).split(","));
 const rows = options.has("long")
   ? Array.from({ length: 30 }, (_, index) => `Row ${index + 1}`)
   : options.has("wide")
-    ? ["happy", "an extremely long but valid user named expression for the character portrait", "an_unbroken_expression_name_with_no_spaces_that_is_wider_than_any_phone_window"]
+    ? ["happy", "an extremely long but valid user named expression for the character portrait", "an_unbroken_expression_name_with_no_spaces_that_is_wider_than_any_phone_window_and_wider_than_the_narrowest_tablet_window_by_a_long_way_too"]
     : ["New project", "Open project", "Save a copy", "Settings", "Report a bug"];
 
 function Menu({ keepClear }: { keepClear?: KeepClear }) {
   return (
-    <DropdownRoot>
+    <DropdownRoot sheetOn={options.has("touch-sheet") ? "phone-or-touch" : "phone"}>
       <DropdownTrigger asChild>
         <button type="button" data-trigger class="h-11 w-24 shrink-0">
           Menu
@@ -31,6 +33,25 @@ function Menu({ keepClear }: { keepClear?: KeepClear }) {
   );
 }
 
+function Panel() {
+  const [open, setOpen] = useState(false);
+  useTapOutside(open, (target) => !!target.closest("[data-panel]"), () => setOpen(false));
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
+      <PopoverTrigger asChild>
+        <button type="button" data-trigger class="h-11 w-24 shrink-0">
+          Panel
+        </button>
+      </PopoverTrigger>
+      <PopoverContent data-panel aria-label="Panel">
+        <button type="button" data-panel-row class="h-11 w-40">
+          Row
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Page() {
   const picture = useRef<HTMLDivElement>(null);
   const bar = (menu: boolean) => (
@@ -38,7 +59,7 @@ function Page() {
       <button type="button" data-left class="h-11 w-24">
         Left
       </button>
-      {menu ? <Menu keepClear={options.has("clear") ? picture : undefined} /> : null}
+      {menu ? options.has("panel") ? <Panel /> : <Menu keepClear={options.has("clear") ? picture : undefined} /> : null}
       <button type="button" data-right class="h-11 w-24">
         Right
       </button>
@@ -59,6 +80,7 @@ function Page() {
       {bar(!bottom)}
       <div class="flex-1" />
       {bottom ? bar(true) : null}
+      {options.has("scroll") ? <div data-spacer style="height:3000px;flex:none" /> : null}
     </div>
   );
 }

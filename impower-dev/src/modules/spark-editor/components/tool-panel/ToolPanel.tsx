@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   Sheet,
+  useTapOutside,
 } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import {
@@ -20,7 +21,7 @@ import {
   type ComponentChildren,
   type VNode,
 } from "preact";
-import { useContext, useLayoutEffect, useRef } from "preact/hooks";
+import { useContext, useId, useLayoutEffect, useRef } from "preact/hooks";
 import { cn } from "@impower/impower-ui/components";
 import workspace from "../../workspace/WorkspaceStore";
 
@@ -265,10 +266,16 @@ export function ToolPanel({
 }: ToolPanelProps) {
   const { sheet, keyboard, bar } = useContext(Context);
   const reason = useRef<ToolPanelCloseReason>("dismiss");
+  const panel = useId();
   const close = (why: ToolPanelCloseReason) => {
     reason.current = why;
     onClose(why);
   };
+  useTapOutside(
+    open && closeOnOutside && !sheet && !keyboard && !bar,
+    (target) => !!target.closest(`[data-tool-panel="${panel}"]`) || !!keepOpenOn?.(target),
+    () => close("dismiss"),
+  );
   const takeCloseReason = () => {
     const why = reason.current;
     reason.current = "dismiss";
@@ -365,6 +372,7 @@ export function ToolPanel({
       {...POPOVER_PLACEMENT[anchoring]}
       class="max-h-[min(var(--radix-popover-content-available-height),640px)]"
       aria-label={title}
+      data-tool-panel={panel}
       onEscapeKeyDown={(event) => {
         event.preventDefault();
         close("escape");

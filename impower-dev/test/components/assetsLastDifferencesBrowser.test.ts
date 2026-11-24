@@ -111,7 +111,7 @@ describe("The Assets page's last differences from the Folio prototype (I-2544)",
     }
   });
 
-  it.each([{ width: 1440 }, { width: 820 }, { width: 430 }])("the View menu is at least 196 wide with its right edge on the button's at $width with a mouse", async ({ width }) => {
+  it.each([{ width: 1440 }, { width: 820 }, { width: 768 }])("the View menu is at least 196 wide with its right edge on the button's at $width with a mouse", async ({ width }) => {
     const page = await open({ width });
     try {
       await page.locator(VIEW).click();

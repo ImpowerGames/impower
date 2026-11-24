@@ -14,7 +14,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { window: actions },
 }));
 
-const { setCoarsePointer } = await import("../pointer");
+const { setCoarsePointer, setPhoneLayout } = await import("../pointer");
 const { useNaming, finishNaming } =
   await import("../../src/modules/spark-editor/components/desktop-shell/naming");
 const { default: workspace } =
@@ -97,6 +97,7 @@ afterEach(async () => {
     host.remove();
     host = undefined;
   }
+  await setPhoneLayout(false);
 });
 
 describe("the app menu's Google Drive items", () => {
@@ -204,7 +205,8 @@ describe("the app menu's children", () => {
     },
   );
 
-  it("holds only menu items, groups and separators when opened as a sheet by touch", async () => {
+  it("holds only menu items, groups and separators when opened as a sheet in the phone layout", async () => {
+    await setPhoneLayout(true);
     workspace.account.value = account;
     actions.setAppMenuOpen.mockImplementation((open: boolean) => {
       workspace.current = {

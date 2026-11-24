@@ -125,10 +125,15 @@ A hook that both this package and the app need is exported from impower-ui, and 
 imports it rather than writing its own. Layout and pointer are decided by `useLayout`
 and `useCoarsePointer` (exported from `@impower/impower-ui/layout`), which also set the
 `data-layout` and `data-pointer` attributes on the root, never by user agent. A menu's
-form follows the pointer that opens it, not the width: `menuFormFor` (also in
-`@impower/impower-ui/layout`) answers a sheet for a finger or a pen and a menu for a mouse,
-the keyboard or an open with no pointer, and `Dropdown` asks it once when it opens and keeps
-that form until it closes. A sheet it opens takes the `Sheet`'s `width="menu"`: at most 560px
+form follows the layout, not the pointer that opens it: `menuFormFor` (also in
+`@impower/impower-ui/layout`) answers a sheet in the phone layout and a menu anchored to its
+trigger in every other layout, whether a finger, a pen, a mouse, the keyboard or an open with
+no pointer opens it, and `Dropdown` asks it once when it opens and keeps that form until it
+closes. A `DropdownRoot` with `sheetOn="phone-or-touch"` also opens as a sheet when a finger
+or a pen opens it, as the asset inspector's Variants wheel does. Under a finger or a pen a
+menu opens on the tap's click, and a tap outside an open menu, or outside a `useTapOutside`
+surface such as the app's tool panels, only closes it: `swallowTap` cancels that press and
+its click, so nothing under it acts. A sheet it opens takes the `Sheet`'s `width="menu"`: at most 560px
 wide, centred on the window's foot, once the window is wider; every other sheet spans the
 window. `useDropdownForm` hands a caller with its own sheet, such as the
 asset inspector's Variants wheel, the same answer. `useSheetOpen` reports whether any
