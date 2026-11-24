@@ -215,6 +215,8 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 const MAX_CANVAS_PIXELS = 4096 * 4096;
 
+const BACKGROUND_GEOMETRY = new Set(["backgroundposition", "backgroundpositionx", "backgroundpositiony", "backgroundsize"]);
+
 const HOST_STYLE = "position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:normal";
 
 let occurrencePrefixes = 0;
@@ -337,6 +339,19 @@ export class MorphPlayback {
 
   set askGame(ask: ((key: string) => void) | undefined) {
     this.delivered.ask = ask;
+  }
+
+  protected following?: number;
+
+  followGeometry() {
+    if (this.following !== undefined) return;
+    const moving = [...this.layers].filter((layer) => layer.drawable && layer.geometryAnimating);
+    if (!moving.length) return;
+    this.following = this.requestFrame(() => {
+      this.following = undefined;
+      for (const layer of moving) if (layer.drawable) layer.layout();
+      this.followGeometry();
+    });
   }
 
   protected relayoutQueued = false;
@@ -762,6 +777,16 @@ export class MorphLayer {
     this.span.style.setProperty("background-image", this.layers.map((_, index) => this.staticLayer(index)).reverse().join(", "));
   }
 
+  get geometryAnimating(): boolean {
+    const animations = typeof this.span.getAnimations === "function" ? this.span.getAnimations() : [];
+    return animations.some((animation) => {
+      if (animation.playState !== "running") return false;
+      const effect = animation.effect as KeyframeEffect | null;
+      const keyframes = typeof effect?.getKeyframes === "function" ? effect.getKeyframes() : [];
+      return keyframes.some((keyframe) => Object.keys(keyframe).some((name) => BACKGROUND_GEOMETRY.has(name.replace(/-/g, "").toLowerCase())));
+    });
+  }
+
   get live(): boolean {
     return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas);
   }
@@ -845,6 +870,8 @@ export class MorphLayer {
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
+    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    if (!this.pictureRect(still.files, still.layer, computed) || !this.uniformPlacement(computed, still.layer, still.span)) still.broken = true;
   }
 
   get occurrenceKeys(): string[] {
@@ -960,7 +987,6 @@ export class MorphLayer {
       image.view = undefined;
       image.canvas = undefined;
     }
-    for (const still of this.stills) still.canvas = undefined;
     const ready = this.images.filter(
       (image) =>
         image.slot.state === "ready" &&
@@ -1012,7 +1038,7 @@ export class MorphLayer {
         const span = Math.min(picture.span, count - i);
         const files = picture.files!;
         const drawn = [...files.bitmaps.keys()].map((file) => ({ file, opacity: 1 }));
-        const canvas = this.pictureRect(files, i, computed) ? this.canvasView(files, drawn, doc) : undefined;
+        const canvas = picture.canvas ?? this.canvasView(files, drawn, doc);
         if (canvas) {
           picture.canvas = canvas;
           root.appendChild(canvas.box);
@@ -1038,17 +1064,32 @@ export class MorphLayer {
       }
       still(i);
     }
-    this.span.style.setProperty("background-image", "none");
+    this.span.style.setProperty("background-image", this.layers.map(() => "none").join(", "));
     this.layout();
     this.render();
+  }
+
+  protected uniformPlacement(computed: CSSStyleDeclaration | undefined, layer: number, span: number): boolean {
+    if (!computed) return true;
+    const count = this.layers.length;
+    return ["background-size", "background-position", "background-repeat"].every((name) => {
+      const list = computed.getPropertyValue(name);
+      const bottom = layerValue(list, count - 1 - layer);
+      for (let k = 1; k < span; k++) if (layerValue(list, count - 1 - (layer + k)) !== bottom) return false;
+      return true;
+    });
   }
 
   protected sizeObjects(still: StillPicture) {
     const files = still.files;
     if (!files) return;
     const srcs = new Set(still.picture.files.map((file) => file.src));
+    const view = this.span.ownerDocument.defaultView;
     for (const img of Array.from(this.span.querySelectorAll<HTMLElement>(":scope > img.object"))) {
-      if (srcs.has(img.getAttribute("src") ?? "")) img.style.setProperty("aspect-ratio", `${files.width} / ${files.height}`);
+      if (!srcs.has(img.getAttribute("src") ?? "") || img.style.getPropertyValue("aspect-ratio")) continue;
+      const authored = view?.getComputedStyle(img).getPropertyValue("aspect-ratio");
+      if (authored && authored !== "auto") continue;
+      img.style.setProperty("aspect-ratio", `auto ${files.width} / ${files.height}`);
     }
   }
 

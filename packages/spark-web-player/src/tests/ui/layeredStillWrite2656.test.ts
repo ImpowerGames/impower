@@ -91,7 +91,7 @@ describe("an image write of a still layered picture draws it on a canvas in the 
     const first = await show("Line one.");
     expect(first?.getAttribute("image")).toBe("ava");
     await until(() => !!canvasIn(first), "the first canvas");
-    expect(first!.style.getPropertyValue("background-image")).toBe("none");
+    expect(first!.style.getPropertyValue("background-image")).toBe("none, none");
     expect(canvas.frames).toEqual([["/src/ava.png", "/src/ava mouth.closed default.png"]]);
     const second = await show("Line two.");
     expect(second).not.toBe(first);

@@ -147,7 +147,7 @@ describe("a picture made of image files is drawn on a canvas (#2629)", () => {
       { src: "base.png", alpha: 1 },
       { src: "closed.png", alpha: 1 },
     ]);
-    expect(span.style.getPropertyValue("background-image")).toBe("none");
+    expect(span.style.getPropertyValue("background-image")).toBe("none, none");
   });
 
   test("halfway through a fade both mouth layers are drawn at opacity 0.5", async () => {

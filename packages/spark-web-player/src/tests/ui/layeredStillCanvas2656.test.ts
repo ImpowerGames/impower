@@ -63,8 +63,9 @@ function setup(options: {
   restore = env.restore;
   const canvas = recordingCanvas();
   const loads: string[] = [];
+  const frames: ((now: number) => void)[] = [];
   const playback = new MorphPlayback(env.overlay, {
-    requestFrame: () => 0,
+    requestFrame: (callback) => frames.push(callback),
     cancelFrame: () => {},
     pictureCanvas: canvas.factory,
     loadPicture: async (src) => {
@@ -86,7 +87,10 @@ function setup(options: {
     span.style.setProperty(kind === "mask" ? "mask-image" : "background-image", background);
     return playback.mount(span, { plays: [], epoch: 0 }, background, kind, "backdrop:background_image:0", undefined, pictures);
   };
-  return { playback, span, canvas, loads, mount };
+  const flushFrame = () => {
+    for (const callback of frames.splice(0)) callback(0);
+  };
+  return { playback, span, canvas, loads, mount, frames, flushFrame };
 }
 
 async function until(check: () => boolean, what: string) {
@@ -107,7 +111,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
     mount(SRCS, [OFFICE]);
     expect(canvasOf(span)).not.toBeNull();
-    expect(span.style.getPropertyValue("background-image")).toBe("none");
+    expect(span.style.getPropertyValue("background-image")).toBe("none, none, none");
     expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:200px;top:0px;width:400px;height:300px");
     const element = canvasOf(span)!;
     expect([element.width, element.height]).toEqual([400, 300]);
@@ -180,7 +184,72 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     }
     mount(["sky.png", ...SRCS], [{ ...OFFICE, layer: 1 }]);
     const ratios = Array.from(span.querySelectorAll("img.object"), (img) => (img as HTMLElement).style.getPropertyValue("aspect-ratio"));
-    expect(ratios).toEqual(["", "40 / 30", "40 / 30", "40 / 30"]);
+    expect(ratios).toEqual(["", "auto 40 / 30", "auto 40 / 30", "auto 40 / 30"]);
+  });
+
+  test("a hidden image whose aspect ratio the author set keeps it", () => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    const style = span.ownerDocument.createElement("style");
+    style.textContent = "img.object { aspect-ratio: 1 / 1; }";
+    span.ownerDocument.head.appendChild(style);
+    for (const src of SRCS) {
+      const img = span.ownerDocument.createElement("img");
+      img.className = "object";
+      img.setAttribute("src", src);
+      span.appendChild(img);
+    }
+    expect(span.ownerDocument.defaultView!.getComputedStyle(span.querySelector("img.object")!).getPropertyValue("aspect-ratio")).toBe("1 / 1");
+    mount(SRCS, [OFFICE]);
+    expect(canvasOf(span)).not.toBeNull();
+    const ratios = Array.from(span.querySelectorAll("img.object"), (img) => (img as HTMLElement).style.getPropertyValue("aspect-ratio"));
+    expect(ratios).toEqual(["", "", ""]);
+  });
+
+  test("a picture whose layers are placed differently from each other keeps its CSS background, and the compositor keeps one background value per layer", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-size", "auto 100%, 50% 50%, auto 100%, auto 100%");
+    mount(["sky.png", ...SRCS], [{ ...OFFICE, layer: 1 }]);
+    expect(canvasOf(span)).toBeNull();
+    expect(canvas.frames).toEqual([]);
+    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(["sky.png", ...SRCS]));
+  });
+
+  test("a picture drawn on a canvas stays a canvas when the compositor rebuilds, even after its placement stops being one the canvas can follow", async () => {
+    const waiting = new Map<string, (value: PictureBitmap) => void>();
+    const late = ["hall.png", "rug.png"];
+    const { span, mount } = setup({
+      resident: (src) => (late.includes(src) ? undefined : bitmap(src)),
+      load: (src) => new Promise((resolve) => waiting.set(src, resolve)),
+    });
+    const layer = mount([...SRCS, ...late], [OFFICE, { layer: 3, span: 2, files: late.map((src) => ({ src, name: src })) }]);
+    const first = canvasOf(span);
+    expect(first).not.toBeNull();
+    span.style.setProperty("background-repeat", "repeat");
+    await until(() => waiting.size === 2, "the late loads");
+    for (const src of late) waiting.get(src)!(bitmap(src));
+    await until(() => (layer as any).stills[1].broken === true, "the late picture's build");
+    const canvases = Array.from(shadowOf(span)!.querySelectorAll("canvas"));
+    expect(canvases[0]).toBe(first);
+    expect(Array.from(shadowOf(span)!.children).filter((child) => child.tagName === "DIV" && !child.querySelector("canvas"))).toHaveLength(2);
+  });
+
+  test("an animation of the picture's background position moves the canvas with it, frame by frame, until it ends", () => {
+    const { span, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    let state = "running";
+    (span as any).getAnimations = () => [
+      { playState: state, effect: { getKeyframes: () => [{ backgroundPosition: "left top" }, { backgroundPosition: "right top" }] } },
+    ];
+    span.style.setProperty("background-position", "left top");
+    const layer = mount(SRCS, [OFFICE]);
+    expect(layer.geometryAnimating).toBe(true);
+    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:400px;height:300px");
+    (layer as any).playback.followGeometry();
+    expect(frames).toHaveLength(1);
+    span.style.setProperty("background-position", "right top");
+    state = "finished";
+    flushFrame();
+    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:400px;top:0px;width:400px;height:300px");
+    expect(frames).toHaveLength(0);
   });
 
   test("a picture whose layer files load late but turn out animated is shown as CSS once loaded, never as a canvas", async () => {
