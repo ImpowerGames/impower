@@ -59,7 +59,15 @@ async function until(check: () => boolean, what: string) {
 const numbers = (d: string) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
 
 async function played(beatCount: number, instant: (index: number) => boolean = () => false, gate?: Promise<void>) {
-  const h = createDOMHarness(SOURCE, 0, { files: FILES });
+  const writes: any[] = [];
+  const h = createDOMHarness(SOURCE, 0, {
+    files: FILES,
+    afterEachMessage: (message) => {
+      for (const op of message?.method === "ui/batch" ? message.params.messages : [message]) {
+        if (op?.method === "ui/write-image" && op.params.target === "portrait" && op.params.instructions.length) writes.push(op);
+      }
+    },
+  });
   const playback = MorphPlayback.for(h.overlay);
   const inner = inProcessHost(() => h.game.program);
   const host: MorphHost = gate
@@ -83,7 +91,8 @@ async function played(beatCount: number, instant: (index: number) => boolean = (
     Array.from(shadow()?.querySelectorAll("path[data-morph], [data-morph] path") ?? [])
       .filter((el) => !/display:\s*none/.test(el.closest("[style*='display']")?.getAttribute("style") ?? el.getAttribute("style") ?? ""))
       .map((el) => el.getAttribute("d") ?? "");
-  return { playback, span, shadow, lips };
+  const written = () => writes.at(-1)?.params.instructions[0].content;
+  return { playback, span, shadow, lips, written };
 }
 
 describe("a `trigger = change` morph in the player (#2737)", () => {
@@ -109,12 +118,12 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
   test("starts from the drawing on screen once its pair is baked, however long the bake took", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => (release = resolve));
-    const { playback, span, shadow, lips } = await played(2, undefined, gate);
+    const { playback, span, shadow, lips, written } = await played(2, undefined, gate);
     await flushMicrotasks(20);
-    expect(shadow()).toBeNull();
-    expect(decodeURIComponent(span()!.style.backgroundImage)).toContain("mouth.smile");
+    expect(span()).not.toBeNull();
+    expect(written().morph.plays.map((play: any) => play.morph)).toEqual(["bend"]);
     playback.advance(1);
-    expect(decodeURIComponent(span()!.style.backgroundImage)).toContain("mouth.smile");
+    expect(shadow()).toBeNull();
     release();
     await until(() => !!shadow()?.querySelector("[data-morph]"), "the change morph's view");
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
@@ -124,17 +133,21 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
 
   test("does not run when the same options are shown again or a different picture is shown", async () => {
     for (const count of [3, 4]) {
-      const { span, shadow } = await played(count);
+      const { span, shadow, written } = await played(count);
       await flushMicrotasks(20);
+      expect(span()).not.toBeNull();
       expect(shadow()).toBeNull();
-      expect(decodeURIComponent(span()!.style.backgroundImage)).toContain("mouth.frown");
+      expect(written().morph).toBeUndefined();
+      expect(decodeURIComponent(written().background)).toContain("mouth.frown");
     }
   });
 
   test("a beat displayed at once shows the new drawing with no motion", async () => {
-    const { span, shadow } = await played(2, (index) => index === 1);
+    const { span, shadow, written } = await played(2, (index) => index === 1);
     await flushMicrotasks(20);
+    expect(span()).not.toBeNull();
     expect(shadow()).toBeNull();
-    expect(decodeURIComponent(span()!.style.backgroundImage)).toContain("mouth.frown");
+    expect(written().morph).toBeUndefined();
+    expect(decodeURIComponent(written().background)).toContain("mouth.frown");
   });
 });
