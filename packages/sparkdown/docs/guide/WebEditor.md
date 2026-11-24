@@ -20,9 +20,9 @@ pixels wide and a phone 430 pixels wide.
 
 ## Story
 
-![The Story page on a computer: the rail with Story, Assets and Share on the left and the Outline under it, the script in the middle, and the game preview on the right with the Problems panel open under it](./images/web-editor/story-1440.png)
+![The Story page on a computer: the rail with Story, Assets and Share on the left, the Outline under them and Settings at its foot, the script in the middle, and the game preview on the right with the Problems panel open under it](./images/web-editor/story-1440.png)
 
-![The Story page on a phone: the project name and a menu at the top, a Your game strip with a Play button, the script, an Edit button, and the Story, Assets and Share tabs at the bottom](./images/web-editor/story-430.png)
+![The Story page on a phone: the project name and a menu at the top, a Your game strip with a Play button, the script, an Edit button, and the Story, Assets, Share and Settings tabs at the bottom](./images/web-editor/story-430.png)
 
 Story is where you write. The script fills the middle of the screen, and its name is
 at the top, with **Browse scripts** to open the Scripts page. The arrow at the left of
