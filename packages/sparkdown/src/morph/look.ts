@@ -100,8 +100,20 @@ export function resolvePictureLook(
   };
   const rest = posed(morphRestPose);
   const speech = new Set<string>();
-  for (const candidate of [picture, ...visible]) {
-    if (candidate.struct) for (const name of speechMorphsForStruct(context, channel, candidate.struct)) speech.add(name);
+  const playsPicked = (name: string) => {
+    const picked = morphRefsForStruct(context, channel, struct, name);
+    return (
+      !!artwork &&
+      picked.length === 1 &&
+      picked[0]!.morphs.includes(name) &&
+      !children.some((child) => child.struct && morphRefsForStruct(context, channel, child.struct, name).length > 0)
+    );
+  };
+  for (const name of speechMorphsForStruct(context, channel, struct)) {
+    if (!root || playsPicked(name)) speech.add(name);
+  }
+  for (const layer of visible) {
+    if (layer.struct) for (const name of speechMorphsForStruct(context, channel, layer.struct)) speech.add(name);
   }
   return {
     struct,

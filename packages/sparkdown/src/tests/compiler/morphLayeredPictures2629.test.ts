@@ -146,6 +146,22 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     expect(messages.filter((message) => message.includes("chatter"))).toEqual([]);
   });
 
+  test("a morph clause naming a picture's speech morph that a layer's own morph keeps off the picture says it plays on no image", () => {
+    const face = { uri: "file:///proj/face.svg", type: "image", name: "face", ext: "svg", data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30"><rect data-name="mouth.closed default" width="40" height="30"/><circle data-name="mouth.open" cx="20" cy="15" r="10"/></svg>' };
+    const smile = `morph smile {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = closed\n      }\n    }\n    to {\n      mouth {\n        state = open\n      }\n    }\n  }\n}\n`;
+    const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const define = `define jaw as layered_image with\n  assets = {\n    ["base"] = face,\n    ["lids.on"] = kit_lids,\n  }\nend\n`;
+    const compiler = new SparkdownCompiler();
+    const text = `define ava as character with\n  name = "AVA"\nend\n\n${smile}\n${chatter}\n${define}\nscene start\n  AVA:\n    [[jaw morph chatter]]\n    Hello.\nend\n`;
+    compiler.configure({
+      files: [{ uri: MAIN, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }, ...FILES.map(imageFile), face] as never,
+    });
+    const messages = (compiler.compile({ textDocument: { uri: MAIN } }).program.diagnostics?.[MAIN] ?? []).map((d) =>
+      typeof d.message === "string" ? d.message : d.message.value,
+    );
+    expect(messages.filter((message) => message.startsWith("`chatter` plays on no image"))).toHaveLength(1);
+  });
+
   test("a painted portrait warns where its morph's rest replaces a written choice, as an SVG image does", () => {
     const messages = messagesOf(`${BLINK}\nscene start\n  [[ava:lids.on]]\nend\n`);
     expect(messages.filter((message) => message.startsWith("`blink` plays on this look and rests its `lids` on `off`"))).toHaveLength(1);

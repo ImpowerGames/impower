@@ -97,6 +97,30 @@ describe("resolvePictureLook (#2629)", () => {
     expect(look.plays).toBe(false);
   });
 
+  test("a base file that has the picture's own name is a layer, not the picture: the picture's morph plays", () => {
+    const files = [{ ...png("kit.png"), uri: "file:///proj/kit.png" }, { ...png("overlay.png"), uri: "file:///proj/overlay.png" }];
+    const text = `${lidsMorph("blink", ["off", "on", "off"])}\ndefine kit as layered_image with\n  assets = {\n    ["base"] = kit,\n    ["lids.on"] = overlay,\n  }\nend\n`;
+    const program = compile(text, files);
+    const look = resolvePictureLook(program.context, program.morphs, program.context!["layered_image"]!["kit"]);
+    expect(look.layers.map((layer) => [layer.struct?.$type, layer.struct?.$name, layer.refs.length])).toEqual([["image", "kit", 0]]);
+    expect(look.conflict).toBeUndefined();
+    expect(look.plays).toBe(true);
+    expect(look.refs.map((ref) => [ref.morphs, ref.layered])).toEqual([[["blink"], true]]);
+  });
+
+  test("a picture's own speech morph is offered only where, picked, it plays on the whole picture", () => {
+    const face = { uri: "file:///proj/face.svg", type: "image", name: "face", ext: "svg", data: talkingPortrait() };
+    const smile = `morph smile {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = closed\n      }\n    }\n    to {\n      mouth {\n        state = open\n      }\n    }\n  }\n}\n`;
+    const chatter = lidsMorph("chatter", ["off", "on", "off"], "  timing {\n    trigger = speech\n  }\n");
+    const kit = (assets: string) => `define kit as layered_image with\n  assets = {\n${assets}  }\nend\n`;
+    const blocked = compile(`${smile}\n${chatter}\n${kit('    ["base"] = face,\n    ["lids.on"] = overlay,\n')}`, [...OVERLAY, face]);
+    const suppressed = resolvePictureLook(blocked.context, blocked.morphs, blocked.context!["layered_image"]!["kit"]);
+    expect(suppressed.conflict).toBe("layers");
+    expect(suppressed.speech).toEqual([]);
+    const free = compile(`${chatter}\n${kit('    ["lids.on"] = overlay,\n')}`, OVERLAY);
+    expect(resolvePictureLook(free.context, free.morphs, free.context!["layered_image"]!["kit"]).speech).toEqual(["chatter"]);
+  });
+
   test("morphs that overlap on the picture are a conflict and do not play", () => {
     const text = `${lidsMorph("blink", ["off", "on", "off"])}\n${lidsMorph("wink", ["off", "on"])}`;
     const program = compile(text, BESIDE);

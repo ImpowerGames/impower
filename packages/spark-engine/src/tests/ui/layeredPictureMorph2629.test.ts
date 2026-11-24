@@ -157,6 +157,22 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(ui.getBackgroundImageFromString("teal", undefined, "none")).toBe("linear-gradient(teal)");
   });
 
+  test("a hand-written picture whose base file has the picture's own name plays its morph and bakes its layered artwork", async () => {
+    const files = [
+      { uri: "inmemory:///kit.png", type: "image", name: "kit", ext: "png", src: "/src/kit.png" },
+      { uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" },
+    ] as any[];
+    const source = `${LIDS}\ndefine kit as layered_image with\n  assets = {\n    ["base"] = kit,\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const { contents, artifacts, warnings } = await written(source, files, "kit");
+    const plays = contents.at(-1).morph.plays;
+    expect(plays.map((play: any) => [play.morph, play.ref.image, play.ref.layered, play.picture?.files.map((file: any) => file.src)])).toEqual([
+      ["lids_blink", "kit", true, ["/src/kit.png", "/src/overlay.png"]],
+    ]);
+    const sent = artifacts.filter((params: any) => params.key === plays[0].ref.key);
+    expect(sent.map((params: any) => [params.error, params.artifact?.status])).toEqual([[undefined, "live"]]);
+    expect(warnings).toEqual([]);
+  });
+
   test("inside one write, two different pick functions for one picture each get their own look", async () => {
     const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
     const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;

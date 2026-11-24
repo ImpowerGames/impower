@@ -10,6 +10,7 @@ import {
 } from "../compiler/morph/bindMorph";
 import { parseMorphConditions } from "../compiler/morph/morphSchema";
 import { resolveImageAttributes } from "../compiler/utils/filterImage";
+import { resolveImageReference } from "../compiler/utils/resolveImageReference";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
 import { layeredMorphArtwork } from "./layered";
@@ -72,6 +73,9 @@ function makeRef(
     selection: canonical,
     groups: members.flatMap((member) => member.groups),
   };
+  if (image?.$type === "layered_image") {
+    ref.layered = true;
+  }
   if (image?.$type === "image" && !image.data) {
     const filtered = buildFilteredSrc(image, selection);
     if (filtered?.includes("attributes=")) {
@@ -193,6 +197,17 @@ export function channelRefs(channel: MorphProgramChannel | undefined): { variant
   return refs;
 }
 
+const rootImage = (context: Context, ref: any, depth = 0): any => {
+  const entry = ref?.$type === "filtered_image" && ref.image ? ref : resolveImageReference(context, ref);
+  return entry?.$type === "filtered_image" && entry.image && depth < 16 ? rootImage(context, entry.image, depth + 1) : entry;
+};
+
+const listedFor = (context: Context, struct: any, name: string): boolean => {
+  const named = rootImage(context, { $name: name });
+  const resolved = rootImage(context, struct);
+  return !named || !resolved || named === resolved;
+};
+
 export function speechMorphsForStruct(
   context: Context | undefined,
   channel: MorphProgramChannel | undefined,
@@ -200,9 +215,10 @@ export function speechMorphsForStruct(
 ): string[] {
   const name = struct?.["$name"];
   if (!context || !channel?.speech || typeof name !== "string") return [];
-  const picks = own(channel.picks, name);
+  const listed = listedFor(context, struct, name);
+  const picks = listed ? own(channel.picks, name) : undefined;
   if (picks) return Object.keys(picks).filter((pick) => pick !== MORPH_PICK_NONE);
-  if (own(channel.variants, name)) return [];
+  if (listed && own(channel.variants, name)) return [];
   return playingMembers(context, channel, struct)
     .members.map((member) => member.recipe.name)
     .filter((morph) => own(channel.speech, morph) !== undefined);
@@ -229,10 +245,11 @@ export function morphRefsForStruct(
 ): MorphRef[] {
   const name = struct?.["$name"];
   if (!context || !channel || typeof name !== "string") return [];
-  const picks = own(channel.picks, name);
+  const mine = listedFor(context, struct, name);
+  const picks = mine ? own(channel.picks, name) : undefined;
   const picked = pick === undefined ? undefined : own(picks, pick);
   if (picked) return picked;
-  const listed = own(channel.variants, name);
+  const listed = mine ? own(channel.variants, name) : undefined;
   if (listed || picks) return listed ?? [];
   const { image, selection, members } = playingMembers(context, channel, struct);
   if (!image || members.length === 0) return [];

@@ -452,7 +452,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       service: this.morphService,
       channel: () => program.morphs,
       readSource: async (ref) => {
-        const image = getContextEntry(program.context, "image", ref.image);
+        const image = ref.layered ? undefined : getContextEntry(program.context, "image", ref.image);
         if (!image) {
           const artwork = layeredMorphArtwork(program.context, getContextEntry(program.context, "layered_image", ref.image));
           return artwork ? { text: artwork.text, ...(artwork.uri === undefined ? {} : { uri: artwork.uri }) } : undefined;
@@ -471,7 +471,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected morphRefs(program: SparkProgram): MorphConsumer[] {
     const refs: MorphConsumer[] = [];
     for (const { variant, ref } of channelRefs(program.morphs)) {
-      const image = getContextEntry(program.context, "image", ref.image);
+      const image = ref.layered ? undefined : getContextEntry(program.context, "image", ref.image);
       if (image) {
         const uri = image.uri;
         refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
@@ -594,7 +594,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const program = this.programOfContext(context);
     const refs = program ? morphRefsForStruct(context, program.morphs, struct, pick) : [];
     const ref = refs.length === 1 ? refs[0] : undefined;
-    if (!program || !ref || !getContextEntry(context, "image", ref.image)) return undefined;
+    if (!program || !ref || ref.layered || !getContextEntry(context, "image", ref.image)) return undefined;
     const wait = new Promise<undefined>((resolve) =>
       setTimeout(() => resolve(undefined), SparkdownLanguageServerWorkspace.MORPH_PREVIEW_WAIT_MS),
     );

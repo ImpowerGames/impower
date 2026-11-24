@@ -45,6 +45,7 @@ export interface MorphRef {
   selection: string;
   groups: string[];
   src?: string;
+  layered?: true;
 }
 
 export interface MorphTiming {

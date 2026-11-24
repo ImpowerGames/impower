@@ -24,7 +24,7 @@ export const layeredMorphSource = (context: () => Context | undefined): MorphSou
 };
 
 export const inlineMorphSource = (context: () => Context | undefined): MorphSourceReader => async (ref, signal) => {
-  const image = own(context()?.["image"], ref.image);
+  const image = ref.layered ? undefined : own(context()?.["image"], ref.image);
   if (!image) return layeredMorphSource(context)(ref, signal);
   const data = image?.data;
   if (typeof data !== "string" || !data) return undefined;
@@ -35,6 +35,7 @@ export const fetchedMorphSource = (
   context: () => Context | undefined,
   fetcher: (url: string, init: { signal: AbortSignal }) => Promise<Response> = (url, init) => fetch(url, init),
 ): MorphSourceReader => async (ref, signal) => {
+  if (ref.layered) return layeredMorphSource(context)(ref, signal);
   const image = own(context()?.["image"], ref.image);
   const src = image?.src;
   if (typeof src !== "string" || !src) return undefined;
