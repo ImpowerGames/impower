@@ -45,6 +45,7 @@ export interface MorphPictureFile {
   src: string;
   name: string;
   plays?: MorphPlay[];
+  layer?: number;
 }
 
 export type MorphPlay = Omit<MorphLayerPlay, "layer" | "picture">;

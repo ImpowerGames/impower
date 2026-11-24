@@ -143,9 +143,9 @@ async function until(check: () => boolean, what: string) {
 }
 
 describe("an SVG layer keeps its own morphs inside a picture its own morph drives (#2632)", () => {
-  async function shown() {
+  async function shown(source = SOURCE, widthOf: (src: string) => number = () => 260, withCanvas = true) {
     const writes: any[] = [];
-    const h = createDOMHarness(SOURCE, 0, {
+    const h = createDOMHarness(source, 0, {
       files: FILES,
       afterEachMessage: (message) => {
         const ops = message?.method === "ui/batch" ? message.params.messages : [message];
@@ -161,14 +161,17 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
       requestFrame: () => 0,
       cancelFrame: () => {},
       pictureCanvas: canvas.factory,
-      loadPicture: async (src) => ({ image: { src } as never, width: 260, height: 140 }),
+      loadPicture: async (src) => ({ image: { src } as never, width: widthOf(src), height: 140 }),
     });
     await h.ready;
-    await h.preview(SOURCE.split("\n").findIndex((line) => line.includes("First line.")));
+    await h.preview(source.split("\n").findIndex((line) => line.includes("First line.")));
     await flushMicrotasks(10);
     const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
     const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
-    await until(() => !!shadow()?.querySelector("canvas") && !!shadow()?.querySelector("[data-morph]"), "the canvas and the SVG layer's view");
+    await until(
+      () => (!withCanvas || !!shadow()?.querySelector("canvas")) && !!shadow()?.querySelector("[data-morph]"),
+      "the SVG layer's view",
+    );
     const write = writes.find((w) => w.params.target === "portrait" && w.params.instructions[0]?.content?.morph);
     const play = write.params.instructions[0].content.morph.plays[0];
     const own = play.picture.files.find((file: any) => file.plays)!.plays[0];
@@ -226,5 +229,22 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     expect(opacityOf(box())).toBeCloseTo(0.3, 5);
     expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(5.3)));
     expect(referenceStates(artifact, chompAt(5.3))).not.toEqual(referenceStates(artifact, chompAt(5.3 - 5)));
+  });
+
+  test("when the picture cannot be drawn on a canvas, its SVG layer still plays its own morph at its own CSS layer", async () => {
+    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["base"] = bunny,\n    ["lids.on"] = base_file,');
+    const { playback, shadow, artifact, play } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
+    expect(play.picture.files.map((file: any) => [file.plays?.map((own: any) => own.morph), file.layer])).toEqual([
+      [["chomp"], 0],
+      [undefined, undefined],
+    ]);
+    expect(shadow()!.querySelectorAll("canvas")).toHaveLength(0);
+    let time = 0;
+    for (const seconds of [0.2, 0.5, 1.6]) {
+      playback.advance(seconds - time);
+      time = seconds;
+      expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(seconds)));
+    }
+    expect(referenceStates(artifact, chompAt(0.2))).not.toEqual(referenceStates(artifact, chompAt(0.5)));
   });
 });

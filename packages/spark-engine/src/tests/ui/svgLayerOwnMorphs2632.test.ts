@@ -62,6 +62,7 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
       [expect.stringMatching(/^data:image\/svg\+xml,/), [["talk", "bunny"]]],
       ["/src/lid_file.png", undefined],
     ]);
+    expect(files.map((file: any) => file.layer)).toEqual([0, undefined]);
     const keys = [plays[0].ref.key, files[0].plays[0].ref.key];
     for (const key of keys) {
       expect(artifacts.filter((params: any) => params.key === key)).toHaveLength(1);
@@ -74,7 +75,10 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     const { contents, warnings } = await written(source, [svg, png("base_file")]);
     const plays = contents.at(-1).morph.plays;
     expect(plays.map((play: any) => [play.morph, play.ref.image])).toEqual([["lids_blink", "kit"]]);
-    expect(plays[0].picture.files.map((file: any) => file.plays?.map((play: any) => play.morph))).toEqual([undefined, ["talk"]]);
+    expect(plays[0].picture.files.map((file: any) => [file.plays?.map((play: any) => play.morph), file.layer])).toEqual([
+      [undefined, undefined],
+      [["talk"], undefined],
+    ]);
     expect(warnings).toEqual([]);
   });
 

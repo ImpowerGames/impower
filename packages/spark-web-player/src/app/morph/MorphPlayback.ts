@@ -740,7 +740,7 @@ export class MorphLayer {
   }
 
   get live(): boolean {
-    return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas);
+    return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas || image.inner.some((inner) => inner.view));
   }
 
   get drawable(): boolean {
@@ -748,7 +748,7 @@ export class MorphLayer {
       !this.frozen &&
       !this.disposed &&
       this.kind === "background" &&
-      this.images.some((image) => image.slot.state === "ready" && image.slot.artifact?.status === "live")
+      this.images.some((image) => !!this.liveArtifact(image.slot) || image.inner.some((inner) => !!this.liveArtifact(inner.slot)))
     );
   }
 
@@ -921,7 +921,12 @@ export class MorphLayer {
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    if (!ready.length) {
+    const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
+    const alone = (i: number, picture: ImageState | undefined) => {
+      const inner = picture?.inner.find((entry) => picture.picture!.files[entry.file]?.layer === i);
+      return inner && this.liveArtifact(inner.slot) ? inner : undefined;
+    };
+    if (!ready.length && !fallen.some((image) => image.inner.some((inner) => this.liveArtifact(inner.slot) && image.picture!.files[inner.file]?.layer !== undefined))) {
       this.unbuild();
       return;
     }
@@ -944,6 +949,17 @@ export class MorphLayer {
       this.statics.push({ div, layer: i });
       root.appendChild(div);
     };
+    const stillOrAlone = (i: number, picture: ImageState | undefined) => {
+      const inner = alone(i, picture);
+      const artifact = inner ? this.liveArtifact(inner.slot)! : undefined;
+      const view = artifact && this.placement(artifact, computed, count - 1 - i) ? this.liveView(artifact, doc) : undefined;
+      if (inner && view) {
+        inner.view = view;
+        root.appendChild(view.box);
+        return;
+      }
+      still(i);
+    };
     for (let i = 0; i < count; i++) {
       const state = ready.find((image) => image.layer === i);
       if (state?.picture) {
@@ -954,9 +970,14 @@ export class MorphLayer {
           root.appendChild(canvas.box);
         } else {
           if (this.pictureRect(state, computed)) state.broken = true;
-          for (let k = 0; k < span; k++) still(i + k);
+          for (let k = 0; k < span; k++) stillOrAlone(i + k, state);
         }
         i += span - 1;
+        continue;
+      }
+      const covering = fallen.find((image) => i >= image.layer && i < image.layer + image.span);
+      if (covering) {
+        stillOrAlone(i, covering);
         continue;
       }
       const view =
@@ -976,6 +997,14 @@ export class MorphLayer {
     this.span.style.setProperty("background-image", "none");
     this.layout();
     this.render();
+  }
+
+  protected liveArtifact(slot: MorphArtifactSlot): MorphArtifact | undefined {
+    return slot.state === "ready" && slot.artifact?.status === "live" ? slot.artifact : undefined;
+  }
+
+  protected uncomposited(image: ImageState): boolean {
+    return image.slot.state === "failed" || (image.slot.state === "ready" && image.slot.artifact?.status !== "live") || !!image.broken;
   }
 
   protected unbuild() {
@@ -1100,8 +1129,8 @@ export class MorphLayer {
     box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0");
     const views = new Map<number, LiveView>();
     for (const inner of state.inner) {
-      const artifact = inner.slot.state === "ready" ? inner.slot.artifact : undefined;
-      const view = artifact?.status === "live" ? this.liveView(artifact, doc) : undefined;
+      const artifact = this.liveArtifact(inner.slot);
+      const view = artifact ? this.liveView(artifact, doc) : undefined;
       if (!view) continue;
       inner.view = view;
       views.set(inner.file, view);
@@ -1206,22 +1235,27 @@ export class MorphLayer {
     }
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
-    for (const state of this.images) {
-      if (state.canvas) {
-        const rect = this.pictureRect(state, computed, area);
-        if (rect) this.placeCanvas(state.canvas, rect);
-        continue;
-      }
-      const view = state.view;
-      if (!view) continue;
-      const rect = this.placement(view.artifact, computed, count - 1 - state.layer, area);
-      if (!rect) continue;
+    const place = (view: LiveView, layer: number) => {
+      const rect = this.placement(view.artifact, computed, count - 1 - layer, area);
+      if (!rect) return;
       for (const part of view.parts) {
         part.setAttribute("x", String(rect.x));
         part.setAttribute("y", String(rect.y));
         part.setAttribute("width", String(rect.width));
         part.setAttribute("height", String(rect.height));
       }
+    };
+    for (const state of this.images) {
+      if (state.canvas) {
+        const rect = this.pictureRect(state, computed, area);
+        if (rect) this.placeCanvas(state.canvas, rect);
+        continue;
+      }
+      for (const inner of state.inner) {
+        const layer = state.picture?.files[inner.file]?.layer;
+        if (inner.view && layer !== undefined) place(inner.view, layer);
+      }
+      if (state.view) place(state.view, state.layer);
     }
   }
 
@@ -1234,10 +1268,9 @@ export class MorphLayer {
           canvas.drawn = layeredMorphDrawn(canvas.files.model, frame);
           this.paint(canvas);
         });
-        for (const inner of image.inner) if (inner.view) this.renderView(inner.view, inner.plays);
-        continue;
       }
       if (image.view) this.renderView(image.view, image.plays);
+      for (const inner of image.inner) if (inner.view) this.renderView(inner.view, inner.plays);
     }
   }
 
