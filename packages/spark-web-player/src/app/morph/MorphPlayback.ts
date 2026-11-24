@@ -903,7 +903,7 @@ export class MorphLayer {
   }
 
   get watched(): boolean {
-    return this.drawable || (!this.disposed && this.stills.some((still) => still.canvases || (still.files && !still.broken)));
+    return this.drawable || (!this.disposed && this.stills.some((still) => still.canvases));
   }
 
   get drawable(): boolean {
@@ -1001,6 +1001,8 @@ export class MorphLayer {
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
+    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    if (!this.stillPlans(still, computed)) still.broken = true;
   }
 
   protected occurrenceKey(play: MorphPlay, at: number | string): string {
@@ -1137,13 +1139,7 @@ export class MorphLayer {
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    const stills = this.stills.filter((still) => still.files && !still.broken && !!this.stillPlans(still, computed));
-    for (const still of this.stills) {
-      if (stills.includes(still)) continue;
-      still.canvases = undefined;
-      still.segments = undefined;
-    }
+    const stills = this.stills.filter((still) => still.files && !still.broken);
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     const alone = (i: number, picture: ImageState | undefined) => {
       const inner = picture?.inner.find((entry) => picture.picture!.files[entry.file]?.layer === i);
@@ -1155,8 +1151,6 @@ export class MorphLayer {
       !fallen.some((image) => image.inner.some((inner) => this.liveArtifact(inner.slot) && image.picture!.files[inner.file]?.layer !== undefined))
     ) {
       this.unbuild();
-      this.styled = this.styleKey();
-      this.playback.watchShown();
       return;
     }
     const doc = this.span.ownerDocument;
@@ -1171,6 +1165,7 @@ export class MorphLayer {
     const root = this.shadowHost.shadowRoot!;
     root.replaceChildren();
     this.statics = [];
+    const computed = doc.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
     const still = (i: number) => {
       const div = doc.createElement("div");
@@ -1313,7 +1308,7 @@ export class MorphLayer {
           position: value("background-position", k),
           repeat: value("background-repeat", k) || "no-repeat",
           origin: value("background-origin", k),
-          clip: value("background-clip", k),
+          clip: value("background-clip", k) === "text" ? "border-box" : value("background-clip", k),
           blend: value("background-blend-mode", k),
         },
         boxes,
@@ -1740,13 +1735,8 @@ export class MorphLayer {
   }
 
   layout() {
+    if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    if (!this.shadowHost) {
-      if (this.disposed) return;
-      this.styled = this.styleKey();
-      if (this.stills.some((still) => still.files && !still.broken && this.stillPlans(still, computed))) this.build();
-      return;
-    }
     const count = this.layers.length;
     for (const { inner, layer } of this.alone) {
       if (inner.broken) continue;
@@ -1763,13 +1753,6 @@ export class MorphLayer {
         ? !!this.pictureRect(state.files, state.layer, computed)
         : !!this.placement(artifact, computed, count - 1 - state.layer);
       if (eligible !== !!(state.picture ? state.canvas : state.view)) {
-        this.build();
-        return;
-      }
-    }
-    for (const still of this.stills) {
-      if (!still.files || still.broken) continue;
-      if (!!this.stillPlans(still, computed) !== !!still.canvases) {
         this.build();
         return;
       }

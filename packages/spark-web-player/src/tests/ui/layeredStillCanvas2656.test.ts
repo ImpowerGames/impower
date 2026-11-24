@@ -454,21 +454,31 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(span.firstElementChild).toBe(host);
   });
 
-  test("a layer clipped to text keeps its CSS background while the clip lasts, and is drawn on its canvas again once the clip is a box", () => {
-    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+  test("a shown picture keeps its canvas when its clip becomes text and returns to a box, the canvas drawing the text clip as the border box", () => {
+    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-clip", "padding-box");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const drawn = canvasOf(span);
+    expect(drawn).not.toBeNull();
+    const frame = canvas.frames.at(-1);
     span.style.setProperty("background-clip", "text");
     expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("background-clip")).toBe("text");
-    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
-    expect(canvasOf(span)).toBeNull();
-    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(SRCS.slice(0, 2)));
+    flushFrame();
+    expect(canvasOf(span)).toBe(drawn);
+    expect(span.style.getPropertyValue("background-image")).toBe("none, none");
+    expect(canvas.frames.at(-1)).toEqual(frame);
     span.style.setProperty("background-clip", "padding-box");
     flushFrame();
+    expect(canvasOf(span)).toBe(drawn);
+    expect(span.style.getPropertyValue("background-image")).toBe("none, none");
+  });
+
+  test("a picture clipped to text when it is shown is drawn on its canvas, the canvas drawing the text clip as the border box", () => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-clip", "text");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
     expect(canvasOf(span)).not.toBeNull();
     expect(span.style.getPropertyValue("background-image")).toBe("none, none");
-    span.style.setProperty("background-clip", "text");
-    flushFrame();
-    expect(canvasOf(span)).toBeNull();
-    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(SRCS.slice(0, 2)));
   });
 
   test("a picture whose element leaves the document stops being checked and is released", () => {
