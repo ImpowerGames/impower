@@ -267,6 +267,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
+  override async getFileImageSize(
+    uri: string,
+  ): Promise<{ width: number; height: number } | null | undefined> {
+    return this._connection?.sendRequest(ExecuteCommandRequest.type, {
+      command: "sparkdown.getFileImageSize",
+      arguments: [uri],
+    });
+  }
+
   override async getFileVersion(uri: string): Promise<number> {
     return this._connection?.sendRequest(ExecuteCommandRequest.type, {
       command: "sparkdown.getFileVersion",

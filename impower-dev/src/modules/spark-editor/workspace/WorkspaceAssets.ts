@@ -7,7 +7,7 @@ import { DidChangeDirectoriesMessage } from "@impower/spark-editor-protocol/src/
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { assetEndings, assetTypeOf, isLinkPath } from "../utils/assetTypes";
 import { availableName, NameError, plural, validName } from "../utils/fileListModel";
-import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "../utils/imageSize";
+import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "@impower/sparkdown/src/workspace/utils/imageSize";
 import { storageSegments } from "../utils/storageName";
 import { canMoveFolder } from "../utils/fileTree";
 import { downloadFile } from "../utils/downloadFile";

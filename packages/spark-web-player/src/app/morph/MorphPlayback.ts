@@ -821,16 +821,21 @@ export class MorphLayer {
     for (const { index, reason } of unfaithful) {
       this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason });
     }
+    const declared = svgIntrinsicSize(artifact);
+    const width = declared.width || bottom?.width;
+    const height = declared.height || bottom?.height;
     if (
       !bottom ||
+      !width ||
+      !height ||
       unfaithful.length > 0 ||
       bitmaps.size !== indices.length ||
-      [...bitmaps.values()].some((bitmap) => bitmap.width !== bottom.width || bitmap.height !== bottom.height)
+      [...bitmaps.values()].some((bitmap) => bitmap.width !== width || bitmap.height !== height)
     ) {
       image.broken = true;
       return;
     }
-    image.files = { model, bitmaps, width: bottom.width, height: bottom.height };
+    image.files = { model, bitmaps, width, height };
   }
 
   commit() {

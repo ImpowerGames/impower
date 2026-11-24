@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { imageSizeOf, majorityShape } from "../../src/modules/spark-editor/utils/imageSize";
+import { imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
+import { majorityShape } from "../../src/modules/spark-editor/utils/imageSize";
 
 const bytes = (length: number, write: (view: DataView, raw: Uint8Array) => void) => {
   const raw = new Uint8Array(length);

@@ -1058,7 +1058,7 @@ A file has no outline, so a morph shows, hides and fades whole layers. On a laye
 - `timing`, speech, `rest`, `when`, `unless`, picks and the `morph none` clause work as on a drawn portrait.
 - A `paints` entry's `fill` and `stroke` do nothing, and `partner` and `depth` do not apply. Layer movement, keyframe `opacity` and a `paints` entry's `opacity` do not move or fade a layer file.
 
-The picture's size is its bottom layer's pixel size, and every layer covers the whole picture. A morph plays only when every layer file has that size; a picture with a layer file of another size stays still. Export every layer of a painted portrait at the canvas size.
+The picture's size is its bottom layer's pixel size, and every layer covers the whole picture. A morph plays only when every layer file has that size; a picture with a layer file of another size stays still, and both editors warn on each such file when a morph fits the picture. Export every layer of a painted portrait at the canvas size.
 
 A picture also stays still, with a warning in the game naming the file, when one of its layer files is animated (an animated GIF, WebP or PNG) or carries a colour profile whose colours reach beyond sRGB, such as Display P3 or Adobe RGB: its layers could not be drawn together the way the browser draws them alone. Export layers as still sRGB images. A layer file the game cannot read to check this, such as an image on another site that does not allow it, keeps the picture still with a warning too. A picture one of whose layers, shown or not at rest, is a drawn portrait with morphs of its own keeps those morphs playing, and the picture's own morph does not play on it, with a warning naming the picture.
 
@@ -1101,6 +1101,7 @@ When only part of a portrait moves, read the artwork's warnings first. The usual
 - A `paint-target-missing` warning: a `paints` entry names a label its pose does not draw, so nothing takes that paint. Check the label's spelling, or the entry's `state`.
 - A clip that cuts nothing on one portrait while the rest of the morph plays: that portrait draws none of the entry's `targets` in any pose the morph drives, so the entry is skipped there ([Clips](#clips)). Check the targets' labels in its artwork. A label no portrait the morph plays on draws is reported where the morph writes it.
 - A look that is skipped for a folder that draws no `off`: the group has a state other than `on` and `off`, so it is not a switch and each state the morph names needs a layer.
+- A painted portrait that stays still with a warning on one of its layer files, such as `Layer file "ava lids.on.png" is 480×640 pixels, but picture "ava" is 512×768, the size of its bottom layer "ava.png"`: that file was exported at another size, often because its painting program cropped it to the painted area (Krita's "Adjust export size to layer content"). Export every layer at the document size. A file whose size the editor cannot read gets no warning, and the game keeps the picture still if its files turn out to differ.
 - A moved layer that stays put: it draws part of a clip's edges or targets, something outside it draws it again by reference (a `<use>` of it), or this look does not draw a layer with its label (check the label's spelling in the artwork).
 
 For a speech morph:
