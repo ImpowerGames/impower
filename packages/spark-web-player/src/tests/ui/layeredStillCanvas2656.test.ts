@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { createMorphHost, layeredMorphSource } from "@impower/sparkdown/src/morph/hosts";
+import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { placePicture } from "../../../../spark-dom/src/utils/placePicture";
 import type { LayeredPicture } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
@@ -26,6 +29,7 @@ interface RecordedPattern {
   src: string;
   repetition: string;
   matrix?: number[];
+  size?: number[];
 }
 
 function recordingCanvas(patterns = false) {
@@ -48,8 +52,10 @@ function recordingCanvas(patterns = false) {
             clips.push({ kind: "round", x, y, width, height, radii });
           },
           createPattern: (image: CanvasImageSource, repetition: string) => {
+            const source = image as unknown as { src?: string; width: number; height: number };
             const pattern: RecordedPattern & { setTransform(matrix: { init: number[] }): void } = {
-              src: (image as unknown as { src?: string }).src ?? "canvas",
+              src: source.src ?? "canvas",
+              ...(source.src === undefined ? { size: [source.width, source.height] } : {}),
               repetition,
               setTransform(matrix) {
                 pattern.matrix = matrix.init;
@@ -298,13 +304,57 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
 
   test("a spaced layer whose tiles leave gaps is painted through a pattern of the tile and its gap", () => {
     const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 }, patterns: true });
-    span.style.setProperty("background-size", "0.5px 0.5px");
+    span.style.setProperty("background-size", "30px 0.125px");
     span.style.setProperty("background-position", "0px 0px");
     span.style.setProperty("background-repeat", "space");
     mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
-    const fills = canvas.fills.map(({ style, ...rect }) => ({ repetition: (style as RecordedPattern).repetition, ...rect }));
-    expect(fills).toHaveLength(2);
-    expect(fills.every((fill) => fill.repetition === "repeat" && fill.width === 200 && fill.height === 100)).toBe(true);
+    const pattern = (style: unknown) => {
+      const { src, size, repetition, matrix } = style as RecordedPattern;
+      return { src, size, repetition, matrix };
+    };
+    expect(canvas.fills.map(({ style, ...rect }) => ({ ...pattern(style), ...rect }))).toEqual(
+      ["office.png", "desk.png"].map(() => ({
+        src: "canvas",
+        size: [34, 1],
+        repetition: "repeat",
+        matrix: [1, 0, 0, 0.125, 0, 0],
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 100,
+      })),
+    );
+    expect(canvas.frames.at(-1)!.map(({ src, x, y, width, height }) => ({ src, x, y, width, height }))).toEqual(
+      ["office.png", "desk.png"].map((src) => ({ src, x: 0, y: 0, width: 30, height: 1 })),
+    );
+  });
+
+  test("a picture element whose corner radius is a calc() clips each layer to that rounding", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 100, height: 100 }, patterns: true });
+    for (const corner of ["top-left", "top-right", "bottom-right", "bottom-left"]) span.style.setProperty(`border-${corner}-radius`, "calc(50% - 10px)");
+    expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("border-top-left-radius")).toBe("calc(50% - 10px)");
+    span.style.setProperty("background-size", "100% 100%");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvas.clips[0]).toEqual({ kind: "round", x: 0, y: 0, width: 100, height: 100, radii: Array(4).fill({ x: 40, y: 40 }) });
+  });
+
+  test("a picture whose layers blend is isolated from what lies behind the element, as CSS isolates its backgrounds, until it stops blending", () => {
+    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-blend-mode", "multiply, normal");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvasOf(span)).not.toBeNull();
+    expect(span.style.getPropertyValue("isolation")).toBe("isolate");
+    span.style.setProperty("background-blend-mode", "normal");
+    flushFrame();
+    expect(span.style.getPropertyValue("isolation")).toBe("");
+  });
+
+  test("a picture whose layers do not blend leaves the element's isolation alone", () => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("isolation", "auto");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvasOf(span)).not.toBeNull();
+    expect(span.style.getPropertyValue("isolation")).toBe("auto");
   });
 
   test("a picture element with rounded corners clips each layer to the rounded box, as CSS clips its background", () => {
@@ -323,6 +373,61 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     span.style.setProperty("background-size", "100% 100%");
     placePicture(span, { x: 0.5, y: 0.5, zoom: 2 });
     mount(SRCS, [OFFICE]);
+    expect([canvasOf(span)!.width, canvasOf(span)!.height]).toEqual([400, 200]);
+  });
+
+  test("a framing that zooms in draws a morph picture's canvas at the zoomed size when the files have the detail in either direction", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const names = ["base", "closed", "open"];
+    const context = {
+      image: Object.fromEntries(names.map((name) => [name, { $type: "image", $name: name, src: `${name}.png`, uri: `file:///${name}.png` }])),
+      layered_image: {
+        kit: { $type: "layered_image", $name: "kit", assets: { base: { $name: "base" }, "mouth.closed default": { $name: "closed" }, "mouth.open": { $name: "open" } } },
+      },
+    };
+    const recipe = serializeMorphRecipe(
+      buildMorphRecipe("m", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 1, mouth: { state: "open" } }] } as never),
+    );
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { m: recipe }, variants: {} }),
+      readSource: layeredMorphSource(() => context as never),
+    });
+    const playback = new MorphPlayback(env.overlay, {
+      host,
+      requestFrame: () => 0,
+      cancelFrame: () => {},
+      pictureCanvas: recordingCanvas().factory,
+      loadPicture: async (src) => bitmap(src, { width: 200, height: 400 }),
+    });
+    const span = env.overlay.ownerDocument.createElement("span");
+    span.style.setProperty("width", "200px");
+    span.style.setProperty("height", "100px");
+    span.style.setProperty("background-size", "100% 100%");
+    span.style.setProperty("background-repeat", "no-repeat");
+    env.overlay.appendChild(span);
+    placePicture(span, { x: 0.5, y: 0.5, zoom: 2 });
+    playback.mount(
+      span,
+      {
+        epoch: 0,
+        plays: [
+          {
+            layer: 0,
+            picture: { span: 2, files: names.map((name) => ({ src: `${name}.png`, name: `${name}.png` })) },
+            ref: { key: "kit-mouth", image: "kit", selection: "{}", morphs: ["m"], groups: ["mouth"] },
+            morph: "m",
+            definition: "d",
+            timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" },
+          },
+        ],
+      } as never,
+      'url("closed.png"), url("base.png")',
+      "background",
+      "kit:background_image:0",
+    );
+    await vi.waitFor(() => expect(canvasOf(span)).not.toBeNull(), { timeout: 5000, interval: 10 });
     expect([canvasOf(span)!.width, canvasOf(span)!.height]).toEqual([400, 200]);
   });
 

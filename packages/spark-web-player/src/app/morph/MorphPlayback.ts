@@ -32,7 +32,7 @@ import type {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { pictureZoomReach } from "../../../../spark-dom/src/utils/placePicture";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
-import { cssLength, layerPaint, type LayerBoxes, type LayerPaint } from "./pictureLayers";
+import { cssLength, layerPaint, splitTopLevel, type LayerBoxes, type LayerPaint } from "./pictureLayers";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
@@ -859,6 +859,23 @@ export class MorphLayer {
 
   protected styled?: string;
 
+  protected isolation?: { value: string; priority: string };
+
+  protected isolate(computed: CSSStyleDeclaration | undefined) {
+    const blending =
+      !!this.shadowHost &&
+      (computed?.getPropertyValue("background-blend-mode") ?? "").split(",").some((mode) => mode.trim() !== "" && mode.trim() !== "normal");
+    if (blending && !this.isolation) {
+      this.isolation = { value: this.span.style.getPropertyValue("isolation"), priority: this.span.style.getPropertyPriority("isolation") };
+      this.span.style.setProperty("isolation", "isolate");
+    } else if (!blending && this.isolation) {
+      const { value, priority } = this.isolation;
+      this.isolation = undefined;
+      if (value) this.span.style.setProperty("isolation", value, priority);
+      else this.span.style.removeProperty("isolation");
+    }
+  }
+
   protected styleKey(): string {
     const view = this.span.ownerDocument.defaultView;
     const computed = view?.getComputedStyle(this.span);
@@ -1243,7 +1260,7 @@ export class MorphLayer {
   protected cornerRadii(computed: CSSStyleDeclaration | undefined, boxes: LayerBoxes, box: Rect): number[] {
     const border = boxes.border;
     const radii = ["top-left", "top-right", "bottom-right", "bottom-left"].flatMap((corner) => {
-      const [x = "0", y = x] = (computed?.getPropertyValue(`border-${corner}-radius`) ?? "").trim().split(/\s+/);
+      const [x = "0", y = x] = splitTopLevel((computed?.getPropertyValue(`border-${corner}-radius`) ?? "").trim());
       return [cssLength(x, border.width) ?? 0, cssLength(y, border.height) ?? 0];
     });
     const sums = [
@@ -1477,6 +1494,7 @@ export class MorphLayer {
     this.shadowHost.remove();
     this.shadowHost = undefined;
     this.statics = [];
+    this.isolate(undefined);
     this.span.style.setProperty("background-image", this.layers.map((layer, index) => (this.loadingStill(index) ? "none" : layer)).reverse().join(", "));
   }
 
@@ -1658,7 +1676,8 @@ export class MorphLayer {
     }
     const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px`;
     if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-    const scale = Math.max(1, Math.min(pictureZoomReach(this.span), view.files.width / Math.max(1, width * dpr)));
+    const resolution = Math.max(view.files.width / Math.max(1, width * dpr), view.files.height / Math.max(1, height * dpr));
+    const scale = Math.max(1, Math.min(pictureZoomReach(this.span), resolution));
     const pixels = Math.max(1, width * dpr * scale) * Math.max(1, height * dpr * scale);
     const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
     const w = Math.max(1, Math.round(width * dpr * scale * shrink));
@@ -1722,6 +1741,7 @@ export class MorphLayer {
         return;
       }
     }
+    this.isolate(computed);
     const content = this.layerBoxes(computed).content;
     const padding = this.layerBoxes(computed).padding;
     const inner = this.cornerRadii(computed, this.layerBoxes(computed), padding);
