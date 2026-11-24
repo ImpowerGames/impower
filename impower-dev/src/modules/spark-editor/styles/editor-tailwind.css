@@ -10,3 +10,4 @@
 @source not "../../../../../packages/spark-web-player/src/components/**/*.test.{ts,tsx}";
 @source not "../../../../../packages/spark-web-player/src/route/**/*.test.{ts,tsx}";
 @source not "../../../../../packages/spark-web-player/src/saves/**/*.test.{ts,tsx}";
+@source not inline("container filter grow inline ordinal outline resize ring shadow static transform transition");
