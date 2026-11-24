@@ -113,6 +113,7 @@ describe("a layered picture whose layer files differ in pixel size (#2630)", () 
   test("no warning when the bottom layer's size is unknown", () => {
     const program = compile(BLINK, { [BASE]: undefined, [MOUTH]: DOC, [LIDS]: SMALL });
     expect(sizeWarnings(program)).toEqual([]);
+    expect(program.morphs?.variants["ava"]).toHaveLength(1);
   });
 
   test.each([
@@ -154,28 +155,34 @@ end
     expect(program.morphs?.variants["kit"]).toBeUndefined();
   });
 
-  test("JPEG layers broken after their frame header are checked by their frame sizes, and ones whose size cannot be read are not checked", () => {
+  test("JPEG layers read from their headers are checked, and ones carrying Exif or broken before their scan are not checked", () => {
     const scan = [0xff, 0xda, 0, 8, 1, 1, 0, 0, 63, 0, 0x12, 0x34];
-    const jpeg = (width: number, height: number, tail: number[]) =>
-      new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, height >> 8, height & 0xff, width >> 8, width & 0xff, 3, ...new Array(9).fill(0), ...tail]);
-    const brokenBeforeFrame = new Uint8Array([0xff, 0xd8, 0x12, 0x34, ...jpeg(180, 240, scan).slice(2)]);
-    const cutBeforeScan = jpeg(180, 240, [0x12, 0x34, 0x56, 0x78, 0x9a]);
+    const exif = [0xff, 0xe1, 0, 34, 0x45, 0x78, 0x69, 0x66, 0, 0, 0x49, 0x49, 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 1, 3, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
+    const jpeg = (width: number, height: number, before: number[], after: number[]) =>
+      new Uint8Array([0xff, 0xd8, ...before, 0xff, 0xc0, 0, 17, 8, height >> 8, height & 0xff, width >> 8, width & 0xff, 3, ...new Array(9).fill(0), ...after]);
     const sizes = (lids: Uint8Array) => ({
-      [BASE]: imageSizeOf(jpeg(200, 300, [0x12, 0x34, 0x56, ...scan])),
-      [MOUTH]: imageSizeOf(jpeg(200, 300, [0xff, 0x00, 0x12, ...scan])),
+      [BASE]: imageSizeOf(jpeg(200, 300, [], scan)),
+      [MOUTH]: imageSizeOf(jpeg(200, 300, [], scan)),
       [LIDS]: imageSizeOf(lids),
     });
-    const matching = compile(BLINK, sizes(jpeg(200, 300, [0x00, 0x00, ...scan])));
+    const matching = compile(BLINK, sizes(jpeg(200, 300, [], scan)));
     expect(sizeWarnings(matching)).toEqual([]);
     expect(matching.morphs?.variants["ava"]).toHaveLength(1);
-    const odd = compile(BLINK, sizes(jpeg(180, 240, [0x00, 0x00, ...scan])));
+    const odd = compile(BLINK, sizes(jpeg(180, 240, [], scan)));
     expect(sizeWarnings(odd).map(({ uri }) => uri)).toEqual([LIDS]);
     expect(text(sizeWarnings(odd)[0]!.diagnostic)).toContain("180×240");
     expect(odd.morphs?.variants["ava"]).toBeUndefined();
-    for (const lids of [brokenBeforeFrame, cutBeforeScan]) {
-      const unreadable = compile(BLINK, sizes(lids));
-      expect(sizeWarnings(unreadable)).toEqual([]);
-      expect(unreadable.morphs?.variants["ava"]).toHaveLength(1);
+    for (const lids of [
+      jpeg(180, 240, exif, scan),
+      jpeg(180, 240, [], [...exif, ...scan]),
+      jpeg(180, 240, [0x12, 0x34], scan),
+      jpeg(180, 240, [], [0x12, 0x34, 0x56, ...scan]),
+      jpeg(180, 240, [], [0x12, 0x34, 0x56, 0x78, 0x9a]),
+    ]) {
+      expect(imageSizeOf(lids)).toBeUndefined();
+      const unchecked = compile(BLINK, sizes(lids));
+      expect(sizeWarnings(unchecked)).toEqual([]);
+      expect(unchecked.morphs?.variants["ava"]).toHaveLength(1);
     }
   });
 

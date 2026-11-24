@@ -18,7 +18,55 @@ export interface ImageSizeFixture {
   bytes: Uint8Array;
   decoded: ImageSize | null;
   read: ImageSize | null;
+  exif: boolean;
 }
+
+export const EXIF_BEFORE_IMAGE_DATA = new Set([
+  "jpeg-exif-before-frame",
+  "jpeg-exif-after-frame",
+  "jpeg-xmp-before-exif",
+  "jpeg-two-exif-1-6",
+  "jpeg-two-exif-6-1",
+  "jpeg-no-orientation-then-exif",
+  "jpeg-empty-exif-then-exif",
+  "jpeg-subifd-orientation",
+  "jpeg-root-1-sub-6",
+  "jpeg-invalid-tag-type",
+  "jpeg-invalid-tag-count",
+  "jpeg-exif-big-endian",
+  "jpeg-orientation-8",
+  "jpeg-orientation-3",
+  "jpeg-orientation-9",
+  "jpeg-exif-past-limit-after-frame",
+  "jpeg-exif-past-limit-before-frame",
+  "jpeg-garbage-after-frame-before-exif",
+  "jpeg-ff00-after-frame-before-exif",
+  "jpeg-duplicate-orientation-1-6",
+  "jpeg-duplicate-orientation-6-1",
+  "jpeg-duplicate-orientation-0-6",
+  "jpeg-root-1-sub-6-sub-first",
+  "jpeg-root-0-sub-6",
+  "jpeg-root-9-sub-6",
+  "jpeg-raster-with-svg-text-unsettled",
+  "jpeg-progressive-exif-after-frame",
+  "jpeg-progressive-encoder-exif",
+  "png-exif-before-idat",
+  "png-exif-past-limit",
+  "png-invalid-tag-type",
+  "png-two-exif-1-6",
+  "png-duplicate-orientation-1-6",
+  "png-duplicate-orientation-6-1",
+  "png-root-1-sub-6-sub-first",
+  "png-root-0-sub-6",
+  "png-exif-bad-crc",
+  "png-exif-bad-crc-then-valid-exif",
+  "png-exif-bad-crc-then-upright-exif",
+  "png-exif-crc-past-limit",
+  "png-raster-with-svg-text-unsettled",
+  "apng-exif-before-idat",
+]);
+
+const UNSETTLED_WITHOUT_EXIF = new Set(["jpeg-garbage-after-frame-no-exif"]);
 
 const decode64 = (text: string) => Uint8Array.from(Buffer.from(text, "base64"));
 const cat = (...parts: Uint8Array[]) => {
@@ -211,13 +259,10 @@ export function imageSizeFixtures(): ImageSizeFixture[] {
     new Uint8Array([44, left, 0, top, 0, 2, 0, 2, 0, 0, 2, 4, 4, 65, 16, 5, 0, 59]);
   const wideGif = cat(gif.slice(0, 6), new Uint8Array([4, 0, 3, 0]), gif.slice(10, 19), gifFrame(0, 0));
 
-  const fixture = (name: string, mime: string, bytes: Uint8Array, decoded: ImageSize | null, read: ImageSize | null = decoded) => ({
-    name,
-    mime,
-    bytes,
-    decoded,
-    read,
-  });
+  const fixture = (name: string, mime: string, bytes: Uint8Array, decoded: ImageSize | null, read: ImageSize | null = decoded) => {
+    const exif = EXIF_BEFORE_IMAGE_DATA.has(name);
+    return { name, mime, bytes, decoded, read: exif || UNSETTLED_WITHOUT_EXIF.has(name) ? null : read, exif };
+  };
   const jpg = (name: string, bytes: Uint8Array, decoded: ImageSize | null, read?: ImageSize | null) =>
     fixture(name, "image/jpeg", bytes, decoded, read);
   const pngFixture = (name: string, bytes: Uint8Array, decoded: ImageSize | null, read?: ImageSize | null) =>
