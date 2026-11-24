@@ -28,6 +28,21 @@ const firstTabbable = (root: HTMLElement | null) =>
       (element.checkVisibility?.() ?? true),
   ) ?? null;
 
+const revealWithin = (target: HTMLElement, root: HTMLElement | null) => {
+  for (let scroller = target.parentElement; scroller && root?.contains(scroller); scroller = scroller.parentElement) {
+    if (scroller.scrollHeight <= scroller.clientHeight || !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) {
+      continue;
+    }
+    const box = scroller.getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
+    if (rect.top < box.top) {
+      scroller.scrollTop -= box.top - rect.top;
+    } else if (rect.bottom > box.bottom) {
+      scroller.scrollTop += Math.min(rect.bottom - box.bottom, rect.top - box.top);
+    }
+  }
+};
+
 const backdropVariants = cva(
   [
     "fixed inset-0 z-50 flex bg-scrim",
@@ -285,6 +300,7 @@ function Modal({
               if (target) {
                 event.preventDefault();
                 focusAsInput(target, { preventScroll: true });
+                revealWithin(target, content.current);
               }
             }}
             onCloseAutoFocus={(event: Event) => {
