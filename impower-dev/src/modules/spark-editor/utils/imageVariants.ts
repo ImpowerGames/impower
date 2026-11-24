@@ -1,5 +1,7 @@
 import { isWritableImageName, stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
+import type { AttributeVocabulary } from "@impower/sparkdown/src/attributes/types";
+import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { bytesLabel, compareNames, plural } from "./fileListModel";
 import {
   AS_IS,
@@ -92,6 +94,35 @@ export const chosenIn = (group: TesterGroup, selection: VariantSelection): strin
 export const isChanged = (stack: ImageStack, selection: VariantSelection): boolean =>
   testerGroups(stack, selection).some((group) => chosenIn(group, selection) !== group.default);
 
+const shownBy = (vocabulary: AttributeVocabulary, chosen: Readonly<Record<string, string>>): string => {
+  const { visible } = evaluateAttributeVisibility(vocabulary, { ...chosen });
+  return vocabulary.layers.map((layer) => (visible[layer.key] ? "1" : "0")).join("");
+};
+
+const neededGroups = (
+  vocabulary: AttributeVocabulary,
+  groups: readonly TesterGroup[],
+  selection: VariantSelection,
+): Set<string> => {
+  let chosen: Record<string, string> = Object.fromEntries(
+    groups.flatMap((group) => {
+      const value = chosenIn(group, selection);
+      return value === AS_IS ? [] : [[group.key, value]];
+    }),
+  );
+  const wanted = shownBy(vocabulary, chosen);
+  for (const group of groups) {
+    if (!Object.hasOwn(chosen, group.key)) {
+      continue;
+    }
+    const { [group.key]: _dropped, ...rest } = chosen;
+    if (shownBy(vocabulary, rest) === wanted) {
+      chosen = rest;
+    }
+  }
+  return new Set(Object.keys(chosen));
+};
+
 export const variantOf = (stack: ImageStack, selection: VariantSelection): ImageVariant => {
   const picture = pictureFor(stack, selection);
   const image =
@@ -99,11 +130,12 @@ export const variantOf = (stack: ImageStack, selection: VariantSelection): Image
   const accepting = (option: string) =>
     picture.groups.filter((group) => group.options.includes(option)).length;
   const named = new Set(picture.groups.map((group) => group.name));
-  const attributes = testerGroups(stack, selection)
-    .filter((group) => group.key !== ALTERNATE)
+  const groups = testerGroups(stack, selection).filter((group) => group.key !== ALTERNATE);
+  const needed = picture.vocabulary ? neededGroups(picture.vocabulary, groups, selection) : undefined;
+  const attributes = groups
     .flatMap((group) => {
       const value = chosenIn(group, selection);
-      if (value === group.default) {
+      if (needed ? !needed.has(group.key) : value === group.default) {
         return [];
       }
       if (group.switch) {

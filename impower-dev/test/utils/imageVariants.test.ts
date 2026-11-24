@@ -6,6 +6,7 @@ import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
 import {
   ALTERNATE,
   AS_IS,
+  chosenIn,
   defaultForm,
   fileRows,
   filesSummary,
@@ -271,7 +272,13 @@ describe("a portrait folder with layer folders", () => {
       `${MIA}/60 face.happy default/20 paint face.happy default.png`,
       `${MIA}/60 face.sad/20 paint face.sad default.png`,
     ];
-    for (const paths of [NESTED, sleepy, selfNamed]) {
+    const crossed = [
+      `${MIA}/60 outfit.formal/40 paint face.smile default.png`,
+      `${MIA}/60 outfit.formal/40 paint face.frown.png`,
+      `${MIA}/60 face.smile/40 coat outfit.formal default.png`,
+      `${MIA}/60 face.smile/40 coat outfit.casual.png`,
+    ];
+    for (const paths of [NESTED, sleepy, selfNamed, crossed]) {
       const stack = one(paths);
       const vocabulary = stack.pictures[0]!.vocabulary!;
       const groups = testerGroups(stack, {});
@@ -280,7 +287,12 @@ describe("a portrait folder with layer folders", () => {
         [{}],
       );
       for (const selection of selections) {
-        const picked = Object.fromEntries(Object.entries(selection).filter(([, option]) => option !== AS_IS));
+        const picked = Object.fromEntries(
+          testerGroups(stack, selection).flatMap((group) => {
+            const option = chosenIn(group, selection);
+            return group.key === ALTERNATE || option === AS_IS ? [] : [[group.key, option]];
+          }),
+        );
         const written = resolveAttributes(vocabulary, variantOf(stack, selection).attributes).selection;
         expect([selection, evaluateAttributeVisibility(vocabulary, written).visible]).toEqual([
           selection,
@@ -289,6 +301,8 @@ describe("a portrait folder with layer folders", () => {
       }
     }
     expect(variantOf(one(selfNamed), { face: "sad" })).toEqual({ image: "mia", attributes: ["sad"] });
+    expect(isChanged(one(selfNamed), { face: "sad" })).toBe(true);
+    expect(variantOf(one(crossed), { face: "smile", outfit: "formal" })).toEqual({ image: "mia", attributes: ["smile", "formal"] });
   });
 
   it("rests a group on the nearest folder's option over the portrait folder's own, as the game does", () => {
