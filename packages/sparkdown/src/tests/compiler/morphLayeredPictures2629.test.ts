@@ -162,6 +162,24 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     expect(messages.filter((message) => message.startsWith("`chatter` plays on no image"))).toHaveLength(1);
   });
 
+  test("a picture whose own morph a layer's morph keeps from playing gets attribute diagnostics for the look it shows, not that morph's rest", () => {
+    const face = { uri: "file:///proj/face.svg", type: "image", name: "face", ext: "svg", data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30"><rect data-name="mouth.closed default" width="40" height="30"/><circle data-name="mouth.open" cx="20" cy="15" r="10"/></svg>' };
+    const cut = (name: string, group: string, from: string, to: string) =>
+      `morph ${name} {\n  blend = cut\n  keyframes {\n    from {\n      ${group} {\n        state = ${from}\n      }\n    }\n    to {\n      ${group} {\n        state = ${to}\n      }\n    }\n  }\n}\n`;
+    const define = `define pip as layered_image with\n  assets = {\n    ["base"] = face,\n    ["eyes.open default"] = kit_open,\n    ["eyes.closed"] = kit_closed,\n    ["look.left default"] = kit_lids,\n  }\nend\n`;
+    const text = `${cut("shut", "eyes", "open", "closed")}\n${cut("smile", "mouth", "closed", "open")}\n${define}\nscene start\n  [[pip:look.left]]\nend\n`;
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [{ uri: MAIN, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }, ...FILES.map(imageFile), face] as never,
+    });
+    const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
+    const messages = (program.diagnostics?.[MAIN] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+    expect(messages.filter((message) => message.includes("closed eyes"))).toEqual([]);
+    const shown = compile(`${cut("shut", "eyes", "open", "closed")}\n${define}\nscene start\n  [[pip:look.left]]\nend\n`);
+    const warned = (shown.diagnostics?.[MAIN] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+    expect(warned.filter((message) => message.includes("closed eyes"))).toHaveLength(1);
+  });
+
   test("a painted portrait warns where its morph's rest replaces a written choice, as an SVG image does", () => {
     const messages = messagesOf(`${BLINK}\nscene start\n  [[ava:lids.on]]\nend\n`);
     expect(messages.filter((message) => message.startsWith("`blink` plays on this look and rests its `lids` on `off`"))).toHaveLength(1);

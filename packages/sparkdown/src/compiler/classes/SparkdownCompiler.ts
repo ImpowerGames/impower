@@ -4874,7 +4874,7 @@ export class SparkdownCompiler {
       const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
       const emit = (struct: any, from: number, to: number, written: readonly string[]) => {
         const picture = resolvePictureLook(program.context, program.morphs, struct, { pick: MORPH_PICK_NONE });
-        const look = shownLook(program.context, program.morphs, struct, undefined, MORPH_PICK_NONE);
+        const look = picture.root && !picture.plays ? undefined : shownLook(program.context, program.morphs, struct, undefined, MORPH_PICK_NONE);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
         const layered = resolveImageAttributes(program.context!, struct).image?.$type === "layered_image";
         const looks =
