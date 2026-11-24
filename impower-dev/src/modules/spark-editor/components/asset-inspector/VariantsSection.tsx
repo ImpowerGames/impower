@@ -23,7 +23,7 @@ import type { ImageStack } from "../../utils/imageStacks";
 import {
   chosenIn,
   groupLabel,
-  isChanged,
+  changedGroups,
   optionLabel,
   testerGroups,
   variantOf,
@@ -59,6 +59,7 @@ const NO_CARET =
 function GroupMenu({
   group,
   value,
+  changed,
   disabled,
   onPick,
   onPreview,
@@ -67,6 +68,7 @@ function GroupMenu({
 }: {
   group: TesterGroup;
   value: string;
+  changed: boolean;
   disabled: boolean;
   sheetContainer: RefObject<HTMLElement>;
   keepClear: RefObject<HTMLElement>;
@@ -84,7 +86,7 @@ function GroupMenu({
           size="field"
           aria-label={`${name}: ${optionLabel(value)}`}
           data-variant-group={group.key}
-          data-changed={value === group.default ? undefined : ""}
+          data-changed={changed ? "" : undefined}
           disabled={disabled}
         >
           <span class="[--fade:20px] fade-edge">{optionLabel(value)}</span>
@@ -186,6 +188,7 @@ export default function VariantsSection({
   const formLabel = useId();
   const noCaret = useId();
   const groups = testerGroups(stack, selection);
+  const changed = changedGroups(stack, selection);
   const reference = writableReferenceOf(variantOf(stack, selection), form);
   const copy = () =>
     reference !== null &&
@@ -198,7 +201,7 @@ export default function VariantsSection({
       title="Variants"
       label="Variants"
       aside={
-        isChanged(stack, selection) ? (
+        changed.size > 0 ? (
           <Button variant="quiet" size="compact" class="-my-3 text-accent" data-variant-reset disabled={soloed} onClick={() => onSelect({})}>
             Reset
           </Button>
@@ -228,6 +231,7 @@ export default function VariantsSection({
                     keepClear={keepClear}
                     group={group}
                     value={chosenIn(group, selection)}
+                    changed={changed.has(group.key)}
                     disabled={soloed}
                     onPick={(value) => {
                       onPreview(null);

@@ -92,16 +92,16 @@ export const chosenIn = (group: TesterGroup, selection: VariantSelection): strin
   return value !== undefined && group.options.includes(value) ? value : group.default;
 };
 
-export const isChanged = (stack: ImageStack, selection: VariantSelection): boolean => {
+export const changedGroups = (stack: ImageStack, selection: VariantSelection): ReadonlySet<string> => {
   const groups = testerGroups(stack, selection);
   const vocabulary = pictureFor(stack, selection).vocabulary;
+  const moved = (group: TesterGroup) => chosenIn(group, selection) !== group.default;
   if (!vocabulary) {
-    return groups.some((group) => chosenIn(group, selection) !== group.default);
+    return new Set(groups.filter(moved).map((group) => group.key));
   }
-  const alternate = groups.find((group) => group.key === ALTERNATE);
-  return (
-    (alternate !== undefined && chosenIn(alternate, selection) !== alternate.default) ||
-    neededGroups(vocabulary, groups.filter((group) => group.key !== ALTERNATE), selection).size > 0
+  const needed = neededGroups(vocabulary, groups.filter((group) => group.key !== ALTERNATE), selection);
+  return new Set(
+    groups.filter((group) => (group.key === ALTERNATE ? moved(group) : needed.has(group.key))).map((group) => group.key),
   );
 };
 

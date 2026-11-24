@@ -6,10 +6,10 @@ import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
 import {
   ALTERNATE,
   AS_IS,
+  changedGroups,
   defaultForm,
   fileRows,
   filesSummary,
-  isChanged,
   referenceOf,
   testerGroups,
   variantOf,
@@ -69,10 +69,10 @@ describe("the tester's groups", () => {
   });
 
   it("tells when a choice differs from the resting variant", () => {
-    expect(isChanged(one(IMANI), {})).toBe(false);
-    expect(isChanged(one(IMANI), { mouth: "open" })).toBe(false);
-    expect(isChanged(one(IMANI), { face: "happy" })).toBe(true);
-    expect(isChanged(one(IMANI), { [ALTERNATE]: "night" })).toBe(true);
+    expect(changedGroups(one(IMANI), {}).size > 0).toBe(false);
+    expect(changedGroups(one(IMANI), { mouth: "open" }).size > 0).toBe(false);
+    expect(changedGroups(one(IMANI), { face: "happy" }).size > 0).toBe(true);
+    expect(changedGroups(one(IMANI), { [ALTERNATE]: "night" }).size > 0).toBe(true);
   });
 });
 
@@ -303,13 +303,28 @@ describe("a portrait folder with layer folders", () => {
       }
     }
     expect(variantOf(one(selfNamed), { face: "sad" })).toEqual({ image: "mia", attributes: ["sad"] });
-    expect(isChanged(one(selfNamed), { face: "sad" })).toBe(true);
+    expect(changedGroups(one(selfNamed), { face: "sad" }).size > 0).toBe(true);
     expect(variantOf(one(crossed), { face: "smile", outfit: "formal" })).toEqual({ image: "mia", attributes: ["smile", "formal"] });
-    expect([variantOf(one(scoped), {}), isChanged(one(scoped), {})]).toEqual([{ image: "mia", attributes: [] }, false]);
-    expect([variantOf(one(scoped), { color: "red" }), isChanged(one(scoped), { color: "red" })]).toEqual([
+    expect([variantOf(one(scoped), {}), changedGroups(one(scoped), {}).size > 0]).toEqual([{ image: "mia", attributes: [] }, false]);
+    expect([variantOf(one(scoped), { color: "red" }), changedGroups(one(scoped), { color: "red" }).size > 0]).toEqual([
       { image: "mia", attributes: ["red"] },
       true,
     ]);
+  });
+
+  it("marks a group changed exactly when the reference it writes names that group's choice", () => {
+    const scoped = [
+      `${MIA}/90 body.png`,
+      `${MIA}/70 shirt/20 cloth color.red default.png`,
+      `${MIA}/70 shirt/20 cloth color.blue.png`,
+      `${MIA}/60 pants/20 cloth color.blue default.png`,
+      `${MIA}/60 pants/20 cloth color.red.png`,
+    ];
+    expect([...changedGroups(one(scoped), {})]).toEqual([]);
+    expect([...changedGroups(one(scoped), { color: "red" })]).toEqual(["color"]);
+    expect([...changedGroups(one(NESTED), { face: "happy", eyes: "open" })]).toEqual(["face"]);
+    expect([...changedGroups(one(MIA_FOLDER), { face: "happy" })]).toEqual(["face"]);
+    expect([...changedGroups(one(MIA_FOLDER), { face: "neutral" })]).toEqual([]);
   });
 
   it("rests a group on the nearest folder's option over the portrait folder's own, as the game does", () => {
