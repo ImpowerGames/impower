@@ -86,13 +86,13 @@ function recordingCanvas() {
   return { frames, factory: () => context };
 }
 
-function setup(recipeText: string, load?: (src: string) => Promise<PictureBitmap | undefined>) {
+function setup(recipeText: string, load?: (src: string) => Promise<PictureBitmap | undefined>, context: unknown = CONTEXT) {
   const env = installJSDOM();
   restore = env.restore;
   const host = createMorphHost({
     service: new MorphBakeService(),
     channel: () => ({ recipes: { m: recipeText }, variants: {} }),
-    readSource: layeredMorphSource(() => CONTEXT as never),
+    readSource: layeredMorphSource(() => context as never),
   });
   const canvas = recordingCanvas();
   const loads: string[] = [];
@@ -263,5 +263,33 @@ describe("a picture made of image files is drawn on a canvas (#2629)", () => {
     expect(canvas.frames).toEqual([]);
     expect(span.style.getPropertyValue("background-image")).toBe(BACKGROUND);
     expect(stills).toEqual([{ image: "kit", file: "closed.png", reason: "unread" }]);
+  });
+});
+
+const sized = (width: number, height: number) => ({
+  ...CONTEXT,
+  image: Object.fromEntries(Object.entries(CONTEXT.image).map(([name, image]) => [name, { ...image, width, height }])),
+});
+
+describe("a picture's rectangle comes from the sizes the compiler wrote (#2630)", () => {
+  test("layer files of the written size are drawn at that size", async () => {
+    const { playback, span, canvas } = setup(recipe("cut", "lids", ["off", "on", "off"]), undefined, sized(40, 30));
+    playback.mount(span, content("lids"), BACKGROUND, "background", "portrait:0");
+    await until(() => !!canvasOf(span), "the canvas");
+    expect(canvas.frames.at(-1)).toEqual([
+      { src: "base.png", alpha: 1 },
+      { src: "closed.png", alpha: 1 },
+    ]);
+  });
+
+  test("layer files whose natural size differs from the written size keep the picture still", async () => {
+    const { playback, span, canvas, loads } = setup(recipe("cut", "lids", ["off", "on", "off"]), undefined, sized(80, 60));
+    playback.mount(span, content("lids"), BACKGROUND, "background", "portrait:0");
+    await until(() => loads.includes("lids.png"), "the layer files to load");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    playback.advance(0.5);
+    expect(canvasOf(span)).toBeNull();
+    expect(canvas.frames).toEqual([]);
+    expect(span.style.getPropertyValue("background-image")).toBe(BACKGROUND);
   });
 });

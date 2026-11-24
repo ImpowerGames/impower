@@ -1,4 +1,5 @@
 import { bytesToBase64 } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import { IMAGE_HEADER_BYTES, imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
 import * as vscode from "vscode";
 import { type LSPAny } from "vscode-languageserver-protocol";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -15,6 +16,11 @@ const getFileText = async (uri: string) => {
 const getFileBytes = async (uri: string) => {
   const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
   return bytesToBase64(buffer);
+};
+
+const getFileImageSize = async (uri: string) => {
+  const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
+  return imageSizeOf(buffer.subarray(0, IMAGE_HEADER_BYTES)) ?? null;
 };
 
 const getFileSrc = (uri: string) => {
@@ -63,6 +69,12 @@ export const executeLanguageCommand = async <T>(params: {
     const [uri] = params.arguments || [];
     if (uri && typeof uri === "string") {
       return getFileBytes(uri) as T;
+    }
+  }
+  if (params.command === "sparkdown.getFileImageSize") {
+    const [uri] = params.arguments || [];
+    if (uri && typeof uri === "string") {
+      return getFileImageSize(uri).catch(() => null) as T;
     }
   }
   if (params.command === "sparkdown.getFileVersion") {

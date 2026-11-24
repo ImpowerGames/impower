@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { imageSizeOf, majorityShape } from "../../src/modules/spark-editor/utils/imageSize";
+import { imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
+import { majorityShape } from "../../src/modules/spark-editor/utils/imageSize";
 
 const bytes = (length: number, write: (view: DataView, raw: Uint8Array) => void) => {
   const raw = new Uint8Array(length);
@@ -12,16 +13,19 @@ const text = (raw: Uint8Array, at: number, value: string) => {
 
 describe("reading a picture's size from its header", () => {
   it("reads PNG, GIF and BMP", () => {
-    const png = bytes(24, (view, raw) => {
+    const png = bytes(45, (view, raw) => {
       raw.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      view.setUint32(8, 13);
       text(raw, 12, "IHDR");
       view.setUint32(16, 300);
       view.setUint32(20, 400);
+      text(raw, 37, "IDAT");
     });
-    const gif = bytes(10, (view, raw) => {
+    const gif = bytes(14, (view, raw) => {
       text(raw, 0, "GIF89a");
       view.setUint16(6, 640, true);
       view.setUint16(8, 400, true);
+      raw[13] = 0x3b;
     });
     const bmp = bytes(26, (view, raw) => {
       text(raw, 0, "BM");
@@ -36,7 +40,8 @@ describe("reading a picture's size from its header", () => {
   });
 
   it("reads a JPEG's frame header past the segments before it", () => {
-    const jpeg = bytes(40, (view, raw) => {
+    const jpeg = bytes(41, (view, raw) => {
+      raw.set([0xff, 0xda], 39);
       raw.set([0xff, 0xd8, 0xff, 0xe0]);
       view.setUint16(4, 16);
       raw.set([0xff, 0xc0], 20);
