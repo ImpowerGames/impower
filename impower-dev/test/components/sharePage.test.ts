@@ -9,6 +9,7 @@ const calls = vi.hoisted(() => ({
   release: [] as (() => void)[],
   routes: [] as string[],
   unprintable: [] as string[],
+  zips: [] as ((result: boolean | Error) => void)[],
 }));
 
 const BUNDLE = { files: ["main.sd"] };
@@ -30,6 +31,13 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => {
   };
 });
 
+vi.mock("../../src/modules/spark-editor/utils/downloadProjectZip", () => ({
+  downloadProjectZip: () =>
+    new Promise<boolean>((resolve, reject) =>
+      calls.zips.push((result) => (result instanceof Error ? reject(result) : resolve(result))),
+    ),
+}));
+
 vi.mock("../../src/modules/spark-editor/utils/downloadFile", () => ({
   downloadFile: (name: string, type: string, ...parts: unknown[]) => calls.downloads.push({ name, type, parts }),
 }));
@@ -42,6 +50,7 @@ const { SCREENPLAY_SETTING_KEYS } = await import(
   "../../src/modules/spark-editor/workspace/settings/screenplaySettings"
 );
 const { SharePage } = await import("../../src/modules/spark-editor/components/share");
+const { announcement } = await import("../../../packages/impower-ui/src/hooks/useAnnouncer");
 
 let host: HTMLDivElement | undefined;
 
@@ -55,7 +64,7 @@ const settle = () => act(async () => {
 });
 
 const card = (title: string) =>
-  [...host!.querySelectorAll("article")].find((el) => el.querySelector("h2")?.textContent === title)!;
+  [...host!.querySelectorAll("article")].find((el) => el.querySelector("h2, h3")?.textContent === title)!;
 
 const button = (label: string) =>
   [...card("Export a screenplay").querySelectorAll("button")].find((el) => el.textContent?.includes(label))!;
@@ -68,6 +77,8 @@ beforeEach(() => {
   calls.release.length = 0;
   calls.routes.length = 0;
   calls.unprintable = [];
+  calls.zips.length = 0;
+  announcement.value = "";
   workspace.current = {
     ...workspace.current,
     project: { ...workspace.current.project, id: "local", name: "My story" },
@@ -84,32 +95,67 @@ afterEach(async () => {
 });
 
 describe("the Share page", () => {
-  it("draws the four cards with the Coming soon tag on all but the screenplay card", async () => {
+  it("draws no title or intro line and keeps the section's accessible name", async () => {
     await mount();
-    expect(host!.querySelector("h1")!.textContent).toBe("Share your story");
-    const titles = [...host!.querySelectorAll("article h2")].map((el) => el.textContent);
-    expect(titles).toEqual(["Export a game", "Export a screenplay", "Make it together", "Publish it online"]);
-    expect(card("Export a screenplay").textContent).not.toContain("Coming soon");
+    const section = host!.querySelector<HTMLElement>("#share-page")!;
+    expect(section.getAttribute("aria-label")).toBe("Share");
+    expect(section.querySelector("h1")!.classList).toContain("sr-only");
+    expect(section.textContent).not.toContain("Share your story");
+    expect(section.textContent).not.toContain("Collaborate with others. Publish it online.");
+    expect(section.textContent).not.toContain("Back to story");
+  });
+
+  it("starts with the Export a screenplay and Export your project cards, then three Coming soon rows, in one column", async () => {
+    await mount();
+    const articles = [...host!.querySelectorAll("article")];
+    expect(articles.map((el) => el.querySelector("h2, h3")!.textContent)).toEqual([
+      "Export a screenplay",
+      "Export your project",
+      "Export a game",
+      "Make it together",
+      "Publish it online",
+    ]);
+    expect(host!.querySelector("#share-page h1 + *")!.contains(card("Export a screenplay"))).toBe(true);
+    expect(host!.querySelector("#share-page .grid")).toBeNull();
+    expect(card("Export a screenplay").parentElement!.classList).toContain("flex-col");
+    const soon = host!.querySelector<HTMLElement>('section[aria-labelledby="share-coming-soon"]')!;
+    expect(soon.querySelector("h2")!.textContent).toBe("Coming soon");
+    expect([...soon.querySelectorAll("article h3")].map((el) => el.textContent)).toEqual([
+      "Export a game",
+      "Make it together",
+      "Publish it online",
+    ]);
+  });
+
+  it("gives the Coming soon rows no pointer or keyboard action and no button or link role", async () => {
+    await mount();
     for (const title of ["Export a game", "Make it together", "Publish it online"]) {
-      expect(card(title).textContent).toContain("Coming soon");
-      expect(card(title).closest("button")).toBeNull();
+      const row = card(title);
+      expect(row.querySelector("a, button, [role], [tabindex]")).toBeNull();
+      expect(row.getAttribute("role")).toBeNull();
+      expect(row.hasAttribute("tabindex")).toBe(false);
+      expect(row.closest("a, button")).toBeNull();
     }
-    const link = card("Export a game").querySelector<HTMLAnchorElement>('a[href*="marketplace.visualstudio.com"]')!;
-    expect(link.textContent).toContain("Open your project in VS Code");
   });
 
-  it("stacks the cards in one column on tablets and phones and two on desktop", async () => {
+  it("puts Open your project in VS Code on the Export your project card and nowhere else", async () => {
     await mount();
-    const grid = card("Export a game").closest<HTMLElement>(".grid")!;
-    expect(grid.classList).toContain("grid-cols-2");
-    expect(grid.classList).toContain("compact:grid-cols-1");
-    expect(grid.classList).toContain("phone:grid-cols-1");
+    const links = [...host!.querySelectorAll<HTMLAnchorElement>("a")].filter((el) =>
+      el.textContent?.includes("Open your project in VS Code"),
+    );
+    expect(links).toHaveLength(1);
+    expect(card("Export your project").contains(links[0]!)).toBe(true);
+    expect(links[0]!.href).toContain("marketplace.visualstudio.com");
   });
 
-  it("draws no Back to story action", async () => {
+  it("lays the screenplay downloads out side by side, PDF filled and HTML outlined", async () => {
     await mount();
-    expect(host!.textContent).not.toContain("Back to story");
-    expect(host!.querySelector("#share-page h1, #share-page h2")).not.toBeNull();
+    const row = button("Download PDF").parentElement!;
+    expect(row).toBe(button("Download HTML").parentElement);
+    expect(row.classList).toContain("flex");
+    expect(button("Download PDF").className).toContain("bg-accent");
+    expect(button("Download HTML").className).toContain("border-field-edge");
+    expect(button("Download HTML").className).not.toContain("bg-accent");
   });
 
   it("names the screenplay settings and follows them when they change", async () => {
@@ -118,9 +164,12 @@ describe("the Share page", () => {
     expect(summary()).toBe("US Letter · Title page · No scene numbers");
     await act(async () => workspaceSettings.setProjectSetting("screenplayPaperSize", "a4"));
     expect(summary()).toBe("A4 · Title page · No scene numbers");
-    expect(
-      card("Export a screenplay").querySelector<HTMLAnchorElement>('a[href="#settings?section=screenplay-settings"]'),
-    ).not.toBeNull();
+    const change = card("Export a screenplay").querySelector<HTMLAnchorElement>(
+      'a[href="#settings?section=screenplay-settings"]',
+    )!;
+    expect(change.textContent).toBe("Change");
+    expect(change.parentElement).toBe(card("Export a screenplay").querySelector("[data-screenplay-summary]")!.parentElement);
+    expect(card("Export a screenplay").textContent).not.toContain("Screenplay settings");
   });
 
   it.each([
@@ -184,5 +233,40 @@ describe("the Share page", () => {
     await act(async () => calls.release[1]!());
     await settle();
     expect(notice()).toBeNull();
+  });
+
+  const zipButton = () =>
+    [...card("Export your project").querySelectorAll("button")].find((el) => el.textContent?.includes("Download .zip"))!;
+  const zipStatus = () => card("Export your project").querySelector<HTMLElement>("[data-zip-status]");
+
+  it("Download .zip runs the Settings backup download and shows a working state while it prepares", async () => {
+    await mount();
+    expect(zipButton().className).toContain("bg-accent");
+    expect(zipStatus()).toBeNull();
+    await act(async () => zipButton().click());
+    await settle();
+    expect(calls.zips).toHaveLength(1);
+    expect(zipButton().disabled).toBe(true);
+    expect(zipStatus()!.textContent).toBe("Preparing the .zip…");
+    await act(async () => calls.zips[0]!(true));
+    await settle();
+    expect(zipButton().disabled).toBe(false);
+    expect(zipStatus()).toBeNull();
+    expect(announcement.value).toBe("");
+  });
+
+  it.each([
+    ["finds no project to archive", false],
+    ["throws", new Error("storage unavailable")],
+  ] as const)("Download .zip says it failed when the download %s", async (_case, result) => {
+    await mount();
+    await act(async () => zipButton().click());
+    await settle();
+    await act(async () => calls.zips[0]!(result));
+    await settle();
+    expect(zipButton().disabled).toBe(false);
+    expect(zipStatus()!.textContent).toBe("Could not create the .zip. Try again.");
+    expect(zipStatus()!.className).toContain("text-error-strong");
+    expect(announcement.value).toBe("Could not create the .zip. Try again.");
   });
 });
