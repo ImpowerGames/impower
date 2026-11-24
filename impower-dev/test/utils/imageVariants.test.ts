@@ -6,7 +6,6 @@ import { imageStacks } from "../../src/modules/spark-editor/utils/imageStacks";
 import {
   ALTERNATE,
   AS_IS,
-  chosenIn,
   defaultForm,
   fileRows,
   filesSummary,
@@ -278,7 +277,14 @@ describe("a portrait folder with layer folders", () => {
       `${MIA}/60 face.smile/40 coat outfit.formal default.png`,
       `${MIA}/60 face.smile/40 coat outfit.casual.png`,
     ];
-    for (const paths of [NESTED, sleepy, selfNamed, crossed]) {
+    const scoped = [
+      `${MIA}/90 body.png`,
+      `${MIA}/70 shirt/20 cloth color.red default.png`,
+      `${MIA}/70 shirt/20 cloth color.blue.png`,
+      `${MIA}/60 pants/20 cloth color.blue default.png`,
+      `${MIA}/60 pants/20 cloth color.red.png`,
+    ];
+    for (const paths of [NESTED, sleepy, selfNamed, crossed, scoped]) {
       const stack = one(paths);
       const vocabulary = stack.pictures[0]!.vocabulary!;
       const groups = testerGroups(stack, {});
@@ -286,13 +292,9 @@ describe("a portrait folder with layer folders", () => {
         (all, group) => all.flatMap((chosen) => group.options.map((option) => ({ ...chosen, [group.key]: option }))),
         [{}],
       );
+      selections.push({});
       for (const selection of selections) {
-        const picked = Object.fromEntries(
-          testerGroups(stack, selection).flatMap((group) => {
-            const option = chosenIn(group, selection);
-            return group.key === ALTERNATE || option === AS_IS ? [] : [[group.key, option]];
-          }),
-        );
+        const picked = Object.fromEntries(Object.entries(selection).filter(([, option]) => option !== AS_IS));
         const written = resolveAttributes(vocabulary, variantOf(stack, selection).attributes).selection;
         expect([selection, evaluateAttributeVisibility(vocabulary, written).visible]).toEqual([
           selection,
@@ -303,6 +305,11 @@ describe("a portrait folder with layer folders", () => {
     expect(variantOf(one(selfNamed), { face: "sad" })).toEqual({ image: "mia", attributes: ["sad"] });
     expect(isChanged(one(selfNamed), { face: "sad" })).toBe(true);
     expect(variantOf(one(crossed), { face: "smile", outfit: "formal" })).toEqual({ image: "mia", attributes: ["smile", "formal"] });
+    expect([variantOf(one(scoped), {}), isChanged(one(scoped), {})]).toEqual([{ image: "mia", attributes: [] }, false]);
+    expect([variantOf(one(scoped), { color: "red" }), isChanged(one(scoped), { color: "red" })]).toEqual([
+      { image: "mia", attributes: ["red"] },
+      true,
+    ]);
   });
 
   it("rests a group on the nearest folder's option over the portrait folder's own, as the game does", () => {

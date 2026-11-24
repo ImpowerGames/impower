@@ -92,8 +92,18 @@ export const chosenIn = (group: TesterGroup, selection: VariantSelection): strin
   return value !== undefined && group.options.includes(value) ? value : group.default;
 };
 
-export const isChanged = (stack: ImageStack, selection: VariantSelection): boolean =>
-  testerGroups(stack, selection).some((group) => chosenIn(group, selection) !== group.default);
+export const isChanged = (stack: ImageStack, selection: VariantSelection): boolean => {
+  const groups = testerGroups(stack, selection);
+  const vocabulary = pictureFor(stack, selection).vocabulary;
+  if (!vocabulary) {
+    return groups.some((group) => chosenIn(group, selection) !== group.default);
+  }
+  const alternate = groups.find((group) => group.key === ALTERNATE);
+  return (
+    (alternate !== undefined && chosenIn(alternate, selection) !== alternate.default) ||
+    neededGroups(vocabulary, groups.filter((group) => group.key !== ALTERNATE), selection).size > 0
+  );
+};
 
 const shownBy = (vocabulary: AttributeVocabulary, chosen: Readonly<Record<string, string>>): string => {
   const { visible } = evaluateAttributeVisibility(vocabulary, { ...chosen });
@@ -107,8 +117,8 @@ const neededGroups = (
 ): Set<string> => {
   let chosen: Record<string, string> = Object.fromEntries(
     groups.flatMap((group) => {
-      const value = chosenIn(group, selection);
-      return value === AS_IS ? [] : [[group.key, value]];
+      const value = selection[group.key];
+      return value !== undefined && value !== AS_IS && group.options.includes(value) ? [[group.key, value]] : [];
     }),
   );
   const wanted = shownBy(vocabulary, chosen);
