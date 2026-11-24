@@ -92,6 +92,7 @@ style button {
 - `@screen-size(xs|sm|md|lg|xl) { … }` is a responsive breakpoint.
 - `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
   `@disabled { … }` target interaction states.
+- `@latest { … }` targets the newest entry of a [stream](./Streams.md).
 - A rule's properties are separated by a new line or a `;`, as the entries of
   any block are (see [Blocks](./Structure.md#blocks)).
 

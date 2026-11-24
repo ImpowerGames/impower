@@ -86,7 +86,7 @@ scene hall
 end
 ```
 
-A clear after a menu is a good place for one, when the next part of the story reads better on its own page. Saves and checkpoints taken after it keep the cleared page. `clear` only works on `textstream`: on any other layout the editor warns "Only textstream has a page to clear." and the game ignores it.
+A clear after a menu is a good place for one, when the next part of the story reads better on its own page. Saves and checkpoints taken after it keep the cleared page. `clear` works on `textstream` and on any layout that holds a stream (see [Streams](./Streams.md)): on any other layout the editor warns "`NAME` has no stream to clear." and the game ignores it.
 
 The page follows the newest entry. Scroll up to reread, and it stays where you are until you scroll back to the bottom. Under the reader's reduced-motion setting it jumps instead of scrolling smoothly.
 

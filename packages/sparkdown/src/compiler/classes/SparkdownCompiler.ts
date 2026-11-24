@@ -180,6 +180,8 @@ import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
+import { layoutStreams } from "../utils/layoutStreams";
+import { LayoutVerb } from "../../../language/sparkdown.layout-verbs";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { DefineScopeRecord, type DefineScopeStats } from "../utils/DefineScopeRecord";
 import { formatList } from "../utils/formatList";
@@ -1720,6 +1722,7 @@ export class SparkdownCompiler {
       this.validateImageAttributes(program);
       this.validateMorphs(program);
       this.validateWriteTargets(program);
+      this.validateClearTargets(program);
       this.validateLints(program);
       this.validateTypes(program);
       this.validateStores(program);
@@ -5289,6 +5292,36 @@ export class SparkdownCompiler {
       });
     }
     profile("end", this._profilerId, "validateWriteTargets", uri);
+  }
+
+  validateClearTargets(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateClearTargets", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      for (const directive of readSourceDirectives(tree, (from, to) => doc.read(from, to))) {
+        const { control, target } = directive;
+        if (directive.kind !== "layout" || control?.text !== LayoutVerb.clear) continue;
+        const name = target?.text;
+        if (name === "textstream" || (name && !program.sparkle?.layouts?.[name])) continue;
+        if (name && layoutStreams(program.sparkle, name).length > 0) continue;
+        const at = target ?? control;
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(at.from, at.to),
+          severity: DiagnosticSeverity.Warning,
+          message: {
+            kind: "markdown",
+            value: name
+              ? `\`${name}\` has no stream to clear.`
+              : "Incomplete `clear`: name the layout to clear\n> e.g. `[[clear textstream]]`",
+          },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
+    profile("end", this._profilerId, "validateClearTargets", uri);
   }
 
   validateLints(program: SparkProgram) {

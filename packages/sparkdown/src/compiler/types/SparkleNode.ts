@@ -30,7 +30,8 @@ export type BodyNode =
   | ForNode
   | MatchNode
   | SlotNode
-  | FillNode;
+  | FillNode
+  | StreamNode;
 
 export type SparkleNode =
   | LayoutNode
@@ -119,6 +120,11 @@ export interface MatchNode {
 export interface SlotNode {
   kind: "slot";
   name?: string;
+}
+
+export interface StreamNode {
+  kind: "stream";
+  children: ElementNode[];
 }
 
 export interface FillNode {

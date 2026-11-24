@@ -632,15 +632,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           "warning",
         );
       }
-    } else if (control && kind === "layout" && control.text === LayoutVerb.clear) {
-      if (target?.text !== "textstream") {
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message: "Only textstream has a page to clear.",
-            severity: "warning",
-          }).range(target ? target.from : control.from, target ? target.to : control.to),
-        );
-      }
     } else if (control && kind === "cutscene") {
       if (!target) {
         this.error(annotations, PLAY_ONE_VIDEO, control.from, control.to);

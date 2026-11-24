@@ -710,6 +710,14 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
           children: buildBlockEntries().children,
         };
   }
+  if (tag === "stream") {
+    return {
+      kind: "stream",
+      children: buildBlockEntries().children.filter(
+        (child): child is ElementNode => child.kind === "element",
+      ),
+    };
+  }
   const read = readParts(parts, ctx);
   const element: ElementNode = {
     kind: "element",
