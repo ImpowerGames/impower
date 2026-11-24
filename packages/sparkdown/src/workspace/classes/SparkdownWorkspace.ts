@@ -1,4 +1,5 @@
 import { ImageVocabularyCache, imageFileForCompiler } from "../utils/prepareImageFile";
+import { isRasterImageFile, type ImageSize } from "../utils/imageSize";
 import { fontStyleSuffixOf } from "../../attributes/fontFileName";
 import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
@@ -385,7 +386,7 @@ export abstract class SparkdownWorkspace {
                 type = urlResolved.type;
                 ext = urlResolved.ext;
               }
-              const [src, text, version, languageId] = await Promise.all([
+              const [src, text, version, languageId, size] = await Promise.all([
                 file.src ?? this.getFileSrc(file.uri),
                 type === "script" || type === "text" || ext.toLowerCase() === "svg"
                   ? (file.text ?? this.getFileText(file.uri))
@@ -396,6 +397,9 @@ export abstract class SparkdownWorkspace {
                 file.languageId !== undefined
                   ? file.languageId
                   : this.getFileLanguageId(file.uri),
+                file.width !== undefined && file.height !== undefined
+                  ? { width: file.width, height: file.height }
+                  : undefined,
               ]);
               const watchedFile = this._imageVocabularyCache.prepare({
                 uri,
@@ -406,6 +410,7 @@ export abstract class SparkdownWorkspace {
                 text,
                 version,
                 languageId,
+                ...size,
               });
               this._watchedFiles.set(watchedFile.uri, watchedFile);
               this.onCreatedFile(watchedFile);
@@ -507,13 +512,14 @@ export abstract class SparkdownWorkspace {
     const name = this.getFileName(file.uri);
     const type = this.getFileType(file.uri);
     const ext = this.getFileExtension(file.uri);
-    const [src, text, version, languageId] = await Promise.all([
+    const [src, text, version, languageId, size] = await Promise.all([
       this.getFileSrc(file.uri),
       type === "script" || type === "text" || ext.toLowerCase() === "svg"
         ? this.getFileText(file.uri)
         : undefined,
       this.getFileVersion(file.uri),
       this.getFileLanguageId(file.uri),
+      this.readImageSize({ uri: file.uri, type, ext }),
     ]);
 
     return this._imageVocabularyCache.prepare({
@@ -525,7 +531,62 @@ export abstract class SparkdownWorkspace {
       src,
       text,
       languageId,
+      ...size,
     });
+  }
+
+  protected async readImageSize(file: {
+    uri: string;
+    type: string;
+    ext: string;
+  }): Promise<ImageSize | undefined> {
+    if (!isRasterImageFile(file)) return undefined;
+    try {
+      const size = await this.getFileImageSize(file.uri);
+      return size && size.width > 0 && size.height > 0
+        ? { width: size.width, height: size.height }
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async loadImageSizes() {
+    await this.projectLoaded();
+    const unsized = [...this._watchedFiles.values()].filter(
+      (file) =>
+        isRasterImageFile(file) &&
+        (file.width === undefined || file.height === undefined),
+    );
+    const updated = await Promise.all(
+      unsized.map(async (file) => {
+        const size = await this.readImageSize(file);
+        if (!size) return false;
+        return this.trackFileUpdate(file.uri, async () => {
+          const current = this._watchedFiles.get(file.uri);
+          if (current !== file) return false;
+          const sized = { ...current, ...size };
+          this._watchedFiles.set(file.uri, sized);
+          await this.compilerReady();
+          await this._compilerChannelConnection
+            .sendRequest(UpdateCompilerFileMessage.type, {
+              file: imageFileForCompiler(
+                sized,
+                this._compilerConfig?.stripImageData,
+              ),
+            })
+            .catch(unlessRestarted);
+          return true;
+        });
+      }),
+    );
+    if (
+      updated.some(Boolean) &&
+      this._lastCompiledUri &&
+      this.holdsScript(this._lastCompiledUri)
+    ) {
+      await this.debouncedCompile(this._lastCompiledUri, true);
+    }
   }
 
   getDirectoryUri(uri: string): string {
@@ -1490,6 +1551,10 @@ export abstract class SparkdownWorkspace {
   abstract getFileLanguageId(uri: string): Promise<string>;
 
   async getFileBytes(_uri: string): Promise<string | undefined> {
+    return undefined;
+  }
+
+  async getFileImageSize(_uri: string): Promise<ImageSize | null | undefined> {
     return undefined;
   }
 }

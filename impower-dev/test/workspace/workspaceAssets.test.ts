@@ -381,9 +381,11 @@ describe("measuring pictures for a folder's tile shape", () => {
     });
     await assets.load();
     workspace.assetSizes.value = {};
-    const png = new Uint8Array(24);
+    const png = new Uint8Array(45);
     png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    new DataView(png.buffer).setUint32(8, 13);
     png.set([0x49, 0x48, 0x44, 0x52], 12);
+    png.set([0x49, 0x44, 0x41, 0x54], 37);
     new DataView(png.buffer).setUint32(16, 300);
     new DataView(png.buffer).setUint32(20, 400);
     const fetch = vi.fn(async (src: string) =>

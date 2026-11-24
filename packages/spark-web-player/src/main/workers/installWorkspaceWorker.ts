@@ -219,6 +219,15 @@ export function installWorkspaceWorker(
       });
     }
 
+    override async getFileImageSize(
+      uri: string,
+    ): Promise<{ width: number; height: number } | null | undefined> {
+      return connection.sendRequest(ExecuteCommandMessage.type, {
+        command: "sparkdown.getFileImageSize",
+        arguments: [uri],
+      });
+    }
+
     override async getFileVersion(uri: string): Promise<number> {
       return connection.sendRequest(ExecuteCommandMessage.type, {
         command: "sparkdown.getFileVersion",
@@ -256,6 +265,7 @@ export function installWorkspaceWorker(
       connection.sendResponse(message, async () => {
         await controllerListening;
         await state.workspace.initialize(message.params);
+        void state.workspace.loadImageSizes();
         return {
           capabilities: {},
         };

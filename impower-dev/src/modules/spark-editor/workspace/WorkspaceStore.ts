@@ -28,7 +28,7 @@ import { takeImportOutcome } from "./projectImport";
 import type { AccountInfo } from "./types/AccountInfo";
 import type { AssetListing } from "./assetsListing";
 import type { AssetUsage } from "./assetUsage";
-import type { ImageSize } from "../utils/imageSize";
+import type { ImageSize } from "@impower/sparkdown/src/workspace/utils/imageSize";
 import type { ScriptListing } from "./scriptsListing";
 import type { UploadRow } from "./uploadSession";
 import type { Reference } from "../utils/fileListModel";

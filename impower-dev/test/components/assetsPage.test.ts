@@ -723,9 +723,11 @@ describe("the tile shape of a folder not named for portraits or backdrops", () =
   const tileShapes = () => all<HTMLElement>('[role="listitem"] [data-tile]').map((tile) => tile.getAttribute("data-tile"));
 
   const png = (width: number, height: number) => {
-    const bytes = new Uint8Array(24);
+    const bytes = new Uint8Array(45);
     bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    new DataView(bytes.buffer).setUint32(8, 13);
     bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+    bytes.set([0x49, 0x44, 0x41, 0x54], 37);
     new DataView(bytes.buffer).setUint32(16, width);
     new DataView(bytes.buffer).setUint32(20, height);
     return bytes;
