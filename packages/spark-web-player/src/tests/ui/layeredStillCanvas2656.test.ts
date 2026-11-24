@@ -484,6 +484,39 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(span.style.getPropertyValue("background-image")).toBe("none, none");
   });
 
+  test.each([
+    { name: "a size query container", style: { "container-type": "inline-size" }, beneath: false },
+    { name: "a will-change written in capitals", style: { position: "relative", "will-change": "TRANSFORM" }, beneath: true },
+    { name: "content kept out of rendering when off screen", style: { "content-visibility": "auto" }, beneath: true },
+    { name: "a flex item that will change its z-index", style: { "will-change": "z-index" }, parent: "flex", beneath: true },
+    { name: "a static block that will change its z-index", style: { "will-change": "z-index" }, beneath: false },
+  ])("$name places the picture host where CSS paints the element's backgrounds", ({ style, parent, beneath }) => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    if (parent) {
+      const wrapper = span.ownerDocument.createElement("div");
+      wrapper.style.setProperty("display", parent);
+      span.parentElement!.appendChild(wrapper);
+      wrapper.appendChild(span);
+    }
+    for (const [name, value] of Object.entries(style)) span.style.setProperty(name, value);
+    const computed = span.ownerDocument.defaultView!.getComputedStyle(span);
+    for (const [name, value] of Object.entries(style)) expect(computed.getPropertyValue(name)).toBe(value);
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(span.firstElementChild).toBe(host);
+    expect(host.style.getPropertyValue("z-index")).toBe(beneath ? "-2147483648" : "");
+  });
+
+  test("a shown picture moves its host when only its content visibility changes", () => {
+    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(host.style.getPropertyValue("z-index")).toBe("");
+    span.style.setProperty("content-visibility", "auto");
+    flushFrame();
+    expect(host.style.getPropertyValue("z-index")).toBe("-2147483648");
+  });
+
   test("a picture whose stacking context comes from its parent's layout moves its host when only the parent changes", () => {
     const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     const parent = span.ownerDocument.createElement("div");
