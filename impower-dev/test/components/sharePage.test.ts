@@ -168,6 +168,7 @@ describe("the Share page", () => {
       'a[href="#settings?section=screenplay-settings"]',
     )!;
     expect(change.textContent).toBe("Change");
+    expect(change.className).toContain("pointer-coarse:after:-inset-y-[11px]");
     expect(change.parentElement).toBe(card("Export a screenplay").querySelector("[data-screenplay-summary]")!.parentElement);
     expect(card("Export a screenplay").textContent).not.toContain("Screenplay settings");
   });

@@ -77,7 +77,7 @@ function ScreenplayExport() {
         <a
           href={settingsSectionHref("screenplay-settings")}
           aria-label="Change screenplay settings"
-          class="whitespace-nowrap text-accent underline underline-offset-2"
+          class="relative whitespace-nowrap text-accent underline underline-offset-2 pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-[11px] pointer-coarse:after:content-['']"
         >
           Change
         </a>
