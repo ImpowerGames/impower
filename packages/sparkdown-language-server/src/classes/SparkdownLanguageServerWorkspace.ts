@@ -25,9 +25,11 @@ import {
   findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { decodeSVGSource } from "@impower/sparkdown/src/attributes";
-import { channelRefs, morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { channelRefs, morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
+import { layeredMorphArtwork } from "@impower/sparkdown/src/morph/layered";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphBakeDiagnostic, MorphRef } from "@impower/sparkdown/src/morph/types";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
@@ -54,6 +56,13 @@ import {
 export const LUAU_DOCUMENT_OWNER = "luau-document";
 
 const LUAU_DOCUMENT_DELAY = 300;
+
+interface MorphConsumer {
+  variant: string;
+  ref: MorphRef;
+  uri?: string;
+  files?: Record<string, string>;
+}
 
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _documents: SparkdownDocumentRegistry;
@@ -443,7 +452,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       service: this.morphService,
       channel: () => program.morphs,
       readSource: async (ref) => {
-        const image = getContextEntry(program.context, "image", ref.image);
+        const image = ref.layered ? undefined : getContextEntry(program.context, "image", ref.image);
+        if (!image) {
+          const artwork = layeredMorphArtwork(program.context, getContextEntry(program.context, "layered_image", ref.image));
+          return artwork ? { text: artwork.text, ...(artwork.uri === undefined ? {} : { uri: artwork.uri }) } : undefined;
+        }
         const uri = typeof image?.uri === "string" ? image.uri : undefined;
         const file = uri ? this._watchedFiles.get(uri) : undefined;
         const text =
@@ -455,13 +468,29 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
-  protected morphRefs(program: SparkProgram): { variant: string; ref: MorphRef; uri?: string }[] {
-    const refs: { variant: string; ref: MorphRef; uri?: string }[] = [];
+  protected morphRefs(program: SparkProgram): MorphConsumer[] {
+    const refs: MorphConsumer[] = [];
     for (const { variant, ref } of channelRefs(program.morphs)) {
-      const uri = getContextEntry(program.context, "image", ref.image)?.uri;
-      refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
+      const image = ref.layered ? undefined : getContextEntry(program.context, "image", ref.image);
+      if (image) {
+        const uri = image.uri;
+        refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
+        continue;
+      }
+      const artwork = layeredMorphArtwork(program.context, getContextEntry(program.context, "layered_image", ref.image));
+      if (!artwork) continue;
+      const files: Record<string, string> = Object.create(null);
+      for (const [path, index] of Object.entries(artwork.paths)) {
+        const uri = artwork.files[index]?.uri;
+        if (uri) files[path] = uri;
+      }
+      refs.push({ variant, ref, ...(artwork.uri === undefined ? {} : { uri: artwork.uri }), files });
     }
     return refs;
+  }
+
+  protected morphDiagnosticUri(consumer: MorphConsumer, diagnostic: MorphBakeDiagnostic): string | undefined {
+    return (diagnostic.path !== undefined && consumer.files?.[diagnostic.path]) || consumer.uri;
   }
 
   protected recordMorphDiagnostics(key: string, diagnostics: MorphBakeDiagnostic[]) {
@@ -476,9 +505,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected morphDiagnosticsFor(program: SparkProgram, uri: string) {
     type Group = { diagnostic: MorphBakeDiagnostic; variants: string[] };
     const grouped = new Map<string, Group>();
-    for (const { variant, ref, uri: artwork } of this.morphRefs(program)) {
-      if (artwork !== uri) continue;
+    for (const consumer of this.morphRefs(program)) {
+      const { variant, ref } = consumer;
       for (const d of this.morphDiagnostics.get(ref.key) ?? []) {
+        if (this.morphDiagnosticUri(consumer, d) !== uri) continue;
         const key = JSON.stringify([d.morphs, d.code, d.severity, d.layer, d.message]);
         const group: Group = grouped.get(key) ?? { diagnostic: d, variants: [] };
         if (!group.variants.includes(variant)) group.variants.push(variant);
@@ -532,7 +562,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     ).then(() => {
       if (owner && this._entryPrograms.get(owner) !== program) return;
       const uris = new Set(
-        consumers.filter(({ ref, uri }) => uri && pending.has(ref.key)).map(({ uri }) => uri!),
+        consumers
+          .filter(({ ref }) => pending.has(ref.key))
+          .flatMap((consumer) => [
+            consumer.uri,
+            ...(this.morphDiagnostics.get(consumer.ref.key) ?? []).map((d: MorphBakeDiagnostic) => this.morphDiagnosticUri(consumer, d)),
+          ])
+          .filter((uri): uri is string => !!uri),
       );
       for (const uri of uris) this.publishDiagnostics(uri, this.getDiagnostics(program, uri), owner);
     });
@@ -545,8 +581,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
+  morphLook(context: SparkProgram["context"], struct: any, pick?: ImagePick) {
+    return resolvePictureLook(context, this.programOfContext(context)?.morphs, struct, pick === undefined ? {} : { pick });
+  }
+
   morphShownLayers(context: SparkProgram["context"], struct: any, pick?: ImagePick) {
-    return shownImageLayers(context, this.programOfContext(context)?.morphs, struct, undefined, pick);
+    return this.morphLook(context, struct, pick).rest;
   }
 
   async morphRestRender(context: SparkProgram["context"], struct: any, pick?: string): Promise<string | undefined> {
@@ -554,7 +594,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     const program = this.programOfContext(context);
     const refs = program ? morphRefsForStruct(context, program.morphs, struct, pick) : [];
     const ref = refs.length === 1 ? refs[0] : undefined;
-    if (!program || !ref) return undefined;
+    if (!program || !ref || ref.layered || !getContextEntry(context, "image", ref.image)) return undefined;
     const wait = new Promise<undefined>((resolve) =>
       setTimeout(() => resolve(undefined), SparkdownLanguageServerWorkspace.MORPH_PREVIEW_WAIT_MS),
     );

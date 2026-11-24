@@ -8,10 +8,11 @@ import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
-import { resolveImageLayers, type ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
+import type { LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
@@ -24,6 +25,7 @@ import {
   type MorphArtifactParams,
 } from "./messages/MorphArtifactMessage";
 import { MorphNeedMessage } from "./messages/MorphNeedMessage";
+import { MorphStillMessage, type MorphStillParams } from "./messages/MorphStillMessage";
 import { hashText } from "@impower/sparkdown/src/morph/hash";
 import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
@@ -175,6 +177,7 @@ import {
 import {
   type MorphImageContent,
   type MorphLayerPlay,
+  type MorphPicture,
   type PictureFraming,
   type PictureTravel,
   type WriteImageInstruction,
@@ -186,6 +189,16 @@ import {
   type WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
+
+function pictureFileName(file: LayeredMorphFile): string {
+  const path = file.uri ?? file.src;
+  const leaf = path.slice(path.lastIndexOf("/") + 1).split(/[?#]/)[0] ?? "";
+  try {
+    return decodeURIComponent(leaf) || file.name;
+  } catch {
+    return leaf || file.name;
+  }
+}
 
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
@@ -1385,17 +1398,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     property: string,
     state?: ElementState,
   ): Element {
-    const background = imageAssets
-      .map((a) => this.getBackgroundImageFromValue(a))
-      .reverse()
-      .join(", ");
+    const { background, src } = this.withPictureLooks(() => ({
+      background: imageAssets
+        .map((a) => this.getBackgroundImageFromValue(a))
+        .reverse()
+        .join(", "),
+      src: imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0],
+    }));
     const el = this.createElement(parent, {
       name: "instance",
       type: "span",
       ...state,
       style: { ...(state?.style || {}), [property]: background },
     });
-    const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
     if (src) {
       this.createElement(el, {
         name: "object",
@@ -1590,10 +1605,82 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick): Image[] {
     const imageName = sortFilteredName(name);
+    const look = this.pictureLook(type, name, pick);
+    const layers = !look
+      ? []
+      : !poseOf || poseOf === morphRestPose
+        ? look.rest
+        : poseOf === this.morphStartPose
+          ? look.start!
+          : shownImageLayers(this.context, this._game.program?.morphs, look.struct, poseOf, pick);
+    return layers.map((layer) => ({ $type: "image", $name: imageName, src: layer.src }));
+  }
+
+  protected _pictureLooks?: Map<string, PictureLook>;
+
+  protected _pictureLookDepth = 0;
+
+  protected _pickFunctions?: Map<ImagePick, number>;
+
+  beginPictureLooks() {
+    if (this._pictureLookDepth++ === 0) {
+      this._pictureLooks = new Map();
+      this._pickFunctions = new Map();
+    }
+  }
+
+  endPictureLooks() {
+    if (this._pictureLookDepth > 0 && --this._pictureLookDepth === 0) {
+      this._pictureLooks = undefined;
+      this._pickFunctions = undefined;
+    }
+  }
+
+  withPictureLooks<T>(resolve: () => T): T {
+    this.beginPictureLooks();
+    try {
+      return resolve();
+    } finally {
+      this.endPictureLooks();
+    }
+  }
+
+  protected pickKey(pick: ImagePick | undefined): string | number | null {
+    if (pick === undefined) {
+      return null;
+    }
+    if (typeof pick === "string") {
+      return pick;
+    }
+    const functions = this._pickFunctions;
+    if (!functions) {
+      return -1;
+    }
+    let id = functions.get(pick);
+    if (id === undefined) {
+      id = functions.size;
+      functions.set(pick, id);
+    }
+    return id;
+  }
+
+  pictureLook(type: string, name: string, pick?: ImagePick): PictureLook | undefined {
+    const imageName = sortFilteredName(name);
+    const key = JSON.stringify([type, imageName, this.pickKey(pick)]);
+    const cached = this._pictureLooks?.get(key);
+    if (cached) {
+      return cached;
+    }
     const image = resolveImageReference(this.context, { $type: type, $name: imageName });
-    return shownImageLayers(this.context, this._game.program?.morphs, image, poseOf, pick).map((layer) => ({
-      $type: "image", $name: imageName, src: layer.src,
-    }));
+    if (!image) {
+      return undefined;
+    }
+    const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
+      ...(pick === undefined ? {} : { pick }),
+      startPose: this.morphStartPose,
+    });
+    this._pictureLooks?.set(key, look);
+    return look;
   }
 
   morphStartPose = (recipe: MorphRecipe): Record<string, string> => {
@@ -1816,7 +1903,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const imageName = sortFilteredName(asset);
     const speaker = event.speaker || undefined;
     const decide = (layer: ImageLayer) => linePick(context, imageName, layer, event.morph, speaker);
-    const picks = resolveImageLayers(context, resolveImageReference(context, { $type: "", $name: imageName })).map(decide);
+    const picks = this.pictureLook("", asset, decide)?.decisions ?? [];
     if (picks.every((pick) => pick === event.morph)) {
       return event.morph;
     }
@@ -1829,47 +1916,64 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const plays: MorphLayerPlay[] = [];
+    const play = (ref: MorphRef, layer: number, owner: string | undefined, picture?: MorphPicture) => {
+      this.deliverMorphArtifact(ref);
+      for (const morph of ref.morphs) {
+        const timing = this.morphTiming(morph);
+        const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
+        plays.push({
+          layer,
+          ...(picture ? { picture } : {}),
+          ref,
+          morph,
+          timing,
+          ...(motion ? { motion } : {}),
+          ...(owner ? { owner } : {}),
+          definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
+        });
+      }
+    };
     let next = 0;
     for (const asset of assets) {
       const first = next;
-      const count = cssList(this.getBackgroundImageFromString(asset)).length;
+      const pick = pickOf(asset);
+      const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
       next += count;
       if (asset.at(0) === '"' && asset.at(-1) === '"') {
         continue;
       }
       const imageName = sortFilteredName(asset);
-      const image = resolveImageReference(this.context, { $type: "", $name: imageName });
-      const resolved = resolveImageLayers(this.context, image);
-      if (resolved.length !== count) {
+      const look = this.pictureLook("", asset, pick);
+      if (!look) {
         continue;
       }
       const owner = getImageOwner(this.context, imageName);
-      for (const [offset, layer] of resolved.entries()) {
-        const index = first + offset;
-        const pick = pickOf(asset);
-        const refs = morphRefsForStruct(this.context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick);
-        const layerOwner = owner ?? getImageOwner(this.context, layer.struct?.$name);
+      if (look.conflict === "layers") {
+        this.reportLayeredMorphConflict(imageName, look.refs);
+      } else if (look.conflict === "overlap") {
+        this.reportMorphConflict(imageName, look.refs);
+        continue;
+      } else if (look.plays) {
+        if (count > 0) {
+          play(look.refs[0]!, first, owner ?? getImageOwner(this.context, look.root?.$name), {
+            span: count,
+            files: look.artwork!.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
+          });
+        }
+        continue;
+      }
+      if (look.layers.length !== count) {
+        continue;
+      }
+      for (const [offset, layer] of look.layers.entries()) {
+        const refs = layer.refs;
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
           continue;
         }
         const ref = refs[0];
-        if (!ref) {
-          continue;
-        }
-        this.deliverMorphArtifact(ref);
-        for (const morph of ref.morphs) {
-          const timing = this.morphTiming(morph);
-          const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
-          plays.push({
-            layer: index,
-            ref,
-            morph,
-            timing,
-            ...(motion ? { motion } : {}),
-            ...(layerOwner ? { owner: layerOwner } : {}),
-            definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
-          });
+        if (ref) {
+          play(ref, first + offset, owner ?? getImageOwner(this.context, layer.struct?.$name));
         }
       }
     }
@@ -1877,11 +1981,49 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still = assets.map((asset) => this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset))).reverse().join(", ");
-    if (still !== assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset))).reverse().join(", ")) {
+    const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
+    const still = assets
+      .map((asset, index) => {
+        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset));
+        return cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
+      })
+      .reverse()
+      .join(", ");
+    if (still !== [...rests].reverse().join(", ")) {
       content.still = still;
     }
     return content;
+  }
+
+  protected _layeredMorphConflicts = new Set<string>();
+
+  protected reportLayeredMorphConflict(image: string, refs: MorphRef[]) {
+    if (this._layeredMorphConflicts.has(image)) {
+      return;
+    }
+    this._layeredMorphConflicts.add(image);
+    const names = [...new Set(refs.flatMap((ref) => ref.morphs))].sort().map((name) => `\`${name}\``);
+    this._game.log(
+      `${names.join(", ")} ${names.length > 1 ? "do" : "does"} not play on \`${image}\`: one of its layers plays morphs of its own, and those keep playing.`,
+      "warning",
+    );
+  }
+
+  protected _morphStills = new Set<string>();
+
+  reportMorphStill(params: MorphStillParams) {
+    const key = JSON.stringify([params.image, params.file, params.reason]);
+    if (this._morphStills.has(key)) {
+      return;
+    }
+    this._morphStills.add(key);
+    const why =
+      params.reason === "animated"
+        ? "is animated, so its layers cannot be drawn together faithfully"
+        : params.reason === "profile"
+          ? "carries a colour profile wider than sRGB, so its layers cannot be drawn together faithfully"
+          : "could not be read to check that it is a still sRGB image";
+    this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 
   protected _speaking = false;
@@ -2008,15 +2150,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const posed = poseOf || pick !== undefined ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
-    const srcs = posed?.length ? posed : this.getImageSrcsByName(value);
-    if (srcs) {
+    const named = this.pictureLook("", value, pick) !== undefined;
+    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
+    const srcs = posed ?? this.getImageSrcsByName(value);
+    if (srcs?.length) {
       return srcs
         .map((src) => this.getUrl(src))
         .reverse()
         .join(", ");
     }
-    return this.getBackgroundImageFromLiteral(value);
+    return named ? "none" : this.getBackgroundImageFromLiteral(value);
   }
 
   getBackgroundImageFromValue(value: unknown) {
@@ -5149,70 +5292,80 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
           }
-          if (e.assets && e.assets.length > 0) {
-            const imageNames = e.assets.join(" ");
-            const videoSrcs = e.assets
-              .map((a) => $.getVideoSrcByName(a))
-              .filter((s): s is string => Boolean(s));
-            const imageAssets = e.assets.filter(
-              (a) => !$.getVideoSrcByName(a),
-            );
-            const pickOf = (a: string) => $.imagePick(e, a);
-            const background =
-              imageAssets.length > 0
-                ? imageAssets
-                    .map((a) => $.getBackgroundImageFromString(a, undefined, pickOf(a)))
-                    .reverse()
-                    .join(", ")
-                : "none";
-            const srcsOf = (a: string) =>
-              pickOf(a) === undefined
-                ? $.getImageSrcsFromValue(a)
-                : $.getImageAssets("", a, undefined, pickOf(a)).map((asset) => asset.src);
-            const src = imageAssets.flatMap((a) => srcsOf(a))[0];
-            const srcs = [
-              ...new Set([
-                ...imageAssets
-                  .flatMap((a) => srcsOf(a) ?? [])
-                  .filter((s) => !s.startsWith("data:")),
-                ...videoSrcs.slice(0, 1),
-              ]),
-            ];
-            const content: WriteImageInstruction["content"] = {
-              background,
-              imageNames,
-              srcs,
-            };
-            if (src != null) {
-              content.src = src;
-            }
-            const sources = [
-              ...new Set(
-                imageAssets.flatMap((a) => {
-                  const named = srcsOf(a);
-                  return named?.length
-                    ? named
-                    : $.getImageUrlsFromBackground($.getBackgroundImageFromString(a, undefined, pickOf(a)));
-                }),
-              ),
-            ];
-            if (sources.length > 0) {
-              content.sources = sources;
-            }
-            const videoSrc = videoSrcs[0];
-            if (videoSrc) {
-              content.video = {
-                src: videoSrc,
-                loop: !e.once,
-                muted: Boolean(e.mute),
-                ...$.getMovieMixer(),
-                ...($.showsMovieStill() ? { preview: true } : {}),
+          const assets = e.assets;
+          if (assets && assets.length > 0) {
+            const content = $.withPictureLooks(() => {
+              const imageNames = assets.join(" ");
+              const videoSrcs = assets
+                .map((a) => $.getVideoSrcByName(a))
+                .filter((s): s is string => Boolean(s));
+              const imageAssets = assets.filter(
+                (a) => !$.getVideoSrcByName(a),
+              );
+              const picks = new Map<string, ImagePick | undefined>();
+              const pickOf = (a: string) => {
+                if (!picks.has(a)) {
+                  picks.set(a, $.imagePick(e, a));
+                }
+                return picks.get(a);
               };
-            }
-            const morph = $.getMorphContent(imageAssets, pickOf);
-            if (morph) {
-              content.morph = morph;
-            }
+              const background =
+                imageAssets.length > 0
+                  ? imageAssets
+                      .map((a) => $.getBackgroundImageFromString(a, undefined, pickOf(a)))
+                      .reverse()
+                      .join(", ")
+                  : "none";
+              const srcsOf = (a: string) =>
+                pickOf(a) === undefined
+                  ? $.getImageSrcsFromValue(a)
+                  : $.getImageAssets("", a, undefined, pickOf(a)).map((asset) => asset.src);
+              const src = imageAssets.flatMap((a) => srcsOf(a))[0];
+              const srcs = [
+                ...new Set([
+                  ...imageAssets
+                    .flatMap((a) => srcsOf(a) ?? [])
+                    .filter((s) => !s.startsWith("data:")),
+                  ...videoSrcs.slice(0, 1),
+                ]),
+              ];
+              const content: WriteImageInstruction["content"] = {
+                background,
+                imageNames,
+                srcs,
+              };
+              if (src != null) {
+                content.src = src;
+              }
+              const sources = [
+                ...new Set(
+                  imageAssets.flatMap((a) => {
+                    const named = srcsOf(a);
+                    return named?.length
+                      ? named
+                      : $.getImageUrlsFromBackground($.getBackgroundImageFromString(a, undefined, pickOf(a)));
+                  }),
+                ),
+              ];
+              if (sources.length > 0) {
+                content.sources = sources;
+              }
+              const videoSrc = videoSrcs[0];
+              if (videoSrc) {
+                content.video = {
+                  src: videoSrc,
+                  loop: !e.once,
+                  muted: Boolean(e.mute),
+                  ...$.getMovieMixer(),
+                  ...($.showsMovieStill() ? { preview: true } : {}),
+                };
+              }
+              const morph = $.getMorphContent(imageAssets, pickOf);
+              if (morph) {
+                content.morph = morph;
+              }
+              return content;
+            });
             if (e.control === "show") {
               const showEvent = {
                 name: showWith,
@@ -5873,6 +6026,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (ref) {
         this.deliverMorphArtifact(ref, true);
       }
+      return;
+    }
+    if (MorphStillMessage.type.isNotification(msg)) {
+      this.reportMorphStill(msg.params);
       return;
     }
     if (EventMessage.type.isNotification(msg)) {

@@ -10,7 +10,8 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { buildMorphChannel, shownLook, shownLookStruct, speechMorphsForStruct } from "../../morph/channel";
+import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
+import { resolvePictureLook } from "../../morph/look";
 import { MORPH_PICK_NONE } from "../../morph/types";
 import {
   DIRECTIVE_CLAUSE_WORDS,
@@ -19,7 +20,6 @@ import {
   type DirectiveWord,
   type SourceDirective,
 } from "../utils/readDirective";
-import { resolveImageLayers } from "../utils/resolveImageLayers";
 import type { MorphProgramChannel } from "../../morph/types";
 import {
   collectLuauLints,
@@ -4873,13 +4873,13 @@ export class SparkdownCompiler {
       const scriptTree = this.documents.tree(uri);
       const directives = scriptTree ? readSourceDirectives(scriptTree, (from, to) => doc.read(from, to)) : [];
       const emit = (struct: any, from: number, to: number, written: readonly string[]) => {
-        const layers = resolveImageLayers(program.context, struct);
-        const look = shownLook(program.context, program.morphs, struct, undefined, MORPH_PICK_NONE);
+        const picture = resolvePictureLook(program.context, program.morphs, struct, { pick: MORPH_PICK_NONE });
+        const look = picture.root && !picture.plays ? undefined : shownLook(program.context, program.morphs, struct, undefined, MORPH_PICK_NONE);
         const resolved = resolveImageAttributes(program.context!, shownLookStruct(struct, look?.attributes ?? []));
         const layered = resolveImageAttributes(program.context!, struct).image?.$type === "layered_image";
         const looks =
-          layered
-            ? layers.flatMap((layer) => {
+          layered && !picture.plays
+            ? picture.layers.flatMap((layer) => {
                 const layerLook = layer.struct ? shownLook(program.context, program.morphs, layer.struct, undefined, MORPH_PICK_NONE) : undefined;
                 return layerLook ? [layerLook] : [];
               })
@@ -5069,11 +5069,7 @@ export class SparkdownCompiler {
         message: `\`${name}\` is not a speech morph: a \`morph\` clause picks only among morphs with \`trigger = speech\`.`,
       };
     }
-    const plays = images.some((image) =>
-      resolveImageLayers(program.context, image).some(
-        (layer) => layer.struct && speechMorphsForStruct(program.context, program.morphs, layer.struct).includes(name),
-      ),
-    );
+    const plays = images.some((image) => resolvePictureLook(program.context, program.morphs, image).speech.includes(name));
     if (plays) return undefined;
     return {
       at: value,
