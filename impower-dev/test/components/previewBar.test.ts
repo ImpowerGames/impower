@@ -295,8 +295,18 @@ describe("the bar under the game", () => {
   it("keeps the Problems dialog on the tablet's strip and on the phone's full view", async () => {
     compact = true;
     await act(async () => mediaListeners.forEach((listener) => listener()));
-    expect(problems.panelDocks()).toBe(false);
-    expect(problems.showPanel("problems")).toBe(false);
+    problems.closeDialog();
+    await mount({ fullView: false });
+    await act(async () => problems.showProblems());
+    expect(problems.dialog.value?.scope).toEqual({ kind: "story" });
+    expect(stored().previewPanelHeight).toBe(44);
+    expect(document.getElementById("problems-panel")).toBeNull();
+    await act(async () => route.show());
+    expect(route.sheetOpen.value).toBe(true);
+    expect(problems.panelShows.value).toBe("problems");
+    problems.closeDialog();
+    route.sheetOpen.value = false;
+    await unmount();
     await mount();
     expect(problems.panelDocks()).toBe(true);
     await unmount();
@@ -309,8 +319,10 @@ describe("the bar under the game", () => {
     expect(toggle().getAttribute("aria-expanded")).toBeNull();
     await act(async () => toggle().click());
     await settle();
+    expect(problems.dialog.value?.scope).toEqual({ kind: "story" });
     expect(stored().previewPanelHeight).toBe(44);
     expect(document.getElementById("problems-panel")).toBeNull();
+    problems.closeDialog();
   });
 
   it("shows the caret's line while stopped and the executing line while playing", async () => {
