@@ -120,7 +120,7 @@ const measure = async (viewport: (typeof VIEWPORTS)[number], theme: "charcoal" |
         const rowBox = host.firstElementChild!.firstElementChild!;
         const open = rowBox.querySelector("button:not([data-list-row-badge]):not([aria-expanded])")!;
         const label = open.querySelector("span > span")!;
-        const badge = rowBox.querySelector("[data-list-row-badge]");
+        const badge = rowBox.querySelector(":scope > [data-list-row-icon-control] > [data-list-row-badge]");
         return {
           id: host.id,
           depth: Number(host.getAttribute("data-depth")),
@@ -140,7 +140,9 @@ const measure = async (viewport: (typeof VIEWPORTS)[number], theme: "charcoal" |
           badgeLabel: badge?.getAttribute("aria-label") ?? null,
           mark: box(badge?.querySelector("svg") ?? null),
           toggle: box(rowBox.querySelector("button[aria-expanded]")),
-          badgeAfterOpen: badge ? !!(open.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING) : null,
+          glyphVisible: getComputedStyle(open.querySelector(":scope > svg")!).visibility !== "hidden",
+          badgeInsideOpen: badge ? open.contains(badge) : null,
+          badgeCount: rowBox.querySelectorAll("[data-list-row-badge]").length,
         };
       });
     });
@@ -152,7 +154,7 @@ const measure = async (viewport: (typeof VIEWPORTS)[number], theme: "charcoal" |
 describe("the In this script tab's outline rows, in Chromium", () => {
   for (const viewport of VIEWPORTS) {
     for (const theme of ["charcoal", "chalk"] as const) {
-      it(`are 48px with the glyph kept and the badge at the right before the disclosure at ${viewport.width} in ${theme}`, async () => {
+      it(`are 48px with a problem's mark drawn where the glyph was and nowhere else at ${viewport.width} in ${theme}`, async () => {
         const m = await measure(viewport, theme);
         const byId = Object.fromEntries(m.map((r) => [r.id, r]));
         expect(Object.keys(byId)).toEqual(["dock", "quiet", "harbor", "Where-now", "storm", "long", "calm"]);
@@ -173,15 +175,21 @@ describe("the In this script tab's outline rows, in Chromium", () => {
             expect(r.toggle!.height).toBe(44);
             expect(r.toggle!.right).toBe(r.row.right);
           }
+          expect(r.badgeCount, r.id).toBe(r.badge ? 1 : 0);
+          expect(r.glyphVisible, r.id).toBe(!r.badge);
           if (r.badge) {
-            expect(r.badgeAfterOpen, r.id).toBe(true);
-            expect(r.badge.width, r.id).toBe(44);
-            expect(r.badge.height, r.id).toBe(44);
-            expect(r.badge.top - r.row.top).toBe(r.row.bottom - r.badge.bottom);
-            expect(r.mark!.width).toBe(14);
-            expect(r.mark!.height).toBe(14);
-            expect(r.badge.right, r.id).toBe(r.toggle ? r.toggle.left : r.row.right);
-            expect(r.label.right, r.id).toBeLessThanOrEqual(r.badge.left);
+            const target = viewport.pointer === "coarse" ? 44 : 28;
+            expect(r.badgeInsideOpen, r.id).toBe(false);
+            expect(r.badge.width, r.id).toBe(target);
+            expect(r.badge.height, r.id).toBe(target);
+            expect(r.mark!.width).toBe(17);
+            expect(r.mark!.height).toBe(17);
+            const mid = (b: { left: number; top: number; width: number; height: number }) => [b.left + b.width / 2, b.top + b.height / 2];
+            const [mx, my] = mid(r.mark!);
+            const [gx, gy] = mid(r.glyph!);
+            expect(Math.abs(mx! - gx!), r.id).toBeLessThanOrEqual(0.5);
+            expect(Math.abs(my! - gy!), r.id).toBeLessThanOrEqual(0.5);
+            expect(r.badge.left, r.id).toBeGreaterThanOrEqual(r.row.left - 2);
           }
         }
         const dock = byId.dock!;
@@ -194,7 +202,7 @@ describe("the In this script tab's outline rows, in Chromium", () => {
         expect(dock.badge).toBeNull();
         expect(byId.storm!.badge).not.toBeNull();
         expect(byId.storm!.label.left).toBe(byId.quiet!.label.left);
-        expect(byId.harbor!.badgeLabel).toBe("Scene total: 1 error, 1 warning, 1 note in harbor");
+        expect(byId.harbor!.badgeLabel).toBe("Show 1 error, 1 warning, 1 note in harbor, choices and branches included");
         expect(byId.quiet!.current).toBe("location");
         expect(byId.long!.labelScroll).toBeGreaterThan(byId.long!.label.width);
       }, 60_000);
