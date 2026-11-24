@@ -15,7 +15,7 @@ const tiff = (orientation: number, littleEndian: boolean) => {
   return raw;
 };
 
-const jpeg = (width: number, height: number, exif?: Uint8Array) => {
+const jpeg = (width: number, height: number, exif?: Uint8Array, exifAfterFrame = false) => {
   const app1 = exif ? [0xff, 0xe1, 0, 0, ...Array.from("Exif").map((c) => c.charCodeAt(0)), 0, 0, ...exif] : [];
   if (exif) {
     const length = app1.length - 2;
@@ -23,7 +23,8 @@ const jpeg = (width: number, height: number, exif?: Uint8Array) => {
     app1[3] = length & 0xff;
   }
   const sof = [0xff, 0xc0, 0, 17, 8, height >> 8, height & 0xff, width >> 8, width & 0xff, 3, ...new Array(9).fill(0)];
-  return new Uint8Array([0xff, 0xd8, ...app1, ...sof]);
+  const sos = [0xff, 0xda, 0, 8, 1, 1, 0, 0, 63, 0, 0x12, 0x34];
+  return new Uint8Array([0xff, 0xd8, ...(exifAfterFrame ? [...sof, ...app1] : [...app1, ...sof]), ...sos]);
 };
 
 const chunk = (type: string, data: Uint8Array | number[]) => {
@@ -54,6 +55,11 @@ describe("a picture's size as the browser draws it, read from its header (#2630)
     expect(imageSizeOf(jpeg(40, 30, tiff(6, true)))).toEqual({ width: 30, height: 40 });
     expect(imageSizeOf(jpeg(40, 30, tiff(8, false)))).toEqual({ width: 30, height: 40 });
     expect(imageSizeOf(jpeg(40, 30, tiff(5, true)))).toEqual({ width: 30, height: 40 });
+  });
+
+  test("a JPEG whose Exif segment comes after its frame header, before its scan, reads its orientation too", () => {
+    expect(imageSizeOf(jpeg(40, 30, tiff(6, true), true))).toEqual({ width: 30, height: 40 });
+    expect(imageSizeOf(jpeg(40, 30, tiff(1, true), true))).toEqual({ width: 40, height: 30 });
   });
 
   test("a JPEG with no orientation, or one that only flips or turns it half way, keeps its frame size", () => {

@@ -83,32 +83,34 @@ const webpSize = (bytes: Uint8Array, view: DataView) => {
   return undefined;
 };
 
+const JPEG_START_OF_SCAN = 0xda;
+const JPEG_END_OF_IMAGE = 0xd9;
+
 const jpegSize = (bytes: Uint8Array, view: DataView) => {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
     return undefined;
   }
   let at = 2;
+  let size: ImageSize | undefined;
   let orientation: number | undefined;
-  while (at + 9 < bytes.length) {
-    if (bytes[at] !== 0xff) {
-      return undefined;
-    }
+  while (at + 3 < bytes.length && bytes[at] === 0xff) {
     const marker = bytes[at + 1]!;
     if (marker === 0xff) {
       at += 1;
       continue;
     }
+    if (marker === JPEG_START_OF_SCAN || marker === JPEG_END_OF_IMAGE) break;
     const length = view.getUint16(at + 2);
     if (marker === 0xe1 && orientation === undefined && ascii(bytes, at + 4, 6) === "Exif\0\0") {
       orientation = exifOrientation(bytes, at + 10, at + 2 + length);
     }
     const frame = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
-    if (frame) {
-      return oriented(sized(view.getUint16(at + 7), view.getUint16(at + 5)), orientation);
+    if (frame && size === undefined && at + 9 < bytes.length) {
+      size = sized(view.getUint16(at + 7), view.getUint16(at + 5));
     }
     at += 2 + length;
   }
-  return undefined;
+  return oriented(size, orientation);
 };
 
 const SVG_TAG = /<svg\b[^>]*>/i;
