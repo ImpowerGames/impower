@@ -104,19 +104,15 @@ const stackItemOf = ({ path, layer }: RasterStackItem, depth: number) => {
     : { segment: undefined, order: layer.order, path };
 };
 
-type StackItemOrder = (x: { order: number; path: string }, y: { order: number; path: string }) => number;
-
-const byStackingWith = (order: StackItemOrder) => (a: RasterStackItem, b: RasterStackItem): number => {
+export const byRasterStacking = (a: RasterStackItem, b: RasterStackItem): number => {
   for (let depth = 0; ; depth++) {
     const x = stackItemOf(a, depth);
     const y = stackItemOf(b, depth);
-    if (x.segment === undefined || x.segment !== y.segment) return order(x, y);
+    if (x.segment === undefined || x.segment !== y.segment) return byRasterOrder(x, y);
   }
 };
 
-export const byRasterStacking = byStackingWith(byRasterOrder);
-
-export const byRasterStackingTopFirst = byStackingWith((x, y) => x.order - y.order || x.path.localeCompare(y.path));
+export const byRasterStackingTopFirst = (a: RasterStackItem, b: RasterStackItem): number => byRasterStacking(b, a);
 
 export const rasterLayerInputs = (
   layers: readonly RasterLayerPath[],

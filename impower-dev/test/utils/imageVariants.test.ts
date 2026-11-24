@@ -1,4 +1,5 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { createRasterImageDefinitions } from "@impower/sparkdown/src/attributes/rasterSource";
 import { resolveAttributes } from "@impower/sparkdown/src/attributes/resolveAttributes";
 import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { describe, expect, it } from "vitest";
@@ -173,8 +174,8 @@ describe("the Files rows", () => {
       ["2 face.happy.png", "Layer 2 · face.happy"],
       ["10 hat.on.png", "Layer 10 · hat.on"],
       ["11 face.sad.png", "Layer 11 · face.sad"],
-      ["30 face.happy.png", "Layer 30 · face.happy"],
       ["30 face.neutral default.png", "Layer 30 · face.neutral · default"],
+      ["30 face.happy.png", "Layer 30 · face.happy"],
       ["90 body.png", "Base"],
     ]);
   });
@@ -227,15 +228,46 @@ describe("a portrait folder with layer folders", () => {
     expect(fileRows(one(NESTED), {}).map((row) => [row.name, row.role])).toEqual([
       ["10 hat.on.png", "Layer 10 · hat.on"],
       ["20 hair-top hat.off.png", "Layer 20 · hat.off"],
-      ["60 face.happy/30 mouth.png", "Layer 30 · face.happy"],
-      ["60 face.happy/40 lids eyes.closed.png", "Layer 40 · face.happy · eyes.closed"],
-      ["60 face.happy/40 pupils eyes.open default.png", "Layer 40 · face.happy · eyes.open · default"],
       ["60 face.neutral default/30 mouth.png", "Layer 30 · face.neutral"],
-      ["60 face.neutral default/40 lids eyes.closed.png", "Layer 40 · face.neutral · eyes.closed"],
-      ["60 face.neutral default/40 pupils eyes.open look.camera default.png", "Layer 40 · face.neutral · eyes.open · look.camera · default"],
       ["60 face.neutral default/40 pupils eyes.open look.left.png", "Layer 40 · face.neutral · eyes.open · look.left"],
+      ["60 face.neutral default/40 pupils eyes.open look.camera default.png", "Layer 40 · face.neutral · eyes.open · look.camera · default"],
+      ["60 face.neutral default/40 lids eyes.closed.png", "Layer 40 · face.neutral · eyes.closed"],
+      ["60 face.happy/30 mouth.png", "Layer 30 · face.happy"],
+      ["60 face.happy/40 pupils eyes.open default.png", "Layer 40 · face.happy · eyes.open · default"],
+      ["60 face.happy/40 lids eyes.closed.png", "Layer 40 · face.happy · eyes.closed"],
       ["90 body.png", "Base"],
     ]);
+  });
+
+  it("lists equally numbered files and folders top first in the reverse of the order the game draws them", () => {
+    const tied = [
+      `${MIA}/90 body.png`,
+      `${MIA}/60 shirt/40 cloth.png`,
+      `${MIA}/60 pants/40 cloth.png`,
+      `${MIA}/50 clothes/40 a.png`,
+      `${MIA}/50 clothes/40 b.png`,
+    ];
+    const files = tied.map((path) => ({
+      uri: `file:///project/${path}`,
+      type: "image" as const,
+      name: path.slice(path.lastIndexOf("/") + 1, path.lastIndexOf(".")),
+      ext: "png",
+      src: `/${path}`,
+    }));
+    const drawn = createRasterImageDefinitions(files as never).layeredImages["mia"].assets.map((asset: { $name: string }) =>
+      asset.$name.slice("$raster:file:///project/".length),
+    ) as string[];
+    expect(drawn).toEqual([
+      `${MIA}/90 body.png`,
+      `${MIA}/60 pants/40 cloth.png`,
+      `${MIA}/60 shirt/40 cloth.png`,
+      `${MIA}/50 clothes/40 a.png`,
+      `${MIA}/50 clothes/40 b.png`,
+    ]);
+    expect(fileRows(one(tied), {}).map((row) => row.path)).toEqual([...drawn].reverse());
+    for (const paths of [NESTED, MIA_FOLDER]) {
+      expect(fileRows(one(paths), {}).map((row) => row.path)).toEqual([...one(paths).members].reverse().map((member) => member.path));
+    }
   });
 
   it("offers the options nested files name, with eyes resting open in each face", () => {
