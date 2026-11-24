@@ -1,5 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import type ts from "typescript";
+import { sparkleElementParts, sparklePartNodes } from "../../packages/sparkdown/src/compiler/lower/utils/sparkleBlockEntries";
+import { readStructBodyEntries, type StructEntry } from "../../packages/sparkdown/src/compiler/lower/utils/structBodyEntries";
 import { createSparkdownParser } from "../../packages/sparkdown/src/compiler/utils/createSparkdownParser";
 import { findChildByName } from "../../packages/sparkdown/src/compiler/utils/findChildByName";
 
@@ -10,13 +12,7 @@ export interface ClearPropResult {
 
 const CONTENT_TAGS = new Set(["text", "stroke", "image", "mask"]);
 
-const NAME_NODES = new Set([
-  "LuauSparkleElementName",
-  "BuiltinComponentName",
-  "CustomComponentName",
-]);
-
-const HEAD_PARTS_WITHOUT_VALUE = new Set([
+const PARTS_WITHOUT_VALUE = new Set([
   "RequiredWhitespace",
   "Whitespace",
   "LuauComment",
@@ -30,15 +26,6 @@ const HEAD_PARTS_WITHOUT_VALUE = new Set([
   "LuauSparkleEventClosureAttribute",
   "LuauSparklePropParenAttribute",
   "LuauSparkleEventParenAttribute",
-]);
-
-const BLANK_BLOCK_PARTS = new Set([
-  "Whitespace",
-  "Newline",
-  "LuauComment",
-  "LuauLineComment",
-  "LuauBlockComment",
-  "LuauStructBlockSlashComment",
 ]);
 
 const parser = createSparkdownParser();
@@ -61,45 +48,36 @@ function childNodes(node: SyntaxNode | null | undefined): SyntaxNode[] {
   return out;
 }
 
-function headParts(element: SyntaxNode): SyntaxNode[] {
-  const content = findChildByName(element, "LuauSparkleElement_content");
-  const parts = content ? findChildByName(content, "LuauSparkleElementParts") : null;
-  return childNodes(parts?.firstChild);
+function partsOf(entry: StructEntry): SyntaxNode[] {
+  const containers = [...sparklePartNodes(entry.shape), ...(entry.continuations ?? [])];
+  return containers.flatMap((container) =>
+    container.name === "LuauSparkleElementParts" ? childNodes(container.firstChild) : [container],
+  );
 }
 
-function blockOf(element: SyntaxNode): SyntaxNode | null {
-  const content = findChildByName(element, "LuauSparkleElement_content");
-  return content ? findChildByName(content, "LuauSparkleElementBlock") : null;
-}
-
-function blockEntries(element: SyntaxNode): SyntaxNode[] {
-  const block = blockOf(element);
-  return childNodes(block ? findChildByName(block, "LuauSparkleElementBlock_content") : null);
-}
-
-function words(element: SyntaxNode, text: string): string[] {
-  const begin = findChildByName(element, "LuauSparkleElement_begin");
-  const name = childNodes(begin?.firstChild).find((n) => NAME_NODES.has(n.name));
-  const classes = headParts(element)
+function words(entry: StructEntry, text: string): string[] {
+  const name = sparkleElementParts(entry.shape).name;
+  const classes = partsOf(entry)
     .filter((p) => p.name === "LuauSparkleElementClass")
     .flatMap((p) => descendants(p, "LuauSparkleClassName"))
     .map((n) => text.slice(n.from, n.to));
   return [...(name ? [text.slice(name.from, name.to)] : []), ...classes];
 }
 
-function holdsNoValue(element: SyntaxNode): boolean {
-  const content = findChildByName(element, "LuauSparkleElement_content");
-  if (content && findChildByName(content, "LuauSparkleCallArguments")) return false;
-  if (!headParts(element).every((p) => HEAD_PARTS_WITHOUT_VALUE.has(p.name))) return false;
-  return blockEntries(element).every((n) => BLANK_BLOCK_PARTS.has(n.name));
+function holdsNoValue(entry: StructEntry): boolean {
+  return (
+    !sparkleElementParts(entry.shape).args &&
+    partsOf(entry).every((p) => PARTS_WITHOUT_VALUE.has(p.name)) &&
+    (entry.children?.length ?? 0) === 0
+  );
 }
 
-function isEmptiedContent(element: SyntaxNode, text: string): boolean {
-  return words(element, text).some((w) => CONTENT_TAGS.has(w)) && holdsNoValue(element);
+function isEmptiedContent(entry: StructEntry, text: string): boolean {
+  return Boolean(entry.element) && words(entry, text).some((w) => CONTENT_TAGS.has(w)) && holdsNoValue(entry);
 }
 
-function hasClearProp(element: SyntaxNode, text: string): boolean {
-  return headParts(element).some((p) => {
+function hasClearProp(entry: StructEntry, text: string): boolean {
+  return partsOf(entry).some((p) => {
     if (p.name !== "LuauSparklePropAttribute") return false;
     const name = descendants(p, "StyleAttributeName")[0];
     return Boolean(name) && text.slice(name!.from, name!.to) === "clear";
@@ -118,23 +96,26 @@ function clearEdit(element: SyntaxNode, text: string): Edit {
   if (assign && text.slice(assign.from, assign.to).includes("=")) {
     return { from: assign.from, to: assign.to, insert: " #clear " };
   }
-  const parts = content ? findChildByName(content, "LuauSparkleElementParts") : null;
-  const at = parts ? parts.to : findChildByName(element, "LuauSparkleElement_begin")!.to;
+  const { head, beginTo } = sparkleElementParts(element);
+  const at = head ? head.to : beginTo;
   return { from: at, to: at, insert: " #clear" };
 }
 
 export function clearEdits(text: string): Edit[] {
   const tree = parser.parse(text);
   const edits = new Map<number, Edit>();
-  for (const layout of descendants(tree.topNode, "LuauLayout")) {
-    for (const element of descendants(layout, "LuauSparkleElement")) {
-      if (hasClearProp(element, text)) continue;
-      const children = blockEntries(element).filter((n) => n.name === "LuauSparkleElement");
-      if (children.some((child) => isEmptiedContent(child, text))) {
-        const edit = clearEdit(element, text);
+  const visit = (entries: StructEntry[]) => {
+    for (const entry of entries) {
+      if (!entry.element || !entry.children) continue;
+      if (!hasClearProp(entry, text) && entry.children.some((child) => isEmptiedContent(child, text))) {
+        const edit = clearEdit(entry.shape, text);
         edits.set(edit.from, edit);
       }
+      visit(entry.children);
     }
+  };
+  for (const layout of descendants(tree.topNode, "LuauLayout")) {
+    visit(readStructBodyEntries(layout, undefined as never));
   }
   return [...edits.values()].sort((a, b) => a.from - b.from);
 }

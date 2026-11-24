@@ -37,6 +37,10 @@ layout board {
     tile #clear {
       text
     }
+    joined #clear
+    { image }
+    continued #clear
+      #gap=4 { text }
     holder {
       inner #clear {
         text

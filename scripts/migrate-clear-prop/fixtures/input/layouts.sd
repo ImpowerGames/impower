@@ -37,6 +37,10 @@ layout board {
     tile = {
       text
     }
+    joined
+    { image }
+    continued
+      #gap=4 { text }
     holder {
       inner {
         text

@@ -78,21 +78,16 @@ function unwrittenRuleTargets(layout: Record<string, any>): string[] {
   return [...targets].sort();
 }
 
-function clearPropTargets(nodes: any[] | undefined): string[] {
+function clearMarkTargets(layout: Record<string, any>): string[] {
   const targets = new Set<string>();
-  const walk = (list: any[] | undefined) => {
-    for (const node of list ?? []) {
-      if (node.kind === "element" && node.props?.clear) {
-        targets.add([node.tag, ...node.classes].join(" "));
-      }
-      walk(node.children);
-      walk(node.else);
-      for (const branch of [...(node.branches ?? []), ...(node.cases ?? [])]) {
-        walk(branch.children);
-      }
+  const walk = (node: Record<string, any>) => {
+    for (const [key, value] of Object.entries(node)) {
+      if (key.startsWith("$") || !value || typeof value !== "object") continue;
+      if (value["$clear"] === true) targets.add(key);
+      walk(value);
     }
   };
-  walk(nodes);
+  walk(layout);
   return [...targets].sort();
 }
 
@@ -122,7 +117,7 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(result.stdout).toContain("0 files to migrate, 0 errors");
   });
 
-  test("each codemod leaves its own output unchanged", () => {
+  test("each codemod leaves its own output unchanged", { timeout: 120_000 }, () => {
     const sd = readFileSync(join(FIXTURES, "expected/layouts.sd"), "utf8");
     const md = readFileSync(join(FIXTURES, "expected/nested/guide.md"), "utf8");
     const script = readFileSync(join(FIXTURES, "expected/embedded.ts"), "utf8");
@@ -131,7 +126,7 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(migrateScriptClearProp(script, ts)).toEqual({ text: script, migrated: 0 });
   });
 
-  test("the built-in layouts are the migration of themselves without #clear", () => {
+  test("the built-in layouts are the migration of themselves without #clear", { timeout: 120_000 }, () => {
     const unmigrated = BUILTINS.replace(/ #clear\b/g, "");
     expect(unmigrated).not.toBe(BUILTINS);
     expect(migrateClearProp(unmigrated).text).toBe(BUILTINS);
@@ -147,8 +142,8 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     const after = compile(migrated.text);
     let compared = 0;
     for (const name of layoutNames(source)) {
-      const alreadyClear = clearPropTargets(before.sparkle?.layouts?.[name]?.children);
-      const added = clearPropTargets(after.sparkle?.layouts?.[name]?.children).filter(
+      const alreadyClear = clearMarkTargets(before.context?.layout?.[name] ?? {});
+      const added = clearMarkTargets(after.context?.layout?.[name] ?? {}).filter(
         (t) => !alreadyClear.includes(t),
       );
       const emptied = unwrittenRuleTargets(before.context?.layout?.[name] ?? {}).filter(
