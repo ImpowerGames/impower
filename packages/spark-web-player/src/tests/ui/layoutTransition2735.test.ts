@@ -410,6 +410,7 @@ describe("a box whose text grows (I-2735)", () => {
     h.ui.onReceiveNotification(beat("A line long enough for three.", 1_000));
     await flushMicrotasks(10);
     expect(shown()).toBe("A line long enough for three.");
+    expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
     expect(keyframesOf(sizeOf(dialogue)!)).toEqual([pinned("height", 20), pinned("height", 60)]);
     expect(sizeOf(dialogue)!.effect.timing).toMatchObject({ duration: 300 });
   });
@@ -419,6 +420,7 @@ describe("a box whose text grows (I-2735)", () => {
     timeline.currentTime = 1_000;
     h.ui.onReceiveNotification(beat("A line long enough for three.", 1_000));
     await flushMicrotasks(10);
+    expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
     const running = sizeOf(dialogue)!;
     await advance(100);
     expect(running.playState).toBe("running");
