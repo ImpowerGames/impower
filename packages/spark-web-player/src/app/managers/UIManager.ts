@@ -28,7 +28,10 @@ import {
   PlayCutsceneMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
-import { ShowingMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
+import {
+  type ShowingParams,
+  ShowingMessage,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
 import { SHOWING_ATTRIBUTE } from "../../../../spark-dom/src/utils/getStyleContent";
 import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
@@ -656,6 +659,36 @@ export default class UIManager extends Manager {
     clearTimeout(pending.timer);
     this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
     this.applyBeat(pending.params, pending.ops, pending.plan);
+  }
+
+  protected applyShowing(params: ShowingParams) {
+    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    if (!overlay) {
+      return;
+    }
+    if (params.retired) {
+      for (const op of overlay.__sdBeat?.ops ?? []) {
+        if (ShowingMessage.type.isNotification(op as NotificationMessage)) {
+          const queued = (op as NotificationMessage<string, ShowingParams>).params!;
+          queued.add = queued.add.filter((name) => !params.remove.includes(name));
+        }
+      }
+    }
+    const names = new Set(
+      params.reset ? [] : (overlay.getAttribute(SHOWING_ATTRIBUTE) ?? "").split(" ").filter(Boolean),
+    );
+    for (const name of params.remove) {
+      names.delete(name);
+    }
+    for (const name of params.add) {
+      names.add(name);
+    }
+    const value = [...names].sort().join(" ");
+    if (value) {
+      overlay.setAttribute(SHOWING_ATTRIBUTE, value);
+    } else {
+      overlay.removeAttribute(SHOWING_ATTRIBUTE);
+    }
   }
 
   protected shiftBeat(params: BeatParams, ops: IMessage[], shift: number) {
@@ -1446,15 +1479,7 @@ export default class UIManager extends Manager {
       this.flushPendingBeat();
     }
     if (ShowingMessage.type.isNotification(msg)) {
-      const overlay = this.app.overlay;
-      if (overlay) {
-        const names = msg.params.names.join(" ");
-        if (names) {
-          overlay.setAttribute(SHOWING_ATTRIBUTE, names);
-        } else {
-          overlay.removeAttribute(SHOWING_ATTRIBUTE);
-        }
-      }
+      this.applyShowing(msg.params);
       return;
     }
     if (BeginReconcileMessage.type.isNotification(msg)) {

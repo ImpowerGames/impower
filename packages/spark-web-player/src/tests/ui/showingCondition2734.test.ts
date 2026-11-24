@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
 import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { anchorSelfTargeted, getCSSSelector } from "@impower/spark-dom/src/utils/getStyleContent";
@@ -111,4 +111,115 @@ describe("a style under @showing(action) applies in another layout (#2734)", () 
     expect(h.overlay.hasAttribute("data-showing")).toBe(false);
     expect(h.overlay.querySelector(FRAME_UNDER_ACTION)).toBeNull();
   });
+});
+
+const RETIRING = `define HERO as character with
+  name = "HERO"
+end
+
+define ui as config with
+  layouts_initial = { "textbox", "notice" }
+end
+
+layout notice {
+  text "Leaving"
+}
+
+layout banner {
+  text "Arriving"
+}
+
+style frame {
+  @showing(action) { opacity = 1 }
+  @showing(dialogue) { opacity = 1 }
+  @showing(notice) { opacity = 1 }
+  @showing(banner) { opacity = 1 }
+}
+
+scene start
+  HERO:
+    Old dialogue.
+end
+`;
+
+type Timeline = { currentTime: number };
+
+async function heldBeat(run: (h: DOMHarness, ui: any, timeline: Timeline) => Promise<void>) {
+  const h = createDOMHarness(RETIRING, 0, { reactive: true, compose: true, autoOpenAll: false });
+  await h.ready;
+  await h.preview(RETIRING.split("\n").findIndex((line) => line.includes("Old dialogue.")));
+  h.game.module.ui.sweepReconcile();
+  await flushMicrotasks(30);
+  const ui: any = h.game.module.ui;
+  h.game.context.system.previewing = undefined;
+  const receive = h.ui.onReceiveRequest.bind(h.ui);
+  h.ui.onReceiveRequest = ((message: any) =>
+    message.method === "ui/animate" ? new Promise(() => {}) : receive(message)) as any;
+  const timeline = h.overlay.ownerDocument.timeline as unknown as Timeline;
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await run(h, ui, timeline);
+  } finally {
+    h.ui.onDispose();
+    vi.useRealTimers();
+    timeline.currentTime = 0;
+  }
+}
+
+async function commitHeldBeat(h: DOMHarness, timeline: Timeline) {
+  timeline.currentTime = 1200;
+  vi.advanceTimersByTime(200);
+  await flushMicrotasks(30);
+  expect((h.overlay as any).__sdBeat).toBeUndefined();
+}
+
+describe("a layout removed while a later beat waits to show (#2734)", () => {
+  test("the root keeps the shown beat's names, less the removed layout, until the waiting beat shows", async () => {
+    await heldBeat(async (h, ui, timeline) => {
+      expect(h.overlay.getAttribute("data-showing")).toBe("dialogue notice");
+      expect(ui.beginCompose()).toBe(true);
+      await ui.closeLayout("notice", { with: "fadeout", over: 0.5 });
+      await ui.endCompose();
+      await flushMicrotasks(30);
+      const [retiring] = [...ui._retiring];
+      expect(retiring).toBeDefined();
+      timeline.currentTime = 1000;
+      expect(ui.beginCompose()).toBe(true);
+      await ui.text.clear("dialogue");
+      await ui.text.write("action", [{ text: "New action.", after: 0.1 }], false, 1100);
+      await ui.endCompose({ time: 1100 });
+      await flushMicrotasks(30);
+      expect((h.overlay as any).__sdBeat).toBeDefined();
+      expect(h.overlay.getAttribute("data-showing")).toBe("dialogue notice");
+      ui.retire(retiring);
+      await flushMicrotasks(30);
+      expect((h.overlay as any).__sdBeat).toBeDefined();
+      expect(h.overlay.querySelector(".notice")).toBeNull();
+      expect(h.overlay.querySelector(".dialogue")?.textContent).toContain("Old dialogue.");
+      expect(h.overlay.getAttribute("data-showing")).toBe("dialogue");
+      await commitHeldBeat(h, timeline);
+      expect(h.overlay.getAttribute("data-showing")).toBe("action");
+    });
+  }, 60_000);
+
+  test("a layout the waiting beat opened and closed is not marked when that beat shows after its removal", async () => {
+    await heldBeat(async (h, ui, timeline) => {
+      timeline.currentTime = 1000;
+      expect(ui.beginCompose()).toBe(true);
+      await ui.openLayout("banner");
+      await ui.closeLayout("banner", { with: "fadeout", over: 0.5 });
+      await ui.text.clear("dialogue");
+      await ui.text.write("action", [{ text: "New action.", after: 0.1 }], false, 1100);
+      await ui.endCompose({ time: 1100 });
+      await flushMicrotasks(30);
+      expect((h.overlay as any).__sdBeat).toBeDefined();
+      const [retiring] = [...ui._retiring];
+      expect(retiring?.name).toBe("banner");
+      ui.retire(retiring);
+      await flushMicrotasks(30);
+      expect(h.overlay.getAttribute("data-showing")).toBe("dialogue notice");
+      await commitHeldBeat(h, timeline);
+      expect(h.overlay.getAttribute("data-showing")).toBe("action notice");
+    });
+  }, 60_000);
 });

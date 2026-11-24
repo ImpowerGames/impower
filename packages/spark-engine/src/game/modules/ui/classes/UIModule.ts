@@ -241,6 +241,7 @@ interface PictureView {
 
 interface Retirement {
   name: string;
+  held: Set<string>;
   element: Element;
   epoch: number;
   pin?: string;
@@ -512,7 +513,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _showingWatched: ReadonlySet<string> = new Set();
 
-  protected _showingSent?: string;
+  protected _showingSent?: Set<string>;
 
   protected _showingHidden = new WeakSet<Element>();
 
@@ -1114,16 +1115,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   showingNames(): string[] {
     const watched = this.showingWatched();
     const names = new Set<string>();
+    const add = (name: string) => {
+      if (watched.has(name)) {
+        names.add(name);
+      }
+    };
     for (const name of this._mountedLayouts.keys()) {
-      if (watched.has(name)) {
-        names.add(name);
-      }
+      add(name);
     }
-    for (const { name } of this._retiring) {
-      if (watched.has(name)) {
-        names.add(name);
-      }
+    for (const retiring of this._retiring) {
+      add(retiring.name);
+      retiring.held.forEach(add);
     }
+    if (this._root) {
+      this.heldNames(this._root).forEach(add);
+    }
+    return [...names].sort();
+  }
+
+  protected heldNames(root: Element): Set<string> {
+    const held = new Set<string>();
     const written = new Set<Element>();
     const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
       for (const el of this.findElements(target, true)) {
@@ -1149,25 +1160,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (this._showingHidden.has(el)) {
         return false;
       }
-      let held = this._showingContent.has(el) || written.has(el);
+      let holds = this._showingContent.has(el) || written.has(el);
       for (const child of el.children) {
         if (visit(child)) {
-          held = true;
+          holds = true;
         }
       }
       const tag = el.name.split(" ")[0];
-      if (held && tag && watched.has(tag)) {
-        names.add(tag);
+      if (holds && tag) {
+        held.add(tag);
       }
-      return held;
+      return holds;
     };
-    if (this._root) {
-      visit(this._root);
-    }
-    for (const { element } of this._retiring) {
-      visit(element);
-    }
-    return [...names].sort();
+    visit(root);
+    return held;
   }
 
   protected noteElementShowing(
@@ -1196,18 +1202,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._game.replaying || this.context?.system?.simulating) {
       return;
     }
-    if (this.showingWatched().size === 0 && !this._showingSent) {
+    const sent = this._showingSent;
+    if (this.showingWatched().size === 0 && !sent?.size) {
       return;
     }
     const names = this.showingNames();
-    const sent = names.join(" ");
-    if (sent === this._showingSent) {
+    const add = sent ? names.filter((name) => !sent.has(name)) : names;
+    const remove = sent ? [...sent].filter((name) => !names.includes(name)).sort() : [];
+    if (sent && add.length === 0 && remove.length === 0) {
       return;
     }
-    this._showingSent = sent;
+    this._showingSent = new Set(names);
     this._uiBatch.push(
       ShowingMessage.type.notification({
-        names,
+        add,
+        remove,
+        ...(sent ? {} : { reset: true }),
         ...(retired ? { retired } : {}),
       }),
     );
@@ -1375,6 +1385,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (c) {
       this._compose = undefined;
       this._uiBatch = [];
+      this._showingSent = undefined;
       for (const id of c.expected.splice(0)) {
         this._game.connection.cancel(id, {
           code: SUPERSEDED,
@@ -4306,6 +4317,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
         name,
+        held: this.heldNames(entry.element),
         element: entry.element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),

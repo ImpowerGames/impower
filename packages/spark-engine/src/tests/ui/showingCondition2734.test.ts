@@ -50,7 +50,21 @@ function wire(messages: any[]): any[] {
 
 const showings = (h: UIHarness): any[] => wire(h.messages).filter((m: any) => m?.method === "ui/showing");
 
-const marked = (h: UIHarness): string[] | undefined => showings(h).at(-1)?.params?.names;
+const marked = (h: UIHarness): string[] | undefined => {
+  const sent = showings(h);
+  if (sent.length === 0) {
+    return undefined;
+  }
+  const names = new Set<string>();
+  for (const { params } of sent) {
+    if (params.reset) {
+      names.clear();
+    }
+    params.remove.forEach((name: string) => names.delete(name));
+    params.add.forEach((name: string) => names.add(name));
+  }
+  return [...names].sort();
+};
 
 const live = (game: any) => {
   game.context.system.previewing = undefined;
@@ -103,7 +117,7 @@ describe("the engine marks what is on screen for @showing (#2734)", () => {
 
   test("only names some style tests with @showing are sent", async () => {
     const { h } = await play(SOURCE);
-    const sent = new Set(showings(h).flatMap((m: any) => m.params.names));
+    const sent = new Set(showings(h).flatMap((m: any) => [...m.params.add, ...m.params.remove]));
     expect([...sent].sort()).toEqual(["action", "dialogue", "hud"]);
   });
 
@@ -173,6 +187,54 @@ end
     ui.retire(retiring);
     expect(ui.showingNames()).toEqual([]);
     const cleared = showings(h).at(-1);
-    expect(cleared?.params).toEqual({ names: [], retired: true });
+    expect(cleared?.params).toEqual({ add: [], remove: ["hud"], retired: true });
+  });
+
+  test("an element written in a leaving layout counts as showing until the layout is removed", async () => {
+    const source = `layout overlay {
+  badge {
+    text
+  }
+}
+
+style frame {
+  @showing(overlay) {
+    opacity = 1
+  }
+  @showing(badge) {
+    opacity = 1
+  }
+  @showing(text) {
+    opacity = 1
+  }
+}
+
+scene start
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, { reactive: true, autoOpenAll: false, beforeConnect: live });
+    await h.ready;
+    await flushMicrotasks(10);
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("overlay");
+    await flushMicrotasks(10);
+    expect(ui.showingNames()).toEqual(["overlay"]);
+    await ui.text.write("badge", [{ text: "Status" }], true);
+    await flushMicrotasks(10);
+    expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
+    expect(ui.beginCompose()).toBe(true);
+    void ui.closeLayout("overlay", { with: "fadeout", over: 0.5 });
+    await flushMicrotasks(10);
+    expect(ui._retiring.size).toBe(1);
+    expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
+    await ui.text.clear("badge");
+    await flushMicrotasks(10);
+    expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
+    const [retiring] = [...ui._retiring];
+    h.reset();
+    ui.retire(retiring);
+    expect(ui.showingNames()).toEqual([]);
+    expect(showings(h).at(-1)?.params).toEqual({ add: [], remove: ["badge", "overlay", "text"], retired: true });
   });
 });
