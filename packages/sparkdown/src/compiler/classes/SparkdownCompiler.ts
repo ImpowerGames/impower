@@ -4823,9 +4823,24 @@ export class SparkdownCompiler {
 
   validateImageAttributes(program: SparkProgram) {
     if (!program.context) return;
-    const artworkUri = (image: any, path?: string): string | undefined => {
+    const assetUnder = (image: any, path: string, vocabulary?: AttributeVocabulary): any => {
+      if (!vocabulary) return undefined;
+      const parents = new Map(vocabulary.layers.map((layer) => [layer.key, layer.parent]));
+      for (const layer of vocabulary.layers) {
+        if (!Object.hasOwn(image.assets ?? {}, layer.key)) continue;
+        const seen = new Set<string>();
+        for (let key: string | undefined = layer.key; key !== undefined && !seen.has(key); key = parents.get(key)) {
+          if (key === path) return image.assets[layer.key];
+          seen.add(key);
+        }
+      }
+      return undefined;
+    };
+    const artworkUri = (image: any, path?: string, vocabulary?: AttributeVocabulary): string | undefined => {
       if (image?.$type === "layered_image") {
-        const reference: any = image.assets?.[path ?? "0"] ?? Object.values(image.assets ?? {})[0];
+        const reference: any = image.assets?.[path ?? "0"] ??
+          (path === undefined ? undefined : assetUnder(image, path, vocabulary)) ??
+          Object.values(image.assets ?? {})[0];
         const source = reference?.$name ? getContextEntry(program.context, "image", reference.$name) : undefined;
         if (source?.uri) return source.uri;
       }
@@ -4837,7 +4852,7 @@ export class SparkdownCompiler {
     for (const image of Object.values({ ...program.context["image"], ...program.context["layered_image"] })) {
       const resolved = resolveImageAttributes(program.context, image);
       for (const diagnostic of resolved.vocabulary?.diagnostics ?? []) {
-        const targetUri = artworkUri(resolved.image, diagnostic.path);
+        const targetUri = artworkUri(resolved.image, diagnostic.path, resolved.vocabulary);
         if (!targetUri) continue;
         const key = JSON.stringify([targetUri, diagnostic.code, diagnostic.path, diagnostic.message]);
         if (artworkEmitted.has(key)) continue;
@@ -4909,8 +4924,8 @@ export class SparkdownCompiler {
             range: doc.range(from, to),
             severity: diagnostic.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
             message: { kind: "markdown", value: diagnostic.message },
-            relatedInformation: artworkUri(resolved.image, diagnostic.path) ? [{
-              location: { uri: artworkUri(resolved.image, diagnostic.path)!, range: assetRange },
+            relatedInformation: artworkUri(resolved.image, diagnostic.path, resolved.vocabulary) ? [{
+              location: { uri: artworkUri(resolved.image, diagnostic.path, resolved.vocabulary)!, range: assetRange },
               message: diagnostic.path ? 'Artwork layer hierarchy: ' + diagnostic.path : 'Source artwork for this selection',
             }] : undefined,
             source: LANGUAGE_NAME,

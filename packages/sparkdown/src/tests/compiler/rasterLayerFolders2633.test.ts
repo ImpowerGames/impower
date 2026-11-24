@@ -157,6 +157,28 @@ describe("layer folders inside a portrait folder (#2633)", () => {
     ]);
   });
 
+  it("puts a warning about a layer folder's own name on a file inside that folder", () => {
+    const program = compile(["mia/90 body.png", "mia/60 face_happy/40 pupils.png"]);
+    const vocabulary = program.context!["layered_image"]!["mia"].attribute_vocabulary as AttributeVocabulary;
+    expect(vocabulary.diagnostics.filter((d) => d.path === "60 face_happy")).not.toEqual([]);
+    expect(messagesOn(program, "mia/60 face_happy/40 pupils.png")).not.toEqual([]);
+    expect(messagesOn(program, "mia/90 body.png")).toEqual([]);
+  });
+
+  it("links a script warning about a layer folder to a file inside that folder", () => {
+    const program = compile([
+      "mia/90 body.png",
+      "mia/60 face.happy default/40 pupils eyes.open.png",
+      "mia/60 face.happy default/40 lids eyes.closed.png",
+    ], "scene start\n  [[mia]]\n  Mia rests.\nend\n");
+    const related = (program.diagnostics?.[uri] ?? [])
+      .filter((d: any) => String(d.message?.value ?? d.message).includes('"face.happy default"'))
+      .flatMap((d: any) => d.relatedInformation ?? [])
+      .map((info: any) => info.location.uri);
+    expect(related).not.toEqual([]);
+    for (const target of related) expect(target).toContain("/60 face.happy default/");
+  });
+
   it("adds nothing for a layer folder that holds no layer files", () => {
     const plain = compile(["mia/90 body.png", "mia/60 face.happy/10 mouth.png"]).context!["layered_image"]!["mia"];
     const withEmpty = compile([
