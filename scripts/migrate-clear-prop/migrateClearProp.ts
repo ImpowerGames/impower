@@ -106,41 +106,52 @@ function hasClearProp(element: SyntaxNode, text: string): boolean {
   });
 }
 
-function insertionPoint(element: SyntaxNode): number {
-  const content = findChildByName(element, "LuauSparkleElement_content");
-  const parts = content ? findChildByName(content, "LuauSparkleElementParts") : null;
-  if (parts) return parts.to;
-  return findChildByName(element, "LuauSparkleElement_begin")!.to;
+interface Edit {
+  from: number;
+  to: number;
+  insert: string;
 }
 
-export function clearInsertions(text: string): number[] {
+function clearEdit(element: SyntaxNode, text: string): Edit {
+  const content = findChildByName(element, "LuauSparkleElement_content");
+  const assign = content ? findChildByName(content, "LuauSparkleElementAssign") : null;
+  if (assign && text.slice(assign.from, assign.to).includes("=")) {
+    return { from: assign.from, to: assign.to, insert: " #clear " };
+  }
+  const parts = content ? findChildByName(content, "LuauSparkleElementParts") : null;
+  const at = parts ? parts.to : findChildByName(element, "LuauSparkleElement_begin")!.to;
+  return { from: at, to: at, insert: " #clear" };
+}
+
+export function clearEdits(text: string): Edit[] {
   const tree = parser.parse(text);
-  const points: number[] = [];
+  const edits = new Map<number, Edit>();
   for (const layout of descendants(tree.topNode, "LuauLayout")) {
     for (const element of descendants(layout, "LuauSparkleElement")) {
       if (hasClearProp(element, text)) continue;
       const children = blockEntries(element).filter((n) => n.name === "LuauSparkleElement");
       if (children.some((child) => isEmptiedContent(child, text))) {
-        points.push(insertionPoint(element));
+        const edit = clearEdit(element, text);
+        edits.set(edit.from, edit);
       }
     }
   }
-  return [...new Set(points)].sort((a, b) => a - b);
+  return [...edits.values()].sort((a, b) => a.from - b.from);
 }
 
-function insertAt(text: string, points: number[]): string {
+function applyEdits(text: string, edits: Edit[]): string {
   let result = "";
   let at = 0;
-  for (const point of points) {
-    result += text.slice(at, point) + " #clear";
-    at = point;
+  for (const edit of edits) {
+    result += text.slice(at, edit.from) + edit.insert;
+    at = edit.to;
   }
   return result + text.slice(at);
 }
 
 export function migrateClearProp(source: string): ClearPropResult {
-  const points = clearInsertions(source);
-  return { text: insertAt(source, points), migrated: points.length };
+  const edits = clearEdits(source);
+  return { text: applyEdits(source, edits), migrated: edits.length };
 }
 
 const FENCE = /^([ \t]*)(`{3,}|~{3,})[ \t]*([^\s`]*)[^`]*$/;
@@ -203,18 +214,20 @@ export function migrateScriptClearProp(
   fileName = "file.ts",
 ): ClearPropResult {
   const file = typescript.createSourceFile(fileName, source, typescript.ScriptTarget.Latest, true);
-  const points: number[] = [];
+  const edits: Edit[] = [];
   const visit = (node: ts.Node) => {
     if (typescript.isNoSubstitutionTemplateLiteral(node) || typescript.isTemplateExpression(node)) {
       const masked = maskedTemplate(typescript, node, source);
       if (LAYOUT_HEADER.test(masked.text)) {
-        for (const point of clearInsertions(masked.text)) points.push(masked.from + point);
+        for (const edit of clearEdits(masked.text)) {
+          edits.push({ ...edit, from: masked.from + edit.from, to: masked.from + edit.to });
+        }
       }
       return;
     }
     typescript.forEachChild(node, visit);
   };
   visit(file);
-  points.sort((a, b) => a - b);
-  return { text: insertAt(source, points), migrated: points.length };
+  edits.sort((a, b) => a.from - b.from);
+  return { text: applyEdits(source, edits), migrated: edits.length };
 }

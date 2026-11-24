@@ -34,11 +34,26 @@ layout board {
     frame #gap=4 #clear {
       mask {}
     }
+    tile #clear {
+      text
+    }
     holder {
       inner #clear {
         text
       }
     }
+  }
+  list {
+    for item in items do
+      row.entry #clear {
+        text
+      }
+    end
+    if shown then
+      note #clear {
+        image
+      }
+    end
   }
   text
 }

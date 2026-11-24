@@ -86,6 +86,10 @@ function clearPropTargets(nodes: any[] | undefined): string[] {
         targets.add([node.tag, ...node.classes].join(" "));
       }
       walk(node.children);
+      walk(node.else);
+      for (const branch of [...(node.branches ?? []), ...(node.cases ?? [])]) {
+        walk(branch.children);
+      }
     }
   };
   walk(nodes);
@@ -127,9 +131,15 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(migrateScriptClearProp(script, ts)).toEqual({ text: script, migrated: 0 });
   });
 
+  test("the built-in layouts are the migration of themselves without #clear", () => {
+    const unmigrated = BUILTINS.replace(/ #clear\b/g, "");
+    expect(unmigrated).not.toBe(BUILTINS);
+    expect(migrateClearProp(unmigrated).text).toBe(BUILTINS);
+  });
+
   test.each([
     ["the fixture layouts", readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8")],
-    ["the built-in layouts", BUILTINS],
+    ["the built-in layouts", BUILTINS.replace(/ #clear\b/g, "")],
   ])("adds #clear exactly where the unwritten rule empties, in %s", { timeout: 300_000 }, (_, source) => {
     const before = compile(source);
     const migrated = migrateClearProp(source);
