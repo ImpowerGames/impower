@@ -159,7 +159,7 @@ const measure = async (
           const open = [...row.querySelectorAll(":scope > button")].find(
             (b) => !b.hasAttribute("data-list-row-badge"),
           )!;
-          const badge = row.querySelector(":scope > [data-list-row-badge]");
+          const badge = row.querySelector(":scope > [data-list-row-icon-control] > [data-list-row-badge]");
           const label = open.querySelector(":scope > span > span")!;
           const guides = [...row.querySelectorAll(':scope > span[aria-hidden="true"]')].map((g) => box(g)!);
           return {
@@ -181,7 +181,18 @@ const measure = async (
             background: getComputedStyle(row).backgroundColor,
             labelColor: getComputedStyle(label).color,
             glyphColor: open.querySelector(":scope > svg") ? getComputedStyle(open.querySelector(":scope > svg")!).color : null,
-            badgeFirst: badge ? !!(badge.compareDocumentPosition(open) & Node.DOCUMENT_POSITION_FOLLOWING) : null,
+            glyphVisible: getComputedStyle(open.querySelector(":scope > svg")!).visibility !== "hidden",
+            hits: (() => {
+              const glyph = open.querySelector(":scope > svg")!.getBoundingClientRect();
+              const x = glyph.left + glyph.width / 2;
+              const r = row.getBoundingClientRect();
+              const at = (y: number) => {
+                const hit = document.elementFromPoint(x, y);
+                return badge?.contains(hit) ? "badge" : open.contains(hit) ? "row" : "other";
+              };
+              return { top: at(r.top + 2), centre: at(glyph.top + glyph.height / 2), bottom: at(r.bottom - 2) };
+            })(),
+            badgeInsideOpen: badge ? open.contains(badge) : null,
           };
         }),
       };
@@ -213,6 +224,24 @@ const byName = (m: Measured) => {
   return rows;
 };
 
+const centre = (b: Box) => ({ x: b.left + b.width / 2, y: b.top + b.height / 2 });
+
+const expectOnGlyph = (r: Row, name: string, target: number) => {
+  expect(r.badge, name).not.toBeNull();
+  expect(r.badgeInsideOpen, name).toBe(false);
+  expect(r.glyphVisible, name).toBe(false);
+  expect(r.badge!.width, name).toBe(target);
+  expect(r.badge!.height, name).toBe(target);
+  expect(r.mark!.width, name).toBe(17);
+  expect(r.mark!.height, name).toBe(17);
+  const mark = centre(r.mark!);
+  const glyph = centre(r.glyph!);
+  const badge = centre(r.badge!);
+  expect(Math.abs(mark.x - glyph.x), name).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(mark.y - glyph.y), name).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(badge.x - glyph.x), name).toBeLessThanOrEqual(0.5);
+};
+
 const geometry = (r: Row) => ({
   row: r.row,
   open: r.open,
@@ -223,24 +252,18 @@ const geometry = (r: Row) => ({
 
 describe("the docked Outline rail's rows, in Chromium at 1440", () => {
   for (const theme of ["charcoal", "chalk"] as const) {
-    it(`put the problem badge in one 26px gutter column with a 14px mark at every depth, the row keeping its glyph, in ${theme}`, async () => {
+    it(`draw a problem's 17px mark where the row's glyph was, a 28px target of its own outside the row's button, at every depth, in ${theme}`, async () => {
       const rows = byName(await measure(markups.badged!, theme));
       expect(Object.keys(rows).sort()).toEqual(Object.keys(DEPTHS).sort());
       for (const name of ["harbor", "storm", LONG, "dock", "market", "quiet"]) {
         const r = rows[name]!;
-        expect(r.badge, name).not.toBeNull();
-        expect(r.badgeFirst, name).toBe(true);
-        expect(r.badge!.left, name).toBe(2);
-        expect(r.badge!.width, name).toBe(26);
-        expect(r.badge!.height, name).toBe(44);
-        expect(r.badge!.right, name).toBeLessThanOrEqual(r.open.left);
-        expect(r.mark!.width, name).toBe(14);
-        expect(r.mark!.height, name).toBe(14);
-        expect(r.mark!.left, name).toBe(10);
-        expect(r.mark!.top - r.row.top, name).toBe(15);
-        expect(r.glyph, name).not.toBeNull();
+        expectOnGlyph(r, name, 28);
+        expect(r.badge!.right, name).toBeLessThanOrEqual(r.label.left);
+        expect(r.hits, name).toEqual({ top: "row", centre: "badge", bottom: "row" });
       }
-      expect(rows["Where now?"]!.badge).toBeNull();
+      const clean = rows["Where now?"]!;
+      expect(clean.badge).toBeNull();
+      expect(clean.glyphVisible).toBe(true);
     }, 60_000);
 
     it(`indent each nested row 18px as a whole row with a 1px guide, rows 44px with 12px labels ending 14px from the rail's edge, in ${theme}`, async () => {
@@ -248,7 +271,7 @@ describe("the docked Outline rail's rows, in Chromium at 1440", () => {
       const rows = byName(m);
       for (const [name, depth] of Object.entries(DEPTHS)) {
         const r = rows[name]!;
-        expect(r.row.left, name).toBe(26 + depth * 18);
+        expect(r.row.left, name).toBe(14 + depth * 18);
         expect(r.row.right, name).toBe(RAIL_WIDTH - 14);
         expect(r.row.height, name).toBe(44);
         expect(r.glyph!.left - r.row.left, name).toBe(11);
@@ -345,44 +368,39 @@ describe("the docked Outline rail's rows, in Chromium at 1440", () => {
     }, 60_000);
   }
 
-  const GUTTERS = [
-    { width: 1024, column: 22, edge: 10, heading: 30 },
-    { width: 1100, column: 22, edge: 10, heading: 30 },
-    { width: 1101, column: 26, edge: 14, heading: 36 },
+  const INSETS = [
+    { width: 1024, inset: 10, heading: 18 },
+    { width: 1100, inset: 10, heading: 18 },
+    { width: 1101, inset: 14, heading: 24 },
   ] as const;
-  for (const { width, column, edge, heading } of GUTTERS) {
+  for (const { width, inset, heading } of INSETS) {
     for (const theme of ["charcoal", "chalk"] as const) {
-      it(`give the badge a ${column}px gutter column and the rows a ${edge}px right edge at ${width}, the heading following, in ${theme}`, async () => {
+      it(`start and end the rows ${inset}px inside the rail at ${width}, reserving no column for a problem's mark, the heading over the glyphs, in ${theme}`, async () => {
         const badgedM = await measure(markups.badged!, theme, "fine", width);
         const badged = byName(badgedM);
         const clean = byName(await measure(markups.clean!, theme, "fine", width));
-        expect(badgedM.listPaddingLeft).toBe(`${column}px`);
+        expect(badgedM.listPaddingLeft).toBe(`${inset}px`);
         expect(badgedM.headingLeft).toBe(heading);
         for (const [name, depth] of Object.entries(DEPTHS)) {
           const r = badged[name]!;
-          expect(r.row.left, name).toBe(column + depth * 18);
-          expect(r.row.right, name).toBe(RAIL_WIDTH - edge);
+          expect(r.row.left, name).toBe(inset + depth * 18);
+          expect(r.row.right, name).toBe(RAIL_WIDTH - inset);
           expect(geometry(r), name).toEqual(geometry(clean[name]!));
-          if (!r.badge) continue;
-          expect(r.badge.left, name).toBe(2);
-          expect(r.badge.width, name).toBe(column);
-          expect(r.badge.right, name).toBeLessThanOrEqual(r.open.left);
-          expect(r.mark!.width, name).toBe(14);
-          expect(r.mark!.height, name).toBe(14);
-          expect(r.mark!.left, name).toBe(column / 2 - 3);
+          if (r.badge) expectOnGlyph(r, name, 28);
         }
       }, 60_000);
     }
   }
 
-  it("widens the badge's press target to 44px under a coarse pointer without overlapping the row or changing its height", async () => {
-    const rows = byName(await measure(markups.badged!, "charcoal", "coarse"));
+  it("widens the mark's press target to 44px under a coarse pointer, centred on the glyph inside the rail, the row keeping its inset and height", async () => {
+    const m = await measure(markups.badged!, "charcoal", "coarse");
+    const rows = byName(m);
+    expect(m.listPaddingLeft).toBe("14px");
     for (const name of ["harbor", "storm", LONG, "dock", "market", "quiet"]) {
       const r = rows[name]!;
-      expect(r.badge!.width, name).toBe(44);
-      expect(r.badge!.height, name).toBe(44);
-      expect(r.badge!.left, name).toBe(2);
-      expect(r.badge!.right, name).toBeLessThanOrEqual(r.open.left);
+      expectOnGlyph(r, name, 44);
+      expect(r.badge!.left, name).toBeGreaterThanOrEqual(0);
+      expect(r.row.left, name).toBe(14 + DEPTHS[name]! * 18);
       expect(r.row.height, name).toBe(44);
       expect(r.label.left - r.row.left, name).toBe(36);
     }

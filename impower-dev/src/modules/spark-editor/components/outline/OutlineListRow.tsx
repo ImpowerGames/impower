@@ -7,7 +7,6 @@ import {
   SceneIcon,
   TreeToggle,
   type ListRowAfter,
-  type ListRowBadgeProps,
   type ListRowIndent,
   type ListRowSize,
   type ListRowTone,
@@ -26,8 +25,6 @@ const GLYPHS: Record<OutlineKind, typeof SceneIcon> = {
   choose: ChooseIcon,
   branch: BranchIcon,
 };
-
-type ListRowBadgePlacement = NonNullable<ListRowBadgeProps["placement"]>;
 
 const rowName =(row: OutlineRow) =>
   row.kind === "setup" ? "Script setup" : row.label;
@@ -58,22 +55,13 @@ const openScope = (uri: string, row: OutlineRow, trigger: HTMLElement) =>
     () => trigger,
   );
 
-function RowBadge({
-  uri,
-  row,
-  placement,
-}: {
-  uri: string;
-  row: OutlineRow;
-  placement: ListRowBadgePlacement;
-}) {
+function RowBadge({ uri, row }: { uri: string; row: OutlineRow }) {
   const severity = worstProblem(row.problems)!;
-  const label = `${row.kind === "scene" ? "Scene total: " : ""}${problemsIn(row.diagnostics, rowName(row))}`;
+  const label = `Show ${problemsIn(row.diagnostics, rowName(row))}${row.kind === "scene" ? ", choices and branches included" : ""}`;
   return (
     <ListRowBadge
-      placement={placement}
+      placement="icon"
       label={label}
-      title={row.kind === "scene" ? `${label}. Includes choices and branches.` : label}
       aria-haspopup="dialog"
       severity={severity}
       onClick={(event) =>
@@ -95,7 +83,6 @@ export default function OutlineListRow({
   tone,
   indent,
   after,
-  badgePlacement,
   collapsible = true,
   onOpen,
 }: {
@@ -105,16 +92,13 @@ export default function OutlineListRow({
   tone?: ListRowTone;
   indent?: ListRowIndent;
   after?: ListRowAfter;
-  badgePlacement: ListRowBadgePlacement;
   collapsible?: boolean;
   onOpen: (row: OutlineRow) => void;
 }) {
   const badge =
     worstProblem(row.problems) !== null ? (
-      <RowBadge uri={uri} row={row} placement={badgePlacement} />
+      <RowBadge uri={uri} row={row} />
     ) : undefined;
-  const gutter = badgePlacement === "gutter" ? badge : undefined;
-  const trailing = badgePlacement === "trailing" ? badge : undefined;
   const toggle =
     collapsible && row.expanded !== undefined ? (
       <TreeToggle
@@ -139,8 +123,8 @@ export default function OutlineListRow({
       current={row.current === "self" ? "location" : false}
       containsCurrent={row.current === "ancestor"}
       overflow={row.kind === "choose" ? "clamp" : "fade"}
-      gutter={gutter}
       icon={<RowIcon row={row} />}
+      iconControl={badge}
       label={row.label}
       aria-label={row.accessibleName}
       title={row.accessibleName}
@@ -150,14 +134,7 @@ export default function OutlineListRow({
           ? openScope(uri, row, event.currentTarget as HTMLElement)
           : onOpen(row)
       }
-      actions={
-        trailing || toggle ? (
-          <>
-            {trailing}
-            {toggle}
-          </>
-        ) : undefined
-      }
+      actions={toggle}
     />
   );
 }

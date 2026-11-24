@@ -201,9 +201,15 @@ describe("the Outline rail", () => {
     ).toBe("Scene outline in main");
   });
 
-  it("puts a problem's icon in the gutter beside the glyph: a scene's total, a branch's or menu's own", async () => {
+  it("draws a problem's mark in place of the glyph: a scene's total, a branch's or menu's own", async () => {
     await mount([STORM_ERROR, DOCK_WARNING]);
     expect(rowButtons().map((b) => !!b.querySelector(":scope > svg"))).toEqual([true, true, true, true]);
+    expect(
+      rowButtons().map((b) => [
+        !!badgeOf(b)?.parentElement!.hasAttribute("data-list-row-icon-control"),
+        b.className.split(/\s+/).includes("[&>svg:first-child]:invisible"),
+      ]),
+    ).toEqual([[true, true], [false, false], [true, true], [true, true]]);
     expect(
       rowButtons().map((b) => [b.getAttribute("aria-label"), badge(b)]),
     ).toEqual([
@@ -392,7 +398,7 @@ describe("an Outline badge", () => {
     const dialogHost = await mountWithDialog([STORM_ERROR, note, DOCK_WARNING]);
     const harbor = badgeOf(row("Scene: harbor"))!;
     expect(harbor.getAttribute("aria-label")).toBe(
-      "Scene total: 1 error, 1 note in harbor",
+      "Show 1 error, 1 note in harbor, choices and branches included",
     );
     expect(harbor.getAttribute("aria-haspopup")).toBe("dialog");
     harbor.focus();
@@ -463,7 +469,7 @@ describe("an Outline badge", () => {
     const note: Diagnostic = { ...problem(0, 1), severity: 3, message: "To do: tidy" };
     const dialogHost = await mountWithDialog([note], `VAR = 1\n${SCRIPT}`);
     const setup = row("Script setup");
-    expect(badgeOf(setup)?.getAttribute("aria-label")).toBe("1 note in Script setup");
+    expect(badgeOf(setup)?.getAttribute("aria-label")).toBe("Show 1 note in Script setup");
     expect(badge(setup)).toBe("note");
     expect(setup.getAttribute("aria-haspopup")).toBe("dialog");
     await act(async () => setup.click());
