@@ -24,6 +24,7 @@ interface Drawn {
 
 function recordingCanvas() {
   const frames: Drawn[][] = [];
+  const smoothing: boolean[] = [];
   const context: PictureCanvasContext = {
     globalAlpha: 1,
     imageSmoothingEnabled: true,
@@ -33,9 +34,10 @@ function recordingCanvas() {
     },
     drawImage(image, x, y, width, height) {
       frames.at(-1)!.push({ src: (image as unknown as { src: string }).src, x, y, width, height, alpha: context.globalAlpha });
+      smoothing.push(context.imageSmoothingEnabled);
     },
   };
-  return { frames, factory: () => context };
+  return { frames, smoothing, factory: () => context };
 }
 
 const bitmap = (src: string, extra: Partial<PictureBitmap> = {}): PictureBitmap => ({
@@ -233,6 +235,27 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(Array.from(shadowOf(span)!.children).filter((child) => child.tagName === "DIV" && !child.querySelector("canvas"))).toHaveLength(2);
   });
 
+  test("a picture whose layers blend with each other other than normally keeps its CSS background", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-blend-mode", "multiply");
+    expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("background-blend-mode")).toBe("multiply");
+    mount(SRCS, [OFFICE]);
+    expect(canvasOf(span)).toBeNull();
+    expect(canvas.frames).toEqual([]);
+    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(SRCS));
+  });
+
+  test("a picture shown with pixelated or crisp image rendering is drawn without smoothing, and with smoothing otherwise", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("image-rendering", "pixelated");
+    expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("image-rendering")).toBe("pixelated");
+    const layer = mount(SRCS, [OFFICE]);
+    expect(canvas.smoothing).toEqual([false, false, false]);
+    span.style.setProperty("image-rendering", "auto");
+    layer.layout();
+    expect(canvas.smoothing).toEqual([false, false, false, true, true, true]);
+  });
+
   test("an animation of the picture's background position moves the canvas with it, frame by frame, until it ends", () => {
     const { span, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
     let state = "running";
@@ -355,5 +378,35 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(result.loaded).toEqual(["single.png", "gif.png"]);
     expect(cache.picture("single.png")).toMatchObject({ animated: false, profile: false, width: 40, height: 30 });
     expect(inspected).toEqual(["gif.png", "single.png"]);
+  });
+
+  test("a file asked for as a layer file after its plain load decoded, but before it became resident, is inspected before that request resolves", async () => {
+    const inspected: string[] = [];
+    let second: Promise<unknown> | undefined;
+    const cache = new AssetCache({
+      createImage: () => {
+        const target = { onload: null, onerror: null, naturalWidth: 40, naturalHeight: 30 } as unknown as ImageTarget;
+        Object.defineProperty(target, "src", {
+          set: () =>
+            queueMicrotask(() => {
+              target.onload?.call(target, {});
+              second = cache.request([{ kind: "image", src: "plain.png", layer: true }], 0, "layer", undefined);
+            }),
+        });
+        return target;
+      },
+      inspectImage: async (src) => {
+        inspected.push(src);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return { animated: false, profile: false };
+      },
+    });
+    const first = await cache.request([{ kind: "image", src: "plain.png" }], 0, "plain", undefined);
+    expect(first.loaded).toEqual(["plain.png"]);
+    expect(second).toBeDefined();
+    const result = (await second) as { loaded: string[] };
+    expect(result.loaded).toEqual(["plain.png"]);
+    expect(inspected).toEqual(["plain.png"]);
+    expect(cache.picture("plain.png")).toMatchObject({ animated: false, profile: false, width: 40, height: 30 });
   });
 });

@@ -82,6 +82,7 @@ interface CanvasView {
   context: PictureCanvasContext;
   files: PictureFiles;
   drawn: LayeredMorphDrawn[];
+  smooth?: boolean;
   painted?: string;
   last?: string;
 }
@@ -871,7 +872,7 @@ export class MorphLayer {
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    if (!this.pictureRect(still.files, still.layer, computed) || !this.uniformPlacement(computed, still.layer, still.span)) still.broken = true;
+    if (!this.pictureRect(still.files, still.layer, computed) || !this.canvasDrawable(computed, still.layer, still.span)) still.broken = true;
   }
 
   get occurrenceKeys(): string[] {
@@ -1069,9 +1070,14 @@ export class MorphLayer {
     this.render();
   }
 
-  protected uniformPlacement(computed: CSSStyleDeclaration | undefined, layer: number, span: number): boolean {
+  protected canvasDrawable(computed: CSSStyleDeclaration | undefined, layer: number, span: number): boolean {
     if (!computed) return true;
     const count = this.layers.length;
+    const blends = computed.getPropertyValue("background-blend-mode");
+    for (let k = 0; k < span; k++) {
+      const blend = layerValue(blends, count - 1 - (layer + k));
+      if (blend && blend !== "normal") return false;
+    }
     return ["background-size", "background-position", "background-repeat"].every((name) => {
       const list = computed.getPropertyValue(name);
       const bottom = layerValue(list, count - 1 - layer);
@@ -1257,13 +1263,14 @@ export class MorphLayer {
 
   protected paint(view: CanvasView) {
     const { canvas, context } = view;
-    const key = `${canvas.width}x${canvas.height}|${view.drawn.map(({ file, opacity }) => `${file}:${opacity}`).join(",")}`;
+    const smooth = view.smooth !== false;
+    const key = `${canvas.width}x${canvas.height}|${smooth}|${view.drawn.map(({ file, opacity }) => `${file}:${opacity}`).join(",")}`;
     if (view.painted === key) return;
     view.painted = key;
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.imageSmoothingEnabled = true;
+    context.imageSmoothingEnabled = smooth;
     for (const { file, opacity } of view.drawn) {
       const bitmap = view.files.bitmaps.get(file);
       if (!bitmap) continue;
@@ -1294,6 +1301,11 @@ export class MorphLayer {
     }
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
+    const rendering = computed?.getPropertyValue("image-rendering") ?? "";
+    const smooth = rendering !== "pixelated" && rendering !== "crisp-edges";
+    for (const view of [...this.stills.map((still) => still.canvas), ...this.images.map((image) => image.canvas)]) {
+      if (view) view.smooth = smooth;
+    }
     for (const still of this.stills) {
       if (!still.canvas) continue;
       const rect = this.pictureRect(still.canvas.files, still.layer, computed, area);

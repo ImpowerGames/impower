@@ -403,7 +403,13 @@ export class AssetCache {
         }
       };
       for (const e of pending) {
-        e.waiters.push(done);
+        e.waiters.push(() => {
+          if (e.inspecting) {
+            void e.inspecting.then(done);
+          } else {
+            done();
+          }
+        });
       }
       for (const inspection of inspecting) {
         void inspection.then(done);
@@ -588,15 +594,9 @@ export class AssetCache {
       entry.lastUsed = this._tick;
       if (item.kind === "image" && item.layer && entry.item.kind === "image" && !entry.item.layer) {
         entry.item = item;
-        if (entry.state === "resident" && this._deps.inspectImage) {
-          const promoted = entry;
-          promoted.inspecting = this.inspect(promoted).then((traits) => {
-            if (this._entries.get(promoted.key) === promoted && promoted.image) {
-              promoted.traits = traits;
-            }
-            promoted.inspecting = undefined;
-          });
-        }
+      }
+      if (entry.state === "resident") {
+        this.promote(entry);
       }
       if (entry.state === "queued" && priority < entry.priority) {
         this.dequeue(entry);
@@ -858,6 +858,7 @@ export class AssetCache {
         entry.bytes = bytes;
         entry.lastUsed = this._tick;
         this._bytes += bytes;
+        this.promote(entry);
         for (const w of entry.waiters.splice(0)) {
           w();
         }
@@ -974,6 +975,19 @@ export class AssetCache {
       };
       target.onerror = () => resolve(null);
       target.src = src;
+    });
+  }
+
+  protected promote(entry: Entry): void {
+    const item = entry.item;
+    if (item.kind !== "image" || !item.layer || entry.traits || entry.inspecting || !entry.image || !this._deps.inspectImage) {
+      return;
+    }
+    entry.inspecting = this.inspect(entry).then((traits) => {
+      if (this._entries.get(entry.key) === entry && entry.image) {
+        entry.traits = traits;
+      }
+      entry.inspecting = undefined;
     });
   }
 
