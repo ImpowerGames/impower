@@ -528,25 +528,29 @@ describe("The Assets page's and app frame's last differences from the Folio prot
     }
   });
 
-  it.each(THEMES)("at 1440 in %s the rail's Settings entry sits just above the footer, the same size as Story, Assets and Share", async (theme) => {
+  it.each(THEMES)("at 1440 in %s the rail's Settings entry is the fourth of the top group, the same size as Story, Assets and Share, and the outline meets the footer", async (theme) => {
     await setMedia((query) => query.includes("701px") || query.includes("1101px"));
     try {
       const measured = await inChromium(rail(false), { width: 1440, theme }, () => {
         const tabs = [...document.querySelectorAll<HTMLElement>('[role="tab"]')];
         const footer = document.querySelector("aside > div:last-child")!.getBoundingClientRect();
-        const settings = tabs[3]!.closest("nav")!.getBoundingClientRect();
+        const outline = document.querySelector("aside > [data-outline]")!.getBoundingClientRect();
         return {
           labels: tabs.map((tab) => tab.textContent!.trim().slice(0, tab.textContent!.trim().length / 2)),
           boxes: tabs.map((tab) => {
             const box = tab.getBoundingClientRect();
             return [box.x, box.width, box.height];
           }),
-          settingsMeetsFooter: settings.bottom === footer.top,
+          gaps: tabs.slice(1).map((tab, i) => tab.getBoundingClientRect().top - tabs[i]!.getBoundingClientRect().bottom),
+          navs: [...document.querySelectorAll("aside nav")].filter((nav) => nav.querySelector('[role="tab"]')).map((nav) => [nav.getAttribute("aria-label"), nav.querySelectorAll('[role="tab"]').length]),
+          outlineMeetsFooter: outline.bottom === footer.top,
         };
       });
       expect(measured.labels).toEqual(["Story", "Assets", "Share", "Settings"]);
       expect(new Set(measured.boxes.map((box) => box.join()))).toHaveProperty("size", 1);
-      expect(measured.settingsMeetsFooter).toBe(true);
+      expect(new Set(measured.gaps)).toHaveProperty("size", 1);
+      expect(measured.navs).toEqual([["Story, Assets, Share and Settings", 4]]);
+      expect(measured.outlineMeetsFooter).toBe(true);
     } finally {
       await setMedia(() => false);
     }
