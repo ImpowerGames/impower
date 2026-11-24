@@ -2,7 +2,7 @@ import { createMorphHost, layeredMorphSource } from "@impower/sparkdown/src/morp
 import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/morph/motion";
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
-import { browserPictureLoader, MorphPlayback } from "../../../app/morph/MorphPlayback";
+import { browserPictureLoader, MorphPlayback, paintsAnything } from "../../../app/morph/MorphPlayback";
 
 const WIDTH = 400;
 const HEIGHT = 600;
@@ -219,4 +219,17 @@ const WHOLE_PNG = paintFile((context) => {
   context.fillRect(0, 0, WIDTH, HEIGHT);
 });
 
-(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, wholePng: WHOLE_PNG };
+async function sparse(dot: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2000;
+  canvas.height = 3000;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#141414";
+  if (dot > 0) context.fillRect(1001, 1503, dot, dot);
+  const image = new Image();
+  image.src = canvas.toDataURL("image/png");
+  await image.decode();
+  return paintsAnything(image, image.naturalWidth, image.naturalHeight, document);
+}
+
+(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, wholePng: WHOLE_PNG };

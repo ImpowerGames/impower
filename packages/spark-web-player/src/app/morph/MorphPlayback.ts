@@ -105,25 +105,32 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
     decoded = false;
   }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
-  if (!decoded && !(img.complete && paintsAnything(img, doc))) return undefined;
+  if (!decoded && !(img.complete && paintsAnything(img, img.naturalWidth, img.naturalHeight, doc))) return undefined;
   const bytes = await readPictureBytes(src, view);
   const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
   return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...(traits ?? { unread: true }) };
 };
 
-const PAINT_PROBE_SIZE = 256;
+const PAINT_PROBE_BAND_PIXELS = 1 << 20;
 
-function paintsAnything(image: CanvasImageSource, doc: Document): boolean {
+export function paintsAnything(image: CanvasImageSource, width: number, height: number, doc: Document): boolean {
+  const shrink = width * height > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / (width * height)) : 1;
   const canvas = doc.createElement("canvas");
-  canvas.width = PAINT_PROBE_SIZE;
-  canvas.height = PAINT_PROBE_SIZE;
+  canvas.width = Math.max(1, Math.round(width * shrink));
+  canvas.height = Math.max(1, Math.round(height * shrink));
   try {
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) return false;
-    context.drawImage(image, 0, 0, PAINT_PROBE_SIZE, PAINT_PROBE_SIZE);
-    const pixels = context.getImageData(0, 0, PAINT_PROBE_SIZE, PAINT_PROBE_SIZE).data;
-    for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 0) return true;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const band = Math.max(1, Math.floor(PAINT_PROBE_BAND_PIXELS / canvas.width));
+    for (let top = 0; top < canvas.height; top += band) {
+      const pixels = context.getImageData(0, top, canvas.width, Math.min(band, canvas.height - top)).data;
+      for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 0) return true;
+    }
   } catch {
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
   }
   return false;
 }

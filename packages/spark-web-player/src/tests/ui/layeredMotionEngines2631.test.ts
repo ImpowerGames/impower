@@ -70,6 +70,7 @@ const share = (a: Buffer, b: Buffer) => {
 
 type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number) => Promise<void>> & {
   load(src: string): Promise<{ accepted: boolean; painted: number }>;
+  sparse(dot: number): Promise<boolean>;
   wholePng: string;
 };
 
@@ -146,5 +147,14 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     expect(corrupt!.accepted).toBe(false);
     expect(!half!.accepted || half!.painted > 0).toBe(true);
     expect(full).toMatchObject({ accepted: true, painted: 40 * 30 });
+  });
+
+  test("the paint probe finds a single painted pixel on a large layer, and nothing on an empty one", async (context) => {
+    if (!browser) return context.skip();
+    const [dot, empty] = await page.evaluate(() =>
+      Promise.all([1, 0].map((dot) => (window as unknown as { layeredMotion: Harness }).layeredMotion.sparse(dot))),
+    );
+    expect(dot).toBe(true);
+    expect(empty).toBe(false);
   });
 });
