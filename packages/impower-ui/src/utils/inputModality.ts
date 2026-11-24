@@ -16,11 +16,11 @@ export const lastInputWasKeyboard = () => keyboard;
 
 type FocusVisibleOptions = FocusOptions & { focusVisible?: boolean };
 
-export const focusAsInput = (target: HTMLElement) => {
+export const focusAsInput = (target: HTMLElement, focus: FocusOptions = {}) => {
   if (target.matches(TEXT_ENTRY)) {
-    target.focus();
+    target.focus(focus);
     return;
   }
-  const options: FocusVisibleOptions = { focusVisible: keyboard };
+  const options: FocusVisibleOptions = { ...focus, focusVisible: keyboard };
   target.focus(options);
 };
