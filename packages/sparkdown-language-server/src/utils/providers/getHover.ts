@@ -13,6 +13,7 @@ import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSe
 import { resolveImageRoot } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getTypedImageEntry } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { imageThingsOf } from "@impower/sparkdown/src/attributes/imageFileName";
+import { rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { MORPH_CLAUSE_DOC, MORPH_FIELD_DOCS } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { braceBlockPathAt } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
@@ -189,6 +190,26 @@ const leafOf = (uri: string) => {
   }
 };
 
+const getPortraitFolderFiles = (
+  context: SparkProgram["context"],
+  root: { uri: string; assets?: unknown },
+): string[] => {
+  const files: string[] = [];
+  for (const asset of Object.values<any>(root.assets ?? {})) {
+    const uri = context?.["image"]?.[asset?.$name]?.uri;
+    if (typeof uri !== "string") return [];
+    let path: string;
+    try {
+      path = decodeURIComponent(new URL(uri).pathname);
+    } catch {
+      return [];
+    }
+    if (rasterLayerOfPath(path)?.directory !== root.uri) return [];
+    files.push(path.slice(root.uri.length + 1));
+  }
+  return files;
+};
+
 const getPictureFiles = (
   context: SparkProgram["context"],
   struct: any,
@@ -196,6 +217,10 @@ const getPictureFiles = (
   const root = resolveImageRoot(context, struct);
   if (root?.$type !== "layered_image" || typeof root.uri !== "string") {
     return [];
+  }
+  const portraitFiles = getPortraitFolderFiles(context, root);
+  if (portraitFiles.length) {
+    return portraitFiles;
   }
   const uris = new Set<string>();
   for (const image of Object.values<any>(context?.["image"] ?? {})) {

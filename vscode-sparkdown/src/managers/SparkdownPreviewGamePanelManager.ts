@@ -935,6 +935,43 @@ export class SparkdownPreviewGamePanelManager {
               --swp-toolbar-button-hover-color: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--vscode-foreground) 12%, transparent));
               --swp-toolbar-button-active-color: var(--vscode-toolbar-activeBackground, color-mix(in srgb, var(--vscode-foreground) 18%, transparent));
               --swp-focus-color: var(--vscode-focusBorder, var(--swp-accent-color));
+              --ink: var(--vscode-foreground);
+              --muted: var(--vscode-descriptionForeground);
+              --tab-ink: var(--ink);
+              --tab-muted: var(--muted);
+              --panel: var(--vscode-editor-background);
+              --edge: var(--vscode-panel-border, var(--vscode-widget-border));
+              --tint: var(--vscode-list-inactiveSelectionBackground, var(--swp-toolbar-button-active-color));
+              --control-hover: var(--swp-toolbar-button-hover-color);
+              --accent: var(--vscode-focusBorder);
+              --error: var(--vscode-errorForeground);
+              --warning: var(--vscode-editorWarning-foreground);
+              --float-shadow: 0 2px 8px var(--vscode-widget-shadow);
+              --control-radius: 4px;
+              --radius: 6px;
+              --tab-height: 35px;
+              --tab-padding-x: 12px;
+              --tab-gap: 6px;
+              --tab-font-size: var(--vscode-font-size);
+              --panel-head-height: 35px;
+              --panel-head-padding-x: 8px;
+              --panel-head-gap: 4px;
+              --list-row-compact-height: 22px;
+              --list-row-compact-padding-x: 8px;
+              --list-row-compact-padding-y: 0px;
+              --list-row-compact-gap: 6px;
+              --list-row-compact-font-size: var(--vscode-font-size);
+              --list-row-compact-description-font-size: var(--vscode-font-size);
+              --control-size: 22px;
+              --popover-width: 320px;
+              --swp-toolbar-color: var(--ink);
+              --swp-route-popup-background-color: var(--panel);
+              --swp-route-popup-border-color: var(--edge);
+              --swp-route-accent-color: var(--accent);
+              --swp-route-warning-color: var(--warning);
+              --swp-route-error-color: var(--error);
+              --swp-route-field-background-color: var(--vscode-input-background);
+              --swp-route-field-border-color: var(--vscode-input-border, var(--edge));
             }
 
             spark-web-player {

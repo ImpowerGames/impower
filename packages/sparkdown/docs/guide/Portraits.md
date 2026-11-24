@@ -326,9 +326,50 @@ assets/mia/
   10 hat.on.png
 ```
 
-A folder has no "layers inside layers", so a file cannot inherit a condition from a parent. If the happy face needs its own eyes, name those files with the face condition as well: `40 happy-pupils-camera face.happy eyes.open look.camera default.png`. If one set of eyes fits every face, leave the face out and the same eye files serve all of them.
-
 `[[mia:happy:hat:look.left]]` then means exactly what it means for the SVG version.
+
+### Layer folders
+
+A folder inside a portrait folder is a layer when its name starts with a number and a space, exactly like a file. Its files are its layers, the way [layers inside layers](#layers-inside-layers) work in an SVG. Give each face its own eyes by putting them in the face's folder:
+
+```
+assets/mia/
+  90 body.png
+  60 face.happy/
+    40 pupils eyes.open default.png
+    40 lids eyes.closed.png
+  60 face.neutral default/
+    40 pupils eyes.open look.camera default.png
+    40 pupils eyes.open look.left.png
+    40 lids eyes.closed.png
+  10 hat.on.png
+```
+
+```
+scene start
+  [[mia]]
+  [[mia:happy]]
+  [[mia:happy:eyes.closed]]
+  [[mia:look.left]]
+end
+```
+
+- `[[mia]]` shows the body, the neutral face and its pupils looking at the camera.
+- `[[mia:happy]]` shows the body and the happy face's open pupils, and none of the neutral face's files.
+- `[[mia:happy:eyes.closed]]` shows the body and the happy face's lids.
+- `[[mia:look.left]]` shows the body and the neutral face's pupils looking left.
+
+The rules:
+
+- After its number, a layer folder's name is read like any layer name: an optional name, conditions and an optional `default`.
+- A file or folder inside a layer folder shows only while that folder shows, and does not repeat the folder's conditions. Folders inside layer folders follow the same rules, to any depth.
+- A `default` belongs to the folder it is written in, so each face rests its own eyes its own way. Two resting options for one group inside one folder still produce a warning.
+- A folder stacks as a unit. Its number places the whole folder among its siblings, and the numbers inside it order only its own files, lowest on top. A folder numbered 60 with files numbered 10 and 90 sits whole between a sibling numbered 70 and a sibling numbered 50.
+- A layer folder with no image files in it adds nothing.
+- A folder whose name does not start with a number and a space is not a layer of the portrait folder around it: it stays a portrait of its own, and its layer files get a warning saying to number it.
+- A numbered folder directly in `assets` sits in no portrait folder, so it is neither a layer nor a portrait, and its layer files get a warning.
+
+Folders beside a picture are not read this way: `ava face.happy/` next to `ava.png` stays an ordinary folder.
 
 An explicit `layered_image` definition with the same name overrides the folder convention.
 
@@ -407,7 +448,9 @@ The editor checks the portrait files and the script and reports these in the pro
 - Two different options marked `default` in the same group in the same folder. Only one can be the default.
 - A one-off option or group spelling close to a repeatedly used name, such as `eybrows.angry` beside `eyebrows.angry`. A unique expression alone is not treated as a typo.
 - A visible folder with named options but no selected or inherited default. Those layers stay hidden until you mark a resting option or select one in the script.
-- An image file missing its stacking-number prefix inside an otherwise numbered raster portrait folder.
+- An image file missing its stacking-number prefix inside an otherwise numbered raster portrait folder or layer folder.
+- A folder without a number holding layer files inside a portrait folder. It is not a layer of that portrait; start its name with a number and a space to make it one.
+- A numbered folder directly in `assets`. It is in no portrait folder, so it is neither a layer nor a portrait; move it into the portrait folder it belongs to.
 - A picture whose layer files beside it mix numbered and unnumbered names.
 - A script line that asks for an option the portrait does not have anywhere, such as `[[mia:gloves]]` when no layer in Mia's file mentions `gloves`. The option is ignored and the rest of the line still works.
 - A script line that asks for an option one part of the portrait lacks, such as `[[mia:happy:look.left]]` when the happy face has no left-looking pupils. That part shows nothing for the group, the same as if the layer were missing, and the warning names the folder so the artist can add it.
@@ -463,9 +506,10 @@ scene start
 end
 ```
 
-File name for a layer in a portrait folder, and for a layer beside a picture:
+File name for a layer in a portrait folder, for a layer folder and a layer inside it, and for a layer beside a picture:
 
 ```
 NN name group.option group.option.png
+NN name group.option/NN name group.option.png
 picture NN name group.option group.option.png
 ```

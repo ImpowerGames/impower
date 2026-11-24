@@ -1,6 +1,5 @@
 :is(spark-web-player, swp-route-view) {
   --swp-saves-menu-width: 300px;
-  --swp-saves-control-size: 22px;
   --swp-saves-menu-max-height: calc(100cqh - 12px);
   --swp-saves-menu-background-color: var(--swp-route-popup-background-color);
   --swp-saves-menu-border-color: var(--swp-route-popup-border-color);
@@ -64,7 +63,6 @@
 }
 
 :is(spark-web-player, swp-route-view) .saves-here,
-:is(spark-web-player, swp-route-view) .saves-row-menu > button,
 :is(spark-web-player, swp-route-view) .sv-load-row {
   cursor: pointer;
   box-sizing: border-box;
@@ -105,15 +103,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-}
-
-:is(spark-web-player, swp-route-view) .saves-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto var(--swp-saves-control-size);
-  align-items: center;
-  gap: 6px;
-  padding: 3px 4px 3px 8px;
 }
 
 :is(spark-web-player, swp-route-view) .saves-row-text {
@@ -181,7 +170,6 @@
   color: var(--swp-saves-muted-color);
 }
 
-:is(spark-web-player, swp-route-view) .saves-more,
 :is(spark-web-player, swp-route-view) .saves-back {
   cursor: pointer;
   width: 22px;
@@ -199,9 +187,7 @@
 @media (hover: hover) and (pointer: fine) {
   :is(spark-web-player, swp-route-view) .saves-button:hover,
   :is(spark-web-player, swp-route-view) .saves-here:not(:disabled):hover,
-  :is(spark-web-player, swp-route-view) .saves-row-menu > button:hover,
   :is(spark-web-player, swp-route-view) .sv-load-row:hover,
-  :is(spark-web-player, swp-route-view) .saves-more:hover,
   :is(spark-web-player, swp-route-view) .saves-back:hover,
   :is(spark-web-player, swp-route-view) .saves-play:not(:disabled):hover,
   :is(spark-web-player, swp-route-view) .save-note-rename:hover,
@@ -211,22 +197,8 @@
 }
 
 :is(spark-web-player, swp-route-view) .saves-button:active,
-:is(spark-web-player, swp-route-view) .saves-button[aria-expanded="true"],
-:is(spark-web-player, swp-route-view) .saves-more[aria-expanded="true"] {
+:is(spark-web-player, swp-route-view) .saves-button[aria-expanded="true"] {
   background-color: var(--swp-saves-active-color);
-}
-
-:is(spark-web-player, swp-route-view) .saves-row-menu {
-  position: absolute;
-  right: 4px;
-  top: calc(100% - 2px);
-  z-index: 4;
-  min-width: 120px;
-  padding: 4px 0;
-  border: 1px solid var(--swp-saves-menu-border-color);
-  border-radius: 6px;
-  background-color: var(--swp-saves-menu-background-color);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
 :is(spark-web-player, swp-route-view) .saves-none {

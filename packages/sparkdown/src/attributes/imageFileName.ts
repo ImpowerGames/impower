@@ -1,4 +1,4 @@
-import { byRasterOrder, rasterLayerOfPath } from "./rasterSource";
+import { byRasterOrder, rasterLayerOfPath, strayLayerFolderOf } from "./rasterSource";
 
 export interface ImageFileName {
   name: string;
@@ -74,9 +74,12 @@ const layerOf = (part: string): { layer: string; order?: number } => {
   return match && Number.isSafeInteger(order) ? { layer: match[2] ?? "", order } : { layer: part };
 };
 
+const isFolderLayerPath = (path: string): boolean =>
+  Boolean(rasterLayerOfPath(path)) || strayLayerFolderOf(path) !== undefined;
+
 export const imageFileNameOf = (path: string): ImageFileName => {
   const stem = spacedStemOf(path);
-  const cut = rasterLayerOfPath(path) ? -1 : layerCutOf(stem);
+  const cut = isFolderLayerPath(path) ? -1 : layerCutOf(stem);
   const picture = cut < 0 ? stem : stem.slice(0, cut);
   const decoded = picture.replaceAll("%40", "@");
   const at = alternateCutOf(decoded);
@@ -121,7 +124,7 @@ export const byLayerStacking = (a: ImageLayerFile, b: ImageLayerFile): number =>
 export const imageThingsOf = (paths: Iterable<string>): ImageThing[] => {
   const pictures = new Map<string, ImagePicture>();
   for (const path of paths) {
-    if (rasterLayerOfPath(path)) continue;
+    if (isFolderLayerPath(path)) continue;
     const file = imageFileNameOf(path);
     const name = assetNameOf(path, "image");
     const picture = pictures.get(name) ?? {

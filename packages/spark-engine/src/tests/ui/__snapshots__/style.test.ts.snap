@@ -1984,12 +1984,6 @@ exports[`style > authored style block content payload 1`] = `
       "font_style": "italic",
       "margin": "1.5em 0",
     },
-    "textstream_caption": {
-      "$name": "textstream_caption",
-      "$type": "style",
-      "font_size": "0.8em",
-      "margin": "0",
-    },
     "textstream_chosen": {
       "$name": "textstream_chosen",
       "$type": "style",
@@ -5292,12 +5286,6 @@ exports[`style > style + variables construction stream 1`] = `
             "$type": "style",
             "font_style": "italic",
             "margin": "1.5em 0",
-          },
-          "textstream_caption": {
-            "$name": "textstream_caption",
-            "$type": "style",
-            "font_size": "0.8em",
-            "margin": "0",
           },
           "textstream_chosen": {
             "$name": "textstream_chosen",
