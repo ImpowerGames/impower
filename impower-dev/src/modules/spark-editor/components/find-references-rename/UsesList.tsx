@@ -91,7 +91,7 @@ export default function UsesList({
               <li
                 key={`${use.range.start.line}:${use.range.start.character}`}
                 data-rows={rows}
-                class="h-11 data-[rows=rail]:h-[34px] data-[rows=rail]:pointer-coarse:h-11 data-[rows=rail]:[--list-row-compact-gap:8px]"
+                class="h-11 data-[rows=rail]:h-[34px] data-[rows=rail]:[--list-row-compact-gap:8px] data-[rows=rail]:[--list-row-compact-height:34px] data-[rows=rail]:pointer-coarse:h-11 data-[rows=rail]:pointer-coarse:[--list-row-compact-height:2.75rem]"
               >
                 <ListRow
                   size="compact"

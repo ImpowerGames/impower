@@ -139,16 +139,29 @@ const measureFind = () => {
     const box = el.getBoundingClientRect();
     return `${box.width}x${box.height}`;
   };
+  const rows = [...rail.querySelectorAll<HTMLElement>("ul > li")];
+  const ownsEdges = (li: HTMLElement) => {
+    const box = li.getBoundingClientRect();
+    const x = box.x + box.width / 2;
+    return [box.top + 2, box.bottom - 2].every((y) => document.elementFromPoint(x, y)?.closest("li") === li);
+  };
   return {
     buttons: [...new Set([...rail.querySelectorAll("form button")].map(size))],
-    rows: [...new Set([...rail.querySelectorAll("ul > li")].map((li) => li.getBoundingClientRect().height))],
+    rows: [...new Set(rows.map((li) => li.getBoundingClientRect().height))],
+    rowButtons: [...new Set(rows.map((li) => li.querySelector("button")!.getBoundingClientRect().height))],
+    rowsOwnTheirEdges: rows.every(ownsEdges),
   };
 };
 
 describe("Story page details from the review (I-2716)", () => {
   it("sizes the rail's Find buttons 32px and its result rows 34px with a mouse", async () => {
     const markup = await findRail();
-    expect(await inChromium(markup, { width: 1440 }, measureFind)).toEqual({ buttons: ["32x32"], rows: [34] });
+    expect(await inChromium(markup, { width: 1440 }, measureFind)).toEqual({
+      buttons: ["32x32"],
+      rows: [34],
+      rowButtons: [34],
+      rowsOwnTheirEdges: true,
+    });
   });
 
   it("keeps the rail's Find buttons and result rows at 44px under a coarse pointer", async () => {
@@ -156,6 +169,8 @@ describe("Story page details from the review (I-2716)", () => {
     expect(await inChromium(markup, { width: 1440, touch: true }, measureFind)).toEqual({
       buttons: ["44x44"],
       rows: [44],
+      rowButtons: [44],
+      rowsOwnTheirEdges: true,
     });
   });
 

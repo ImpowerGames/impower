@@ -154,3 +154,30 @@ describe("editor panel layering vs the host app's chrome (#337)", () => {
     expect(z!).toBeLessThan(HOST_CHROME_Z_MIN);
   });
 });
+
+const bottomPanel = (className: string, hidden = false) =>
+  showPanel.of(() => {
+    const dom = document.createElement("div");
+    dom.className = className;
+    dom.hidden = hidden;
+    return { dom, top: false };
+  });
+
+describe("the line above the writer bar (I-2716)", () => {
+  it("draws no edge on the bottom panels' container, so a hidden status line and a hidden toolbar add nothing to the bar's own border", () => {
+    const view = mount(
+      bottomPanel("cm-toolbar cm-status", true),
+      bottomPanel("cm-toolbar cm-keyboard-toolbar")
+    );
+    const panels = view.dom.querySelector(".cm-panels-bottom")!;
+    expect(resolved(panels, "border-top") ?? "none").not.toMatch(/solid/);
+  });
+
+  it("puts the divider on the status line itself, the one bottom panel without an edge of its own", () => {
+    const view = mount(bottomPanel("cm-toolbar cm-status"));
+    const status = view.dom.querySelector(".cm-panels-bottom > .cm-status")!;
+    expect(resolved(status, "border-top")).toBe(
+      "1px solid var(--editor-panel-edge)"
+    );
+  });
+});
