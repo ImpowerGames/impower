@@ -4,7 +4,7 @@ import { useComputed } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { RAIL_COMPACT_WIDTH, RAIL_WIDTH } from "../../workspace/railWidths";
-import { routeOfState } from "../../workspace/routes";
+import { routeOfState, routeShowsCompactStrip } from "../../workspace/routes";
 import { storyScriptOf, useScriptMode } from "../../workspace/useActiveEditor";
 import workspace from "../../workspace/WorkspaceStore";
 import { PhoneSearch } from "../find-references-rename";
@@ -85,7 +85,7 @@ export default function WorkspaceShell({
 
   const onStory = writing && route === "story";
   const stripLayout = phone || compact;
-  const stripShown = phone ? onStory : route !== "share";
+  const stripShown = phone ? onStory : routeShowsCompactStrip(route);
 
   useEffect(() => {
     if (stripLayout && previewRevealed && !stripShown) {

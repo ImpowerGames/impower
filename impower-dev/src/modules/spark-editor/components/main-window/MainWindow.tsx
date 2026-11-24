@@ -7,7 +7,11 @@ import {
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import { useScriptFocus } from "../../utils/useScriptFocus";
-import { routeOfState, type Route } from "../../workspace/routes";
+import {
+  routeOfState,
+  routeShowsCompactStrip,
+  type Route,
+} from "../../workspace/routes";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import workspace from "../../workspace/WorkspaceStore";
 import { InspectorDock, InspectorDockProvider } from "../asset-inspector";
@@ -83,7 +87,7 @@ export default function MainWindow(_props: MainWindowProps) {
             <SplitPane
               orientation={compact ? "vertical" : "horizontal"}
               reverse={compact}
-              solo={scriptOnly || (compact && route === "share")}
+              solo={scriptOnly || (compact && !routeShowsCompactStrip(route))}
               fixed={compact ? TABLET_STRIP : undefined}
               label={PANE_DIVIDER_LABELS[route]}
               class="[--split-start-surface:var(--color-workspace)] [--split-end-surface:var(--color-preview-mat)]"

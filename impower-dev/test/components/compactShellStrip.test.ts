@@ -2,6 +2,7 @@ import { h, render } from "preact";
 import { useEffect } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import type { Route } from "../../src/modules/spark-editor/workspace/routes";
 
 const players = vi.hoisted(() => ({ mounted: 0, unmounted: 0 }));
 const collapses = vi.hoisted(() => [] as string[]);
@@ -25,6 +26,9 @@ vi.mock("../../src/modules/spark-editor/components/assets/Assets", () => ({
 }));
 vi.mock("../../src/modules/spark-editor/components/share/SharePage", () => ({
   default: () => h("div", { "data-route": "share" }),
+}));
+vi.mock("../../src/modules/spark-editor/components/settings/SettingsPage", () => ({
+  default: () => h("div", { "data-route": "settings" }),
 }));
 vi.mock(
   "../../src/modules/spark-editor/components/file-dropzone/FileDropzone",
@@ -86,6 +90,8 @@ beforeAll(() => {
 
 const { default: workspace } =
   await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
+const { stateForRoute } =
+  await import("../../src/modules/spark-editor/workspace/routes");
 const { default: MainWindow } =
   await import("../../src/modules/spark-editor/components/main-window/MainWindow");
 
@@ -114,7 +120,11 @@ const resize = async (next: number) => {
 
 const mount = async (at: number) => {
   await resize(at);
-  workspace.current = { ...workspace.current, pane: "logic", shell: {} };
+  workspace.current = {
+    ...stateForRoute(workspace.current, "story"),
+    shell: {},
+    preview: { ...workspace.current.preview, revealed: false },
+  };
   host = document.body.appendChild(document.createElement("div"));
   await act(async () => render(h(MainWindow, null), host!));
   await settle();
@@ -274,36 +284,41 @@ describe("the compact layout", () => {
     expect(host!.querySelector('aside[aria-label="Preview"] [data-preview-strip]')).toBe(strip);
   });
 
-  it("gives Share the whole workspace at 768 and shows the strip again on the other pages, with the one player", async () => {
+  const goTo = async (route: Route) => {
+    await act(async () => {
+      workspace.current = stateForRoute(workspace.current, route);
+    });
+    await settle();
+  };
+
+  it.each([768, 1024])("gives Scripts, Assets, Settings and Share the whole workspace at %ipx and shows the strip again on Story, with the one player", async (at) => {
     players.mounted = 0;
     players.unmounted = 0;
-    await mount(768);
+    await mount(at);
     const end = () => host!.querySelector<HTMLElement>('[data-panel="end"]')!;
     const player = host!.querySelector("[data-player]");
-    await act(async () => {
-      workspace.current = { ...workspace.current, pane: "assets" };
-    });
-    await settle();
     expect(end().style.display).not.toBe("none");
 
-    await act(async () => {
-      workspace.current = { ...workspace.current, pane: "share" };
-    });
-    await settle();
-    expect(end().style.display).toBe("none");
-    expect(host!.querySelector('[data-panel="start"] [data-route="share"]')).not.toBeNull();
+    for (const [route, page] of [
+      ["scripts", "logic"],
+      ["assets", "assets"],
+      ["settings", "settings"],
+      ["share", "share"],
+    ] as const) {
+      await goTo(route);
+      expect(end().style.display).toBe("none");
+      expect(host!.querySelector(`[data-panel="start"] [data-route="${page}"]`)).not.toBeNull();
+      await goTo("story");
+      expect(end().style.display).not.toBe("none");
+      expect(end().style.flexBasis).toBe("var(--preview-strip-tablet-height)");
+    }
 
-    await act(async () => {
-      workspace.current = { ...workspace.current, pane: "assets" };
-    });
-    await settle();
-    expect(end().style.display).not.toBe("none");
     expect(host!.querySelector("[data-player]")).toBe(player);
     expect(players.mounted).toBe(1);
     expect(players.unmounted).toBe(0);
   });
 
-  it("closes the full view when the strip leaves the page at 768", async () => {
+  it.each(["scripts", "assets", "settings", "share"] as const)("closes the full view when %s takes the strip off the page at 768", async (route) => {
     await mount(768);
     collapses.length = 0;
     await act(async () => {
@@ -314,19 +329,8 @@ describe("the compact layout", () => {
     });
     await settle();
     expect(collapses).toEqual([]);
-    await act(async () => {
-      workspace.current = { ...workspace.current, pane: "share" };
-    });
-    await settle();
+    await goTo(route);
     expect(collapses).toEqual(["collapse"]);
-    await act(async () => {
-      workspace.current = {
-        ...workspace.current,
-        pane: "logic",
-        preview: { ...workspace.current.preview, revealed: false },
-      };
-    });
-    await settle();
   });
 
   it("keeps the phone's shorter strip in the title area at 430", async () => {

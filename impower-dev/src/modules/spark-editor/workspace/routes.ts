@@ -48,6 +48,9 @@ export const sectionOfHash = (hash: string): string | undefined => {
   return new URLSearchParams(query).get("section") || undefined;
 };
 
+export const routeShowsCompactStrip = (route: Route): boolean =>
+  route === "story";
+
 export const routeOfPane = (pane: PaneType): Route =>
   pane === "assets" ? "assets" : pane === "share" ? "share" : "story";
 
