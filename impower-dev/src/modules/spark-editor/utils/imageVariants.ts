@@ -1,5 +1,6 @@
 import { isWritableImageName, stemOf } from "@impower/sparkdown/src/attributes/imageFileName";
 import { parseLayerName } from "@impower/sparkdown/src/attributes/parseLayerName";
+import { byRasterStackingTopFirst, rasterLayerOfPath } from "@impower/sparkdown/src/attributes/rasterSource";
 import type { AttributeVocabulary } from "@impower/sparkdown/src/attributes/types";
 import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { bytesLabel, compareNames, plural } from "./fileListModel";
@@ -195,14 +196,18 @@ export const fileRole = (stack: ImageStack, member: StackMember): string => {
     }
     return stack.pictures.length > 1 ? "Alternate · plain" : "Base";
   }
-  const conditions = conditionsOf(member.layer);
+  const own = conditionsOf(member.layer);
+  const inherited = (stack.kind === "folder" ? (rasterLayerOfPath(member.path)?.folders ?? []) : []).flatMap(
+    (folder) => conditionsOf(folder.name) ?? [folder.name],
+  );
+  const conditions = [...inherited, ...(own ?? [member.layer])];
   const isDefault = parseLayerName(member.layer).default;
-  if (stack.kind === "folder" && stack.members[0]?.path === member.path && conditions?.length === 0 && !isDefault) {
+  if (stack.kind === "folder" && stack.members[0]?.path === member.path && own?.length === 0 && !inherited.length && !isDefault) {
     return "Base";
   }
   return [
     member.order === undefined ? "Layer" : `Layer ${member.order}`,
-    ...(conditions === null ? [member.layer] : conditions.length ? conditions : ["always shown"]),
+    ...(conditions.length ? conditions : ["always shown"]),
     isDefault ? "default" : "",
     member.alternate !== null ? `on ${member.alternate}` : "",
   ]
@@ -219,24 +224,16 @@ export interface FileRow {
 
 const leafOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const bySegments = (a: string, b: string): number => {
-  const x = a.split("/");
-  const y = b.split("/");
-  for (let index = 0; index < Math.min(x.length, y.length); index++) {
-    const order = compareNames(x[index]!, y[index]!);
-    if (order) {
-      return order;
-    }
-  }
-  return x.length - y.length;
-};
-
 export const fileRows = (stack: ImageStack, sizes: Readonly<Record<string, number>>): FileRow[] => {
   const nameOf = (path: string) => (stack.kind === "folder" ? path.slice(stack.folder.length + 1) : leafOf(path));
   return [...stack.members]
     .sort(
       stack.kind === "folder"
-        ? (a, b) => bySegments(nameOf(a.path), nameOf(b.path))
+        ? (a, b) =>
+            byRasterStackingTopFirst(
+              { path: a.path, layer: rasterLayerOfPath(a.path)! },
+              { path: b.path, layer: rasterLayerOfPath(b.path)! },
+            )
         : (a, b) => compareNames(stemOf(a.path), stemOf(b.path)) || compareNames(leafOf(a.path), leafOf(b.path)),
     )
     .map((member) => ({

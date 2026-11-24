@@ -224,17 +224,17 @@ describe("a portrait folder with layer folders", () => {
     `${MIA}/10 hat.on.png`,
   ];
 
-  it("lists the Files rows in stacking order, top first, naming a nested file by its path from the portrait folder", () => {
+  it("lists the Files rows in stacking order, top first, naming a nested file by its path from the portrait folder and its folders' conditions", () => {
     expect(fileRows(one(NESTED), {}).map((row) => [row.name, row.role])).toEqual([
       ["10 hat.on.png", "Layer 10 · hat.on"],
       ["20 hair-top hat.off.png", "Layer 20 · hat.off"],
-      ["60 face.happy/30 mouth.png", "Layer 30 · always shown"],
-      ["60 face.happy/40 lids eyes.closed.png", "Layer 40 · eyes.closed"],
-      ["60 face.happy/40 pupils eyes.open default.png", "Layer 40 · eyes.open · default"],
-      ["60 face.neutral default/30 mouth.png", "Layer 30 · always shown"],
-      ["60 face.neutral default/40 lids eyes.closed.png", "Layer 40 · eyes.closed"],
-      ["60 face.neutral default/40 pupils eyes.open look.camera default.png", "Layer 40 · eyes.open · look.camera · default"],
-      ["60 face.neutral default/40 pupils eyes.open look.left.png", "Layer 40 · eyes.open · look.left"],
+      ["60 face.happy/30 mouth.png", "Layer 30 · face.happy"],
+      ["60 face.happy/40 lids eyes.closed.png", "Layer 40 · face.happy · eyes.closed"],
+      ["60 face.happy/40 pupils eyes.open default.png", "Layer 40 · face.happy · eyes.open · default"],
+      ["60 face.neutral default/30 mouth.png", "Layer 30 · face.neutral"],
+      ["60 face.neutral default/40 lids eyes.closed.png", "Layer 40 · face.neutral · eyes.closed"],
+      ["60 face.neutral default/40 pupils eyes.open look.camera default.png", "Layer 40 · face.neutral · eyes.open · look.camera · default"],
+      ["60 face.neutral default/40 pupils eyes.open look.left.png", "Layer 40 · face.neutral · eyes.open · look.left"],
       ["90 body.png", "Base"],
     ]);
   });
