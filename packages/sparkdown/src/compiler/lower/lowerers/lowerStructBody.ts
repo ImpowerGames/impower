@@ -238,9 +238,13 @@ function evaluateElement(
       ),
     );
   if (entry.kind === "header") {
-    obj[keyOf(null)] = entry.children
+    const value = entry.children
       ? evaluate(entry.children, ctx, elementKeys)
       : {};
+    if (!Array.isArray(value) && segments.some((s) => holdsClearProp(s.node, ctx))) {
+      value["$clear"] = true;
+    }
+    obj[keyOf(null)] = value;
     return;
   }
   let valueNode: SyntaxNode | null = null;
@@ -252,7 +256,36 @@ function evaluateElement(
   }
   const key = keyOf(valueNode);
   if (!key) return;
-  obj[key] = valueNode ? readScalar(valueNode, ctx) : {};
+  obj[key] = valueNode
+    ? readScalar(valueNode, ctx)
+    : segments.some((s) => holdsClearProp(s.node, ctx))
+      ? { $clear: true }
+      : {};
+}
+
+const CLEAR_PROP_NAMES: ReadonlySet<string> = nodeNameSet(["LuauSparklePropAttribute"]);
+const PROP_NAME_NAMES: ReadonlySet<string> = nodeNameSet(["StyleAttributeName"]);
+const PROP_ASSIGN_NAMES: ReadonlySet<string> = nodeNameSet(["EqualOperator"]);
+
+function holdsClearProp(node: SyntaxNode, ctx: LowerContext): boolean {
+  const found: SyntaxNode[] = [];
+  const walk = (n: SyntaxNode) => {
+    if (CLEAR_PROP_NAMES.has(n.name)) {
+      found.push(n);
+      return;
+    }
+    if (n.name === "LuauSparkleElementBlock") return;
+    for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
+  };
+  walk(node);
+  return found.some((attr) => {
+    const name = firstDescendant(attr, PROP_NAME_NAMES);
+    return (
+      !!name &&
+      ctx.read(name.from, name.to) === "clear" &&
+      !firstDescendant(attr, PROP_ASSIGN_NAMES)
+    );
+  });
 }
 
 function evaluate(

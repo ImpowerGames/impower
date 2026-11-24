@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+import { createHarness, flattenMessages, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SOURCE = `define sky as image with
   src = "https://example.com/sky.png"
@@ -85,6 +85,19 @@ async function play() {
   return { ui, states };
 }
 
+function displayOf(messages: any[], id: string): string | null | undefined {
+  let display: string | null | undefined;
+  for (const m of flattenMessages(messages) as any[]) {
+    const params = m?.params;
+    if ((m?.method === "ui/create" || m?.method === "ui/update") && params?.element === id) {
+      if (params.style && "display" in params.style) {
+        display = params.style.display;
+      }
+    }
+  }
+  return display;
+}
+
 describe("#clear decides which elements empty after their line (I-2732)", () => {
   test("only elements with #clear are emptied on the next line", async () => {
     const { ui } = await play();
@@ -126,5 +139,16 @@ describe("#clear decides which elements empty after their line (I-2732)", () => 
       "A plain action line.",
       "A plain action line.",
     ]);
+  });
+
+  test("an element with no content is not on screen, with or without #clear", async () => {
+    const h = createHarness(SOURCE);
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    for (const target of ["action", "backdrop", "dialogue", "portrait"]) {
+      const ids: string[] = ui.findIds(target);
+      expect(ids.length, target).toBeGreaterThan(0);
+      expect(ids.map((id) => displayOf(h.messages, id)), target).toEqual(ids.map(() => "none"));
+    }
   });
 });

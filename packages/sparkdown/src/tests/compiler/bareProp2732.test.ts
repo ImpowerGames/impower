@@ -44,11 +44,23 @@ describe("a bare prop on a layout element (I-2732)", () => {
     expect(element(program, "stage", "backdrop").props).toEqual({});
   });
 
-  test("leaves the element's key in the compiled layout free of the prop", () => {
+  test("marks the element $clear in the compiled layout and keeps its key free of the prop", () => {
     const { program } = compileScript(SOURCE);
     const stage = (program as any).context?.layout?.main?.stage;
-    expect(Object.keys(stage ?? {})).toEqual(
-      expect.arrayContaining(["backdrop", "portrait", "caption"]),
+    expect(stage).toEqual({
+      backdrop: { image: {} },
+      portrait: { image: {}, $clear: true },
+      caption: { text: {}, $clear: true },
+    });
+  });
+
+  test("marks an element with no block $clear", () => {
+    const { program } = compileScript(
+      "layout hud {\n  title #clear\n  note\n}\n\nscene start\n  Hello.\nend\n",
     );
+    expect((program as any).context?.layout?.hud).toMatchObject({
+      title: { $clear: true },
+      note: {},
+    });
   });
 });

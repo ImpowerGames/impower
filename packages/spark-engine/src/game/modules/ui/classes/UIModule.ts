@@ -380,6 +380,11 @@ type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
 
 const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
 
+const CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "stroke", "image", "mask"]);
+
+const isStruct = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const renderedProps = (node: ElementNode) =>
   Object.entries(node.props).filter(([prop]) => !ENGINE_PROPS.has(prop));
 
@@ -504,6 +509,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  protected _contentSlots: Set<string> = new Set();
 
   protected _reactive = false;
 
@@ -970,9 +977,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.constructLayouts();
     }
     const transientTargets = this.getTransientTargets();
+    const emptySlots = [...this._contentSlots].filter(
+      (target) =>
+        !this._clearOnContinue.has(target) &&
+        !this._state.text?.[target] &&
+        !this._state.image?.[target],
+    );
     await Promise.all([
-      this.text.clearAll(transientTargets),
+      this.text.clearAll([...transientTargets, ...emptySlots]),
       this.clearTransientPictures(transientTargets),
+      this.image.clearAll(emptySlots),
     ]);
   }
 
@@ -2367,9 +2381,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    for (const [k, v] of Object.entries(properties)) {
-      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
-      const isValidNode = !path.at(-1)?.startsWith("$");
+    for (const [k, value] of Object.entries(properties)) {
+      const fullPath = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
+      const marksClear = fullPath.at(-1) === "$clear";
+      const path = marksClear ? fullPath.slice(0, -1) : fullPath;
+      const v = marksClear ? {} : value;
+      const isValidNode = path.length > 0 && !path.at(-1)?.startsWith("$");
       if (isValidNode) {
         let stack: Element[] = [uiEl];
         for (let i = 0; i < path.length; i += 1) {
@@ -3846,43 +3863,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const skipped = skippedInitialLayouts(this._game, this);
     for (const structName of Object.keys(this.context?.layout || {})) {
       if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
-        const layouts = this._game.program?.sparkle?.layouts;
-        const seen = new Set<string>();
-        for (
-          let ast = layouts?.[structName];
-          ast && !seen.has(ast.name);
-          ast = ast.extends ? layouts?.[ast.extends] : undefined
-        ) {
-          seen.add(ast.name);
-          this.initClearTargets(ast.children);
+        const layout = this.context.layout?.[structName];
+        if (layout) {
+          this.initLayout(layout);
         }
       }
     }
   }
 
-  protected initClearTargets(nodes: BodyNode[] | undefined): void {
-    for (const node of nodes ?? []) {
-      if (node.kind === "element") {
-        if (node.props["clear"]) {
-          this._clearOnContinue.add([node.tag, ...node.classes].join(" "));
-        }
-        this.initClearTargets(node.children);
-      } else if (node.kind === "if") {
-        for (const branch of node.branches) {
-          this.initClearTargets(branch.children);
-        }
-        this.initClearTargets(node.else);
-      } else if (node.kind === "for") {
-        this.initClearTargets(node.children);
-        this.initClearTargets(node.else);
-      } else if (node.kind === "match") {
-        for (const c of node.cases) {
-          this.initClearTargets(c.children);
-        }
-        this.initClearTargets(node.else);
-      } else if (node.kind === "fill") {
-        this.initClearTargets(node.children);
+  initLayout(layout: Record<string, unknown>): void {
+    for (const [key, value] of Object.entries(layout)) {
+      if (key.startsWith("$") || !isStruct(value)) {
+        continue;
       }
+      if (value["$clear"] === true) {
+        this._clearOnContinue.add(key);
+      }
+      if (
+        Object.entries(value).some(
+          ([child, content]) =>
+            !child.startsWith("$") &&
+            child.split(" ").some((word) => CONTENT_TAGS.has(word)) &&
+            isStruct(content) &&
+            Object.keys(content).every((k) => k.startsWith("$")),
+        )
+      ) {
+        this._contentSlots.add(key);
+      }
+      this.initLayout(value);
     }
   }
 
@@ -4779,7 +4787,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return false;
     };
-    for (const target of this.getTransientTargets()) {
+    for (const target of this._contentSlots) {
       if (this._state.text?.[target] || this._state.image?.[target]) {
         continue;
       }
