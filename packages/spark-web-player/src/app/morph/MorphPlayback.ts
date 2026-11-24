@@ -397,7 +397,7 @@ export class MorphPlayback {
       const restyled = records.some((record) =>
         record.type === "attributes"
           ? spans.some((span) => record.target.contains(span))
-          : styling(record.target) || [...record.addedNodes, ...record.removedNodes].some(styling),
+          : styling(record.target) || Array.from(record.addedNodes).concat(Array.from(record.removedNodes)).some(styling),
       );
       if (restyled) this.scheduleRestyle();
     });
