@@ -145,7 +145,7 @@ export default function Preview(_props: PreviewProps) {
         <SplitPane
           orientation="vertical"
           label="Resize game and panel"
-          line="none"
+          line="grip"
           overflowPanel="start"
           solo={inStrip}
           fixed={stripped ? BAR_ONLY : undefined}
