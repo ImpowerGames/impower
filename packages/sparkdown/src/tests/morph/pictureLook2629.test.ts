@@ -78,7 +78,7 @@ describe("resolvePictureLook (#2629)", () => {
     });
     expect(seen[0]).toBe(kit);
     expect(none.pick).toBe("none");
-    expect(none.decisions).toEqual(["none"]);
+    expect(none.decisions).toEqual(["none", "none"]);
     expect(none.refs).toEqual([]);
     expect(none.rest).toEqual([]);
     const own = resolvePictureLook(program.context, program.morphs, kit);
@@ -86,15 +86,16 @@ describe("resolvePictureLook (#2629)", () => {
     expect(srcs(own.rest)).toEqual(["/src/overlay.png"]);
   });
 
-  test("a layer with references of its own, even hidden at rest, keeps the picture's morph off it", () => {
+  test("a layer with references of its own, even hidden at rest, keeps them while the picture's morph plays (#2632)", () => {
     const svg = { uri: "file:///proj/bunny.svg", type: "image", name: "bunny", ext: "svg", data: talkingPortrait() };
     const talk = `morph talk {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = open\n      }\n    }\n    to {\n      mouth {\n        state = closed\n      }\n    }\n  }\n}\n`;
     const text = `${lidsMorph("blink", ["off", "on", "off"])}\n${talk}\ndefine kit as layered_image with\n  assets = {\n    ["base"] = overlay,\n    ["lids.on"] = bunny,\n  }\nend\n`;
     const program = compile(text, [...OVERLAY, svg]);
     const look = resolvePictureLook(program.context, program.morphs, program.context!["layered_image"]!["kit"]);
     expect(look.refs.map((ref) => ref.morphs)).toEqual([["blink"]]);
-    expect(look.conflict).toBe("layers");
-    expect(look.plays).toBe(false);
+    expect(look.conflict).toBeUndefined();
+    expect(look.plays).toBe(true);
+    expect(look.files.map((file) => file.refs.map((ref) => [ref.image, ref.morphs]))).toEqual([[], [["bunny", ["talk"]]]]);
   });
 
   test("a base file that has the picture's own name is a layer, not the picture: the picture's morph plays", () => {
@@ -108,15 +109,16 @@ describe("resolvePictureLook (#2629)", () => {
     expect(look.refs.map((ref) => [ref.morphs, ref.layered])).toEqual([[["blink"], true]]);
   });
 
-  test("a picture's own speech morph is offered only where, picked, it plays on the whole picture", () => {
+  test("a picture's own speech morph is offered where, picked, it plays on the whole picture, beside its SVG layer's own (#2632)", () => {
     const face = { uri: "file:///proj/face.svg", type: "image", name: "face", ext: "svg", data: talkingPortrait() };
     const smile = `morph smile {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = closed\n      }\n    }\n    to {\n      mouth {\n        state = open\n      }\n    }\n  }\n}\n`;
     const chatter = lidsMorph("chatter", ["off", "on", "off"], "  timing {\n    trigger = speech\n  }\n");
     const kit = (assets: string) => `define kit as layered_image with\n  assets = {\n${assets}  }\nend\n`;
-    const blocked = compile(`${smile}\n${chatter}\n${kit('    ["base"] = face,\n    ["lids.on"] = overlay,\n')}`, [...OVERLAY, face]);
-    const suppressed = resolvePictureLook(blocked.context, blocked.morphs, blocked.context!["layered_image"]!["kit"]);
-    expect(suppressed.conflict).toBe("layers");
-    expect(suppressed.speech).toEqual([]);
+    const both = compile(`${smile}\n${chatter}\n${kit('    ["base"] = face,\n    ["lids.on"] = overlay,\n')}`, [...OVERLAY, face]);
+    const playing = resolvePictureLook(both.context, both.morphs, both.context!["layered_image"]!["kit"]);
+    expect(playing.conflict).toBeUndefined();
+    expect(playing.plays).toBe(true);
+    expect(playing.speech).toEqual(["chatter"]);
     const free = compile(`${chatter}\n${kit('    ["lids.on"] = overlay,\n')}`, OVERLAY);
     expect(resolvePictureLook(free.context, free.morphs, free.context!["layered_image"]!["kit"]).speech).toEqual(["chatter"]);
   });
