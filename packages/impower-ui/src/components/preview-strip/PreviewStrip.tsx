@@ -21,6 +21,8 @@ export const previewStripVariants = cva(
 
 const CLOSING_LIMIT_MS = 1000;
 
+const EXIT_ANIMATION = "fade-out";
+
 const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
 
 export type PreviewStripSize = keyof typeof PICTURE_HEIGHT;
@@ -164,7 +166,11 @@ export default function PreviewStrip({
       return;
     }
     const onEnd = (event: AnimationEvent) => {
-      if (event.target === dialog && !event.pseudoElement) {
+      if (
+        event.target === dialog &&
+        !event.pseudoElement &&
+        event.animationName === EXIT_ANIMATION
+      ) {
         finishClosing();
       }
     };
@@ -176,6 +182,7 @@ export default function PreviewStrip({
         .some(
           (animation) =>
             animation.playState === "running" &&
+            (animation as CSSAnimation).animationName === EXIT_ANIMATION &&
             !(animation.effect as KeyframeEffect | null)?.pseudoElement,
         );
       if (!exiting) {
