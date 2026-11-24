@@ -62,6 +62,17 @@ describe("a picture's size as the browser draws it, read from its header (#2630)
     expect(imageSizeOf(jpeg(40, 30, tiff(1, true), true))).toEqual({ width: 40, height: 30 });
   });
 
+  test("a JPEG broken after its frame header keeps the frame size, and one broken before it has no size", () => {
+    const frame = jpeg(40, 30);
+    const sofEnd = 2 + 19;
+    const garbageAfterFrame = new Uint8Array([...frame.slice(0, sofEnd), 0x12, 0x34, 0x56, 0x78, 0x9a]);
+    const overlongAfterFrame = new Uint8Array([...frame.slice(0, sofEnd), 0xff, 0xe1, 0xff, 0xff, 0x45, 0x78]);
+    const garbageBeforeFrame = new Uint8Array([0xff, 0xd8, 0x12, 0x34, ...frame.slice(2)]);
+    expect(imageSizeOf(garbageAfterFrame)).toEqual({ width: 40, height: 30 });
+    expect(imageSizeOf(overlongAfterFrame)).toEqual({ width: 40, height: 30 });
+    expect(imageSizeOf(garbageBeforeFrame)).toBeUndefined();
+  });
+
   test("a JPEG with no orientation, or one that only flips or turns it half way, keeps its frame size", () => {
     expect(imageSizeOf(jpeg(40, 30))).toEqual({ width: 40, height: 30 });
     expect(imageSizeOf(jpeg(40, 30, tiff(1, true)))).toEqual({ width: 40, height: 30 });

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { layeredMorphArtwork } from "../../morph/layered";
+import { imageSizeOf } from "../../workspace/utils/imageSize";
 
 const MAIN = "file:///proj/main.sd";
 const P = "file:///proj/assets/Images/Portraits";
@@ -151,6 +152,27 @@ end
     const program = compiler.compile({ textDocument: { uri: MAIN } }).program;
     expect(sizeWarnings(program).map(({ uri }) => uri)).toEqual([warnedUri]);
     expect(program.morphs?.variants["kit"]).toBeUndefined();
+  });
+
+  test("JPEG layers broken after their frame header are checked by their frame sizes, and one broken before it is not checked", () => {
+    const jpeg = (width: number, height: number, tail: number[]) =>
+      new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, height >> 8, height & 0xff, width >> 8, width & 0xff, 3, ...new Array(9).fill(0), ...tail]);
+    const brokenBeforeFrame = new Uint8Array([0xff, 0xd8, 0x12, 0x34, ...jpeg(180, 240, []).slice(2)]);
+    const sizes = (lids: Uint8Array) => ({
+      [BASE]: imageSizeOf(jpeg(200, 300, [0x12, 0x34, 0x56, 0x78, 0x9a])),
+      [MOUTH]: imageSizeOf(jpeg(200, 300, [0xff, 0xe1, 0xff, 0xff, 0x45, 0x78])),
+      [LIDS]: imageSizeOf(lids),
+    });
+    const matching = compile(BLINK, sizes(jpeg(200, 300, [0x00, 0x00, 0x00, 0x00, 0x00])));
+    expect(sizeWarnings(matching)).toEqual([]);
+    expect(matching.morphs?.variants["ava"]).toHaveLength(1);
+    const odd = compile(BLINK, sizes(jpeg(180, 240, [0x00, 0x00, 0x00, 0x00, 0x00])));
+    expect(sizeWarnings(odd).map(({ uri }) => uri)).toEqual([LIDS]);
+    expect(text(sizeWarnings(odd)[0]!.diagnostic)).toContain("180×240");
+    expect(odd.morphs?.variants["ava"]).toBeUndefined();
+    const unreadable = compile(BLINK, sizes(brokenBeforeFrame));
+    expect(sizeWarnings(unreadable)).toEqual([]);
+    expect(unreadable.morphs?.variants["ava"]).toHaveLength(1);
   });
 
   test("sizes that arrive after a first compile take the reference away and add the warning on the next compile", () => {
