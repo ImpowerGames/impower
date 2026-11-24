@@ -8,6 +8,7 @@ import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
@@ -233,6 +234,7 @@ interface PictureView {
   framing?: PictureFraming;
   picture: boolean;
   travelStart?: number;
+  assets?: string[];
 }
 
 interface Retirement {
@@ -1604,9 +1606,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick): Image[] {
+  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: string): Image[] {
     const imageName = sortFilteredName(name);
-    const look = this.pictureLook(type, name, pick);
+    const look = this.pictureLook(type, name, pick, from);
     const layers = !look
       ? []
       : !poseOf || poseOf === morphRestPose
@@ -1665,9 +1667,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return id;
   }
 
-  pictureLook(type: string, name: string, pick?: ImagePick): PictureLook | undefined {
+  pictureLook(type: string, name: string, pick?: ImagePick, from?: string): PictureLook | undefined {
     const imageName = sortFilteredName(name);
-    const key = JSON.stringify([type, imageName, this.pickKey(pick)]);
+    const key = JSON.stringify([type, imageName, this.pickKey(pick), from === undefined ? null : sortFilteredName(from)]);
     const cached = this._pictureLooks?.get(key);
     if (cached) {
       return cached;
@@ -1676,9 +1678,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!image) {
       return undefined;
     }
+    const before = from === undefined ? undefined : resolveImageReference(this.context, { $type: "", $name: sortFilteredName(from) });
     const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
       ...(pick === undefined ? {} : { pick }),
       startPose: this.morphStartPose,
+      ...(before ? { from: before } : {}),
     });
     this._pictureLooks?.set(key, look);
     return look;
@@ -1836,6 +1840,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _morphEpoch = 0;
 
+  protected _morphChanges = 0;
+
   protected _colorSchemeReported = false;
 
   protected _morphConflicts = new Set<string>();
@@ -1911,24 +1917,48 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return picks.every((pick) => pick === picks[0]) ? picks[0] : decide;
   }
 
-  getMorphContent(assets: string[], pickOf: (asset: string) => ImagePick | undefined): MorphImageContent | undefined {
+  protected pictureRoot(asset: string): unknown {
+    if (asset.at(0) === '"' && asset.at(-1) === '"') {
+      return undefined;
+    }
+    const image = resolveImageReference(this.context, { $type: "", $name: sortFilteredName(asset) });
+    return image ? resolveImageAttributes(this.context, image, { visibility: false }).image : undefined;
+  }
+
+  getMorphContent(
+    assets: string[],
+    pickOf: (asset: string) => ImagePick | undefined,
+    shown: readonly string[] = [],
+  ): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
     }
+    const roots = channel.change && shown.length ? new Map(shown.map((asset) => [this.pictureRoot(asset), asset])) : undefined;
+    if (roots) {
+      this._morphChanges += 1;
+    }
+    const fromOf = (asset: string) => {
+      const root = roots?.size ? this.pictureRoot(asset) : undefined;
+      return root === undefined ? undefined : roots!.get(root);
+    };
     const plays: MorphLayerPlay[] = [];
     const playsOf = (ref: MorphRef, owner: string | undefined): MorphPlay[] => {
       this.deliverMorphArtifact(ref);
       return ref.morphs.map((morph) => {
         const timing = this.morphTiming(morph);
-        const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
+        const changed = ref.recipes?.[morph];
+        const motion = changed === undefined ? buildMorphMotion(this.context.morph?.[morph]?.keyframes) : undefined;
+        const recipe = changed ?? channel.recipes[morph] ?? "";
         return {
           ref,
           morph,
           timing,
           ...(motion ? { motion } : {}),
           ...(owner ? { owner } : {}),
-          definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
+          definition: hashText(
+            `${recipe}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}${changed === undefined ? "" : `\n${this._morphChanges}`}`,
+          ),
         };
       });
     };
@@ -1945,7 +1975,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const imageName = sortFilteredName(asset);
-      const look = this.pictureLook("", asset, pick);
+      const look = this.pictureLook("", asset, pick, fromOf(asset));
       if (!look) {
         continue;
       }
@@ -1988,7 +2018,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
     const still = assets
       .map((asset, index) => {
-        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset));
+        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), fromOf(asset));
         return cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
       })
       .reverse()
@@ -2063,10 +2093,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this._morphConflicts.add(key);
-    const recipes = names.flatMap((name) => {
-      const recipe = parseMorphRecipe(this._game.program?.morphs?.recipes[name] ?? "");
-      return recipe ? [recipe] : [];
-    });
+    const recipes = refs
+      .flatMap((ref) =>
+        ref.morphs.flatMap((name) => {
+          const recipe = parseMorphRecipe(ref.recipes?.[name] ?? this._game.program?.morphs?.recipes[name] ?? "");
+          return recipe ? [recipe] : [];
+        }),
+      )
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     const quote = (list: string[]) => list.map((n) => `\`${n}\``).join(", ");
     const shares = morphOverlaps(recipes).map(({ morphs, groups, moved, clips }) => {
       const what = [
@@ -2135,13 +2169,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick) {
+  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: string) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const named = this.pictureLook("", value, pick) !== undefined;
-    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
+    const named = this.pictureLook("", value, pick, from) !== undefined;
+    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick, from).map((asset) => asset.src) : undefined;
     const srcs = posed ?? this.getImageSrcsByName(value);
     if (srcs?.length) {
       return srcs
@@ -5147,7 +5181,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected nextView(e: ImageInstruction, view: PictureView): PictureView {
         if (e.assets?.length) {
-          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true } : view;
+          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true, assets: e.assets } : view;
         }
         if (e.control === "hide") {
           return { picture: view.picture };
@@ -5155,7 +5189,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (e.control === "animate" && e.to && view.picture) {
           const start = e.after ?? 0;
           return start >= (view.travelStart ?? -Infinity)
-            ? { picture: true, framing: $.getFraming(e.to), travelStart: start }
+            ? { picture: true, framing: $.getFraming(e.to), travelStart: start, ...(view.assets ? { assets: view.assets } : {}) }
             : view;
         }
         return view;
@@ -5176,6 +5210,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ): WriteImageInstruction[] {
         const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
+          const shown = instant || e.control !== "show" ? undefined : view.assets;
           view = this.nextView(e, view);
           const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
@@ -5350,7 +5385,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   ...($.showsMovieStill() ? { preview: true } : {}),
                 };
               }
-              const morph = $.getMorphContent(imageAssets, pickOf);
+              const morph = $.getMorphContent(imageAssets, pickOf, shown);
               if (morph) {
                 content.morph = morph;
               }

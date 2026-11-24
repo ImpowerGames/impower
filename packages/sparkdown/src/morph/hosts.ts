@@ -85,7 +85,7 @@ export function createMorphHost(options: MorphHostOptions): MorphHost {
     }
     const recipes: MorphRecipe[] = [];
     for (const name of ref.morphs) {
-      const text = own(options.channel()?.recipes, name);
+      const text = own(ref.recipes, name) ?? own(options.channel()?.recipes, name);
       const recipe = text === undefined ? undefined : recipeFor(text);
       if (!recipe) throw new Error(`The program has no recipe for \`${name}\`.`);
       recipes.push(recipe);

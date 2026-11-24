@@ -3,6 +3,7 @@ import {
   bindMorph,
   bindVariant,
   groupHasState,
+  lookChoices,
   morphImages,
   morphRequirements,
   poseSelection,
@@ -52,6 +53,7 @@ interface MorphMember {
   recipe: MorphRecipe;
   text: string;
   groups: string[];
+  change?: true;
 }
 
 function makeRef(
@@ -75,6 +77,10 @@ function makeRef(
   };
   if (image?.$type === "layered_image") {
     ref.layered = true;
+  }
+  const changes = members.filter((member) => member.change);
+  if (changes.length > 0) {
+    ref.recipes = Object.fromEntries(changes.map((member) => [member.recipe.name, member.text]));
   }
   if (image?.$type === "image" && !image.data) {
     const filtered = buildFilteredSrc(image, selection);
@@ -149,8 +155,13 @@ export function buildMorphChannel(
     const conditions = conditionsOf(effective);
     if (conditions) (channel.conditions ??= table())[name] = conditions;
     const timing = effective["timing"];
-    if (timing && typeof timing === "object" && (timing as Record<string, unknown>)["trigger"] === "speech") {
+    const trigger = timing && typeof timing === "object" ? (timing as Record<string, unknown>)["trigger"] : undefined;
+    if (trigger === "speech") {
       (channel.speech ??= table())[name] = effective["default"] === true ? { default: true } : {};
+    }
+    if (trigger === "change") {
+      (channel.change ??= table())[name] = {};
+      continue;
     }
     const binding = bindMorph(context, effective, images);
     if (!startsEveryGroup(binding.requirements)) continue;
@@ -248,6 +259,72 @@ export function morphRefsForStruct(
   channel: MorphProgramChannel | undefined,
   struct: any,
   pick?: string,
+  from?: any,
+): MorphRef[] {
+  const refs = lookRefsForStruct(context, channel, struct, pick);
+  if (from === undefined || !context || !channel?.change || refs.length > 1) return refs;
+  const resolved = resolveImageAttributes(context, struct, { visibility: false });
+  const image = resolved.image;
+  if (!image || (image.$type !== "image" && image.$type !== "layered_image") || !resolved.vocabulary || typeof image.$name !== "string") {
+    return refs;
+  }
+  const members = refs[0] ? refMembers(channel, refs[0]) : [];
+  const driven = new Set(members.flatMap((member) => member.groups));
+  const changes = changeMembers(context, channel, struct.$name, resolved, from, driven);
+  return changes.length ? makeRefs(context, [...members, ...changes], image.$name, image, resolved.selection) : refs;
+}
+
+function refMembers(channel: MorphProgramChannel, ref: MorphRef): MorphMember[] {
+  return ref.morphs.flatMap((name) => {
+    const inline = ref.recipes?.[name];
+    const text = inline ?? channel.recipes[name] ?? "";
+    const entry = recipeEntry(text, channel.conditions?.[name]);
+    return entry ? [{ recipe: entry.recipe, text, groups: entry.groups, ...(inline === undefined ? {} : { change: true as const }) }] : [];
+  });
+}
+
+function changeMembers(
+  context: Context,
+  channel: MorphProgramChannel,
+  name: string,
+  resolved: ReturnType<typeof resolveImageAttributes>,
+  from: any,
+  driven: ReadonlySet<string>,
+): MorphMember[] {
+  const before = resolveImageAttributes(context, from, { visibility: false });
+  const vocabulary = resolved.vocabulary!;
+  if (before.image !== resolved.image) return [];
+  const moves: { group: string; from: string; to: string }[] = [];
+  for (const group of Object.keys(vocabulary.groups).sort()) {
+    if (driven.has(group)) continue;
+    const was = lookChoices(vocabulary, before.selection, group);
+    const now = lookChoices(vocabulary, resolved.selection, group);
+    if (was.length === 1 && now.length === 1 && was[0] !== now[0]) moves.push({ group, from: was[0]!, to: now[0]! });
+  }
+  if (moves.length === 0) return [];
+  const pose = (end: "from" | "to") => {
+    const states: Record<string, string> = table();
+    for (const move of moves) states[move.group] = move[end];
+    return states;
+  };
+  return Object.keys(channel.change ?? {})
+    .sort()
+    .flatMap((morph) => {
+      const recipe = parsedRecipe(own(channel.recipes, morph) ?? "");
+      if (!recipe) return [];
+      const { rest: _rest, paints: _paints, motion: _motion, ...kept } = recipe;
+      const text = serializeMorphRecipe({ ...kept, keyframes: [{ offset: 0, states: pose("from") }, { offset: 1, states: pose("to") }] });
+      const entry = recipeEntry(text, own(channel.conditions ?? {}, morph));
+      if (!entry || bindVariant(vocabulary, name, resolved.selection, entry.requirements).status !== "active") return [];
+      return [{ recipe: entry.recipe, text, groups: entry.groups, change: true as const }];
+    });
+}
+
+function lookRefsForStruct(
+  context: Context | undefined,
+  channel: MorphProgramChannel | undefined,
+  struct: any,
+  pick?: string,
 ): MorphRef[] {
   const name = struct?.["$name"];
   if (!context || !channel || typeof name !== "string") return [];
@@ -276,6 +353,7 @@ function playingMembers(
   }
   const members: MorphMember[] = [];
   for (const [morph, text] of Object.entries(channel.recipes)) {
+    if (own(channel.change, morph)) continue;
     const entry = recipeEntry(text, own(channel.conditions ?? {}, morph));
     if (!entry) continue;
     const { recipe, requirements, groups } = entry;
@@ -335,15 +413,16 @@ export function shownLook(
   struct: any,
   poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
   pick?: string,
+  from?: any,
 ): ShownLook | undefined {
-  const refs = morphRefsForStruct(context, channel, struct, pick);
+  const refs = morphRefsForStruct(context, channel, struct, pick, from);
   if (refs.length !== 1 || !context || !channel) return undefined;
   const resolved = resolveImageAttributes(context, struct, { visibility: false });
   if (!resolved.vocabulary) return undefined;
   const morphs: ShownLook["morphs"] = [];
   const pose: Record<string, string> = table();
   for (const name of refs[0]!.morphs) {
-    const recipe = parsedRecipe(own(channel.recipes, name) ?? "");
+    const recipe = parsedRecipe(own(refs[0]!.recipes, name) ?? own(channel.recipes, name) ?? "");
     if (!recipe) continue;
     const posed = poseOf(recipe);
     morphs.push({ name, pose: posed });

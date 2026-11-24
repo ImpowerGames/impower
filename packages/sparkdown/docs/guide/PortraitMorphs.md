@@ -579,7 +579,7 @@ Timing is set in `timing { … }`. Every value is optional:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)). |
+| `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)), `change` when the options of a portrait already on screen change ([Playing on a change](#playing-on-a-change)). |
 | `sync` | `none` | On a speech morph, `beep` starts each play on one of the character's voice beeps ([Flapping on the beeps](#flapping-on-the-beeps)). |
 | `duration` | `0.25` | Seconds one play lasts, at least `0.001` (one millisecond). |
 | `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
@@ -592,6 +592,37 @@ Timing is set in `timing { … }`. Every value is optional:
 `iteration_delay_min` and `iteration_delay_max` are written together. Each gap is drawn independently and evenly between them, so a blink with `2` and `6` never settles into a rhythm. Without them, plays follow each other with no gap.
 
 `easing` applies once, to the whole play, not to each segment between poses: `steps(3)` gives the whole blink three visible steps.
+
+### Playing on a change
+
+A morph marked `trigger = change` plays when the options chosen for a portrait already on screen change, so a face bends from one expression into the next instead of cutting:
+
+```sparkdown
+morph bend {
+  method = match
+
+  timing {
+    trigger = change
+    duration = 0.08
+  }
+}
+
+scene gasp
+  [[mia:mouth.open]]
+  Mia gasps.
+  [[mia:mouth.closed]]
+  Then she collects herself.
+end
+```
+
+On the second directive the mouth bends from `open` to `closed` over 0.08 seconds.
+
+- A change morph has no keyframes of its own. It plays once, from the drawing on screen to the drawing the new options choose, and moves each group whose state changes. Keyframes written in it are not used, and get a warning.
+- It uses the morph's `method`, `blend`, `fallback`, `layers`, `clips`, `duration`, `delay` and `easing`, as the other triggers do. While its `delay` runs, the portrait keeps the drawing that was on screen. It takes no `iterations`, `direction`, `iteration_delay_min`, `iteration_delay_max` or `replay`.
+- It plays only when the same portrait stays on screen and its options change. A named look built on the portrait is the same portrait. Showing a different portrait, or the same options again, plays nothing.
+- `when` and `unless` are judged on the new look, as they are for any morph, and each folder that draws a changed group has to draw both of its states.
+- A group that another morph playing on the new look drives stays with that morph, and the change morph moves the other changed groups. Two change morphs that could both play on one change share its groups, so neither plays and the portrait cuts, with a warning that names them.
+- Previewing a line, stepping back, loading a save and the click that finishes a line show the new drawing at once.
 
 ### Replaying part of a play
 
