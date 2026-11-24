@@ -82,6 +82,32 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     expect(warnings).toEqual([]);
   });
 
+  test("an SVG layer hidden at rest that belongs to another character carries no speech morph on someone else's line", async () => {
+    const characters = `define mia as character with\n  name = "MIA"\nend\n\ndefine bunny as character with\n  name = "BUNNY"\nend\n`;
+    const talk = `morph talk {\n  blend = cut\n  default = true\n  keyframes {\n    from {\n      mouth {\n        state = closed\n      }\n    }\n    50% {\n      mouth {\n        state = open\n      }\n    }\n    to {\n      mouth {\n        state = closed\n      }\n    }\n  }\n  timing {\n    trigger = speech\n    duration = 0.16\n  }\n}\n`;
+    const on = (speaker: string) =>
+      `${characters}\n${LIDS}\n${talk}\n${kit('    ["base"] = base_file,\n    ["lids.on"] = bunny,\n')}\nscene start\n  ${speaker}:\n    [[show portrait kit]]\n    Line one.\n    Line two.\nend\n`;
+    const ownPlays = async (speaker: string) => {
+      const { contents } = await written(on(speaker), [svg, png("base_file")]);
+      const plays = contents.at(-1).morph.plays;
+      expect(plays.map((play: any) => [play.morph, play.ref.image])).toEqual([["lids_blink", "kit"]]);
+      return plays[0].picture.files.map((file: any) => file.plays?.map((play: any) => play.morph));
+    };
+    expect(await ownPlays("MIA")).toEqual([undefined, undefined]);
+    expect(await ownPlays("BUNNY")).toEqual([undefined, ["talk"]]);
+  });
+
+  test("an SVG used in two slots of a picture gives each slot its own CSS layer", async () => {
+    const source = `${LIDS}\n${talkScript()}\n${kit('    ["left"] = bunny,\n    ["right"] = bunny,\n    ["lids.on"] = lid_file,\n')}\n${scene}`;
+    const { contents } = await written(source, [svg, png("lid_file")]);
+    const files = contents.at(-1).morph.plays[0].picture.files;
+    expect(files.map((file: any) => [file.plays?.map((play: any) => play.morph), file.layer])).toEqual([
+      [["talk"], 0],
+      [["talk"], 1],
+      [undefined, undefined],
+    ]);
+  });
+
   test("a morph that fits both the picture and its SVG layer plays once at each level", async () => {
     const mouth = `morph chew {\n  blend = cut\n  keyframes {\n    from {\n      mouth {\n        state = open\n      }\n    }\n    to {\n      mouth {\n        state = closed\n      }\n    }\n  }\n}\n`;
     const source = `${mouth}\n${kit('    ["face"] = bunny,\n    ["mouth.open"] = open_file,\n    ["mouth.closed default"] = closed_file,\n')}\n${scene}`;

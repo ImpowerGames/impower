@@ -247,4 +247,14 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     }
     expect(referenceStates(artifact, chompAt(0.2))).not.toEqual(referenceStates(artifact, chompAt(0.5)));
   });
+
+  test("when the picture cannot be drawn on a canvas, an SVG used in two slots plays in both", async () => {
+    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["left"] = bunny,\n    ["right"] = bunny,\n    ["lids.on"] = base_file,');
+    const { playback, shadow, artifact } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
+    await until(() => shadow()!.querySelectorAll("svg svg").length >= 2, "both SVG slots' views");
+    playback.advance(0.5);
+    const views = Array.from(shadow()!.children).filter((child) => child.querySelector("svg"));
+    expect(views).toHaveLength(2);
+    for (const view of views) expect(leafStates(view)).toEqual(referenceStates(artifact, chompAt(0.5)));
+  });
 });

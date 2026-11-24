@@ -78,7 +78,7 @@ describe("resolvePictureLook (#2629)", () => {
     });
     expect(seen[0]).toBe(kit);
     expect(none.pick).toBe("none");
-    expect(none.decisions).toEqual(["none"]);
+    expect(none.decisions).toEqual(["none", "none"]);
     expect(none.refs).toEqual([]);
     expect(none.rest).toEqual([]);
     const own = resolvePictureLook(program.context, program.morphs, kit);

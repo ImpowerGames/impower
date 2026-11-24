@@ -1956,13 +1956,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       if (look.plays) {
         if (count > 0) {
-          const sameImage = (a: any, b: any) => !!a && !!b && a.$type === b.$type && a.$name === b.$name;
           const files = look.artwork!.files.map((file, index) => {
             const refs = look.files[index]?.refs ?? [];
             if (refs.length > 1) this.reportMorphConflict(file.struct?.$name ?? pictureFileName(file), refs);
             const own = refs.length === 1 ? playsOf(refs[0]!, owner ?? getImageOwner(this.context, file.struct?.$name)) : [];
-            const at = own.length && look.rest.length === count ? look.rest.findIndex((layer) => sameImage(layer.struct, file.struct)) : -1;
-            return { src: file.src, name: pictureFileName(file), ...(own.length ? { plays: own } : {}), ...(at >= 0 ? { layer: first + at } : {}) };
+            const at = own.length && look.rest.length === count ? look.files[index]?.rest : undefined;
+            return { src: file.src, name: pictureFileName(file), ...(own.length ? { plays: own } : {}), ...(at === undefined ? {} : { layer: first + at }) };
           });
           play(look.refs[0]!, first, owner ?? getImageOwner(this.context, look.root?.$name), { span: count, files });
         }

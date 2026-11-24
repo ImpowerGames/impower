@@ -1,4 +1,4 @@
-import { filterImage } from "../compiler/utils/filterImage";
+import { filterImage, layeredImageShownKeys } from "../compiler/utils/filterImage";
 import { resolveImageLayers, type ImageLayer } from "../compiler/utils/resolveImageLayers";
 import { morphRefsForStruct, shownLook, shownLookStruct, speechMorphsForStruct } from "./channel";
 import { layeredMorphArtwork, layeredMorphRoot, type LayeredMorphArtwork } from "./layered";
@@ -21,6 +21,7 @@ export interface LookLayer extends ImageLayer {
 export interface LookFile {
   pick?: string;
   refs: MorphRef[];
+  rest?: number;
 }
 
 export interface PictureLook {
@@ -60,7 +61,7 @@ export function resolvePictureLook(
   const picture: ImageLayer = { src: "", struct };
   const children: ImageLayer[] = artwork ? artwork.files.map((file) => ({ src: file.src, struct: file.struct })) : visible;
   const picturePick = decide(pick, picture);
-  const decisions = [picturePick, ...visible.map((layer) => decide(pick, layer))];
+  const decisions = [picturePick, ...visible.map((layer) => decide(pick, layer)), ...(artwork ? children.map((child) => decide(pick, child)) : [])];
   if (!context || !channel) {
     const layers = visible.map((layer) => ({ ...layer, refs: [] }));
     return {
@@ -99,20 +100,32 @@ export function resolvePictureLook(
     const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
     return src ? { ...layer, src, shown: true as const } : layer;
   };
+  const pictureLookStruct = (poseOf: LookPose) => {
+    const look = shownLook(context, channel, struct, poseOf, picturePick);
+    if (!look?.attributes.length) return undefined;
+    return struct?.$type === "filtered_image"
+      ? { ...struct, attributes: [...(Array.isArray(struct.attributes) ? struct.attributes : []), ...look.attributes] }
+      : shownLookStruct(struct, look.attributes);
+  };
   const posed = (poseOf: LookPose): ShownLayer[] => {
     if (plays) {
-      const look = shownLook(context, channel, struct, poseOf, picturePick);
-      const lookStruct = !look?.attributes.length
-        ? undefined
-        : struct?.$type === "filtered_image"
-          ? { ...struct, attributes: [...(Array.isArray(struct.attributes) ? struct.attributes : []), ...look.attributes] }
-          : shownLookStruct(struct, look.attributes);
+      const lookStruct = pictureLookStruct(poseOf);
       const shown: ShownLayer[] = lookStruct ? resolveImageLayers(context, lookStruct).map((layer) => ({ ...layer, shown: true as const })) : visible;
       return shown.map((layer) => ownPosed(layer, poseOf, decide(pick, layer)));
     }
     return layers.map(({ pick: layerPick, refs: _refs, ...layer }) => ownPosed(layer, poseOf, layerPick));
   };
   const rest = posed(morphRestPose);
+  if (plays && artwork) {
+    const fileKeys = new Set(artwork.files.map((file) => file.key));
+    const restKeys = (layeredImageShownKeys(context, pictureLookStruct(morphRestPose) ?? struct) ?? []).filter((key) => fileKeys.has(key));
+    if (restKeys.length === rest.length) {
+      artwork.files.forEach((file, index) => {
+        const at = restKeys.indexOf(file.key);
+        if (at >= 0) files[index]!.rest = at;
+      });
+    }
+  }
   const speech = new Set<string>();
   const playsPicked = (name: string) => {
     const picked = morphRefsForStruct(context, channel, struct, name);
