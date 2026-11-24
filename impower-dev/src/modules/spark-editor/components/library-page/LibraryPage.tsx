@@ -31,6 +31,7 @@ export type LibraryList<T> = {
 };
 
 export type LibraryPageProps<T> = {
+  lead?: ComponentChildren;
   searchLabel: string;
   query: string;
   onQueryChange: (query: string) => void;
@@ -51,6 +52,7 @@ export type LibraryPageProps<T> = {
 };
 
 export default function LibraryPage<T>({
+  lead,
   searchLabel,
   query,
   onQueryChange,
@@ -76,6 +78,7 @@ export default function LibraryPage<T>({
       <div ref={bodyRef} class="@container flex min-h-0 flex-1 flex-col px-4 [:root[data-layout=desktop]_&]:px-[18px]">
         <div class="mx-auto flex min-h-0 w-full max-w-[960px] flex-1 flex-col">
           <LibraryToolbar>
+            {lead}
             <SearchBox label={searchLabel} value={query} onChange={onQueryChange} />
             <DropdownRoot>
               <DropdownTrigger asChild>

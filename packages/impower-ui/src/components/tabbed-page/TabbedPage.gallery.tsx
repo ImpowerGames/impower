@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { GalleryRow, type GalleryEntry } from "../../gallery/GallerySection";
-import { BookIcon } from "../icon/icons.generated";
+import Button from "../button/Button";
+import { CloseIcon } from "../icon/icons.generated";
 import TabbedPage from "./TabbedPage";
 
 const TABS = [
@@ -14,22 +15,16 @@ function Demo({ showTabs }: { showTabs: boolean }) {
     <div class="flex h-64 w-[360px] flex-col rounded border border-surface-border">
       <TabbedPage
         title="Items"
-        icon={<BookIcon class="size-5 flex-none text-accent" />}
         tabs={TABS}
         value={value}
         onValueChange={setValue}
         showTabs={showTabs}
-        onBack={() => {}}
+        tabAction={
+          <Button variant="quiet" size="glyph" class="flex-none text-muted" aria-label="Close" title="Close">
+            <CloseIcon />
+          </Button>
+        }
       />
-    </div>
-  );
-}
-
-function HeaderlessDemo() {
-  const [value, setValue] = useState("all");
-  return (
-    <div class="flex h-64 w-[360px] flex-col rounded border border-surface-border">
-      <TabbedPage header="absent" title="Items" tabs={TABS} value={value} onValueChange={setValue} />
     </div>
   );
 }
@@ -37,14 +32,11 @@ function HeaderlessDemo() {
 function TabbedPageDemo() {
   return (
     <div class="space-y-6">
-      <GalleryRow label="Phone: the 56px header band with its ink title and back action, the page tab row and the chosen tab's body">
+      <GalleryRow label="The page tab row starts the page, its action at the end, then the chosen tab's body">
         <Demo showTabs />
       </GalleryRow>
-      <GalleryRow label="Without tabs: the first tab's body under the header">
+      <GalleryRow label="Without tabs: the first tab's body starts the page">
         <Demo showTabs={false} />
-      </GalleryRow>
-      <GalleryRow label="Header absent: the page tab row starts the page and the section keeps its title as its name">
-        <HeaderlessDemo />
       </GalleryRow>
     </div>
   );

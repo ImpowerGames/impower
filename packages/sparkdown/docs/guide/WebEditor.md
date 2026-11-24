@@ -61,7 +61,8 @@ one, and the sort button to order them by name, date, size, how often they are u
 the story reaches them. Each script's menu selects, renames, moves, duplicates,
 downloads or deletes it, except Main's, which only duplicates or downloads it, since your story
 always starts there; a script with a problem shows an
-icon beside its name. **Back to story** returns to the script you were writing.
+icon beside its name. **Back to story**, the close button at the end of the tabs or the back
+arrow before the search box where there are no tabs, returns to the script you were writing.
 
 On a phone, the **In this script** tab is the outline of the script you were
 writing.

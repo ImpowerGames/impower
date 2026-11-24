@@ -25,14 +25,12 @@ const TABS: TabbedPageTab[] = [
 ];
 
 describe("TabbedPage", () => {
-  it("draws the header, a tablist of the tabs and only the chosen tab's body", async () => {
-    const onBack = vi.fn();
-    await mount(
-      <TabbedPage title="Things" tabs={TABS} value="two" onValueChange={() => {}} onBack={onBack} />,
-    );
+  it("starts with a tablist of the tabs, draws only the chosen tab's body and keeps its title as the section's name", async () => {
+    await mount(<TabbedPage title="Things" tabs={TABS} value="two" onValueChange={() => {}} />);
     const section = host!.querySelector("section")!;
     expect(section.getAttribute("aria-label")).toBe("Things");
-    expect(section.querySelector("h1")!.textContent).toBe("Things");
+    expect(section.querySelector("header, h1")).toBeNull();
+    expect(section.firstElementChild!.querySelector('[role="tablist"]')).not.toBeNull();
     const tabs = Array.from(section.querySelectorAll<HTMLElement>('[role="tablist"] [role="tab"]'));
     expect(
       tabs.map((tab) =>
@@ -48,16 +46,20 @@ describe("TabbedPage", () => {
     expect(tabs.map((tab) => document.getElementById(tab.getAttribute("aria-controls")!))).toEqual([panel, panel]);
     expect(panel.querySelector('[data-body="two"]')).not.toBeNull();
     expect(section.querySelector('[data-body="one"]')).toBeNull();
-    const back = Array.from(section.querySelectorAll("button")).find((b) => b.textContent === "Back to story")!;
-    await act(async () => back.click());
-    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws the tab action at the end of the tab row", async () => {
+    await mount(
+      <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={() => {}} tabAction={<button data-action />} />,
+    );
+    const row = host!.querySelector("section")!.firstElementChild!;
+    expect(row.querySelector('[role="tablist"]')).not.toBeNull();
+    expect(row.lastElementChild!.hasAttribute("data-action")).toBe(true);
   });
 
   it("reports a chosen tab through onValueChange", async () => {
     const onValueChange = vi.fn();
-    await mount(
-      <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={onValueChange} onBack={() => {}} />,
-    );
+    await mount(<TabbedPage title="Things" tabs={TABS} value="one" onValueChange={onValueChange} />);
     const second = host!.querySelectorAll<HTMLElement>('[role="tab"]')[1]!;
     await act(async () => {
       second.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
@@ -66,50 +68,20 @@ describe("TabbedPage", () => {
     expect(onValueChange).toHaveBeenCalledWith("two");
   });
 
-  it("drops the tab row and shows the first tab's body without showTabs", async () => {
+  it("drops the tab row and its action and shows the first tab's body without showTabs", async () => {
     await mount(
-      <TabbedPage title="Things" tabs={TABS} value="two" showTabs={false} onValueChange={() => {}} onBack={() => {}} />,
+      <TabbedPage
+        title="Things"
+        tabs={TABS}
+        value="two"
+        showTabs={false}
+        onValueChange={() => {}}
+        tabAction={<button data-action />}
+      />,
     );
     expect(host!.querySelector('[role="tablist"]')).toBeNull();
     expect(host!.querySelector('[role="tabpanel"]')).toBeNull();
+    expect(host!.querySelector("[data-action]")).toBeNull();
     expect(host!.querySelector('[data-body="one"]')).not.toBeNull();
-  });
-
-  it("draws no header, title or back action with the header absent, and keeps the section's name", async () => {
-    await mount(<TabbedPage header="absent" title="Things" tabs={TABS} value="one" onValueChange={() => {}} />);
-    const section = host!.querySelector("section")!;
-    expect(section.getAttribute("aria-label")).toBe("Things");
-    expect(section.querySelector("header")).toBeNull();
-    expect(section.querySelector("h1")).toBeNull();
-    expect(Array.from(section.querySelectorAll("button")).some((b) => b.textContent === "Back to story")).toBe(false);
-    expect(section.firstElementChild!.querySelector('[role="tablist"]')).not.toBeNull();
-  });
-
-  it("refuses a back handler or icon that an absent header would never draw", () => {
-    const refused = [
-      // @ts-expect-error
-      <TabbedPage header="absent" title="Things" tabs={TABS} value="one" onValueChange={() => {}} onBack={() => {}} />,
-      // @ts-expect-error
-      <TabbedPage header="absent" title="Things" tabs={TABS} value="one" onValueChange={() => {}} icon={<svg />} />,
-      // @ts-expect-error
-      <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={() => {}} />,
-    ];
-    expect(refused).toHaveLength(3);
-  });
-
-  it("draws the header as a workspace band, 56px tall below desktop, with the title in ink", async () => {
-    await mount(
-      <TabbedPage title="Things" tabs={TABS} value="one" onValueChange={() => {}} onBack={() => {}} />,
-    );
-    const header = host!.querySelector("header")!.className.split(" ");
-    expect(header).toEqual(expect.arrayContaining(["h-14", "bg-workspace", "gap-2.5", "px-4"]));
-    expect(header).toEqual(
-      expect.arrayContaining([
-        "[:root[data-layout=desktop]_&]:h-[68px]",
-        "[:root[data-layout=desktop]_&]:gap-3",
-        "[:root[data-layout=desktop]_&]:px-[22px]",
-      ]),
-    );
-    expect(host!.querySelector("h1")!.className.split(" ")).toContain("text-ink");
   });
 });

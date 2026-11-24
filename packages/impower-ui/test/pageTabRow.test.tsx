@@ -198,7 +198,6 @@ describe("TabbedPage tab row", () => {
       render(
         <TabbedPage
           title="Scripts"
-          onBack={() => {}}
           value="all"
           onValueChange={() => {}}
           tabs={[
@@ -210,7 +209,7 @@ describe("TabbedPage tab row", () => {
       ),
     );
     const list = host.querySelector<HTMLElement>('[role="tablist"]')!;
-    const row = list.parentElement!;
+    const row = list.parentElement!.parentElement!;
     const rules = await compiled(Array.from(row.classList));
     expect(cascaded(rules, row, "margin-inline")).toBe(inset);
   });
