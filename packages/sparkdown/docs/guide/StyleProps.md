@@ -405,7 +405,7 @@ For full keyframed motion sequences, see [Animation](#animation) below.
 | `transition-delay`    | How long to wait before starting a transition.        | `<time>`                                                                                                    |
 | `transition-duration` | How long the transition takes once it begins.         | `<time>`                                                                                                    |
 | `transition-easing`   | Controls the speed curve of the transition over time. | `ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`, `cubic-bezier(<number>,<number>,<number>,<number>)` |
-| `transition-property` | Sets which properties will animate on change.         | `<property-name>`                                                                                           |
+| `transition-property` | Sets which properties will animate on change.         | `<property-name>`, `layout`                                                                                 |
 
 > The following properties will be transitioned by default `opacity`, `translate`, `rotate`, `scale`, `filter`, `backdrop-filter`, `mix-blend-mode`, `box-shadow`, `color`, `background-color`, `border-color`, `text-decoration-color`.
 >
@@ -415,7 +415,28 @@ For full keyframed motion sequences, see [Animation](#animation) below.
 >
 > - For example, if `transition-property` is set to `background-color, opacity` and `transition-duration` is set to `0.5s, 1s`, the background-color will fade over 0.5 seconds while the opacity fades over 1 second.
 
-> Transitions only work for numeric or color-based properties — they won't animate layout changes like display or visibility.
+> Transitions only work for numeric or color-based properties — they won't animate `display` or `visibility`.
+
+### Animating place and size with `layout`
+
+Name `layout` in an element's transition to animate any change in its place or size, whatever caused it: its text grew, a sibling was added, removed or moved above it, or a style changed its size. `layout` takes its own duration, easing and delay, wherever a transition names a property.
+
+```sparkdown
+style frame {
+  transition = layout 0.2s cubic-bezier(0.3, 1.6, 0.55, 1)
+}
+
+style line {
+  transition-property = opacity, layout
+  transition-duration = 0.4s
+}
+```
+
+A box that fits its text grows to each new line's height, and lines in a column slide to make room for a new one instead of jumping.
+
+- The element's real size changes during the motion, so its text, borders and corners keep their shape. A change of place is drawn with `translate`.
+- The motion runs on the game's clock: pausing, stepping and scrubbing hold it.
+- The editor preview on a line, a step back, a loaded save and skipping show the new place and size at once, and so does the reader's reduced-motion setting.
 
 ---
 

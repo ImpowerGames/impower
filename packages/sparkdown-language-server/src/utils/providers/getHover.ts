@@ -22,6 +22,7 @@ import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { getStyleValueDescription } from "./styleValueDescriptions";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
 import {
   MarkupKind,
@@ -65,6 +66,41 @@ const getLayoutControlHover = (
       value: LAYOUT_CONTROL_DESCRIPTIONS[verb],
     },
     range: document.range(control.from, control.to),
+  };
+};
+
+const getStyleValueHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const line = document.getLineText(position.line);
+  const isWordChar = (ch: string | undefined) => !!ch && /[\w-]/.test(ch);
+  let start = position.character;
+  let end = position.character;
+  while (isWordChar(line[start - 1])) start -= 1;
+  while (isWordChar(line[end])) end += 1;
+  const word = line.slice(start, end);
+  if (!word) {
+    return null;
+  }
+  const stack = getStack<SparkdownNodeName>(tree, document.offsetAt(position), 1);
+  const value = stack.find((node) => node.name === "StylingValue");
+  const property = stack.find((node) => node.name === "LuauStructBlockProperty");
+  if (!value || !property) {
+    return null;
+  }
+  const key = /^\s*([\w-]+)\s*=\s*$/.exec(document.read(property.from, value.from))?.[1];
+  const description = key ? getStyleValueDescription(key, word) : undefined;
+  if (!description) {
+    return null;
+  }
+  return {
+    contents: description,
+    range: {
+      start: { line: position.line, character: start },
+      end: { line: position.line, character: end },
+    },
   };
 };
 
@@ -267,6 +303,10 @@ export const getHover = async (
     const layoutControlHover = getLayoutControlHover(document, tree, position);
     if (layoutControlHover) {
       return layoutControlHover;
+    }
+    const styleValueHover = getStyleValueHover(document, tree, position);
+    if (styleValueHover) {
+      return styleValueHover;
     }
     const morphFieldHover = getMorphFieldHover(document, tree, position);
     if (morphFieldHover) {
