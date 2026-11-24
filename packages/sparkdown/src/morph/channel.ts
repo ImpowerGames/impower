@@ -13,7 +13,7 @@ import { resolveImageAttributes } from "../compiler/utils/filterImage";
 import { resolveImageReference } from "../compiler/utils/resolveImageReference";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
-import { layeredMorphArtwork, layeredSizeMismatches, type LayeredSizeMismatch } from "./layered";
+import { layeredMorphArtwork, layeredSizeCheck, type LayeredSizeCheck } from "./layered";
 import { own, table } from "./own";
 import { buildMorphRecipe, morphOverlaps, morphRestPose, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
 import { MORPH_BAKE_FORMAT, MORPH_PICK_NONE, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
@@ -136,7 +136,7 @@ function makeRefs(
 export function buildMorphChannel(
   context: Context,
   morphs: ReadonlyMap<string, Record<string, unknown>>,
-  onSizeMismatch?: (picture: string, mismatches: LayeredSizeMismatch[]) => void,
+  onLayeredPicture?: (picture: string, check: LayeredSizeCheck) => void,
 ): MorphProgramChannel | undefined {
   if (morphs.size === 0) return undefined;
   const channel: MorphProgramChannel = { recipes: table(), variants: table() };
@@ -168,10 +168,9 @@ export function buildMorphChannel(
   const checked = new Set<string>();
   for (const [variant, { image, type, selection, members }] of playing) {
     const struct = own(context[type], image);
-    if (type === "layered_image" && onSizeMismatch && !checked.has(image)) {
+    if (type === "layered_image" && onLayeredPicture && !checked.has(image)) {
       checked.add(image);
-      const mismatches = layeredSizeMismatches(context, struct);
-      if (mismatches.length > 0) onSizeMismatch(image, mismatches);
+      onLayeredPicture(image, layeredSizeCheck(context, struct));
     }
     const refsFor = (pick: string | undefined) =>
       makeRefs(context, chooseSpeechMorphs(choiceMembers(members), channel.speech, pick).chosen, image, struct, selection);
