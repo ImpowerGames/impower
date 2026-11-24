@@ -64,6 +64,37 @@ const subDirectoryTiff = (rootOrientation?: number) => {
   return bytes;
 };
 
+const twoOrientations = (first: number, second: number) => {
+  const bytes = new Uint8Array(38);
+  bytes.set(tiff(first));
+  bytes[8] = 2;
+  bytes.set(tiff(second).slice(10, 22), 22);
+  return bytes;
+};
+const rootAndSubDirectory = (rootOrientation: number, subDirectoryFirst: boolean) => {
+  const bytes = new Uint8Array(70);
+  bytes.set(tiff(rootOrientation));
+  bytes[8] = 2;
+  const pointer = new Uint8Array(12);
+  const view = new DataView(pointer.buffer);
+  view.setUint16(0, 0x8769, true);
+  view.setUint16(2, 4, true);
+  view.setUint32(4, 1, true);
+  view.setUint32(8, 40, true);
+  bytes.set(pointer, 22);
+  if (subDirectoryFirst) {
+    bytes.set(bytes.slice(10, 22), 22);
+    bytes.set(pointer, 10);
+  }
+  bytes.set(tiff(6).slice(8), 40);
+  return bytes;
+};
+const flipLastByte = (bytes: Uint8Array, fromEnd = 1) => {
+  const copy = bytes.slice();
+  copy[copy.length - fromEnd]! ^= 0xff;
+  return copy;
+};
+
 const app = (marker: number, data: Uint8Array) => cat(new Uint8Array([255, marker, (data.length + 2) >> 8, (data.length + 2) & 255]), data);
 const exifHeader = new Uint8Array([69, 120, 105, 102, 0, 0]);
 const exif = (tiffBytes: Uint8Array) => app(0xe1, cat(exifHeader, tiffBytes));
@@ -216,6 +247,23 @@ export function imageSizeFixtures(): ImageSizeFixture[] {
     jpg("jpeg-garbage-after-frame-before-exif", insert(jpeg, afterFrame, cat(new Uint8Array([18, 52, 86]), exif(tiff(6)))), TURNED),
     jpg("jpeg-ff00-after-frame-before-exif", insert(jpeg, afterFrame, cat(new Uint8Array([255, 0, 18]), exif(tiff(6)))), TURNED),
     jpg("jpeg-exif-after-scan", insert(jpeg, jpeg.length - 2, exif(tiff(6))), UPRIGHT),
+    jpg("jpeg-duplicate-orientation-1-6", insert(jpeg, 2, exif(twoOrientations(1, 6))), UPRIGHT),
+    jpg("jpeg-duplicate-orientation-6-1", insert(jpeg, 2, exif(twoOrientations(6, 1))), TURNED),
+    jpg("jpeg-duplicate-orientation-0-6", insert(jpeg, 2, exif(twoOrientations(0, 6))), TURNED),
+    jpg("jpeg-root-1-sub-6-sub-first", insert(jpeg, 2, exif(rootAndSubDirectory(1, true))), TURNED),
+    jpg("jpeg-root-0-sub-6", insert(jpeg, 2, exif(rootAndSubDirectory(0, false))), TURNED),
+    jpg("jpeg-root-9-sub-6", insert(jpeg, 2, exif(rootAndSubDirectory(9, false))), TURNED),
+    jpg("jpeg-raster-with-svg-text-unsettled", insert(jpeg, afterFrame, cat(app(0xe2, cat(ascii('<svg width="12" height="13">'), new Uint8Array(65470))), exif(tiff(6)))), TURNED, null),
+    ...[0xc1, 0xc3, 0xc9].map((marker) => {
+      const bytes = jpeg.slice();
+      bytes[afterFrame - 19 + 1] = marker;
+      return jpg(`jpeg-frame-${marker.toString(16)}`, bytes, UPRIGHT);
+    }),
+    ...[0xc5, 0xcd].map((marker) => {
+      const bytes = jpeg.slice();
+      bytes[afterFrame - 19 + 1] = marker;
+      return jpg(`jpeg-frame-${marker.toString(16)}`, bytes, null);
+    }),
     jpg("jpeg-progressive", progressive, UPRIGHT),
     jpg("jpeg-progressive-exif-after-frame", insert(progressive, afterProgressiveFrame, exif(tiff(6))), TURNED),
     jpg("jpeg-progressive-encoder-exif", decode64(PROGRESSIVE_TURNED_JPEG_BASE64), TURNED),
@@ -226,6 +274,15 @@ export function imageSizeFixtures(): ImageSizeFixture[] {
     pngFixture("png-text-past-limit-no-exif", insert(png, 33, pngChunk("tEXt", cat(ascii("note"), new Uint8Array(65500)))), UPRIGHT, null),
     pngFixture("png-invalid-tag-type", insert(png, 33, pngChunk("eXIf", tiff(6, 1))), UPRIGHT),
     pngFixture("png-two-exif-1-6", insert(png, 33, cat(pngChunk("eXIf", tiff(1)), exifChunk)), UPRIGHT),
+    pngFixture("png-duplicate-orientation-1-6", insert(png, 33, pngChunk("eXIf", twoOrientations(1, 6))), UPRIGHT),
+    pngFixture("png-duplicate-orientation-6-1", insert(png, 33, pngChunk("eXIf", twoOrientations(6, 1))), TURNED),
+    pngFixture("png-root-1-sub-6-sub-first", insert(png, 33, pngChunk("eXIf", rootAndSubDirectory(1, true))), TURNED),
+    pngFixture("png-root-0-sub-6", insert(png, 33, pngChunk("eXIf", rootAndSubDirectory(0, false))), TURNED),
+    pngFixture("png-exif-bad-crc", insert(png, 33, flipLastByte(exifChunk)), UPRIGHT),
+    pngFixture("png-exif-bad-crc-then-valid-exif", insert(png, 33, cat(flipLastByte(exifChunk), exifChunk)), TURNED),
+    pngFixture("png-exif-bad-crc-then-upright-exif", insert(png, 33, cat(flipLastByte(exifChunk), pngChunk("eXIf", tiff(1)))), UPRIGHT),
+    pngFixture("png-exif-crc-past-limit", insert(png, 33, cat(pngChunk("tEXt", cat(ascii("note"), new Uint8Array(65451))), flipLastByte(exifChunk))), UPRIGHT, null),
+    pngFixture("png-raster-with-svg-text-unsettled", insert(png, 33, cat(pngChunk("tEXt", cat(ascii('source<svg width="12" height="13">'), new Uint8Array(65500))), exifChunk)), TURNED, null),
     pngFixture("apng-exif-before-idat", insert(png, 33, cat(pngChunk("acTL", actl), pngChunk("fcTL", fctl), exifChunk)), TURNED),
     fixture("webp-vp8", "image/webp", webp(...vp8), UPRIGHT),
     fixture("webp-vp8x-no-exif", "image/webp", lossy, UPRIGHT),

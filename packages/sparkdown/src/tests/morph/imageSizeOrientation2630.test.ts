@@ -51,10 +51,24 @@ const jpeg = (width: number, height: number, exif?: Uint8Array, exifAfterFrame =
   return exifAfterFrame ? jpegOf(sof(width, height), app1, sos) : jpegOf(app1, sof(width, height), sos);
 };
 
-const chunk = (type: string, data: Uint8Array | number[]) => {
-  const bytes = [...data];
-  const length = bytes.length;
-  return [length >>> 24, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff, ...Array.from(type).map((c) => c.charCodeAt(0)), ...bytes, 0, 0, 0, 0];
+const crc32 = (bytes: number[]) => {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+const chunk = (type: string, data: Uint8Array | number[], badCrc = false) => {
+  const body = [...Array.from(type).map((c) => c.charCodeAt(0)), ...data];
+  const length = body.length - 4;
+  const crc = crc32(body) ^ (badCrc ? 1 : 0);
+  return [
+    length >>> 24, (length >>> 16) & 0xff, (length >>> 8) & 0xff, length & 0xff,
+    ...body,
+    crc >>> 24, (crc >>> 16) & 0xff, (crc >>> 8) & 0xff, crc & 0xff,
+  ];
 };
 
 const png = (width: number, height: number, before: number[][], after: number[][] = []) => {
@@ -141,6 +155,43 @@ describe("a picture's size as the browser draws it, read from its header (#2630)
     expect(header(png(40, 30, [], [exif]))).toEqual(UPRIGHT);
     expect(header(png(40, 30, [chunk("eXIf", tiff(1))]))).toEqual(UPRIGHT);
     expect(header(png(40, 30, [chunk("eXIf", tiff(1)), exif]))).toEqual(UPRIGHT);
+  });
+
+  test("a PNG eXIf chunk whose CRC is wrong is skipped, and the next good one counts", () => {
+    expect(header(png(40, 30, [chunk("eXIf", tiff(6), true)]))).toEqual(UPRIGHT);
+    expect(header(png(40, 30, [chunk("eXIf", tiff(6), true), chunk("eXIf", tiff(6))]))).toEqual(TURNED);
+    expect(header(png(40, 30, [chunk("eXIf", tiff(6), true), chunk("eXIf", tiff(1))]))).toEqual(UPRIGHT);
+  });
+
+  test("the first valid orientation in the decoder's order counts, through the Exif sub-directory too", () => {
+    const twoOrientations = (first: number, second: number) => {
+      const bytes = new Uint8Array(38);
+      bytes.set(tiff(first));
+      bytes[8] = 2;
+      bytes.set(tiff(second).slice(10, 22), 22);
+      return bytes;
+    };
+    expect(header(jpeg(40, 30, twoOrientations(1, 6)))).toEqual(UPRIGHT);
+    expect(header(jpeg(40, 30, twoOrientations(6, 1)))).toEqual(TURNED);
+    expect(header(jpeg(40, 30, twoOrientations(0, 6)))).toEqual(TURNED);
+    expect(header(jpegOf(exifSegment(subDirectoryTiff(0, 6)), sof(40, 30), sos))).toEqual(TURNED);
+    expect(header(jpegOf(exifSegment(subDirectoryTiff(9, 6)), sof(40, 30), sos))).toEqual(TURNED);
+  });
+
+  test("a raster file whose size cannot be settled is never read as SVG text it carries", () => {
+    const svgText = Array.from('<svg width="12" height="13">').map((c) => c.charCodeAt(0));
+    const big = segment(0xe2, [...svgText, ...new Array(65470).fill(0)]);
+    expect(header(jpegOf(sof(40, 30), big, exifSegment(tiff(6)), sos))).toBeUndefined();
+    const note = chunk("tEXt", [...svgText, ...new Array(65500).fill(0)]);
+    expect(header(png(40, 30, [note, chunk("eXIf", tiff(6))]))).toBeUndefined();
+  });
+
+  test("a hierarchical JPEG frame, which the browser does not decode, has no size", () => {
+    for (const marker of [0xc5, 0xc6, 0xc7, 0xcd, 0xce, 0xcf]) {
+      const frame = sof(40, 30);
+      frame[1] = marker;
+      expect(header(jpegOf(frame, sos))).toBeUndefined();
+    }
   });
 
   test("a PNG whose image data starts past the bytes read has no size", () => {
