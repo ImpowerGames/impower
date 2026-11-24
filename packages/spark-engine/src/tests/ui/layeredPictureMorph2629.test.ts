@@ -156,4 +156,23 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(ui.getBackgroundImageFromString("kit", undefined, "none")).toBe("none");
     expect(ui.getBackgroundImageFromString("teal", undefined, "none")).toBe("linear-gradient(teal)");
   });
+
+  test("a named image that shows no layer paints none without a pick too, and is still an image, not a video", async () => {
+    const files = [
+      { uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" },
+      { uri: "inmemory:///base_file.png", type: "image", name: "base_file", ext: "png", src: "/src/base_file.png" },
+    ] as any[];
+    const source = `define kit as layered_image with\n  assets = {\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const harness = createHarness(source, 0, { assets: files });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    const ui = (harness.game as any).module.ui;
+    expect(ui.getImageSrcsByName("kit")).toBeNull();
+    expect(ui.getBackgroundImageFromString("kit")).toBe("none");
+    expect(ui.getBackgroundImageFromValue({ $name: "kit" })).toBe("none");
+    expect(ui.getBackgroundImageFromString("kit", ui.morphStartPose)).toBe("none");
+    expect(ui.getVideoSrcByName("kit")).toBeUndefined();
+    expect(["kit", "base_file"].map((asset) => ui.getBackgroundImageFromString(asset)).reverse().join(", ")).toBe('url("/src/base_file.png"), none');
+    expect(ui.getImageUrlsFromBackground(ui.getBackgroundImageFromString("kit"))).toEqual([]);
+  });
 });
