@@ -258,4 +258,17 @@ describe("a portrait folder with layer folders", () => {
     expect(variantOf(one(sleepy), { face: "happy", eyes: "open" })).toEqual({ image: "mia", attributes: ["happy", "open"] });
     expect(variantOf(one(sleepy), { face: "happy", eyes: "closed" })).toEqual({ image: "mia", attributes: ["happy"] });
   });
+
+  it("rests a group on the nearest folder's option over the portrait folder's own, as the game does", () => {
+    const sleepy = [
+      ...NESTED.map((path) =>
+        path
+          .replace("happy/40 pupils eyes.open default", "happy/40 pupils eyes.open")
+          .replace("happy/40 lids eyes.closed", "happy/40 lids eyes.closed default"),
+      ),
+      `${MIA}/95 whites eyes.open default.png`,
+    ];
+    expect(summary(sleepy, { face: "happy" }).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "closed"]);
+    expect(summary(sleepy).find(([key]) => key === "eyes")).toEqual(["eyes", ["open", "closed"], "open"]);
+  });
 });

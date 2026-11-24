@@ -3,7 +3,11 @@ import {
   type ImagePicture,
   type ImageThing,
 } from "@impower/sparkdown/src/attributes/imageFileName";
-import { rasterLayerOfPath, type RasterLayerPath } from "@impower/sparkdown/src/attributes/rasterSource";
+import {
+  byRasterStacking,
+  rasterLayerInputs,
+  rasterLayerOfPath,
+} from "@impower/sparkdown/src/attributes/rasterSource";
 import type { AttributeLayerInput, AttributeVocabulary } from "@impower/sparkdown/src/attributes/types";
 import { evaluateAttributeVisibility } from "@impower/sparkdown/src/attributes/visibility";
 import { ATTRIBUTE_ROOT, buildAttributeVocabulary } from "@impower/sparkdown/src/attributes/vocabulary";
@@ -73,14 +77,25 @@ export const restingOptions = (
   selection: Readonly<Record<string, string>> = {},
 ): Record<string, string> => {
   const { visible } = evaluateAttributeVisibility(vocabulary, { ...selection });
-  const resting: Record<string, string> = Object.create(null);
+  const depthOf = (key: string): number => {
+    let depth = 0;
+    for (let parent = vocabulary.folders[key]?.parent; parent !== undefined; parent = vocabulary.folders[parent]?.parent) {
+      depth++;
+    }
+    return depth;
+  };
+  const resting: Record<string, { option: string; depth: number }> = Object.create(null);
   for (const [key, scope] of Object.entries(vocabulary.folders)) {
     if (key !== ATTRIBUTE_ROOT && !visible[key]) continue;
+    const depth = depthOf(key);
     for (const [group, options] of Object.entries(scope.defaults)) {
-      if (!Object.hasOwn(resting, group) && options[0] !== undefined) resting[group] = options[0];
+      const held = resting[group];
+      if (options[0] !== undefined && (held === undefined || depth > held.depth)) {
+        resting[group] = { option: options[0], depth };
+      }
     }
   }
-  return resting;
+  return Object.fromEntries(Object.entries(resting).map(([group, { option }]) => [group, option]));
 };
 
 const groupsOf = (vocabulary: AttributeVocabulary): StackGroup[] => {
@@ -159,56 +174,8 @@ const stackOf = (folder: string, thing: ImageThing): ImageStack => {
   };
 };
 
-interface FolderLayer {
-  path: string;
-  layer: RasterLayerPath;
-}
-
-const stackingItemOf = ({ path, layer }: FolderLayer, depth: number) => {
-  const folder = layer.folders[depth];
-  return folder
-    ? { segment: folder.segment, order: folder.order, path: path.split("/").slice(0, depth - layer.folders.length).join("/") }
-    : { segment: undefined, order: layer.order, path };
-};
-
-const byStacking = (a: FolderLayer, b: FolderLayer): number => {
-  for (let depth = 0; ; depth++) {
-    const x = stackingItemOf(a, depth);
-    const y = stackingItemOf(b, depth);
-    if (x.segment === undefined || x.segment !== y.segment) {
-      return y.order - x.order || x.path.localeCompare(y.path);
-    }
-  }
-};
-
-const folderKeyOf = (layer: RasterLayerPath, depth: number): string =>
-  `/${layer.folders.slice(0, depth).map((folder) => folder.segment).join("/")}`;
-
-const folderInputs = (layers: readonly FolderLayer[]): AttributeLayerInput[] => {
-  const inputs: AttributeLayerInput[] = [];
-  const seen = new Set<string>();
-  layers.forEach(({ layer }, index) => {
-    for (let depth = 1; depth <= layer.folders.length; depth++) {
-      const key = folderKeyOf(layer, depth);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      inputs.push({
-        key,
-        name: layer.folders[depth - 1]!.name,
-        ...(depth > 1 ? { parent: folderKeyOf(layer, depth - 1) } : {}),
-      });
-    }
-    inputs.push({
-      key: String(index),
-      name: layer.name,
-      ...(layer.folders.length ? { parent: folderKeyOf(layer, layer.folders.length) } : {}),
-    });
-  });
-  return inputs;
-};
-
 const folderStackOf = (directory: string, paths: string[]): ImageStack => {
-  const layers = paths.map((path) => ({ path, layer: rasterLayerOfPath(path)! })).sort(byStacking);
+  const layers = paths.map((path) => ({ path, layer: rasterLayerOfPath(path)! })).sort(byRasterStacking);
   const members = layers.map(({ path, layer }) => ({
     path,
     alternate: null,
@@ -221,7 +188,7 @@ const folderStackOf = (directory: string, paths: string[]): ImageStack => {
     name,
     undefined,
     members.map((member) => member.path),
-    folderInputs(layers),
+    rasterLayerInputs(layers.map(({ layer }) => layer)),
   );
   return {
     kind: "folder",
