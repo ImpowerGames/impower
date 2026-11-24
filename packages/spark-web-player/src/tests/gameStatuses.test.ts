@@ -68,7 +68,7 @@ describe("the player's computed statuses", () => {
 
     controller.setCompletionStatus("showing");
     expect(latest()!.completion).toEqual({
-      text: "Previewing suggestion",
+      text: "Previewing",
       status: "showing",
     });
     controller.setCompletionStatus(null);

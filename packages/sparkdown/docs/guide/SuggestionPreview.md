@@ -14,7 +14,7 @@ The preview shows the scene your cursor is in, as it does while you type. It doe
 
 While a suggestion is being prepared, the last picture stays on screen. If preparing takes a moment, the preview's toolbar says "Preparing suggestion preview…".
 
-While a suggestion is on screen, the toolbar says "Previewing suggestion", so you can tell the picture is not your script yet.
+While a suggestion is on screen, the toolbar says "Previewing", so you can tell the picture is not your script yet.
 
 If a suggestion cannot be previewed, for example because the script would not run with it, the last picture stays on screen and the toolbar says "Cannot preview this suggestion yet — showing the last valid preview". Highlighting another suggestion, or editing the script, tries again.
 

@@ -123,6 +123,7 @@ export type ToolPanelProps = {
   title: string;
   closeButton?: ToolPanelCloseButton;
   anchoring?: ToolPanelAnchoring;
+  width?: number;
   chrome?: ToolPanelChrome;
   closeLabel?: string;
   onClose: (reason: ToolPanelCloseReason) => void;
@@ -253,6 +254,7 @@ export function ToolPanel({
   title,
   closeButton = "heading",
   anchoring = "bar",
+  width,
   chrome = "heading",
   closeLabel = "Close writing tools",
   onClose,
@@ -371,6 +373,7 @@ export function ToolPanel({
       side="top"
       {...POPOVER_PLACEMENT[anchoring]}
       class="max-h-[min(var(--radix-popover-content-available-height),640px)]"
+      style={width === undefined ? undefined : { "--popover-width": `${width}px` }}
       aria-label={title}
       data-tool-panel={panel}
       onEscapeKeyDown={(event) => {

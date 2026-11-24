@@ -230,6 +230,7 @@ export default function AddPanel({ filename, canEdit }: AddPanelProps) {
         closeLabel={CLOSE_LABEL}
         closeButton="trigger"
         anchoring="trigger"
+        width={340}
         onClose={close}
         onBack={picker ? () => back(picker) : undefined}
         backLabel={BACK_LABEL}

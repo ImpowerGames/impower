@@ -23,12 +23,14 @@ export function FormButton({
   name,
   label,
   title,
+  size = "glyph",
   disabled,
   onClick,
   children,
 }: {
   name: string;
   label: string;
+  size?: ButtonSize;
   title?: string;
   disabled?: boolean;
   onClick: () => void;
@@ -37,7 +39,7 @@ export function FormButton({
   return (
     <Button
       variant="quiet"
-      size="glyph"
+      size={size}
       class="text-muted"
       name={name}
       aria-label={label}

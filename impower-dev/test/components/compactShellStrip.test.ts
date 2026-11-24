@@ -241,13 +241,12 @@ describe("the compact layout", () => {
     expect(railWidth()).toBe("76px");
   });
 
-  it("lets the project choose the 190px rail in a 768px window", async () => {
+  it("lets the project choose the 190px rail in a 1024px window", async () => {
     const clientWidth = vi
       .spyOn(HTMLElement.prototype, "clientWidth", "get")
       .mockImplementation(() => width);
     try {
-      await mount(768);
-      expect(railWidth()).toBe("76px");
+      await mount(1024);
       await act(async () => {
         workspace.current = {
           ...workspace.current,
@@ -256,8 +255,27 @@ describe("the compact layout", () => {
       });
       await settle();
       expect(railWidth()).toBe("190px");
-      await resize(701);
-      expect(railWidth()).toBe("190px");
+      expect(host!.querySelector<HTMLElement>('[role="separator"][aria-label="Resize sidebar"]')!.hidden).toBe(false);
+    } finally {
+      clientWidth.mockRestore();
+    }
+  });
+
+  it("offers only the 76px icon rail, with no handle, in a 768px window, even when the project chose 190px (I-2716)", async () => {
+    const clientWidth = vi
+      .spyOn(HTMLElement.prototype, "clientWidth", "get")
+      .mockImplementation(() => width);
+    try {
+      await mount(768);
+      await act(async () => {
+        workspace.current = {
+          ...workspace.current,
+          shell: { railCompactWidth: 190 },
+        };
+      });
+      await settle();
+      expect(railWidth()).toBe("76px");
+      expect(host!.querySelector<HTMLElement>('[role="separator"][aria-label="Resize sidebar"]')!.hidden).toBe(true);
     } finally {
       clientWidth.mockRestore();
     }

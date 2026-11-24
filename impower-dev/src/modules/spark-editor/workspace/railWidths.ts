@@ -12,7 +12,7 @@ export const RAIL_WIDTH = {
 export const RAIL_COMPACT_WIDTH = {
   full: 190,
   collapsed: 76,
-  reserve: 280,
+  reserve: RAIL_WIDTH.reserve,
 } as const;
 
 export const searchWidensRail = (

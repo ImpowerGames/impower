@@ -109,6 +109,7 @@ export default function SidebarLayout({
   };
   const current = collapsibleSize(pending ?? width ?? defaultWidth, limits);
   const collapsed = current === collapsedWidth;
+  const resizable = limits.max >= minWidth;
 
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) {
@@ -189,7 +190,7 @@ export default function SidebarLayout({
         <div class="col-span-2 row-start-3 min-w-0">{footer}</div>
       </SidebarCollapsedContext.Provider>
       <div
-        hidden={sidebarHidden}
+        hidden={sidebarHidden || !resizable}
         role="separator"
         tabIndex={0}
         aria-label={resizeLabel}

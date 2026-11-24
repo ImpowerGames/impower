@@ -46,28 +46,30 @@ export default function RowMenu({ name, main, onAction }: RowMenuProps) {
             Select
           </DropdownItem>
         )}
-        {!main && (
-          <DropdownItem returnFocus={false} onSelect={() => onAction("rename")}>
-            <PencilPlainIcon class="text-muted" />
-            Rename
-          </DropdownItem>
-        )}
-        {!main && (
-          <DropdownItem onSelect={() => onAction("move")}>
-            <FolderIcon class="text-muted" />
-            Move…
-          </DropdownItem>
-        )}
+        <DropdownItem
+          returnFocus={false}
+          disabled={main}
+          onSelect={() => onAction("rename")}
+        >
+          <PencilPlainIcon class="text-muted" />
+          Rename
+        </DropdownItem>
+        <DropdownItem disabled={main} onSelect={() => onAction("move")}>
+          <FolderIcon class="text-muted" />
+          Move
+        </DropdownItem>
         <DropdownItem onSelect={() => onAction("download")}>
           <DownloadIcon class="text-muted" />
           Download
         </DropdownItem>
-        {!main && (
-          <DropdownItem class="text-error" onSelect={() => onAction("delete")}>
-            <TrashIcon class="text-muted" />
-            Delete
-          </DropdownItem>
-        )}
+        <DropdownItem
+          class="text-error"
+          disabled={main}
+          onSelect={() => onAction("delete")}
+        >
+          <TrashIcon class="text-muted" />
+          Delete
+        </DropdownItem>
       </DropdownContent>
     </DropdownRoot>
   );

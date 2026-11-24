@@ -162,6 +162,7 @@ function Picture({
     return (
       <Thumbnail
         size={fill ? "fill" : "card"}
+        surface="paper"
         class={place}
         glyph={<row.Icon />}
       />
@@ -178,7 +179,12 @@ function Picture({
     );
   }
   return (
-    <Thumbnail size={fill ? "fill" : "card"} class={place} src={src} />
+    <Thumbnail
+      size={fill ? "fill" : "card"}
+      surface="paper"
+      class={place}
+      src={src}
+    />
   );
 }
 

@@ -32,7 +32,7 @@ const facts = { modified: 1, size: 10 };
 const ICONS: Record<string, string> = {
   Select: '<rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="m8 12 3 3 5-6"></path>',
   Rename: '<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"></path>',
-  "Move…": '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
+  Move: '<path d="M3 7V5h7l2 2h9v13H3z"></path>',
   Download: '<path d="M12 3v12m-5-5 5 5 5-5M4 21h16"></path>',
   Delete: '<path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"></path>',
 };
@@ -113,7 +113,7 @@ describe("the Scripts page's row menu offers the prototype's entries but Duplica
         folders: ["Scripts", "Scripts/Drafts"],
       };
       const items = await open("Drafts", pointerType);
-      expect(items.map((item) => item.textContent?.trim())).toEqual(["Select", "Rename", "Move…", "Download", "Delete"]);
+      expect(items.map((item) => item.textContent?.trim())).toEqual(["Select", "Rename", "Move", "Download", "Delete"]);
     });
 
     it(`starts selecting with the row picked when Select is chosen under ${pointerType} (I-2521)`, async () => {
@@ -130,9 +130,12 @@ describe("the Scripts page's row menu offers the prototype's entries but Duplica
     });
   }
 
-  it("keeps Main's menu to Download alone, muted, with no separator", async () => {
+  it("shows Main's Rename, Move and Delete disabled beside Download, in the prototype's order, with no Select, Duplicate or separator (I-2716)", async () => {
     const items = await open("Main", "mouse");
-    expect(items.map((item) => item.textContent?.trim())).toEqual(["Download"]);
+    expect(items.map((item) => item.textContent?.trim())).toEqual(["Rename", "Move", "Download", "Delete"]);
+    expect(
+      items.filter((item) => item.hasAttribute("data-disabled")).map((item) => item.textContent?.trim()),
+    ).toEqual(["Rename", "Move", "Delete"]);
     expect(all('[role="separator"]')).toEqual([]);
     for (const item of items) {
       expect(item.querySelector("svg")!.getAttribute("class") ?? "").toContain("text-muted");

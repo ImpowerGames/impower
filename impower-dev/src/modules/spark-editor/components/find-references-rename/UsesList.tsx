@@ -16,7 +16,7 @@ function Snippet({ use }: { use: SearchUse }) {
   return (
     <span class="block font-mono text-[13px]/[1.4] [--fade:20px] fade-edge">
       {text.slice(0, from)}
-      <mark class="rounded-[3px] bg-accent/25 text-ink">
+      <mark class="rounded-[3px] bg-[var(--editor-symbol-highlight)] text-inherit">
         {text.slice(from, to)}
       </mark>
       {text.slice(to)}
@@ -64,11 +64,13 @@ export default function UsesList({
   groups,
   current,
   layout = "grouped",
+  rows = "default",
   onOpen,
 }: {
   groups: readonly SearchGroup[];
   current?: { uri: string; range: Range };
   layout?: "grouped" | "lines";
+  rows?: "default" | "rail";
   onOpen: (use: SearchUse) => void;
 }) {
   if (layout === "lines") {
@@ -88,7 +90,8 @@ export default function UsesList({
             {group.uses.map((use) => (
               <li
                 key={`${use.range.start.line}:${use.range.start.character}`}
-                class="h-11"
+                data-rows={rows}
+                class="h-11 data-[rows=rail]:h-[34px] data-[rows=rail]:[--list-row-compact-gap:8px] data-[rows=rail]:[--list-row-compact-height:34px] data-[rows=rail]:pointer-coarse:h-11 data-[rows=rail]:pointer-coarse:[--list-row-compact-height:2.75rem]"
               >
                 <ListRow
                   size="compact"
