@@ -80,6 +80,7 @@ function Page() {
       {bar(!bottom)}
       <div class="flex-1" />
       {bottom ? bar(true) : null}
+      {options.has("scroll") ? <div data-spacer style="height:3000px;flex:none" /> : null}
     </div>
   );
 }

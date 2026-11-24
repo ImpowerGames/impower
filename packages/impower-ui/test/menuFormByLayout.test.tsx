@@ -338,3 +338,193 @@ describe.skipIf(!browserAvailable)("a menu's form follows the layout, whatever o
     });
   });
 });
+
+const UNDERNEATH_EVENTS = [
+  "pointerover",
+  "pointerenter",
+  "pointerdown",
+  "pointermove",
+  "pointerup",
+  "pointercancel",
+  "pointerout",
+  "pointerleave",
+  "touchstart",
+  "touchmove",
+  "touchend",
+  "touchcancel",
+  "mouseover",
+  "mouseenter",
+  "mousemove",
+  "mousedown",
+  "mouseup",
+  "mouseout",
+  "mouseleave",
+  "click",
+  "dblclick",
+  "auxclick",
+  "contextmenu",
+  "focus",
+  "focusin",
+] as const;
+
+const SURFACES = {
+  "the modal Dropdown": { options: [] as string[], open: () => '[role="menu"]' },
+  "the non-modal panel": { options: ["panel"], open: () => "[data-panel]" },
+} as const;
+
+type Surface = keyof typeof SURFACES;
+
+const MOUSE_OUTSIDE: Record<Surface, string[]> = {
+  "the modal Dropdown": ["pointerover", "pointerenter", "mouseover", "mouseenter", "pointerup", "mouseup"],
+  "the non-modal panel": [
+    "pointerover",
+    "pointerenter",
+    "mouseover",
+    "mouseenter",
+    "pointermove",
+    "mousemove",
+    "pointerdown",
+    "mousedown",
+    "focus",
+    "focusin",
+    "pointerup",
+    "mouseup",
+    "click",
+  ],
+};
+
+const HOVER_ENTRY = ["pointerover", "pointerenter", "pointermove", "mouseover", "mouseenter", "mousemove"];
+
+const HOVER = [...HOVER_ENTRY, "pointerout", "pointerleave", "mouseout", "mouseleave"];
+
+const recordUnderneath = (page: Page) =>
+  page.evaluateHandle((types) => {
+    const log: string[] = [];
+    const heard = { beforePress: [] as string[], fromPress: [] as string[], log };
+    let pressed = false;
+    window.addEventListener("pointerdown", () => {
+      pressed = true;
+    }, true);
+    const left = document.querySelector("[data-left]")!;
+    for (const type of types) {
+      left.addEventListener(type, () => {
+        log.push(type);
+        (pressed ? heard.fromPress : heard.beforePress).push(type);
+      });
+    }
+    return heard;
+  }, [...UNDERNEATH_EVENTS]);
+
+const surfaceOpen = (page: Page, surface: Surface) =>
+  page.evaluate((selector) => !!document.querySelector(selector), SURFACES[surface].open());
+
+const leftCentre = async (page: Page) => {
+  const left = (await boxes(page)).left!;
+  return { x: left.left + left.width / 2, y: left.top + left.height / 2 };
+};
+
+const penTap = async (page: Page, x: number, y: number) => {
+  const cdp = await page.context().newCDPSession(page);
+  for (const type of ["mouseMoved", "mousePressed", "mouseReleased"] as const) {
+    await cdp.send("Input.dispatchMouseEvent", {
+      type,
+      x,
+      y,
+      button: type === "mouseMoved" ? "none" : "left",
+      buttons: type === "mousePressed" ? 1 : 0,
+      clickCount: type === "mouseMoved" ? 0 : 1,
+      pointerType: "pen",
+    });
+  }
+  await cdp.detach();
+};
+
+const openSurface = async (page: Page, surface: Surface) => {
+  await page.locator("[data-trigger]").tap();
+  await page.waitForTimeout(300);
+  expect(await surfaceOpen(page, surface), `${surface} opened`).toBe(true);
+};
+
+describe.skipIf(!browserAvailable)("a tap outside an open surface only closes it, in a browser", () => {
+  test.each(
+    (Object.keys(SURFACES) as Surface[]).flatMap((surface) =>
+      [768, 1440].flatMap((width) => (["touch", "pen"] as const).map((input) => [surface, width, input] as const)),
+    ),
+  )("%s at %ipx wide: a %s tap outside closes it and the control under it hears none of the tap's events", async (surface, width, input) => {
+    await withPage(width, [...SURFACES[surface].options], async (page) => {
+      await openSurface(page, surface);
+      const heard = await recordUnderneath(page);
+      const { x, y } = await leftCentre(page);
+      if (input === "touch") {
+        await page.touchscreen.tap(x, y);
+      } else {
+        await penTap(page, x, y);
+      }
+      await page.waitForTimeout(500);
+      expect(await surfaceOpen(page, surface), "the surface closed").toBe(false);
+      const { beforePress, fromPress } = await heard.evaluate(({ beforePress, fromPress }) => ({ beforePress: [...new Set(beforePress)], fromPress: [...new Set(fromPress)] }));
+      const pressing = input === "touch" ? fromPress : fromPress.filter((type) => !HOVER.includes(type));
+      expect(pressing, input === "touch" ? "events the control underneath heard from the press on" : "events other than the still-hovering pen's hover the control underneath heard from the press on").toEqual([]);
+      expect(beforePress.filter((type) => !HOVER_ENTRY.includes(type)), "events other than hover entry the control underneath heard before the press").toEqual([]);
+      expect(await page.evaluate(() => document.activeElement?.hasAttribute("data-left") ?? false), "the control underneath took focus").toBe(false);
+    }, { touchScreen: true });
+  }, 20000);
+
+  test.each(
+    (Object.keys(SURFACES) as Surface[]).flatMap((surface) => [768, 1440].map((width) => [surface, width] as const)),
+  )("%s at %ipx wide: once the tap has closed it, the next tap on the control underneath reaches it", async (surface, width) => {
+    await withPage(width, [...SURFACES[surface].options], async (page) => {
+      await openSurface(page, surface);
+      const { x, y } = await leftCentre(page);
+      await page.touchscreen.tap(x, y);
+      await page.waitForTimeout(500);
+      const heard = await recordUnderneath(page);
+      await page.touchscreen.tap(x, y);
+      await page.waitForTimeout(500);
+      const events = await heard.evaluate(({ log }) => log);
+      expect(events).toContain("pointerdown");
+      expect(events).toContain("touchstart");
+      expect(events).toContain("click");
+    }, { touchScreen: true });
+  }, 20000);
+
+  test.each(
+    (Object.keys(SURFACES) as Surface[]).flatMap((surface) => [768, 1440].map((width) => [surface, width] as const)),
+  )("%s at %ipx wide: a mouse press outside reaches the control under it as it always has", async (surface, width) => {
+    await withPage(width, [...SURFACES[surface].options], async (page) => {
+      await page.locator("[data-trigger]").click();
+      await page.waitForTimeout(300);
+      expect(await surfaceOpen(page, surface)).toBe(true);
+      const heard = await recordUnderneath(page);
+      const { x, y } = await leftCentre(page);
+      await page.mouse.click(x, y);
+      await page.waitForTimeout(500);
+      expect(await surfaceOpen(page, surface)).toBe(false);
+      const events = [...new Set(await heard.evaluate(({ log }) => log))];
+      expect(events).toEqual(MOUSE_OUTSIDE[surface]);
+    });
+  }, 20000);
+
+  test.each([768, 1440])("at %ipx wide, a scroll gesture starting outside the open panel closes it and scrolls the page, and the page still scrolls after", async (width) => {
+    await withPage(width, ["panel", "scroll"], async (page) => {
+      await openSurface(page, "the non-modal panel");
+      const swipe = async () => {
+        const cdp = await page.context().newCDPSession(page);
+        const x = width / 2;
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: 600 }] });
+        for (let y = 560; y >= 200; y -= 40) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+        }
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await cdp.detach();
+        await page.waitForTimeout(500);
+      };
+      await swipe();
+      expect(await surfaceOpen(page, "the non-modal panel"), "the panel closed").toBe(false);
+      const first = await page.evaluate(() => scrollY);
+      expect(first, "the page scrolled under the first swipe").toBeGreaterThan(0);
+      await swipe();
+      expect(await page.evaluate(() => scrollY), "the page scrolled under the second swipe").toBeGreaterThan(first);
+    }, { touchScreen: true });
+  }, 20000);
+});
