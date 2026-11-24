@@ -53,7 +53,7 @@ describe("@showing(name) names a layout or an element (#2734)", () => {
     ]);
   });
 
-  it.each(["hud", "panel", "frame", "nameplate", "action", "dialogue", "textbox"])(
+  it.each(["hud", "panel", "frame", "nameplate", "text", "action", "dialogue", "textbox"])(
     "does not warn on %s, a layout's or an element's name",
     (name) => {
       expect(showingWarnings(styled(name))).toEqual([]);
@@ -72,8 +72,7 @@ style frame {
 `;
     const program = compile(source.replace("@1", "hud"));
     const { items, labels } = complete(source, { program });
-    expect(labels).toEqual(expect.arrayContaining(["hud", "panel", "frame", "nameplate", "action", "textbox"]));
-    expect(labels).not.toContain("text");
+    expect(labels).toEqual(expect.arrayContaining(["hud", "panel", "frame", "nameplate", "text", "action", "textbox"]));
     expect(items.find((item) => item.label === "hud")?.labelDetails?.description).toBe("layout");
     expect(items.find((item) => item.label === "frame")?.labelDetails?.description).toBe("element");
   });

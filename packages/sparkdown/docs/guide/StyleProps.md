@@ -98,7 +98,7 @@ style button {
 
 #### What is on screen
 
-`@showing(name)` applies while a layout or an element named `name` is on screen. A layout is on screen while it is open, and while it plays the animation it leaves with. An element is on screen while it has content: the text of the line it shows, or a picture. A style that hides an element does not change what is on screen.
+`@showing(name)` applies while a layout or an element named `name` is on screen. A layout is on screen while it is open, and while it plays the animation it leaves with. An element is on screen while it, or an element inside it, has content: text written in its layout, the text of the line it shows, or a picture. A style that hides an element does not change what is on screen.
 
 The condition holds across the whole game, so a style can react to what another layout shows. This frame changes colour while an action line is on screen, wherever the frame is:
 

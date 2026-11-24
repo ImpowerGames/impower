@@ -112,6 +112,48 @@ describe("the engine marks what is on screen for @showing (#2734)", () => {
     expect(showings(h)).toEqual([]);
   });
 
+  test("an element with content declared in its layout is marked while it is on screen", async () => {
+    const source = `layout overlay {
+  badge {
+    text "Status"
+  }
+  empty_slot {
+    text
+  }
+}
+
+style frame {
+  @showing(badge) {
+    opacity = 1
+  }
+  @showing(text) {
+    opacity = 1
+  }
+  @showing(empty_slot) {
+    opacity = 1
+  }
+}
+
+scene start
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    await flushMicrotasks(10);
+    const ui: any = h.game.module.ui;
+    expect(ui.showingNames()).toEqual([]);
+    await ui.openLayout("overlay");
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual(["badge", "text"]);
+    ui.hide("badge");
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
+    ui.show("badge");
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual(["badge", "text"]);
+  });
+
   test("a layout leaving with an exit animation counts as showing until it is removed", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false, beforeConnect: live });
     await h.ready;

@@ -16,7 +16,7 @@ import {
   structKeyToken,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
-import { layoutElementNames, layoutNames } from "@impower/sparkdown/src/compiler/utils/layoutElementNames";
+import { layoutNames, showingNames } from "@impower/sparkdown/src/compiler/utils/layoutElementNames";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import {
   luauFileName,
@@ -745,9 +745,7 @@ const addShowingNameCompletions = (
   program: SparkProgram | undefined,
 ) => {
   const layouts = layoutNames(program);
-  const elements = [...layoutElementNames(program).named].filter(
-    (name) => !name.startsWith("$") && !layouts.has(name),
-  );
+  const elements = [...showingNames(program)].filter((name) => !layouts.has(name));
   for (const [names, description] of [
     [[...layouts], "layout"],
     [elements, "element"],

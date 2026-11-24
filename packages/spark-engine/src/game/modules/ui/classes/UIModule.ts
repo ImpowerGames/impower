@@ -514,6 +514,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _showingSent?: string;
 
+  protected _showingHidden = new WeakSet<Element>();
+
+  protected _showingContent = new WeakSet<Element>();
+
   protected _reactive = false;
 
   protected _refreshAll = false;
@@ -1110,16 +1114,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   showingNames(): string[] {
     const watched = this.showingWatched();
     const names = new Set<string>();
-    const addTarget = (target: string) => {
-      const name = target.split("#")[0] ?? "";
-      if (
-        watched.has(name) &&
-        !names.has(name) &&
-        this.findElements(target, true).length > 0
-      ) {
-        names.add(name);
-      }
-    };
     for (const name of this._mountedLayouts.keys()) {
       if (watched.has(name)) {
         names.add(name);
@@ -1130,17 +1124,72 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         names.add(name);
       }
     }
+    const written = new Set<Element>();
+    const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of this.findElements(target, true)) {
+        written.add(el);
+        for (const leaf of leaves) {
+          for (const child of this.getContentElements(el, leaf)) {
+            written.add(child);
+          }
+        }
+      }
+    };
     for (const [target, state] of Object.entries(this._state.text ?? {})) {
       if (state?.length) {
-        addTarget(target);
+        write(target, ["text", "stroke"]);
       }
     }
     for (const [target, events] of Object.entries(this._state.image ?? {})) {
       if (this.pictureShown(events)) {
-        addTarget(target);
+        write(target, ["image", "mask"]);
       }
     }
+    const visit = (el: Element): boolean => {
+      if (this._showingHidden.has(el)) {
+        return false;
+      }
+      let held = this._showingContent.has(el) || written.has(el);
+      for (const child of el.children) {
+        if (visit(child)) {
+          held = true;
+        }
+      }
+      const tag = el.name.split(" ")[0];
+      if (held && tag && watched.has(tag)) {
+        names.add(tag);
+      }
+      return held;
+    };
+    if (this._root) {
+      visit(this._root);
+    }
+    for (const { element } of this._retiring) {
+      visit(element);
+    }
     return [...names].sort();
+  }
+
+  protected noteElementShowing(
+    element: Element,
+    state: ElementState | undefined,
+  ): void {
+    const style = state?.style;
+    if (style && "display" in style) {
+      if (style["display"] === "none") {
+        this._showingHidden.add(element);
+      } else {
+        this._showingHidden.delete(element);
+      }
+    }
+    const content = state?.content;
+    if (content && "text" in content) {
+      if (content.text) {
+        this._showingContent.add(element);
+      } else {
+        this._showingContent.delete(element);
+      }
+    }
   }
 
   protected noteShowing(retired = false): void {
@@ -1465,6 +1514,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
+    this.noteElementShowing(el, state);
     this._screenEdits += 1;
     if (this.carriesDisplayTarget(el)) {
       this._displayTargetsChanged = true;
@@ -1508,6 +1558,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ...state,
       style: { ...(state?.style || {}), [property]: background },
     });
+    if (background) {
+      this._showingContent.add(el);
+    }
     if (src) {
       this.createElement(el, {
         name: "object",
@@ -1604,6 +1657,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       empty.text.delete(element);
       empty.image.delete(element);
     }
+    this.noteElementShowing(element, state);
     this.enqueueUI(
       UpdateElementMessage.type.request({
         element: element.id,

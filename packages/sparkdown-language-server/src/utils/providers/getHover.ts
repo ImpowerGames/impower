@@ -69,7 +69,7 @@ const getLayoutControlHover = (
 };
 
 const SHOWING_HOVER =
-  "`@showing(name)` applies while a layout or an element named `name` is on screen: a layout while it is open, an element while it has content. It holds across the whole game, so any element's style can use it.";
+  "`@showing(name)` applies while a layout or an element named `name` is on screen: a layout while it is open, an element while it or an element inside it has content. It holds across the whole game, so any element's style can use it.";
 
 const getShowingHover = (
   document: SparkdownDocument,
