@@ -18,14 +18,20 @@ export interface LookLayer extends ImageLayer {
   refs: MorphRef[];
 }
 
+export interface LookFile {
+  pick?: string;
+  refs: MorphRef[];
+}
+
 export interface PictureLook {
   struct: any;
   root?: any;
   pick?: string;
   refs: MorphRef[];
-  conflict?: "layers" | "overlap";
+  conflict?: "overlap";
   plays: boolean;
   artwork?: LayeredMorphArtwork;
+  files: LookFile[];
   layers: LookLayer[];
   rest: ShownLayer[];
   start?: ShownLayer[];
@@ -64,6 +70,7 @@ export function resolvePictureLook(
       refs: [],
       plays: false,
       ...(artwork ? { artwork } : {}),
+      files: artwork ? artwork.files.map(() => ({ refs: [] })) : [],
       layers,
       rest: visible,
       ...(startPose ? { start: visible } : {}),
@@ -77,42 +84,44 @@ export function resolvePictureLook(
     const layerPick = decide(pick, layer);
     return { ...layer, ...(layerPick === undefined ? {} : { pick: layerPick }), refs: refsOf(layer) };
   });
+  const files: LookFile[] = artwork
+    ? children.map((child) => {
+        const filePick = decide(pick, child);
+        return { ...(filePick === undefined ? {} : { pick: filePick }), refs: refsOf(child) };
+      })
+    : [];
   const refs = root ? morphRefsForStruct(context, channel, struct, picturePick) : [];
-  const conflict =
-    refs.length === 0 ? undefined : children.some((child) => refsOf(child).length > 0) ? ("layers" as const) : refs.length > 1 ? ("overlap" as const) : undefined;
-  const plays = refs.length === 1 && !conflict && !!artwork;
+  const conflict = refs.length > 1 ? ("overlap" as const) : undefined;
+  const plays = refs.length === 1 && !!artwork;
+  const ownPosed = (layer: ShownLayer, poseOf: LookPose, layerPick: string | undefined): ShownLayer => {
+    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, layerPick) : undefined;
+    if (!look?.attributes.length) return layer;
+    const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
+    return src ? { ...layer, src, shown: true as const } : layer;
+  };
   const posed = (poseOf: LookPose): ShownLayer[] => {
     if (plays) {
       const look = shownLook(context, channel, struct, poseOf, picturePick);
-      if (!look?.attributes.length) return visible;
-      const lookStruct =
-        struct?.$type === "filtered_image"
+      const lookStruct = !look?.attributes.length
+        ? undefined
+        : struct?.$type === "filtered_image"
           ? { ...struct, attributes: [...(Array.isArray(struct.attributes) ? struct.attributes : []), ...look.attributes] }
           : shownLookStruct(struct, look.attributes);
-      return resolveImageLayers(context, lookStruct).map((layer) => ({ ...layer, shown: true as const }));
+      const shown: ShownLayer[] = lookStruct ? resolveImageLayers(context, lookStruct).map((layer) => ({ ...layer, shown: true as const })) : visible;
+      return shown.map((layer) => ownPosed(layer, poseOf, decide(pick, layer)));
     }
-    return layers.map(({ pick: layerPick, refs: _refs, ...layer }) => {
-      const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, layerPick) : undefined;
-      if (!look?.attributes.length) return layer;
-      const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
-      return src ? { ...layer, src, shown: true as const } : layer;
-    });
+    return layers.map(({ pick: layerPick, refs: _refs, ...layer }) => ownPosed(layer, poseOf, layerPick));
   };
   const rest = posed(morphRestPose);
   const speech = new Set<string>();
   const playsPicked = (name: string) => {
     const picked = morphRefsForStruct(context, channel, struct, name);
-    return (
-      !!artwork &&
-      picked.length === 1 &&
-      picked[0]!.morphs.includes(name) &&
-      !children.some((child) => child.struct && morphRefsForStruct(context, channel, child.struct, name).length > 0)
-    );
+    return !!artwork && picked.length === 1 && picked[0]!.morphs.includes(name);
   };
   for (const name of speechMorphsForStruct(context, channel, struct)) {
     if (!root || playsPicked(name)) speech.add(name);
   }
-  for (const layer of visible) {
+  for (const layer of plays ? children : visible) {
     if (layer.struct) for (const name of speechMorphsForStruct(context, channel, layer.struct)) speech.add(name);
   }
   return {
@@ -123,6 +132,7 @@ export function resolvePictureLook(
     ...(conflict ? { conflict } : {}),
     plays,
     ...(artwork ? { artwork } : {}),
+    files,
     layers,
     rest,
     ...(startPose ? { start: startPose === morphRestPose ? rest : posed(startPose) } : {}),

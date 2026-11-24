@@ -44,7 +44,10 @@ export interface WriteImageInstruction {
 export interface MorphPictureFile {
   src: string;
   name: string;
+  plays?: MorphPlay[];
 }
+
+export type MorphPlay = Omit<MorphLayerPlay, "layer" | "picture">;
 
 export interface MorphPicture {
   span: number;
