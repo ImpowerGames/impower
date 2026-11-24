@@ -24,7 +24,7 @@ import { registerFocusReturn } from "../../utils/focusReturn";
 import { focusAsInput, lastInputWasKeyboard } from "../../utils/inputModality";
 import { KEEP_CLEAR_MARGIN, type KeepClear, useClearLine } from "../../utils/keepClear";
 import { portalContainer } from "../../utils/portalContainer";
-import { swallowNextClick } from "../../utils/swallowNextClick";
+import { swallowTap } from "../../utils/swallowTap";
 import { DialogTitle, Sheet } from "../dialog/Dialog";
 import { CheckIcon } from "../icon/icons.generated";
 
@@ -517,7 +517,7 @@ export function DropdownContent({
           if (!ctx.modal || button === 2 || (button === 0 && ctrlKey)) {
             leftOutside.current = true;
           } else if (type === "pointerdown" && touchPointer(pointerType)) {
-            swallowNextClick(ctx.trigger.current?.ownerDocument);
+            swallowTap(event.detail.originalEvent);
           }
         }}
         onCloseAutoFocus={(event: Event) => {

@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "preact/hooks";
 import { touchPointer } from "../layout/menuForm";
 
-export const swallowNextClick = (ownerDocument: Document = document, pressing?: Event) => {
+export const swallowTap = (pressing: PointerEvent) => {
+  const ownerDocument = (pressing.target as Node | null)?.ownerDocument ?? document;
+  pressing.preventDefault();
   const swallow = (event: MouseEvent) => {
     if (!event.isTrusted) {
       return;
@@ -39,7 +41,7 @@ export function useTapOutside(active: boolean, inside: (target: Element) => bool
       if (!touchPointer(event.pointerType) || event.button !== 0 || !(target instanceof Element) || latest.current.inside(target)) {
         return;
       }
-      swallowNextClick(target.ownerDocument, event);
+      swallowTap(event);
       latest.current.onTap();
     };
     window.addEventListener("pointerdown", press, true);

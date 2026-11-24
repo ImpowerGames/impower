@@ -171,11 +171,14 @@ describe.skipIf(!browserAvailable)("a menu's form follows the layout, whatever o
     }, { touchScreen: opening === "tap" });
   });
 
-  test.each([768, 1440])("at %ipx wide, a tap opens the popover, a tap on its trigger closes it for good, and a tap outside closes it without pressing what is under it", async (width) => {
+  test.each([768, 1440])("at %ipx wide, a tap opens the popover, a tap on its trigger closes it for good, and a tap outside closes it without pressing what is under it, by mousedown or click", async (width) => {
     await withPage(width, [], async (page) => {
       const pressed = await page.evaluateHandle(() => {
         const log: string[] = [];
-        document.querySelector("[data-left]")!.addEventListener("click", () => log.push("left"));
+        const left = document.querySelector("[data-left]")!;
+        for (const type of ["mousedown", "click"]) {
+          left.addEventListener(type, () => log.push(type));
+        }
         return log;
       });
       await openWith(page, "tap");
@@ -194,11 +197,14 @@ describe.skipIf(!browserAvailable)("a menu's form follows the layout, whatever o
     }, { touchScreen: true });
   }, 20000);
 
-  test.each([768, 1440])("at %ipx wide, a popover that is not modal closes on a tap outside without pressing what is under it, and on a tap on its trigger for good", async (width) => {
+  test.each([768, 1440])("at %ipx wide, a popover that is not modal closes on a tap outside without pressing what is under it, by mousedown or click, and on a tap on its trigger for good", async (width) => {
     await withPage(width, ["panel"], async (page) => {
       const pressed = await page.evaluateHandle(() => {
         const log: string[] = [];
-        document.querySelector("[data-left]")!.addEventListener("click", () => log.push("left"));
+        const left = document.querySelector("[data-left]")!;
+        for (const type of ["mousedown", "click"]) {
+          left.addEventListener(type, () => log.push(type));
+        }
         return log;
       });
       const panelOpen = () => page.evaluate(() => !!document.querySelector("[data-panel]"));
@@ -217,7 +223,7 @@ describe.skipIf(!browserAvailable)("a menu's form follows the layout, whatever o
       await page.waitForTimeout(400);
       expect(await panelOpen(), "after a tap on the trigger").toBe(false);
       await page.mouse.click(...centre((await boxes(page)).left!));
-      expect(await pressed.evaluate((log) => log), "a mouse click outside a closed panel still presses").toEqual(["left"]);
+      expect(await pressed.evaluate((log) => log), "a mouse click outside a closed panel still presses").toEqual(["mousedown", "click"]);
     }, { touchScreen: true });
   }, 20000);
 

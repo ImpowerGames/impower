@@ -4,7 +4,7 @@ import { DropdownContent, DropdownItem, DropdownRoot, DropdownSeparator, Dropdow
 import { DialogTitle, Sheet } from "../../src/components/dialog/Dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "../../src/components/popover/Popover";
 import type { KeepClear } from "../../src/utils/keepClear";
-import { useTapOutside } from "../../src/utils/swallowNextClick";
+import { useTapOutside } from "../../src/utils/swallowTap";
 
 const options = new Set(location.hash.slice(1).split(","));
 const rows = options.has("long")

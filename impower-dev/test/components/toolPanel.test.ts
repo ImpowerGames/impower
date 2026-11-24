@@ -238,10 +238,13 @@ describe("the bar presentation", () => {
 });
 
 describe("the popover and a press outside it", () => {
-  const press = (target: Element, pointerType: string) =>
-    act(async () => {
-      target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 }));
+  const press = async (target: Element, pointerType: string) => {
+    const event = new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType, button: 0 });
+    await act(async () => {
+      target.dispatchEvent(event);
     });
+    return event;
+  };
 
   const mountWithOutside = async (extra: Record<string, unknown> = {}) => {
     const outside = document.body.appendChild(document.createElement("button"));
@@ -254,16 +257,18 @@ describe("the popover and a press outside it", () => {
     return { outside, toolbar, onClose };
   };
 
-  it.each(["touch", "pen"])("closes it the moment a %s presses outside", async (pointerType) => {
+  it.each(["touch", "pen"])("closes it the moment a %s presses outside, cancelling the press so nothing under it acts on mousedown", async (pointerType) => {
     const { outside, onClose } = await mountWithOutside();
-    await press(outside, pointerType);
+    const event = await press(outside, pointerType);
     expect(onClose).toHaveBeenCalledWith("dismiss");
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it("leaves a mouse press outside to the popover's own dismissal", async () => {
     const { outside, onClose } = await mountWithOutside();
-    await press(outside, "mouse");
+    const event = await press(outside, "mouse");
     expect(onClose).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it("stays open when a finger presses inside it or on what keeps it open", async () => {

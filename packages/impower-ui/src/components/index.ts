@@ -337,7 +337,7 @@ export {
 export * from "./icon/icons.generated";
 export * from "./registry";
 export { useEscapeWithin } from "../utils/escapeWithin";
-export { useTapOutside } from "../utils/swallowNextClick";
+export { useTapOutside } from "../utils/swallowTap";
 export * from "../layout";
 export {
   default as Slider,
