@@ -2556,11 +2556,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     before: Element | null,
   ): Element {
     const follow = { "data-follow": "end" };
-    const el = this.createElement(
+    const el = this.mountElement(
       parent,
-      { type: "div", name: "stream", attributes: follow },
+      {
+        kind: "element",
+        tag: "stream",
+        classes: node.classes,
+        props: node.props,
+        events: node.events,
+        children: [],
+      },
+      scope,
       before,
     );
+    this.updateElement(el, { attributes: follow });
     this._streamElements.add(el);
     if (parent.parent) {
       this.updateElement(parent, { attributes: follow });

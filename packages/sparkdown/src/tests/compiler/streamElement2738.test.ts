@@ -37,6 +37,9 @@ describe("the stream element (#2738)", () => {
     expect(thread.children).toEqual([
       {
         kind: "stream",
+        classes: [],
+        props: {},
+        events: [],
         children: [
           {
             kind: "element",
@@ -61,6 +64,51 @@ describe("the stream element (#2738)", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("a stream keeps the settings written on it (#2738)", () => {
+  test("its classes, inline props and block props compile onto the stream node", () => {
+    const ast = layoutAst(`layout phone {
+  stream.feed #height=44px #overflow=scroll {
+    gap = 8px
+    dialogue.bubble { text }
+  }
+}
+`);
+    const stream = ast.phone.children[0];
+    expect(stream.kind).toBe("stream");
+    expect(stream.classes).toEqual(["feed"]);
+    expect(stream.props).toEqual({
+      height: { kind: "literal", value: "44px" },
+      overflow: { kind: "literal", value: "scroll" },
+      gap: { kind: "literal", value: "8px" },
+    });
+    expect(stream.children.map((child: any) => child.tag)).toEqual(["dialogue"]);
+  });
+});
+
+describe("a stream says what it ignores (#2738)", () => {
+  test("text on the stream and children that are not elements each get a warning, and the templates still compile", () => {
+    const source = `layout phone {
+  stream "hello" {
+    for i = 1, 2 do
+      action { text }
+    end
+    stream {
+      action { text }
+    }
+    dialogue { text }
+  }
+}
+`;
+    expect(diagnosticsFor(source).filter((m) => m.includes("stream"))).toEqual([
+      "A stream shows the lines that go to it, so text written on the stream itself is ignored.",
+      "A stream copies only the elements written directly inside it, so this `for` is ignored.",
+      "A stream copies only the elements written directly inside it, so this `stream` is ignored.",
+    ]);
+    const stream = layoutAst(source).phone.children[0];
+    expect(stream.children.map((child: any) => child.tag)).toEqual(["dialogue"]);
   });
 });
 

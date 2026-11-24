@@ -92,6 +92,33 @@ describe("the player draws a stream's entries (#2738)", () => {
     expect(stream.parentElement!.getAttribute("data-follow")).toBe("end");
   });
 
+  test("a stream written with a class and props keeps them, and still follows its newest entry", async () => {
+    const source = STORY.replace(
+      "    stream {",
+      "    stream.feed #height=44px #overflow=scroll {",
+    ).replace(
+      "style bubble {",
+      "style feed {\n  background-color = red\n  overflow-y = auto\n  pointer-events = auto\n}\n\nstyle bubble {",
+    );
+    const h = createDOMHarness(source, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    const stream = h.overlay.querySelector<HTMLElement>(".phone > .thread > .stream")!;
+    expect(stream.className).toBe("stream feed");
+    expect(stream.style.height).toBe("44px");
+    expect(stream.style.overflow).toBe("scroll");
+    expect(stream.getAttribute("data-follow")).toBe("end");
+    expect([...stream.children].map(textOf)).toEqual(["slight problem"]);
+    const css = [...h.overlay.querySelectorAll("style")]
+      .map((style) => style.textContent ?? "")
+      .join("\n");
+    const feed = css.slice(css.indexOf("#game .feed {"), css.indexOf("}", css.indexOf("#game .feed {")));
+    expect(feed).toContain("background-color");
+    expect(feed).toContain("overflow-y: auto");
+    expect(feed).toContain("pointer-events: auto");
+  });
+
   test("with the textbox and a stream both open, a line shows in both", async () => {
     const h = createDOMHarness(STORY, 0, { reactive: true, autoOpenAll: false });
     await h.ready;

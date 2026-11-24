@@ -13,6 +13,10 @@ layout phone {
   }
 }
 
+style bubble {
+  text-color = white
+}
+
 scene start
   [[open phone]]
   RAFFLES: slight problem
@@ -46,12 +50,28 @@ The newest entry is `@latest`, so a style can set it apart from the entries befo
 
 ```sparkdown
 style bubble {
+  text-color = white
   opacity = 0.5
   @latest { opacity = 1 }
 }
 ```
 
-A stream scrolls to keep its newest entry in view, as the text page does, when the stream or the element around it is given a height and lets its content scroll. Scroll up to reread, and it stays where you are until you scroll back to the bottom. Under the reader's reduced-motion setting it jumps instead of scrolling smoothly.
+A stream is an element like any other, so it takes classes and props, and a `style stream` block or a class styles it. It scrolls to keep its newest entry in view, as the text page does, when the stream or the element around it is given a height and lets its content scroll:
+
+```sparkdown
+layout phone {
+  stream.thread #height=240px {
+    dialogue.bubble { text }
+  }
+}
+
+style thread {
+  overflow-y = auto
+  pointer-events = auto
+}
+```
+
+`pointer-events = auto` lets the reader scroll the stream with the wheel or a finger. Scroll up to reread, and it stays where you are until you scroll back to the bottom. Under the reader's reduced-motion setting it jumps instead of scrolling smoothly.
 
 Saves and checkpoints keep the entries. The preview on a line and a step back show the entries the game would have at that line.
 

@@ -124,6 +124,9 @@ export interface SlotNode {
 
 export interface StreamNode {
   kind: "stream";
+  classes: string[];
+  props: Record<string, PropValue>;
+  events: EventBinding[];
   children: ElementNode[];
 }
 
