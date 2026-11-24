@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { caretScrollMarginY } from "./extensions/caretScrollMargin";
 
 const EDGE_TOLERANCE = 1;
+const MAX_ROW_STEPS = 4;
 
 const scrollMargins = (view: EditorView) => {
   let top = 0;
@@ -15,7 +16,7 @@ const scrollMargins = (view: EditorView) => {
   return { top, bottom };
 };
 
-const visibleBand = (view: EditorView) => {
+const visibleBand = (view: EditorView, clearance: number) => {
   const scroller = view.scrollDOM.getBoundingClientRect();
   const margins = scrollMargins(view);
   const viewport = window.visualViewport;
@@ -23,16 +24,13 @@ const visibleBand = (view: EditorView) => {
     ? viewport.offsetTop + viewport.height
     : window.innerHeight;
   return {
-    top: Math.max(scroller.top, 0) + margins.top + caretScrollMarginY,
-    bottom:
-      Math.min(scroller.bottom, screenBottom) -
-      margins.bottom -
-      caretScrollMarginY,
+    top: Math.max(scroller.top, 0) + margins.top + clearance,
+    bottom: Math.min(scroller.bottom, screenBottom) - margins.bottom - clearance,
   };
 };
 
 export const isCaretOnScreen = (view: EditorView): boolean => {
-  const { top, bottom } = visibleBand(view);
+  const { top, bottom } = visibleBand(view, 0);
   const caret = view.coordsAtPos(view.state.selection.main.head);
   return (
     caret != null &&
@@ -41,8 +39,22 @@ export const isCaretOnScreen = (view: EditorView): boolean => {
   );
 };
 
+const firstRowOnScreen = (view: EditorView, top: number): number => {
+  const left = view.contentDOM.getBoundingClientRect().left;
+  const pos = view.posAtCoords({ x: left, y: top + EDGE_TOLERANCE }, false);
+  let row = view.moveToLineBoundary(EditorSelection.cursor(pos, 1), false, true);
+  for (let step = 0; step < MAX_ROW_STEPS; step += 1) {
+    const rect = view.coordsAtPos(row.head, 1);
+    if (!rect || rect.top >= top - EDGE_TOLERANCE) {
+      break;
+    }
+    row = view.moveToLineBoundary(view.moveVertically(row, true), false, true);
+  }
+  return row.head;
+};
+
 export const firstLineOnScreen = (view: EditorView): number => {
-  const { top, bottom } = visibleBand(view);
+  const { top, bottom } = visibleBand(view, caretScrollMarginY);
   const { doc } = view.state;
   const block = view.lineBlockAtHeight(top - view.documentTop);
   const blockTop = (b: { top: number }) => view.documentTop + b.top;
@@ -55,15 +67,13 @@ export const firstLineOnScreen = (view: EditorView): number => {
       return doc.lineAt(next.from).from;
     }
   }
-  const left = view.contentDOM.getBoundingClientRect().left;
-  const pos = view.posAtCoords({ x: left, y: top + EDGE_TOLERANCE }, false);
-  return view.moveToLineBoundary(EditorSelection.cursor(pos), false, true).head;
+  return firstRowOnScreen(view, top);
 };
 
 export const focusOnScreen = (view: EditorView) => {
   if (!isCaretOnScreen(view)) {
     view.dispatch({
-      selection: EditorSelection.cursor(firstLineOnScreen(view)),
+      selection: EditorSelection.cursor(firstLineOnScreen(view), 1),
       userEvent: "select",
     });
   }

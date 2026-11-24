@@ -14,15 +14,21 @@ interface Box {
 interface Harness {
   stickyTop: number;
   caretMargin: number;
-  revealCaret(): void;
   view: { scrollDOM: HTMLElement; contentDOM: HTMLElement; state: { selection: { main: { head: number } } } };
+  useTallScript(): void;
   setCaretLine(line: number): void;
+  setCaretAt(x: number, y: number): number | null;
   caretLine(): number;
   caretAtLineStart(): boolean;
+  caretRow(): Box | null;
   lineBox(line: number): Box;
-  scrollerBox(): Box;
+  scrollerBox(): Box & { left: number };
   edit(): void;
+  openKeyboard(visibleHeight: number): void;
+  keyboardOpen(): boolean;
 }
+
+type HarnessWindow = { caretOnScreen: Harness };
 
 let browser: Browser;
 let pageUrl: string;
@@ -61,52 +67,71 @@ const frames = (page: Page) =>
 
 const scrollTo = async (page: Page, top: number) => {
   await page.evaluate((top) => {
-    const h = (window as unknown as { caretOnScreen: Harness }).caretOnScreen;
-    h.view.scrollDOM.scrollTop = top;
+    (window as unknown as HarnessWindow).caretOnScreen.view.scrollDOM.scrollTop = top;
   }, top);
+  await frames(page);
+};
+
+const placeLineBelowBand = async (page: Page, line: number, gap: number) => {
+  await page.evaluate(
+    ([line, gap]) => {
+      const h = (window as unknown as HarnessWindow).caretOnScreen;
+      const box = h.lineBox(line);
+      h.view.scrollDOM.scrollTop += box.top - (h.scrollerBox().top + h.stickyTop + gap);
+    },
+    [line, gap] as const,
+  );
   await frames(page);
 };
 
 const read = (page: Page) =>
   page.evaluate(() => {
-    const h = (window as unknown as { caretOnScreen: Harness }).caretOnScreen;
+    const h = (window as unknown as HarnessWindow).caretOnScreen;
     const line = h.caretLine();
     return {
       scrollTop: h.view.scrollDOM.scrollTop,
       line,
       head: h.view.state.selection.main.head,
       atLineStart: h.caretAtLineStart(),
+      caretRow: h.caretRow(),
       caretBox: h.lineBox(line),
       aboveBox: line > 1 ? h.lineBox(line - 1) : null,
       scroller: h.scrollerBox(),
       stickyTop: h.stickyTop,
       caretMargin: h.caretMargin,
       focused: document.activeElement === h.view.contentDOM,
+      keyboardOpen: h.keyboardOpen(),
     };
   });
 
 const edit = async (page: Page) => {
-  await page.evaluate(() => (window as unknown as { caretOnScreen: Harness }).caretOnScreen.edit());
+  await page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.edit());
   await frames(page);
 };
 
-const revealCaret = async (page: Page) => {
-  await page.evaluate(() => (window as unknown as { caretOnScreen: Harness }).caretOnScreen.revealCaret());
+const openKeyboard = async (page: Page) => {
+  await page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.openKeyboard(500));
   await frames(page);
 };
+
+const placeCaret = (page: Page, dx: number, fraction: number) =>
+  page.evaluate(
+    ([dx, fraction]) => {
+      const h = (window as unknown as HarnessWindow).caretOnScreen;
+      const r = h.scrollerBox();
+      const left = h.view.contentDOM.getBoundingClientRect().left;
+      return h.setCaretAt(left + dx, r.top + (r.bottom - r.top) * fraction);
+    },
+    [dx, fraction] as const,
+  );
 
 describe("Edit keeps the script still", () => {
-  it("moves an off-screen caret to the start of the first line fully on screen, below the sticky headers, so neither Edit nor the keyboard's caret reveal scrolls", async () => {
+  it("moves an off-screen caret to the start of the first line clear of the sticky headers, and opening the keyboard scrolls nothing", async () => {
     const page = await open();
     try {
-      await page.evaluate(() => (window as unknown as { caretOnScreen: Harness }).caretOnScreen.setCaretLine(11));
+      await page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.setCaretLine(11));
       await scrollTo(page, 4081);
-      await page.evaluate(() => {
-        const h = (window as unknown as { caretOnScreen: Harness }).caretOnScreen;
-        const line = h.lineBox(150);
-        h.view.scrollDOM.scrollTop += line.top - (h.scrollerBox().top + h.stickyTop + 3);
-      });
-      await frames(page);
+      await placeLineBelowBand(page, 150, 3);
       const before = await read(page);
       expect(before.scrollTop).toBeGreaterThan(1000);
       expect(before.caretBox.bottom).toBeLessThan(before.scroller.top);
@@ -123,31 +148,20 @@ describe("Edit keeps the script still", () => {
         after.scroller.top + after.stickyTop + after.caretMargin - 1,
       );
 
-      await revealCaret(page);
-      expect((await read(page)).scrollTop).toBe(before.scrollTop);
+      await openKeyboard(page);
+      const typing = await read(page);
+      expect(typing.keyboardOpen).toBe(true);
+      expect(typing.scrollTop).toBe(before.scrollTop);
     } finally {
       await page.context().close();
     }
   });
 
-  it("leaves a caret already on screen where it is, and the keyboard's caret reveal scrolls nothing", async () => {
+  it("leaves a caret already on screen where it is, and opening the keyboard scrolls nothing", async () => {
     const page = await open();
     try {
       await scrollTo(page, 4081);
-      const target = await page.evaluate(() => {
-        const h = (window as unknown as { caretOnScreen: Harness }).caretOnScreen;
-        const view = h.view as unknown as {
-          scrollDOM: HTMLElement;
-          posAtCoords(c: { x: number; y: number }): number | null;
-          contentDOM: HTMLElement;
-          dispatch(spec: { selection: { anchor: number } }): void;
-        };
-        const r = view.scrollDOM.getBoundingClientRect();
-        const left = view.contentDOM.getBoundingClientRect().left;
-        const pos = view.posAtCoords({ x: left + 120, y: r.top + r.height / 2 })!;
-        view.dispatch({ selection: { anchor: pos } });
-        return pos;
-      });
+      const target = await placeCaret(page, 120, 0.25);
       await frames(page);
       const before = await read(page);
       expect(before.head).toBe(target);
@@ -160,8 +174,66 @@ describe("Edit keeps the script still", () => {
       expect(after.focused).toBe(true);
       expect(after.head).toBe(target);
 
-      await revealCaret(page);
-      expect((await read(page)).scrollTop).toBe(before.scrollTop);
+      await openKeyboard(page);
+      const typing = await read(page);
+      expect(typing.keyboardOpen).toBe(true);
+      expect(typing.scrollTop).toBe(before.scrollTop);
+    } finally {
+      await page.context().close();
+    }
+  });
+
+  it("leaves a caret fully visible just below the sticky headers where it is", async () => {
+    const page = await open();
+    try {
+      await scrollTo(page, 4081);
+      await placeLineBelowBand(page, 150, 3);
+      await page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.setCaretLine(150));
+      await frames(page);
+      const before = await read(page);
+      expect(before.caretRow!.top).toBeGreaterThanOrEqual(before.scroller.top + before.stickyTop);
+      expect(before.caretRow!.top).toBeLessThan(
+        before.scroller.top + before.stickyTop + before.caretMargin,
+      );
+
+      await edit(page);
+      const after = await read(page);
+
+      expect(after.head).toBe(before.head);
+      expect(after.scrollTop).toBe(before.scrollTop);
+      expect(after.focused).toBe(true);
+    } finally {
+      await page.context().close();
+    }
+  });
+
+  it("puts the caret on the first visual row clear of the sticky headers when one wrapped line fills the screen", async () => {
+    const page = await open();
+    try {
+      await page.evaluate(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        h.useTallScript();
+        h.setCaretLine(1);
+      });
+      await frames(page);
+      for (const nudge of [0, 4, 8, 12, 16, 20]) {
+        await scrollTo(page, 1200 + nudge);
+        await page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.setCaretLine(1));
+        await frames(page);
+        const before = await read(page);
+        expect(before.scrollTop).toBe(1200 + nudge);
+        expect(before.caretBox.bottom).toBeLessThan(before.scroller.top + before.stickyTop);
+
+        await edit(page);
+        const after = await read(page);
+
+        expect(after.scrollTop).toBe(before.scrollTop);
+        expect(after.line).toBe(2);
+        expect(after.caretRow!.top).toBeGreaterThanOrEqual(
+          after.scroller.top + after.stickyTop + after.caretMargin - 1,
+        );
+        expect(after.caretRow!.bottom).toBeLessThanOrEqual(after.scroller.bottom + 1);
+      }
     } finally {
       await page.context().close();
     }
