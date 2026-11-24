@@ -45,6 +45,11 @@ type MinSize = number | string;
 
 const DIVIDER_PX = 8;
 
+const POINTER_FOCUS: FocusOptions & { focusVisible: boolean } = {
+  preventScroll: true,
+  focusVisible: false,
+};
+
 function minToPx(minSize: MinSize, trackPx: number): number {
   if (typeof minSize === "number") return (minSize / 100) * trackPx;
   const s = String(minSize).trim();
@@ -256,7 +261,7 @@ export default function SplitPane({
     draggingRef.current = true;
     el.dataset["separator"] = "active";
     if (pinned) {
-      el.focus({ preventScroll: true });
+      el.focus(POINTER_FOCUS);
       pinnedDrag.current = {
         pos: pointerPos(e),
         size: pinnedSize,

@@ -465,4 +465,26 @@ describe("SplitPane highlights", () => {
     await key(separator, "End");
     expect(onSizeChange).toHaveBeenLastCalledWith(HEIGHT - 160);
   });
+
+  it("drags a pinned grip by touch, lit while the finger is down", async () => {
+    const { separator, onSizeChange } = await mountPinned({ size: 200 }, { line: "grip" });
+    const focus = vi.spyOn(separator, "focus");
+    const touch = (type: string, clientY: number) =>
+      new PointerEvent(type, { bubbles: true, button: 0, clientY, pointerId: 7, pointerType: "touch" });
+    await act(async () => {
+      separator.dispatchEvent(touch("pointerdown", 400));
+      separator.dispatchEvent(touch("pointermove", 340));
+    });
+    expect(separator.dataset["separator"]).toBe("active");
+    expect(focus).toHaveBeenCalledWith(
+      expect.objectContaining({ focusVisible: false }),
+    );
+    expect(pinnedPx(separator)).toBe(260);
+    await act(async () => {
+      separator.dispatchEvent(touch("pointerup", 340));
+    });
+    expect(onSizeChange.mock.calls).toEqual([[260]]);
+    expect(separator.dataset["separator"]).toBe("");
+    expect(separator.getAttribute("aria-label")).toBe("Resize game and panel");
+  });
 });
