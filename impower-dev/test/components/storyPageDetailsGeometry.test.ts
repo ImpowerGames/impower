@@ -1,50 +1,12 @@
-import { compile } from "@tailwindcss/node";
-import { resolve } from "node:path";
-import { chromium } from "playwright";
-import { h, render, type VNode } from "preact";
-import { act } from "preact/test-utils";
+import { h } from "preact";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { atDesktop, inChromium, installBrowserStubs, markupOf, THEMES } from "./geometryHarness";
 
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
   Workspace: { search: {} },
 }));
 
-let mediaMatches: (query: string) => boolean = () => false;
-const mediaListeners = new Set<() => void>();
-
-const setMedia = async (matches: (query: string) => boolean) => {
-  mediaMatches = matches;
-  await act(async () => mediaListeners.forEach((listener) => listener()));
-};
-
-const atDesktop = async <T>(run: () => Promise<T>) => {
-  await setMedia((query) => query.includes("701px") || query.includes("1101px"));
-  try {
-    return await run();
-  } finally {
-    await setMedia(() => false);
-  }
-};
-
-beforeAll(() => {
-  window.matchMedia = ((query: string) => ({
-    get matches() {
-      return mediaMatches(query);
-    },
-    media: query,
-    onchange: null,
-    addEventListener: (_type: string, listener: () => void) => mediaListeners.add(listener),
-    removeEventListener: (_type: string, listener: () => void) => mediaListeners.delete(listener),
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  })) as unknown as typeof window.matchMedia;
-  (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-});
+beforeAll(installBrowserStubs);
 
 const ui = await import("@impower/impower-ui/components");
 const { SearchRail } = await import("../../src/modules/spark-editor/components/find-references-rename");
@@ -54,53 +16,6 @@ const { RAIL_COMPACT_WIDTH } = await import("../../src/modules/spark-editor/work
 const { INITIAL_SEARCH, INITIAL_SEARCH_POSITION } = await import(
   "../../src/modules/spark-editor/workspace/searchState"
 );
-
-const UI_PACKAGE = resolve(process.cwd(), "../packages/impower-ui");
-
-type Theme = "charcoal" | "chalk";
-
-const markupOf = async (node: VNode) => {
-  const host = document.body.appendChild(document.createElement("div"));
-  await act(async () => render(node, host));
-  await act(async () => {
-    await new Promise((done) => setTimeout(done, 0));
-  });
-  const markup = document.body.innerHTML;
-  await act(async () => render(null, host));
-  host.remove();
-  document.body.innerHTML = "";
-  return markup;
-};
-
-const stylesFor = async (markup: string) => {
-  const compiler = await compile('@import "./src/style.css";', { base: UI_PACKAGE, onDependency: () => {} });
-  const candidates = [...markup.matchAll(/class="([^"]*)"/g)].flatMap((match) =>
-    match[1]!.replace(/&amp;/g, "&").split(/\s+/),
-  );
-  return compiler.build(candidates);
-};
-
-const inChromium = async <T, A>(
-  markup: string,
-  { width, theme = "charcoal", touch = false }: { width: number; theme?: Theme; touch?: boolean },
-  read: (arg: A) => T,
-  arg?: A,
-): Promise<T> => {
-  const css = await stylesFor(markup);
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: touch });
-    await page.setContent(
-      `<!doctype html><html data-theme="${theme}" data-layout="desktop"><head><style>${css}</style></head><body style="margin:0">${markup}</body></html>`,
-    );
-    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-    return (await page.evaluate(read, arg as A)) as T;
-  } finally {
-    await browser.close();
-  }
-};
-
-const THEMES: Theme[] = ["charcoal", "chalk"];
 
 const MAIN = "file:///p/main.sd";
 const range = (line: number, from: number, to: number) => ({
