@@ -51,9 +51,9 @@ game and starts it from that line.
 
 ## Scripts
 
-![The Scripts page on a computer: a search box and a New button, then the list of scripts, with Main pinned at the top as the entry script](./images/web-editor/scripts-1440.png)
+![The Scripts page on a computer: a back arrow, a search box and a New button, then the list of scripts, with Main pinned at the top as the entry script](./images/web-editor/scripts-1440.png)
 
-![The Scripts page on a phone: All scripts and In this script tabs, a search box and a New button, and the list of scripts](./images/web-editor/scripts-430.png)
+![The Scripts page on a phone: All scripts and In this script tabs with a close button, a search box and a New button, and the list of scripts](./images/web-editor/scripts-430.png)
 
 Scripts lists every script in your project. **Main** is pinned at the top: it is
 where your story starts. Use **New** to add a script or a folder, the search box to find
