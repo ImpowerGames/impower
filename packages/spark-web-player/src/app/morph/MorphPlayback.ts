@@ -182,6 +182,7 @@ interface FileState {
   slot: MorphArtifactSlot;
   plays: { play: MorphPlay; occurrence?: Occurrence }[];
   view?: LiveView;
+  broken?: boolean;
 }
 
 interface ImageState {
@@ -951,8 +952,10 @@ export class MorphLayer {
     };
     const stillOrAlone = (i: number, picture: ImageState | undefined) => {
       const inner = alone(i, picture);
-      const artifact = inner ? this.liveArtifact(inner.slot)! : undefined;
-      const view = artifact && this.placement(artifact, computed, count - 1 - i) ? this.liveView(artifact, doc) : undefined;
+      const artifact = inner && !inner.broken ? this.liveArtifact(inner.slot) : undefined;
+      const placed = !!artifact && !!this.placement(artifact, computed, count - 1 - i);
+      const view = placed ? this.liveView(artifact!, doc) : undefined;
+      if (inner && placed && !view) inner.broken = true;
       if (inner && view) {
         inner.view = view;
         root.appendChild(view.box);
@@ -1218,6 +1221,18 @@ export class MorphLayer {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
+    for (const state of this.images) {
+      if (!state.picture || state.canvas || !(this.uncomposited(state) || state.files)) continue;
+      for (const inner of state.inner) {
+        const layer = state.picture.files[inner.file]?.layer;
+        const artifact = this.liveArtifact(inner.slot);
+        if (layer === undefined || !artifact || inner.broken) continue;
+        if (!!this.placement(artifact, computed, count - 1 - layer) !== !!inner.view) {
+          this.build();
+          return;
+        }
+      }
+    }
     for (const state of this.images) {
       const artifact = state.slot.state === "ready" ? state.slot.artifact : undefined;
       if (!artifact || artifact.status !== "live" || state.broken || (state.picture && !state.files)) continue;

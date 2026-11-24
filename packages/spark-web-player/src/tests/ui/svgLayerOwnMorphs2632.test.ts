@@ -179,7 +179,7 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     const box = () => shadow()!.querySelector("svg")!.parentElement!;
     const painted = () =>
       Array.from(shadow()!.querySelectorAll("canvas")).flatMap((element) => canvas.canvases.get(element as HTMLCanvasElement)?.frames.at(-1) ?? []);
-    return { playback, shadow, box, artifact: handle.artifact, painted, play };
+    return { playback, span, shadow, box, artifact: handle.artifact, painted, play };
   }
 
   const opacityOf = (box: HTMLElement) => {
@@ -246,6 +246,24 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
       expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(seconds)));
     }
     expect(referenceStates(artifact, chompAt(0.2))).not.toEqual(referenceStates(artifact, chompAt(0.5)));
+  });
+
+  test("when the picture cannot be drawn on a canvas, its SVG layer's view follows a change of background-repeat both ways", async () => {
+    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["base"] = bunny,\n    ["lids.on"] = base_file,');
+    const { playback, span, shadow, artifact } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
+    const relayout = async (repeat: string) => {
+      span.style.setProperty("background-repeat", repeat);
+      playback.requestRelayout();
+      await flushMicrotasks(5);
+    };
+    expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+    await relayout("repeat");
+    expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
+    expect(Array.from(shadow()!.children).map((child) => child.getAttribute("style") ?? "").join("|")).toContain("background-repeat:repeat");
+    await relayout("no-repeat");
+    expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+    playback.advance(0.5);
+    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(0.5)));
   });
 
   test("when the picture cannot be drawn on a canvas, an SVG used in two slots plays in both", async () => {
