@@ -2,7 +2,7 @@ export interface PictureFileTraits {
   animated: boolean;
   profile: boolean;
   unread?: true;
-  aspect?: string;
+  element?: true;
 }
 
 export type Inflate = (data: Uint8Array) => Promise<Uint8Array | undefined>;
@@ -154,31 +154,8 @@ export async function pictureFileTraits(bytes: Uint8Array, inflate?: Inflate): P
   if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") return webpTraits(bytes);
   if (bytes[0] === 0xff && bytes[1] === 0xd8) return jpegTraits(bytes);
   if (ascii(bytes, 4, 4) === "ftyp" && ascii(bytes, 8, 4) === "avis") return { animated: true, profile: false };
-  const aspect = svgAspect(bytes);
-  return aspect === undefined ? { animated: false, profile: false } : { animated: false, profile: false, aspect };
-}
-
-function svgAspect(bytes: Uint8Array): string | undefined {
-  const head = new TextDecoder().decode(bytes.subarray(0, 4096));
-  const root = /<svg\b[^>]*>/i.exec(head);
-  if (!root) return undefined;
-  const attribute = /\spreserveAspectRatio\s*=\s*["']([^"']*)["']/i.exec(root[0]);
-  return (attribute?.[1] ?? "xMidYMid meet").trim();
-}
-
-export function fittedRect(aspect: string, width: number, height: number, naturalWidth: number, naturalHeight: number) {
-  const [align = "xMidYMid", fit = "meet"] = aspect.split(/\s+/);
-  if (align === "none" || !(naturalWidth > 0 && naturalHeight > 0)) return { x: 0, y: 0, width, height };
-  const scale = fit === "slice" ? Math.max(width / naturalWidth, height / naturalHeight) : Math.min(width / naturalWidth, height / naturalHeight);
-  const w = naturalWidth * scale;
-  const h = naturalHeight * scale;
-  const place = (room: number, size: number, min: boolean, max: boolean) => (min ? 0 : max ? room - size : (room - size) / 2);
-  return {
-    x: place(width, w, align.includes("xMin"), align.includes("xMax")),
-    y: place(height, h, align.includes("YMin"), align.includes("YMax")),
-    width: w,
-    height: h,
-  };
+  if (ascii(bytes, 4, 4) === "ftyp") return { animated: false, profile: false };
+  return { animated: false, profile: false, element: true };
 }
 
 function pngComplete(bytes: Uint8Array): boolean {

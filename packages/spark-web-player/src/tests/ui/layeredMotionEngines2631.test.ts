@@ -88,7 +88,8 @@ const share = (a: Buffer, b: Buffer) => {
 type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number) => Promise<void>> & {
   load(src: string): Promise<{ accepted: boolean; painted: number }>;
   sparse(dot: number): Promise<boolean>;
-  svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number): Promise<void>;
+  svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number, sibling?: boolean): Promise<void>;
+  cssFit(kind: string, width: number, height: number): Promise<void>;
   wholePng: string;
 };
 
@@ -169,18 +170,47 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
   });
 
   test.for(SVG_LAYER_CASES)(
-    "an SVG layer drawn as its own live view matches the same layer drawn on the canvas: %s, at uniform and stretched placements",
+    "an SVG layer drawn as its own live view matches it drawn before it is live, and both match the browser at a uniform placement: %s",
     async ([label, outer, inner], context) => {
+      if (!browser) return context.skip();
+      for (const sibling of [false, true]) {
+        for (const [width, height] of SVG_LAYER_SIZES) {
+          await page.evaluate(
+            ({ outer, inner, width, height, sibling }) =>
+              (window as unknown as { layeredMotion: Harness }).layeredMotion.svgLayer(outer, inner, width, height, sibling),
+            { outer, inner, width, height, sibling },
+          );
+          const live = await pixels(page, "#live");
+          const drawn = await pixels(page, "#canvas");
+          const differ = share(live.data, drawn.data);
+          const where = `${sibling ? "beside" : "inside"} the inner label at ${width}x${height}`;
+          console.log(`${name}: SVG layer ${label}, ${where}: live vs before live ${(differ * 100).toFixed(3)}%`);
+          expect(differ).toBeLessThanOrEqual(SVG_LAYER_ALLOWANCE);
+          if (width !== height) continue;
+          const reference = await pixels(page, "#reference");
+          const fromLive = share(live.data, reference.data);
+          const fromDrawn = share(drawn.data, reference.data);
+          console.log(`${name}: SVG layer ${label}, ${where}: against the browser ${(fromLive * 100).toFixed(3)}% live, ${(fromDrawn * 100).toFixed(3)}% before live`);
+          expect(fromLive).toBeLessThanOrEqual(SVG_LAYER_ALLOWANCE);
+          expect(fromDrawn).toBeLessThanOrEqual(SVG_LAYER_ALLOWANCE);
+        }
+      }
+    },
+  );
+
+  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice"])(
+    "an SVG layer file with %s is drawn in the picture as CSS draws it, at uniform and stretched placements",
+    async (kind, context) => {
       if (!browser) return context.skip();
       for (const [width, height] of SVG_LAYER_SIZES) {
         await page.evaluate(
-          ({ outer, inner, width, height }) => (window as unknown as { layeredMotion: Harness }).layeredMotion.svgLayer(outer, inner, width, height),
-          { outer, inner, width, height },
+          ({ kind, width, height }) => (window as unknown as { layeredMotion: Harness }).layeredMotion.cssFit(kind, width, height),
+          { kind, width, height },
         );
-        const live = await pixels(page, "#live");
-        const drawn = await pixels(page, "#canvas");
-        const differ = share(live.data, drawn.data);
-        console.log(`${name}: SVG layer ${label} at ${width}x${height}: ${(differ * 100).toFixed(3)}%`);
+        const ours = await pixels(page, "#ours");
+        const css = await pixels(page, "#css");
+        const differ = share(ours.data, css.data);
+        console.log(`${name}: SVG file with ${kind} at ${width}x${height}: ${(differ * 100).toFixed(3)}% from CSS`);
         expect(differ).toBeLessThanOrEqual(SVG_LAYER_ALLOWANCE);
       }
     },

@@ -262,7 +262,13 @@ const SVG_LAYER_ARTWORK =
   '<image data-name="blue" data-layer="2" x="0" y="0" width="100" height="100"/></g>' +
   '<image data-name="green" data-layer="3" x="0" y="0" width="100" height="100"/></g></svg>';
 
-async function svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number) {
+const SVG_LAYER_SIBLING_ARTWORK = SVG_LAYER_ARTWORK.replace(
+  '<image data-name="blue" data-layer="2" x="0" y="0" width="100" height="100"/></g>',
+  '</g><image data-name="blue" data-layer="2" x="0" y="0" width="100" height="100"/>',
+);
+
+async function svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number, sibling = false) {
+  const artwork = sibling ? SVG_LAYER_SIBLING_ARTWORK : SVG_LAYER_ARTWORK;
   document.body.replaceChildren();
   const holder = document.body.appendChild(document.createElement("div"));
   holder.setAttribute("style", "display:flex;gap:20px;padding:10px;background:#fff");
@@ -286,7 +292,7 @@ async function svgLayer(outer: Record<string, string>, inner: Record<string, str
     const host = createMorphHost({
       service: new MorphBakeService(),
       channel: () => ({ recipes: { shift: recipe, chomp }, variants: {} }),
-      readSource: async (ref) => ({ text: ref.key === "inner" ? LAYER_SVG : SVG_LAYER_ARTWORK }),
+      readSource: async (ref) => ({ text: ref.key === "inner" ? LAYER_SVG : artwork }),
     });
     const playback = new MorphPlayback(overlay, { host, seed: "s", requestFrame: () => 0, cancelFrame: () => {} });
     playback.mount(
@@ -327,6 +333,94 @@ async function svgLayer(outer: Record<string, string>, inner: Record<string, str
     playback.advance(1);
     await nextFrame();
   }
+  const reference = holder.appendChild(document.createElementNS(SVG_NS, "svg"));
+  reference.id = "reference";
+  reference.setAttribute("width", String(width));
+  reference.setAttribute("height", String(height));
+  reference.setAttribute("viewBox", "0 0 100 100");
+  reference.setAttribute("preserveAspectRatio", "none");
+  reference.setAttribute("style", "display:block;flex:none;overflow:hidden;margin-top:0");
+  const image = (parent: Element, index: number) => {
+    const element = parent.appendChild(document.createElementNS(SVG_NS, "image"));
+    element.setAttribute("href", SVG_LAYER_FILES[index]!);
+    element.setAttribute("width", "100");
+    element.setAttribute("height", "100");
+  };
+  const group = (parent: Element, label: string) => {
+    const element = parent.appendChild(document.createElementNS(SVG_NS, "g"));
+    element.setAttribute("style", "transform-box:view-box;transform-origin:50% 50%");
+    const animation = element.animate(morphMotionKeyframes(motion[label]!) as Keyframe[], { duration: 1000, fill: "both" });
+    animation.pause();
+    animation.currentTime = 1000;
+    return element;
+  };
+  image(reference, 0);
+  const outerGroup = group(reference, "outer");
+  const innerGroup = group(outerGroup, "inner");
+  image(innerGroup, 1);
+  image(sibling ? outerGroup : innerGroup, 2);
+  image(outerGroup, 3);
+  await nextFrame();
 }
 
-(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, wholePng: WHOLE_PNG };
+const FIT_SVGS: Record<string, string> = {
+  "a viewBox of another shape": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 200 100"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "no viewBox": `<svg xmlns="${SVG_NS}" width="100" height="100"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "an alignment and slice": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 50" preserveAspectRatio="xMaxYMin slice"><rect x="10" y="10" width="70" height="30" fill="#2040e0"/></svg>`,
+};
+
+async function cssFit(kind: string, width: number, height: number) {
+  document.body.replaceChildren();
+  const holder = document.body.appendChild(document.createElement("div"));
+  holder.setAttribute("style", "display:flex;gap:20px;padding:10px;background:#fff");
+  const files = [smallFile("#ffffff", 0, 0, 100, 100), `data:image/svg+xml,${encodeURIComponent(FIT_SVGS[kind]!)}`];
+  const background = [...files].reverse().map((src) => `url("${src}")`).join(", ");
+  const style = `display:block;position:relative;width:${width}px;height:${height}px;background-image:${background};background-size:100% 100%;background-repeat:no-repeat`;
+  const overlay = holder.appendChild(document.createElement("div"));
+  const ours = overlay.appendChild(document.createElement("span"));
+  ours.id = "ours";
+  ours.setAttribute("style", style);
+  const css = holder.appendChild(document.createElement("div"));
+  css.id = "css";
+  css.setAttribute("style", style);
+  const artwork =
+    `<svg xmlns="${SVG_NS}" viewBox="0 0 100 100">` +
+    '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
+    '<image data-name="mark" data-layer="1" x="0" y="0" width="100" height="100"/></svg>';
+  const keyframes = [
+    { offset: 0, mark: { translate: "0px" } },
+    { offset: 1, mark: { translate: "0px" } },
+  ];
+  const recipe = serializeMorphRecipe(buildMorphRecipe("hold", { blend: "cut", keyframes } as never));
+  const host = createMorphHost({
+    service: new MorphBakeService(),
+    channel: () => ({ recipes: { hold: recipe }, variants: {} }),
+    readSource: async () => ({ text: artwork }),
+  });
+  const playback = new MorphPlayback(overlay, { host, seed: "s", requestFrame: () => 0, cancelFrame: () => {} });
+  playback.mount(
+    ours,
+    {
+      plays: [
+        {
+          layer: 0,
+          picture: { span: 2, files: files.map((src, index) => ({ src, name: `${index}` })) },
+          ref: { morphs: ["hold"], key: "fit", image: "kit", selection: "{}", groups: [] },
+          morph: "hold",
+          timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" },
+          motion: buildMorphMotion(keyframes)!,
+          definition: "h",
+        },
+      ],
+      epoch: 0,
+    },
+    background,
+    "background",
+    "portrait:0",
+  );
+  await until(() => !!ours.querySelector("span.morph")?.shadowRoot?.querySelector("img"));
+  playback.advance(0.5);
+  await nextFrame();
+}
+
+(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, cssFit, wholePng: WHOLE_PNG };
