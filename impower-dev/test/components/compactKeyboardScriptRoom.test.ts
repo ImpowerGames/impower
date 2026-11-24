@@ -189,7 +189,6 @@ const room = () => ({
   scriptOnly: host!.querySelector("[data-script-only]") !== null,
   topBar: shown(host!.querySelector("header")),
   strip: shown(host!.querySelector('[data-panel="end"]')),
-  resizer: shown(host!.querySelector('[aria-label="Resize preview"]')),
   script: shown(host!.querySelector('[data-route="logic"]')),
 });
 
@@ -204,7 +203,6 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       scriptOnly: false,
       topBar: true,
       strip: true,
-      resizer: true,
       script: true,
     });
 
@@ -214,7 +212,6 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       scriptOnly: true,
       topBar: false,
       strip: false,
-      resizer: false,
       script: true,
     });
 
@@ -223,7 +220,6 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       scriptOnly: false,
       topBar: true,
       strip: true,
-      resizer: true,
       script: true,
     });
     expect(host!.querySelector('[data-route="logic"]')).toBe(script);
@@ -239,7 +235,6 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       scriptOnly: false,
       topBar: true,
       strip: true,
-      resizer: true,
       script: true,
     });
   });
@@ -252,7 +247,6 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       scriptOnly: false,
       topBar: true,
       strip: true,
-      resizer: true,
       script: true,
     });
 
@@ -271,7 +265,6 @@ describe("the compact layout with the on-screen keyboard open on a short page", 
       scriptOnly: false,
       topBar: true,
       strip: true,
-      resizer: true,
       script: true,
     });
   });

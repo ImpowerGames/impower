@@ -22,7 +22,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       getActiveEditorForPane: () => ({ uri: "file:///local/main.sd" }),
       revealDocument: () => {},
-      setStripHeight: () => {},
     },
   },
 }));

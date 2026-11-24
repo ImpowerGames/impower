@@ -15,7 +15,6 @@ export function shellWindow(
     setAppMenuOpen: () => {},
     setRailWidth: () => {},
     setRailCompactWidth: () => {},
-    setStripHeight: () => {},
     startEditing: () => {
       store().scriptMode.value = "editing";
     },

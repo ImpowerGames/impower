@@ -7,8 +7,21 @@ import { FileIcon, PencilIcon } from "../icon/icons.generated";
 import PlayButton from "../play-button/PlayButton";
 
 export const previewStripVariants = cva(
-  "@container relative flex h-[var(--preview-strip-height)] w-full flex-none border-b border-edge bg-preview-strip text-ink",
+  "@container relative flex w-full flex-none border-b border-edge bg-preview-strip text-ink",
+  {
+    variants: {
+      size: {
+        phone: "h-[var(--preview-strip-height)]",
+        tablet: "h-[var(--preview-strip-tablet-height)]",
+      },
+    },
+    defaultVariants: { size: "phone" },
+  },
 );
+
+const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
+
+export type PreviewStripSize = keyof typeof PICTURE_HEIGHT;
 
 export const previewStripStatusVariants = cva(
   [
@@ -61,10 +74,15 @@ export type PreviewStripProps = {
   onOpen?: () => void;
   onPlay?: () => void;
   playDisabled?: boolean;
+  size?: PreviewStripSize;
+  docked?: boolean;
   class?: string;
 } & Omit<JSX.HTMLAttributes<HTMLElement>, "label" | "class">;
 
-const WORDS_CLAMP = ["line-clamp-2", "line-clamp-2", "line-clamp-1"] as const;
+const WORDS_CLAMP = {
+  phone: ["line-clamp-2", "line-clamp-2", "line-clamp-1"],
+  tablet: ["line-clamp-3", "line-clamp-2", "line-clamp-2"],
+} as const;
 
 export default function PreviewStrip({
   label,
@@ -78,16 +96,20 @@ export default function PreviewStrip({
   onOpen,
   onPlay,
   playDisabled = false,
+  size = "phone",
+  docked = false,
   class: className,
   ...rest
 }: PreviewStripProps) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const playRef = useRef<HTMLButtonElement | null>(null);
+  const focusPlayRef = useRef(false);
+  const open = expanded && !docked;
   const collapseRef = useRef(onCollapse);
   collapseRef.current = onCollapse;
-  const expandedRef = useRef(expanded);
-  expandedRef.current = expanded;
-  const toastLayer = useToastLayer(expanded);
+  const expandedRef = useRef(open);
+  expandedRef.current = open;
+  const toastLayer = useToastLayer(open);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -116,9 +138,9 @@ export default function PreviewStrip({
     if (!dialog) {
       return;
     }
-    if (expanded && !dialog.open) {
+    if (open && !dialog.open) {
       dialog.showModal();
-    } else if (!expanded && dialog.open) {
+    } else if (!open && dialog.open) {
       const active = document.activeElement;
       const hadFocus = !active || active === document.body || dialog.contains(active);
       dialog.close();
@@ -126,44 +148,87 @@ export default function PreviewStrip({
       dialog.style.display = "none";
       void dialog.offsetHeight;
       dialog.style.removeProperty("display");
-      if (hadFocus) {
-        playRef.current?.focus({ preventScroll: true });
-      }
+      focusPlayRef.current = hadFocus;
     }
-  }, [expanded]);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      focusPlayRef.current = false;
+      return;
+    }
+    if (!focusPlayRef.current) {
+      return;
+    }
+    if (!playDisabled) {
+      focusPlayRef.current = false;
+      playRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const cancel = () => {
+      focusPlayRef.current = false;
+    };
+    document.addEventListener("pointerdown", cancel, true);
+    document.addEventListener("keydown", cancel, true);
+    return () => {
+      document.removeEventListener("pointerdown", cancel, true);
+      document.removeEventListener("keydown", cancel, true);
+    };
+  }, [open, playDisabled]);
 
   const shown = statuses.slice(0, 2);
 
   return (
     <section
-      aria-label="Preview"
+      aria-label={docked ? undefined : "Preview"}
       data-preview-strip=""
+      data-docked={docked ? "" : undefined}
       data-symbol={symbol}
-      class={cn(previewStripVariants(), className)}
+      class={cn(
+        docked
+          ? "relative flex h-full min-h-0 w-full flex-col"
+          : previewStripVariants({ size }),
+        className,
+      )}
       {...rest}
     >
-      <div class="flex h-full w-full min-w-0 items-center gap-3 py-[9px] pr-[max(20px,env(safe-area-inset-right))] pl-3 @max-[380px]:gap-[9px] @max-[380px]:pl-[11px]">
+      <div
+        class={
+          docked
+            ? "flex h-full min-h-0 w-full flex-col"
+            : "flex h-full w-full min-w-0 items-center gap-3 py-[9px] pr-[max(20px,env(safe-area-inset-right))] pl-3 @max-[380px]:gap-[9px] @max-[380px]:pl-[11px]"
+        }
+      >
         <div
           data-preview-strip-picture=""
-          class="relative h-[72px] w-[98px] flex-none overflow-hidden rounded-[7px] border border-solid border-edge bg-stage @max-[380px]:w-[88px]"
+          class={
+            docked
+              ? "relative min-h-0 w-full flex-1"
+              : cn(
+                  "relative w-[98px] flex-none overflow-hidden rounded-[7px] border border-solid border-edge bg-stage @max-[380px]:w-[88px]",
+                  PICTURE_HEIGHT[size],
+                )
+          }
         >
           <dialog
             ref={dialogRef}
             data-portal-host=""
-            data-expanded={expanded ? "" : undefined}
+            data-expanded={open ? "" : undefined}
             aria-label={pictureLabel}
-            inert={!expanded}
+            inert={!open && !docked}
             class={cn(
               "m-0 block max-h-none max-w-none overflow-hidden border-0 p-0 text-ink backdrop:bg-stage",
-              expanded
-                ? "fixed inset-0 h-full w-full bg-preview-mat"
-                : "pointer-events-none absolute top-0 left-0 h-[600%] w-[600%] origin-top-left scale-[0.1666667] bg-stage",
+              docked
+                ? "relative h-full w-full bg-transparent"
+                : open
+                  ? "fixed inset-0 h-full w-full bg-preview-mat"
+                  : "pointer-events-none absolute top-0 left-0 h-[600%] w-[600%] origin-top-left scale-[0.1666667] bg-stage",
             )}
           >
             {picture}
             <div ref={toastLayer} data-toast-layer class="contents" />
           </dialog>
-          {symbol ? (
+          {symbol && !docked ? (
             <span
               aria-hidden="true"
               data-preview-strip-symbol={symbol}
@@ -172,7 +237,7 @@ export default function PreviewStrip({
               {symbol === "pencil" ? <PencilIcon /> : <FileIcon />}
             </span>
           ) : null}
-          {onOpen && !expanded ? (
+          {onOpen && !open && !docked ? (
             <button
               type="button"
               aria-label="Open the full preview"
@@ -182,55 +247,59 @@ export default function PreviewStrip({
             />
           ) : null}
         </div>
-        <div
-          data-preview-strip-copy=""
-          class={cn(
-            "flex min-w-0 flex-1 flex-col items-start",
-            shown.length > 1 && "self-start",
-          )}
-        >
-          <b
+        {docked ? null : (
+          <div
+            data-preview-strip-copy=""
             class={cn(
-              "block w-full [--fade:20px] fade-edge text-[10px]/[1.4] font-bold tracking-[0.06em] text-ink",
-              shown.length > 1 ? "mb-0" : "mb-[2px]",
+              "flex min-w-0 flex-1 flex-col items-start",
+              shown.length > 1 && "self-start",
             )}
           >
-            {label}
-          </b>
-          <p
-            class={cn(
-              "w-full text-[12px]/[1.4] break-words text-muted",
-              WORDS_CLAMP[shown.length],
-            )}
-          >
-            {words}
-          </p>
-          {shown.map((status, index) => (
-            <button
-              key={status.key}
-              type="button"
-              aria-label={status.label}
-              title={status.label ?? status.text}
-              data-preview-strip-status={status.key}
-              class={previewStripStatusVariants({
-                tone: status.tone,
-                rows: shown.length < 2 ? "one" : index === 0 ? "first" : "second",
-              })}
-              onClick={status.onPress}
+            <b
+              class={cn(
+                "block w-full [--fade:20px] fade-edge text-[10px]/[1.4] font-bold tracking-[0.06em] text-ink",
+                shown.length > 1 ? "mb-0" : "mb-[2px]",
+              )}
             >
-              {status.icon}
-              <span class="min-w-0 truncate">{status.text}</span>
-            </button>
-          ))}
-        </div>
-        <PlayButton
-          ref={playRef}
-          name="from this line"
-          size="strip"
-          ring="accent"
-          disabled={playDisabled}
-          onClick={onPlay}
-        />
+              {label}
+            </b>
+            <p
+              class={cn(
+                "w-full text-[12px]/[1.4] break-words text-muted",
+                WORDS_CLAMP[size][shown.length],
+              )}
+            >
+              {words}
+            </p>
+            {shown.map((status, index) => (
+              <button
+                key={status.key}
+                type="button"
+                aria-label={status.label}
+                title={status.label ?? status.text}
+                data-preview-strip-status={status.key}
+                class={previewStripStatusVariants({
+                  tone: status.tone,
+                  rows: shown.length < 2 ? "one" : index === 0 ? "first" : "second",
+                })}
+                onClick={status.onPress}
+              >
+                {status.icon}
+                <span class="min-w-0 truncate">{status.text}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {docked ? null : (
+          <PlayButton
+            ref={playRef}
+            name="from this line"
+            size="strip"
+            ring="accent"
+            disabled={playDisabled}
+            onClick={onPlay}
+          />
+        )}
       </div>
     </section>
   );

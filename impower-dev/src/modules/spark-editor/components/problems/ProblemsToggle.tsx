@@ -3,26 +3,27 @@ import { useLayout } from "@impower/impower-ui/layout";
 import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { problemsLabel } from "../../workspace/problemCounts";
+import { previewInStrip } from "../../workspace/previewInStrip";
 import problems from "../../workspace/problems/ProblemsStore";
 import { PROBLEMS_PANEL_ID } from "./ProblemsPanel";
 
 export default function ProblemsToggle() {
-  const phone = useLayout() === "phone";
+  const stripped = previewInStrip(useLayout());
   const ref = useRef<HTMLButtonElement | null>(null);
   const counts = useComputed(() => problems.counts.value).value;
   const open = useComputed(() => problems.problemsShown.value).value;
   const label = problemsLabel(counts);
-  const expanded = !phone && open;
+  const expanded = !stripped && open;
 
   return (
     <>
       <Button
         ref={ref}
         variant="quiet"
-        title={phone ? "Show problems" : `${expanded ? "Collapse" : "Open"} the panel`}
-        aria-expanded={phone ? undefined : expanded}
-        aria-controls={phone ? undefined : PROBLEMS_PANEL_ID}
-        aria-haspopup={phone ? "dialog" : undefined}
+        title={stripped ? "Show problems" : `${expanded ? "Collapse" : "Open"} the panel`}
+        aria-expanded={stripped ? undefined : expanded}
+        aria-controls={stripped ? undefined : PROBLEMS_PANEL_ID}
+        aria-haspopup={stripped ? "dialog" : undefined}
         data-problems={counts.problems > 0 ? "" : undefined}
         class="gap-1.5 pr-2.5 pl-[7px] text-[12px]/[1.6] font-semibold text-muted data-problems:text-ink aria-expanded:[&>svg]:rotate-0"
         onClick={() => problems.togglePanel(() => ref.current)}

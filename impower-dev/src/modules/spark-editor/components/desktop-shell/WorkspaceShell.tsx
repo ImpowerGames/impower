@@ -84,12 +84,14 @@ export default function WorkspaceShell({
   }, [editing]);
 
   const onStory = writing && route === "story";
+  const stripLayout = phone || compact;
+  const stripShown = phone ? onStory : route !== "share";
 
   useEffect(() => {
-    if (phone && previewRevealed && !onStory) {
+    if (stripLayout && previewRevealed && !stripShown) {
       void workspaceWindow().then((win) => win.collapsePreviewPane());
     }
-  }, [phone, previewRevealed, onStory]);
+  }, [stripLayout, previewRevealed, stripShown]);
 
   const onWidthChange = async (width: number | undefined) => {
     const { Workspace } = await import("../../workspace/Workspace");

@@ -19,6 +19,11 @@ export type SplitPanePinned = {
   onSizeChange: (size: number | undefined) => void;
 };
 
+export type SplitPaneFixed = {
+  panel: "start" | "end";
+  size: string;
+};
+
 export type SplitPaneProps = {
   orientation?: "horizontal" | "vertical";
   start: ComponentChildren;
@@ -29,6 +34,7 @@ export type SplitPaneProps = {
   solo?: boolean;
   reverse?: boolean;
   pinned?: SplitPanePinned;
+  fixed?: SplitPaneFixed;
   label?: string;
   overflowPanel?: "start" | "end";
   line?: NonNullable<SplitPaneSeparatorVariants["line"]>;
@@ -138,6 +144,7 @@ export default function SplitPane({
   solo = false,
   reverse = false,
   pinned,
+  fixed,
   label,
   overflowPanel,
   line = "edge",
@@ -322,6 +329,11 @@ export default function SplitPane({
       overflowPanel === panel ? "overflow-visible" : "overflow-hidden",
       "min-h-0 min-w-0",
     );
+    if (fixed && !collapsed) {
+      return fixed.panel === panel
+        ? { class: cn(clip, "flex-none"), style: { flexBasis: fixed.size } }
+        : { class: cn(clip, FILL_PANEL) };
+    }
     if (pinned && !collapsed) {
       return {
         class: cn(clip, pinned.panel === panel ? PINNED_PANEL : FILL_PANEL),
@@ -378,10 +390,10 @@ export default function SplitPane({
           aria-valuemin={valueMin}
           aria-valuemax={valueMax}
           aria-valuenow={valueNow}
-          tabIndex={0}
+          tabIndex={fixed ? -1 : 0}
           class={cn(
             splitPaneSeparatorVariants({ orientation, line, reverse }),
-            collapsed && "hidden",
+            (collapsed || fixed) && "hidden",
           )}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

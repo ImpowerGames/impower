@@ -184,6 +184,7 @@ export {
 export {
   default as SplitPane,
   type SplitPaneProps,
+  type SplitPaneFixed,
   type SplitPanePinned,
 } from "./split-pane/SplitPane";
 export {
@@ -358,6 +359,7 @@ export {
   previewStripVariants,
   previewStripStatusVariants,
   type PreviewStripProps,
+  type PreviewStripSize,
   type PreviewStripStatus,
   type PreviewStripSymbol,
   type PreviewStripTone,

@@ -25,7 +25,6 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
     window: {
       getActiveEditorForPane: () => ({ uri: "file:///local/main.sd" }),
       revealDocument: intents.revealDocument,
-      setStripHeight: () => {},
     },
   },
 }));
@@ -140,7 +139,7 @@ const setState = (
     workspace.current = change(structuredClone(workspace.current));
   });
 
-const mount = async ({ fullView = phone } = {}) => {
+const mount = async ({ fullView = phone || compact } = {}) => {
   workspace.current = {
     ...workspace.current,
     preview: { ...workspace.current.preview, revealed: fullView },
@@ -618,27 +617,9 @@ describe("the bar under the game", () => {
     }
   });
 
-  it("shows a forced route on the compact strip's readout, whose press opens the list in the strip", async () => {
-    compact = true;
-    await act(async () => mediaListeners.forEach((listener) => listener()));
-    await mount();
-    await act(() => {
-      route.view.value = forcedRoute;
-    });
-    const readout = bar().querySelector<HTMLButtonElement>(
-      'button[aria-controls="route-panel"]',
-    )!;
-    expect(readout.querySelector('[data-icon="detour"]')).not.toBeNull();
-    await act(async () => readout.click());
-    await settle();
-    expect(document.getElementById("route-panel")).not.toBeNull();
-    expect(document.querySelector("#route-panel [data-route-entry]")!.textContent).toContain(
-      "Condition trust > 3 forced true",
-    );
-  });
-
-  it("shows a forced route on the phone's preview readout, whose press opens the list as a sheet", async () => {
-    phone = true;
+  it.each(["phone", "compact"])("shows a forced route on the %s full view's readout, whose press opens the list as a sheet", async (layout) => {
+    phone = layout === "phone";
+    compact = layout === "compact";
     await act(async () => mediaListeners.forEach((listener) => listener()));
     workspace.current = {
       ...workspace.current,
@@ -663,6 +644,35 @@ describe("the bar under the game", () => {
       "Condition trust > 3 forced true",
     );
     expect(document.getElementById("route-panel")).toBeNull();
+  });
+
+  it("keeps the same game element from the desktop pane to the tablet strip, its full view and back", async () => {
+    await mount({ fullView: false });
+    const game = host!.querySelector('[data-stage="game"]');
+    expect(game).not.toBeNull();
+    const reveal = (revealed: boolean) =>
+      act(async () => {
+        workspace.current = {
+          ...workspace.current,
+          preview: { ...workspace.current.preview, revealed },
+        };
+      });
+    const layoutTo = async (next: "desktop" | "compact") => {
+      compact = next === "compact";
+      await act(async () => mediaListeners.forEach((listener) => listener()));
+    };
+    await layoutTo("compact");
+    expect(host!.querySelector('[data-stage="game"]')).toBe(game);
+    expect(host!.querySelector("[data-top-bar]")).toBeNull();
+    await reveal(true);
+    expect(host!.querySelector('[data-stage="game"]')).toBe(game);
+    expect(bar().querySelector('button[aria-label="Close the preview"]')).not.toBeNull();
+    expect(host!.querySelector('[role="separator"][aria-label="Resize game and panel"]')!.className).toContain("hidden");
+    await reveal(false);
+    await layoutTo("desktop");
+    expect(host!.querySelector('[data-stage="game"]')).toBe(game);
+    expect(host!.querySelector('[role="separator"][aria-label="Resize game and panel"]')!.className).not.toContain("hidden");
+    expect(game!.isConnected).toBe(true);
   });
 
   it("names the ratio and the size the player reports", async () => {

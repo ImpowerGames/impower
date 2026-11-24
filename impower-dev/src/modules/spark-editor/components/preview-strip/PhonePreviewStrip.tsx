@@ -4,6 +4,7 @@ import {
   InfoIcon,
   PreviewStrip,
   WarningIcon,
+  type PreviewStripSize,
   type PreviewStripStatus,
 } from "@impower/impower-ui/components";
 import { routeIcon } from "@impower/spark-web-player/src/route/routeView";
@@ -32,7 +33,13 @@ const withWorkspace = async (
   await act(Workspace.window);
 };
 
-export default function PhonePreviewStrip() {
+export default function PhonePreviewStrip({
+  size = "phone",
+  docked = false,
+}: {
+  size?: PreviewStripSize;
+  docked?: boolean;
+}) {
   const snapshot = workspace.previewLine.value;
   const game = workspace.state.value.preview?.modes?.game;
   const startRefused =
@@ -91,6 +98,8 @@ export default function PhonePreviewStrip() {
       symbol={copy.symbol}
       statuses={statuses}
       playDisabled={!copy.playable}
+      size={size}
+      docked={docked}
       expanded={expanded}
       onPlay={() => void withWorkspace((win) => win.playInFullView())}
       onOpen={() => void withWorkspace((win) => win.openFullView())}

@@ -106,7 +106,8 @@ describe("the phone's full view", () => {
     expect(workspaceSettings.preferences.peek().previewMode).toBe("textstream");
   });
 
-  it("stops playback when the full view closes on a phone, as the prototype does", () => {
+  it.each(["phone", "compact"])("stops playback when the full view closes in the %s layout, as the prototype does", (name) => {
+    layout.value = name;
     const w = mount();
     w.connectPlayer();
     w.playInFullView();
@@ -116,7 +117,8 @@ describe("the phone's full view", () => {
     expect(sent.stopped).toBe(1);
   });
 
-  it("returns to the script when Stop ends a run played from the strip", () => {
+  it.each(["phone", "compact"])("returns to the script when Stop ends a run played from the strip in the %s layout", (name) => {
+    layout.value = name;
     const w = mount();
     w.connectPlayer();
     w.playInFullView();
@@ -182,7 +184,7 @@ describe("the phone's full view", () => {
 
   it("still moves the caret to the executed line where the script is in view", () => {
     const uri = "file:///project/main.sd";
-    layout.value = "compact";
+    layout.value = "desktop";
     const w = mount();
     vi.spyOn(w, "getActiveEditorForPane").mockReturnValue({ uri } as ReturnType<
       typeof w.getActiveEditorForPane
@@ -197,8 +199,8 @@ describe("the phone's full view", () => {
     );
   });
 
-  it("leaves the preview where it is when Stop is pressed outside the phone layout", () => {
-    layout.value = "compact";
+  it("leaves the preview where it is when Stop is pressed on the desktop layout", () => {
+    layout.value = "desktop";
     const w = mount();
     w.connectPlayer();
     w.expandPreviewPane();
@@ -209,8 +211,8 @@ describe("the phone's full view", () => {
     expect(workspace.current.preview.revealed).toBe(true);
   });
 
-  it("leaves a game running when the preview collapses outside the phone layout", () => {
-    layout.value = "compact";
+  it("leaves a game running when the preview collapses on the desktop layout", () => {
+    layout.value = "desktop";
     const w = mount();
     w.connectPlayer();
     w.expandPreviewPane();
