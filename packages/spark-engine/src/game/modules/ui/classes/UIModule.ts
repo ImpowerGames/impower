@@ -8,10 +8,10 @@ import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
-import { resolveImageLayers, type ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
+import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { morphRefsForStruct, pictureMorphRefs, playsOnPicture, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
 import type { LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
@@ -1398,17 +1398,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     property: string,
     state?: ElementState,
   ): Element {
+    this.beginPictureLooks();
     const background = imageAssets
       .map((a) => this.getBackgroundImageFromValue(a))
       .reverse()
       .join(", ");
+    const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
+    this.endPictureLooks();
     const el = this.createElement(parent, {
       name: "instance",
       type: "span",
       ...state,
       style: { ...(state?.style || {}), [property]: background },
     });
-    const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
     if (src) {
       this.createElement(el, {
         name: "object",
@@ -1603,10 +1605,50 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick): Image[] {
     const imageName = sortFilteredName(name);
+    const look = this.pictureLook(type, name, pick);
+    const layers = !look
+      ? []
+      : !poseOf || poseOf === morphRestPose
+        ? look.rest
+        : poseOf === this.morphStartPose
+          ? look.start!
+          : shownImageLayers(this.context, this._game.program?.morphs, look.struct, poseOf, pick);
+    return layers.map((layer) => ({ $type: "image", $name: imageName, src: layer.src }));
+  }
+
+  protected _pictureLooks?: Map<string, PictureLook>;
+
+  protected _pictureLookDepth = 0;
+
+  beginPictureLooks() {
+    if (this._pictureLookDepth++ === 0) {
+      this._pictureLooks = new Map();
+    }
+  }
+
+  endPictureLooks() {
+    if (this._pictureLookDepth > 0 && --this._pictureLookDepth === 0) {
+      this._pictureLooks = undefined;
+    }
+  }
+
+  pictureLook(type: string, name: string, pick?: ImagePick): PictureLook | undefined {
+    const imageName = sortFilteredName(name);
+    const key = JSON.stringify([type, imageName, pick === undefined ? null : typeof pick === "string" ? pick : 0]);
+    const cached = this._pictureLooks?.get(key);
+    if (cached) {
+      return cached;
+    }
     const image = resolveImageReference(this.context, { $type: type, $name: imageName });
-    return shownImageLayers(this.context, this._game.program?.morphs, image, poseOf, pick).map((layer) => ({
-      $type: "image", $name: imageName, src: layer.src,
-    }));
+    if (!image) {
+      return undefined;
+    }
+    const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
+      ...(pick === undefined ? {} : { pick }),
+      startPose: this.morphStartPose,
+    });
+    this._pictureLooks?.set(key, look);
+    return look;
   }
 
   morphStartPose = (recipe: MorphRecipe): Record<string, string> => {
@@ -1829,8 +1871,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const imageName = sortFilteredName(asset);
     const speaker = event.speaker || undefined;
     const decide = (layer: ImageLayer) => linePick(context, imageName, layer, event.morph, speaker);
-    const image = resolveImageReference(context, { $type: "", $name: imageName });
-    const picks = [{ src: "", struct: image }, ...resolveImageLayers(context, image)].map(decide);
+    const picks = this.pictureLook("", asset, decide)?.decisions ?? [];
     if (picks.every((pick) => pick === event.morph)) {
       return event.morph;
     }
@@ -1870,29 +1911,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const imageName = sortFilteredName(asset);
-      const image = resolveImageReference(this.context, { $type: "", $name: imageName });
-      const owner = getImageOwner(this.context, imageName);
-      const whole = pictureMorphRefs(this.context, channel, image, pick);
-      if (whole?.layered) {
-        this.reportLayeredMorphConflict(imageName, whole.refs);
-      } else if (whole && whole.refs.length > 1) {
-        this.reportMorphConflict(imageName, whole.refs);
+      const look = this.pictureLook("", asset, pick);
+      if (!look) {
         continue;
-      } else if (playsOnPicture(whole)) {
+      }
+      const owner = getImageOwner(this.context, imageName);
+      if (look.conflict === "layers") {
+        this.reportLayeredMorphConflict(imageName, look.refs);
+      } else if (look.conflict === "overlap") {
+        this.reportMorphConflict(imageName, look.refs);
+        continue;
+      } else if (look.plays) {
         if (count > 0) {
-          play(whole.refs[0]!, first, owner ?? getImageOwner(this.context, whole.root.$name), {
+          play(look.refs[0]!, first, owner ?? getImageOwner(this.context, look.root?.$name), {
             span: count,
-            files: whole.artwork.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
+            files: look.artwork!.files.map((file) => ({ src: file.src, name: pictureFileName(file) })),
           });
         }
         continue;
       }
-      const resolved = resolveImageLayers(this.context, image);
-      if (resolved.length !== count) {
+      if (look.layers.length !== count) {
         continue;
       }
-      for (const [offset, layer] of resolved.entries()) {
-        const refs = morphRefsForStruct(this.context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick);
+      for (const [offset, layer] of look.layers.entries()) {
+        const refs = layer.refs;
         if (refs.length > 1) {
           this.reportMorphConflict(layer.struct?.$name ?? asset, refs);
           continue;
@@ -2076,7 +2118,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const named = resolveImageReference(this.context, { $type: "", $name: sortFilteredName(value) }) != null;
+    const named = this.pictureLook("", value, pick) !== undefined;
     const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
     const srcs = posed ?? this.getImageSrcsByName(value);
     if (srcs?.length) {
@@ -5219,6 +5261,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
           if (e.assets && e.assets.length > 0) {
+            $.beginPictureLooks();
             const imageNames = e.assets.join(" ");
             const videoSrcs = e.assets
               .map((a) => $.getVideoSrcByName(a))
@@ -5279,6 +5322,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               };
             }
             const morph = $.getMorphContent(imageAssets, pickOf);
+            $.endPictureLooks();
             if (morph) {
               content.morph = morph;
             }

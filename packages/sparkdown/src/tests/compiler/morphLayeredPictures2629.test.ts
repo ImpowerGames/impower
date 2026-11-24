@@ -135,4 +135,19 @@ describe("a morph mints references for pictures made of image files (#2629)", ()
     expect(painted.morphs?.picks?.["ava"]?.["talk"]).toHaveLength(1);
     expect(messages.filter((message) => message.includes("plays on no image"))).toEqual([]);
   });
+
+  const messagesOf = (text: string) =>
+    (compile(text).diagnostics?.[MAIN] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+
+  test("a morph clause that names the speech morph of a picture with no layer shown at rest is accepted", () => {
+    const talk = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const overlay = `define jaw as layered_image with\n  assets = {\n    ["lids.on"] = kit_lids,\n  }\nend\n`;
+    const messages = messagesOf(`define ava as character with\n  name = "AVA"\nend\n\n${talk}\n${overlay}\nscene start\n  AVA:\n    [[jaw morph chatter]]\n    Hello.\nend\n`);
+    expect(messages.filter((message) => message.includes("chatter"))).toEqual([]);
+  });
+
+  test("a painted portrait warns where its morph's rest replaces a written choice, as an SVG image does", () => {
+    const messages = messagesOf(`${BLINK}\nscene start\n  [[ava:lids.on]]\nend\n`);
+    expect(messages.filter((message) => message.startsWith("`blink` plays on this look and rests its `lids` on `off`"))).toHaveLength(1);
+  });
 });

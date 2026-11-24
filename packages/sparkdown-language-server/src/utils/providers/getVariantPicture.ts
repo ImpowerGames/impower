@@ -31,7 +31,11 @@ export const getVariantPicture = async (
     image: { $name: variant.image },
     attributes: [...variant.attributes],
   };
-  const shown = options?.shownLayers ? options.shownLayers(context, struct) : resolveImageLayers(context, struct);
+  const shown = options?.look
+    ? options.look(context, struct).rest
+    : options?.shownLayers
+      ? options.shownLayers(context, struct)
+      : resolveImageLayers(context, struct);
   if (!shown.length) {
     return { src: "", layers: [] };
   }

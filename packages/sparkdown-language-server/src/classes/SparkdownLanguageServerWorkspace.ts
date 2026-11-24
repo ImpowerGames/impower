@@ -25,7 +25,8 @@ import {
   findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { decodeSVGSource } from "@impower/sparkdown/src/attributes";
-import { channelRefs, morphRefsForStruct, shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { channelRefs, morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { layeredMorphArtwork } from "@impower/sparkdown/src/morph/layered";
@@ -580,8 +581,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
+  morphLook(context: SparkProgram["context"], struct: any, pick?: ImagePick) {
+    return resolvePictureLook(context, this.programOfContext(context)?.morphs, struct, pick === undefined ? {} : { pick });
+  }
+
   morphShownLayers(context: SparkProgram["context"], struct: any, pick?: ImagePick) {
-    return shownImageLayers(context, this.programOfContext(context)?.morphs, struct, undefined, pick);
+    return this.morphLook(context, struct, pick).rest;
   }
 
   async morphRestRender(context: SparkProgram["context"], struct: any, pick?: string): Promise<string | undefined> {

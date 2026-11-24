@@ -27,11 +27,10 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
-import { resolveImageLayers } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { ASSET_TYPES } from "@impower/sparkdown/src/compiler/constants/assetTypes";
 import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { speechMorphsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
@@ -581,9 +580,8 @@ const addMorphPickCompletions = (
   const names = new Set<string>();
   for (const asset of assets) {
     const image = resolveImageReference(context, { $type: "", $name: sortFilteredName(asset) });
-    for (const struct of [image, ...resolveImageLayers(context, image).map((layer) => layer.struct)]) {
-      if (struct) for (const name of speechMorphsForStruct(context, channel, struct)) names.add(name);
-    }
+    if (!image) continue;
+    for (const name of resolvePictureLook(context, channel, image).speech) names.add(name);
   }
   for (const name of [...names].sort()) {
     const isDefault = Boolean(channel.speech?.[name]?.default);

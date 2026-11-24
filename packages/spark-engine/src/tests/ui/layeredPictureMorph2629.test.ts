@@ -176,6 +176,43 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(ui.getImageUrlsFromBackground(ui.getBackgroundImageFromString("kit"))).toEqual([]);
   });
 
+  test("an overlay-only picture whose morph rests on its overlay shows that overlay through every way the engine paints it", async () => {
+    const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
+    const show = `morph show {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n}\n`;
+    const source = `${show}\ndefine kit as layered_image with\n  assets = {\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const harness = createHarness(source, 0, { assets: files });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const ui = (harness.game as any).module.ui;
+    const overlay = 'url("/src/overlay.png")';
+    expect(ui.getImageAssets("", "kit").map((asset: any) => asset.src)).toEqual(["/src/overlay.png"]);
+    expect(ui.getImageSrcsByName("kit")).toEqual(["/src/overlay.png"]);
+    expect(ui.getBackgroundImageFromString("kit")).toBe(overlay);
+    expect(ui.getBackgroundImageFromString("kit", undefined, "none")).toBe(overlay);
+    expect(ui.getBackgroundImageFromString("kit", ui.morphStartPose)).toBe("none");
+    const created: any[] = [];
+    const createElement = ui.createElement;
+    ui.createElement = (_parent: unknown, state: any) => (created.push(state), {});
+    ui.createImage(null, ["kit"], "background_image");
+    ui.createElement = createElement;
+    expect(created.map((state) => [state.type, state.style?.background_image, state.attributes?.src])).toEqual([
+      ["span", overlay, undefined],
+      ["img", undefined, "/src/overlay.png"],
+    ]);
+    expect(ui.imagePick({ speaker: "HERO" }, "kit")).toBeUndefined();
+    const content = ui.getMorphContent(["kit"], () => undefined);
+    expect(content.plays.map((play: any) => [play.morph, play.layer, play.picture])).toEqual([
+      ["show", 0, { span: 1, files: [{ src: "/src/overlay.png", name: "overlay.png" }] }],
+    ]);
+    const writes = flattenMessages(harness.messages).filter(
+      (message: any) => message?.method === "ui/write-image" && message.params.target === "portrait" && message.params.instructions[0]?.content,
+    );
+    const written = writes.at(-1).params.instructions[0].content;
+    expect(written.background).toBe(overlay);
+    expect(written.morph?.plays.map((play: any) => play.morph)).toEqual(["show"]);
+  });
+
   test("an overlay-only picture of a character listening on another's line rests in its own look, not its speech morph's rest", async () => {
     const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
     const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;

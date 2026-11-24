@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { getImagePreviewComposited, type ImageCompositeOptions } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
-import { shownImageLayers } from "@impower/sparkdown/src/morph/channel";
+import { shownImageLayers } from "@impower/sparkdown/src/morph/look";
 import { describe, expect, it } from "vitest";
 import { getVariantPicture } from "../../utils/providers/getVariantPicture";
 

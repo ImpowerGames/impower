@@ -9,11 +9,10 @@ import {
   type MorphRequirements,
 } from "../compiler/morph/bindMorph";
 import { parseMorphConditions } from "../compiler/morph/morphSchema";
-import { filterImage, resolveImageAttributes } from "../compiler/utils/filterImage";
-import { resolveImageLayers, type ImageLayer } from "../compiler/utils/resolveImageLayers";
+import { resolveImageAttributes } from "../compiler/utils/filterImage";
 import { buildFilteredSrc, serializeImageFilterParam } from "../filters/filteredSvg";
 import { hashText } from "./hash";
-import { layeredMorphArtwork, layeredMorphRoot, type LayeredMorphArtwork } from "./layered";
+import { layeredMorphArtwork } from "./layered";
 import { own, table } from "./own";
 import { buildMorphRecipe, morphOverlaps, morphRestPose, parseMorphRecipe, recipeAsMorph, serializeMorphRecipe } from "./recipe";
 import { MORPH_BAKE_FORMAT, MORPH_PICK_NONE, type MorphConditions, type MorphProgramChannel, type MorphRecipe, type MorphRef } from "./types";
@@ -337,64 +336,4 @@ export function shownLook(
 export function shownLookStruct(struct: any, attributes: readonly string[]): any {
   if (!attributes.length || !struct || typeof struct !== "object") return struct;
   return { $type: "filtered_image", $name: struct.$name, image: { $type: struct.$type, $name: struct.$name }, attributes: [...attributes] };
-}
-
-export interface PictureMorphRefs {
-  root: any;
-  pick?: string;
-  refs: MorphRef[];
-  layered: boolean;
-  artwork?: LayeredMorphArtwork;
-}
-
-export function pictureMorphRefs(
-  context: Context | undefined,
-  channel: MorphProgramChannel | undefined,
-  struct: any,
-  pick?: string | ((layer: ImageLayer) => string | undefined),
-): PictureMorphRefs | undefined {
-  const root = layeredMorphRoot(context, struct);
-  if (!context || !channel || !root) return undefined;
-  const picked = typeof pick === "function" ? pick({ src: "", struct }) : pick;
-  const refs = morphRefsForStruct(context, channel, struct, picked);
-  if (refs.length === 0) return { root, ...(picked === undefined ? {} : { pick: picked }), refs, layered: false };
-  const artwork = layeredMorphArtwork(context, root);
-  const children: ImageLayer[] = artwork
-    ? artwork.files.map((file) => ({ src: file.src, struct: file.struct }))
-    : resolveImageLayers(context, struct);
-  const layered = children.some((layer) =>
-    layer.struct ? morphRefsForStruct(context, channel, layer.struct, typeof pick === "function" ? pick(layer) : pick).length > 0 : false,
-  );
-  return { root, ...(picked === undefined ? {} : { pick: picked }), refs, layered, ...(artwork ? { artwork } : {}) };
-}
-
-export const playsOnPicture = (picture: PictureMorphRefs | undefined): picture is PictureMorphRefs & { artwork: LayeredMorphArtwork } =>
-  !!picture && !picture.layered && picture.refs.length === 1 && !!picture.artwork;
-
-export function shownImageLayers(
-  context: Context | undefined,
-  channel: MorphProgramChannel | undefined,
-  struct: any,
-  poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
-  pick?: string | ((layer: ImageLayer) => string | undefined),
-): (ImageLayer & { shown?: true })[] {
-  const layers = resolveImageLayers(context, struct);
-  if (!context || !channel) return layers;
-  const picture = pictureMorphRefs(context, channel, struct, pick);
-  if (playsOnPicture(picture)) {
-    const look = shownLook(context, channel, struct, poseOf, picture.pick);
-    if (!look?.attributes.length) return layers;
-    const posed =
-      struct?.$type === "filtered_image"
-        ? { ...struct, attributes: [...(Array.isArray(struct.attributes) ? struct.attributes : []), ...look.attributes] }
-        : shownLookStruct(struct, look.attributes);
-    return resolveImageLayers(context, posed).map((layer) => ({ ...layer, shown: true as const }));
-  }
-  return layers.map((layer) => {
-    const layerPick = typeof pick === "function" ? pick(layer) : pick;
-    const look = layer.struct ? shownLook(context, channel, layer.struct, poseOf, layerPick) : undefined;
-    if (!look?.attributes.length) return layer;
-    const src = filterImage(context, shownLookStruct(layer.struct, look.attributes)).src;
-    return src ? { ...layer, src, shown: true as const } : layer;
-  });
 }
