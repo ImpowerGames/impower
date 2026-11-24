@@ -19,6 +19,7 @@ export interface LayerPaint {
   tiles: Rect[];
   pattern?: { tile: Rect; stepX: number; stepY: number; repeatX: boolean; repeatY: boolean };
   clip: Rect;
+  radii: number[];
   blend: string;
 }
 
@@ -264,6 +265,7 @@ export function layerPaint(style: LayerStyle, boxes: LayerBoxes, image: { width:
       ? { pattern: { tile: { x: xs.first, y: ys.first, width, height }, stepX: xs.step, stepY: ys.step, repeatX: xs.repeats, repeatY: ys.repeats } }
       : {}),
     clip,
+    radii: [0, 0, 0, 0, 0, 0, 0, 0],
     blend,
   };
 }

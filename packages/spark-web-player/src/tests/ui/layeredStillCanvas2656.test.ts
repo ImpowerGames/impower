@@ -22,12 +22,43 @@ interface Drawn {
   alpha: number;
 }
 
-function recordingCanvas() {
+interface RecordedPattern {
+  src: string;
+  repetition: string;
+  matrix?: number[];
+}
+
+function recordingCanvas(patterns = false) {
   const frames: Drawn[][] = [];
   const smoothing: boolean[] = [];
   const blends: string[] = [];
   const fills: { style: unknown; x: number; y: number; width: number; height: number }[] = [];
+  const clips: { kind: "rect" | "round"; x: number; y: number; width: number; height: number; radii?: { x: number; y: number }[] }[] = [];
   const context: PictureCanvasContext = {
+    ...(patterns
+      ? {
+          save: () => {},
+          restore: () => {},
+          beginPath: () => {},
+          clip: () => {},
+          rect: (x: number, y: number, width: number, height: number) => {
+            clips.push({ kind: "rect", x, y, width, height });
+          },
+          roundRect: (x: number, y: number, width: number, height: number, radii: { x: number; y: number }[]) => {
+            clips.push({ kind: "round", x, y, width, height, radii });
+          },
+          createPattern: (image: CanvasImageSource, repetition: string) => {
+            const pattern: RecordedPattern & { setTransform(matrix: { init: number[] }): void } = {
+              src: (image as unknown as { src?: string }).src ?? "canvas",
+              repetition,
+              setTransform(matrix) {
+                pattern.matrix = matrix.init;
+              },
+            };
+            return pattern as unknown as CanvasPattern;
+          },
+        }
+      : {}),
     globalAlpha: 1,
     imageSmoothingEnabled: true,
     globalCompositeOperation: "source-over",
@@ -45,7 +76,7 @@ function recordingCanvas() {
       fills.push({ style: context.fillStyle, x, y, width, height });
     },
   };
-  return { frames, smoothing, blends, fills, factory: () => context };
+  return { frames, smoothing, blends, fills, clips, factory: () => context };
 }
 
 const bitmap = (src: string, extra: Partial<PictureBitmap> = {}): PictureBitmap => ({
@@ -68,10 +99,16 @@ function setup(options: {
   load?: (src: string) => Promise<PictureBitmap | undefined>;
   size?: { width: number; height: number };
   backgroundSize?: string;
+  patterns?: boolean;
 } = {}) {
   const env = installJSDOM();
   restore = env.restore;
-  const canvas = recordingCanvas();
+  if (options.patterns && !env.win.DOMMatrix) {
+    env.win.DOMMatrix = class {
+      constructor(public init: number[]) {}
+    };
+  }
+  const canvas = recordingCanvas(options.patterns);
   const loads: string[] = [];
   const frames: ((now: number) => void)[] = [];
   const playback = new MorphPlayback(env.overlay, {
@@ -228,15 +265,74 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     ]);
   });
 
-  test("a repeating picture is tiled on the canvas as CSS tiles it, and calc() sizes are resolved", () => {
-    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 } });
+  test("a repeating picture is tiled on the canvas through a pattern as CSS tiles it, and calc() sizes are resolved", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 }, patterns: true });
     span.style.setProperty("background-size", "calc(50% - 50px) calc(100% - 50px)");
-    span.style.setProperty("background-position", "0px 0px");
+    span.style.setProperty("background-position", "10px 0px");
     span.style.setProperty("background-repeat", "repeat-x");
     mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
-    expect(canvas.frames.at(-1)).toEqual(
-      ["office.png", "desk.png"].flatMap((src) => [0, 50, 100, 150].map((x) => ({ src, x, y: 0, width: 50, height: 50, alpha: 1 }))),
+    expect(canvas.frames.at(-1)).toEqual([]);
+    expect(canvas.fills.map(({ style, ...rect }) => ({ src: (style as RecordedPattern).src, repetition: (style as RecordedPattern).repetition, matrix: (style as RecordedPattern).matrix, ...rect }))).toEqual(
+      ["office.png", "desk.png"].map((src) => ({
+        src,
+        repetition: "repeat-x",
+        matrix: [50 / 40, 0, 0, 50 / 30, -40, 0],
+        x: 0,
+        y: 0,
+        width: 200,
+        height: 50,
+      })),
     );
+  });
+
+  test("a layer with more tiles than can be listed is still painted whole, through a pattern", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 }, patterns: true });
+    span.style.setProperty("background-size", "1px 1px");
+    span.style.setProperty("background-position", "0px 0px");
+    span.style.setProperty("background-repeat", "repeat");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvas.fills.map(({ style, ...rect }) => ({ repetition: (style as RecordedPattern).repetition, ...rect }))).toEqual(
+      ["office.png", "desk.png"].map(() => ({ repetition: "repeat", x: 0, y: 0, width: 200, height: 100 })),
+    );
+  });
+
+  test("a spaced layer whose tiles leave gaps is painted through a pattern of the tile and its gap", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 }, patterns: true });
+    span.style.setProperty("background-size", "0.5px 0.5px");
+    span.style.setProperty("background-position", "0px 0px");
+    span.style.setProperty("background-repeat", "space");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const fills = canvas.fills.map(({ style, ...rect }) => ({ repetition: (style as RecordedPattern).repetition, ...rect }));
+    expect(fills).toHaveLength(2);
+    expect(fills.every((fill) => fill.repetition === "repeat" && fill.width === 200 && fill.height === 100)).toBe(true);
+  });
+
+  test("a picture element with rounded corners clips each layer to the rounded box, as CSS clips its background", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 120, height: 120 }, patterns: true });
+    for (const corner of ["top-left", "top-right", "bottom-right", "bottom-left"]) span.style.setProperty(`border-${corner}-radius`, "60px");
+    expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("border-top-left-radius")).toBe("60px");
+    span.style.setProperty("background-size", "100% 100%");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvas.clips).toHaveLength(2);
+    expect(canvas.clips[0]).toEqual({ kind: "round", x: 0, y: 0, width: 120, height: 120, radii: Array(4).fill({ x: 60, y: 60 }) });
+  });
+
+  test("a framing that zooms in draws the canvas at the zoomed size when the files have the detail in either direction", () => {
+    const tall = (src: string) => bitmap(src, { width: 200, height: 400 });
+    const { span, mount } = setup({ resident: tall, size: { width: 200, height: 100 } });
+    span.style.setProperty("background-size", "100% 100%");
+    placePicture(span, { x: 0.5, y: 0.5, zoom: 2 });
+    mount(SRCS, [OFFICE]);
+    expect([canvasOf(span)!.width, canvasOf(span)!.height]).toEqual([400, 200]);
+  });
+
+  test("a picture whose exit has started keeps following its style until it is removed", () => {
+    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    const layer = mount(SRCS, [OFFICE]);
+    layer.freeze();
+    span.style.setProperty("background-position", "right top");
+    flushFrame();
+    expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([400, 400, 400]);
   });
 
   test("a change of the picture's CSS placement while it is shown redraws the same canvas at the new placement before the next frame paints", () => {

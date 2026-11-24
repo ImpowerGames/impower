@@ -31,7 +31,7 @@ import type {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { pictureZoomReach } from "../../../../spark-dom/src/utils/placePicture";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
-import { layerPaint, type LayerBoxes, type LayerPaint } from "./pictureLayers";
+import { cssLength, layerPaint, type LayerBoxes, type LayerPaint } from "./pictureLayers";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
@@ -60,6 +60,7 @@ export interface PictureCanvasContext {
   restore?(): void;
   beginPath?(): void;
   rect?(x: number, y: number, width: number, height: number): void;
+  roundRect?(x: number, y: number, width: number, height: number, radii: { x: number; y: number }[]): void;
   clip?(): void;
   fillRect?(x: number, y: number, width: number, height: number): void;
   createPattern?(image: CanvasImageSource, repetition: string): CanvasPattern | null;
@@ -114,6 +115,10 @@ const STYLE_KEYS = [
   "border-right-width",
   "border-bottom-width",
   "border-left-width",
+  "border-top-left-radius",
+  "border-top-right-radius",
+  "border-bottom-right-radius",
+  "border-bottom-left-radius",
   "background-size",
   "background-position",
   "background-repeat",
@@ -394,10 +399,10 @@ export class MorphPlayback {
   protected watching?: number;
 
   watchShown() {
-    if (this.watching !== undefined || ![...this.layers].some((layer) => layer.drawable)) return;
+    if (this.watching !== undefined || ![...this.layers].some((layer) => layer.watched)) return;
     this.watching = this.requestFrame(() => {
       this.watching = undefined;
-      for (const layer of [...this.layers]) if (layer.drawable && layer.restyled()) layer.layout();
+      for (const layer of [...this.layers]) if (layer.watched && layer.restyled()) layer.layout();
       this.watchShown();
     });
   }
@@ -843,6 +848,10 @@ export class MorphLayer {
     return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas);
   }
 
+  get watched(): boolean {
+    return this.drawable || (!this.disposed && this.stills.some((still) => still.canvases));
+  }
+
   get drawable(): boolean {
     return (
       !this.frozen &&
@@ -1156,6 +1165,27 @@ export class MorphLayer {
     return segments;
   }
 
+  protected cornerRadii(computed: CSSStyleDeclaration | undefined, boxes: LayerBoxes, box: Rect): number[] {
+    const border = boxes.border;
+    const radii = ["top-left", "top-right", "bottom-right", "bottom-left"].flatMap((corner) => {
+      const [x = "0", y = x] = (computed?.getPropertyValue(`border-${corner}-radius`) ?? "").trim().split(/\s+/);
+      return [cssLength(x, border.width) ?? 0, cssLength(y, border.height) ?? 0];
+    });
+    const sums = [
+      [border.width, radii[0]! + radii[2]!],
+      [border.width, radii[6]! + radii[4]!],
+      [border.height, radii[1]! + radii[7]!],
+      [border.height, radii[3]! + radii[5]!],
+    ];
+    const reduce = Math.min(1, ...sums.map(([side, sum]) => (sum! > 0 ? side! / sum! : 1)));
+    const left = box.x - border.x;
+    const top = box.y - border.y;
+    const right = border.x + border.width - (box.x + box.width);
+    const bottom = border.y + border.height - (box.y + box.height);
+    const insets = [left, top, right, top, right, bottom, left, bottom];
+    return radii.map((radius, index) => Math.max(0, radius * reduce - insets[index]!));
+  }
+
   protected stillPlans(still: StillPicture, computed: CSSStyleDeclaration | undefined): LayerPaint[] | undefined {
     const files = still.files;
     if (!files) return undefined;
@@ -1177,7 +1207,7 @@ export class MorphLayer {
         { width: files.width, height: files.height },
       );
       if (!plan) return undefined;
-      plans.push(plan);
+      plans.push({ ...plan, radii: this.cornerRadii(computed, boxes, plan.clip) });
     }
     return plans;
   }
@@ -1208,7 +1238,10 @@ export class MorphLayer {
       height = snap(bounds.top + height) - bounds.top - top;
     }
     const tiles = plans.flatMap((plan) => [...plan.tiles.slice(0, 1), ...(plan.pattern ? [plan.pattern.tile] : [])]);
-    const resolution = Math.max(0, ...tiles.map((tile) => (tile.width > 0 ? files.width / tile.width : 0)));
+    const resolution = Math.max(
+      0,
+      ...tiles.map((tile) => Math.max(tile.width > 0 ? files.width / tile.width : 0, tile.height > 0 ? files.height / tile.height : 0)),
+    );
     const scale = Math.max(1, Math.min(pictureZoomReach(this.span), resolution / dpr));
     const pixels = Math.max(1, width * dpr * scale) * Math.max(1, height * dpr * scale);
     const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
@@ -1244,6 +1277,7 @@ export class MorphLayer {
     };
     const plans = still.plans.map((plan) => ({
       clip: device(plan.clip),
+      radii: (plan.radii ?? []).map((radius, index) => radius * (index % 2 === 0 ? still.unitX : still.unitY)),
       tiles: plan.tiles.map(device),
       pattern: plan.pattern
         ? {
@@ -1273,11 +1307,22 @@ export class MorphLayer {
     plans.forEach((plan, index) => {
       const bitmap = view.files.bitmaps.get(still.layers[index]!);
       if (!bitmap) return;
-      const clipped = !covers(plan.clip) && !!(context.save && context.beginPath && context.rect && context.clip && context.restore);
+      const rounded = plan.radii.some((radius) => radius > 0) && !!context.roundRect;
+      const clipped = (rounded || !covers(plan.clip)) && !!(context.save && context.beginPath && context.rect && context.clip && context.restore);
       if (clipped) {
         context.save!();
         context.beginPath!();
-        context.rect!(plan.clip.x, plan.clip.y, plan.clip.width, plan.clip.height);
+        if (rounded) {
+          const r = plan.radii;
+          context.roundRect!(plan.clip.x, plan.clip.y, plan.clip.width, plan.clip.height, [
+            { x: r[0]!, y: r[1]! },
+            { x: r[2]!, y: r[3]! },
+            { x: r[4]!, y: r[5]! },
+            { x: r[6]!, y: r[7]! },
+          ]);
+        } else {
+          context.rect!(plan.clip.x, plan.clip.y, plan.clip.width, plan.clip.height);
+        }
         context.clip!();
       }
       const pattern = plan.pattern;
@@ -1549,7 +1594,11 @@ export class MorphLayer {
     }
     const content = this.layerBoxes(computed).content;
     const padding = this.layerBoxes(computed).padding;
-    const frame = `inset:0;box-sizing:border-box;padding:${content.y}px ${padding.width - content.x - content.width}px ${padding.height - content.y - content.height}px ${content.x}px`;
+    const inner = this.cornerRadii(computed, this.layerBoxes(computed), padding);
+    const rounding = inner.some((radius) => radius > 0)
+      ? `;border-radius:${inner[0]}px ${inner[2]}px ${inner[4]}px ${inner[6]}px / ${inner[1]}px ${inner[3]}px ${inner[5]}px ${inner[7]}px`
+      : "";
+    const frame = `inset:0;box-sizing:border-box;padding:${content.y}px ${padding.width - content.x - content.width}px ${padding.height - content.y - content.height}px ${content.x}px${rounding}`;
     for (const { div, layer } of this.statics) {
       const style = `position:absolute;${frame};background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
