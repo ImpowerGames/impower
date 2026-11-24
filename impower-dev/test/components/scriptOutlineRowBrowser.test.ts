@@ -141,6 +141,16 @@ const measure = async (viewport: (typeof VIEWPORTS)[number], theme: "charcoal" |
           mark: box(badge?.querySelector("svg") ?? null),
           toggle: box(rowBox.querySelector("button[aria-expanded]")),
           glyphVisible: getComputedStyle(open.querySelector(":scope > svg")!).visibility !== "hidden",
+          hits: (() => {
+            const glyph = open.querySelector(":scope > svg")!.getBoundingClientRect();
+            const x = glyph.left + glyph.width / 2;
+            const r = rowBox.getBoundingClientRect();
+            const at = (y: number) => {
+              const hit = document.elementFromPoint(x, y);
+              return badge?.contains(hit) ? "badge" : open.contains(hit) ? "row" : "other";
+            };
+            return { top: at(r.top + 2), centre: at(glyph.top + glyph.height / 2), bottom: at(r.bottom - 2) };
+          })(),
           badgeInsideOpen: badge ? open.contains(badge) : null,
           badgeCount: rowBox.querySelectorAll("[data-list-row-badge]").length,
         };
@@ -190,6 +200,10 @@ describe("the In this script tab's outline rows, in Chromium", () => {
             expect(Math.abs(mx! - gx!), r.id).toBeLessThanOrEqual(0.5);
             expect(Math.abs(my! - gy!), r.id).toBeLessThanOrEqual(0.5);
             expect(r.badge.left, r.id).toBeGreaterThanOrEqual(r.row.left - 2);
+            expect(r.hits.centre, r.id).toBe("badge");
+            if (viewport.pointer === "fine") {
+              expect(r.hits, r.id).toEqual({ top: "row", centre: "badge", bottom: "row" });
+            }
           }
         }
         const dock = byId.dock!;

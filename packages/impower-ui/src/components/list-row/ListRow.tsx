@@ -169,7 +169,7 @@ export const listRowMarkVariants = cva(
 );
 
 export const listRowIconControlVariants = cva(
-  "absolute inset-y-0 z-10 flex items-center justify-center",
+  "pointer-events-none absolute inset-y-0 z-10 flex items-center justify-center [&>*]:pointer-events-auto",
   {
     variants: {
       size: {

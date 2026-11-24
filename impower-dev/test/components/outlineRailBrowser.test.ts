@@ -182,6 +182,16 @@ const measure = async (
             labelColor: getComputedStyle(label).color,
             glyphColor: open.querySelector(":scope > svg") ? getComputedStyle(open.querySelector(":scope > svg")!).color : null,
             glyphVisible: getComputedStyle(open.querySelector(":scope > svg")!).visibility !== "hidden",
+            hits: (() => {
+              const glyph = open.querySelector(":scope > svg")!.getBoundingClientRect();
+              const x = glyph.left + glyph.width / 2;
+              const r = row.getBoundingClientRect();
+              const at = (y: number) => {
+                const hit = document.elementFromPoint(x, y);
+                return badge?.contains(hit) ? "badge" : open.contains(hit) ? "row" : "other";
+              };
+              return { top: at(r.top + 2), centre: at(glyph.top + glyph.height / 2), bottom: at(r.bottom - 2) };
+            })(),
             badgeInsideOpen: badge ? open.contains(badge) : null,
           };
         }),
@@ -249,6 +259,7 @@ describe("the docked Outline rail's rows, in Chromium at 1440", () => {
         const r = rows[name]!;
         expectOnGlyph(r, name, 28);
         expect(r.badge!.right, name).toBeLessThanOrEqual(r.label.left);
+        expect(r.hits, name).toEqual({ top: "row", centre: "badge", bottom: "row" });
       }
       const clean = rows["Where now?"]!;
       expect(clean.badge).toBeNull();
