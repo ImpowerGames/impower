@@ -271,7 +271,7 @@ describe("the compact layout", () => {
     expect(host!.querySelector("[data-phone-strip]")).toBeNull();
     expect(host!.querySelector('[role="separator"][aria-label^="Resize"]:not(.hidden)')?.getAttribute("aria-label")).toBe("Resize sidebar");
     expect(host!.querySelector("[data-split]")).toBeNull();
-    expect(host!.querySelector('aside[aria-label="Preview"]')).toBeNull();
+    expect(host!.querySelector('aside[aria-label="Preview"] [data-preview-strip]')).toBe(strip);
   });
 
   it("gives Share the whole workspace at 768 and shows the strip again on the other pages, with the one player", async () => {

@@ -93,7 +93,7 @@ export default function MainWindow(_props: MainWindowProps) {
               end={
                 !phone && (
                   <aside
-                    aria-label={desktop ? "Preview" : undefined}
+                    aria-label="Preview"
                     class="relative flex h-full w-full flex-col bg-stage"
                   >
                     <PhonePreviewStrip size="tablet" docked={desktop} />
