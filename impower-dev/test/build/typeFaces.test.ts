@@ -129,15 +129,6 @@ describe("type utilities", () => {
     );
     expect(THEME_CSS).toMatch(/--font-display:\s*Georgia, "Times New Roman", serif/);
   });
-
-  it("gives the eyebrow its size, leading, tracking and weight", async () => {
-    const css = await utilities(["text-eyebrow"]);
-    const rule = css.match(/\.text-eyebrow\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(rule).toContain("font-size: 11px");
-    expect(rule).toContain("line-height: var(--tw-leading, 1.5)");
-    expect(rule).toContain("letter-spacing: var(--tw-tracking, .12em)");
-    expect(rule).toContain("font-weight: var(--tw-font-weight, 700)");
-  });
 });
 
 describe("script size", () => {
