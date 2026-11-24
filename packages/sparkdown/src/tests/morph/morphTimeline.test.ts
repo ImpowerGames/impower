@@ -1052,6 +1052,45 @@ describe("a play computes its replays from the seed and keeps nothing per replay
     expect(offsetAt(spoken(0.05), 1.51)).toBeCloseTo(0.11 / 0.3, 9);
   });
 
+  test("at any count, a speech turning moment is the per-replay sum, so a turn that the sum puts exactly on the speech's end is refused", () => {
+    const sumAt = (turn: number) => {
+      let at = 0 + 0.15;
+      for (let j = 1; j < turn; j++) at = at + (0 + 0.15);
+      return at;
+    };
+    for (const count of [7, 1027, 2048, 99999999999999]) {
+      for (const reversed of [false, true]) {
+        for (const turn of [7, 1027].filter((n) => n <= count)) {
+          const end = sumAt(turn);
+          const timeline = new MorphTimeline(
+            timing({ trigger: "speech", duration: 0.3, direction: reversed ? "reverse" : "normal", replay: [range(reversed ? 0.5 : 0, reversed ? 1 : 0.5, { count })] }),
+            () => 0.5,
+          );
+          timeline.speak([[0, end]], 0);
+          const label = `count ${count}, ${reversed ? "reversed" : "forward"}, turn ${turn}`;
+          expect(offsetAt(timeline, end + 0.1), label).toBeCloseTo(reversed ? 0.5 - 0.1 / 0.3 : 0.5 + 0.1 / 0.3, 6);
+          expect(timeline.at(end + 0.16), label).toEqual({ phase: "off" });
+        }
+      }
+    }
+  });
+
+  test("at any count, a speech play's length is the per-replay sum, so no new play starts in speech that ends just before it", () => {
+    const sumAt = (turn: number) => {
+      let at = 0 + 0.3;
+      for (let j = 1; j < turn; j++) at = at + (0 + 0.15);
+      return at;
+    };
+    for (const count of [1026, 2048, 99999999999999]) {
+      const play = sumAt(1026);
+      const end = play - Math.abs(play) * Number.EPSILON;
+      const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 0.3, direction: "reverse", replay: [range(0, 0.5, { count })] }), () => 0.5);
+      timeline.speak([[0, end]], 0);
+      expect(timeline.at(end - 0.01), `count ${count}`).toMatchObject({ phase: "playing", play: 0 });
+      expect(timeline.at(end + 0.001), `count ${count}`).toEqual({ phase: "off" });
+    }
+  });
+
   test("a turning point exactly at the end of the speech is refused, whatever frames were asked before", () => {
     const spoken = (direction: MorphTiming["direction"]) => {
       const reversed = direction === "reverse";

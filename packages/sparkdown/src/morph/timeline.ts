@@ -63,6 +63,14 @@ interface Segment {
   waits?: (number | undefined)[];
   marks: number[];
   total?: number;
+  sums?: Sum[];
+  exit?: Sum;
+}
+
+interface Sum {
+  at: number;
+  held?: number;
+  total: number;
 }
 
 interface Step {
@@ -380,29 +388,55 @@ export class MorphTimeline {
     return { tail: left };
   }
 
+  protected advance(play: Play, segment: Segment, r: number, sum: Sum, steps = segment.cycle.length): Sum {
+    let { at, held, total } = sum;
+    for (let q = 0; q < steps; q++) {
+      const run = this.runOf(segment, r, q);
+      const stretch = this.stretches[segment.cycle[q]!]!;
+      at = held === undefined ? at + run : at + (held + run);
+      held = this.pauseOf(play, segment, r, q);
+      total = total + held + (stretch.to - stretch.from) * this.duration;
+    }
+    return { at, held, total };
+  }
+
+  protected sumAt(play: Play, segment: Segment, enter: Sum, r: number): Sum {
+    const kept = segment.sums?.[0];
+    if (!kept || kept.at !== enter.at || kept.held !== enter.held || kept.total !== enter.total) {
+      segment.sums = [enter];
+      segment.exit = undefined;
+    }
+    if (r === segment.reps && segment.exit) return segment.exit;
+    const sums = segment.sums!;
+    const i = Math.floor(r / MARK);
+    while (sums.length <= i) {
+      const j = sums.length - 1;
+      let sum = sums[j]!;
+      for (let k = j * MARK; k < (j + 1) * MARK; k++) sum = this.advance(play, segment, k, sum);
+      sums.push(sum);
+    }
+    let sum = sums[i]!;
+    for (let k = i * MARK; k < r; k++) sum = this.advance(play, segment, k, sum);
+    if (r === segment.reps) segment.exit = sum;
+    return sum;
+  }
+
   protected step(play: Play, k: number): Step | undefined {
     const segments = this.path(play);
-    let at = play.start;
-    let held: number | undefined;
+    let sum: Sum = { at: play.start, total: this.duration };
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i]!;
       const m = segment.cycle.length;
       const local = k - segment.ordinal;
-      const target = local < segment.reps * m ? Math.floor(local / m) : segment.reps;
-      for (let r = 0; r < segment.reps; r++) {
-        if (r === 1 && segment.reps > MARK && target > 1) {
-          at = at + held! + this.later(play, segment, target);
-          held = undefined;
-          r = target;
-          if (r === segment.reps) break;
-        }
-        for (let q = 0; q < m; q++) {
-          const run = this.runOf(segment, r, q);
-          at = held === undefined ? at + run : at + (held + run);
-          if (r === target && q === local - target * m) return { segment: i, r, q, turn: at };
-          held = this.pauseOf(play, segment, r, q);
-        }
+      if (local >= segment.reps * m) {
+        sum = this.sumAt(play, segment, sum, segment.reps);
+        continue;
       }
+      const r = Math.floor(local / m);
+      const q = local - r * m;
+      const before = this.advance(play, segment, r, this.sumAt(play, segment, sum, r), q);
+      const run = this.runOf(segment, r, q);
+      return { segment: i, r, q, turn: before.held === undefined ? before.at + run : before.at + (before.held + run) };
     }
     return undefined;
   }
@@ -414,14 +448,20 @@ export class MorphTimeline {
 
   protected before(play: Play, elapsed: number): number {
     const found = this.seek(play, elapsed);
-    if ("tail" in found) return this.steps(play) - 1;
+    if ("tail" in found) return this.steps(play) - 2;
     const segment = this.path(play)[found.segment]!;
-    return segment.ordinal + found.r * segment.cycle.length + found.q - 1;
+    return segment.ordinal + found.r * segment.cycle.length + found.q - 2;
   }
 
   protected length(play: Play, elapsed: number): number {
     if (play.length !== undefined) return play.length;
     if (!("tail" in this.seek(play, elapsed))) return Infinity;
+    if (this.timing.trigger === "speech") {
+      let sum: Sum = { at: play.start, total: this.duration };
+      for (const segment of this.path(play)) sum = this.sumAt(play, segment, sum, segment.reps);
+      play.length = sum.total;
+      return play.length;
+    }
     let total = this.duration;
     for (const segment of this.path(play)) {
       const stretches = segment.cycle.map((c) => (this.stretches[c]!.to - this.stretches[c]!.from) * this.duration);
@@ -475,6 +515,7 @@ export class MorphTimeline {
       segments.splice(found.segment, 1, ...parts);
     }
     (held.waits ??= [])[found.q] = least;
+    for (const later of segments.slice(found.segment)) later.sums = undefined;
     play.length = undefined;
   }
 
