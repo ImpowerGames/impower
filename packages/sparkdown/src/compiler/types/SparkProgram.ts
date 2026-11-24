@@ -41,6 +41,7 @@ export interface SparkProgram {
   };
   assets?: { [type: string]: { [name: string]: any } };
   morphs?: MorphProgramChannel;
+  imageSizeRequests?: string[];
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };

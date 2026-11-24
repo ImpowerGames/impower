@@ -35,6 +35,20 @@ describe("the editor's image-size read", () => {
     expect(image.bytesRead).toBeLessThanOrEqual(IMAGE_HEADER_BYTES);
   });
 
+  it("reads an unchanged image once when both workspaces ask for its size", async () => {
+    const png = imageSizeFixtures().find((f) => f.mime === "image/png" && !f.exif && f.read)!;
+    const { fs, uri, stored } = await load({ "face.png": png.bytes });
+    const image = stored["face.png"]!;
+    image.bytesRead = 0;
+
+    const sizes = await Promise.all([fs.getFileImageSize(uri("face.png")), fs.getFileImageSize(uri("face.png"))]);
+    const later = await fs.getFileImageSize(uri("face.png"));
+
+    expect(sizes).toEqual([png.read, png.read]);
+    expect(later).toEqual(png.read);
+    expect(image.bytesRead).toBe(png.bytes.byteLength);
+  });
+
   it("reads a whole file without a length and only its start with one", async () => {
     const bytes = new Uint8Array(IMAGE_HEADER_BYTES * 2).fill(7);
     const { fs, uri } = await load({ "data.png": bytes });

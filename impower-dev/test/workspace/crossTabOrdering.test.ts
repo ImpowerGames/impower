@@ -9,6 +9,7 @@ import {
   memoryLocks,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import { allocateCommit } from "../../../packages/opfs-workspace/src/utils/commitSequence";
+import { imageSizeFixtures } from "@impower/sparkdown/src/tests/morph/imageSizeFixtures";
 import type WorkspaceFileSystemType from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "local";
@@ -545,5 +546,30 @@ describe("folder moves (I-1910)", () => {
     expect(await h.textOf("a/x.sd")).toBe("X");
     expect(await h.textOf("b/y.sd")).toBe("Y");
     expect(await h.textOf("a/y.sd")).toBeUndefined();
+  });
+});
+
+describe("image sizes across tabs (I-2755)", () => {
+  const png = imageSizeFixtures().find((f) => f.mime === "image/png" && !f.exif && f.read)!;
+  const widened = (width: number) => {
+    const bytes = png.bytes.slice();
+    new DataView(bytes.buffer).setUint32(16, width);
+    return bytes;
+  };
+
+  it("reads the new size of an image another tab changed after this tab sized it", async () => {
+    const root = seed({ "main.sd": "A" });
+    writeMemoryFile(root, `${PROJECT}/face.png`, png.bytes);
+    const h = await load(root);
+    expect(await h.fs.getFileImageSize(uriOf("face.png"))).toEqual(png.read);
+    const tab = otherTab(root);
+    const wider = widened(png.read!.width * 2);
+    writeMemoryFile(root, `${PROJECT}/face.png`, wider);
+    const stamp = await tab.commit();
+    await h.remote("workspace/didWriteFiles", {
+      files: [{ uri: uriOf("face.png"), name: "face", ext: "png", type: "image", src: `/file:/${PROJECT}/face.png`, version: 2, size: wider.byteLength, modified: 2 }],
+      commits: { [uriOf("face.png")]: stamp },
+    });
+    expect(await h.fs.getFileImageSize(uriOf("face.png"))).toEqual({ width: png.read!.width * 2, height: png.read!.height });
   });
 });

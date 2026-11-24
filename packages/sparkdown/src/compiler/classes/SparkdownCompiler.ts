@@ -714,7 +714,12 @@ export class SparkdownCompiler {
     string,
     { source: object; value: { [name: string]: any } }
   >;
-  protected _morphChannelCache?: { signature: string; channel: MorphProgramChannel; warnings: LayeredSizeWarning[] };
+  protected _morphChannelCache?: {
+    signature: string;
+    channel: MorphProgramChannel;
+    warnings: LayeredSizeWarning[];
+    imageSizeRequests: string[];
+  };
   protected _implicitDefCache?: Map<string, any>;
   protected _referenceCache?: ReferenceValidationCache;
   protected _referenceValidationStats = {
@@ -5118,25 +5123,32 @@ export class SparkdownCompiler {
         $extends: compiled["$extends"],
       };
     }
+    delete program.imageSizeRequests;
     if (effective.size === 0) {
       delete program.morphs;
     } else {
       const signature = JSON.stringify([program.contextRevision, ...effective]);
       const cached = this._morphChannelCache;
       let warnings: LayeredSizeWarning[];
+      let imageSizeRequests: string[];
       if (cached && cached.signature === signature) {
         program.morphs = cached.channel;
         warnings = cached.warnings;
+        imageSizeRequests = cached.imageSizeRequests;
       } else {
         const context = program.context;
         warnings = [];
-        const channel = buildMorphChannel(context, effective, (picture, mismatches) =>
-          warnings.push(...layeredSizeWarnings(picture, getContextEntry(context, "layered_image", picture)?.uri, mismatches)),
-        );
+        const requested = new Set<string>();
+        const channel = buildMorphChannel(context, effective, (picture, { mismatches, unsized }) => {
+          warnings.push(...layeredSizeWarnings(picture, getContextEntry(context, "layered_image", picture)?.uri, mismatches));
+          for (const uri of unsized) requested.add(uri);
+        });
+        imageSizeRequests = [...requested];
         if (channel) program.morphs = channel;
         else delete program.morphs;
-        this._morphChannelCache = channel ? { signature, channel, warnings } : undefined;
+        this._morphChannelCache = channel ? { signature, channel, warnings, imageSizeRequests } : undefined;
       }
+      if (imageSizeRequests.length > 0) program.imageSizeRequests = imageSizeRequests;
       for (const warning of warnings) {
         const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } };
         ((program.diagnostics ??= {})[warning.uri] ??= []).push({

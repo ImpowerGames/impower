@@ -65,6 +65,8 @@ function setup() {
     _lastPublishedDiagnostics: new Map(),
     _lastFormattedText: new Map(),
     _watchedFiles: new Map(),
+    _imageSizeRequests: new Set(),
+    _imageSizesRead: new WeakSet(),
     _programStates: new Map(),
     _entryPrograms: new Map(),
     _imageVocabularyCache: { prepare: (file: unknown) => file },
@@ -77,6 +79,34 @@ function setup() {
       .mock.calls.filter(([method]) => method === "textDocument/publishDiagnostics")
       .map(([, params]) => params as any);
   return { workspace, sendRequest, publishes };
+}
+
+const asked = (sendRequest: { mock: { calls: any[][] } }) =>
+  sendRequest.mock.calls.filter(([, params]) => params.command === "sparkdown.getFileImageSize").map(([, params]) => params.arguments[0]);
+
+function watch(workspace: SparkdownLanguageServerWorkspace) {
+  const compilerRequests: { file: { uri?: string; width?: number; height?: number } }[] = [];
+  const listed = { uri: lids, type: "image", name: "ava lids.on", ext: "png", src: "/src/lids", version: null };
+  const sized = { ...image(base, 512, 768) };
+  const svg = { uri: "file:///project/assets/face.svg", type: "image", name: "face", ext: "svg", version: null };
+  const debouncedCompile = vi.fn(async () => undefined);
+  Object.assign(workspace, {
+    _watchedFiles: new Map<string, unknown>([[lids, listed], [base, sized], [svg.uri, svg], [main, { uri: main, type: "script", ext: "sd" }]]),
+    _fileUpdatesByUri: new Map(),
+    _fileUpdates: Promise.resolve(),
+    _filesRevision: 0,
+    _lastCompiledUri: main,
+    projectLoaded: async () => undefined,
+    compilerReady: async () => undefined,
+    holdsScript: () => true,
+    debouncedCompile,
+    _compilerChannelConnection: {
+      sendRequest: vi.fn(async (_type: unknown, params: { file: { uri?: string; width?: number; height?: number } }) => {
+        compilerRequests.push(params);
+      }),
+    },
+  });
+  return { compilerRequests, debouncedCompile, svg };
 }
 
 describe("layer files of different pixel sizes in the language server (#2630)", () => {
@@ -92,42 +122,29 @@ describe("layer files of different pixel sizes in the language server (#2630)", 
     expect(publishes().some((params) => params.uri === base && params.diagnostics.length > 0)).toBe(false);
   });
 
-  it("asks the host for a raster file's size and carries it on the file", async () => {
+  it("asks the host for a requested raster file's size and carries it on the file", async () => {
     const { workspace, sendRequest } = setup();
+    (workspace as any)._imageSizeRequests = new Set([lids]);
     const file = await workspace.loadFile({ uri: lids });
     expect(sendRequest).toHaveBeenCalledWith(expect.anything(), { command: "sparkdown.getFileImageSize", arguments: [lids] });
     expect(file).toMatchObject({ uri: lids, width: 480, height: 640 });
   });
 
-  it("after start-up, sizes the raster files the host listed without one and recompiles", async () => {
+  it("does not ask the host for the size of a raster file the compiler did not request", async () => {
     const { workspace, sendRequest } = setup();
-    const compilerRequests: { file: { uri?: string; width?: number; height?: number } }[] = [];
-    const listed = { uri: lids, type: "image", name: "ava lids.on", ext: "png", src: "/src/lids", version: null };
-    const sized = { ...image(base, 512, 768) };
-    const svg = { uri: "file:///project/assets/face.svg", type: "image", name: "face", ext: "svg", version: null };
-    const debouncedCompile = vi.fn(async () => undefined);
-    Object.assign(workspace, {
-      _watchedFiles: new Map<string, unknown>([[lids, listed], [base, sized], [svg.uri, svg], [main, { uri: main, type: "script", ext: "sd" }]]),
-      _fileUpdatesByUri: new Map(),
-      _fileUpdates: Promise.resolve(),
-      _filesRevision: 0,
-      _lastCompiledUri: main,
-      projectLoaded: async () => undefined,
-      compilerReady: async () => undefined,
-      holdsScript: () => true,
-      debouncedCompile,
-      _compilerChannelConnection: {
-        sendRequest: vi.fn(async (_type: unknown, params: { file: { uri?: string; width?: number; height?: number } }) => {
-          compilerRequests.push(params);
-        }),
-      },
-    });
-    await workspace.loadImageSizes();
-    const asked = sendRequest.mock.calls.filter(([, params]) => params.command === "sparkdown.getFileImageSize").map(([, params]) => params.arguments[0]);
-    expect(asked).toEqual([lids]);
+    const file = await workspace.loadFile({ uri: lids });
+    expect(sendRequest.mock.calls.some(([, params]) => params.command === "sparkdown.getFileImageSize")).toBe(false);
+    expect(file.width).toBeUndefined();
+  });
+
+  it("sizes the layer files a compiled program requests and recompiles", async () => {
+    const { workspace, sendRequest } = setup();
+    const { compilerRequests, debouncedCompile } = watch(workspace);
+    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    await vi.waitFor(() => expect(debouncedCompile).toHaveBeenCalledWith(main, true));
+    expect(asked(sendRequest)).toEqual([lids]);
     expect((workspace as any)._watchedFiles.get(lids)).toMatchObject({ width: 480, height: 640 });
     expect(compilerRequests.map((request) => [request.file.uri, request.file.width, request.file.height])).toEqual([[lids, 480, 640]]);
-    expect(debouncedCompile).toHaveBeenCalledWith(main, true);
   });
 
   it("does not ask the host for an SVG file's size", async () => {
@@ -136,5 +153,55 @@ describe("layer files of different pixel sizes in the language server (#2630)", 
     const file = await workspace.loadFile({ uri: svg });
     expect(sendRequest.mock.calls.some(([, params]) => params.command === "sparkdown.getFileImageSize")).toBe(false);
     expect(file.width).toBeUndefined();
+  });
+});
+
+describe("the language server reads only the sizes the compiler requests (#2755)", () => {
+  it("asks the host for nothing and does not recompile when a program requests no sizes", async () => {
+    const { workspace, sendRequest } = setup();
+    const { debouncedCompile } = watch(workspace);
+    (workspace as any).requestImageSizes({});
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(asked(sendRequest)).toEqual([]);
+    expect(debouncedCompile).not.toHaveBeenCalled();
+  });
+
+  it("does not ask for an SVG or an already-sized file even when requested", async () => {
+    const { workspace, sendRequest } = setup();
+    const { debouncedCompile, svg } = watch(workspace);
+    (workspace as any).requestImageSizes({ imageSizeRequests: [svg.uri, base] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(asked(sendRequest)).toEqual([]);
+    expect(debouncedCompile).not.toHaveBeenCalled();
+  });
+
+  it("asks once for a file that later compiles request again", async () => {
+    const { workspace, sendRequest } = setup();
+    sendRequest.mockImplementation(async () => null as never);
+    const { debouncedCompile } = watch(workspace);
+    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(asked(sendRequest)).toEqual([lids]);
+    expect(debouncedCompile).not.toHaveBeenCalled();
+  });
+
+  it("drops a size that arrives after the file stopped being requested, and asks again when it is requested again", async () => {
+    const { workspace, sendRequest } = setup();
+    let answer!: (size: { width: number; height: number }) => void;
+    sendRequest.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve as never)) as never);
+    const { compilerRequests, debouncedCompile } = watch(workspace);
+    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    (workspace as any).requestImageSizes({});
+    answer({ width: 480, height: 640 });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect((workspace as any)._watchedFiles.get(lids).width).toBeUndefined();
+    expect(compilerRequests).toEqual([]);
+    expect(debouncedCompile).not.toHaveBeenCalled();
+    (workspace as any).requestImageSizes({ imageSizeRequests: [lids] });
+    await vi.waitFor(() => expect(debouncedCompile).toHaveBeenCalledWith(main, true));
+    expect(asked(sendRequest)).toEqual([lids, lids]);
   });
 });

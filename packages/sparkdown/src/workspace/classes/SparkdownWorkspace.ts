@@ -512,6 +512,9 @@ export abstract class SparkdownWorkspace {
     const name = this.getFileName(file.uri);
     const type = this.getFileType(file.uri);
     const ext = this.getFileExtension(file.uri);
+    const sizeRequested =
+      this._imageSizeRequests.has(file.uri) &&
+      isRasterImageFile({ type, ext });
     const [src, text, version, languageId, size] = await Promise.all([
       this.getFileSrc(file.uri),
       type === "script" || type === "text" || ext.toLowerCase() === "svg"
@@ -519,10 +522,12 @@ export abstract class SparkdownWorkspace {
         : undefined,
       this.getFileVersion(file.uri),
       this.getFileLanguageId(file.uri),
-      this.readImageSize({ uri: file.uri, type, ext }),
+      sizeRequested
+        ? this.readImageSize({ uri: file.uri, type, ext })
+        : undefined,
     ]);
 
-    return this._imageVocabularyCache.prepare({
+    const loaded = this._imageVocabularyCache.prepare({
       uri: file.uri,
       version,
       name,
@@ -533,6 +538,34 @@ export abstract class SparkdownWorkspace {
       languageId,
       ...size,
     });
+    if (sizeRequested) {
+      this._imageSizesRead.add(loaded);
+    }
+    return loaded;
+  }
+
+  protected _imageSizeRequests = new Set<string>();
+
+  protected _imageSizesRead = new WeakSet<object>();
+
+  protected requestImageSizes(program: SparkProgram) {
+    this._imageSizeRequests = new Set(program.imageSizeRequests);
+    const unsized: File[] = [];
+    for (const uri of this._imageSizeRequests) {
+      const file = this._watchedFiles.get(uri);
+      if (
+        file &&
+        isRasterImageFile(file) &&
+        (file.width === undefined || file.height === undefined) &&
+        !this._imageSizesRead.has(file)
+      ) {
+        this._imageSizesRead.add(file);
+        unsized.push(file);
+      }
+    }
+    if (unsized.length > 0) {
+      this.loadImageSizes(unsized).catch((e) => console.error(e));
+    }
   }
 
   protected async readImageSize(file: {
@@ -551,20 +584,20 @@ export abstract class SparkdownWorkspace {
     }
   }
 
-  async loadImageSizes() {
-    await this.projectLoaded();
-    const unsized = [...this._watchedFiles.values()].filter(
-      (file) =>
-        isRasterImageFile(file) &&
-        (file.width === undefined || file.height === undefined),
-    );
+  protected async loadImageSizes(unsized: File[]) {
     const updated = await Promise.all(
       unsized.map(async (file) => {
         const size = await this.readImageSize(file);
         if (!size) return false;
         return this.trackFileUpdate(file.uri, async () => {
           const current = this._watchedFiles.get(file.uri);
-          if (current !== file) return false;
+          if (current !== file) {
+            return false;
+          }
+          if (!this._imageSizeRequests.has(file.uri)) {
+            this._imageSizesRead.delete(file);
+            return false;
+          }
           const sized = { ...current, ...size };
           this._watchedFiles.set(file.uri, sized);
           await this.compilerReady();
@@ -1046,6 +1079,12 @@ export abstract class SparkdownWorkspace {
           return undefined;
         }
         throw e;
+      }
+      const mainProgram = mainScriptUri
+        ? this.getProgramState(mainScriptUri).program
+        : undefined;
+      if (mainProgram) {
+        this.requestImageSizes(mainProgram);
       }
       if (result?.program) {
         this.publishCompiled(uri, result, programUnchanged);
