@@ -455,22 +455,51 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
   });
 
   test("a shown picture keeps its canvas when its clip becomes text and returns to a box, the canvas drawing the text clip as the border box", () => {
-    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
-    span.style.setProperty("background-clip", "padding-box");
+    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 }, patterns: true });
+    span.style.setProperty("box-sizing", "border-box");
+    span.style.setProperty("padding", "10px");
+    span.style.setProperty("background-size", "100% 100%");
+    span.style.setProperty("background-clip", "content-box");
     mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
     const drawn = canvasOf(span);
     expect(drawn).not.toBeNull();
-    const frame = canvas.frames.at(-1);
+    const lastClip = () => canvas.clips.at(-1);
+    expect(lastClip()).toMatchObject({ x: 10, y: 10, width: 180, height: 80 });
     span.style.setProperty("background-clip", "text");
     expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("background-clip")).toBe("text");
+    const frames = canvas.frames.length;
+    const clips = canvas.clips.length;
     flushFrame();
     expect(canvasOf(span)).toBe(drawn);
     expect(span.style.getPropertyValue("background-image")).toBe("none, none");
-    expect(canvas.frames.at(-1)).toEqual(frame);
-    span.style.setProperty("background-clip", "padding-box");
+    expect(canvas.frames.length).toBeGreaterThan(frames);
+    expect(canvas.clips.length).toBe(clips);
+    expect(canvas.frames.at(-1)!.map(({ src, x, y, width, height }) => ({ src, x, y, width, height }))).toEqual(
+      ["office.png", "desk.png"].map((src) => ({ src, x: 0, y: 0, width: 200, height: 100 })),
+    );
+    span.style.setProperty("background-clip", "content-box");
     flushFrame();
     expect(canvasOf(span)).toBe(drawn);
+    expect(lastClip()).toMatchObject({ x: 10, y: 10, width: 180, height: 80 });
     expect(span.style.getPropertyValue("background-image")).toBe("none, none");
+  });
+
+  test("a picture whose stacking context comes from its parent's layout moves its host when only the parent changes", () => {
+    const { span, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    const parent = span.ownerDocument.createElement("div");
+    parent.style.setProperty("display", "flex");
+    span.parentElement!.appendChild(parent);
+    parent.appendChild(span);
+    span.style.setProperty("z-index", "0");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    const host = span.querySelector<HTMLElement>("span.morph")!;
+    expect(host.style.getPropertyValue("z-index")).toBe("-2147483648");
+    parent.style.setProperty("display", "block");
+    flushFrame();
+    expect(host.style.getPropertyValue("z-index")).toBe("");
+    parent.style.setProperty("display", "grid");
+    flushFrame();
+    expect(host.style.getPropertyValue("z-index")).toBe("-2147483648");
   });
 
   test("a picture clipped to text when it is shown is drawn on its canvas, the canvas drawing the text clip as the border box", () => {

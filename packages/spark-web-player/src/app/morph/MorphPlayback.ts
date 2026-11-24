@@ -891,7 +891,9 @@ export class MorphLayer {
     const view = this.span.ownerDocument.defaultView;
     const computed = view?.getComputedStyle(this.span);
     const values = computed ? STYLE_KEYS.map((name) => computed.getPropertyValue(name)).join("|") : "";
-    return `${values}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
+    const parent = this.span.parentElement;
+    const parentDisplay = parent && view ? view.getComputedStyle(parent).getPropertyValue("display") : "";
+    return `${values}#${parentDisplay}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
   }
 
   restyled(): boolean {
