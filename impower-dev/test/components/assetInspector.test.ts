@@ -2,6 +2,7 @@ import { Fragment, h, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { edgeTreatment } from "../../../packages/impower-ui/test/fadeEdge";
+import { inChromium } from "./geometryHarness";
 
 const layout = vi.hoisted(() => ({
   value: "desktop" as "phone" | "compact" | "desktop",
@@ -1644,6 +1645,42 @@ describe("the Variants tester and the Files section", () => {
     expect(sheet.getAttribute("aria-modal")).toBe("false");
     expect(region()!.contains(sheet)).toBe(true);
     expect(all('[role="menuitemradio"]')).toEqual([]);
+  });
+
+  it.each([
+    [430, "phone"],
+    [768, "compact"],
+  ] as const)("at %i under touch the opened wheel sheet spans the inspector edge to edge and nothing dims or covers the picture", async (width, host) => {
+    layout.value = host;
+    layout.coarse = true;
+    await mount();
+    await open("imani");
+    await tap(group("face"));
+    expect(document.querySelector("[data-wheel-sheet] [role=listbox]")).not.toBeNull();
+    const measured = await inChromium(document.body.innerHTML, { width, touch: true, layout: host }, () => {
+      const inspector = document.querySelector<HTMLElement>('section[aria-label="Asset details"]')!;
+      inspector.style.height = `${innerHeight}px`;
+      const frame = inspector.getBoundingClientRect();
+      const sheet = document.querySelector("[data-wheel-sheet]")!.getBoundingClientRect();
+      const picture = inspector.querySelector("[data-variant-bench] > div")!;
+      const shown = picture.getBoundingClientRect();
+      const veils = [...document.querySelectorAll<HTMLElement>("body *")].filter((element) => {
+        if (picture.contains(element) || element.contains(picture)) return false;
+        const style = getComputedStyle(element);
+        if (style.position !== "fixed" && !(style.position === "absolute" && inspector.contains(element))) return false;
+        const box = element.getBoundingClientRect();
+        const overlaps = box.right > shown.left && box.left < shown.right && box.bottom > shown.top && box.top < shown.bottom;
+        return overlaps && (style.backgroundColor !== "rgba(0, 0, 0, 0)" || style.backdropFilter !== "none");
+      });
+      return {
+        left: sheet.left - frame.left,
+        right: frame.right - sheet.right,
+        inspector: frame.width,
+        pictureShown: shown.height > 100,
+        veils: veils.map((element) => element.className.toString().slice(0, 60)),
+      };
+    });
+    expect(measured).toEqual({ left: 0, right: 0, inspector: width, pictureShown: true, veils: [] });
   });
 
   it("opens the wheel sheet when a finger opens a group and its click arrives with detail 0", async () => {

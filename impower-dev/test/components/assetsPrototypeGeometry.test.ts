@@ -682,7 +682,7 @@ describe("Real menus and sheets at their elevations (I-2448)", () => {
   });
 });
 
-describe("Assets rows and the variant wheel sheet against the review (I-2717)", () => {
+describe("Assets rows against the review (I-2717)", () => {
   const row = (kind: string, leading: Record<string, unknown>) =>
     h("div", { "data-kind": kind }, h(ui.ListRow, { size: "library", label: kind, description: "Modified just now · 16 kB", onClick: () => {}, ...leading }));
   const rows = h("div", { style: "width:600px" }, [
@@ -703,20 +703,5 @@ describe("Assets rows and the variant wheel sheet against the review (I-2717)", 
   ])("at %s every file type's row, the 44px picture's included, is the same height", async (_name, display, height) => {
     const measured = await inChromium(rows, display, heights);
     expect(measured).toEqual({ folder: height, image: height, sound: height, video: height, text: height, font: height, other: height });
-  });
-
-  it.each([430, 768])("at %i under touch the wheel sheet spans the inspector it opens in and leaves the picture above it undimmed", async (width) => {
-    const inspector = h("div", { "data-inspector": "", style: "position:relative;height:800px" }, [
-      h("div", { "data-picture": "", style: "height:300px;background:rgb(200,150,110)" }),
-      h("div", { "data-sheet": "", class: ui.wheelSheetVariants({}) }, "Face"),
-    ]);
-    const measured = await inChromium(inspector, { width, touch: true, layout: width === 430 ? "phone" : "compact" }, () => {
-      const frame = document.querySelector("[data-inspector]")!.getBoundingClientRect();
-      const sheet = document.querySelector("[data-sheet]")!.getBoundingClientRect();
-      const picture = document.querySelector("[data-picture]")!.getBoundingClientRect();
-      const over = document.elementFromPoint(picture.x + picture.width / 2, picture.y + picture.height / 2) as HTMLElement;
-      return { left: sheet.left - frame.left, right: frame.right - sheet.right, width: sheet.width, frame: frame.width, onPicture: over.dataset.picture !== undefined };
-    });
-    expect(measured).toEqual({ left: 0, right: 0, width, frame: width, onPicture: true });
   });
 });
