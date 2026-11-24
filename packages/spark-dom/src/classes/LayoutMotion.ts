@@ -162,9 +162,10 @@ export default class LayoutMotion {
       return undefined;
     }
     const boxes = new Map<HTMLElement, LayoutBox>();
+    const places = new Map<HTMLElement, LayoutPoint>();
     for (const node of Array.from(root.querySelectorAll("*"))) {
       if (node instanceof view.HTMLElement) {
-        const box = this.boxOf(node, root);
+        const box = this.boxOf(node, places, root);
         if (box) {
           boxes.set(node, box);
         }
@@ -200,6 +201,7 @@ export default class LayoutMotion {
       starting.set(el, motion);
     }
     const starts = new Map<HTMLElement, LayoutPoint>();
+    const places = new Map<HTMLElement, LayoutPoint>();
     for (const [el, { timing }] of targets) {
       const motion = starting.get(el);
       if (!motion) {
@@ -208,7 +210,7 @@ export default class LayoutMotion {
       }
       const move = getMoveKeyframes(
         boxes.get(el)!,
-        this.placeOf(el),
+        this.placeOf(el, places),
         this.carried(el, starts),
       );
       starts.set(el, move.shift);
@@ -243,6 +245,7 @@ export default class LayoutMotion {
     boxes: Map<HTMLElement, LayoutBox>,
   ): Map<HTMLElement, { to: LayoutBox; timing: LayoutTiming }> {
     const targets = new Map<HTMLElement, { to: LayoutBox; timing: LayoutTiming }>();
+    const places = new Map<HTMLElement, LayoutPoint>();
     const resume = this.suspend();
     try {
       for (const el of boxes.keys()) {
@@ -251,7 +254,7 @@ export default class LayoutMotion {
           view && el.isConnected
             ? getLayoutTiming(view.getComputedStyle(el))
             : undefined;
-        const to = timing ? this.boxOf(el) : undefined;
+        const to = timing ? this.boxOf(el, places) : undefined;
         if (timing && to) {
           targets.set(el, { to, timing });
         }
@@ -262,34 +265,34 @@ export default class LayoutMotion {
     return targets;
   }
 
-  protected placeOf(el: HTMLElement): LayoutPoint {
-    let x = 0;
-    let y = 0;
-    for (
-      let node: HTMLElement | null = el;
-      node;
-      node = node.offsetParent as HTMLElement | null
-    ) {
-      x += node.offsetLeft;
-      y += node.offsetTop;
-      const parent = node.offsetParent as HTMLElement | null;
-      if (parent) {
-        x += parent.clientLeft;
-        y += parent.clientTop;
-      }
+  protected placeOf(
+    el: HTMLElement,
+    places: Map<HTMLElement, LayoutPoint>,
+  ): LayoutPoint {
+    const known = places.get(el);
+    if (known) {
+      return known;
     }
-    return { x, y };
+    const parent = el.offsetParent as HTMLElement | null;
+    const base = parent ? this.placeOf(parent, places) : NO_SHIFT;
+    const place = {
+      x: base.x + (parent?.clientLeft ?? 0) + el.offsetLeft,
+      y: base.y + (parent?.clientTop ?? 0) + el.offsetTop,
+    };
+    places.set(el, place);
+    return place;
   }
 
   protected boxOf(
     el: HTMLElement,
+    places: Map<HTMLElement, LayoutPoint>,
     inFlightWithin?: HTMLElement,
   ): LayoutBox | undefined {
     const view = el.ownerDocument.defaultView;
     if (!view || el.getClientRects().length === 0) {
       return undefined;
     }
-    let { x, y } = this.placeOf(el);
+    let { x, y } = this.placeOf(el, places);
     if (inFlightWithin) {
       for (
         let node: HTMLElement | null = el;
