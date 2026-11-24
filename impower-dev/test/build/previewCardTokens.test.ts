@@ -39,12 +39,22 @@ const utilityValue = (css: string, className: string, property: string) => {
   return new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+);`).exec(block)?.[1].trim() ?? "";
 };
 
-const resolve = (value: string, theme: string, depth = 0): string => {
+const pixels = (value: string, theme: string, layout: string): number => {
+  const resolved = resolve(value, theme, layout);
+  const px = /^(-?[\d.]+)px$/.exec(resolved);
+  if (px) return Number(px[1]);
+  const difference = /^calc\((var\(--[\w-]+\))\s*-\s*(var\(--[\w-]+\))\)$/.exec(resolved);
+  if (difference) return pixels(difference[1], theme, layout) - pixels(difference[2], theme, layout);
+  throw new Error(`cannot read ${value} as pixels: ${resolved}`);
+};
+
+const resolve = (value: string, theme: string, layout?: string, depth = 0): string => {
   const match = /^var\((--[\w-]+)\)$/.exec(value);
   if (!match || depth > 8) return value;
   const { dom, rules } = sheet(fs.readFileSync(path.join(IMPOWER_UI_SRC, "theme.css"), "utf8"));
   const root = dom.window.document.documentElement;
   root.setAttribute("data-theme", theme);
+  if (layout) root.setAttribute("data-layout", layout);
   let found = "";
   for (const rule of rules) {
     let applies = false;
@@ -56,7 +66,7 @@ const resolve = (value: string, theme: string, depth = 0): string => {
     const declared = rule.style.getPropertyValue(match[1]).trim();
     if (applies && declared) found = declared;
   }
-  return found ? resolve(found, theme, depth + 1) : value;
+  return found ? resolve(found, theme, layout, depth + 1) : value;
 };
 
 describe("the preview card's inset and radius tokens", () => {
@@ -84,6 +94,25 @@ describe("the preview card's inset and radius tokens", () => {
     expect(value).not.toBe("");
     for (const theme of THEMES) {
       expect(resolve(value, theme), theme).toBe("8px");
+    }
+  });
+
+  it("starts the game card at the script header's bottom edge where the preview sits beside the script", async () => {
+    const css = await compiled(["pt-preview-stage-gap"]);
+    const gap = utilityValue(css, "pt-preview-stage-gap", "padding-top");
+    for (const theme of THEMES) {
+      const header = pixels("var(--script-header-height)", theme, "desktop");
+      const bar = pixels("var(--preview-top-bar-height)", theme, "desktop");
+      expect(bar, theme).toBe(52);
+      expect(bar + pixels(gap, theme, "desktop"), theme).toBe(header);
+    }
+  });
+
+  it("keeps the 8px gap above the card in the layouts that stack the preview", async () => {
+    const css = await compiled(["pt-preview-stage-gap"]);
+    const gap = utilityValue(css, "pt-preview-stage-gap", "padding-top");
+    for (const layout of ["tablet", "compact", "phone"]) {
+      expect(pixels(gap, "charcoal", layout), layout).toBe(8);
     }
   });
 

@@ -537,6 +537,10 @@
   --list-row-gutter: 26px;
 }
 
+:root[data-layout="desktop"] {
+  --preview-stage-gap: calc(var(--script-header-height) - var(--preview-top-bar-height));
+}
+
 [data-layout="compact"],
 [data-layout="phone"] {
   --preview-bar-height: 52px;
