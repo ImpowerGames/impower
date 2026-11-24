@@ -284,7 +284,7 @@ function Modal({
               const target = initialFocus?.current ?? firstTabbable(content.current);
               if (target) {
                 event.preventDefault();
-                focusAsInput(target);
+                focusAsInput(target, { preventScroll: true });
               }
             }}
             onCloseAutoFocus={(event: Event) => {
