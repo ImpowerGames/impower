@@ -146,6 +146,7 @@ export class AssetModule extends Module<
       }
       const srcs = ui.getImageSrcsByName(name);
       if (srcs) {
+        const layer = ui.layeredImageFiles(name) !== undefined;
         for (const src of srcs) {
           if (
             typeof src === "string" &&
@@ -154,7 +155,7 @@ export class AssetModule extends Module<
             !seen.has(src)
           ) {
             seen.add(src);
-            items.push({ kind: "image", src });
+            items.push(layer ? { kind: "image", src, layer } : { kind: "image", src });
           }
         }
         continue;

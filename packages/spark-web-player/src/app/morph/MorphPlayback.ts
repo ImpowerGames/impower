@@ -24,10 +24,12 @@ import { MorphTimeline, morphRandom } from "../../../../sparkdown/src/morph/time
 import type { MorphArtifact, MorphTiming } from "../../../../sparkdown/src/morph/types";
 import type { MorphStillParams } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphStillMessage";
 import type {
+  LayeredPicture,
   MorphImageContent,
   MorphLayerPlay,
   MorphPicture,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
+import { pictureZoomReach } from "../../../../spark-dom/src/utils/placePicture";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
@@ -55,10 +57,23 @@ export interface PictureCanvasContext {
 export type PictureCanvasFactory = (canvas: HTMLCanvasElement) => PictureCanvasContext | null | undefined;
 
 interface PictureFiles {
-  model: LayeredMorphModel;
   bitmaps: Map<number, PictureBitmap>;
   width: number;
   height: number;
+}
+
+interface MorphPictureFiles extends PictureFiles {
+  model: LayeredMorphModel;
+}
+
+interface StillPicture {
+  layer: number;
+  span: number;
+  picture: MorphPicture;
+  files?: PictureFiles;
+  canvas?: CanvasView;
+  loading?: boolean;
+  broken?: boolean;
 }
 
 interface CanvasView {
@@ -178,7 +193,7 @@ interface ImageState {
   plays: { play: MorphLayerPlay; occurrence?: Occurrence }[];
   view?: LiveView;
   canvas?: CanvasView;
-  files?: PictureFiles;
+  files?: MorphPictureFiles;
   loading?: { artifact: MorphArtifact; done: Promise<void> };
   broken?: boolean;
 }
@@ -230,7 +245,9 @@ export class MorphPlayback {
   loadPicture: PictureLoader;
   pictureCanvas: PictureCanvasFactory;
   reportStill?: (params: MorphStillParams) => void;
+  residentPicture?: (src: string) => PictureBitmap | undefined;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
+  protected loadedPictures = new Map<string, PictureBitmap>();
   protected static readonly PICTURE_LIMIT = 256;
 
   protected time = 0;
@@ -280,18 +297,31 @@ export class MorphPlayback {
     if (options.loadPicture) {
       this.loadPicture = options.loadPicture;
       this.pictures.clear();
+      this.loadedPictures.clear();
     }
     if (options.pictureCanvas) this.pictureCanvas = options.pictureCanvas;
   }
 
+  pictureNow(src: string): PictureBitmap | undefined {
+    return this.residentPicture?.(src) ?? this.loadedPictures.get(src);
+  }
+
   picture(src: string): Promise<PictureBitmap | undefined> {
+    const resident = this.residentPicture?.(src);
+    if (resident) return Promise.resolve(resident);
     let loading = this.pictures.get(src);
     if (!loading) {
-      if (this.pictures.size >= MorphPlayback.PICTURE_LIMIT) this.pictures.delete(this.pictures.keys().next().value!);
+      if (this.pictures.size >= MorphPlayback.PICTURE_LIMIT) {
+        const oldest = this.pictures.keys().next().value!;
+        this.pictures.delete(oldest);
+        this.loadedPictures.delete(oldest);
+      }
       loading = this.loadPicture(src, this.overlay.ownerDocument).catch(() => undefined);
       this.pictures.set(src, loading);
       void loading.then((bitmap) => {
-        if (!bitmap && this.pictures.get(src) === loading) this.pictures.delete(src);
+        if (this.pictures.get(src) !== loading) return;
+        if (bitmap) this.loadedPictures.set(src, bitmap);
+        else this.pictures.delete(src);
       });
     }
     return loading;
@@ -522,8 +552,9 @@ export class MorphPlayback {
     kind: "background" | "mask",
     base: string,
     group: MorphGroup = new MorphGroup(),
+    pictures: LayeredPicture[] = [],
   ): MorphLayer {
-    const layer = new MorphLayer(this, span, content, background, kind, base, group);
+    const layer = new MorphLayer(this, span, content, background, kind, base, group, pictures);
     this.layers.add(layer);
     (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph = layer;
     layer.start();
@@ -674,6 +705,7 @@ function decodeImage(doc: Document, url: string): Promise<unknown> {
 
 export class MorphLayer {
   protected images: ImageState[] = [];
+  protected stills: StillPicture[] = [];
   protected frozen = false;
   protected disposed = false;
   protected stale = false;
@@ -691,6 +723,7 @@ export class MorphLayer {
     protected kind: "background" | "mask",
     protected base: string,
     protected group: MorphGroup,
+    protected pictures: LayeredPicture[] = [],
   ) {
     this.layers = cssList(background).reverse();
     group.add(this);
@@ -706,6 +739,7 @@ export class MorphLayer {
   }
 
   protected staticLayer(index: number): string {
+    if (this.stills.some((still) => still.loading && index >= still.layer && index < still.layer + still.span)) return "none";
     const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
     const pending =
       !!image &&
@@ -716,7 +750,7 @@ export class MorphLayer {
   }
 
   showStill() {
-    if (!this.still || this.frozen || this.disposed) return;
+    if ((!this.still && !this.stills.length) || this.frozen || this.disposed) return;
     if (this.shadowHost) {
       this.layout();
       return;
@@ -733,7 +767,8 @@ export class MorphLayer {
       !this.frozen &&
       !this.disposed &&
       this.kind === "background" &&
-      this.images.some((image) => image.slot.state === "ready" && image.slot.artifact?.status === "live")
+      (this.images.some((image) => image.slot.state === "ready" && image.slot.artifact?.status === "live") ||
+        this.stills.some((still) => still.canvas))
     );
   }
 
@@ -759,7 +794,53 @@ export class MorphLayer {
     }
     this.playback.track(this);
     for (const image of this.images) image.slot.set(image.plays[0]!.play.ref);
+    this.startStills();
     this.showStill();
+  }
+
+  protected startStills() {
+    if (this.kind !== "background") return;
+    for (const picture of this.pictures) {
+      const end = picture.layer + picture.span;
+      if (picture.span < 2 || picture.files.length !== picture.span || picture.layer < 0 || end > this.layers.length) continue;
+      if (this.images.some((image) => image.layer < end && picture.layer < image.layer + image.span)) continue;
+      const still: StillPicture = { layer: picture.layer, span: picture.span, picture };
+      this.stills.push(still);
+      const ready = picture.files.map((file) => this.playback.pictureNow(file.src));
+      if (ready.every((bitmap) => bitmap)) this.settleStill(still, ready);
+      else void this.loadStill(still);
+    }
+    if (this.stills.some((still) => still.files)) this.build();
+  }
+
+  protected async loadStill(still: StillPicture) {
+    still.loading = true;
+    const loaded = await Promise.all(still.picture.files.map((file) => this.playback.picture(file.src)));
+    still.loading = false;
+    if (!this.active) return;
+    this.settleStill(still, loaded);
+    if (still.files) this.build();
+    this.showStill();
+  }
+
+  protected settleStill(still: StillPicture, loaded: (PictureBitmap | undefined)[]) {
+    const bottom = loaded[0];
+    if (
+      !bottom ||
+      loaded.some(
+        (bitmap) =>
+          !bitmap ||
+          bitmap.animated ||
+          bitmap.profile ||
+          bitmap.unread ||
+          bitmap.width !== bottom.width ||
+          bitmap.height !== bottom.height,
+      )
+    ) {
+      still.broken = true;
+      return;
+    }
+    still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
   }
 
   get occurrenceKeys(): string[] {
@@ -875,13 +956,15 @@ export class MorphLayer {
       image.view = undefined;
       image.canvas = undefined;
     }
+    for (const still of this.stills) still.canvas = undefined;
     const ready = this.images.filter(
       (image) =>
         image.slot.state === "ready" &&
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    if (!ready.length) {
+    const stills = this.stills.filter((still) => still.files && !still.broken);
+    if (!ready.length && !stills.length) {
       this.unbuild();
       return;
     }
@@ -908,12 +991,30 @@ export class MorphLayer {
       const state = ready.find((image) => image.layer === i);
       if (state?.picture) {
         const span = Math.min(state.span, count - i);
-        const canvas = this.pictureRect(state, computed) ? this.canvasView(state, doc) : undefined;
+        const files = state.files!;
+        const canvas = this.pictureRect(files, i, computed) ? this.canvasView(files, layeredMorphDrawn(files.model), doc) : undefined;
         if (canvas) {
           state.canvas = canvas;
           root.appendChild(canvas.box);
         } else {
-          if (this.pictureRect(state, computed)) state.broken = true;
+          if (this.pictureRect(files, i, computed)) state.broken = true;
+          for (let k = 0; k < span; k++) still(i + k);
+        }
+        i += span - 1;
+        continue;
+      }
+      const picture = state ? undefined : stills.find((entry) => entry.layer === i);
+      if (picture) {
+        const span = Math.min(picture.span, count - i);
+        const files = picture.files!;
+        const drawn = [...files.bitmaps.keys()].map((file) => ({ file, opacity: 1 }));
+        const canvas = this.pictureRect(files, i, computed) ? this.canvasView(files, drawn, doc) : undefined;
+        if (canvas) {
+          picture.canvas = canvas;
+          root.appendChild(canvas.box);
+          this.sizeObjects(picture);
+        } else {
+          picture.broken = true;
           for (let k = 0; k < span; k++) still(i + k);
         }
         i += span - 1;
@@ -936,6 +1037,15 @@ export class MorphLayer {
     this.span.style.setProperty("background-image", "none");
     this.layout();
     this.render();
+  }
+
+  protected sizeObjects(still: StillPicture) {
+    const files = still.files;
+    if (!files) return;
+    const srcs = new Set(still.picture.files.map((file) => file.src));
+    for (const img of Array.from(this.span.querySelectorAll<HTMLElement>(":scope > img.object"))) {
+      if (srcs.has(img.getAttribute("src") ?? "")) img.style.setProperty("aspect-ratio", `${files.width} / ${files.height}`);
+    }
   }
 
   protected unbuild() {
@@ -1048,15 +1158,18 @@ export class MorphLayer {
     return backgroundRect(area, size, value("background-size") || "auto", value("background-position") || "0% 0%");
   }
 
-  protected pictureRect(state: ImageState, computed: CSSStyleDeclaration | undefined, area = { width: 100, height: 100 }) {
-    const files = state.files;
+  protected pictureRect(
+    files: PictureFiles | undefined,
+    layer: number,
+    computed: CSSStyleDeclaration | undefined,
+    area = { width: 100, height: 100 },
+  ) {
     if (!files) return undefined;
     const size = { width: files.width, height: files.height, ratio: files.width / files.height };
-    return this.rectFor(size, computed, this.layers.length - 1 - state.layer, area);
+    return this.rectFor(size, computed, this.layers.length - 1 - layer, area);
   }
 
-  protected canvasView(state: ImageState, doc: Document): CanvasView | undefined {
-    const files = state.files!;
+  protected canvasView(files: PictureFiles, drawn: LayeredMorphDrawn[], doc: Document): CanvasView | undefined {
     const canvas = doc.createElement("canvas");
     const context = this.playback.pictureCanvas(canvas);
     if (!context) return undefined;
@@ -1064,7 +1177,7 @@ export class MorphLayer {
     const box = doc.createElement("div");
     box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0");
     box.appendChild(canvas);
-    return { box, canvas, context, files, drawn: layeredMorphDrawn(files.model) };
+    return { box, canvas, context, files, drawn };
   }
 
   protected placeCanvas(view: CanvasView, rect: Rect) {
@@ -1084,10 +1197,11 @@ export class MorphLayer {
     }
     const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px`;
     if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-    const pixels = Math.max(1, width * dpr) * Math.max(1, height * dpr);
+    const scale = Math.max(1, Math.min(pictureZoomReach(this.span), view.files.width / Math.max(1, width * dpr)));
+    const pixels = Math.max(1, width * dpr * scale) * Math.max(1, height * dpr * scale);
     const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
-    const w = Math.max(1, Math.round(width * dpr * shrink));
-    const h = Math.max(1, Math.round(height * dpr * shrink));
+    const w = Math.max(1, Math.round(width * dpr * scale * shrink));
+    const h = Math.max(1, Math.round(height * dpr * scale * shrink));
     if (view.canvas.width !== w || view.canvas.height !== h) {
       view.canvas.width = w;
       view.canvas.height = h;
@@ -1122,7 +1236,7 @@ export class MorphLayer {
       const artifact = state.slot.state === "ready" ? state.slot.artifact : undefined;
       if (!artifact || artifact.status !== "live" || state.broken || (state.picture && !state.files)) continue;
       const eligible = state.picture
-        ? !!this.pictureRect(state, computed)
+        ? !!this.pictureRect(state.files, state.layer, computed)
         : !!this.placement(artifact, computed, count - 1 - state.layer);
       if (eligible !== !!(state.picture ? state.canvas : state.view)) {
         this.build();
@@ -1135,9 +1249,14 @@ export class MorphLayer {
     }
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
+    for (const still of this.stills) {
+      if (!still.canvas) continue;
+      const rect = this.pictureRect(still.canvas.files, still.layer, computed, area);
+      if (rect) this.placeCanvas(still.canvas, rect);
+    }
     for (const state of this.images) {
       if (state.canvas) {
-        const rect = this.pictureRect(state, computed, area);
+        const rect = this.pictureRect(state.files, state.layer, computed, area);
         if (rect) this.placeCanvas(state.canvas, rect);
         continue;
       }
@@ -1174,8 +1293,10 @@ export class MorphLayer {
       });
       const frame = Object.keys(offsets).length ? morphFrameState(artifact, morphPosesAt(artifact, offsets)) : restFrame();
       if (image.canvas) {
-        image.canvas.drawn = layeredMorphDrawn(image.canvas.files.model, frame);
-        this.paint(image.canvas);
+        if (image.files) {
+          image.canvas.drawn = layeredMorphDrawn(image.files.model, frame);
+          this.paint(image.canvas);
+        }
         continue;
       }
       const view = image.view!;
@@ -1225,6 +1346,7 @@ export class MorphLayer {
       image.view = undefined;
       image.canvas = undefined;
     }
+    for (const still of this.stills) still.canvas = undefined;
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
