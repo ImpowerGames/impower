@@ -85,7 +85,12 @@ import type { ElementContent } from "../types/ElementContent";
 import type { ElementState } from "../types/ElementState";
 import type { Image } from "../types/Image";
 import type { ImageState } from "../types/ImageState";
-import type { PageEntry, PageRecord, PageState } from "../types/PageState";
+import {
+  PAGE_ENTRY_KINDS,
+  type PageEntry,
+  type PageRecord,
+  type PageState,
+} from "../types/PageState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
@@ -5547,6 +5552,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       loaded(): void {
         this._loaded = true;
+        const page = $._state.page;
+        if (!page) {
+          return;
+        }
+        const known = (entry: PageEntry) =>
+          (PAGE_ENTRY_KINDS as readonly string[]).includes(entry.kind);
+        page.current = page.entries.slice(0, page.current).filter(known).length;
+        page.entries = page.entries.filter(known);
+        if (page.absorbed) {
+          page.absorbed = page.absorbed.filter(known);
+        }
       }
 
       shown(key: string): void {
@@ -5750,12 +5766,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 : "textstream_end muted",
             attributes: { role: "status" },
             content: { text: endingStatusText(ending) },
-          });
-        }
-        if (entry.kind === "caption") {
-          return $.createElement(column, {
-            name: "textstream_caption muted",
-            content: { text: entry.caption ?? "" },
           });
         }
         if (entry.kind === "options") {

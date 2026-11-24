@@ -120,7 +120,7 @@ describe("the player renders the Interactive Fiction page (#1990)", () => {
     el.dispatchEvent(domEvent(el, "scroll"));
     h.game.module.ui.page.record("more", false, (before) => ({
       keep: before.length,
-      entries: [{ kind: "caption", caption: "Sound: door_slam" }],
+      entries: [{ kind: "rule" }],
     }));
     h.game.module.ui.page.show(true);
     await flushMicrotasks(30);

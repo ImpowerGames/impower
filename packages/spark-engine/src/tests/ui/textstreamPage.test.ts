@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import type { Clock } from "../../game/core/classes/Clock";
@@ -129,19 +129,26 @@ const words = (entry: PageEntry | undefined) =>
   (entry?.text ?? []).map((event) => event.text).join("");
 
 const describeEntry = (entry: PageEntry) =>
-  entry.kind === "caption"
-    ? `caption ${entry.caption}`
-    : entry.kind === "rule"
-      ? "rule"
-      : entry.kind === "options"
-        ? `options ${(entry.options ?? []).map((o) => o.map((e) => e.text).join("")).join(" | ")}`
-        : `${entry.kind}${entry.name ? ` [${entry.name}]` : ""} ${words(entry)}`;
+  entry.kind === "rule"
+    ? "rule"
+    : entry.kind === "options"
+      ? `options ${(entry.options ?? []).map((o) => o.map((e) => e.text).join("")).join(" | ")}`
+      : `${entry.kind}${entry.name ? ` [${entry.name}]` : ""} ${words(entry)}`;
+
+const collectErrors = () => {
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
+  };
+  return { errors, restore: () => (console.error = original) };
+};
 
 const keydown = (key: string, extra: Record<string, unknown> = {}) =>
   EventMessage.type.notification({ type: "keydown", key, ...extra } as never);
 
 describe("the Interactive Fiction page records one entry per beat (#1990)", () => {
-  test("narration, dialogue with and without the name, captions, an open choice, a picked choice, a heading and a scene rule", () => {
+  test("narration, dialogue with and without the name, an open choice, a picked choice, a heading and a scene rule", () => {
     const h = play();
     h.game.start();
     h.tapToChoice();
@@ -149,7 +156,6 @@ describe("the Interactive Fiction page records one entry per beat (#1990)", () =
       "action The train rattles on.",
       "dialogue [MARA] Did you hear that?",
       "dialogue Something is wrong.",
-      "caption Music: theme",
       "dialogue [JON] Stay calm.",
       "dialogue [MARA] I am calm.",
       "options Run. | Wait.",
@@ -158,10 +164,9 @@ describe("the Interactive Fiction page records one entry per beat (#1990)", () =
     h.game.chosePathToContinue(0);
     (h.game as any)._coordinator?.onUpdate({ deltaMS: 0 } as Clock);
     h.tapTo("Cold air.");
-    expect(h.page().map(describeEntry).slice(5)).toEqual([
+    expect(h.page().map(describeEntry).slice(4)).toEqual([
       "dialogue [MARA] I am calm.",
       "chosen Run.",
-      "caption Sound: door_slam",
       "action You run.",
       "rule",
       "heading THE PLATFORM",
@@ -191,12 +196,58 @@ describe("the Interactive Fiction page records one entry per beat (#1990)", () =
     expect(errors).toEqual([]);
   });
 
-  test("typewriter blips get no caption", () => {
-    const h = play(
-      `${OPEN_TEXTSTREAM}\ndefine blip as synth with\nend\n\nscene start\n  ((play typewriter blip))\n  Tap tap.\nend\n`,
-    );
-    h.game.start();
-    expect(h.page().map(describeEntry)).toEqual(["action Tap tap."]);
+  test("music, sound and typewriter directives draw nothing on the page, raise no error and still reach the audio player (#2725)", async () => {
+    const collected = collectErrors();
+    try {
+      const h = play(
+        `${OPEN_TEXTSTREAM}\n${ASSETS}\ndefine blip as synth with\nend\n\nscene start\n  ((play music theme))\n  ((play sound door_slam))\n  ((play typewriter blip))\n  Tap tap.\n  ((play sound door_slam)) >\n  After.\nend\n`,
+      );
+      vi.spyOn(h.game.module.assets, "prepareBeat").mockReturnValue(
+        null as never,
+      );
+      vi.spyOn(h.game.module.audio as any, "loadAllAudio").mockResolvedValue(
+        undefined,
+      );
+      const schedule = vi.spyOn(h.game.module.audio, "schedule");
+      const start = vi.spyOn(h.game.module.audio, "triggerAll");
+      const cues = () =>
+        schedule.mock.calls.flatMap(([channel, sequence], call) =>
+          (channel === "music" || channel === "sound" ? sequence : [])
+            .filter((event) => event.control === "play")
+            .map((event) => ({
+              cue: `${channel} ${(event.assets ?? []).join(",")}`,
+              id: schedule.mock.results[call]!.value as number,
+            })),
+        );
+      const tick = async () => {
+        await flushMicrotasks(10);
+        (h.game as any)._coordinator?.onUpdate({ deltaMS: 0 } as Clock);
+      };
+      const started = () => start.mock.calls.flatMap(([ids]) => ids);
+      h.game.start();
+      await tick();
+      expect(h.page().map(describeEntry)).toEqual(["action Tap tap."]);
+      for (let i = 0; i < 4 && h.text() !== "After."; i += 1) {
+        h.game.clickedToContinue();
+        await tick();
+      }
+      expect(h.text()).toBe("After.");
+      expect(h.page().map(describeEntry)).toEqual([
+        "action Tap tap.",
+        "action After.",
+      ]);
+      expect(cues().map(({ cue }) => cue)).toEqual([
+        "music theme",
+        "sound door_slam",
+        "sound door_slam",
+      ]);
+      expect(started()).toEqual(
+        expect.arrayContaining(cues().map(({ id }) => id)),
+      );
+    } finally {
+      collected.restore();
+    }
+    expect(collected.errors).toEqual([]);
   });
 });
 
@@ -205,10 +256,10 @@ describe("the page keeps growing (#1990)", () => {
     const h = play();
     h.game.start();
     h.tapToChoice();
-    const before = h.page().slice(0, 6).map(describeEntry);
+    const before = h.page().slice(0, 5).map(describeEntry);
     h.game.chosePathToContinue(1);
     h.tapTo("You wait.");
-    expect(h.page().slice(0, 6).map(describeEntry)).toEqual(before);
+    expect(h.page().slice(0, 5).map(describeEntry)).toEqual(before);
     expect(h.page().map(describeEntry).at(-1)).toBe("action You wait.");
 
     h.game.reset();
@@ -514,9 +565,51 @@ end
     expect(h.page().map((entry) => entry.kind)).toEqual([
       "action",
       "rule",
-      "caption",
       "action",
     ]);
+  });
+
+  test("a save whose page holds an entry kind the page no longer draws loads without it (#2725)", () => {
+    const source = `${OPEN_TEXTSTREAM}
+scene start
+  Before.
+  Middle.
+  After.
+end
+`;
+    const h = play(source);
+    h.game.start();
+    h.tapTo("After.");
+    const before = structuredClone(h.page());
+    const saved = JSON.parse(h.game.saveHere()!.data);
+    const pages: { entries: unknown[]; current: number }[] = [];
+    const visit = (value: unknown) => {
+      if (value && typeof value === "object") {
+        const record = value as { entries?: unknown; current?: unknown };
+        if (Array.isArray(record.entries) && typeof record.current === "number") {
+          pages.push(record as never);
+        }
+        Object.values(record).forEach(visit);
+      }
+    };
+    visit(saved);
+    expect(pages).toHaveLength(1);
+    const page = pages[0]!;
+    expect(page.current).toBe(2);
+    page.entries.splice(1, 0, { kind: "caption", caption: "Music: theme" });
+    page.entries.push({ kind: "caption", caption: "Sound: door_slam" });
+    page.current += 1;
+    const collected = collectErrors();
+    try {
+      const loaded = play(source);
+      expect(loaded.game.loadToResume(JSON.stringify(saved))).toBe(true);
+      loaded.game.start();
+      expect(loaded.page()).toEqual(before);
+      expect((loaded.game.module.ui as any)._state.page.current).toBe(2);
+    } finally {
+      collected.restore();
+    }
+    expect(collected.errors).toEqual([]);
   });
 
   test("a mounted page builds no entry while the engine simulates, and records it", async () => {

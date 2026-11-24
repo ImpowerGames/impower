@@ -12,11 +12,6 @@ import { clearStage, writeStage } from "./stage";
 
 const SPEAKER_TARGETS = ["character_name", "character_parenthetical"];
 
-const CAPTIONED_CHANNELS: Record<string, string> = {
-  music: "Music",
-  sound: "Sound",
-};
-
 const LINE_KINDS: Record<string, PageEntry["kind"]> = {
   action: "action",
   dialogue: "dialogue",
@@ -135,24 +130,6 @@ export class InteractiveFictionPresenter implements Presenter {
     const options = (instructions.choices ?? []).map(
       (target) => text[target] ?? [],
     );
-    for (const [channel, events] of Object.entries(instructions.audio ?? {})) {
-      const name = CAPTIONED_CHANNELS[channel];
-      if (!name) {
-        continue;
-      }
-      for (const event of events) {
-        if (
-          (event.control === "play" || event.control === "start") &&
-          event.assets?.length
-        ) {
-          entries.push({
-            kind: "caption",
-            scene,
-            caption: `${name}: ${event.assets.join(", ")}`,
-          });
-        }
-      }
-    }
     if (line && visible(line)) {
       const entry: PageEntry = { kind, scene, text: line };
       if (continued > 0) {
@@ -161,7 +138,7 @@ export class InteractiveFictionPresenter implements Presenter {
       if (kind === "dialogue" && instructions.speaker?.name) {
         const speaker = instructions.speaker.name;
         entry.speaker = speaker;
-        const previous = context.findLast((e) => e.kind !== "caption");
+        const previous = context.at(-1);
         if (previous?.kind !== "dialogue" || previous.speaker !== speaker) {
           entry.name = speaker;
         }

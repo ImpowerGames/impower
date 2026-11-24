@@ -69,7 +69,7 @@ Each beat becomes an entry below the last:
 
 Text is typed out with the same timing as the dialogue box, so pauses read as pauses, a click finishes the line, and bold, italic, underline, centring and the wavy and shaky effects all show. Set the typing speed to 0 to show each entry at once.
 
-Pictures and sounds still play on the stage and through the audio channels, and each one also leaves a small muted caption on the page, named after its layer or channel and its asset: "Backdrop: int_subway_aisle", "Portrait: mara_smile", "Music: theme" or "Sound: door_slam". The typewriter's blips get no caption. The page is opaque, so the stage only shows through if a game restyles the page's ground to be see-through.
+Pictures and sounds still play on the stage and through the audio channels, and leave nothing on the page. The page is opaque, so the stage only shows through if a game restyles the page's ground to be see-through.
 
 The page keeps growing across choices and scenes. Restarting the game clears it. Saves and checkpoints keep it, so loading a save shows the page as it was, and a preview or a step back shows the page the game would have at that line.
 
@@ -99,7 +99,7 @@ The page draws every colour from five styles, so a game re-themes the whole page
 | `paper` | The page's ground | `neutral_99` | `neutral_10` |
 | `ink` | The text | `slate_20` | `slate_90` |
 | `accent` | Speaker names and option buttons | `orange_30` | `orange_80` |
-| `muted` | Headings, captions, the picked option and the line that ends the story | `slate_60` | `slate_70` |
+| `muted` | Headings, the picked option and the line that ends the story | `slate_60` | `slate_70` |
 | `alert` | The line that ends the story when an error stopped it | `red_40` | `red_80` |
 
 ```sparkdown
@@ -160,7 +160,7 @@ A colour you set on one of the five styles replaces its dark value too, so the p
 
 The scheme is not part of a save or a checkpoint. Loading a save shows the same page in the scheme the reader has now. An exported game uses `ui.color_scheme` and the reader's device the same way.
 
-The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen`, `textstream_caption` and `textstream_end` (the line at the foot of the page saying how the story ended), can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
+The page's other styles, `textstream` (the scrolling page), `textstream_column`, `textstream_action`, `textstream_dialogue`, `textstream_name`, `textstream_heading`, `textstream_rule`, `textstream_options`, `textstream_option`, `textstream_chosen` and `textstream_end` (the line at the foot of the page saying how the story ended), can be restyled the same way. The `textstream` layout stacks with `textbox`: above `main`'s `stage` and below `main`'s `screen`.
 
 ---
 
