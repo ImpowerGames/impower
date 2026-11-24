@@ -42,9 +42,10 @@ export function useTapOutside(active: boolean, inside: (target: Element) => bool
         return;
       }
       swallowTap(event);
+      event.stopPropagation();
       latest.current.onTap();
     };
-    window.addEventListener("pointerdown", press, true);
-    return () => window.removeEventListener("pointerdown", press, true);
+    document.addEventListener("pointerdown", press, true);
+    return () => document.removeEventListener("pointerdown", press, true);
   }, [active]);
 }

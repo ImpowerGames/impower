@@ -264,6 +264,18 @@ describe("the popover and a press outside it", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it.each([
+    ["touch", 0],
+    ["pen", 0],
+    ["mouse", 1],
+  ])("lets a %s press outside reach the control under it %i times", async (pointerType, reached) => {
+    const { outside } = await mountWithOutside();
+    const heard = vi.fn();
+    outside.addEventListener("pointerdown", heard);
+    await press(outside, pointerType);
+    expect(heard).toHaveBeenCalledTimes(reached);
+  });
+
   it("leaves a mouse press outside to the popover's own dismissal", async () => {
     const { outside, onClose } = await mountWithOutside();
     const event = await press(outside, "mouse");
