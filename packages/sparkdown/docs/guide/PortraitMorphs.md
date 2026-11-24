@@ -1034,6 +1034,21 @@ end
 
 Ava blinks on her own, and her mouth flaps while her line types and rests between lines. `lids.off` needs no file of its own: `off` shows none of the group's `on` layers.
 
+Files with names of their own become the same picture through a `layered_image` whose `assets` are keyed by each layer's name, read as a layer file's name is, bottom layer first:
+
+```sparkdown
+define kit as layered_image with
+  assets = {
+    ["base"] = kit_base,
+    ["mouth.closed default"] = kit_closed,
+    ["mouth.open"] = kit_open,
+    ["lids.on"] = kit_lids,
+  }
+end
+```
+
+A list without keys, such as `assets = { kit_base, kit_lids }`, gives its layers no names, so they belong to no group and no morph plays on them.
+
 A file has no outline, so a morph shows, hides and fades whole layers. On a layer file:
 
 - `blend = cut` swaps the layers at the end of each step, and `blend = fade` crossfades them.

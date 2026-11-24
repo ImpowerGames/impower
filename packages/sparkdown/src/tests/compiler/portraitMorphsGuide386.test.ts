@@ -56,8 +56,18 @@ const SPLIT_LASHES = `<svg xmlns="http://www.w3.org/2000/svg">
 
 const chapter = () => readFileSync(CHAPTER, "utf8");
 
-const examples = (): string[] =>
-  [...chapter().matchAll(/^```sparkdown\n([\s\S]*?)^```$/gm)].map((m) => m[1]!);
+const sparkdownBlocks = (text: string): string[] => [...text.matchAll(/^```sparkdown\n([\s\S]*?)^```$/gm)].map((m) => m[1]!);
+
+const IMAGE_FILES_HEADING = "## Portraits made of image files";
+
+const imageFilesSection = () => chapter().slice(chapter().indexOf(IMAGE_FILES_HEADING), chapter().indexOf("## Seeing it play"));
+
+const imageFilesExamples = () => sparkdownBlocks(imageFilesSection());
+
+const examples = (): string[] => {
+  const painted = new Set(imageFilesExamples());
+  return sparkdownBlocks(chapter()).filter((text) => !painted.has(text));
+};
 
 function diagnosticsOf(text: string, portraits = [PORTRAIT, SPLIT_LASHES], shown = "[[mia]]") {
   const compiler = new SparkdownCompiler();
@@ -96,7 +106,7 @@ function talkingDiagnostics(text: string) {
 }
 
 describe("the talking section of the portrait morphs guide chapter", () => {
-  const talking = () => chapter().slice(chapter().indexOf("## Talking"), chapter().indexOf("## Seeing it play"));
+  const talking = () => chapter().slice(chapter().indexOf("## Talking"), chapter().indexOf(IMAGE_FILES_HEADING));
   const script = () => examples().find((text) => text.includes(TALKING_DEFINE))!;
 
   test("the section's examples compile with no diagnostics", () => {
@@ -455,5 +465,58 @@ describe("the art and warnings the portrait morphs guide teaches", () => {
     }
     expect(troubleshooting).toContain("- A portrait that shows still with an error on the artwork:");
     expect(troubleshooting).toContain("- A single shape that fades instead of moving:");
+  });
+});
+
+describe("the portraits made of image files section of the portrait morphs guide chapter (#2629)", () => {
+  const PAINTED = [
+    "assets/Images/Portraits/ava.png",
+    "assets/Images/Portraits/ava lids.on.png",
+    "assets/Images/Portraits/ava mouth.closed default.png",
+    "assets/Images/Portraits/ava mouth.open.png",
+    "assets/Images/kit_base.png",
+    "assets/Images/kit_closed.png",
+    "assets/Images/kit_open.png",
+    "assets/Images/kit_lids.png",
+  ];
+
+  const compilePainted = (text: string) => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" },
+        ...PAINTED.map((path) => {
+          const leaf = path.slice(path.lastIndexOf("/") + 1);
+          return { uri: `file:///${path}`, type: "image", name: leaf.slice(0, leaf.lastIndexOf(".")), ext: "png", src: `/${path}` };
+        }),
+      ],
+    } as any);
+    return compiler.compile({ textDocument: { uri: URI } }).program;
+  };
+
+  const diagnostics = (program: ReturnType<typeof compilePainted>) =>
+    (program.diagnostics?.[URI] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value));
+
+  test("the overlay blink and the talk compile against the painted files with no diagnostics and play on the picture", () => {
+    const ava = imageFilesExamples().find((text) => text.includes("define ava as character"))!;
+    expect(ava).toContain("50% { lids { state = on } }");
+    const program = compilePainted(ava);
+    expect(diagnostics(program)).toEqual([]);
+    expect(program.morphs?.picks?.["ava"]?.["talk"]).toEqual([expect.objectContaining({ morphs: ["blink", "talk"], image: "ava" })]);
+  });
+
+  test("the keyed layered_image compiles with no diagnostics, and the overlay blink plays on it", () => {
+    const kit = imageFilesExamples().find((text) => text.includes("define kit as layered_image"))!;
+    const blink = imageFilesExamples()[0]!.slice(imageFilesExamples()[0]!.indexOf("morph blink"), imageFilesExamples()[0]!.indexOf("morph talk"));
+    const program = compilePainted(`${kit}\n${blink}\nscene start\n  [[kit]]\nend\n`);
+    expect(diagnostics(program)).toEqual([]);
+    expect(program.morphs?.variants["kit"]).toEqual([expect.objectContaining({ morphs: ["blink"], image: "kit" })]);
+  });
+
+  test("an unkeyed list gives its layers no group, as the section says", () => {
+    expect(imageFilesSection()).toContain("A list without keys, such as `assets = { kit_base, kit_lids }`, gives its layers no names");
+    const blink = imageFilesExamples()[0]!.slice(imageFilesExamples()[0]!.indexOf("morph blink"), imageFilesExamples()[0]!.indexOf("morph talk"));
+    const program = compilePainted(`define kit as layered_image with\n  assets = { kit_base, kit_lids }\nend\n\n${blink}\nscene start\n  [[kit]]\nend\n`);
+    expect(program.morphs?.variants["kit"]).toBeUndefined();
   });
 });
