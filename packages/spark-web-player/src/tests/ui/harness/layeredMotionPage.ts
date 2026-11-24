@@ -450,6 +450,8 @@ const FIT_SVGS: Record<string, string> = {
   "a viewBox of another shape": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 200 100"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
   "no viewBox": `<svg xmlns="${SVG_NS}" width="100" height="100"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
   "an alignment and slice": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 50" preserveAspectRatio="xMaxYMin slice"><rect x="10" y="10" width="70" height="30" fill="#2040e0"/></svg>`,
+  "a size set by its own style": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "a size set by a stylesheet": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100"><style>svg { width: 100px; height: 100px }</style><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
 };
 
 async function cssFit(kind: string, width: number, height: number) {

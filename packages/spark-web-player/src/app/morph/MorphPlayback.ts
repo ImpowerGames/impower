@@ -1653,6 +1653,7 @@ export class MorphLayer {
     this.releaseMotions();
     for (const image of this.images) {
       image.slot.dispose();
+      image.loading = undefined;
       releaseFiles(image.files);
       image.view = undefined;
       image.canvas = undefined;

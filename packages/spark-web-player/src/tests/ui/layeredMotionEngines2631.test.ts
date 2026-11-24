@@ -232,7 +232,7 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     },
   );
 
-  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice"])(
+  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice", "a size set by its own style", "a size set by a stylesheet"])(
     "an SVG layer file with %s is drawn in the picture as CSS draws it, at uniform and stretched placements",
     async (kind, context) => {
       if (!browser) return context.skip();

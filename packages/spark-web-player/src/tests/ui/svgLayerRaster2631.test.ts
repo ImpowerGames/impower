@@ -139,6 +139,13 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect(read(`<svg xmlns="${NS}" width="2in" height="1in"/>`)).toMatchObject({ source: { viewBox: false } });
     expect(read(`<svg xmlns="${NS}" width="100%" height="140"/>`)).toEqual({ reason: "unsized" });
     expect(read(`<svg xmlns="${NS}" width="260"/>`)).toEqual({ reason: "unsized" });
+    expect(read(`<svg xmlns="${NS}" width="auto" height="auto"/>`)).toEqual({ reason: "unsized" });
+    expect(read(`<svg xmlns="${NS}" width="calc(100%)" height="calc(100%)"/>`)).toEqual({ reason: "unsized" });
+    expect(read(`<svg xmlns="${NS}" width="0" height="140"/>`)).toEqual({ reason: "unsized" });
+    expect(read(`<svg xmlns="${NS}" width="2.6e2" height="+140px"/>`)).toMatchObject({ source: { viewBox: false } });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* @keyframes old { to { opacity: 0 } } */ rect { fill: blue }</style></svg>`)).toMatchObject({ source: { viewBox: true } });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="fill: red; /* animation: spin 1s */"/></svg>`)).toMatchObject({ source: { viewBox: true } });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* old */ @keyframes spin { to { rotate: 1turn } }</style></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect><animate attributeName="x" to="1" dur="1s"/></rect></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><set attributeName="x" to="1"/></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>@keyframes spin { to { rotate: 1turn } }</style></svg>`)).toEqual({ reason: "animated" });
@@ -159,6 +166,21 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect(kept.querySelector("rect")).not.toBeNull();
     const stretched = fit(`<svg xmlns="${NS}" width="2in" height="1in"><rect width="1" height="1"/></svg>`, false);
     expect([stretched.getAttribute("width"), stretched.getAttribute("height"), stretched.getAttribute("viewBox"), stretched.getAttribute("preserveAspectRatio")]).toEqual(["375", "188", "0 0 100 50", "none"]);
+    const styled = fit(`<svg xmlns="${NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><style>svg { width: 100px }</style></svg>`, true);
+    expect(styled.getAttribute("style")).toBe("width:100px;height:100px;width:375px !important;height:188px !important");
+  });
+
+  test("a layer disposed while its first raster decodes releases that raster when it arrives, and never draws it", async () => {
+    const pending: Deferred[] = [];
+    const late = raster(260, 140);
+    const { playback, span, canvas } = picture({ vector: { text: SVG, viewBox: true } }, (width, height) => new Promise((resolve) => pending.push({ width, height, resolve })));
+    await settle(() => pending.length >= 1);
+    playback.releaseWithin(span);
+    pending[0]!.resolve(late);
+    await flushMicrotasks(10);
+    expect(late.release).toHaveBeenCalledTimes(1);
+    expect(canvas()).toBeFalsy();
+    expect(pending).toHaveLength(1);
   });
 
   test("the SVG layer is drawn on the canvas between the raster layers, first from a raster at the picture's size and then from one at the canvas's size, with no element of its own", async () => {

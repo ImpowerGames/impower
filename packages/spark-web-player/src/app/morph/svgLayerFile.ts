@@ -43,7 +43,11 @@ function parse(text: string, parser: DOMParser): SVGSVGElement | undefined {
   return root as unknown as SVGSVGElement;
 }
 
-const sized = (value: string | null) => !!value && value.trim() !== "" && !value.trim().endsWith("%");
+const ABSOLUTE_LENGTH = /^\s*\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:px|in|cm|mm|q|pt|pc|em|ex|rem)?\s*$/i;
+
+const sized = (value: string | null) => !!value && ABSOLUTE_LENGTH.test(value) && parseFloat(value.trim().replace(/^\+/, "")) > 0;
+
+const uncommented = (css: string) => css.replace(/\/\*[\s\S]*?(?:\*\/|$)/g, " ");
 
 export function readSvgLayer(text: string, parser: DOMParser): SvgLayerVerdict {
   const root = parse(text, parser);
@@ -51,7 +55,7 @@ export function readSvgLayer(text: string, parser: DOMParser): SvgLayerVerdict {
   if (SMIL.some((name) => root.getElementsByTagNameNS(SVG_NS, name).length > 0)) return { reason: "animated" };
   const styles = Array.from(root.getElementsByTagNameNS(SVG_NS, "style"), (style) => style.textContent ?? "");
   const inline = Array.from(root.querySelectorAll("[style]"), (element) => element.getAttribute("style") ?? "");
-  if ([...styles, ...inline, root.getAttribute("style") ?? ""].some((css) => CSS_ANIMATION.test(css))) return { reason: "animated" };
+  if ([...styles, ...inline, root.getAttribute("style") ?? ""].some((css) => CSS_ANIMATION.test(uncommented(css)))) return { reason: "animated" };
   const viewBox = root.hasAttribute("viewBox");
   if (!viewBox && !(sized(root.getAttribute("width")) && sized(root.getAttribute("height")))) return { reason: "unsized" };
   return { source: { text, viewBox } };
@@ -73,6 +77,8 @@ export function fittedSvgLayer(
   }
   root.setAttribute("width", String(width));
   root.setAttribute("height", String(height));
+  const style = (root.getAttribute("style") ?? "").trim();
+  root.setAttribute("style", `${style}${style && !style.endsWith(";") ? ";" : ""}width:${width}px !important;height:${height}px !important`);
   return serializer.serializeToString(root.ownerDocument);
 }
 
