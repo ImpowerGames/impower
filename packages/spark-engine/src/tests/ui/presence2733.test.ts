@@ -348,6 +348,98 @@ layout main {
   });
 });
 
+describe("a for iteration or a match arm that is added or removed (#2733)", () => {
+  const FADING_ITEM = `style item {
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}`;
+
+  const moving = (h: UIHarness) => {
+    h.game.module.ui.setMotion(true);
+    h.game.module.ui.refreshLayouts();
+  };
+
+  test("only the new iteration arrives, and a dropped one stays until its @hide ends", async () => {
+    const h = harness(`${NO_BOX}
+store items = {1}
+
+function grow()
+  items = {1, 2}
+end
+
+function shrink()
+  items = {1}
+end
+
+${FADING_ITEM}
+
+layout main {
+  for n in items do
+    item {
+      text "{n}"
+    }
+  end
+}
+`);
+    await h.ready;
+    const [first] = h.game.module.ui.findIds("item");
+    h.reset();
+    (h.game.story as any).EvaluateFunction("grow", []);
+    moving(h);
+    await flushMicrotasks(10);
+    const added = h.game.module.ui.findIds("item").filter((id) => id !== first);
+    expect(added).toHaveLength(1);
+    expect(motions(h)).toEqual([{ element: added[0], presence: "show" }]);
+    await settle(h);
+    h.reset();
+    (h.game.story as any).EvaluateFunction("shrink", []);
+    moving(h);
+    await flushMicrotasks(10);
+    expect(motions(h)).toEqual([{ element: added[0], presence: "hide" }]);
+    expect(destroyed(h, added[0]!)).toEqual([]);
+    expect(h.game.module.ui.findIds("item")).toEqual([first]);
+    await settle(h);
+    expect(destroyed(h, added[0]!)).toHaveLength(1);
+  });
+
+  test("a match arm leaves and the matching arm arrives", async () => {
+    const h = harness(`${NO_BOX}
+store mood = "calm"
+
+${FADING_ITEM}
+
+layout main {
+  match mood do
+  case "calm"
+    item {
+      text "Calm"
+    }
+  case "angry"
+    item {
+      text "Angry"
+    }
+  end
+}
+`);
+    await h.ready;
+    const [calm] = h.game.module.ui.findIds("item");
+    h.reset();
+    (h.game.story as any).variablesState.$("mood", "angry");
+    moving(h);
+    await flushMicrotasks(10);
+    const [angry] = h.game.module.ui.findIds("item");
+    expect(angry).not.toBe(calm);
+    expect(motions(h)).toEqual([
+      { element: calm, presence: "hide" },
+      { element: angry, presence: "show" },
+    ]);
+    expect(presenceOf(h, angry!)).toBe("initial");
+    expect(destroyed(h, calm!)).toEqual([]);
+    await settle(h);
+    expect(destroyed(h, calm!)).toHaveLength(1);
+  });
+});
+
 describe("a layout that opens or closes (#2733)", () => {
   const MENU = `${NO_BOX}
 style panel {
