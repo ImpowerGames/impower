@@ -1398,13 +1398,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     property: string,
     state?: ElementState,
   ): Element {
-    this.beginPictureLooks();
-    const background = imageAssets
-      .map((a) => this.getBackgroundImageFromValue(a))
-      .reverse()
-      .join(", ");
-    const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
-    this.endPictureLooks();
+    const { background, src } = this.withPictureLooks(() => ({
+      background: imageAssets
+        .map((a) => this.getBackgroundImageFromValue(a))
+        .reverse()
+        .join(", "),
+      src: imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0],
+    }));
     const el = this.createElement(parent, {
       name: "instance",
       type: "span",
@@ -1620,21 +1620,53 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _pictureLookDepth = 0;
 
+  protected _pickFunctions?: Map<ImagePick, number>;
+
   beginPictureLooks() {
     if (this._pictureLookDepth++ === 0) {
       this._pictureLooks = new Map();
+      this._pickFunctions = new Map();
     }
   }
 
   endPictureLooks() {
     if (this._pictureLookDepth > 0 && --this._pictureLookDepth === 0) {
       this._pictureLooks = undefined;
+      this._pickFunctions = undefined;
     }
+  }
+
+  withPictureLooks<T>(resolve: () => T): T {
+    this.beginPictureLooks();
+    try {
+      return resolve();
+    } finally {
+      this.endPictureLooks();
+    }
+  }
+
+  protected pickKey(pick: ImagePick | undefined): string | number | null {
+    if (pick === undefined) {
+      return null;
+    }
+    if (typeof pick === "string") {
+      return pick;
+    }
+    const functions = this._pickFunctions;
+    if (!functions) {
+      return -1;
+    }
+    let id = functions.get(pick);
+    if (id === undefined) {
+      id = functions.size;
+      functions.set(pick, id);
+    }
+    return id;
   }
 
   pictureLook(type: string, name: string, pick?: ImagePick): PictureLook | undefined {
     const imageName = sortFilteredName(name);
-    const key = JSON.stringify([type, imageName, pick === undefined ? null : typeof pick === "string" ? pick : 0]);
+    const key = JSON.stringify([type, imageName, this.pickKey(pick)]);
     const cached = this._pictureLooks?.get(key);
     if (cached) {
       return cached;
@@ -5260,72 +5292,80 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
           }
-          if (e.assets && e.assets.length > 0) {
-            $.beginPictureLooks();
-            const imageNames = e.assets.join(" ");
-            const videoSrcs = e.assets
-              .map((a) => $.getVideoSrcByName(a))
-              .filter((s): s is string => Boolean(s));
-            const imageAssets = e.assets.filter(
-              (a) => !$.getVideoSrcByName(a),
-            );
-            const pickOf = (a: string) => $.imagePick(e, a);
-            const background =
-              imageAssets.length > 0
-                ? imageAssets
-                    .map((a) => $.getBackgroundImageFromString(a, undefined, pickOf(a)))
-                    .reverse()
-                    .join(", ")
-                : "none";
-            const srcsOf = (a: string) =>
-              pickOf(a) === undefined
-                ? $.getImageSrcsFromValue(a)
-                : $.getImageAssets("", a, undefined, pickOf(a)).map((asset) => asset.src);
-            const src = imageAssets.flatMap((a) => srcsOf(a))[0];
-            const srcs = [
-              ...new Set([
-                ...imageAssets
-                  .flatMap((a) => srcsOf(a) ?? [])
-                  .filter((s) => !s.startsWith("data:")),
-                ...videoSrcs.slice(0, 1),
-              ]),
-            ];
-            const content: WriteImageInstruction["content"] = {
-              background,
-              imageNames,
-              srcs,
-            };
-            if (src != null) {
-              content.src = src;
-            }
-            const sources = [
-              ...new Set(
-                imageAssets.flatMap((a) => {
-                  const named = srcsOf(a);
-                  return named?.length
-                    ? named
-                    : $.getImageUrlsFromBackground($.getBackgroundImageFromString(a, undefined, pickOf(a)));
-                }),
-              ),
-            ];
-            if (sources.length > 0) {
-              content.sources = sources;
-            }
-            const videoSrc = videoSrcs[0];
-            if (videoSrc) {
-              content.video = {
-                src: videoSrc,
-                loop: !e.once,
-                muted: Boolean(e.mute),
-                ...$.getMovieMixer(),
-                ...($.showsMovieStill() ? { preview: true } : {}),
+          const assets = e.assets;
+          if (assets && assets.length > 0) {
+            const content = $.withPictureLooks(() => {
+              const imageNames = assets.join(" ");
+              const videoSrcs = assets
+                .map((a) => $.getVideoSrcByName(a))
+                .filter((s): s is string => Boolean(s));
+              const imageAssets = assets.filter(
+                (a) => !$.getVideoSrcByName(a),
+              );
+              const picks = new Map<string, ImagePick | undefined>();
+              const pickOf = (a: string) => {
+                if (!picks.has(a)) {
+                  picks.set(a, $.imagePick(e, a));
+                }
+                return picks.get(a);
               };
-            }
-            const morph = $.getMorphContent(imageAssets, pickOf);
-            $.endPictureLooks();
-            if (morph) {
-              content.morph = morph;
-            }
+              const background =
+                imageAssets.length > 0
+                  ? imageAssets
+                      .map((a) => $.getBackgroundImageFromString(a, undefined, pickOf(a)))
+                      .reverse()
+                      .join(", ")
+                  : "none";
+              const srcsOf = (a: string) =>
+                pickOf(a) === undefined
+                  ? $.getImageSrcsFromValue(a)
+                  : $.getImageAssets("", a, undefined, pickOf(a)).map((asset) => asset.src);
+              const src = imageAssets.flatMap((a) => srcsOf(a))[0];
+              const srcs = [
+                ...new Set([
+                  ...imageAssets
+                    .flatMap((a) => srcsOf(a) ?? [])
+                    .filter((s) => !s.startsWith("data:")),
+                  ...videoSrcs.slice(0, 1),
+                ]),
+              ];
+              const content: WriteImageInstruction["content"] = {
+                background,
+                imageNames,
+                srcs,
+              };
+              if (src != null) {
+                content.src = src;
+              }
+              const sources = [
+                ...new Set(
+                  imageAssets.flatMap((a) => {
+                    const named = srcsOf(a);
+                    return named?.length
+                      ? named
+                      : $.getImageUrlsFromBackground($.getBackgroundImageFromString(a, undefined, pickOf(a)));
+                  }),
+                ),
+              ];
+              if (sources.length > 0) {
+                content.sources = sources;
+              }
+              const videoSrc = videoSrcs[0];
+              if (videoSrc) {
+                content.video = {
+                  src: videoSrc,
+                  loop: !e.once,
+                  muted: Boolean(e.mute),
+                  ...$.getMovieMixer(),
+                  ...($.showsMovieStill() ? { preview: true } : {}),
+                };
+              }
+              const morph = $.getMorphContent(imageAssets, pickOf);
+              if (morph) {
+                content.morph = morph;
+              }
+              return content;
+            });
             if (e.control === "show") {
               const showEvent = {
                 name: showWith,

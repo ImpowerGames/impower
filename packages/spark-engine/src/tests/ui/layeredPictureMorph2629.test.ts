@@ -157,6 +157,40 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(ui.getBackgroundImageFromString("teal", undefined, "none")).toBe("linear-gradient(teal)");
   });
 
+  test("inside one write, two different pick functions for one picture each get their own look", async () => {
+    const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
+    const chatter = `morph chatter {\n  blend = cut\n  keyframes {\n    from {\n      lids {\n        state = off\n      }\n    }\n    to {\n      lids {\n        state = on\n      }\n    }\n  }\n  timing {\n    trigger = speech\n  }\n}\n`;
+    const source = `${chatter}\ndefine kit as layered_image with\n  assets = {\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const harness = createHarness(source, 0, { assets: files });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    const ui = (harness.game as any).module.ui;
+    const own = () => undefined;
+    const none = () => "none";
+    const srcs = (pick: unknown) => ui.getImageAssets("", "kit", undefined, pick).map((asset: any) => asset.src);
+    const inWrite = ui.withPictureLooks(() => [srcs(own), srcs(none), srcs(own), srcs(none)]);
+    expect(inWrite).toEqual([["/src/overlay.png"], [], ["/src/overlay.png"], []]);
+    expect(ui.withPictureLooks(() => [srcs(none), srcs(own)])).toEqual([[], ["/src/overlay.png"]]);
+  });
+
+  test("a write that throws part-way closes its look cache, so the next write resolves afresh", async () => {
+    const files = [{ uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" }] as any[];
+    const source = `define kit as layered_image with\n  assets = {\n    ["lids.on"] = overlay,\n  }\nend\n\nscene start\n  HERO:\n    [[show portrait kit]]\n    Line one.\nend\n`;
+    const harness = createHarness(source, 0, { assets: files });
+    await harness.ready;
+    await harness.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    const ui = (harness.game as any).module.ui;
+    expect(() =>
+      ui.withPictureLooks(() => {
+        ui.pictureLook("", "kit");
+        throw new Error("part-way");
+      }),
+    ).toThrow("part-way");
+    const first = ui.pictureLook("", "kit");
+    expect(ui.pictureLook("", "kit")).not.toBe(first);
+    ui.withPictureLooks(() => expect(ui.pictureLook("", "kit")).toBe(ui.pictureLook("", "kit")));
+  });
+
   test("a named image that shows no layer paints none without a pick too, and is still an image, not a video", async () => {
     const files = [
       { uri: "inmemory:///overlay.png", type: "image", name: "overlay", ext: "png", src: "/src/overlay.png" },
