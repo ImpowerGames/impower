@@ -33,7 +33,7 @@ function sceneExamples(): { line: number; code: string }[] {
   const lines = readFileSync(join(GUIDE_DIR, "Portraits.md"), "utf8").split(/\r?\n/);
   const examples: { line: number; code: string }[] = [];
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i] !== "```") continue;
+    if (!lines[i]!.startsWith("```")) continue;
     let j = i + 1;
     while (j < lines.length && lines[j] !== "```") j++;
     const body = lines.slice(i + 1, j);
