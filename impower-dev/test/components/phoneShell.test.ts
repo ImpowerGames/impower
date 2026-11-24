@@ -1,4 +1,3 @@
-import { PREVIEW_FADE_MS } from "@impower/impower-ui/layout";
 import { h, render } from "preact";
 import { effect } from "@preact/signals";
 import { act } from "preact/test-utils";
@@ -19,6 +18,7 @@ const calls = vi.hoisted(() => ({
   finds: 0,
   played: 0,
   collapsed: 0,
+  collapseFinished: 0,
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -115,6 +115,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
             preview: { ...store.current.preview, revealed: false },
           };
         },
+        finishPreviewCollapse: () => {
+          calls.collapseFinished += 1;
+        },
       }),
     },
   };
@@ -178,6 +181,7 @@ beforeEach(() => {
   calls.finds = 0;
   calls.played = 0;
   calls.collapsed = 0;
+  calls.collapseFinished = 0;
   workspace.previewLine.value = null;
   workspace.editorHistory.value = {};
   workspace.scriptMode.value = "reading";
@@ -538,10 +542,8 @@ describe("the phone's preview strip", () => {
     await act(async () => {
       dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     });
+    await vi.waitFor(() => expect(calls.collapseFinished).toBe(1));
     await settle();
-    expect(dialog.open).toBe(true);
-    expect(players()[0]).toBe(player);
-    await settle(PREVIEW_FADE_MS);
     expect(dialog.open).toBe(false);
     expect(players()[0]).toBe(player);
     expect(document.activeElement).toBe(button("Play from this line"));

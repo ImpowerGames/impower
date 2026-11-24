@@ -1,8 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
-import { useEffect, useRef } from "preact/hooks";
-import { useMountTransition } from "../../hooks/useMountTransition";
-import { PREVIEW_FADE_MS } from "../../layout/motion";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
@@ -20,6 +18,8 @@ export const previewStripVariants = cva(
     defaultVariants: { size: "phone" },
   },
 );
+
+const CLOSING_LIMIT_MS = 1000;
 
 const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
 
@@ -73,6 +73,7 @@ export type PreviewStripProps = {
   pictureLabel?: string;
   expanded?: boolean;
   onCollapse?: () => void;
+  onCollapsed?: () => void;
   onOpen?: () => void;
   onPlay?: () => void;
   playDisabled?: boolean;
@@ -95,6 +96,7 @@ export default function PreviewStrip({
   pictureLabel = "Game preview",
   expanded = false,
   onCollapse,
+  onCollapsed,
   onOpen,
   onPlay,
   playDisabled = false,
@@ -107,8 +109,27 @@ export default function PreviewStrip({
   const playRef = useRef<HTMLButtonElement | null>(null);
   const focusPlayRef = useRef(false);
   const open = expanded && !docked;
-  const closing = useMountTransition(open, PREVIEW_FADE_MS).mounted && !open;
+  const [, setSettled] = useState(0);
+  const closingRef = useRef(false);
+  const wasOpenRef = useRef(open);
+  if (open) {
+    closingRef.current = false;
+  } else if (wasOpenRef.current) {
+    closingRef.current = true;
+  }
+  wasOpenRef.current = open;
+  const closing = closingRef.current;
   const full = open || closing;
+  const collapsedRef = useRef(onCollapsed);
+  collapsedRef.current = onCollapsed;
+  const finishClosing = useRef(() => {
+    if (!closingRef.current) {
+      return;
+    }
+    closingRef.current = false;
+    setSettled((n) => n + 1);
+    collapsedRef.current?.();
+  }).current;
   const collapseRef = useRef(onCollapse);
   collapseRef.current = onCollapse;
   const expandedRef = useRef(open);
@@ -136,6 +157,49 @@ export default function PreviewStrip({
       dialog.removeEventListener("close", onClose);
     };
   }, []);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!closing || !dialog) {
+      return;
+    }
+    const onEnd = (event: AnimationEvent) => {
+      if (event.target === dialog && !event.pseudoElement) {
+        finishClosing();
+      }
+    };
+    dialog.addEventListener("animationend", onEnd);
+    dialog.addEventListener("animationcancel", onEnd);
+    const frame = requestAnimationFrame(() => {
+      const exiting = dialog
+        .getAnimations?.()
+        .some(
+          (animation) =>
+            animation.playState === "running" &&
+            !(animation.effect as KeyframeEffect | null)?.pseudoElement,
+        );
+      if (!exiting) {
+        finishClosing();
+      }
+    });
+    const fallback = setTimeout(finishClosing, CLOSING_LIMIT_MS);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(fallback);
+      dialog.removeEventListener("animationend", onEnd);
+      dialog.removeEventListener("animationcancel", onEnd);
+    };
+  }, [closing]);
+
+  useEffect(
+    () => () => {
+      if (closingRef.current) {
+        closingRef.current = false;
+        collapsedRef.current?.();
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;

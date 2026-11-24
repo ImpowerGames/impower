@@ -11,7 +11,7 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src/insert";
 import { discardOnBack } from "./nameFieldBack";
 import { previewInStrip } from "./previewInStrip";
-import { layoutState, PREVIEW_FADE_MS, type Layout } from "@impower/impower-ui/layout";
+import { layoutState, type Layout } from "@impower/impower-ui/layout";
 import { ApplyEditorColorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ApplyEditorColorMessage";
 import {
   onProtocolMessage,
@@ -215,6 +215,8 @@ import problems from "./problems/ProblemsStore";
 import { ENTRY_SCRIPT, playRefusalTarget } from "./playRefusal";
 
 export const LAUNCH_LIMIT_MS = 15_000;
+
+export const COLLAPSED_STOP_LIMIT_MS = 1_000;
 
 export const LAUNCH_LIMIT_MESSAGE =
   "The game player didn't respond. Try Play again.";
@@ -928,8 +930,8 @@ export default class WorkspaceWindow {
     this._disposers = [];
     clearTimeout(this._launchLimit);
     this._launchLimit = undefined;
-    clearTimeout(this._stopAfterFade);
-    this._stopAfterFade = undefined;
+    clearTimeout(this._stopWhenCollapsed);
+    this._stopWhenCollapsed = undefined;
     this.debug.end();
     this.cacheProjectWorkspace.flush();
   }
@@ -1007,7 +1009,7 @@ export default class WorkspaceWindow {
 
   protected _playedFromScript = false;
 
-  protected _stopAfterFade?: ReturnType<typeof setTimeout>;
+  protected _stopWhenCollapsed?: ReturnType<typeof setTimeout>;
 
   protected launch(event: LaunchEvent) {
     const game = this.store.preview.modes.game;
@@ -2074,13 +2076,11 @@ export default class WorkspaceWindow {
   collapsePreviewPane() {
     this._playedFromScript = false;
     if (this.coversScript()) {
-      clearTimeout(this._stopAfterFade);
-      this._stopAfterFade = setTimeout(() => {
-        this._stopAfterFade = undefined;
-        if (!this.store.preview.revealed) {
-          this.stopGame();
-        }
-      }, PREVIEW_FADE_MS);
+      clearTimeout(this._stopWhenCollapsed);
+      this._stopWhenCollapsed = setTimeout(
+        () => this.finishPreviewCollapse(),
+        COLLAPSED_STOP_LIMIT_MS,
+      );
     }
     this.update({
       ...this.store,
@@ -2090,6 +2090,17 @@ export default class WorkspaceWindow {
       },
     });
     sendProtocolMessage(DidCollapsePreviewPaneMessage.type.notification({}));
+  }
+
+  finishPreviewCollapse() {
+    if (this._stopWhenCollapsed === undefined) {
+      return;
+    }
+    clearTimeout(this._stopWhenCollapsed);
+    this._stopWhenCollapsed = undefined;
+    if (!this.store.preview.revealed) {
+      this.stopGame();
+    }
   }
 
   setPreviewMode(mode: PreviewMode) {

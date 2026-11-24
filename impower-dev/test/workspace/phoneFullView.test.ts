@@ -26,9 +26,8 @@ const { default: workspace, cacheableWorkspaceState } =
 const { default: workspaceSettings } =
   await import("../../src/modules/spark-editor/workspace/settings/WorkspaceSettings");
 
-const { PREVIEW_FADE_MS } = await import("@impower/impower-ui/layout");
-
-const faded = () => new Promise((resolve) => setTimeout(resolve, PREVIEW_FADE_MS + 20));
+const { COLLAPSED_STOP_LIMIT_MS } =
+  await import("../../src/modules/spark-editor/workspace/WorkspaceWindow");
 
 let win: InstanceType<typeof WorkspaceWindow> | undefined;
 const sent = { started: 0, stopped: 0 };
@@ -110,34 +109,64 @@ describe("the phone's full view", () => {
     expect(workspaceSettings.preferences.peek().previewMode).toBe("textstream");
   });
 
-  it.each(["phone", "compact"])("keeps playing through the full view's fade out, then stops playback, in the %s layout", async (name) => {
-    layout.value = name;
-    const w = mount();
-    w.connectPlayer();
-    w.playInFullView();
-    w.syncGameStarted();
-    w.collapsePreviewPane();
-    expect(workspace.current.preview.revealed).toBe(false);
-    expect(sent.stopped).toBe(0);
-    await new Promise((resolve) => setTimeout(resolve, PREVIEW_FADE_MS / 2));
-    expect(sent.stopped).toBe(0);
-    await faded();
-    expect(sent.stopped).toBe(1);
+  it.each(["phone", "compact"])("keeps playing through the full view's fade out, however long it runs, and stops when the strip reports it collapsed, in the %s layout", (name) => {
+    vi.useFakeTimers();
+    try {
+      layout.value = name;
+      const w = mount();
+      w.connectPlayer();
+      w.playInFullView();
+      w.syncGameStarted();
+      w.collapsePreviewPane();
+      expect(workspace.current.preview.revealed).toBe(false);
+      vi.advanceTimersByTime(COLLAPSED_STOP_LIMIT_MS - 1);
+      expect(sent.stopped).toBe(0);
+      w.finishPreviewCollapse();
+      expect(sent.stopped).toBe(1);
+      w.finishPreviewCollapse();
+      vi.advanceTimersByTime(COLLAPSED_STOP_LIMIT_MS);
+      expect(sent.stopped).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("keeps the game running when the full view opens again before its fade out ends", async () => {
-    const w = mount();
-    w.connectPlayer();
-    w.playInFullView();
-    w.syncGameStarted();
-    w.collapsePreviewPane();
-    w.openFullView();
-    await faded();
-    expect(sent.stopped).toBe(0);
-    expect(workspace.current.preview.revealed).toBe(true);
+  it("stops playback when no strip reports the full view collapsed within its limit", () => {
+    vi.useFakeTimers();
+    try {
+      const w = mount();
+      w.connectPlayer();
+      w.playInFullView();
+      w.syncGameStarted();
+      w.collapsePreviewPane();
+      vi.advanceTimersByTime(COLLAPSED_STOP_LIMIT_MS - 1);
+      expect(sent.stopped).toBe(0);
+      vi.advanceTimersByTime(1);
+      expect(sent.stopped).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it.each(["phone", "compact"])("returns to the script when Stop ends a run played from the strip in the %s layout", async (name) => {
+  it("keeps the game running when the full view opens again before its fade out ends", () => {
+    vi.useFakeTimers();
+    try {
+      const w = mount();
+      w.connectPlayer();
+      w.playInFullView();
+      w.syncGameStarted();
+      w.collapsePreviewPane();
+      w.openFullView();
+      w.finishPreviewCollapse();
+      vi.advanceTimersByTime(COLLAPSED_STOP_LIMIT_MS);
+      expect(sent.stopped).toBe(0);
+      expect(workspace.current.preview.revealed).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["phone", "compact"])("returns to the script when Stop ends a run played from the strip in the %s layout", (name) => {
     layout.value = name;
     const w = mount();
     w.connectPlayer();
@@ -145,7 +174,7 @@ describe("the phone's full view", () => {
     w.syncGameStarted();
     w.toggleGameRunning();
     expect(workspace.current.preview.revealed).toBe(false);
-    await faded();
+    w.finishPreviewCollapse();
     expect(sent.stopped).toBe(1);
   });
 

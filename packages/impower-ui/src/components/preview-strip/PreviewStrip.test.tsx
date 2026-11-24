@@ -6,7 +6,6 @@ import { portalContainer } from "../../utils/portalContainer";
 import { topToastLayer } from "../../utils/toastLayer";
 import { applied, compiledRules, edgeTreatment } from "../../../test/fadeEdge";
 import { blockExtent, hitArea } from "../../../test/hitArea";
-import { PREVIEW_FADE_MS } from "../../layout/motion";
 import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
 
 let host: HTMLDivElement | undefined;
@@ -19,8 +18,26 @@ const mount = async (node: ComponentChild) => {
 
 const faded = () =>
   act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, PREVIEW_FADE_MS + 20));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   });
+
+const exitRunning = () => {
+  const running = { playState: "running", effect: { pseudoElement: null } } as unknown as Animation;
+  const element = dialog();
+  Object.defineProperty(element, "getAnimations", { configurable: true, value: () => [running] });
+  return {
+    end: async (pseudoElement = "") => {
+      const event = new Event("animationend") as Event & { pseudoElement: string };
+      Object.defineProperty(event, "pseudoElement", { value: pseudoElement });
+      await act(async () => {
+        dialog().dispatchEvent(event);
+      });
+    },
+    restore: () => {
+      Reflect.deleteProperty(element, "getAnimations");
+    },
+  };
+};
 
 const animated = (className: string) => className.split(/\s+/).filter((name) => name.includes("anim-"));
 
@@ -255,6 +272,69 @@ describe("PreviewStrip", () => {
     expect(dialog().className).toContain("scale-[0.1666667]");
     expect(animated(dialog().className)).toEqual([]);
     expect(host!.querySelector("[data-player]")).toBe(player);
+  });
+
+  it("stays full screen while its exit fade runs, however long it takes, and reports collapsed once when the dialog's own fade ends", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      });
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+      await exit.end("::backdrop");
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+      await exit.end();
+      expect(dialog().open).toBe(false);
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+      await exit.end();
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("collapses on the next frame when no exit fade runs, as under reduced motion, and reports collapsed", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+    expect(dialog().open).toBe(true);
+    await faded();
+    expect(dialog().open).toBe(false);
+    expect(onCollapsed).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports nothing collapsed when it opens again during its exit fade", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+      await exit.end();
+      await faded();
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("reports collapsed when it leaves the page during its exit fade", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await mount(null);
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+    } finally {
+      exit.restore();
+    }
   });
 
   it("asks to collapse on Escape and returns focus to Play when it collapses", async () => {
