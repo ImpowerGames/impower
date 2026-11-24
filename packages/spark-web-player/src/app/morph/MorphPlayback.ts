@@ -29,6 +29,7 @@ import type {
   MorphPicture,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
+import { computedMotionPose, IDENTITY, multiply, type Matrix2D, type MotionBox, type MotionPose } from "./motionPose";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
@@ -67,9 +68,18 @@ interface CanvasView {
   context: PictureCanvasContext;
   files: PictureFiles;
   drawn: LayeredMorphDrawn[];
+  standIns: Map<string, StandIn>;
   painted?: string;
   last?: string;
 }
+
+interface StandIn {
+  element: HTMLElement;
+  effect?: MorphMotionEffect | null;
+  pose?: MotionPose;
+}
+
+export type MorphPoseReader = (element: Element, box: MotionBox) => MotionPose | undefined;
 
 export const browserPictureLoader: PictureLoader = async (src, doc) => {
   const view = doc.defaultView as (Window & typeof globalThis) | null;
@@ -81,7 +91,7 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
   try {
     await img.decode();
   } catch {
-    return undefined;
+    if (!img.complete) return undefined;
   }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
   const bytes = await readPictureBytes(src, view);
@@ -212,6 +222,7 @@ export interface MorphPlaybackOptions {
   animate?: MorphMotionAnimator;
   loadPicture?: PictureLoader;
   pictureCanvas?: PictureCanvasFactory;
+  readPose?: MorphPoseReader;
 }
 
 export class MorphPlayback {
@@ -229,6 +240,7 @@ export class MorphPlayback {
   animate: MorphMotionAnimator;
   loadPicture: PictureLoader;
   pictureCanvas: PictureCanvasFactory;
+  readPose: MorphPoseReader;
   reportStill?: (params: MorphStillParams) => void;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
   protected static readonly PICTURE_LIMIT = 256;
@@ -256,6 +268,7 @@ export class MorphPlayback {
     this.animate = options.animate ?? browserAnimator;
     this.loadPicture = options.loadPicture ?? browserPictureLoader;
     this.pictureCanvas = options.pictureCanvas ?? browserCanvas;
+    this.readPose = options.readPose ?? computedMotionPose;
     const host = (view ?? window) as Window & typeof globalThis;
     const frames = typeof host.requestAnimationFrame === "function";
     this.requestFrame =
@@ -282,6 +295,7 @@ export class MorphPlayback {
       this.pictures.clear();
     }
     if (options.pictureCanvas) this.pictureCanvas = options.pictureCanvas;
+    if (options.readPose) this.readPose = options.readPose;
   }
 
   picture(src: string): Promise<PictureBitmap | undefined> {
@@ -1064,7 +1078,20 @@ export class MorphLayer {
     const box = doc.createElement("div");
     box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0");
     box.appendChild(canvas);
-    return { box, canvas, context, files, drawn: layeredMorphDrawn(files.model) };
+    const standIns = new Map<string, StandIn>();
+    const labels = new Set(files.model.chains.flatMap(({ chain }) => chain.flatMap((element) => element.attributes["data-morph-motion"] ?? [])));
+    if (labels.size) {
+      const stage = doc.createElement("div");
+      stage.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none");
+      for (const label of labels) {
+        const element = doc.createElement("div");
+        element.setAttribute("style", `position:absolute;left:0;top:0;width:${files.width}px;height:${files.height}px;transform-origin:50% 50%`);
+        stage.appendChild(element);
+        standIns.set(label, { element });
+      }
+      box.appendChild(stage);
+    }
+    return { box, canvas, context, files, drawn: layeredMorphDrawn(files.model), standIns };
   }
 
   protected placeCanvas(view: CanvasView, rect: Rect) {
@@ -1097,19 +1124,37 @@ export class MorphLayer {
   }
 
   protected paint(view: CanvasView) {
-    const { canvas, context } = view;
-    const key = `${canvas.width}x${canvas.height}|${view.drawn.map(({ file, opacity }) => `${file}:${opacity}`).join(",")}`;
+    const { canvas, context, files } = view;
+    const layers = view.drawn.map(({ file, opacity, motions }) => {
+      let matrix: Matrix2D | undefined;
+      let alpha = opacity;
+      for (const label of motions) {
+        const pose = view.standIns.get(label)?.pose;
+        if (!pose) continue;
+        matrix = multiply(matrix ?? IDENTITY, pose.matrix);
+        alpha *= pose.opacity;
+      }
+      return { file, alpha, matrix };
+    });
+    const key = `${canvas.width}x${canvas.height}|${layers.map(({ file, alpha, matrix }) => `${file}:${alpha}${matrix ? `:${matrix.join(" ")}` : ""}`).join(",")}`;
     if (view.painted === key) return;
     view.painted = key;
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.imageSmoothingEnabled = true;
-    for (const { file, opacity } of view.drawn) {
-      const bitmap = view.files.bitmaps.get(file);
-      if (!bitmap) continue;
-      context.globalAlpha = opacity;
+    const sx = canvas.width / files.width;
+    const sy = canvas.height / files.height;
+    for (const { file, alpha, matrix } of layers) {
+      const bitmap = files.bitmaps.get(file);
+      if (!bitmap || alpha <= 0) continue;
+      context.globalAlpha = alpha;
+      if (matrix) {
+        const [a, b, c, d, e, f] = matrix;
+        context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
+      }
       context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
+      if (matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     }
     context.globalAlpha = 1;
   }
@@ -1174,8 +1219,10 @@ export class MorphLayer {
       });
       const frame = Object.keys(offsets).length ? morphFrameState(artifact, morphPosesAt(artifact, offsets)) : restFrame();
       if (image.canvas) {
-        image.canvas.drawn = layeredMorphDrawn(image.canvas.files.model, frame);
-        this.paint(image.canvas);
+        const canvas = image.canvas;
+        canvas.drawn = layeredMorphDrawn(canvas.files.model, frame);
+        image.plays.forEach(({ play }, i) => this.moveStandIns(canvas, play, heads[i]!));
+        this.paint(canvas);
         continue;
       }
       const view = image.view!;
@@ -1197,9 +1244,27 @@ export class MorphLayer {
     }
   }
 
+  protected moveStandIns(view: CanvasView, play: MorphLayerPlay, at: number | "rest") {
+    const box = { width: view.files.width, height: view.files.height };
+    for (const [label, standIn] of view.standIns) {
+      const track = play.motion && own(play.motion, label);
+      if (!track) continue;
+      if (at === "rest") {
+        standIn.effect?.cancel();
+        standIn.pose = undefined;
+        continue;
+      }
+      if (standIn.effect === undefined) standIn.effect = this.playback.animate(standIn.element, morphMotionKeyframes(track) as Keyframe[]) ?? null;
+      if (!standIn.effect) continue;
+      standIn.effect.sample(at);
+      standIn.pose = this.playback.readPose(standIn.element, box);
+    }
+  }
+
   protected releaseMotions() {
     for (const image of this.images) {
       for (const motion of image.view?.motions ?? []) motion.effect?.cancel();
+      for (const standIn of image.canvas?.standIns.values() ?? []) standIn.effect?.cancel();
     }
   }
 
