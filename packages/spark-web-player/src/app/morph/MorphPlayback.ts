@@ -738,8 +738,12 @@ export class MorphLayer {
     return this.images.some((image) => image.slot.state === "pending");
   }
 
+  protected loadingStill(index: number): boolean {
+    return this.stills.some((still) => still.loading && index >= still.layer && index < still.layer + still.span);
+  }
+
   protected staticLayer(index: number): string {
-    if (this.stills.some((still) => still.loading && index >= still.layer && index < still.layer + still.span)) return "none";
+    if (this.loadingStill(index)) return "none";
     const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
     const pending =
       !!image &&
@@ -1053,7 +1057,7 @@ export class MorphLayer {
     this.shadowHost.remove();
     this.shadowHost = undefined;
     this.statics = [];
-    this.span.style.setProperty("background-image", [...this.layers].reverse().join(", "));
+    this.span.style.setProperty("background-image", this.layers.map((layer, index) => (this.loadingStill(index) ? "none" : layer)).reverse().join(", "));
   }
 
   protected layerStyle(computed: CSSStyleDeclaration | undefined, cssIndex: number): string {

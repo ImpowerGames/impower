@@ -87,7 +87,7 @@ async function harness() {
 
 describe("an image write of a still layered picture draws it on a canvas in the player (#2656)", () => {
   test("the write's picture is drawn on a canvas bottom first, and a change of look draws the new layers on a new canvas", async () => {
-    const { canvas, portrait, canvasIn, show } = await harness();
+    const { canvas, canvasIn, show } = await harness();
     const first = await show("Line one.");
     expect(first?.getAttribute("image")).toBe("ava");
     await until(() => !!canvasIn(first), "the first canvas");
