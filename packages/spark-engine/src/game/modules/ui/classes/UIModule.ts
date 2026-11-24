@@ -378,6 +378,11 @@ type ReactiveRegion = CondRegion | ForRegion | ComponentRegion | SlotRegion;
 
 type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
 
+const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
+
+const renderedProps = (node: ElementNode) =>
+  Object.entries(node.props).filter(([prop]) => !ENGINE_PROPS.has(prop));
+
 interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
@@ -2560,7 +2565,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactiveAttrs: Omit<ReactiveAttr, "element">[] = [];
-    const propEntries = Object.entries(node.props);
+    const propEntries = renderedProps(node);
     if (propEntries.length > 0) {
       const vs = this._game.story.variablesState;
       for (const [prop, propValue] of propEntries) {
@@ -2643,7 +2648,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const controlProps: ElementNode["props"] = {};
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       if (isAttributeProp(prop)) {
         controlProps[prop] = propValue;
         continue;
@@ -2706,7 +2711,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
@@ -2811,7 +2816,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactive: Omit<ReactiveAttr, "element">[] = [];
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -2865,7 +2870,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     let selected: { propValue?: PropValue; last: string | null; deps: ReactiveDeps } | null = null;
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -2944,7 +2949,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {};
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       if (isReservedAttribute(prop)) {
         continue;
       }

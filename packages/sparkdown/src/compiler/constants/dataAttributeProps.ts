@@ -1,4 +1,4 @@
-export const DATA_ATTRIBUTE_PROPS: ReadonlySet<string> = new Set(["tooltip", "clear"]);
+export const DATA_ATTRIBUTE_PROPS: ReadonlySet<string> = new Set(["tooltip"]);
 
 export const ARIA_ATTRIBUTE_ALIASES: ReadonlyMap<string, string> = new Map([
   ["busy", "aria-busy"],
