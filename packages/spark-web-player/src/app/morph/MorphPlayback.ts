@@ -695,6 +695,7 @@ export class MorphLayer {
   protected stale = false;
   protected shadowHost?: HTMLElement;
   protected statics: { div: HTMLElement; layer: number }[] = [];
+  protected alone: { inner: FileState; layer: number }[] = [];
 
   protected layers: string[];
   protected still?: string[];
@@ -911,6 +912,7 @@ export class MorphLayer {
 
   protected build() {
     this.releaseMotions();
+    this.alone = [];
     for (const image of this.images) {
       image.view = undefined;
       image.canvas = undefined;
@@ -952,6 +954,7 @@ export class MorphLayer {
     };
     const stillOrAlone = (i: number, picture: ImageState | undefined) => {
       const inner = alone(i, picture);
+      if (inner) this.alone.push({ inner, layer: i });
       const artifact = inner && !inner.broken ? this.liveArtifact(inner.slot) : undefined;
       const placed = !!artifact && !!this.placement(artifact, computed, count - 1 - i);
       const view = placed ? this.liveView(artifact!, doc) : undefined;
@@ -1221,16 +1224,12 @@ export class MorphLayer {
     if (!this.shadowHost) return;
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     const count = this.layers.length;
-    for (const state of this.images) {
-      if (!state.picture || state.canvas || !(this.uncomposited(state) || state.files)) continue;
-      for (const inner of state.inner) {
-        const layer = state.picture.files[inner.file]?.layer;
-        const artifact = this.liveArtifact(inner.slot);
-        if (layer === undefined || !artifact || inner.broken) continue;
-        if (!!this.placement(artifact, computed, count - 1 - layer) !== !!inner.view) {
-          this.build();
-          return;
-        }
+    for (const { inner, layer } of this.alone) {
+      if (inner.broken) continue;
+      const artifact = this.liveArtifact(inner.slot);
+      if (!!artifact && !!this.placement(artifact, computed, count - 1 - layer) !== !!inner.view) {
+        this.build();
+        return;
       }
     }
     for (const state of this.images) {
@@ -1266,12 +1265,9 @@ export class MorphLayer {
         if (rect) this.placeCanvas(state.canvas, rect);
         continue;
       }
-      for (const inner of state.inner) {
-        const layer = state.picture?.files[inner.file]?.layer;
-        if (inner.view && layer !== undefined) place(inner.view, layer);
-      }
       if (state.view) place(state.view, state.layer);
     }
+    for (const { inner, layer } of this.alone) if (inner.view) place(inner.view, layer);
   }
 
   render() {

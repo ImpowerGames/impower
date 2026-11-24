@@ -4,7 +4,7 @@ import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphArtifact } from "@impower/sparkdown/src/morph/types";
 import { talkingPortrait } from "@impower/sparkdown/src/tests/morph/fixtures";
-import { MorphPlayback, type PictureCanvasContext } from "../../app/morph/MorphPlayback";
+import { MorphPlayback, type MorphLayer, type PictureCanvasContext } from "../../app/morph/MorphPlayback";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -264,6 +264,33 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
     playback.advance(0.5);
     expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(0.5)));
+  });
+
+  test("repeated layout of a fallback picture does not rebuild: stable placement, an inner view that cannot be built, a file layer build never walked", async () => {
+    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["base"] = bunny,\n    ["lids.on"] = base_file,');
+    const { span, shadow } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
+    const layer = (span as any).__sdMorph as MorphLayer;
+    const relaidWithoutBuild = () => {
+      const build = vi.spyOn(layer as any, "build");
+      for (let i = 0; i < 5; i++) layer.layout();
+      const calls = build.mock.calls.length;
+      build.mockRestore();
+      return calls;
+    };
+    expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+    expect(relaidWithoutBuild()).toBe(0);
+
+    const liveView = vi.spyOn(layer as any, "liveView").mockReturnValue(undefined);
+    (layer as any).build();
+    liveView.mockRestore();
+    expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
+    expect(relaidWithoutBuild()).toBe(0);
+
+    const image = (layer as any).images.find((entry: any) => entry.picture);
+    for (const inner of image.inner) inner.broken = false;
+    image.picture.files.find((file: any) => file.plays).layer = 7;
+    (layer as any).build();
+    expect(relaidWithoutBuild()).toBe(0);
   });
 
   test("when the picture cannot be drawn on a canvas, an SVG used in two slots plays in both", async () => {
