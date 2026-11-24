@@ -90,7 +90,7 @@ interface Container {
   label: string;
 }
 
-const CONTAINER_STYLE = "position:absolute;inset:0;transform-origin:0 0";
+const CONTAINER_STYLE = "position:absolute;inset:0";
 
 interface PaintedLayer {
   file: number;
@@ -1299,7 +1299,7 @@ export class MorphLayer {
     const layers = view.drawn.map(({ file, opacity, motions }): PaintedLayer => {
       const drawnHere = motions.filter(({ wrapper }) => !view.containers.has(wrapper));
       let matrix: Affine | undefined;
-      for (const { label } of drawnHere) {
+      for (const { label } of motions) {
         const pose = view.standIns.get(label)?.pose;
         if (pose) matrix = multiply(matrix ?? IDENTITY, pose.matrix);
       }
@@ -1322,20 +1322,23 @@ export class MorphLayer {
     }
     for (const [file, live] of view.views) {
       const layer = layers.find((entry) => entry.file === file);
-      const opacity = layer ? layer.fades.reduce((product, fade) => product * fade, layer.alpha) : 0;
-      write(live.box, "style", `position:absolute;left:0;top:0;width:100%;height:100%;${layer ? (opacity < 1 ? `opacity:${opacity}` : "") : "display:none"}`);
+      const declarations = ["position:absolute;left:0;top:0;width:100%;height:100%"];
+      if (!layer) declarations.push("display:none");
+      else {
+        const opacity = layer.fades.reduce((product, fade) => product * fade, layer.alpha);
+        if (layer.matrix && view.size) {
+          const [a, b, c, d, e, f] = layer.matrix;
+          const sx = view.size.width / view.files.width;
+          const sy = view.size.height / view.files.height;
+          declarations.push("transform-origin:0 0", `transform:matrix(${a}, ${(b * sy) / sx}, ${(c * sx) / sy}, ${d}, ${e * sx}, ${f * sy})`);
+        }
+        if (opacity < 1) declarations.push(`opacity:${opacity}`);
+      }
+      write(live.box, "style", declarations.join(";"));
     }
     for (const { element, label } of view.containers.values()) {
-      const pose = view.standIns.get(label)?.pose;
-      const declarations = [CONTAINER_STYLE];
-      if (pose && view.size) {
-        const [a, b, c, d, e, f] = pose.matrix;
-        const sx = view.size.width / view.files.width;
-        const sy = view.size.height / view.files.height;
-        declarations.push(`transform:matrix(${a}, ${(b * sy) / sx}, ${(c * sx) / sy}, ${d}, ${e * sx}, ${f * sy})`);
-      }
-      if (pose && pose.opacity < 1) declarations.push(`opacity:${pose.opacity}`);
-      write(element, "style", declarations.join(";"));
+      const opacity = view.standIns.get(label)?.pose?.opacity ?? 1;
+      write(element, "style", opacity < 1 ? `${CONTAINER_STYLE};opacity:${opacity}` : CONTAINER_STYLE);
     }
   }
 

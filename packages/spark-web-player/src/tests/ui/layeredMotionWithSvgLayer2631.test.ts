@@ -211,7 +211,7 @@ async function shown(text: string, widthOf: (src: string) => number, withCanvas:
 const matrixOf = (style: string) => /transform:matrix\(([^)]*)\)/.exec(style)?.[1]!.split(",").map(Number);
 
 describe("a picture's morph moves its image-file layers while an SVG layer plays its own morph (#2631, #2632)", () => {
-  test("composited: the moved file is drawn with its pose on the canvas, and the SVG layer's container takes the pose in placed pixels while its own morph keeps playing", async () => {
+  test("composited: the moved file is drawn with its pose on the canvas, the SVG layer's view takes the pose in placed pixels and its container the fade, and its own morph keeps playing", async () => {
     const { playback, shadow, box, artifact, painted, play, effects, resize } = await shown(COMPOSITED, () => 260, true);
     expect(play.morph).toBe("lift");
     expect(shadow()!.querySelectorAll("canvas").length).toBeGreaterThanOrEqual(1);
@@ -224,16 +224,16 @@ describe("a picture's morph moves its image-file layers while an SVG layer plays
     expect(brows.alpha).toBeCloseTo(0.5, 6);
     expect(painted().find(({ src }) => src === "/src/base_file.png")!.transform).toEqual([1, 0, 0, 1, 0, 0]);
     const container = box().parentElement!;
-    const style = container.getAttribute("style") ?? "";
+    expect(container.getAttribute("style")).toBe("position:absolute;inset:0;opacity:0.5");
+    const style = box().getAttribute("style") ?? "";
     expect(style).toContain("transform-origin:0 0");
     expect(matrixOf(style)).toEqual([1, 0.75, 0, 1, 8, 24]);
-    expect(style).toMatch(/opacity:0\.5/);
-    expect(box().getAttribute("style") ?? "").not.toMatch(/opacity|transform/);
+    expect(style).not.toMatch(/opacity/);
     const picture = container.parentElement!;
     expect(picture.getAttribute("style")).toMatch(/^position:absolute;left:[\d.]+px;top:[\d.]+px;width:520px;height:420px;overflow:hidden$/);
     expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(1)));
     await resize(260, 210);
-    expect(matrixOf(container.getAttribute("style") ?? "")).toEqual([1, 0.75, 0, 1, 4, 12]);
+    expect(matrixOf(box().getAttribute("style") ?? "")).toEqual([1, 0.75, 0, 1, 4, 12]);
     playback.advance(0.3);
     expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(1.3)));
     expect(referenceStates(artifact, chompAt(1))).not.toEqual(referenceStates(artifact, chompAt(1.3)));
@@ -325,6 +325,100 @@ describe("a faded label holding an image-file layer and an SVG layer is faded on
       expect(canvas.canvases.get(inside[0]!)!.frames.at(-1)).toEqual([{ src: "/shade.png", alpha: 1, transform: [1, 0, 0, 1, 0, 0] }]);
       const outside = (Array.from(shadow()!.querySelectorAll("canvas")) as HTMLCanvasElement[]).filter((element) => !container.contains(element));
       expect(outside.flatMap((element) => canvas.canvases.get(element)!.frames.at(-1)!.map(({ src }) => src))).toEqual(["/base.png"]);
+    } finally {
+      env.restore();
+    }
+  });
+
+  test("a file moved inside a container is drawn with every wrapper's movement, so movements that cancel leave it whole, as on the canvas path", async () => {
+    const NESTED =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<image data-name="base" data-layer="0" x="0" y="0" width="100" height="100"/>' +
+      '<g data-name="outer"><g data-name="inner">' +
+      '<image data-name="shade" data-layer="1" x="0" y="0" width="100" height="100"/></g>' +
+      '<image data-name="mask" data-layer="2" x="0" y="0" width="100" height="100"/></g></svg>';
+    const env = installJSDOM();
+    try {
+      const chomp = serializeMorphRecipe(buildMorphRecipe("chomp", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "open" } }, { offset: 1, mouth: { state: "closed" } }] } as never));
+      const shift = serializeMorphRecipe(
+        buildMorphRecipe("shift", {
+          blend: "cut",
+          keyframes: [
+            { offset: 0, outer: { translate: "0px" }, inner: { translate: "0px" } },
+            { offset: 1, outer: { translate: "-40px 0" }, inner: { translate: "40px 0" } },
+          ],
+        } as never),
+      );
+      const host = createMorphHost({
+        service: new MorphBakeService(),
+        channel: () => ({ recipes: { shift, chomp }, variants: {} }),
+        readSource: async (ref) => ({ text: ref.key === "inner" ? talkingPortrait() : NESTED }),
+      });
+      const canvas = recordingCanvases();
+      const moves = new Map<Element, number>();
+      const playback = new MorphPlayback(env.overlay, {
+        host,
+        seed: "s",
+        requestFrame: () => 0,
+        cancelFrame: () => {},
+        pictureCanvas: canvas.factory,
+        loadPicture: async (src) => ({ image: { src } as never, width: 260, height: 140 }),
+        animate: (element, keyframes) => {
+          moves.set(element, JSON.stringify(keyframes).includes("-40px") ? -40 : 40);
+          return { sample: () => {}, cancel: () => {} };
+        },
+        readPose: (element) => ({ matrix: [1, 0, 0, 1, moves.get(element) ?? 0, 0], opacity: 1 }),
+      });
+      const span = env.overlay.ownerDocument.createElement("span");
+      const background = 'url("/shade.png"), url("/base.png")';
+      span.style.setProperty("background-image", background);
+      span.style.setProperty("background-size", "100% 100%");
+      span.style.setProperty("background-repeat", "no-repeat");
+      span.style.setProperty("width", "520px");
+      span.style.setProperty("height", "280px");
+      env.overlay.appendChild(span);
+      const track = (to: string) => [
+        { offset: 0, values: { translate: "0px" } },
+        { offset: 1, values: { translate: to } },
+      ];
+      const content: MorphImageContent = {
+        plays: [
+          {
+            layer: 0,
+            picture: {
+              span: 2,
+              files: [
+                { src: "/base.png", name: "base.png" },
+                { src: "/shade.png", name: "shade.png" },
+                {
+                  src: "/mask.svg",
+                  name: "mask.svg",
+                  plays: [{ ref: { morphs: ["chomp"], key: "inner", image: "mask", selection: "{}", groups: ["mouth"] }, morph: "chomp", timing, definition: "c" }],
+                },
+              ],
+            },
+            ref: { morphs: ["shift"], key: "picture", image: "kit", selection: "{}", groups: [] },
+            morph: "shift",
+            timing,
+            motion: { outer: track("-40px 0"), inner: track("40px 0") },
+            definition: "s",
+          },
+        ],
+        epoch: 0,
+      };
+      playback.mount(span, content, background, "background", "portrait:0");
+      const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
+      await until(() => !!shadow()?.querySelector("canvas") && !!shadow()?.querySelector("[data-morph]"), "the picture and its SVG layer");
+      playback.requestRelayout();
+      await flushMicrotasks(5);
+      playback.advance(1);
+      const view = shadow()!.querySelector("svg")!.parentElement!;
+      const container = view.parentElement!;
+      expect(container.getAttribute("style")).toBe("position:absolute;inset:0");
+      expect(matrixOf(view.getAttribute("style") ?? "")).toEqual([1, 0, 0, 1, -80, 0]);
+      const inside = Array.from(container.querySelectorAll("canvas")) as HTMLCanvasElement[];
+      expect(inside).toHaveLength(1);
+      expect(canvas.canvases.get(inside[0]!)!.frames.at(-1)).toEqual([{ src: "/shade.png", alpha: 1, transform: [1, 0, 0, 1, 0, 0] }]);
     } finally {
       env.restore();
     }
