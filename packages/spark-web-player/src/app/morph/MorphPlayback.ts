@@ -376,6 +376,67 @@ export class MorphPlayback {
     });
   }
 
+  protected restyle?: MutationObserver;
+
+  protected restyleFrame?: number;
+
+  watchStyles() {
+    if (this.restyle) return;
+    const doc = this.overlay.ownerDocument;
+    const view = doc.defaultView as (Window & typeof globalThis) | null;
+    const Observer = view?.MutationObserver;
+    if (!view || !Observer) return;
+    const styling = (node: Node | null) => {
+      const element = node && node.nodeType === 1 ? (node as Element) : node?.parentElement;
+      const name = element?.localName;
+      return name === "style" || name === "link";
+    };
+    this.restyle = new Observer((records) => {
+      const spans = [...this.layers].filter((layer) => layer.followsStyle).map((layer) => layer.span);
+      if (!spans.length) return;
+      const restyled = records.some((record) =>
+        record.type === "attributes"
+          ? spans.some((span) => record.target.contains(span))
+          : styling(record.target) || [...record.addedNodes, ...record.removedNodes].some(styling),
+      );
+      if (restyled) this.scheduleRestyle();
+    });
+    this.restyle.observe(doc.documentElement, {
+      attributes: true,
+      attributeFilter: ["style", "class"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    view.addEventListener("resize", () => this.scheduleRestyle());
+    const media = (query: string) => {
+      const list = typeof view.matchMedia === "function" ? view.matchMedia(query) : undefined;
+      list?.addEventListener?.("change", () => this.scheduleRestyle());
+    };
+    media("(prefers-color-scheme: dark)");
+    const resolution = () => {
+      const list = typeof view.matchMedia === "function" ? view.matchMedia(`(resolution: ${view.devicePixelRatio || 1}dppx)`) : undefined;
+      list?.addEventListener?.(
+        "change",
+        () => {
+          this.scheduleRestyle();
+          resolution();
+        },
+        { once: true },
+      );
+    };
+    resolution();
+  }
+
+  scheduleRestyle() {
+    if (this.restyleFrame !== undefined || ![...this.layers].some((layer) => layer.followsStyle)) return;
+    this.restyleFrame = this.requestFrame(() => {
+      this.restyleFrame = undefined;
+      for (const layer of [...this.layers]) if (layer.followsStyle) layer.layout();
+      this.followGeometry();
+    });
+  }
+
   protected relayoutQueued = false;
 
   requestRelayout() {
@@ -743,7 +804,6 @@ function decodeImage(doc: Document, url: string): Promise<unknown> {
 export class MorphLayer {
   protected images: ImageState[] = [];
   protected stills: StillPicture[] = [];
-  protected restyled?: MutationObserver;
   protected frozen = false;
   protected disposed = false;
   protected stale = false;
@@ -810,6 +870,10 @@ export class MorphLayer {
     });
   }
 
+  get followsStyle(): boolean {
+    return !this.frozen && !this.disposed && this.stills.some((still) => still.canvas);
+  }
+
   get live(): boolean {
     return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas);
   }
@@ -862,15 +926,7 @@ export class MorphLayer {
       if (ready.every((bitmap) => bitmap)) this.settleStill(still, ready);
       else void this.loadStill(still);
     }
-    const Observer = this.span.ownerDocument.defaultView?.MutationObserver;
-    if (this.stills.length && Observer && !this.restyled) {
-      this.restyled = new Observer(() => {
-        if (!this.active) return;
-        this.layout();
-        this.playback.followGeometry();
-      });
-      this.restyled.observe(this.span, { attributes: true, attributeFilter: ["style", "class"] });
-    }
+    if (this.stills.length) this.playback.watchStyles();
     if (this.stills.some((still) => still.files)) this.build();
   }
 
@@ -1115,6 +1171,10 @@ export class MorphLayer {
     };
   }
 
+  protected coversBorder(boxes: LayerBoxes): boolean {
+    return this.images.length === 0 && (boxes.border.width > boxes.padding.width || boxes.border.height > boxes.padding.height);
+  }
+
   protected stillPlans(still: StillPicture, computed: CSSStyleDeclaration | undefined): LayerPaint[] | undefined {
     const files = still.files;
     if (!files) return undefined;
@@ -1146,7 +1206,8 @@ export class MorphLayer {
     const files = still.files;
     const plans = this.stillPlans(still, computed);
     if (!view || !files || !plans) return;
-    const area = this.layerBoxes(computed).padding;
+    const boxes = this.layerBoxes(computed);
+    const area = this.coversBorder(boxes) ? boxes.border : boxes.padding;
     if (!(area.width > 0 && area.height > 0)) return;
     const win = this.span.ownerDocument.defaultView;
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
@@ -1182,7 +1243,7 @@ export class MorphLayer {
     const compact = color.replace(/ /g, "");
     const opaque = color !== "" && color !== "transparent" && !(compact.startsWith("rgba(") && compact.endsWith(",0)"));
     const fill = still.layer === 0 && opaque && plans.some((plan) => plan.blend !== "normal") ? color : undefined;
-    view.still = { plans, left, top, unitX: w / width, unitY: h / height, ...(fill ? { fill } : {}) };
+    view.still = { plans, left: area.x + left, top: area.y + top, unitX: w / width, unitY: h / height, ...(fill ? { fill } : {}) };
     this.paint(view);
   }
 
@@ -1490,8 +1551,17 @@ export class MorphLayer {
         return;
       }
     }
+    const boxes = this.layerBoxes(computed);
+    const cover = this.coversBorder(boxes);
+    const bl = boxes.padding.x - boxes.border.x;
+    const bt = boxes.padding.y - boxes.border.y;
+    const br = boxes.border.width - boxes.padding.width - bl;
+    const bb = boxes.border.height - boxes.padding.height - bt;
+    const hostStyle = cover ? HOST_STYLE.replace("inset:0", `inset:${-bt}px ${-br}px ${-bb}px ${-bl}px`) : HOST_STYLE;
+    if (this.shadowHost.getAttribute("style") !== hostStyle) this.shadowHost.setAttribute("style", hostStyle);
+    const frame = cover ? `top:${bt}px;right:${br}px;bottom:${bb}px;left:${bl}px` : "inset:0";
     for (const { div, layer } of this.statics) {
-      const style = `position:absolute;inset:0;background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
+      const style = `position:absolute;${frame};background-image:${this.staticLayer(layer)};${this.layerStyle(computed, count - 1 - layer)}`;
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
     const area = positioningArea(this.span, computed);
@@ -1577,8 +1647,6 @@ export class MorphLayer {
   freeze() {
     if (this.frozen || this.disposed) return;
     this.frozen = true;
-    this.restyled?.disconnect();
-    this.restyled = undefined;
     for (const image of this.images) {
       for (const entry of image.plays) {
         if (entry.occurrence) this.playback.letGo(entry.occurrence);

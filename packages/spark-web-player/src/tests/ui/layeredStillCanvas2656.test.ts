@@ -240,14 +240,78 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
   });
 
   test("a change of the picture's CSS placement while it is shown redraws the same canvas at the new placement", async () => {
-    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
+    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
     mount(SRCS, [OFFICE]);
     const element = canvasOf(span);
     span.style.setProperty("background-position", "right top");
     await new Promise((resolve) => setTimeout(resolve, 0));
+    flushFrame();
     expect(canvasOf(span)).toBe(element);
     expect(canvas.frames).toHaveLength(2);
     expect(canvas.frames.at(-1)).toEqual(SRCS.map((src) => ({ src, x: 400, y: 0, width: 400, height: 300, alpha: 1 })));
+  });
+
+  test("a class change on an ancestor that restyles the picture redraws the same canvas at the new placement", async () => {
+    const { span, canvas, mount, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    const sheet = span.ownerDocument.createElement("style");
+    sheet.textContent = "span { background-position: center; } .moved span { background-position: right top; }";
+    span.ownerDocument.head.appendChild(sheet);
+    span.style.removeProperty("background-position");
+    mount(SRCS, [OFFICE]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushFrame();
+    const painted = canvas.frames.length;
+    span.parentElement!.classList.add("moved");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushFrame();
+    expect(canvas.frames).toHaveLength(painted + 1);
+    expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([400, 400, 400]);
+  });
+
+  test("a stylesheet that changes while the picture is shown is followed, and a viewport resize lays the picture out again", async () => {
+    const { span, canvas, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    const sheet = span.ownerDocument.createElement("style");
+    sheet.textContent = "span { background-position: left top; }";
+    span.ownerDocument.head.appendChild(sheet);
+    span.style.removeProperty("background-position");
+    mount(SRCS, [OFFICE]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushFrame();
+    expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([0, 0, 0]);
+    sheet.textContent = "span { background-position: right top; }";
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushFrame();
+    expect(canvas.frames.at(-1)!.map((drawn) => drawn.x)).toEqual([400, 400, 400]);
+    span.ownerDocument.defaultView!.dispatchEvent(new span.ownerDocument.defaultView!.Event("resize"));
+    expect(frames).toHaveLength(1);
+  });
+
+  test("many style changes in one frame lay the picture out once", async () => {
+    const { span, canvas, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    mount(SRCS, [OFFICE]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    flushFrame();
+    const painted = canvas.frames.length;
+    for (let i = 0; i < 200; i++) span.parentElement!.classList.toggle("busy");
+    span.style.setProperty("background-position", "right top");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(frames).toHaveLength(1);
+    flushFrame();
+    expect(canvas.frames).toHaveLength(painted + 1);
+  });
+
+  test("a picture element with a border paints its layers under the border, as CSS's border-box clip does", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("border", "10px solid transparent");
+    span.style.setProperty("background-repeat", "repeat-x");
+    mount(SRCS, [OFFICE]);
+    expect(shadowOf(span)!.host.getAttribute("style")).toContain("inset:-10px -10px -10px -10px");
+    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:820px;height:320px");
+    expect(canvas.frames.at(-1)!.filter((drawn) => drawn.src === "office.png").map((drawn) => [drawn.x, drawn.y])).toEqual([
+      [-190, 10],
+      [210, 10],
+      [610, 10],
+    ]);
   });
 
   test("a picture drawn on a canvas keeps that canvas when the compositor rebuilds for a second picture, and both are drawn on canvases", async () => {
