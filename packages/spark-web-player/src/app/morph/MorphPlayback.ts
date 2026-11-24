@@ -31,6 +31,7 @@ import type {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { pictureZoomReach } from "../../../../spark-dom/src/utils/placePicture";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
+import { layerPaint, type LayerBoxes, type LayerPaint } from "./pictureLayers";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
 
 export type { MorphImageContent, MorphLayerPlay };
@@ -52,6 +53,16 @@ export interface PictureCanvasContext {
   drawImage(image: CanvasImageSource, x: number, y: number, width: number, height: number): void;
   globalAlpha: number;
   imageSmoothingEnabled: boolean;
+  globalCompositeOperation?: string;
+  imageSmoothingQuality?: string;
+  fillStyle?: string | CanvasGradient | CanvasPattern;
+  save?(): void;
+  restore?(): void;
+  beginPath?(): void;
+  rect?(x: number, y: number, width: number, height: number): void;
+  clip?(): void;
+  fillRect?(x: number, y: number, width: number, height: number): void;
+  createPattern?(image: CanvasImageSource, repetition: string): CanvasPattern | null;
 }
 
 export type PictureCanvasFactory = (canvas: HTMLCanvasElement) => PictureCanvasContext | null | undefined;
@@ -76,7 +87,17 @@ interface StillPicture {
   broken?: boolean;
 }
 
+interface StillPaint {
+  plans: LayerPaint[];
+  left: number;
+  top: number;
+  unitX: number;
+  unitY: number;
+  fill?: string;
+}
+
 interface CanvasView {
+  still?: StillPaint;
   box: HTMLElement;
   canvas: HTMLCanvasElement;
   context: PictureCanvasContext;
@@ -722,6 +743,7 @@ function decodeImage(doc: Document, url: string): Promise<unknown> {
 export class MorphLayer {
   protected images: ImageState[] = [];
   protected stills: StillPicture[] = [];
+  protected restyled?: MutationObserver;
   protected frozen = false;
   protected disposed = false;
   protected stale = false;
@@ -840,6 +862,15 @@ export class MorphLayer {
       if (ready.every((bitmap) => bitmap)) this.settleStill(still, ready);
       else void this.loadStill(still);
     }
+    const Observer = this.span.ownerDocument.defaultView?.MutationObserver;
+    if (this.stills.length && Observer && !this.restyled) {
+      this.restyled = new Observer(() => {
+        if (!this.active) return;
+        this.layout();
+        this.playback.followGeometry();
+      });
+      this.restyled.observe(this.span, { attributes: true, attributeFilter: ["style", "class"] });
+    }
     if (this.stills.some((still) => still.files)) this.build();
   }
 
@@ -872,7 +903,7 @@ export class MorphLayer {
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    if (!this.pictureRect(still.files, still.layer, computed) || !this.canvasDrawable(computed, still.layer, still.span)) still.broken = true;
+    if (!this.stillPlans(still, computed)) still.broken = true;
   }
 
   get occurrenceKeys(): string[] {
@@ -1070,20 +1101,180 @@ export class MorphLayer {
     this.render();
   }
 
-  protected canvasDrawable(computed: CSSStyleDeclaration | undefined, layer: number, span: number): boolean {
-    if (!computed) return true;
+  protected layerBoxes(computed: CSSStyleDeclaration | undefined): LayerBoxes {
+    const area = positioningArea(this.span, computed);
+    const px = (name: string) => Number.parseFloat(computed?.getPropertyValue(name) ?? "") || 0;
+    const width = Number.isFinite(area.width) ? area.width : 0;
+    const height = Number.isFinite(area.height) ? area.height : 0;
+    const [bl, br, bt, bb] = ["left", "right", "top", "bottom"].map((side) => px(`border-${side}-width`)) as [number, number, number, number];
+    const [pl, pr, pt, pb] = ["left", "right", "top", "bottom"].map((side) => px(`padding-${side}`)) as [number, number, number, number];
+    return {
+      border: { x: 0 - bl, y: 0 - bt, width: width + bl + br, height: height + bt + bb },
+      padding: { x: 0, y: 0, width, height },
+      content: { x: pl, y: pt, width: Math.max(0, width - pl - pr), height: Math.max(0, height - pt - pb) },
+    };
+  }
+
+  protected stillPlans(still: StillPicture, computed: CSSStyleDeclaration | undefined): LayerPaint[] | undefined {
+    const files = still.files;
+    if (!files) return undefined;
+    const boxes = this.layerBoxes(computed);
     const count = this.layers.length;
-    const blends = computed.getPropertyValue("background-blend-mode");
-    for (let k = 0; k < span; k++) {
-      const blend = layerValue(blends, count - 1 - (layer + k));
-      if (blend && blend !== "normal") return false;
+    const value = (name: string, k: number) => (computed ? layerValue(computed.getPropertyValue(name), count - 1 - (still.layer + k)) : "");
+    const plans: LayerPaint[] = [];
+    for (let k = 0; k < still.span; k++) {
+      const plan = layerPaint(
+        {
+          size: value("background-size", k),
+          position: value("background-position", k),
+          repeat: value("background-repeat", k) || "no-repeat",
+          origin: value("background-origin", k),
+          clip: value("background-clip", k),
+          blend: value("background-blend-mode", k),
+        },
+        boxes,
+        { width: files.width, height: files.height },
+      );
+      if (!plan) return undefined;
+      plans.push(plan);
     }
-    return ["background-size", "background-position", "background-repeat"].every((name) => {
-      const list = computed.getPropertyValue(name);
-      const bottom = layerValue(list, count - 1 - layer);
-      for (let k = 1; k < span; k++) if (layerValue(list, count - 1 - (layer + k)) !== bottom) return false;
-      return true;
+    return plans;
+  }
+
+  protected placeStill(still: StillPicture, computed: CSSStyleDeclaration | undefined) {
+    const view = still.canvas;
+    const files = still.files;
+    const plans = this.stillPlans(still, computed);
+    if (!view || !files || !plans) return;
+    const area = this.layerBoxes(computed).padding;
+    if (!(area.width > 0 && area.height > 0)) return;
+    const win = this.span.ownerDocument.defaultView;
+    const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
+    let left = 0;
+    let top = 0;
+    let { width, height } = area;
+    const host = this.shadowHost;
+    const bounds = host?.getBoundingClientRect();
+    if (host && bounds && host.offsetWidth > 0 && Math.abs(bounds.width - host.offsetWidth) < 0.5) {
+      const snap = (value: number) => Math.round(value * dpr) / dpr;
+      left = snap(bounds.left) - bounds.left;
+      top = snap(bounds.top) - bounds.top;
+      width = snap(bounds.left + width) - bounds.left - left;
+      height = snap(bounds.top + height) - bounds.top - top;
+    }
+    const tiles = plans.flatMap((plan) => [...plan.tiles, ...(plan.pattern ? [plan.pattern.tile] : [])]);
+    const resolution = Math.max(0, ...tiles.map((tile) => (tile.width > 0 ? files.width / tile.width : 0)));
+    const scale = Math.max(1, Math.min(pictureZoomReach(this.span), resolution / dpr));
+    const pixels = Math.max(1, width * dpr * scale) * Math.max(1, height * dpr * scale);
+    const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
+    const w = Math.max(1, Math.round(width * dpr * scale * shrink));
+    const h = Math.max(1, Math.round(height * dpr * scale * shrink));
+    const bottomBlend = plans[0]!.blend;
+    const blended = still.layer > 0 && bottomBlend !== "normal" ? `;mix-blend-mode:${bottomBlend}` : "";
+    const style = `position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${height}px${blended}`;
+    if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
+    if (view.canvas.width !== w || view.canvas.height !== h) {
+      view.canvas.width = w;
+      view.canvas.height = h;
+      view.painted = undefined;
+    }
+    const color = computed?.getPropertyValue("background-color").trim() ?? "";
+    const compact = color.replace(/ /g, "");
+    const opaque = color !== "" && color !== "transparent" && !(compact.startsWith("rgba(") && compact.endsWith(",0)"));
+    const fill = still.layer === 0 && opaque && plans.some((plan) => plan.blend !== "normal") ? color : undefined;
+    view.still = { plans, left, top, unitX: w / width, unitY: h / height, ...(fill ? { fill } : {}) };
+    this.paint(view);
+  }
+
+  protected paintStill(view: CanvasView, still: StillPaint) {
+    const { canvas, context } = view;
+    const smooth = view.smooth !== false;
+    const device = (r: Rect): Rect => {
+      const x = Math.round((r.x - still.left) * still.unitX);
+      const y = Math.round((r.y - still.top) * still.unitY);
+      return {
+        x,
+        y,
+        width: Math.round((r.x + r.width - still.left) * still.unitX) - x,
+        height: Math.round((r.y + r.height - still.top) * still.unitY) - y,
+      };
+    };
+    const plans = still.plans.map((plan) => ({
+      blend: plan.blend,
+      clip: device(plan.clip),
+      tiles: plan.tiles.map(device),
+      pattern: plan.pattern
+        ? {
+            repeatX: plan.pattern.repeatX,
+            repeatY: plan.pattern.repeatY,
+            bands: (plan.pattern.repeatX && plan.pattern.repeatY
+              ? [plan.pattern.tile]
+              : plan.tiles.filter((tile, index, all) =>
+                  plan.pattern!.repeatX
+                    ? all.findIndex((other) => other.y === tile.y) === index
+                    : all.findIndex((other) => other.x === tile.x) === index,
+                )
+            ).map((tile) => ({
+              x: (tile.x - still.left) * still.unitX,
+              y: (tile.y - still.top) * still.unitY,
+              width: tile.width * still.unitX,
+              height: tile.height * still.unitY,
+            })),
+          }
+        : undefined,
+    }));
+    const key = `${canvas.width}x${canvas.height}|${smooth}|${still.fill ?? ""}|${JSON.stringify(plans)}`;
+    if (view.painted === key) return;
+    view.painted = key;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.globalAlpha = 1;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.imageSmoothingEnabled = smooth;
+    const covers = (r: Rect) => r.x <= 0 && r.y <= 0 && r.x + r.width >= canvas.width && r.y + r.height >= canvas.height;
+    if (still.fill && context.fillRect) {
+      const clip = plans[0]!.clip;
+      context.fillStyle = still.fill;
+      context.fillRect(clip.x, clip.y, clip.width, clip.height);
+    }
+    const Matrix = this.span.ownerDocument.defaultView?.DOMMatrix;
+    plans.forEach((plan, index) => {
+      const bitmap = view.files.bitmaps.get(index);
+      if (!bitmap) return;
+      const clipped = !covers(plan.clip) && !!(context.save && context.beginPath && context.rect && context.clip && context.restore);
+      if (clipped) {
+        context.save!();
+        context.beginPath!();
+        context.rect!(plan.clip.x, plan.clip.y, plan.clip.width, plan.clip.height);
+        context.clip!();
+      }
+      if ("globalCompositeOperation" in context) context.globalCompositeOperation = plan.blend === "normal" ? "source-over" : plan.blend;
+      const pattern = plan.pattern;
+      const sample = pattern?.bands[0] ?? plan.tiles[0];
+      if ("imageSmoothingQuality" in context) context.imageSmoothingQuality = sample && sample.width < bitmap.width ? "high" : "low";
+      const repetition = pattern ? (pattern.repeatX && pattern.repeatY ? "repeat" : pattern.repeatX ? "repeat-x" : "repeat-y") : "";
+      const patterns = pattern && context.createPattern && context.fillRect && Matrix ? pattern.bands.map(() => context.createPattern!(bitmap.image, repetition)) : [];
+      if (pattern && patterns.length && patterns.every((fill) => fill)) {
+        for (const [index, band] of pattern.bands.entries()) {
+          const fill = patterns[index]!;
+          fill.setTransform(new Matrix!([band.width / bitmap.width, 0, 0, band.height / bitmap.height, band.x, band.y]));
+          context.fillStyle = fill;
+          const x = Math.round(band.x);
+          const y = Math.round(band.y);
+          context.fillRect!(
+            pattern.repeatX ? plan.clip.x : x,
+            pattern.repeatY ? plan.clip.y : y,
+            pattern.repeatX ? plan.clip.width : Math.round(band.x + band.width) - x,
+            pattern.repeatY ? plan.clip.height : Math.round(band.y + band.height) - y,
+          );
+        }
+      } else {
+        for (const tile of plan.tiles) {
+          if (tile.width > 0 && tile.height > 0) context.drawImage(bitmap.image, tile.x, tile.y, tile.width, tile.height);
+        }
+      }
+      if (clipped) context.restore!();
     });
+    if ("globalCompositeOperation" in context) context.globalCompositeOperation = "source-over";
   }
 
   protected sizeObjects(still: StillPicture) {
@@ -1262,6 +1453,10 @@ export class MorphLayer {
   }
 
   protected paint(view: CanvasView) {
+    if (view.still) {
+      this.paintStill(view, view.still);
+      return;
+    }
     const { canvas, context } = view;
     const smooth = view.smooth !== false;
     const key = `${canvas.width}x${canvas.height}|${smooth}|${view.drawn.map(({ file, opacity }) => `${file}:${opacity}`).join(",")}`;
@@ -1307,9 +1502,7 @@ export class MorphLayer {
       if (view) view.smooth = smooth;
     }
     for (const still of this.stills) {
-      if (!still.canvas) continue;
-      const rect = this.pictureRect(still.canvas.files, still.layer, computed, area);
-      if (rect) this.placeCanvas(still.canvas, rect);
+      if (still.canvas) this.placeStill(still, computed);
     }
     for (const state of this.images) {
       if (state.canvas) {
@@ -1384,6 +1577,8 @@ export class MorphLayer {
   freeze() {
     if (this.frozen || this.disposed) return;
     this.frozen = true;
+    this.restyled?.disconnect();
+    this.restyled = undefined;
     for (const image of this.images) {
       for (const entry of image.plays) {
         if (entry.occurrence) this.playback.letGo(entry.occurrence);

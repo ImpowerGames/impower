@@ -25,9 +25,13 @@ interface Drawn {
 function recordingCanvas() {
   const frames: Drawn[][] = [];
   const smoothing: boolean[] = [];
+  const blends: string[] = [];
+  const fills: { style: unknown; x: number; y: number; width: number; height: number }[] = [];
   const context: PictureCanvasContext = {
     globalAlpha: 1,
     imageSmoothingEnabled: true,
+    globalCompositeOperation: "source-over",
+    fillStyle: "",
     setTransform: () => {},
     clearRect: () => {
       frames.push([]);
@@ -35,9 +39,13 @@ function recordingCanvas() {
     drawImage(image, x, y, width, height) {
       frames.at(-1)!.push({ src: (image as unknown as { src: string }).src, x, y, width, height, alpha: context.globalAlpha });
       smoothing.push(context.imageSmoothingEnabled);
+      blends.push(context.globalCompositeOperation!);
+    },
+    fillRect(x, y, width, height) {
+      fills.push({ style: context.fillStyle, x, y, width, height });
     },
   };
-  return { frames, smoothing, factory: () => context };
+  return { frames, smoothing, blends, fills, factory: () => context };
 }
 
 const bitmap = (src: string, extra: Partial<PictureBitmap> = {}): PictureBitmap => ({
@@ -114,11 +122,11 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     mount(SRCS, [OFFICE]);
     expect(canvasOf(span)).not.toBeNull();
     expect(span.style.getPropertyValue("background-image")).toBe("none, none, none");
-    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:200px;top:0px;width:400px;height:300px");
+    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:800px;height:300px");
     const element = canvasOf(span)!;
-    expect([element.width, element.height]).toEqual([400, 300]);
+    expect([element.width, element.height]).toEqual([800, 300]);
     expect(canvas.frames).toEqual([
-      SRCS.map((src) => ({ src, x: 0, y: 0, width: 400, height: 300, alpha: 1 })),
+      SRCS.map((src) => ({ src, x: 200, y: 0, width: 400, height: 300, alpha: 1 })),
     ]);
   });
 
@@ -158,7 +166,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(span.style.getPropertyValue("background-image")).toBe('none, none, none, url("sky.png")');
     waiting.get("lamp.png")!(bitmap("lamp.png"));
     await until(() => !!canvasOf(span), "the canvas");
-    expect(canvas.frames).toEqual([SRCS.map((src) => ({ src, x: 0, y: 0, width: 400, height: 300, alpha: 1 }))]);
+    expect(canvas.frames).toEqual([SRCS.map((src) => ({ src, x: 200, y: 0, width: 400, height: 300, alpha: 1 }))]);
   });
 
   test.each([
@@ -207,16 +215,42 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     expect(ratios).toEqual(["", "", ""]);
   });
 
-  test("a picture whose layers are placed differently from each other keeps its CSS background, and the compositor keeps one background value per layer", () => {
+  test("a picture whose layers are placed differently from each other draws each layer where CSS places it", () => {
     const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
     span.style.setProperty("background-size", "auto 100%, 50% 50%, auto 100%, auto 100%");
     mount(["sky.png", ...SRCS], [{ ...OFFICE, layer: 1 }]);
-    expect(canvasOf(span)).toBeNull();
-    expect(canvas.frames).toEqual([]);
-    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(["sky.png", ...SRCS]));
+    expect(canvasOf(span)).not.toBeNull();
+    expect(span.style.getPropertyValue("background-image")).toBe("none, none, none, none");
+    expect(canvas.frames.at(-1)).toEqual([
+      { src: "office.png", x: 200, y: 0, width: 400, height: 300, alpha: 1 },
+      { src: "desk.png", x: 200, y: 75, width: 400, height: 150, alpha: 1 },
+      { src: "lamp.png", x: 200, y: 0, width: 400, height: 300, alpha: 1 },
+    ]);
   });
 
-  test("a picture drawn on a canvas stays a canvas when the compositor rebuilds, even after its placement stops being one the canvas can follow", async () => {
+  test("a repeating picture is tiled on the canvas as CSS tiles it, and calc() sizes are resolved", () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src), size: { width: 200, height: 100 } });
+    span.style.setProperty("background-size", "calc(50% - 50px) calc(100% - 50px)");
+    span.style.setProperty("background-position", "0px 0px");
+    span.style.setProperty("background-repeat", "repeat-x");
+    mount(SRCS.slice(0, 2), [{ ...OFFICE, span: 2, files: OFFICE.files.slice(0, 2) }]);
+    expect(canvas.frames.at(-1)).toEqual(
+      ["office.png", "desk.png"].flatMap((src) => [0, 50, 100, 150].map((x) => ({ src, x, y: 0, width: 50, height: 50, alpha: 1 }))),
+    );
+  });
+
+  test("a change of the picture's CSS placement while it is shown redraws the same canvas at the new placement", async () => {
+    const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
+    mount(SRCS, [OFFICE]);
+    const element = canvasOf(span);
+    span.style.setProperty("background-position", "right top");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(canvasOf(span)).toBe(element);
+    expect(canvas.frames).toHaveLength(2);
+    expect(canvas.frames.at(-1)).toEqual(SRCS.map((src) => ({ src, x: 400, y: 0, width: 400, height: 300, alpha: 1 })));
+  });
+
+  test("a picture drawn on a canvas keeps that canvas when the compositor rebuilds for a second picture, and both are drawn on canvases", async () => {
     const waiting = new Map<string, (value: PictureBitmap) => void>();
     const late = ["hall.png", "rug.png"];
     const { span, mount } = setup({
@@ -229,20 +263,28 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     span.style.setProperty("background-repeat", "repeat");
     await until(() => waiting.size === 2, "the late loads");
     for (const src of late) waiting.get(src)!(bitmap(src));
-    await until(() => (layer as any).stills[1].broken === true, "the late picture's build");
+    await until(() => !!(layer as any).stills[1].canvas, "the late picture's canvas");
     const canvases = Array.from(shadowOf(span)!.querySelectorAll("canvas"));
+    expect(canvases).toHaveLength(2);
     expect(canvases[0]).toBe(first);
-    expect(Array.from(shadowOf(span)!.children).filter((child) => child.tagName === "DIV" && !child.querySelector("canvas"))).toHaveLength(2);
+    expect((layer as any).stills[1].broken).toBeFalsy();
   });
 
-  test("a picture whose layers blend with each other other than normally keeps its CSS background", () => {
+  test("a picture whose layers blend draws each layer with its blend mode, over the element's background color", () => {
     const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
-    span.style.setProperty("background-blend-mode", "multiply");
-    expect(span.ownerDocument.defaultView!.getComputedStyle(span).getPropertyValue("background-blend-mode")).toBe("multiply");
+    span.style.setProperty("background-blend-mode", "normal, multiply, screen");
+    span.style.setProperty("background-color", "rgb(255, 0, 0)");
     mount(SRCS, [OFFICE]);
-    expect(canvasOf(span)).toBeNull();
-    expect(canvas.frames).toEqual([]);
-    expect(span.style.getPropertyValue("background-image")).toBe(backgroundOf(SRCS));
+    expect(canvasOf(span)).not.toBeNull();
+    expect(canvas.blends).toEqual(["screen", "multiply", "source-over"]);
+    expect(canvas.fills).toEqual([{ style: "rgb(255, 0, 0)", x: 0, y: 0, width: 800, height: 300 }]);
+  });
+
+  test("a picture above another image blends its bottom layer with that image through the canvas's own blend mode", () => {
+    const { span, mount } = setup({ resident: (src) => bitmap(src) });
+    span.style.setProperty("background-blend-mode", "multiply");
+    mount(["sky.png", ...SRCS], [{ ...OFFICE, layer: 1 }]);
+    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:800px;height:300px;mix-blend-mode:multiply");
   });
 
   test("a picture shown with pixelated or crisp image rendering is drawn without smoothing, and with smoothing otherwise", () => {
@@ -257,7 +299,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
   });
 
   test("an animation of the picture's background position moves the canvas with it, frame by frame, until it ends", () => {
-    const { span, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
+    const { span, canvas, mount, frames, flushFrame } = setup({ resident: (src) => bitmap(src) });
     let state = "running";
     (span as any).getAnimations = () => [
       { playState: state, effect: { getKeyframes: () => [{ backgroundPosition: "left top" }, { backgroundPosition: "right top" }] } },
@@ -265,13 +307,13 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     span.style.setProperty("background-position", "left top");
     const layer = mount(SRCS, [OFFICE]);
     expect(layer.geometryAnimating).toBe(true);
-    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:400px;height:300px");
+    expect(canvas.frames.at(-1)![0]).toMatchObject({ x: 0, width: 400 });
     (layer as any).playback.followGeometry();
     expect(frames).toHaveLength(1);
     span.style.setProperty("background-position", "right top");
     state = "finished";
     flushFrame();
-    expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:400px;top:0px;width:400px;height:300px");
+    expect(canvas.frames.at(-1)![0]).toMatchObject({ x: 400, width: 400 });
     expect(frames).toHaveLength(0);
   });
 
@@ -333,7 +375,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
       },
     });
     mount(SRCS, [OFFICE]);
-    expect(canvas.frames).toEqual([SRCS.map((src) => ({ src, x: 0, y: 0, width: 400, height: 300, alpha: 1 }))]);
+    expect(canvas.frames).toEqual([SRCS.map((src) => ({ src, x: 200, y: 0, width: 400, height: 300, alpha: 1 }))]);
     expect(canvasOf(span)).not.toBeNull();
     expect(loads).toEqual([]);
   });
