@@ -21,6 +21,28 @@ const offsetAt = (timeline: MorphTimeline, t: number) => {
   return "offset" in head ? head.offset : head.phase;
 };
 
+const lengthOf = (timeline: MorphTimeline) => {
+  let lo = 0;
+  let hi = 100;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    if (timeline.at(mid).phase === "done") hi = mid;
+    else lo = mid;
+  }
+  return hi;
+};
+
+const leaves = (timeline: MorphTimeline, held: number, from: number, to: number) => {
+  let lo = from;
+  let hi = to;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    if (offsetAt(timeline, mid) === held) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+};
+
 describe("morph easing", () => {
   test("named curves follow their CSS cubic Béziers", () => {
     const easeOut = parseMorphEasing("ease-out")!;
@@ -250,29 +272,36 @@ describe("a play that replays part of its keyframes (#2580)", () => {
     expect(timeline.at(length + 0.1 + 0.001)).toMatchObject({ phase: "playing", play: 1 });
   });
 
-  test("each replay is rolled for, and the first failure ends the rolls for that play", () => {
-    const lengthOf = (values: number[]) => {
-      const { random, calls } = scripted(values);
-      const timeline = new MorphTimeline(timing({ duration: 0.3, replay: replay({ to: 0.5, chance: 0.5, count: 2 }) }), random);
-      let t = 0;
-      while (timeline.at(t).phase === "playing") t = Math.round((t + 0.001) * 1000) / 1000;
-      return { length: Math.round(t * 100) / 100, calls: calls.length };
-    };
-    expect(lengthOf([0.1, 0.2])).toEqual({ length: 0.6, calls: 2 });
-    expect(lengthOf([0.1, 0.9])).toEqual({ length: 0.45, calls: 2 });
-    expect(lengthOf([0.9])).toEqual({ length: 0.3, calls: 1 });
+  test("each play's replays end at the first failed roll as often as rolling one by one would, from one draw of the stream", () => {
+    const { random, calls } = scripted([0.37]);
+    const timeline = new MorphTimeline(timing({ duration: 0.3, iterations: 4000, replay: replay({ to: 0.5, chance: 0.5, count: 2 }) }), random);
+    const samples = new Map<number, number>();
+    for (let j = 0; ; j++) {
+      const head = timeline.at(0.15 * j + 0.075);
+      if (head.phase !== "playing") break;
+      samples.set(head.play, (samples.get(head.play) ?? 0) + 1);
+    }
+    const tally = [0, 0, 0];
+    for (const count of samples.values()) tally[count - 2] = tally[count - 2]! + 1;
+    expect(samples.size).toBe(4000);
+    expect(tally[0]! / 4000).toBeCloseTo(0.5, 1);
+    expect(tally[1]! / 4000).toBeCloseTo(0.25, 1);
+    expect(tally[2]! / 4000).toBeCloseTo(0.25, 1);
+    expect(calls).toEqual([0.37]);
   });
 
   test("a replay's pause holds the pose at end, still playing, before the play resumes from start", () => {
-    const { random } = scripted([0.5]);
     const timeline = new MorphTimeline(
       timing({ duration: 0.3, replay: replay({ from: 0.25, to: 0.75, delay_min: 0.1, delay_max: 0.3 }) }),
-      random,
+      morphRandom("a"),
     );
+    const pause = lengthOf(timeline) - 0.45;
+    expect(pause).toBeGreaterThanOrEqual(0.1);
+    expect(pause).toBeLessThanOrEqual(0.3);
     expect(timeline.at(0.225 + 0.01)).toEqual({ phase: "playing", play: 0, offset: 0.75 });
-    expect(timeline.at(0.225 + 0.19)).toEqual({ phase: "playing", play: 0, offset: 0.75 });
-    expect(offsetAt(timeline, 0.225 + 0.2 + 0.03)).toBeCloseTo(0.25 + 0.1, 9);
-    expect(timeline.at(0.3 + 0.15 + 0.2 + 0.001)).toEqual({ phase: "done", play: 0, offset: 1 });
+    expect(timeline.at(0.225 + pause - 0.01)).toEqual({ phase: "playing", play: 0, offset: 0.75 });
+    expect(offsetAt(timeline, 0.225 + pause + 0.03)).toBeCloseTo(0.25 + 0.1, 9);
+    expect(timeline.at(0.45 + pause + 0.001)).toEqual({ phase: "done", play: 0, offset: 1 });
   });
 
   test("under steps(3) a whole-play replay shows each drawn frame twice, each for its full time", () => {
@@ -347,19 +376,23 @@ describe("a play that replays part of its keyframes (#2580)", () => {
 
   test("a reversed play meets its pauses in the reverse of the order a forward play meets them", () => {
     const path = replay({ from: 0.2, to: 0.7, count: 2, delay_min: 0.1, delay_max: 0.3 });
-    const forward = new MorphTimeline(timing({ duration: 1, replay: path }), scripted([0.1, 0.9]).random);
-    const reverse = new MorphTimeline(timing({ duration: 1, replay: path, direction: "reverse" }), scripted([0.1, 0.9]).random);
-    const length = 1 + 2 * 0.5 + 0.12 + 0.28;
+    const forward = new MorphTimeline(timing({ duration: 1, replay: path }), morphRandom("a"));
+    const reverse = new MorphTimeline(timing({ duration: 1, replay: path, direction: "reverse" }), morphRandom("a"));
+    const length = lengthOf(forward);
+    const first = leaves(forward, 0.7, 0.7, 1) - 0.7;
+    const second = length - 2 - first;
+    expect(Math.abs(first - second)).toBeGreaterThan(0.01);
+    expect(second).toBeGreaterThan(0.2);
     expect(reverse.at(0.95)).toEqual({ phase: "playing", play: 0, offset: 0.7 });
     for (let ms = 3; ms < length * 1000; ms += 7) {
       expect(offsetAt(reverse, ms / 1000), `${ms} ms`).toBeCloseTo(offsetAt(forward, length - ms / 1000) as number, 9);
     }
-    const speech = new MorphTimeline(timing({ trigger: "speech", duration: 1, replay: path, direction: "reverse" }), scripted([0.1, 0.9]).random);
+    const speech = new MorphTimeline(timing({ trigger: "speech", duration: 1, replay: path, direction: "reverse" }), morphRandom("a"));
     speech.speak([[0, 1.5]], 0);
     expect(speech.at(1)).toEqual({ phase: "playing", play: 0, offset: 0.7 });
-    expect(offsetAt(speech, 1.6)).toBeCloseTo(0.18, 9);
-    expect(offsetAt(speech, 1.75)).toBeCloseTo(0.03, 9);
-    expect(speech.at(1.79)).toEqual({ phase: "off" });
+    expect(offsetAt(speech, 1.3 + second + 0.02)).toBeCloseTo(0.18, 9);
+    expect(offsetAt(speech, 1.3 + second + 0.17)).toBeCloseTo(0.03, 9);
+    expect(speech.at(1.5 + second + 0.01)).toEqual({ phase: "off" });
   });
 
   test("the turning moments are the first the eased position reaches each position, however briefly", () => {
@@ -557,7 +590,7 @@ describe("a play that replays several ranges (#2581)", () => {
 
   test("each entry rolls its own chance, so one entry can replay while another does not", () => {
     const replay = [range(0, 0.4, { chance: 0.25 }), range(0.4, 0.8, { chance: 0.75 })];
-    const { random, calls } = scripted([0.5, 0.5]);
+    const { random, calls } = scripted([0.001]);
     const timeline = new MorphTimeline(timing({ duration: 1, replay }), random);
     expectPositions(timeline, [
       [0.5, 0.5],
@@ -567,27 +600,36 @@ describe("a play that replays several ranges (#2581)", () => {
       [1.39, 0.99],
     ]);
     expect(timeline.at(1.4 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
-    expect(calls).toEqual([0.5, 0.5]);
+    expect(calls).toEqual([0.001]);
   });
 
-  test("entries draw in written order, each its rolls and pauses together, and the path holds each pause at that entry's end", () => {
-    const replay = [
+  test("each entry's rolls and pauses depend on the seed, the play, the entry and the replay's number alone, and the path holds each pause at that entry's end", () => {
+    const entries = (later: Partial<MorphReplay>) => [
       range(0, 0.4, { chance: 0.25, delay_min: 0.1, delay_max: 0.3 }),
-      range(0.4, 0.8, { chance: 0.75, count: 2, delay_min: 0.1, delay_max: 0.3 }),
+      range(0.4, 0.8, { chance: 0.75, count: 2, delay_min: 0.1, delay_max: 0.3, ...later }),
     ];
-    const { random, calls } = scripted([0.2, 0.5, 0.7, 0, 0.8]);
-    const timeline = new MorphTimeline(timing({ duration: 1, replay }), random);
+    const { random, calls } = scripted([0.006]);
+    const timeline = new MorphTimeline(timing({ duration: 1, replay: entries({}) }), random);
+    const first = leaves(timeline, 0.4, 0.4, 0.75) - 0.4;
+    const second = leaves(timeline, 0.8, 1.2 + first, 1.55 + first) - 1.2 - first;
+    for (const pause of [first, second]) {
+      expect(pause).toBeGreaterThanOrEqual(0.1);
+      expect(pause).toBeLessThanOrEqual(0.3);
+    }
     expectPositions(timeline, [
       [0.39, 0.39],
-      [0.5, 0.4],
-      [0.7, 0.1],
-      [1.39, 0.79],
-      [1.45, 0.8],
-      [1.6, 0.5],
-      [2.09, 0.99],
+      [0.4 + first / 2, 0.4],
+      [0.5 + first, 0.1],
+      [1.19 + first, 0.79],
+      [1.2 + first + second / 2, 0.8],
+      [1.3 + first + second, 0.5],
+      [1.79 + first + second, 0.99],
     ]);
-    expect(timeline.at(2.1 + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
-    expect(calls).toEqual([0.2, 0.5, 0.7, 0, 0.8]);
+    expect(timeline.at(1.8 + first + second + 1e-9)).toEqual({ phase: "done", play: 0, offset: 1 });
+    expect(calls).toEqual([0.006]);
+    const changed = new MorphTimeline(timing({ duration: 1, replay: entries({ delay_min: 0.2, delay_max: 0.25 }) }), scripted([0.006]).random);
+    expect(leaves(changed, 0.4, 0.4, 0.75) - 0.4).toBe(first);
+    expect(leaves(changed, 0.8, 1.2 + first, 1.55 + first) - 1.2 - first).not.toBe(second);
   });
 
   test("under a stepped easing a single range lands on the same step as one range always did, at a reversed start and at a step boundary", () => {
@@ -598,13 +640,13 @@ describe("a play that replays several ranges (#2581)", () => {
     expect(forward.at(0.125)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
   });
 
-  test("a play with thousands of replays builds its path at once and ends after every stretch", () => {
+  test("a play of the most replays a range may make builds its path at once and ends after every stretch", () => {
     const began = performance.now();
-    const timeline = new MorphTimeline(timing({ duration: 1, replay: [range(0.2, 0.7, { count: 4096 })] }), () => 0.5);
+    const timeline = new MorphTimeline(timing({ duration: 1, replay: [range(0.2, 0.7, { count: 1000 })] }), () => 0.5);
     expect(timeline.at(0)).toEqual({ phase: "playing", play: 0, offset: 0 });
     expect(performance.now() - began).toBeLessThan(1000);
-    expect(offsetAt(timeline, 1 + 4096 * 0.5 - 0.25)).toBeCloseTo(0.75, 6);
-    expect(timeline.at(1 + 4096 * 0.5 + 0.01)).toEqual({ phase: "done", play: 0, offset: 1 });
+    expect(offsetAt(timeline, 1 + 1000 * 0.5 - 0.25)).toBeCloseTo(0.75, 6);
+    expect(timeline.at(1 + 1000 * 0.5 + 0.01)).toEqual({ phase: "done", play: 0, offset: 1 });
   });
 
   test("a block of one entry plays, and draws, exactly as the same fields written directly", () => {
@@ -623,7 +665,7 @@ describe("a play that replays several ranges (#2581)", () => {
     const listed = readMorphReplay([fields]);
     expect(listed).toEqual(direct);
     expect(run(listed)).toEqual(run(direct));
-    expect(run(direct).calls.length).toBeGreaterThan(3);
+    expect(run(direct).calls.length).toBe(3);
   });
 
   test("a range whose count is above 1000 reaches no player, and one of 1000 does", () => {
@@ -637,10 +679,11 @@ describe("a play that replays several ranges (#2581)", () => {
 
   test("a reversed play runs the whole path backwards, pauses included", () => {
     const replay = [range(0, 0.4, { delay_min: 0.1, delay_max: 0.3 }), range(0.3, 0.8, { count: 2, delay_min: 0.1, delay_max: 0.3 })];
-    const values = [0.1, 0.5, 0.9];
-    const forward = new MorphTimeline(timing({ duration: 1, replay }), scripted(values).random);
-    const reverse = new MorphTimeline(timing({ duration: 1, replay, direction: "reverse" }), scripted(values).random);
-    const length = 1 + 0.4 + 2 * 0.5 + 0.12 + 0.2 + 0.28;
+    const forward = new MorphTimeline(timing({ duration: 1, replay }), morphRandom("b"));
+    const reverse = new MorphTimeline(timing({ duration: 1, replay, direction: "reverse" }), morphRandom("b"));
+    const length = lengthOf(forward);
+    expect(length).toBeGreaterThan(1 + 0.4 + 2 * 0.5 + 3 * 0.1);
+    expect(length).toBeLessThan(1 + 0.4 + 2 * 0.5 + 3 * 0.3);
     expect(reverse.at(length - 1e-9)).toMatchObject({ phase: "playing" });
     expect(reverse.at(length + 1e-9)).toEqual({ phase: "done", play: 0, offset: 0 });
     for (let ms = 4; ms < length * 1000; ms += 7) {
@@ -743,12 +786,12 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
     expect(offsetAt(shorter, resumes + 0.005)).toBeCloseTo(0.005 / 0.35, 6);
   });
 
-  test("a play builds its path again only when a turn in a gap must wait longer than its written pause", () => {
+  test("a play walks its path once, and a turn in a gap that must wait longer than its written pause only lengthens that hold", () => {
     class Counted extends MorphTimeline {
       builds = 0;
-      protected override forward(...args: Parameters<MorphTimeline["forward"]>) {
+      protected override walk(...args: Parameters<MorphTimeline["walk"]>) {
         this.builds += 1;
-        return super.forward(...args);
+        return super.walk(...args);
       }
     }
     const counted = (pause: number) =>
@@ -763,7 +806,9 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
     const waits = counted(0.005);
     waits.speak([[0, turn - gap / 2], [resumes, 0.6]], 0);
     waits.at(turn + 0.01);
-    expect(waits.builds).toBe(2);
+    expect(waits.builds).toBe(1);
+    expect(waits.at(resumes - 0.001)).toEqual({ phase: "playing", play: 0, offset: 0.66667 });
+    expect(offsetAt(waits, resumes + 0.005)).toBeCloseTo(0.005 / 0.35, 6);
   });
 
   test("going forward, the replay is refused when no span remains after the turning point", () => {
@@ -783,5 +828,333 @@ describe("a speech replay whose turning point falls in the gap an unvoiced chara
     ended.speak([[0, 0.35 - gap / 2]], 0);
     expect(offsetAt(ended, 0.34)).toBeCloseTo(1 - 0.34 / 0.35, 6);
     expect(ended.at(0.36)).toEqual({ phase: "off" });
+  });
+});
+
+describe("a play computes its replays from the seed and keeps nothing per replay (#2704)", () => {
+  const range = (from: number, to: number, overrides: Partial<MorphReplay> = {}): MorphReplay => ({ from, to, chance: 1, count: 1, ...overrides });
+  const pause = { delay_min: 0.17, delay_max: 0.35 };
+  const runsOf = (timeline: MorphTimeline) => (timeline as unknown as { runs: { waits: Map<number, number> }[] }).runs;
+  const retained = (timeline: MorphTimeline) => JSON.stringify(runsOf(timeline), (_, value: unknown) => (value instanceof Map ? [...value] : value)).length;
+
+  test("a count above the compiler's bound, or not a whole number, drops its range as readMorphReplay drops it", () => {
+    const frames = (replay?: MorphReplay[]) => {
+      const timeline = new MorphTimeline(timing({ iterations: 3, iteration_delay_min: 0.1, iteration_delay_max: 0.1, replay }), morphRandom("bound"));
+      return Array.from({ length: 160 }, (_, i) => timeline.at(i * 0.01));
+    };
+    const plain = frames();
+    expect(frames([range(0, 1, { count: 1001 })])).toEqual(plain);
+    expect(frames([range(0, 1, { count: 2.5 })])).toEqual(plain);
+    expect(frames([range(0, 1, { count: 1000 })])).not.toEqual(plain);
+    expect(frames([range(0, 1, { count: 1001 }), range(0, 0.5, { count: 2 })])).toEqual(frames([range(0, 0.5, { count: 2 })]));
+    const drawn = { chance: 0.6, count: 5, delay_min: 0.05, delay_max: 0.2 };
+    expect(frames([range(0, 1, { count: 1001 }), range(0, 0.5, drawn)])).toEqual(frames([range(0, 0.5, drawn)]));
+    expect(frames([range(0, 1, { count: 0 }), range(0, 0.5, drawn), range(0, 1, { count: Number.NaN })])).toEqual(frames([range(0, 0.5, drawn)]));
+  });
+
+  test("at the bound of 1000 replays a range, the first frame and a late frame each take under 5 ms, forward and reversed, and nothing kept grows with the count or the frames asked", () => {
+    const atBound = [
+      [range(0, 1, { count: 1000 })],
+      [range(0, 1, { count: 1000, ...pause })],
+      [range(0, 1, { count: 1000 }), range(0.2, 0.6, { count: 1000, ...pause }), range(0.4, 0.9, { count: 1000 })],
+    ];
+    for (const replay of atBound) {
+      for (const direction of ["normal", "reverse"] as const) {
+        const label = `${JSON.stringify(replay)} ${direction}`;
+        const timeline = new MorphTimeline(timing({ duration: 0.25, direction, replay }), morphRandom("blink"));
+        let began = performance.now();
+        expect(timeline.at(0), label).toEqual({ phase: "playing", play: 0, offset: direction === "reverse" ? 1 : 0 });
+        expect(performance.now() - began, `${label} first frame`).toBeLessThan(5);
+        began = performance.now();
+        expect(timeline.at(200).phase, label).toBe("playing");
+        expect(performance.now() - began, `${label} late frame`).toBeLessThan(5);
+        const few = new MorphTimeline(timing({ duration: 0.25, direction, replay: replay.map((entry) => ({ ...entry, count: 10 })) }), morphRandom("blink"));
+        few.at(0);
+        const kept = retained(timeline);
+        expect(kept, label).toBeLessThan(retained(few) + 64);
+        for (let frame = 0; frame < 2000; frame++) timeline.at(frame * 0.1);
+        expect(retained(timeline), label).toBeLessThan(kept + 64);
+        for (const play of runsOf(timeline)) expect(play.waits.size, label).toBe(0);
+      }
+    }
+  });
+
+  test("the same seed gives the same frames whatever order they are asked for in", () => {
+    const configs: Partial<MorphTiming>[] = [
+      { iterations: "infinite", iteration_delay_min: 0.5, iteration_delay_max: 2, replay: [range(0, 1, { chance: 0.4, count: 3, ...pause })] },
+      {
+        duration: 0.5,
+        iterations: "infinite",
+        direction: "alternate",
+        iteration_delay_min: 0.1,
+        iteration_delay_max: 0.3,
+        replay: [range(0, 0.4, { chance: 0.5, ...pause }), range(0.3, 0.8, { chance: 0.75, count: 4, delay_min: 0.02, delay_max: 0.1 })],
+      },
+      { direction: "reverse", replay: [range(0.2, 0.9, { count: 1000, delay_min: 0.1, delay_max: 0.3 })] },
+    ];
+    const times = Array.from({ length: 400 }, (_, i) => i * 0.137);
+    const shuffle = morphRandom("order");
+    const shuffled = times.map((t) => ({ t, key: shuffle() })).sort((a, b) => a.key - b.key).map(({ t }) => t);
+    for (const config of configs) {
+      const asked = (order: number[]) => {
+        const timeline = new MorphTimeline(timing(config), morphRandom("same seed"));
+        const heads = new Map(order.map((t) => [t, timeline.at(t)]));
+        return times.map((t) => heads.get(t));
+      };
+      const ascending = asked(times);
+      expect(asked(shuffled)).toEqual(ascending);
+      expect(asked(times.slice().reverse())).toEqual(ascending);
+      expect(new Set(ascending.map((head) => JSON.stringify(head))).size).toBeGreaterThan(100);
+    }
+  });
+
+  test("a path of repeated rounds is the path walked one replay at a time, forward and reversed", () => {
+    const known = (entry: number, replay: number) => ((entry * 7 + replay * 13) % 10) / 10;
+    class Known extends MorphTimeline {
+      protected override draw(_kind: number, _play: number, entry: number, replay: number) {
+        return known(entry, replay);
+      }
+    }
+    const walked = (ranges: MorphReplay[]) => {
+      const left = ranges.map(({ count }) => count);
+      const taken = ranges.map(() => 0);
+      const parts: ({ from: number; to: number } | { hold: number; pause: number })[] = [];
+      let x = 0;
+      for (;;) {
+        let best = -1;
+        ranges.forEach(({ to }, i) => {
+          if (left[i]! > 0 && to > x && (best < 0 || to < ranges[best]!.to)) best = i;
+        });
+        if (best < 0) break;
+        const { from, to, delay_min, delay_max } = ranges[best]!;
+        parts.push({ from: x, to });
+        parts.push({ hold: to, pause: delay_min === undefined || delay_max === undefined ? 0 : delay_min + (delay_max - delay_min) * known(best, taken[best]!) });
+        left[best] = left[best]! - 1;
+        taken[best] = taken[best]! + 1;
+        x = from;
+      }
+      parts.push({ from: x, to: 1 });
+      const length = parts.reduce((total, part) => total + ("hold" in part ? part.pause : part.to - part.from), 0);
+      const at = (t: number) => {
+        let left = t;
+        for (const part of parts) {
+          if ("hold" in part) {
+            if (left < part.pause) return part.hold;
+            left -= part.pause;
+          } else {
+            if (left < part.to - part.from) return part.from + left;
+            left -= part.to - part.from;
+          }
+        }
+        return 1;
+      };
+      return { length, at };
+    };
+    const random = morphRandom("ranges");
+    const pick = (values: number[]) => values[Math.floor(random() * values.length)]!;
+    const grid = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
+    for (let config = 0; config < 60; config++) {
+      const ranges = Array.from({ length: pick([1, 2, 3]) }, () => {
+        const from = pick(grid.slice(0, -1));
+        const to = pick(grid.filter((point) => point > from));
+        const count = config % 10 === 9 ? pick([300, 700, 1000]) : pick([1, 2, 3, 4, 6]);
+        const written = pick([0, 1, 2]);
+        return range(from, to, { count, ...(written === 1 ? { delay_min: 0.05, delay_max: 0.05 } : written === 2 ? { delay_min: 0.02, delay_max: 0.1 } : {}) });
+      });
+      const expected = walked(ranges);
+      const label = JSON.stringify(ranges);
+      const forward = new Known(timing({ duration: 1, replay: ranges }), morphRandom("ranges"));
+      const reverse = new Known(timing({ duration: 1, replay: ranges, direction: "reverse" }), morphRandom("ranges"));
+      const step = expected.length / 1500;
+      for (let t = 0.00011; t < expected.length; t += step) {
+        expect(offsetAt(forward, t), `${label} at ${t}`).toBeCloseTo(expected.at(t), 9);
+        expect(offsetAt(reverse, t), `${label} reversed at ${t}`).toBeCloseTo(expected.at(expected.length - t), 9);
+      }
+      expect(forward.at(expected.length - 1e-6).phase, label).toBe("playing");
+      expect(forward.at(expected.length + 1e-6).phase, label).toBe("done");
+      expect(reverse.at(expected.length + 1e-6).phase, label).toBe("done");
+    }
+  });
+
+  test("a speech play at the bound spends every replay left at the first turning point after the speech", () => {
+    const speech = (direction: MorphTiming["direction"]) =>
+      new MorphTimeline(timing({ trigger: "speech", duration: 0.3, direction, replay: [range(0, 0.5, { count: 1000 })] }), () => 0.5);
+    const forward = speech("normal");
+    forward.speak([[0, 1]], 0);
+    expect(forward.at(0.5)).toMatchObject({ phase: "playing", play: 0 });
+    expect(offsetAt(forward, 0.98)).toBeCloseTo(0.08 / 0.3, 9);
+    expect(offsetAt(forward, 1.1)).toBeCloseTo(0.2 / 0.3, 9);
+    expect(forward.at(1.21)).toEqual({ phase: "off" });
+    const reverse = speech("reverse");
+    reverse.speak([[0, 1]], 0);
+    expect(offsetAt(reverse, 0.98)).toBeCloseTo(0.5 - 0.08 / 0.3, 9);
+    expect(reverse.at(1.1)).toEqual({ phase: "off" });
+    const late = speech("normal");
+    late.speak([[0, 100]], 0);
+    const began = performance.now();
+    expect(offsetAt(late, 99.98)).toBeCloseTo((99.98 - 0.15 * Math.floor(99.98 / 0.15)) / 0.3, 6);
+    expect(performance.now() - began).toBeLessThan(50);
+  });
+
+  test("with a varying seeded stream, replays at chance 100% with no pause or a fixed one take nothing from it, so the gaps are the ones the morph draws without a replay", () => {
+    const gapsOf = (replay: MorphReplay[] | undefined, length: number) => {
+      const timeline = new MorphTimeline(timing({ duration: 1, iterations: 6, iteration_delay_min: 0.25, iteration_delay_max: 0.75, replay }), morphRandom("gaps"));
+      const starts = [0];
+      for (let play = 1; play < 6; play++) {
+        let lo = starts[play - 1]!;
+        let hi = lo + length + 1;
+        for (let i = 0; i < 200; i++) {
+          const mid = (lo + hi) / 2;
+          const head = timeline.at(mid);
+          if ("play" in head && head.play >= play) hi = mid;
+          else lo = mid;
+        }
+        starts.push(hi);
+      }
+      return starts.slice(1).map((start, k) => start - starts[k]! - length);
+    };
+    const plain = gapsOf(undefined, 1);
+    for (const gap of plain) {
+      expect(gap).toBeGreaterThanOrEqual(0.25 - 1e-9);
+      expect(gap).toBeLessThanOrEqual(0.75 + 1e-9);
+    }
+    expect(new Set(plain.map((gap) => gap.toFixed(6))).size).toBe(5);
+    const unpaused = gapsOf([range(0, 0.5)], 1.5);
+    const fixed = gapsOf([range(0, 0.5, { delay_min: 0.2, delay_max: 0.2 })], 1.7);
+    plain.forEach((gap, k) => {
+      expect(unpaused[k], `gap ${k} with no pause`).toBeCloseTo(gap, 9);
+      expect(fixed[k], `gap ${k} with a fixed pause`).toBeCloseTo(gap, 9);
+    });
+  });
+
+  test("a turning moment that lands on the speech's end in exact arithmetic is placed by summing each pause and run in turn", () => {
+    const spoken = (pause?: number) => {
+      const fixed = pause === undefined ? {} : { delay_min: pause, delay_max: pause };
+      const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 0.3, replay: [range(0, 0.5, { count: 7, ...fixed })] }), () => 0.5);
+      timeline.speak([[0, pause === undefined ? 1.05 : 1.35]], 0);
+      return timeline;
+    };
+    expect(offsetAt(spoken(), 1.15)).toBeCloseTo(0.25 / 0.3, 9);
+    expect(spoken().at(1.21)).toEqual({ phase: "off" });
+    expect(offsetAt(spoken(0.05), 1.45)).toBeCloseTo(0.05 / 0.3, 9);
+    expect(offsetAt(spoken(0.05), 1.51)).toBeCloseTo(0.11 / 0.3, 9);
+  });
+
+  test("a speech turning moment is the per-replay sum, so a turn that the sum puts exactly on the speech's end is refused", () => {
+    const sumAt = (turn: number) => {
+      let at = 0 + 0.15;
+      for (let j = 1; j < turn; j++) at = at + (0 + 0.15);
+      return at;
+    };
+    for (const count of [7, 1000]) {
+      for (const reversed of [false, true]) {
+        for (const turn of [7, 999].filter((n) => n <= count)) {
+          const end = sumAt(turn);
+          const timeline = new MorphTimeline(
+            timing({ trigger: "speech", duration: 0.3, direction: reversed ? "reverse" : "normal", replay: [range(reversed ? 0.5 : 0, reversed ? 1 : 0.5, { count })] }),
+            () => 0.5,
+          );
+          timeline.speak([[0, end]], 0);
+          const label = `count ${count}, ${reversed ? "reversed" : "forward"}, turn ${turn}`;
+          expect(offsetAt(timeline, end + 0.1), label).toBeCloseTo(reversed ? 0.5 - 0.1 / 0.3 : 0.5 + 0.1 / 0.3, 6);
+          expect(timeline.at(end + 0.16), label).toEqual({ phase: "off" });
+        }
+      }
+    }
+  });
+
+  test("a speech play's length is the per-replay sum, so no new play starts in speech that ends just before it", () => {
+    const sumAt = (turn: number) => {
+      let at = 0 + 0.3;
+      for (let j = 1; j < turn; j++) at = at + (0 + 0.15);
+      return at;
+    };
+    for (const count of [500, 1000]) {
+      const play = sumAt(count);
+      const end = play - Math.abs(play) * Number.EPSILON;
+      const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 0.3, direction: "reverse", replay: [range(0, 0.5, { count })] }), () => 0.5);
+      timeline.speak([[0, end]], 0);
+      expect(timeline.at(end - 0.01), `count ${count}`).toMatchObject({ phase: "playing", play: 0 });
+      expect(timeline.at(end + 0.001), `count ${count}`).toEqual({ phase: "off" });
+    }
+  });
+
+  test("a turning point exactly at the end of the speech is refused, whatever frames were asked before", () => {
+    const spoken = (direction: MorphTiming["direction"]) => {
+      const reversed = direction === "reverse";
+      const timeline = new MorphTimeline(
+        timing({ trigger: "speech", duration: 1, direction, replay: [range(reversed ? 0.5 : 0, reversed ? 1 : 0.5, { count: 2 })] }),
+        () => 0.5,
+      );
+      timeline.speak([[0, 1]], 0);
+      return timeline;
+    };
+    expect(offsetAt(spoken("normal"), 1.125)).toBe(0.625);
+    const observed = spoken("normal");
+    expect(offsetAt(observed, 0.75)).toBe(0.25);
+    expect(offsetAt(observed, 1.125)).toBe(0.625);
+    expect(observed.at(1.5)).toEqual({ phase: "off" });
+    expect(offsetAt(spoken("reverse"), 1.125)).toBe(0.375);
+    expect(spoken("reverse").at(1.5)).toEqual({ phase: "off" });
+  });
+
+  test("a reversed speech play that skips its first turn runs on down without taking a range whose start it has already passed", () => {
+    const timeline = new MorphTimeline(
+      timing({ trigger: "speech", duration: 1, direction: "reverse", replay: [range(0.2, 0.9), range(0.5, 0.6)] }),
+      () => 0.5,
+    );
+    timeline.speak([[0, 0.7]], 0);
+    expect(offsetAt(timeline, 0.3)).toBeCloseTo(0.7, 9);
+    expect(offsetAt(timeline, 0.85)).toBeCloseTo(0.15, 9);
+    expect(offsetAt(timeline, 0.95)).toBeCloseTo(0.05, 9);
+    expect(timeline.at(1.01)).toEqual({ phase: "off" });
+  });
+
+  test("a turn of a repeated round that falls in a word gap holds until the next word, and the rounds after it keep their rhythm", () => {
+    const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 1, replay: [range(0, 0.5, { count: 6 })] }), () => 0.5);
+    timeline.speak([[0, 1.4], [1.6, 5]], 0);
+    expect(timeline.at(1.55)).toEqual({ phase: "playing", play: 0, offset: 0.5 });
+    for (const [t, offset] of [
+      [1.2, 0.2],
+      [1.7, 0.1],
+      [2.2, 0.1],
+      [3.2, 0.1],
+      [4.0, 0.9],
+    ] as const) {
+      expect(offsetAt(timeline, t), `${t} s`).toBeCloseTo(offset, 9);
+    }
+    expect(timeline.at(4.05)).toMatchObject({ phase: "playing", play: 0 });
+    expect(timeline.at(4.15)).toMatchObject({ phase: "playing", play: 1 });
+  });
+
+  test("speech settles each turn at its own summed moment, however short the stretch, so none at or after the speech's end is taken", () => {
+    const steep = new MorphTimeline(
+      timing({ trigger: "speech", duration: 0.3, direction: "reverse", easing: "linear(0 0%, 0 25%, 1 25.0000000000001%, 1 100%)", replay: [range(0.2, 0.8, { count: 1000 })] }),
+      () => 0.5,
+    );
+    steep.speak([[0, 0.22500000000001916]], 0);
+    expect(steep.at(0.22500000000001916)).toEqual({ phase: "playing", play: 0, offset: 0 });
+    expect(steep.at(0.22500000000001916 + 0.6)).toEqual({ phase: "off" });
+    const narrow = new MorphTimeline(
+      timing({ trigger: "speech", duration: 0.001, direction: "reverse", replay: [range(0.1, 0.1000000000000001, { count: 1000 })] }),
+      () => 0.5,
+    );
+    narrow.speak([[0, 0.0009000000000000108]], 0);
+    expect(narrow.at(0.0009000000000000108)).toEqual({ phase: "playing", play: 0, offset: 0.0999999999999989 });
+    expect(narrow.at(0.0009000000000000108 + 0.00001)).toEqual({ phase: "playing", play: 0, offset: 0.0899999999999988 });
+  });
+
+  test("each speech play keeps its own holds, one at most for each gap in the speech", () => {
+    const timeline = new MorphTimeline(timing({ trigger: "speech", duration: 0.5, replay: [range(0, 0.5, { count: 1000 })] }), () => 0.5);
+    const gaps: [number, number][] = [];
+    for (let k = 0; k < 40; k++) gaps.push([k * 0.6, k * 0.6 + 0.45]);
+    timeline.speak(gaps, 0);
+    for (let t = 0; t < 25; t += 0.013) timeline.at(t);
+    const plays = runsOf(timeline);
+    expect(plays.length).toBeGreaterThan(0);
+    const holds = plays.reduce((sum, play) => sum + play.waits.size, 0);
+    expect(holds).toBeGreaterThan(0);
+    expect(holds).toBeLessThanOrEqual(gaps.length - 1);
+    expect(new Set(plays.map((play) => play.waits)).size).toBe(plays.length);
   });
 });
