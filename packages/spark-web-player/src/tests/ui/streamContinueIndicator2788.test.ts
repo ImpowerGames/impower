@@ -103,4 +103,56 @@ describe("the continue indicator in a stream entry (#2788)", () => {
     expect(entryIndicators(h)).toEqual([FINISHED, FINISHED, WAITING]);
     expect(outsideIndicator(h)).toBe(WAITING);
   });
+
+  test("a loaded game shows each entry's indicator as it was saved", async () => {
+    const h = createDOMHarness(STORY, 0, {
+      reactive: true,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    h.jumpTo("start");
+    await show(h);
+    const second = await show(h);
+    await second.type();
+    expect(entryIndicators(h)).toEqual([FINISHED, WAITING]);
+
+    const loaded = createDOMHarness(STORY, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      loadCheckpoint: h.game.save(),
+    });
+    await loaded.ready;
+    await flushMicrotasks(30);
+    expect(entryIndicators(loaded)).toEqual([FINISHED, WAITING]);
+  });
+
+  test("the ending hides the indicator on every entry", async () => {
+    const h = createDOMHarness(STORY, 0, {
+      reactive: true,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    h.jumpTo("start");
+    await show(h);
+    const second = await show(h);
+    await second.type();
+    (h.game as unknown as { endStory(kind: string): void }).endStory("fin");
+    await flushMicrotasks(30);
+    const displays = (harness: DOMHarness) =>
+      [
+        ...harness.overlay.querySelectorAll<HTMLElement>(
+          ".phone .continue_indicator",
+        ),
+      ].map((el) => el.style.display);
+    expect(displays(h)).toEqual(["none", "none", "none"]);
+
+    const loaded = createDOMHarness(STORY, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      loadCheckpoint: h.game.save(),
+    });
+    await loaded.ready;
+    await flushMicrotasks(30);
+    expect(displays(loaded)).toEqual(["none", "none", "none"]);
+  });
 });
