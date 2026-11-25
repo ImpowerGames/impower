@@ -130,7 +130,19 @@ describe("an element that gains its content (#2733)", () => {
     expect(motions(h)).toEqual([{ element: dialogue, presence: "show" }]);
   });
 
-  test("plays no arrival when its style has no @initial or @show", async () => {
+  test("is asked to play its arrival whenever any style holds an @initial", async () => {
+    const h = harness(lines(`style portrait {
+  @initial { opacity = 0 }
+}`));
+    await h.ready;
+    const [dialogue] = h.game.module.ui.findIds("dialogue");
+    h.reset();
+    await play(h, dialogueLine);
+    expect(presenceOf(h, dialogue!)).toBe("initial");
+    expect(motions(h)).toEqual([{ element: dialogue, presence: "show" }]);
+  });
+
+  test("plays no arrival when no style has an @initial or @show", async () => {
     const h = harness(lines(`style dialogue {
   @hide { opacity = 0 }
 }`));
@@ -165,24 +177,10 @@ describe("an element that loses its content (#2733)", () => {
     });
   });
 
-  test("plays an @hide reached through a sibling selector", async () => {
-    const h = harness(`${NO_BOX}
-style anchor {
-  + dialogue {
-    @hide { opacity = 0 }
-  }
-}
-
-layout main {
-  anchor
-  dialogue {
-    text
-  }
-  action {
-    text
-  }
-}
-`);
+  test("is asked to play its departure whenever any style holds an @hide", async () => {
+    const h = harness(lines(`style portrait {
+  @hide { opacity = 0 }
+}`));
     await h.ready;
     const [dialogue] = h.game.module.ui.findIds("dialogue");
     await play(h, dialogueLine);
@@ -191,37 +189,11 @@ layout main {
     await play(h, actionLine);
     expect(motions(h)).toContainEqual({ element: dialogue, presence: "hide" });
     expect(displayOf(h, dialogue!)).toBeUndefined();
-  });
-
-  test("plays an @hide reached through a sibling selector with no class", async () => {
-    const h = harness(`${NO_BOX}
-style anchor {
-  + * {
-    @hide { opacity = 0 }
-  }
-}
-
-layout main {
-  anchor
-  dialogue {
-    text
-  }
-  action {
-    text
-  }
-}
-`);
-    await h.ready;
-    const [dialogue] = h.game.module.ui.findIds("dialogue");
-    await play(h, dialogueLine);
     await settle(h);
-    h.reset();
-    await play(h, actionLine);
-    expect(motions(h)).toContainEqual({ element: dialogue, presence: "hide" });
-    expect(displayOf(h, dialogue!)).toBeUndefined();
+    expect(displayOf(h, dialogue!)).toBe("none");
   });
 
-  test("is removed at once when its style has no @hide", async () => {
+  test("is removed at once when no style has an @hide", async () => {
     const h = harness(lines(`style dialogue {
   @initial { opacity = 0 }
 }`));
@@ -232,7 +204,7 @@ layout main {
     h.reset();
     await play(h, actionLine);
     expect(displayOf(h, dialogue!)).toBe("none");
-    expect(motions(h)).toEqual([]);
+    expect(motions(h).filter((m: any) => m.presence === "hide")).toEqual([]);
   });
 
   test("keeps its place when the next line writes to it, even when its style has no @hide", async () => {

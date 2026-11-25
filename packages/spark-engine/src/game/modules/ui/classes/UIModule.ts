@@ -268,12 +268,6 @@ const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
   hide: /@hide(?![\p{L}\p{N}_-])/u,
 };
 
-const STYLE_CLASS_WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/gu;
-
-const RELATED_SELECTOR = /[+~]|@has(?![\p{L}\p{N}_-])|:has\(/u;
-
-const ANY_ELEMENT = "*";
-
 const presenceAttributes = (mark: Record<string, string | null>) =>
   Object.keys(mark).length > 0 ? { attributes: mark } : {};
 
@@ -555,7 +549,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _presenceStyles?: {
     styles: unknown;
-    moves: Record<PresenceMotion, Set<string>>;
+    blocks: Record<PresenceMotion, boolean>;
   };
 
   protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
@@ -1626,15 +1620,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected presenceMoves(): Record<PresenceMotion, Set<string>> {
+  protected styled(presence: PresenceMotion): boolean {
     const styles = this.context?.style;
     let cached = this._presenceStyles;
     if (!cached || cached.styles !== styles) {
-      const moves: Record<PresenceMotion, Set<string>> = {
-        show: new Set(),
-        hide: new Set(),
+      const blocks: Record<PresenceMotion, boolean> = {
+        show: false,
+        hide: false,
       };
-      const visit = (value: unknown, path: string[]) => {
+      const visit = (value: unknown) => {
         if (value == null || typeof value !== "object") {
           return;
         }
@@ -1642,49 +1636,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (inner == null || typeof inner !== "object") {
             continue;
           }
-          for (const presence of ["show", "hide"] as const) {
-            if (PRESENCE_BLOCKS[presence].test(key)) {
-              for (const selector of path) {
-                if (RELATED_SELECTOR.test(selector)) {
-                  moves[presence].add(ANY_ELEMENT);
-                }
-                for (const word of selector.match(STYLE_CLASS_WORD) ?? []) {
-                  moves[presence].add(word);
-                }
-              }
+          for (const motion of ["show", "hide"] as const) {
+            if (PRESENCE_BLOCKS[motion].test(key)) {
+              blocks[motion] = true;
             }
           }
-          visit(inner, [...path, key]);
+          visit(inner);
         }
       };
       for (const [name, style] of Object.entries(styles ?? {})) {
         if (!name.startsWith("$")) {
-          visit(style, [name]);
+          visit(style);
         }
       }
-      cached = { styles, moves };
+      cached = { styles, blocks };
       this._presenceStyles = cached;
     }
-    return cached.moves;
-  }
-
-  protected movesIn(element: Element, presence: PresenceMotion): boolean {
-    const moves = this.presenceMoves()[presence];
-    if (moves.size === 0) {
-      return false;
-    }
-    if (moves.has(ANY_ELEMENT)) {
-      return true;
-    }
-    const named = (el: Element) => el.name.split(" ").some((c) => moves.has(c));
-    for (let node: Element | null = element; node; node = node.parent) {
-      if (named(node)) {
-        return true;
-      }
-    }
-    const within = (el: Element): boolean =>
-      el.children.some((child) => named(child) || within(child));
-    return within(element);
+    return cached.blocks[presence];
   }
 
   protected attached(element: Element): boolean {
@@ -1717,7 +1685,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const shown = Boolean(pending) || contents.size > 0;
     contents.add(kind);
-    return !shown && moving && this.movesIn(element, "show");
+    return !shown && moving && this.styled("show");
   }
 
   protected leaves(element: Element, kind: ContentKind, hide: LeaveHide): boolean {
@@ -1737,8 +1705,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!contents.delete(kind) || contents.size > 0 || !this.moving()) {
       return false;
     }
-    const moves = this.movesIn(element, "hide");
-    if (!moves && !this.movesIn(element, "show")) {
+    const moves = this.styled("hide");
+    if (!moves && !this.styled("show")) {
       return false;
     }
     this._leaving.set(element, { kind, hide, moves });
@@ -4180,9 +4148,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected removeGroup(group: ReactiveGroup): void {
-    const moving = this.moving();
+    const retiring = this.moving() && this.styled("hide");
     for (const el of this.collectNodes(group)) {
-      if (moving && this.movesIn(el, "hide")) {
+      if (retiring) {
         this.retireElement(el);
       } else {
         this.destroyElement(el);
@@ -4191,10 +4159,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected arriveGroup(group: ReactiveGroup): void {
-    if (this.moving()) {
-      this.arrive(
-        this.collectNodes(group).filter((el) => this.movesIn(el, "show")),
-      );
+    if (this.moving() && this.styled("show")) {
+      this.arrive(this.collectNodes(group));
     }
   }
 
@@ -4484,7 +4450,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     } finally {
       mounted?.();
     }
-    if (!clauses?.with && !instant && this.moving() && this.movesIn(element, "show")) {
+    if (!clauses?.with && !instant && this.moving() && this.styled("show")) {
       this.arrive([element]);
       return;
     }
@@ -4521,7 +4487,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       !clauses?.with &&
       !instant &&
       this.moving() &&
-      this.movesIn(entry.element, "hide")
+      this.styled("hide")
     ) {
       this._mountedLayouts.delete(name);
       this.retireElement(
