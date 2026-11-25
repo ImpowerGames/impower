@@ -203,7 +203,7 @@ function go_back() end
 screen menu {
 }
 
-layout title in menu {
+layout home in menu {
   column #child-gap=16 {
     text "My Game"
     button "Play" @click=start
@@ -256,7 +256,7 @@ Move to a layout within a screen with **`[[navigate <screen> to <layout>]]`** â€
 
 ```sparkdown
 scene menus
-  [[navigate menu to title]]
+  [[navigate menu to home]]
   -- player clicks Settings â†’
   [[navigate menu to settings]]
 ```
