@@ -3,6 +3,7 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
+import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
 import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
@@ -280,6 +281,7 @@ export default class UIManager extends Manager {
 
   protected _hold = new AnimationHold();
 
+  protected _layoutMotion = new LayoutMotion(this._hold);
   protected _presence = new PresencePlayer(
     this._hold,
     () =>
@@ -511,6 +513,7 @@ export default class UIManager extends Manager {
 
   override onDispose() {
     this.endSpeech();
+    this._layoutMotion.settle();
     this._presence.endAll();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
@@ -558,10 +561,7 @@ export default class UIManager extends Manager {
     const atEnd = () =>
       el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_END_SLACK_PX;
     const toEnd = () => {
-      const reduce =
-        el.ownerDocument.defaultView?.matchMedia?.(
-          "(prefers-reduced-motion: reduce)",
-        ).matches ?? false;
+      const reduce = this.reducesMotion();
       follow.moving = true;
       if (typeof el.scrollTo === "function") {
         el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
@@ -778,11 +778,33 @@ export default class UIManager extends Manager {
     return wait >= 1 ? wait : 0;
   }
 
+  protected reducesMotion(): boolean {
+    return (
+      this.app.overlay?.ownerDocument.defaultView?.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches ?? false
+    );
+  }
+
+  protected measureLayouts(params: BeatParams, ops: IMessage[]) {
+    const overlay = this.app.overlay;
+    if (!overlay || params.time == null || this.reducesMotion()) {
+      this._layoutMotion.settle();
+      return undefined;
+    }
+    return this._layoutMotion.measure(overlay, () =>
+      ops.some((op) =>
+        namesLayoutTransition(JSON.stringify((op as { params?: unknown }).params ?? null)),
+      ),
+    );
+  }
+
   protected applyBeat(
     params: BeatParams,
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
   ) {
+    const layouts = this.measureLayouts(params, ops);
     for (const op of ops) {
       const decision = plan.get(op);
       if (decision !== "skip") {
@@ -793,6 +815,7 @@ export default class UIManager extends Manager {
       this._passBegun = false;
       this.sweepReconcile();
     }
+    this._layoutMotion.play(layouts);
   }
 
   protected applyBeatMessage(message: IMessage, decision?: WriteDecision) {
@@ -1508,7 +1531,12 @@ export default class UIManager extends Manager {
         const element = effect.element ? this.getElement(effect.element) : undefined;
         if (element?.isConnected) {
           played.push(effect.element);
-          motions.push(this._presence.play(element, effect.presence));
+          const presence = this._presence.play(element, effect.presence);
+          motions.push(
+            effect.presence === "hide"
+              ? presence.then(() => this._layoutMotion.finished(element))
+              : presence,
+          );
         }
       }
       await Promise.all(motions);

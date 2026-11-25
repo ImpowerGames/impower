@@ -170,7 +170,9 @@ describe("an @ name reaches every stylesheet writer whole (#2109)", () => {
     const preludes = rules.filter((rule) => rule.prelude.startsWith("@keyframes")).map((rule) => identValues(rule.prelude));
     expect(preludes).toContainEqual(["fade@night"]);
     const card = ruleFor(overlay.getElementsByClassName("card@night")[0]!, "animation")!;
-    expect(identValues(card.declarations.get("animation")!)).toContain("fade@night");
+    const variable = getVarName("animation", "fade@night");
+    expect(varTarget(card.declarations.get("animation")!)).toBe(variable);
+    expect(identValues(declared(variable)!)).toContain("fade@night");
     expect(identValues(card.declarations.get("animation-name")!)).toEqual(["fade@night"]);
   });
 

@@ -158,7 +158,7 @@ style bubble {
 }
 ```
 
-An `animation` may be set inside any of the three blocks. A style's `animation` plays with default timing, so give its duration in the block after it:
+An `animation` may be set inside any of the three blocks. It plays with the timing its declaration gives:
 
 ```sparkdown
 animation pop {
@@ -166,12 +166,12 @@ animation pop {
     from { opacity = "0" }
     to { opacity = "1" }
   }
+  timing { duration = 0.26 }
 }
 
 style badge {
   @show {
     animation = pop
-    animation-duration = 0.26s
   }
 }
 ```
@@ -484,7 +484,7 @@ For full keyframed motion sequences, see [Animation](#animation) below.
 | `transition-delay`    | How long to wait before starting a transition.        | `<time>`                                                                                                    |
 | `transition-duration` | How long the transition takes once it begins.         | `<time>`                                                                                                    |
 | `transition-easing`   | Controls the speed curve of the transition over time. | `ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`, `cubic-bezier(<number>,<number>,<number>,<number>)` |
-| `transition-property` | Sets which properties will animate on change.         | `<property-name>`                                                                                           |
+| `transition-property` | Sets which properties will animate on change.         | `<property-name>`, `layout`                                                                                 |
 
 > The following properties will be transitioned by default `opacity`, `translate`, `rotate`, `scale`, `filter`, `backdrop-filter`, `mix-blend-mode`, `box-shadow`, `color`, `background-color`, `border-color`, `text-decoration-color`.
 >
@@ -494,7 +494,30 @@ For full keyframed motion sequences, see [Animation](#animation) below.
 >
 > - For example, if `transition-property` is set to `background-color, opacity` and `transition-duration` is set to `0.5s, 1s`, the background-color will fade over 0.5 seconds while the opacity fades over 1 second.
 
-> Transitions only work for numeric or color-based properties — they won't animate layout changes like display or visibility.
+> Transitions only work for numeric or color-based properties — they won't animate `display` or `visibility`.
+
+### Animating place and size with `layout`
+
+Name `layout` in an element's transition to animate any change in its place or size, whatever caused it: its text grew, a sibling was added, removed or moved above it, or a style changed its size. `layout` takes its own duration, easing and delay, wherever a transition names a property.
+
+```sparkdown
+style frame {
+  transition = layout 0.2s cubic-bezier(0.3, 1.6, 0.55, 1)
+}
+
+style line {
+  transition-property = opacity, layout
+  transition-duration = 0.4s
+}
+```
+
+A box that fits its text grows to each new line's height, and lines in a column slide to make room for a new one instead of jumping.
+
+- The element's real size changes during the motion, so its text, borders and corners keep their shape. A change of place is drawn with `translate`.
+- A size that changes because its padding, border or `box-sizing` changed animates the same way, starting from the box's old size on screen.
+- An element inside a rotated, skewed, mirrored or 3D-transformed element takes its new place and size at once. A `scale` or `transform` on the element itself, mirrored or not, and a positive scale on the elements around it still animate.
+- The motion runs on the game's clock: pausing, stepping and scrubbing hold it.
+- The editor preview on a line, a step back, a loaded save and skipping show the new place and size at once, and so does the reader's reduced-motion setting.
 
 ---
 
@@ -505,7 +528,7 @@ Animations are full motion sequences, defined by an
 
 | Prop Name              | What it does                                                           | Supported Values                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `animation`            | Plays a named animation with default timing.                           | `none`, `<animation-name>`                                                                                  |
+| `animation`            | Plays a named animation with its declaration's timing.                 | `none`, `<animation-name>`                                                                                  |
 | `animation-state`      | Controls whether the animation is running or paused.                   | `running`, `paused`                                                                                         |
 | `animation-delay`      | Overrides how long to wait before the animation begins.       | `<time>`                                                                                                    |
 | `animation-duration`   | Overrides how long each cycle of the animation takes.                  | `<time>`                                                                                                    |
@@ -516,7 +539,7 @@ Animations are full motion sequences, defined by an
 
 > `animation-delay`, `animation-duration`, `animation-easing`, `animation-iterations`, `animation-direction`, and `animation-fill` will override equivalent timing settings defined in an [animation declaration](./AnimationTheme.md#82-defining-your-own-animation) as long as they are set **after** the `animation` property is set.
 
-- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration
+- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration, and the animation loops, as `bounce` declares
 - `animation-duration=3s animation=bounce` — the animation plays with its default duration **(not 3s)**
 
 > Set `animation-iterations` to `infinite` for looping effects.
