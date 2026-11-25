@@ -1,12 +1,15 @@
 import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
+import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { afterEach, describe, expect, test } from "vitest";
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import LayoutMotion, {
+  getLayoutShift,
   getLayoutTiming,
-  getMoveKeyframes,
   getSizeKeyframes,
+  namesLayoutTransition,
   type LayoutBox,
+  type LayoutPoint,
 } from "../../../../spark-dom/src/classes/LayoutMotion";
 import { schema_style } from "../../../../spark-engine/src/game/modules/ui/constructors/schema_style";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
@@ -19,6 +22,8 @@ const offsetParents = new Map<Element, Element>();
 
 const borders = new Map<Element, () => number>();
 
+const frames: FrameRequestCallback[] = [];
+
 let restore: (() => void) | undefined;
 
 const installLayout = (win: Window & typeof globalThis) => {
@@ -30,6 +35,8 @@ const installLayout = (win: Window & typeof globalThis) => {
     KeyframeEffect: g.KeyframeEffect,
     timeline: Object.getOwnPropertyDescriptor(win.document, "timeline"),
     getComputedStyle: win.getComputedStyle,
+    requestAnimationFrame: win.requestAnimationFrame,
+    cancelAnimationFrame: win.cancelAnimationFrame,
     offsetLeft: own("offsetLeft"),
     offsetTop: own("offsetTop"),
     offsetParent: own("offsetParent"),
@@ -38,9 +45,12 @@ const installLayout = (win: Window & typeof globalThis) => {
     getClientRects: (win.Element.prototype as any).getClientRects,
   };
   animations.length = 0;
+  frames.length = 0;
   timeline.currentTime = 0;
   g.Animation = TimedAnimation;
   g.KeyframeEffect = TimedEffect;
+  win.requestAnimationFrame = (callback: FrameRequestCallback) => frames.push(callback);
+  win.cancelAnimationFrame = () => undefined;
   Object.defineProperty(win.document, "timeline", { configurable: true, value: timeline });
   const boxOf = (el: Element) => geometry.get(el)?.();
   Object.defineProperty(proto, "offsetLeft", { configurable: true, get() { return boxOf(this)?.x ?? 0; } });
@@ -74,6 +84,8 @@ const installLayout = (win: Window & typeof globalThis) => {
       delete (win.document as any).timeline;
     }
     win.getComputedStyle = previous.getComputedStyle;
+    win.requestAnimationFrame = previous.requestAnimationFrame;
+    win.cancelAnimationFrame = previous.cancelAnimationFrame;
     for (const name of ["offsetLeft", "offsetTop", "offsetParent", "clientLeft", "clientTop"] as const) {
       const descriptor = previous[name];
       if (descriptor) {
@@ -99,33 +111,62 @@ const advance = async (ms: number) => {
   for (const animation of animations) {
     animation.update();
   }
+  for (const frame of frames.splice(0)) {
+    frame(timeline.currentTime);
+  }
   await flushMicrotasks(10);
 };
 
-const motionsOf = (el: Element) =>
-  animations.filter((a) => a.effect.target === el && (a.playState === "running" || a.playState === "paused"));
+const live = (el: Element) => animations.filter((a) => a.effect.target === el && a.playState !== "idle");
 
 const keyframesOf = (animation: TimedAnimation) => animation.effect.getKeyframes();
 
-const moveOf = (el: Element) =>
-  motionsOf(el).find((a) => "translate" in (keyframesOf(a)[0] ?? {}));
+const clockOf = (el: Element) => live(el).find((a) => "translate" in (keyframesOf(a)[0] ?? {}));
 
 const sizeOf = (el: Element) =>
-  motionsOf(el).find((a) => !("translate" in (keyframesOf(a)[0] ?? {})));
+  live(el).find((a) => a.playState !== "finished" && !("translate" in (keyframesOf(a)[0] ?? {})));
+
+const motionsOf = (el: Element) =>
+  live(el).filter((a) => ["translate", "width", "height"].some((key) => key in (keyframesOf(a)[0] ?? {})));
+
+const shiftOf = (el: Element): LayoutPoint => {
+  const clock = clockOf(el);
+  if (!clock) {
+    return { x: 0, y: 0 };
+  }
+  const [x, y] = String((keyframesOf(clock)[0] as any).translate)
+    .split(" ")
+    .map((part) => Number.parseFloat(part));
+  return { x: x!, y: y! };
+};
+
+const visualOf = (el: Element): LayoutPoint => {
+  let { x, y } = geometry.get(el)!();
+  for (let node: Element | null = el; node; node = node.parentElement) {
+    const shift = shiftOf(node);
+    x += shift.x;
+    y += shift.y;
+  }
+  return { x, y };
+};
 
 const STYLE = `.box {
   transition-property: opacity, layout;
   transition-duration: 0.1s, 0.2s;
   transition-timing-function: ease, linear;
+}
+.slow {
+  transition-property: layout;
+  transition-duration: 1s;
+  transition-timing-function: linear;
 }`;
 
-const column = () => {
+const mount = (html: string) => {
   const root = document.createElement("div");
-  root.innerHTML = `<style>${STYLE}</style><div class="column"><div class="box top"></div><div class="box under"></div><div class="plain"></div></div>`;
+  root.innerHTML = `<style>${STYLE}</style>${html}`;
   document.body.append(root);
-  const [top, under] = Array.from(root.querySelectorAll(".box")) as HTMLElement[];
-  const plain = root.querySelector(".plain") as HTMLElement;
-  return { root, top: top!, under: under!, plain };
+  const at = (selector: string) => root.querySelector(selector) as HTMLElement;
+  return { root, at };
 };
 
 const box = (x: number, y: number, width: number, height: number): LayoutBox => ({
@@ -140,15 +181,18 @@ const pinned = (axis: "width" | "height", size: number) => {
   return { [axis]: `${size}px`, [`min${name}`]: `${size}px`, [`max${name}`]: `${size}px` };
 };
 
-const heightNow = (el: Element, settled: number) => {
+const sizeNow = (el: Element, axis: "width" | "height", settled: number) => {
   const resizing = sizeOf(el);
   const progress = resizing?.effect.getComputedTiming().progress;
-  if (!resizing || progress == null) {
+  const frames = resizing ? keyframesOf(resizing) : [];
+  if (!resizing || progress == null || !(axis in (frames[0] ?? {}))) {
     return settled;
   }
-  const [from, to] = keyframesOf(resizing).map((frame) => Number.parseFloat(String((frame as any).height)));
+  const [from, to] = frames.map((frame) => Number.parseFloat(String((frame as any)[axis])));
   return from! + (to! - from!) * progress;
 };
+
+const useLayout = () => installLayout(document.defaultView as Window & typeof globalThis);
 
 describe("layout in a transition list (I-2735)", () => {
   test("style lowering keeps layout in transition and transition-property, and leaves the other names in the list alone", () => {
@@ -206,6 +250,15 @@ end
     }
   });
 
+  test("a layout transition is recognized in page CSS and in a beat's style data", () => {
+    expect(namesLayoutTransition(".a { transition: layout 0.2s ease; }")).toBe(true);
+    expect(namesLayoutTransition(".a { transition-property: opacity, layout; }")).toBe(true);
+    expect(namesLayoutTransition('{"style":{"transition_property":"opacity, layout"}}')).toBe(true);
+    expect(namesLayoutTransition('{"style":{"transition":"layout 1s linear"}}')).toBe(true);
+    expect(namesLayoutTransition(".a { transition: opacity 0.2s; } .b { display: layout; }")).toBe(false);
+    expect(namesLayoutTransition('{"style":{"transition":"opacity 1s"},"text":"layout"}')).toBe(false);
+  });
+
   test("the layout entry of a transition list gives its own duration, delay and easing", () => {
     expect(
       getLayoutTiming({
@@ -249,7 +302,7 @@ end
     ).toBeUndefined();
   });
 
-  test("an old and a new rectangle give a real size change and a move drawn with translate", () => {
+  test("an old and a new rectangle give a real size change and a translate from the old place to the new", () => {
     expect(getSizeKeyframes(box(10, 100, 200, 40), box(10, 140, 200, 120))).toEqual([
       pinned("height", 40),
       pinned("height", 120),
@@ -259,24 +312,24 @@ end
       { ...pinned("width", 300), ...pinned("height", 60) },
     ]);
     expect(getSizeKeyframes(box(0, 0, 100, 20), box(0, 30, 100.4, 20))).toBeUndefined();
-    expect(getMoveKeyframes({ x: 10, y: 100 }, { x: 10, y: 140 })).toEqual({
-      shift: { x: 0, y: -40 },
-      keyframes: [{ translate: "0px -40px" }, { translate: "0px 0px" }],
-    });
-    expect(getMoveKeyframes({ x: 0, y: 100 }, { x: 0, y: 160 }, { x: 0, y: -40 })).toEqual({
-      shift: { x: 0, y: -20 },
-      keyframes: [{ translate: "0px -20px" }, { translate: "0px 0px" }],
-    });
-    expect(getMoveKeyframes({ x: 0, y: 100 }, { x: 0.3, y: 100.2 })).toEqual({ shift: { x: 0, y: 0 } });
+    const from = { x: 10, y: 100 };
+    const to = { x: 10, y: 140 };
+    expect(getLayoutShift(from, to, to, 0)).toEqual({ x: 0, y: -40 });
+    expect(getLayoutShift(from, to, to, 0.5)).toEqual({ x: 0, y: -20 });
+    expect(getLayoutShift(from, to, to, 1)).toEqual({ x: 0, y: 0 });
+    expect(getLayoutShift(from, to, { x: 10, y: 120 }, 1)).toEqual({ x: 0, y: 20 });
+    expect(getLayoutShift({ x: 0, y: 100 }, { x: 0, y: 160 }, { x: 0, y: 160 }, 0, { x: 0, y: -40 })).toEqual({ x: 0, y: -20 });
   });
 
-  test("the pass animates each changed element from its old rectangle to its new one under the hold", async () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
-    const { root, top, under, plain } = column();
+  test("the pass resizes a grown element and moves a sibling it pushes, under the hold", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="box top"></div><div class="box under"></div><div class="plain"></div>`);
+    const [top, under, plain] = [at(".top"), at(".under"), at(".plain")];
     let grown = false;
-    geometry.set(top, () => box(0, 0, 200, grown ? 120 : 40));
-    geometry.set(under, () => box(0, grown ? 120 : 40, 200, 40));
-    geometry.set(plain, () => box(0, grown ? 160 : 80, 200, 40));
+    const height = () => sizeNow(top, "height", grown ? 120 : 40);
+    geometry.set(top, () => box(0, 0, 200, height()));
+    geometry.set(under, () => box(0, height(), 200, 40));
+    geometry.set(plain, () => box(0, height() + 40, 200, 40));
     const hold = new AnimationHold();
     const motion = new LayoutMotion(hold);
 
@@ -285,30 +338,89 @@ end
     grown = true;
     motion.play(boxes);
 
-    expect(moveOf(top)).toBeUndefined();
     expect(keyframesOf(sizeOf(top)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
     expect(sizeOf(top)!.effect.timing).toMatchObject({ duration: 200, easing: "linear", fill: "backwards" });
-    expect(sizeOf(under)).toBeUndefined();
-    expect(keyframesOf(moveOf(under)!)).toEqual([{ translate: "0px -80px" }, { translate: "0px 0px" }]);
-    expect(moveOf(under)!.effect.timing).toMatchObject({ composite: "add", duration: 200 });
+    expect(clockOf(under)!.effect.timing).toMatchObject({ composite: "add", duration: 200, fill: "both" });
+    expect(visualOf(under)).toEqual({ x: 0, y: 40 });
     expect(motionsOf(plain)).toEqual([]);
 
     await advance(100);
-    expect(moveOf(under)!.effect.getComputedTiming().progress).toBe(0.5);
+    expect(height()).toBe(80);
+    expect(visualOf(under)).toEqual({ x: 0, y: 80 });
     hold.pause();
     await advance(500);
-    expect(moveOf(under)!.playState).toBe("paused");
-    expect(moveOf(under)!.effect.getComputedTiming().progress).toBe(0.5);
+    expect(sizeOf(top)!.playState).toBe("paused");
+    expect(height()).toBe(80);
+    expect(visualOf(under)).toEqual({ x: 0, y: 80 });
     hold.resume();
     await advance(100);
-    expect(moveOf(under)).toBeUndefined();
-    expect(sizeOf(top)).toBeUndefined();
+    await advance(16);
+    expect(height()).toBe(120);
+    expect(visualOf(under)).toEqual({ x: 0, y: 120 });
+    expect(motionsOf(top)).toEqual([]);
+    expect(motionsOf(under)).toEqual([]);
+    root.remove();
+  });
+
+  test("an element pushed by a slower resize still moves on its own timing", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow top"></div><div class="box under"></div>`);
+    const [top, under] = [at(".top"), at(".under")];
+    let grown = false;
+    const height = () => sizeNow(top, "height", grown ? 120 : 40);
+    geometry.set(top, () => box(0, 0, 200, height()));
+    geometry.set(under, () => box(0, height(), 200, 40));
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    grown = true;
+    motion.play(boxes);
+
+    expect(visualOf(under)).toEqual({ x: 0, y: 40 });
+    await advance(100);
+    expect(height()).toBe(48);
+    expect(visualOf(under)).toEqual({ x: 0, y: 80 });
+    await advance(100);
+    expect(visualOf(under)).toEqual({ x: 0, y: 120 });
+    await advance(300);
+    expect(height()).toBe(80);
+    expect(visualOf(under)).toEqual({ x: 0, y: 120 });
+    await advance(500);
+    await advance(16);
+    expect(visualOf(under)).toEqual({ x: 0, y: 120 });
+    expect(motionsOf(under)).toEqual([]);
+    root.remove();
+  });
+
+  test("an element that wraps while its parent resizes moves smoothly instead of jumping", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow row"><div class="slow third"></div></div>`);
+    const [row, third] = [at(".row"), at(".third")];
+    let wide = false;
+    const width = () => sizeNow(row, "width", wide ? 400 : 200);
+    geometry.set(row, () => box(0, 0, width(), wide ? 40 : 80));
+    geometry.set(third, () => (width() >= 300 ? box(200, 0, 100, 40) : box(0, 40, 100, 40)));
+    offsetParents.set(third, row);
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    wide = true;
+    motion.play(boxes);
+
+    const rounded = ({ x, y }: LayoutPoint) => ({ x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+    const seen: LayoutPoint[] = [];
+    for (let step = 0; step < 10; step += 1) {
+      seen.push(rounded(visualOf(third)));
+      await advance(100);
+    }
+    expect(seen).toEqual(
+      Array.from({ length: 10 }, (_, step) => rounded({ x: 20 * step, y: 40 - 4 * step })),
+    );
     root.remove();
   });
 
   test("a change during a motion starts from where the element is, and an unchanged target keeps its motion", async () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
-    const { root, under } = column();
+    useLayout();
+    const { root, at } = mount(`<div class="box under"></div>`);
+    const under = at(".under");
     let y = 40;
     geometry.set(under, () => box(0, y, 200, 40));
     const motion = new LayoutMotion(new AnimationHold());
@@ -316,12 +428,13 @@ end
     let boxes = motion.measure(root);
     y = 120;
     motion.play(boxes);
-    const first = moveOf(under)!;
+    const first = clockOf(under)!;
     await advance(100);
+    expect(visualOf(under)).toEqual({ x: 0, y: 80 });
 
     boxes = motion.measure(root);
     motion.play(boxes);
-    expect(moveOf(under)).toBe(first);
+    expect(clockOf(under)).toBe(first);
     expect(first.currentTime).toBe(100);
 
     boxes = motion.measure(root);
@@ -329,17 +442,16 @@ end
     y = 200;
     motion.play(boxes);
     expect(first.playState).toBe("idle");
-    expect(keyframesOf(moveOf(under)!)).toEqual([{ translate: "0px -120px" }, { translate: "0px 0px" }]);
+    expect(visualOf(under)).toEqual({ x: 0, y: 80 });
+    await advance(100);
+    expect(visualOf(under)).toEqual({ x: 0, y: 140 });
     root.remove();
   });
 
   test("a child of a moving element moves only by its own change", () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
-    const root = document.createElement("div");
-    root.innerHTML = `<style>${STYLE}</style><div class="box outer"><div class="box inner"></div></div>`;
-    document.body.append(root);
-    const outer = root.querySelector(".outer") as HTMLElement;
-    const inner = root.querySelector(".inner") as HTMLElement;
+    useLayout();
+    const { root, at } = mount(`<div class="box outer"><div class="box inner"></div></div>`);
+    const [outer, inner] = [at(".outer"), at(".inner")];
     let moved = false;
     geometry.set(outer, () => box(0, moved ? 100 : 0, 200, 80));
     geometry.set(inner, () => box(0, moved ? 130 : 10, 200, 20));
@@ -347,38 +459,37 @@ end
     const boxes = motion.measure(root);
     moved = true;
     motion.play(boxes);
-    expect(keyframesOf(moveOf(outer)!)).toEqual([{ translate: "0px -100px" }, { translate: "0px 0px" }]);
-    expect(keyframesOf(moveOf(inner)!)).toEqual([{ translate: "0px -20px" }, { translate: "0px 0px" }]);
+    expect(shiftOf(outer)).toEqual({ x: 0, y: -100 });
+    expect(shiftOf(inner)).toEqual({ x: 0, y: -20 });
+    expect(visualOf(inner)).toEqual({ x: 0, y: 10 });
     root.remove();
   });
 
-  test("a box anchored at its bottom grows by its real size and is not moved again", () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
-    const root = document.createElement("div");
-    root.innerHTML = `<style>${STYLE}</style><div class="box anchored"></div>`;
-    document.body.append(root);
-    const anchored = root.querySelector(".anchored") as HTMLElement;
+  test("a box anchored at its bottom grows by its real size and is not moved again", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="box anchored"></div>`);
+    const anchored = at(".anchored");
     let grown = false;
     geometry.set(anchored, () => {
-      const height = heightNow(anchored, grown ? 120 : 40);
+      const height = sizeNow(anchored, "height", grown ? 120 : 40);
       return box(0, 200 - height, 300, height);
     });
-    const motion = new LayoutMotion();
+    const motion = new LayoutMotion(new AnimationHold());
     const boxes = motion.measure(root);
     grown = true;
     motion.play(boxes);
     expect(keyframesOf(sizeOf(anchored)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
-    expect(moveOf(anchored)).toBeUndefined();
+    expect(shiftOf(anchored)).toEqual({ x: 0, y: 0 });
+    await advance(100);
+    expect(shiftOf(anchored)).toEqual({ x: 0, y: 0 });
+    expect(visualOf(anchored)).toEqual({ x: 0, y: 120 });
     root.remove();
   });
 
   test("a change in an ancestor's border moves the element", () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
-    const root = document.createElement("div");
-    root.innerHTML = `<style>${STYLE}</style><div class="frame"><div class="box inner"></div></div>`;
-    document.body.append(root);
-    const frame = root.querySelector(".frame") as HTMLElement;
-    const inner = root.querySelector(".inner") as HTMLElement;
+    useLayout();
+    const { root, at } = mount(`<div class="frame"><div class="box inner"></div></div>`);
+    const [frame, inner] = [at(".frame"), at(".inner")];
     let border = 0;
     geometry.set(frame, () => box(0, 0, 200, 80 + 2 * border));
     geometry.set(inner, () => box(0, 0, 200, 20));
@@ -388,16 +499,14 @@ end
     const boxes = motion.measure(root);
     border = 80;
     motion.play(boxes);
-    expect(keyframesOf(moveOf(inner)!)).toEqual([{ translate: "-80px -80px" }, { translate: "0px 0px" }]);
+    expect(shiftOf(inner)).toEqual({ x: -80, y: -80 });
     root.remove();
   });
 
   test("a style that names layout in the same beat that resizes the element animates it", () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
-    const root = document.createElement("div");
-    root.innerHTML = `<style>${STYLE}</style><div class="late"></div>`;
-    document.body.append(root);
-    const late = root.querySelector(".late") as HTMLElement;
+    useLayout();
+    const { root, at } = mount(`<div class="late"></div>`);
+    const late = at(".late");
     let grown = false;
     geometry.set(late, () => box(0, 0, 200, grown ? 120 : 40));
     const motion = new LayoutMotion();
@@ -409,13 +518,16 @@ end
     root.remove();
   });
 
-  test("a page with no layout transition measures nothing", () => {
-    installLayout(document.defaultView as Window & typeof globalThis);
+  test("a page with no layout transition measures nothing unless the incoming beat names one", () => {
+    useLayout();
     const root = document.createElement("div");
     root.innerHTML = `<style>.box { transition: opacity 0.2s; }</style><div class="box"></div>`;
     document.body.append(root);
-    geometry.set(root.querySelector(".box")!, () => box(0, 0, 10, 10));
+    const el = root.querySelector(".box")!;
+    geometry.set(el, () => box(0, 0, 10, 10));
     expect(new LayoutMotion().measure(root)).toBeUndefined();
+    expect(new LayoutMotion().measure(root, () => false)).toBeUndefined();
+    expect([...new LayoutMotion().measure(root, () => true)!.keys()]).toEqual([el]);
     root.remove();
   });
 });
@@ -437,13 +549,13 @@ const write = (text: string, time?: number) => [
   }),
 ];
 
-const beat = (text: string, time?: number) =>
+const beat = (text: string, time?: number, before: unknown[] = []) =>
   BeatMessage.type.notification({
-    messages: write(text, time),
+    messages: [...before, ...write(text, time)],
     ...(time != null ? { time } : {}),
   } as any);
 
-async function showing() {
+async function showing(styled = true) {
   const h = createDOMHarness(SOURCE, LINE, { compose: true });
   await h.ready;
   await h.rerender(SOURCE, LINE);
@@ -451,8 +563,10 @@ async function showing() {
   const win = h.overlay.ownerDocument.defaultView as Window & typeof globalThis;
   installLayout(win);
   const dialogue = h.overlay.querySelector(".dialogue") as HTMLElement;
-  dialogue.style.transitionProperty = "layout";
-  dialogue.style.transitionDuration = "0.3s";
+  if (styled) {
+    dialogue.style.transitionProperty = "layout";
+    dialogue.style.transitionDuration = "0.3s";
+  }
   const shown = () => dialogue.querySelector(".text")?.textContent ?? "";
   geometry.set(dialogue, () => box(0, 0, 300, 20 * Math.max(1, Math.ceil(shown().length / 10))));
   return { h, dialogue, shown };
@@ -468,6 +582,22 @@ describe("a box whose text grows (I-2735)", () => {
     expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
     expect(keyframesOf(sizeOf(dialogue)!)).toEqual([pinned("height", 20), pinned("height", 60)]);
     expect(sizeOf(dialogue)!.effect.timing).toMatchObject({ duration: 300 });
+  });
+
+  test("a beat that first names layout in its own style update animates the box", async () => {
+    const { h, dialogue, shown } = await showing(false);
+    expect(Array.from(h.overlay.querySelectorAll("style")).some((s) => namesLayoutTransition(s.textContent ?? ""))).toBe(false);
+    timeline.currentTime = 1_000;
+    const styling = UpdateElementMessage.type.request({
+      element: (dialogue as any).__sdId,
+      style: { transition_property: "layout", transition_duration: "0.3s" },
+    } as any);
+    h.ui.onReceiveNotification(beat("A line long enough for three.", 1_000, [styling]));
+    await flushMicrotasks(10);
+    expect(shown()).toBe("A line long enough for three.");
+    expect(dialogue.style.transitionProperty).toBe("layout");
+    expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
+    expect(keyframesOf(sizeOf(dialogue)!)).toEqual([pinned("height", 20), pinned("height", 60)]);
   });
 
   test("a beat displayed instantly applies the new size at once and ends a motion in flight", async () => {

@@ -3,7 +3,7 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
-import LayoutMotion from "../../../../spark-dom/src/classes/LayoutMotion";
+import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
@@ -716,13 +716,17 @@ export default class UIManager extends Manager {
     );
   }
 
-  protected measureLayouts(params: BeatParams) {
+  protected measureLayouts(params: BeatParams, ops: IMessage[]) {
     const overlay = this.app.overlay;
     if (!overlay || params.time == null || this.reducesMotion()) {
       this._layoutMotion.settle();
       return undefined;
     }
-    return this._layoutMotion.measure(overlay);
+    return this._layoutMotion.measure(overlay, () =>
+      ops.some((op) =>
+        namesLayoutTransition(JSON.stringify((op as { params?: unknown }).params ?? null)),
+      ),
+    );
   }
 
   protected applyBeat(
@@ -730,7 +734,7 @@ export default class UIManager extends Manager {
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
   ) {
-    const layouts = this.measureLayouts(params);
+    const layouts = this.measureLayouts(params, ops);
     for (const op of ops) {
       const decision = plan.get(op);
       if (decision !== "skip") {

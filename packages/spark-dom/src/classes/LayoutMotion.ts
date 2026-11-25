@@ -16,16 +16,13 @@ export interface LayoutTiming {
   easing: string;
 }
 
-export interface LayoutMove {
-  shift: LayoutPoint;
-  keyframes?: Keyframe[];
-}
-
 interface Motion {
+  from: LayoutPoint;
   to: LayoutBox;
+  depth: number;
+  clock: Animation;
+  resize?: Animation;
   shift: LayoutPoint;
-  animations: Animation[];
-  move?: Animation;
 }
 
 type TransitionStyle = Pick<
@@ -36,11 +33,14 @@ type TransitionStyle = Pick<
   | "transitionTimingFunction"
 >;
 
-const LAYOUT_STYLE = /transition(?:-property)?\s*:[^;{}]*\blayout\b/;
+const LAYOUT_TRANSITION = /transition(?:[-_]property)?"?\s*:\s*"?[^;{}"]*\blayout\b/;
 
 const SETTLED_PX = 0.5;
 
 const NO_SHIFT: LayoutPoint = { x: 0, y: 0 };
+
+export const namesLayoutTransition = (text: string): boolean =>
+  LAYOUT_TRANSITION.test(text);
 
 export const splitCssList = (value: string | undefined): string[] => {
   const items: string[] = [];
@@ -125,25 +125,28 @@ export const getSizeKeyframes = (
   return Object.keys(start).length > 0 ? [start, end] : undefined;
 };
 
-export const getMoveKeyframes = (
+export const getLayoutShift = (
   from: LayoutPoint,
-  startsAt: LayoutPoint,
+  to: LayoutPoint,
+  place: LayoutPoint,
+  progress: number,
   carried: LayoutPoint = NO_SHIFT,
-): LayoutMove => {
-  const shift = {
-    x: from.x - startsAt.x - carried.x,
-    y: from.y - startsAt.y - carried.y,
-  };
-  if (!differs(shift.x, 0) && !differs(shift.y, 0)) {
-    return { shift: NO_SHIFT };
+): LayoutPoint => ({
+  x: from.x + (to.x - from.x) * progress - place.x - carried.x,
+  y: from.y + (to.y - from.y) * progress - place.y - carried.y,
+});
+
+const translateFrames = (shift: LayoutPoint): Keyframe[] => {
+  const translate = `${shift.x}px ${shift.y}px`;
+  return [{ translate }, { translate }];
+};
+
+const depthOf = (el: Element) => {
+  let depth = 0;
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    depth += 1;
   }
-  return {
-    shift,
-    keyframes: [
-      { translate: `${shift.x}px ${shift.y}px` },
-      { translate: "0px 0px" },
-    ],
-  };
+  return depth;
 };
 
 export default class LayoutMotion {
@@ -151,13 +154,18 @@ export default class LayoutMotion {
 
   protected _motions = new Map<HTMLElement, Motion>();
 
+  protected _frame?: () => void;
+
   constructor(hold?: AnimationHold) {
     this._hold = hold;
   }
 
-  measure(root: HTMLElement): Map<HTMLElement, LayoutBox> | undefined {
+  measure(
+    root: HTMLElement,
+    incoming?: () => boolean,
+  ): Map<HTMLElement, LayoutBox> | undefined {
     const view = root.ownerDocument.defaultView;
-    if (!view || !this.styled(root)) {
+    if (!view || (!this.styled(root) && !incoming?.())) {
       this.settle();
       return undefined;
     }
@@ -184,49 +192,47 @@ export default class LayoutMotion {
         this.stop(el);
       }
     }
-    const starting = new Map<HTMLElement, Motion>();
+    const started: [HTMLElement, Motion][] = [];
     for (const [el, { to, timing }] of targets) {
+      const from = boxes.get(el)!;
       const running = this._motions.get(el);
-      if (running && sameBox(running.to, to)) {
+      if (running ? sameBox(running.to, to) : sameBox(from, to)) {
         continue;
       }
       this.stop(el);
-      const motion: Motion = { to, shift: NO_SHIFT, animations: [] };
-      const size = getSizeKeyframes(boxes.get(el)!, to);
+      const motion: Motion = {
+        from,
+        to,
+        depth: depthOf(el),
+        clock: this.animation(el, translateFrames(NO_SHIFT), timing, "both", "add"),
+        shift: NO_SHIFT,
+      };
+      const size = getSizeKeyframes(from, to);
       if (size) {
-        const resizing = this.animation(el, size, timing);
-        resizing.currentTime = 0;
-        motion.animations.push(resizing);
+        motion.resize = this.animation(el, size, timing, "backwards");
       }
-      starting.set(el, motion);
+      for (const animation of this.animationsOf(motion)) {
+        animation.currentTime = 0;
+      }
+      this._motions.set(el, motion);
+      started.push([el, motion]);
     }
-    const starts = new Map<HTMLElement, LayoutPoint>();
-    const places = new Map<HTMLElement, LayoutPoint>();
-    for (const [el, { timing }] of targets) {
-      const motion = starting.get(el);
-      if (!motion) {
-        starts.set(el, this.shiftOf(this._motions.get(el)!));
-        continue;
-      }
-      const move = getMoveKeyframes(
-        boxes.get(el)!,
-        this.placeOf(el, places),
-        this.carried(el, starts),
-      );
-      starts.set(el, move.shift);
-      if (move.keyframes) {
-        motion.shift = move.shift;
-        motion.move = this.animation(el, move.keyframes, timing, "add");
-        motion.animations.push(motion.move);
-      }
-      if (motion.animations.length > 0) {
-        this._motions.set(el, motion);
-        this.run(el, motion);
+    if (started.length === 0) {
+      return;
+    }
+    this.update();
+    for (const [, motion] of started) {
+      for (const animation of this.animationsOf(motion)) {
+        animation.play();
+        void this._hold?.add(animation).catch(() => undefined);
       }
     }
+    this.schedule(started[0]![0].ownerDocument.defaultView);
   }
 
   settle(): void {
+    this._frame?.();
+    this._frame = undefined;
     for (const el of Array.from(this._motions.keys())) {
       this.stop(el);
     }
@@ -234,7 +240,7 @@ export default class LayoutMotion {
 
   protected styled(root: HTMLElement): boolean {
     for (const sheet of Array.from(root.querySelectorAll("style"))) {
-      if (LAYOUT_STYLE.test(sheet.textContent ?? "")) {
+      if (namesLayoutTransition(sheet.textContent ?? "")) {
         return true;
       }
     }
@@ -263,6 +269,66 @@ export default class LayoutMotion {
       resume();
     }
     return targets;
+  }
+
+  protected update(): boolean {
+    const places = new Map<HTMLElement, LayoutPoint>();
+    const ordered = Array.from(this._motions).sort(
+      ([, a], [, b]) => a.depth - b.depth,
+    );
+    const moving = ordered.some(([, motion]) =>
+      this.animationsOf(motion).some((a) => a.playState !== "finished"),
+    );
+    if (!moving) {
+      this.settle();
+      return false;
+    }
+    for (const [el, motion] of ordered) {
+      if (!el.isConnected) {
+        this.stop(el);
+        continue;
+      }
+      const progress = motion.clock.effect?.getComputedTiming().progress ?? 1;
+      const shift = getLayoutShift(
+        motion.from,
+        motion.to,
+        this.placeOf(el, places),
+        progress,
+        this.carried(el),
+      );
+      if (shift.x !== motion.shift.x || shift.y !== motion.shift.y) {
+        motion.shift = shift;
+        (motion.clock.effect as KeyframeEffect | null)?.setKeyframes(
+          translateFrames(shift),
+        );
+      }
+      const finished = this.animationsOf(motion).every(
+        (a) => a.playState === "finished",
+      );
+      if (finished && !differs(shift.x, 0) && !differs(shift.y, 0)) {
+        this.stop(el);
+      }
+    }
+    return this._motions.size > 0;
+  }
+
+  protected schedule(view: (Window & typeof globalThis) | null): void {
+    if (!view || this._frame) {
+      return;
+    }
+    const tick = () => {
+      this._frame = undefined;
+      if (this.update()) {
+        this.schedule(view);
+      }
+    };
+    if (view.requestAnimationFrame) {
+      const id = view.requestAnimationFrame(tick);
+      this._frame = () => view.cancelAnimationFrame?.(id);
+    } else {
+      const id = view.setTimeout(tick, 16);
+      this._frame = () => view.clearTimeout(id);
+    }
   }
 
   protected placeOf(
@@ -299,9 +365,8 @@ export default class LayoutMotion {
         node && node !== inFlightWithin;
         node = node.parentElement
       ) {
-        const motion = this._motions.get(node);
-        if (motion) {
-          const shift = this.shiftOf(motion);
+        const shift = this._motions.get(node)?.shift;
+        if (shift) {
           x += shift.x;
           y += shift.y;
         }
@@ -316,13 +381,10 @@ export default class LayoutMotion {
     };
   }
 
-  protected carried(
-    el: HTMLElement,
-    starts: Map<HTMLElement, LayoutPoint>,
-  ): LayoutPoint {
+  protected carried(el: HTMLElement): LayoutPoint {
     const carried = { x: 0, y: 0 };
     for (let node = el.parentElement; node; node = node.parentElement) {
-      const shift = starts.get(node);
+      const shift = this._motions.get(node)?.shift;
       if (shift) {
         carried.x += shift.x;
         carried.y += shift.y;
@@ -331,21 +393,14 @@ export default class LayoutMotion {
     return carried;
   }
 
-  protected shiftOf(motion: Motion): LayoutPoint {
-    const progress = motion.move?.effect?.getComputedTiming().progress;
-    if (progress == null) {
-      return NO_SHIFT;
-    }
-    return {
-      x: motion.shift.x * (1 - progress),
-      y: motion.shift.y * (1 - progress),
-    };
+  protected animationsOf(motion: Motion): Animation[] {
+    return motion.resize ? [motion.clock, motion.resize] : [motion.clock];
   }
 
   protected suspend(): () => void {
     const held: [Animation, CSSNumberish | null][] = [];
     for (const motion of this._motions.values()) {
-      for (const animation of motion.animations) {
+      for (const animation of this.animationsOf(motion)) {
         held.push([animation, animation.currentTime]);
         const end = Number(animation.effect?.getComputedTiming().endTime ?? 0);
         animation.currentTime = end;
@@ -362,6 +417,7 @@ export default class LayoutMotion {
     el: HTMLElement,
     keyframes: Keyframe[],
     timing: LayoutTiming,
+    fill: FillMode,
     composite?: CompositeOperation,
   ): Animation {
     return new Animation(
@@ -369,36 +425,17 @@ export default class LayoutMotion {
         duration: timing.duration,
         delay: timing.delay,
         easing: timing.easing,
-        fill: "backwards",
+        fill,
         ...(composite ? { composite } : {}),
       }),
     );
-  }
-
-  protected run(el: HTMLElement, motion: Motion): void {
-    for (const animation of motion.animations) {
-      animation.play();
-      void (this._hold ? this._hold.add(animation) : animation.finished).then(
-        () => this.finished(el, motion),
-        () => undefined,
-      );
-    }
-  }
-
-  protected finished(el: HTMLElement, motion: Motion): void {
-    if (
-      this._motions.get(el) === motion &&
-      motion.animations.every((a) => a.playState === "finished")
-    ) {
-      this._motions.delete(el);
-    }
   }
 
   protected stop(el: HTMLElement): void {
     const motion = this._motions.get(el);
     if (motion) {
       this._motions.delete(el);
-      for (const animation of motion.animations) {
+      for (const animation of this.animationsOf(motion)) {
         animation.cancel();
       }
     }
