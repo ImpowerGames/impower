@@ -4603,11 +4603,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const replaced = (el: Element) => {
+      if (roots.some((root) => this.encloses(root, el))) {
+        return true;
+      }
       const slots = this._slots.get(el);
-      return (
-        roots.some((root) => this.encloses(root, el)) ||
-        (slots !== undefined && slots.some((slot) => !el.children.includes(slot)))
-      );
+      if (!slots) {
+        return false;
+      }
+      const now = this.slotsOf(el);
+      return now.length !== slots.length || now.some((slot) => !slots.includes(slot));
     };
     for (const target of this.restoredTargets(replaced)) {
       for (const el of target.elements) {
@@ -4619,8 +4623,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected slotsOf(el: Element): Element[] {
-    return el.children.filter((child) =>
-      child.name.split(" ").some((c) => c === "text" || c === "stroke"),
+    return el.children.filter(
+      (child) =>
+        child.children.length === 0 &&
+        child.name.split(" ").some((c) => c === "text" || c === "stroke"),
     );
   }
 
@@ -6001,8 +6007,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
-        const prior = $._state.text?.[target]
-          ? (this._presented.get(target)?.sequence ?? $._state.text[target]!)
+        const saved = $._state.text?.[target];
+        const prior = saved
+          ? (this._presented.get(target)?.sequence ?? saved.map((s) => ({ ...s })))
           : [];
         this.saveState(target, sequence);
         this._presented.set(target, {

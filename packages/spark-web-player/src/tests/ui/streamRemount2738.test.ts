@@ -205,6 +205,34 @@ describe("stream entries across remounts (#2738)", () => {
     },
   );
 
+  test("a text slot a for loop adds to an entry receives that entry's line", async () => {
+    const h = createDOMHarness(
+      source(`for row in rows do
+        text
+      end`).replace(
+        "store expanded = true",
+        "store expanded = true\n\nstore rows = { 1 }\n\nfunction grow()\n  rows = { 1, 2 }\nend",
+      ),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    await next(h);
+    h.game.story.EvaluateFunction("grow", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(40);
+    expect(
+      entries(h).map((el) =>
+        [...el.querySelectorAll(".text")].map((text) => text.textContent ?? ""),
+      ),
+    ).toEqual([
+      ["first message", "first message"],
+      ["second message", "second message"],
+    ]);
+  });
+
   test("an entry still typing when the next line arrives keeps its reveal across a remount", async () => {
     const h = createDOMHarness(source(BRANCH), 0, { reactive: true, autoOpenAll: false });
     await h.ready;

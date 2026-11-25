@@ -173,6 +173,56 @@ describe("a box's text across a remount of its content (#2787)", () => {
     expect(visible(h)).toBe(letters(h).length);
   });
 
+  test("a text slot a for loop adds receives the box's line, and a sibling with its own words keeps them", async () => {
+    const h = createDOMHarness(
+      source(`dialogue {
+    for row in rows do
+      text
+    end
+    if expanded then
+      text "NOTE"
+    end
+  }`).replace("store expanded = true", "store expanded = false\n\nstore rows = { 1 }\n\nfunction grow()\n  rows = { 1, 2 }\nend"),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    expect(texts(h)).toEqual(["first=slight problem"]);
+    h.game.story.EvaluateFunction("grow", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(40);
+    expect(texts(h)).toEqual(["first=slight problem", "first=slight problem"]);
+    await toggle(h);
+    expect(texts(h)).toEqual(["first=slight problem", "first=slight problem", "first=NOTE"]);
+  });
+
+  test("a line appended after a restore is kept once across a remount", async () => {
+    const h = createDOMHarness(source(BOX), 0, { reactive: true });
+    await h.ready;
+    const ui = h.game.module.ui;
+    await ui.text.write("dialogue", [{ text: "A" }], true);
+    await ui.onRestore();
+    await ui.text.write("dialogue", [{ text: "B" }], true);
+    expect(texts(h)).toEqual(["first=AB"]);
+    await toggle(h);
+    expect(texts(h)).toEqual(["second=AB"]);
+  });
+
+  test("a write that repeats everything the box shows is appended", async () => {
+    const h = createDOMHarness(source(BOX), 0, { reactive: true });
+    await h.ready;
+    const ui = h.game.module.ui;
+    const a = { text: "A", style: { color: "red" } };
+    const b = { text: "B" };
+    await ui.text.write("dialogue", [a], true);
+    await ui.text.write("dialogue", [b], true);
+    expect(texts(h)).toEqual(["first=AB"]);
+    await ui.text.write("dialogue", [a, b], true);
+    expect(texts(h)).toEqual(["first=ABAB"]);
+  });
+
   test("a line finished by a click stays finished across a remount", async () => {
     const h = createDOMHarness(source(BOX), 0, { reactive: true, autoOpenAll: false });
     await h.ready;

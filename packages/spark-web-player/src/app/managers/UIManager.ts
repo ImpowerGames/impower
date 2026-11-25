@@ -1846,7 +1846,7 @@ export default class UIManager extends Manager {
     const holds = (el: HTMLElement) => {
       const a = el as any;
       return (
-        (a.__sdTxt === sig || JSON.stringify(a.__sdAll) === sig) &&
+        a.__sdTxt === sig &&
         kept(el) &&
         (!stale.includes(el) ||
           (JSON.stringify(a.__sdAll) === sig && a.__sdAllRev === (a.__sdRev ?? 0)))
