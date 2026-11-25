@@ -169,6 +169,52 @@ describe("the player draws a stream's entries (#2738)", () => {
     expect(after[0]).not.toBe(before[0]);
   });
 
+  test("an entry whose condition changes keeps its own line in the new branch, and stays the latest", async () => {
+    const source = `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+store expanded = true
+
+function toggle()
+  expanded = not expanded
+end
+
+layout phone {
+  stream {
+    dialogue.bubble {
+      if expanded then
+        text.first
+      else
+        text.second
+      end
+    }
+  }
+}
+
+scene start
+  [[open phone]] RAFFLES: first message
+  RAFFLES: second message
+end
+`;
+    const h = createDOMHarness(source, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    await showNext(h);
+    const entries = () => [...h.overlay.querySelectorAll<HTMLElement>(".phone > .stream > .bubble")];
+    const texts = () => entries().map((el) => el.querySelector(".text")?.textContent ?? "");
+    expect(texts()).toEqual(["first message", "second message"]);
+    const before = entries();
+    (h.game.story as any).EvaluateFunction("toggle", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(30);
+    expect(entries()).toEqual(before);
+    expect(h.overlay.querySelectorAll(".phone .second")).toHaveLength(2);
+    expect(texts()).toEqual(["first message", "second message"]);
+    expect(entries().map((el) => el.hasAttribute("data-latest"))).toEqual([false, true]);
+  });
+
   test("with the textbox and a stream both open, a line shows in both", async () => {
     const h = createDOMHarness(STORY, 0, { reactive: true, autoOpenAll: false });
     await h.ready;

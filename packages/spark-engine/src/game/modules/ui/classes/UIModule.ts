@@ -398,7 +398,7 @@ interface ReactiveScope {
 }
 
 interface StreamEntryView {
-  roots: Element[];
+  group: ReactiveGroup;
   scope: ReactiveScope;
 }
 
@@ -3783,7 +3783,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     for (const stream of scope.streams) {
       for (const entry of stream.entries) {
+        const edits = this._screenEdits;
         this.refreshScope(entry.scope, changes);
+        if (this._screenEdits !== edits) {
+          this.streams.rewrite(stream, entry);
+        }
       }
     }
     for (const region of scope.regions) {
@@ -6337,7 +6341,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           kept += 1;
         }
         for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
-          for (const root of mount.entries[i]!.roots) {
+          for (const root of $.collectNodes(mount.entries[i]!.group)) {
             $.destroyElement(root);
           }
         }
@@ -6345,7 +6349,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         mount.rendered.length = kept;
         if (instant) {
           for (let i = rewriteFrom ?? current; i < kept; i += 1) {
-            this.write(mount.entries[i]!.roots, entries[i]!, true);
+            this.write(mount.entries[i]!, entries[i]!, true);
           }
         }
         for (let i = kept; i < entries.length; i += 1) {
@@ -6353,7 +6357,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
-          this.write(view.roots, entry, instant || i < current, time);
+          this.write(view, entry, instant || i < current, time);
         }
         const latest = mount.entries.at(-1);
         if (latest !== mount.latest) {
@@ -6367,8 +6371,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      rewrite(mount: MountedStream, view: StreamEntryView): void {
+        const index = mount.entries.indexOf(view);
+        const entry = $._state.streams?.[mount.key]?.entries[index];
+        if (entry) {
+          this.write(view, entry, true, undefined, true);
+          if (view === mount.latest) {
+            this.mark(view, "");
+          }
+        }
+      }
+
       protected mark(view: StreamEntryView, latest: string | null): void {
-        for (const root of view.roots) {
+        for (const root of $.collectNodes(view.group)) {
           $.updateElement(root, { attributes: { "data-latest": latest } });
         }
       }
@@ -6379,15 +6394,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)
           : [];
-        return { roots: $.collectNodes(group), scope };
+        return { group, scope };
       }
 
       protected write(
-        roots: Element[],
+        view: StreamEntryView,
         entry: StreamEntry,
         instant: boolean,
         time?: number,
+        remounted = false,
       ): void {
+        const roots = $.collectNodes(view.group);
         for (const [target, events] of Object.entries(entry.text)) {
           const elements = $.writeTargets(
             roots.flatMap((root) =>
@@ -6401,6 +6418,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const first = elements[0];
           if (!first) {
             continue;
+          }
+          if (remounted) {
+            void $.text.writeElements(first.id, elements, null, true);
           }
           void $.text.writeElements(
             first.id,
