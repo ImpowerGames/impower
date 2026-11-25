@@ -8,6 +8,7 @@ vi.setConfig({ testTimeout: 60_000 });
 
 const SMILE = "M10,50 C30,80 70,80 90,50 C70,60 30,60 10,50Z";
 const FROWN = "M10,60 C30,30 70,30 90,60 C70,50 30,50 10,60Z";
+const FLAT = "M10,55 C30,55 70,55 90,55 C70,58 30,58 10,55Z";
 
 const face = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
 <g data-name="mouth.smile default"><path data-name="lip" d="${SMILE}" fill="#a33"/></g>
@@ -58,10 +59,10 @@ async function until(check: () => boolean, what: string) {
 
 const numbers = (d: string) => (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
 
-async function played(beatCount: number, instant: (index: number) => boolean = () => false, gate?: Promise<void>, source = SOURCE) {
+async function played(beatCount: number, instant: (index: number) => boolean = () => false, gate?: Promise<void>, source = SOURCE, files = FILES) {
   const writes: any[] = [];
   const h = createDOMHarness(source, 0, {
-    files: FILES,
+    files,
     afterEachMessage: (message) => {
       for (const op of message?.method === "ui/batch" ? message.params.messages : [message]) {
         if (op?.method === "ui/write-image" && op.params.target === "portrait" && op.params.instructions.length) writes.push(op);
@@ -160,11 +161,18 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     }
   });
 
-  test("a change that interrupts a change still playing starts from the drawing that change ends on", async () => {
-    const source = SOURCE.replace("  [[show portrait mia:mouth.frown]]\n  She keeps frowning.", "  [[show portrait mia:mouth.smile]]\n  She smiles again.");
+  test.each([
+    ["linear", 0.25],
+    ["ease-in", 0.3],
+    ["ease-out", 0.1],
+  ])("a change back to the drawing a change still playing started from turns back from the frame on screen (%s)", async (easing, after) => {
+    const source = SOURCE.replace("easing = linear", `easing = ${easing}`).replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
+      "  [[show portrait mia:mouth.smile]]\n  She smiles again.",
+    );
     const { playback, shadow, lips, written, next } = await played(2, undefined, undefined, source);
     await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
-    playback.advance(0.25);
+    playback.advance(after);
     const between = numbers(lips()[0]!);
     expect(between).not.toEqual(numbers(SMILE));
     expect(between).not.toEqual(numbers(FROWN));
@@ -172,9 +180,83 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     await next();
     expect(written().morph.plays.map((play: any) => play.morph)).toEqual(["bend"]);
     await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the interrupting change's view");
-    expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
+    const first = numbers(lips()[0]!);
+    expect(first).toHaveLength(between.length);
+    first.forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
+    playback.advance(0.01);
+    expect(Math.abs(numbers(lips()[0]!)[1]! - numbers(SMILE)[1]!)).toBeLessThan(Math.abs(between[1]! - numbers(SMILE)[1]!));
     playback.advance(0.5);
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
+  });
+
+  test("a change turning back holds the frame on screen while its delay runs", async () => {
+    const source = SOURCE.replace("duration = 0.5", "duration = 0.5\n    delay = 0.2").replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
+      "  [[show portrait mia:mouth.smile]]\n  She smiles again.",
+    );
+    const { playback, shadow, lips, next } = await played(2, undefined, undefined, source);
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
+    playback.advance(0.45);
+    const between = numbers(lips()[0]!);
+    expect(between[1]).toBeCloseTo(55, 1);
+    const interrupted = shadow();
+    await next();
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the interrupting change's view");
+    numbers(lips()[0]!).forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
+    playback.advance(0.15);
+    numbers(lips()[0]!).forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
+    playback.advance(0.15);
+    expect(numbers(lips()[0]!)[1]).toBeCloseTo(53, 1);
+    playback.advance(0.2);
+    expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
+  });
+
+  test("a third change while the portrait is turning back carries on from the frame on screen", async () => {
+    const source = SOURCE.replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.\n  [[show portrait tom:mouth.frown]]",
+      "  [[show portrait mia:mouth.smile]]\n  She smiles again.\n  [[show portrait mia:mouth.frown]]",
+    );
+    const { playback, shadow, lips, next } = await played(2, undefined, undefined, source);
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
+    playback.advance(0.25);
+    let interrupted = shadow();
+    await next();
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the second change's view");
+    playback.advance(0.1);
+    const between = numbers(lips()[0]!);
+    expect(between[1]).toBeCloseTo(53, 1);
+    interrupted = shadow();
+    await next();
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the third change's view");
+    numbers(lips()[0]!).forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
+    playback.advance(0.35);
+    expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
+  });
+
+  test("a change that interrupts a change still playing toward another drawing starts from the drawing that change ends on", async () => {
+    const source = SOURCE.replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
+      "  [[show portrait mia:mouth.flat]]\n  She settles.",
+    ).replaceAll("mia", "ann");
+    const { playback, shadow, lips, written, next } = await played(2, undefined, undefined, source, [
+      {
+        uri: "inmemory:///ann.svg",
+        type: "image",
+        name: "ann",
+        ext: "svg",
+        data: face.replace("</svg>", `<g data-name="mouth.flat"><path data-name="lip" d="${FLAT}" fill="#a33"/></g>\n</svg>`),
+      },
+      FILES[1]!,
+    ]);
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
+    playback.advance(0.25);
+    const interrupted = shadow();
+    await next();
+    expect(written().morph.plays.map((play: any) => play.morph)).toEqual(["bend"]);
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the interrupting change's view");
+    expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
+    playback.advance(0.5);
+    expect(numbers(lips()[0]!)).toEqual(numbers(FLAT));
   });
 
   test("does not run when the same options are shown again or a different picture is shown", async () => {

@@ -17,11 +17,12 @@ import {
   type LayeredMorphDrawn,
   type LayeredMorphModel,
 } from "../../../../sparkdown/src/morph/layered";
+import { firstMorphEasingReach } from "../../../../sparkdown/src/morph/easing";
 import { morphMotionKeyframes } from "../../../../sparkdown/src/morph/motion";
 import { own } from "../../../../sparkdown/src/morph/own";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
 import { MorphTimeline, morphRandom } from "../../../../sparkdown/src/morph/timeline";
-import type { MorphArtifact, MorphTiming } from "../../../../sparkdown/src/morph/types";
+import type { MorphArtifact, MorphRef, MorphTiming } from "../../../../sparkdown/src/morph/types";
 import type { MorphStillParams } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MorphStillMessage";
 import type {
   LayeredPicture,
@@ -205,6 +206,7 @@ export interface Occurrence {
   users: number;
   preempted: number;
   preemptedAt: number;
+  resume?: { offset: number; skip: number };
 }
 
 interface LiveView {
@@ -272,6 +274,9 @@ interface ImageState {
   picture?: MorphPicture;
   slot: MorphArtifactSlot;
   plays: { play: MorphLayerPlay; occurrence?: Occurrence; started?: true }[];
+  drawn?: MorphRef;
+  turned?: boolean;
+  resume?: number;
   inner: FileState[];
   view?: LiveView;
   canvas?: CanvasView;
@@ -546,8 +551,11 @@ export class MorphPlayback {
     this.render();
   }
 
-  startChange(occurrence: Occurrence) {
+  startChange(occurrence: Occurrence, offset?: number) {
     this.restart(occurrence);
+    if (offset === undefined || !(offset > 0)) return;
+    const duration = Number.isFinite(occurrence.timing.duration) ? occurrence.timing.duration : 0;
+    occurrence.resume = { offset, skip: firstMorphEasingReach(occurrence.timing.easing, offset) * duration };
   }
 
   protected restartAll() {
@@ -557,6 +565,7 @@ export class MorphPlayback {
   protected restart(occurrence: Occurrence) {
     occurrence.cycles += 1;
     occurrence.start = this.time;
+    occurrence.resume = undefined;
     occurrence.timeline = new MorphTimeline(occurrence.timing, morphRandom(`${this.seed}|${occurrence.key}|${occurrence.cycles}`));
     if (occurrence.preempted) occurrence.preemptedAt = this.time;
     this.hear(occurrence);
@@ -648,7 +657,16 @@ export class MorphPlayback {
 
   playhead(occurrence: Occurrence) {
     if (!this.animating || occurrence.preempted) return { phase: "off" as const };
-    return occurrence.timeline.at(this.time - occurrence.start);
+    const elapsed = this.time - occurrence.start;
+    const resume = occurrence.resume;
+    if (!resume) return occurrence.timeline.at(elapsed);
+    const delay = Number.isFinite(occurrence.timing.delay) && occurrence.timing.delay > 0 ? occurrence.timing.delay : 0;
+    if (elapsed < delay) return { phase: "waiting" as const, play: 0 as const, offset: resume.offset };
+    return occurrence.timeline.at(elapsed + resume.skip);
+  }
+
+  others(layer: MorphLayer): MorphLayer[] {
+    return [...this.layers].filter((other) => other !== layer).reverse();
   }
 
   mount(
@@ -942,13 +960,47 @@ export class MorphLayer {
         ...(this.kind === "background" ? { occurrence: this.playback.occurrenceFor(this.occurrenceKey(play, play.layer), play.timing, play.owner) } : {}),
       });
     }
+    const continued = this.images.map((image) => this.continuation(image));
     this.playback.track(this);
-    for (const image of this.images) {
-      image.slot.set(image.plays[0]!.play.ref);
+    this.images.forEach((image, index) => {
+      const continuing = continued[index];
+      if (continuing) {
+        image.turned = continuing.turned;
+        image.resume = continuing.offset;
+      }
+      image.drawn = continuing?.ref ?? image.plays[0]!.play.ref;
+      image.slot.set(image.drawn);
       for (const inner of image.inner) inner.slot.set(inner.plays[0]!.play.ref);
-    }
+    });
     this.startStills();
     this.showStill();
+  }
+
+  protected continuation(image: ImageState): { ref: MorphRef; turned: boolean; offset: number } | undefined {
+    const [entry, extra] = image.plays;
+    if (this.kind !== "background" || extra || image.inner.length || !entry?.occurrence || entry.play.timing.trigger !== "change") return undefined;
+    const play = entry.play;
+    const pair = changePair(play.ref, play.morph);
+    if (!pair) return undefined;
+    for (const layer of this.playback.others(this)) {
+      if (!layer.active || layer.kind !== this.kind || layer.base !== this.base) continue;
+      const old = layer.images.find((candidate) => candidate.layer === image.layer);
+      const [was, more] = old?.plays ?? [];
+      if (!old || more || old.inner.length || !was?.occurrence || (!old.view && !old.canvas)) return undefined;
+      const ref = old.slot.state === "ready" && old.slot.artifact?.status === "live" ? old.drawn : undefined;
+      if (!ref || was.play.morph !== play.morph || was.play.owner !== play.owner || ref.image !== play.ref.image) return undefined;
+      if (JSON.stringify(was.play.timing) !== JSON.stringify(play.timing)) return undefined;
+      if (ref.morphs.length !== 1 || play.ref.morphs.length !== 1) return undefined;
+      const drawn = changePair(ref, play.morph);
+      if (!drawn || drawn.kept !== pair.kept || !sameOutside(ref.selection, play.ref.selection, pair.groups)) return undefined;
+      const turned = drawn.from === pair.to && drawn.to === pair.from;
+      if (!turned && !(drawn.from === pair.from && drawn.to === pair.to)) return undefined;
+      const head = this.playback.playhead(was.occurrence);
+      if (head.phase !== "playing" && head.phase !== "waiting") return undefined;
+      const shown = old.turned ? 1 - head.offset : head.offset;
+      return { ref, turned, offset: turned ? 1 - shown : shown };
+    }
+    return undefined;
   }
 
   protected startStills() {
@@ -1105,7 +1157,7 @@ export class MorphLayer {
       for (const entry of image.plays) {
         if (entry.started || !entry.occurrence || entry.play.timing.trigger !== "change") continue;
         entry.started = true;
-        this.playback.startChange(entry.occurrence);
+        this.playback.startChange(entry.occurrence, image.resume);
       }
     }
   }
@@ -1832,21 +1884,33 @@ export class MorphLayer {
     for (const image of this.images) {
       if (image.canvas) {
         const canvas = image.canvas;
-        this.renderFrame(canvas, image.slot.artifact, image.plays, (frame) => {
-          canvas.drawn = layeredMorphDrawn(canvas.files.model, frame);
-          this.paint(canvas);
-        });
+        this.renderFrame(
+          canvas,
+          image.slot.artifact,
+          image.plays,
+          (frame) => {
+            canvas.drawn = layeredMorphDrawn(canvas.files.model, frame);
+            this.paint(canvas);
+          },
+          image.turned,
+        );
       }
-      if (image.view) this.renderView(image.view, image.plays);
+      if (image.view) this.renderView(image.view, image.plays, image.turned);
       for (const inner of image.inner) if (inner.view) this.renderView(inner.view, inner.plays);
     }
   }
 
-  protected renderView(view: LiveView, plays: { play: MorphPlay; occurrence?: Occurrence }[]) {
-    this.renderFrame(view, view.artifact, plays, (frame, heads) => {
-      applyFrame(view, frame);
-      plays.forEach(({ play }, i) => this.moveLayers(view, play, heads[i]!));
-    });
+  protected renderView(view: LiveView, plays: { play: MorphPlay; occurrence?: Occurrence }[], turned?: boolean) {
+    this.renderFrame(
+      view,
+      view.artifact,
+      plays,
+      (frame, heads) => {
+        applyFrame(view, frame);
+        plays.forEach(({ play }, i) => this.moveLayers(view, play, heads[i]!));
+      },
+      turned,
+    );
   }
 
   protected renderFrame(
@@ -1854,11 +1918,13 @@ export class MorphLayer {
     artifact: MorphArtifact | undefined,
     plays: { play: MorphPlay; occurrence?: Occurrence }[],
     draw: (frame: MorphFrameState, heads: (number | "rest")[]) => void,
+    turned?: boolean,
   ) {
     if (!artifact || !plays.some((p) => p.occurrence)) return;
     const heads = plays.map(({ occurrence }) => {
       const head = occurrence ? this.playback.playhead(occurrence) : undefined;
-      return head && "offset" in head ? head.offset : ("rest" as const);
+      if (!head || !("offset" in head)) return "rest" as const;
+      return turned ? 1 - head.offset : head.offset;
     });
     const signature = heads.join(",");
     if (target.last === signature) return;
@@ -1922,6 +1988,41 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+function sameOutside(a: string, b: string, groups: readonly string[]): boolean {
+  let first: unknown;
+  let second: unknown;
+  try {
+    first = JSON.parse(a);
+    second = JSON.parse(b);
+  } catch {
+    return false;
+  }
+  if (!first || !second || typeof first !== "object" || typeof second !== "object") return false;
+  const left = first as Record<string, unknown>;
+  const right = second as Record<string, unknown>;
+  const names = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return [...names].every((name) => groups.includes(name) || left[name] === right[name]);
+}
+
+function changePair(ref: MorphRef, morph: string): { from: string; to: string; kept: string; groups: string[] } | undefined {
+  const text = ref.recipes?.[morph];
+  if (text === undefined) return undefined;
+  let recipe: unknown;
+  try {
+    recipe = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!recipe || typeof recipe !== "object") return undefined;
+  const { keyframes, ...kept } = recipe as { keyframes?: { offset?: unknown; states?: unknown }[] };
+  if (!Array.isArray(keyframes) || keyframes.length !== 2 || keyframes[0]?.offset !== 0 || keyframes[1]?.offset !== 1) return undefined;
+  const { states: from } = keyframes[0];
+  const { states: to } = keyframes[1];
+  if (!from || !to || typeof from !== "object" || typeof to !== "object") return undefined;
+  const groups = [...new Set([...Object.keys(from), ...Object.keys(to)])];
+  return { from: JSON.stringify(from), to: JSON.stringify(to), kept: JSON.stringify(kept), groups };
 }
 
 function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {
