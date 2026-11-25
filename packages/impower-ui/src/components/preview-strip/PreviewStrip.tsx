@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ComponentChildren, JSX } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { createContext, type ComponentChildren, type JSX } from "preact";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
@@ -18,6 +18,10 @@ export const previewStripVariants = cva(
     defaultVariants: { size: "phone" },
   },
 );
+
+const FullContext = createContext(false);
+
+export const usePreviewStripFull = () => useContext(FullContext);
 
 const CLOSING_LIMIT_MS = 1000;
 
@@ -113,9 +117,11 @@ export default function PreviewStrip({
   const open = expanded && !docked;
   const [, setSettled] = useState(0);
   const closingRef = useRef(false);
+  const closedRef = useRef(false);
   const wasOpenRef = useRef(open);
   if (open) {
     closingRef.current = false;
+    closedRef.current = false;
   } else if (wasOpenRef.current) {
     closingRef.current = true;
   }
@@ -129,8 +135,8 @@ export default function PreviewStrip({
       return;
     }
     closingRef.current = false;
+    closedRef.current = true;
     setSettled((n) => n + 1);
-    collapsedRef.current?.();
   }).current;
   const collapseRef = useRef(onCollapse);
   collapseRef.current = onCollapse;
@@ -200,15 +206,16 @@ export default function PreviewStrip({
 
   useEffect(
     () => () => {
-      if (closingRef.current) {
+      if (closingRef.current || closedRef.current) {
         closingRef.current = false;
+        closedRef.current = false;
         collapsedRef.current?.();
       }
     },
     [],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) {
       return;
@@ -224,6 +231,10 @@ export default function PreviewStrip({
       void dialog.offsetHeight;
       dialog.style.removeProperty("display");
       focusPlayRef.current = hadFocus;
+    }
+    if (!full && closedRef.current) {
+      closedRef.current = false;
+      collapsedRef.current?.();
     }
   }, [full]);
 
@@ -305,7 +316,7 @@ export default function PreviewStrip({
                   : "pointer-events-none absolute top-0 left-0 h-[600%] w-[600%] origin-top-left scale-[0.1666667] bg-stage",
             )}
           >
-            {picture}
+            <FullContext.Provider value={full}>{picture}</FullContext.Provider>
             <div ref={toastLayer} data-toast-layer class="contents" />
           </dialog>
           {symbol && !docked ? (
