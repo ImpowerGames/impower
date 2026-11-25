@@ -398,6 +398,23 @@ describe("everything a line changes waits for its motion (#2739)", () => {
     expect(coordinator.shouldContinue()).toBe(1);
   });
 
+  test("one click during a picture-only line's arrival finishes it and moves on", async () => {
+    const h = await beside();
+    h.jumpToFlow("picture");
+    const coordinator = new Coordinator(h.game, h.nextBeat()!);
+    await tick(coordinator);
+    const [portrait] = h.game.module.ui.findIds("portrait");
+    expect(presenceOf(h, portrait!)).toBe("initial");
+    coordinator.onMessage({
+      jsonrpc: "2.0",
+      method: "event",
+      params: { type: "pointerdown", button: 0 },
+    } as any);
+    expect(coordinator.shouldContinue()).toBe(1);
+    await flushMicrotasks(40);
+    expect(presenceOf(h, portrait!)).toBeNull();
+  });
+
   test("a picture changed on an element already shown waits for the line's arrival", async () => {
     const h = await beside();
     const ui = h.game.module.ui;

@@ -324,6 +324,12 @@ export class Coordinator<G extends Game> {
       this._timeTypedMS = this._elapsedMS;
     }
     if (!instructions.text && !waitingForChoice && !instructions.audio) {
+      if (this._lineStartedMS == null && this._interacted) {
+        this._interacted = false;
+        this._startLine?.();
+        this.display({ instant: true });
+        this.finishExecution();
+      }
       const totalDurationMS = (instructions.end ?? 0) * 1000;
       if (
         this._lineStartedMS != null &&
