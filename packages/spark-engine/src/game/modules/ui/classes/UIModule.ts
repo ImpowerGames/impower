@@ -84,6 +84,7 @@ import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { Animation } from "../types/Animation";
+import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
 import type { ElementState } from "../types/ElementState";
@@ -1951,6 +1952,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
+  getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
+    const time = (value: number | string | undefined) =>
+      typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
+        ? `${value}s`
+        : value;
+    const easing = timing?.easing;
+    const ease = easing ? this.context?.ease?.[easing] : undefined;
+    const iterations = timing?.iterations;
+    const delay = time(timing?.delay);
+    return [
+      time(timing?.duration) ?? (delay ? "0s" : undefined),
+      ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing,
+      delay,
+      iterations === Infinity ? "infinite" : iterations?.toString(),
+      timing?.direction,
+      timing?.fill,
+      escapeCssIdentifier(name),
+    ]
+      .filter((part) => part != null && part !== "")
+      .join(" ");
+  }
+
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {
     const imageName = sortFilteredName(name);
     const look = this.pictureLook(type, name, pick, from);
@@ -2705,6 +2728,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (varValue) {
             variablesStyle[varName] = varValue;
           }
+        }
+      }
+    }
+    const animations = this.context?.animation;
+    if (animations) {
+      for (const [name, animation] of Object.entries(animations)) {
+        if (!name.startsWith("$")) {
+          variablesStyle[getVarName("animation", name)] =
+            this.getAnimationShorthand(name, animation.timing);
         }
       }
     }
