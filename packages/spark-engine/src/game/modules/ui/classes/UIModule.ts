@@ -1300,6 +1300,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  protected relimit(element: Element, attribute: string, value: string | null): void {
+    for (const key of ["variant", "speaker"] as const) {
+      if (attribute === toDataAttributeName(key)) {
+        const labels: LineLabels = { ...this._limits.get(element) };
+        if (value) {
+          labels[key] = value;
+        } else {
+          delete labels[key];
+        }
+        if (labels.variant || labels.speaker) {
+          this._limits.set(element, labels);
+        } else {
+          this._limits.delete(element);
+        }
+      }
+    }
+  }
+
   protected admits(element: Element, line: LineLabels | undefined): boolean {
     const limit = this._limits.get(element);
     return (
@@ -4692,6 +4710,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const next = this.propToAttr(resolved, entry.boolean);
         if (this._refreshAll || next !== entry.last) {
           entry.last = next;
+          this.relimit(entry.element, entry.prop, next);
           this.updateElement(entry.element, {
             attributes: { [entry.prop]: next },
           });

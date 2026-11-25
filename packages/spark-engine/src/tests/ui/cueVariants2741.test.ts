@@ -156,6 +156,44 @@ describe("#variant and #speaker on a text element limit the lines it takes (#274
   });
 });
 
+describe("a bound #variant or #speaker limits the element by its current value (#2741)", () => {
+  test.each(["variant", "speaker"] as const)("#%s={selected} follows selected", async (prop) => {
+    const h = createHarness(
+      `${CHARACTERS}
+store selected = "raffles"
+
+define ui as config with
+  layouts_initial = { "main" }
+end
+
+layout main {
+  dialogue #${prop}={selected} { text }
+}
+
+scene start
+  RAFFLES [raffles]: First.
+  BUNNY [bunny]: Second.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false, beforeConnect: live },
+    );
+    await h.ready;
+    await flushMicrotasks(10);
+    h.jumpToFlow("start");
+    const ui: any = h.game.module.ui;
+    const first = h.nextBeat();
+    const second = h.nextBeat();
+    await displayLive(h, first);
+    const element = elementId(h, "dialogue", `data-${prop}`, "raffles");
+    (h.game.story as any).variablesState.$("selected", "bunny");
+    ui.refreshLayouts();
+    await flushMicrotasks(10);
+    await displayLive(h, second);
+    expect(writtenTo(h, "dialogue", element)).toEqual(["First.", "Second."]);
+  });
+});
+
 describe("@variant and @speaker test the newest line, anywhere in the game (#2741)", () => {
   test("each line marks its variant and speaker, and the next line that has neither clears them", async () => {
     const h = await start(`${CHARACTERS}\n${LAYOUT}\n${STYLES}\n${LINES}`);

@@ -68,9 +68,18 @@ scene start
 end
 `;
 
-const FRAME_UNDER_SHOUT = ':where([data-line-variant="shout"]) .frame';
-
-const FRAME_UNDER_BUNNY = ':where([data-line-speaker="bunny"]) .frame';
+const compiledRule = (h: DOMHarness, mark: string) => {
+  const lines = [...h.overlay.querySelectorAll("style")]
+    .map((style) => style.textContent ?? "")
+    .join("\n")
+    .split("\n");
+  const at = lines.findIndex((line) => line.includes(mark) && line.trim().endsWith("{"));
+  expect(at, mark).toBeGreaterThanOrEqual(0);
+  return {
+    selector: lines[at]!.trim().slice(0, -1).trim().replaceAll("&", ".frame"),
+    body: lines[at + 1]!.trim(),
+  };
+};
 
 async function showBeat(h: DOMHarness) {
   const beat = h.nextBeat();
@@ -80,7 +89,7 @@ async function showBeat(h: DOMHarness) {
 }
 
 describe("a style under @variant(shout) applies in another layout (#2741)", () => {
-  test("the hud's frame matches while the shouted line is the newest, and stops at the next line", async () => {
+  test("the hud's frame matches the compiled rule while the shouted line is the newest, and stops at the next line", async () => {
     const h = createDOMHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     await flushMicrotasks(10);
@@ -92,17 +101,21 @@ describe("a style under @variant(shout) applies in another layout (#2741)", () =
     expect(dialogue).not.toBeNull();
     expect(frame!.closest(".hud")).not.toBe(dialogue!.closest(".textbox"));
     expect(dialogue!.textContent).toContain("I'm busy!");
+    const shout = compiledRule(h, 'data-line-variant="shout"');
+    const bunny = compiledRule(h, 'data-line-speaker="bunny"');
+    expect(shout.body).toMatch(/^background-color:/);
+    expect(bunny.body).toBe("opacity: 0.5;");
     expect(h.overlay.getAttribute("data-line-variant")).toBe("shout");
-    expect(h.overlay.querySelector(FRAME_UNDER_SHOUT)).toBe(frame);
-    expect(h.overlay.querySelector(FRAME_UNDER_BUNNY)).toBe(frame);
+    expect(h.overlay.querySelector(shout.selector)).toBe(frame);
+    expect(h.overlay.querySelector(bunny.selector)).toBe(frame);
 
     await showBeat(h);
     expect(h.overlay.hasAttribute("data-line-variant")).toBe(false);
-    expect(h.overlay.querySelector(FRAME_UNDER_SHOUT)).toBeNull();
-    expect(h.overlay.querySelector(FRAME_UNDER_BUNNY)).toBe(frame);
+    expect(h.overlay.querySelector(shout.selector)).toBeNull();
+    expect(h.overlay.querySelector(bunny.selector)).toBe(frame);
 
     await showBeat(h);
     expect(h.overlay.hasAttribute("data-line-speaker")).toBe(false);
-    expect(h.overlay.querySelector(FRAME_UNDER_BUNNY)).toBeNull();
+    expect(h.overlay.querySelector(bunny.selector)).toBeNull();
   });
 });
