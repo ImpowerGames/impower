@@ -11,7 +11,7 @@ const renderStyle = (selector: string) => {
 
 describe("the screen preview writes selectors as the game player does (#2502)", () => {
   test.each(SHARED_CASES)("writes %s as %s", (source, css) => {
-    expect(sparkleSelectorToCssSelector(source, { ...BREAKPOINTS })).toBe(css);
+    expect(sparkleSelectorToCssSelector(source, { ...BREAKPOINTS })?.css).toBe(css);
   });
 
   test.each([
@@ -22,14 +22,14 @@ describe("the screen preview writes selectors as the game player does (#2502)", 
     ["@indeterminate", ":indeterminate"],
     ["> #image^=bunny@", ">[image^=bunny\\@]"],
   ])("writes the player's own %s as %s", (source, css) => {
-    expect(sparkleSelectorToCssSelector(source, {})).toBe(css);
+    expect(sparkleSelectorToCssSelector(source, {})?.css).toBe(css);
   });
 
   test.each([
     ["@theme(dark)", "@media(prefers-color-scheme:dark)"],
     ["@theme( dark )", "@media(prefers-color-scheme:dark)"],
   ])("writes the color scheme state %s as the media query %s", (source, css) => {
-    expect(sparkleSelectorToCssSelector(source, {})).toBe(css);
+    expect(sparkleSelectorToCssSelector(source, {})?.css).toBe(css);
   });
 
   test("renders a standard state block into the preview's styles", () => {

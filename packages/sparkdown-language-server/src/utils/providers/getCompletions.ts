@@ -16,6 +16,7 @@ import {
   structKeyToken,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import { layoutNames, showingNames } from "@impower/sparkdown/src/compiler/utils/layoutElementNames";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import {
   luauFileName,
@@ -735,6 +736,30 @@ const addStructReferenceCompletions = (
             }
           }
         }
+      }
+    }
+  }
+};
+
+const SHOWING_ARGUMENT_BEFORE = /@showing\([ \t]*[\p{L}\p{N}_@-]*$/u;
+
+const addShowingNameCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+) => {
+  const layouts = layoutNames(program);
+  const elements = [...showingNames(program)].filter((name) => !layouts.has(name));
+  for (const [names, description] of [
+    [[...layouts], "layout"],
+    [elements, "element"],
+  ] as const) {
+    for (const name of [...names].sort()) {
+      if (!completions.has(name)) {
+        completions.set(name, {
+          label: name,
+          labelDetails: { description },
+          kind: CompletionItemKind.Constructor,
+        });
       }
     }
   }
@@ -1576,6 +1601,16 @@ const completionsAt = (
       sortText: c.sortText ?? String(index).padStart(10, "0"),
     }));
   };
+
+  const showingTyped = leftStack.some((node) => node.name === "SimpleSelectorFunction")
+    ? SHOWING_ARGUMENT_BEFORE.exec(
+        read(document.offsetAt({ line: position.line, character: 0 }), documentCursorOffset),
+      )
+    : null;
+  if (showingTyped) {
+    addShowingNameCompletions(completions, program);
+    return buildCompletions();
+  }
 
   const morphNode = leftStack.find((node) => node.name === "LuauMorph");
   if (morphNode) {
