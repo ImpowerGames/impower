@@ -7100,7 +7100,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       show(instant: boolean, time?: number): void {
         this._presented = { instant, time };
-        this.sync(this._presented);
+        this.sync(this._presented, undefined, !instant);
       }
 
       restore(): void {
@@ -7111,6 +7111,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected sync(
         presented: { instant: boolean; time?: number },
         rewriteFrom?: number,
+        arriving = false,
       ): void {
         if ($.context?.system?.simulating) {
           return;
@@ -7123,7 +7124,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           this._mounted.set(key, live);
           for (const mount of live) {
-            this.render(mount, presented, rewriteFrom);
+            this.render(mount, presented, rewriteFrom, arriving);
           }
         }
       }
@@ -7132,6 +7133,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         mount: MountedStream,
         presented?: { instant: boolean; time?: number },
         rewriteFrom?: number,
+        arriving = false,
       ): void {
         const stream = $._state.streams?.[mount.key];
         const current = stream?.current ?? 0;
@@ -7155,7 +7157,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const restarted = mount.rendered.some(
           (signature) => !signature.startsWith(`${stream?.cleared ?? 0}:`),
         );
-        const replaced = restarted ? 0 : mount.entries.length;
+        const shown = restarted ? 0 : mount.entries.length;
         for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
           const group = mount.entries[i]!.group;
           if (restarted) {
@@ -7178,17 +7180,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (let i = kept; i < entries.length; i += 1) {
           const entry = entries[i]!;
           const view = this.build(mount, entry);
-          if (i < replaced) {
-            for (const root of $.collectNodes(view.group)) {
-              $.contentsOf(root).add("text");
-            }
-          }
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
           const atOnce = instant || i < current || i < settled;
           this.write(view, entry, atOnce, atOnce ? undefined : time);
           if (atOnce) {
             settled = Math.max(settled, i + 1);
+          } else if (
+            arriving &&
+            i >= shown &&
+            $.moving() &&
+            $.styled("show")
+          ) {
+            $.arrive($.collectNodes(view.group));
           }
         }
         this._settled.set(mount.key, settled);
@@ -7286,6 +7290,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           view.written[target] = written;
           if (remounted) {
             void $.text.writeElements(first.id, elements, null, true);
+          }
+          for (const el of elements) {
+            $.contentsOf(el).add("text");
           }
           void $.text.writeElements(
             first.id,

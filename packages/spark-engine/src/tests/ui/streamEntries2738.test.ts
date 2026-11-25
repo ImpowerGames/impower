@@ -427,6 +427,50 @@ style bubble {
     expect(motions(h)).toEqual([]);
   });
 
+  const NESTED = `${LAYOUT.replace(
+    "dialogue.bubble { text }",
+    `dialogue.bubble {
+        character_name { text }
+        dialogue { text }
+      }`,
+  )}
+style bubble {
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+style dialogue {
+  @initial { opacity = 0 }
+}
+style character_name {
+  @initial { opacity = 0 }
+}
+`;
+
+  test("an entry whose line targets sit inside it arrives as one", async () => {
+    const h = harness(NESTED);
+    await h.ready;
+    await show(h, line("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    await settle(h);
+    h.reset();
+    await show(h, line("doors locked"));
+    const added = bubbles(h)[1];
+    expect(added).toBeDefined();
+    expect(motions(h)).toEqual([{ element: added, presence: "show" }]);
+  });
+
+  test("extending an entry whose line targets sit inside it plays no arrival", async () => {
+    const h = harness(NESTED);
+    await h.ready;
+    await show(h, line("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    await settle(h);
+    h.reset();
+    await show(h, line("slight problem, doors locked", { extended: { dialogue: 14 } }));
+    expect(
+      (h.game.module.ui.streams.entries("phone") as StreamEntry[]).map(said),
+    ).toEqual(["slight problem, doors locked"]);
+    expect(motions(h)).toEqual([]);
+  });
+
   test("an entry shown at once plays no presence", async () => {
     const h = harness(FADING);
     await h.ready;
