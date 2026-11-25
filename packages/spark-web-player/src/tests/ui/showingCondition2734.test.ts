@@ -55,6 +55,25 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     expect(on("@not(@showing(action)) @hovered")).toBe(false);
   });
 
+  test("inside @has it tests the element itself, keeping the relative selector below it", () => {
+    expect(written("@has(icon @showing(action))")).toBe('&:is([data-showing~="action"] *):has(.icon)');
+    expect(written("@has(>icon @showing(action))")).toBe('&:is([data-showing~="action"] *):has(>.icon)');
+    expect(written("@has(icon @showing(action), badge @showing(action))")).toBe(
+      '&:is([data-showing~="action"] *):has(.icon, .badge)',
+    );
+    expect(written("@has(icon @showing(action), badge)")).toBe(
+      '&:is(:is([data-showing~="action"] *):has(.icon), :has(.badge))',
+    );
+    const root = document.createElement("div");
+    root.innerHTML = '<span class="card"><i class="icon"></i></span><span class="card"></span>';
+    const cards = [...root.querySelectorAll(".card")];
+    const on = (selector: string) => cards.map((card) => card.matches(written(selector).replaceAll("&", ".card")));
+    expect(on("@has(icon @showing(action))")).toEqual([false, false]);
+    root.setAttribute("data-showing", "action");
+    expect(on("@has(icon @showing(action))")).toEqual([true, false]);
+    expect(on("@has(>icon @showing(action))")).toEqual([true, false]);
+  });
+
   test("inside nth-child's of list it keeps the list", () => {
     expect(written("@nth-child(1 of @showing(action))")).toBe('&:nth-child(1 of [data-showing~="action"] *)');
     expect(written("@nth-last-child(2 of @showing(action))")).toBe(

@@ -439,6 +439,10 @@ class SparkleSelectorWriter {
       return { text: called ? alias + this.raw() : alias };
     }
     const pseudo = ARGUMENT_STATE_ALIASES.get(name) ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
+    if (pseudo === "has" && called) {
+      const { text, close } = this.argument(() => this.list("selectors", false));
+      return { text: liftHasConditions(text, close, this.options.colorScheme === "attribute") };
+    }
     if (pseudo && called) {
       const kind = ARGUMENT_KINDS.get(pseudo);
       const args =
@@ -568,32 +572,56 @@ const rootCondition = (state: string, value: string, scheme: boolean): string | 
   return SHOWING_NAME.test(argument) ? `[${SHOWING_ATTRIBUTE}~="${argument}"]` : undefined;
 };
 
-const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*" = "&"): string => {
+const hasRootConditions = (selector: string): boolean => {
   const text = unquoted(selector);
-  if (!text.includes(`@${COLOR_SCHEME_STATE}(`) && !text.includes(`@${SHOWING_STATE}(`)) {
+  return text.includes(`@${COLOR_SCHEME_STATE}(`) || text.includes(`@${SHOWING_STATE}(`);
+};
+
+const splitRootConditions = (selector: string, scheme: boolean): { root: string; rest: string }[] =>
+  splitTopLevelCommas(selector).map((part) => {
+    let root = "";
+    const rest = part
+      .split(QUOTED_PART)
+      .map((piece, i) =>
+        i & 1
+          ? piece
+          : piece.replace(ROOT_CONDITION, (written, state: string, value: string) => {
+              const condition = rootCondition(state, value, scheme);
+              if (!condition) {
+                return written;
+              }
+              root += condition;
+              return "";
+            }),
+      )
+      .join("")
+      .trim();
+    return { root, rest: root ? rest : part.trim() };
+  });
+
+const liftHasConditions = (selectors: string, close: string, scheme: boolean): string => {
+  const parts = splitRootConditions(selectors, scheme);
+  if (!close || parts.every(({ root }) => !root)) {
+    return `:has(${selectors}${close}`;
+  }
+  const relative = (rest: string) => rest || "*";
+  const [first] = parts;
+  if (parts.every(({ root }) => root === first!.root)) {
+    return `:is(${first!.root} *):has(${parts.map(({ rest }) => relative(rest)).join(", ")})`;
+  }
+  return `:is(${parts
+    .map(({ root, rest }) => `${root ? `:is(${root} *)` : ""}:has(${relative(rest)})`)
+    .join(", ")})`;
+};
+
+const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*" = "&"): string => {
+  if (!hasRootConditions(selector)) {
     return selector;
   }
-  return splitTopLevelCommas(selector)
-    .map((part) => {
-      let root = "";
-      const rest = part
-        .split(QUOTED_PART)
-        .map((piece, i) =>
-          i & 1
-            ? piece
-            : piece.replace(ROOT_CONDITION, (written, state: string, value: string) => {
-                const condition = rootCondition(state, value, scheme);
-                if (!condition) {
-                  return written;
-                }
-                root += condition;
-                return "";
-              }),
-        )
-        .join("")
-        .trim();
+  return splitRootConditions(selector, scheme)
+    .map(({ root, rest }) => {
       if (!root) {
-        return part.trim();
+        return rest;
       }
       const target = !rest
         ? subject
