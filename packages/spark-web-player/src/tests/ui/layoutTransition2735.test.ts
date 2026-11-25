@@ -1,4 +1,5 @@
 import { BeatMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
+import { PresenceElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
 import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import { WriteTextMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { afterEach, describe, expect, test } from "vitest";
@@ -335,8 +336,8 @@ end
 
   test("an old and a new rectangle give a real size change and a translate from the old place to the new", () => {
     expect(getSizeKeyframes(box(10, 100, 200, 40), box(10, 140, 200, 120))).toEqual([
-      pinned("height", 40),
-      pinned("height", 120),
+      { ...pinned("width", 200), ...pinned("height", 40) },
+      { ...pinned("width", 200), ...pinned("height", 120) },
     ]);
     expect(getSizeKeyframes(box(0, 0, 100, 20), box(0, 0, 300, 60))).toEqual([
       { ...pinned("width", 100), ...pinned("height", 20) },
@@ -349,8 +350,8 @@ end
         { ...box(0, 0, 100, 100), insets: { paddingTop: 40, paddingBottom: 40, paddingLeft: 4 } },
       ),
     ).toEqual([
-      { ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
-      { ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
+      { ...pinned("width", 100), ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
+      { ...pinned("width", 100), ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
     ]);
     const framed = { paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, borderTopWidth: 10, borderRightWidth: 10, borderBottomWidth: 10, borderLeftWidth: 10 };
     const contentBox = { ...box(0, 0, 200, 80), insets: framed, sizing: "content-box" };
@@ -400,7 +401,7 @@ end
     grown = true;
     motion.play(boxes);
 
-    expect(keyframesOf(sizeOf(top)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
+    expect(keyframesOf(sizeOf(top)!)).toEqual([{ ...pinned("width", 200), ...pinned("height", 40) }, { ...pinned("width", 200), ...pinned("height", 120) }]);
     expect(sizeOf(top)!.effect.timing).toMatchObject({ duration: 200, easing: "linear", fill: "backwards" });
     expect(clockOf(under)!.effect.timing).toMatchObject({ composite: "add", duration: 200, fill: "both" });
     expect(visualOf(under)).toEqual({ x: 0, y: 40 });
@@ -549,8 +550,8 @@ end
     grown = true;
     motion.play(boxes);
     expect(keyframesOf(sizeOf(padded)!)).toEqual([
-      { ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
-      { ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
+      { ...pinned("width", 200), ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
+      { ...pinned("width", 200), ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
     ]);
     root.remove();
   });
@@ -700,7 +701,7 @@ end
     const boxes = motion.measure(root);
     grown = true;
     motion.play(boxes);
-    expect(keyframesOf(sizeOf(anchored)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
+    expect(keyframesOf(sizeOf(anchored)!)).toEqual([{ ...pinned("width", 300), ...pinned("height", 40) }, { ...pinned("width", 300), ...pinned("height", 120) }]);
     expect(shiftOf(anchored)).toEqual({ x: 0, y: 0 });
     await advance(100);
     expect(shiftOf(anchored)).toEqual({ x: 0, y: 0 });
@@ -736,7 +737,7 @@ end
     grown = true;
     late.classList.add("box");
     motion.play(boxes);
-    expect(keyframesOf(sizeOf(late)!)).toEqual([pinned("height", 40), pinned("height", 120)]);
+    expect(keyframesOf(sizeOf(late)!)).toEqual([{ ...pinned("width", 200), ...pinned("height", 40) }, { ...pinned("width", 200), ...pinned("height", 120) }]);
     root.remove();
   });
 
@@ -802,7 +803,7 @@ describe("a box whose text grows (I-2735)", () => {
     await flushMicrotasks(10);
     expect(shown()).toBe("A line long enough for three.");
     expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
-    expect(keyframesOf(sizeOf(dialogue)!)).toEqual([pinned("height", 20), pinned("height", 60)]);
+    expect(keyframesOf(sizeOf(dialogue)!)).toEqual([{ ...pinned("width", 300), ...pinned("height", 20) }, { ...pinned("width", 300), ...pinned("height", 60) }]);
     expect(sizeOf(dialogue)!.effect.timing).toMatchObject({ duration: 300 });
   });
 
@@ -819,7 +820,7 @@ describe("a box whose text grows (I-2735)", () => {
     expect(shown()).toBe("A line long enough for three.");
     expect(dialogue.style.transitionProperty).toBe("layout");
     expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
-    expect(keyframesOf(sizeOf(dialogue)!)).toEqual([pinned("height", 20), pinned("height", 60)]);
+    expect(keyframesOf(sizeOf(dialogue)!)).toEqual([{ ...pinned("width", 300), ...pinned("height", 20) }, { ...pinned("width", 300), ...pinned("height", 60) }]);
   });
 
   test("a beat displayed instantly applies the new size at once and ends a motion in flight", async () => {
@@ -856,5 +857,36 @@ describe("a box whose text grows (I-2735)", () => {
     } finally {
       delete win.matchMedia;
     }
+  });
+
+  test("a hide that resizes the box answers only after its size motion ends", async () => {
+    const { h, dialogue } = await showing();
+    geometry.set(dialogue, () =>
+      box(0, 0, 300, sizeNow(dialogue, "height", dialogue.getAttribute("data-presence") === "hide" ? 20 : 60)),
+    );
+    const app = (h.ui as any).app;
+    const answer = app.answer.bind(app);
+    let answered = false;
+    app.answer = (message: unknown, work: Promise<unknown>) => {
+      void work.then(() => {
+        answered = true;
+      });
+      return answer(message, work);
+    };
+    timeline.currentTime = 1_000;
+    const hiding = PresenceElementsMessage.type.request({
+      effects: [{ element: (dialogue as any).__sdId, presence: "hide" }],
+    } as any);
+    h.ui.onReceiveNotification(BeatMessage.type.notification({ messages: [hiding], time: 1_000 } as any));
+    await flushMicrotasks(10);
+    expect(dialogue.getAttribute("data-presence")).toBe("hide");
+    expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
+    expect(answered).toBe(false);
+    await advance(150);
+    expect(answered).toBe(false);
+    await advance(200);
+    await flushMicrotasks(10);
+    expect(motionsOf(dialogue)).toEqual([]);
+    expect(answered).toBe(true);
   });
 });

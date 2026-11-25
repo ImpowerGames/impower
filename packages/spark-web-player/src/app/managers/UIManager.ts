@@ -1481,7 +1481,12 @@ export default class UIManager extends Manager {
         const element = effect.element ? this.getElement(effect.element) : undefined;
         if (element?.isConnected) {
           played.push(effect.element);
-          motions.push(this._presence.play(element, effect.presence));
+          const presence = this._presence.play(element, effect.presence);
+          motions.push(
+            effect.presence === "hide"
+              ? presence.then(() => this._layoutMotion.finished(element))
+              : presence,
+          );
         }
       }
       await Promise.all(motions);

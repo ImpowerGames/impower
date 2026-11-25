@@ -118,7 +118,8 @@ const expectSettled = (result: Run) => {
 const MOVE = `Object.assign(document.getElementById("target").style, { left: "110px", top: "50px", width: "120px" });`;
 
 const frameAround = (transform: string) => ({
-  css: `#frame { position: absolute; left: 250px; top: 140px; width: 200px; height: 200px; transform-origin: top left; ${transform}; }
+  css: `#root { perspective: 500px; }
+        #frame { position: absolute; left: 250px; top: 140px; width: 200px; height: 200px; transform-origin: top left; ${transform}; }
         #target { position: absolute; left: 10px; top: 0; width: 80px; height: 30px; transition: layout 1s linear; }`,
   html: `<div id="frame"><div id="target"></div></div>`,
 });
@@ -140,6 +141,8 @@ test.each([
   ["a reflection", "scale: -1 1"],
   ["a mirroring matrix", "transform: scale(-1, 1)"],
   ["a 3D transform", "transform: rotateY(30deg)"],
+  ["a 3D scale", "scale: 1 1 2"],
+  ["a 3D translate", "translate: 0px 0px 40px"],
 ])("in Chromium, a child of a parent with %s takes its new box at once with nothing left on it", async (_, transform) => {
   const { css, html } = frameAround(transform);
   const result = await run(css, html, MOVE);
@@ -189,6 +192,51 @@ test("in Chromium, a moving element whose ancestor becomes mirrored ends its mot
   } finally {
     await page.close();
   }
+});
+
+test("in Chromium, a moving element whose ancestor becomes rotated mid-motion is let go on the next frame", async () => {
+  const page = await open(
+    `#frame { position: absolute; left: 250px; top: 140px; width: 200px; height: 200px; }
+     #target { position: absolute; left: 10px; top: 0; width: 80px; height: 30px; transition: layout 1s linear; }`,
+    `<div id="frame"><div id="target"></div></div>`,
+  );
+  try {
+    const result = await page.evaluate(() => {
+      const w = window as any;
+      const target = document.getElementById("target")!;
+      const motion = new w.LayoutMotion();
+      const boxes = motion.measure(document.getElementById("root"), () => true);
+      target.style.top = "100px";
+      motion.play(boxes);
+      w.seek(300);
+      const moving = target.getAnimations().length;
+      document.getElementById("frame")!.style.rotate = "20deg";
+      w.seek(400);
+      return { moving, animations: target.getAnimations().length, translate: getComputedStyle(target).translate };
+    });
+    expect(result.moving).toBeGreaterThan(0);
+    expect(result.animations).toBe(0);
+    expect(result.translate).toBe("none");
+  } finally {
+    await page.close();
+  }
+});
+
+test("in Chromium, a box whose width animates keeps its unchanged auto height while its new text would reflow it", async () => {
+  const result = await run(
+    `#target { font: 16px/20px monospace; width: 100px; transition: layout 1s linear; }`,
+    `<div id="target">Hi</div>`,
+    `const target = document.getElementById("target"); target.style.width = "200px"; target.textContent = "one two three four";`,
+    [0, 250, 500, 750, 1000],
+  );
+  expect(result.after.height).toBe(result.before.height);
+  for (const frame of result.frames) {
+    near(frame.height, result.before.height, "height");
+  }
+  const [start, , middle, , end] = result.frames;
+  near(start!.width, result.before.width, "width at the start");
+  near(middle!.width, (result.before.width + result.after.width) / 2, "width halfway");
+  near(end!.width, result.after.width, "width at the end");
 });
 
 test.each([

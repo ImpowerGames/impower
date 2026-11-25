@@ -97,6 +97,13 @@ const diagonalOf = (style: CSSStyleDeclaration): LayoutPoint | undefined => {
     style.scale && style.scale !== "none"
       ? style.scale.trim().split(/\s+/).map(Number)
       : [1];
+  if (scale.length > 2 && scale[2] !== 1) {
+    return undefined;
+  }
+  const depth = style.translate?.trim().split(/\s+/)[2];
+  if (depth && Number.parseFloat(depth) !== 0) {
+    return undefined;
+  }
   let x = scale[0]!;
   let y = scale[1] ?? x;
   const transform = style.transform;
@@ -213,19 +220,27 @@ export const getSizeKeyframes = (
     frame[`min${name}`] = `${size}px`;
     frame[`max${name}`] = `${size}px`;
   };
-  for (const axis of ["width", "height"] as const) {
-    const size = startSize(from, to, axis);
-    if (differs(size, to[axis])) {
-      pin(start, axis, size);
-      pin(end, axis, to[axis]);
-    }
-  }
   for (const inset of changedInsets(from, to)) {
     if (to.undrawn?.includes(inset)) {
       continue;
     }
     start[inset] = `${from.insets![inset]}px`;
     end[inset] = `${to.insets![inset]}px`;
+  }
+  const axes = (["width", "height"] as const).map(
+    (axis) => [axis, startSize(from, to, axis), to[axis]] as const,
+  );
+  if (
+    Object.keys(start).length === 0 &&
+    !axes.some(([, size, final]) => differs(size, final))
+  ) {
+    return undefined;
+  }
+  for (const [axis, size, final] of axes) {
+    if (Number.isFinite(size) && Number.isFinite(final)) {
+      pin(start, axis, size);
+      pin(end, axis, final);
+    }
   }
   return Object.keys(start).length > 0 ? [start, end] : undefined;
 };
@@ -277,6 +292,8 @@ export default class LayoutMotion {
   protected _motions = new Map<HTMLElement, Motion>();
 
   protected _frame?: () => void;
+
+  protected _waiters = new Map<HTMLElement, (() => void)[]>();
 
   constructor(hold?: AnimationHold) {
     this._hold = hold;
@@ -339,7 +356,7 @@ export default class LayoutMotion {
       if (running ? sameBox(running.to, to) : sameBox(boxes.get(el)!, to)) {
         continue;
       }
-      this.stop(el);
+      this.stop(el, false);
       begin(el, to, timing);
     }
     if (started.length === 0) {
@@ -358,6 +375,20 @@ export default class LayoutMotion {
       }
     }
     this.schedule(started[0]![0].ownerDocument.defaultView);
+  }
+
+  async finished(root: Element): Promise<void> {
+    const moving = Array.from(this._motions.keys()).filter(
+      (el) => el === root || root.contains(el),
+    );
+    await Promise.all(
+      moving.map(
+        (el) =>
+          new Promise<void>((resolve) => {
+            this._waiters.set(el, [...(this._waiters.get(el) ?? []), resolve]);
+          }),
+      ),
+    );
   }
 
   settle(): void {
@@ -686,13 +717,21 @@ export default class LayoutMotion {
     );
   }
 
-  protected stop(el: HTMLElement): void {
+  protected stop(el: HTMLElement, release = true): void {
     const motion = this._motions.get(el);
     if (motion) {
       this._motions.delete(el);
       for (const animation of this.animationsOf(motion)) {
         animation.cancel();
       }
+    }
+    if (!release) {
+      return;
+    }
+    const waiters = this._waiters.get(el);
+    this._waiters.delete(el);
+    for (const resolve of waiters ?? []) {
+      resolve();
     }
   }
 }
