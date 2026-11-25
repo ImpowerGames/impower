@@ -45,6 +45,7 @@ export const NOT_COMPONENTS: readonly string[] = [
   "useAnnouncer",
   "componentRegistry",
   "dialogVariants",
+  "DIALOG_TRANSITION_MS",
   "filterChipVariants",
   "MESSAGE_ENTRY_ROW_HEIGHT",
   "FIX_MENU_LABEL",

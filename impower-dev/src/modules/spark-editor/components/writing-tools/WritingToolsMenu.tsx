@@ -137,14 +137,12 @@ export default function WritingToolsMenu({
       <Row
         icon={<BookIcon />}
         label="Sparkdown guide"
-        description="A quick reference while you write."
         view="guide"
         onClick={() => onView("guide")}
       />
       <Row
         icon={<KeyboardIcon />}
         label="Keyboard shortcuts"
-        description="For a connected keyboard."
         view="shortcuts"
         onClick={() => onView("shortcuts")}
       />

@@ -235,7 +235,7 @@ describe("morph playback in the page", () => {
     expect(write.params.instructions[0].content.morph.plays.map((p: any) => p.layer)).toEqual([1]);
     await until(() => playback.stats.live === 1, "the composed artifact");
     const span = portraitSpan(h.overlay)!;
-    expect(span.style.backgroundImage).toBe("none");
+    expect(span.style.backgroundImage).toBe("none, none, none");
     const view = (playback as any).layers.values().next().value.images[0].view;
     const children = Array.from(shadowOf(span)!.children) as HTMLElement[];
     expect(children).toHaveLength(3);

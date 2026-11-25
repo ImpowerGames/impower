@@ -219,6 +219,12 @@ export function layeredMorphArtwork(context: Context | undefined, image: any): L
 export interface LayeredMorphDrawn {
   file: number;
   opacity: number;
+  motions: LayeredMorphMotion[];
+}
+
+export interface LayeredMorphMotion {
+  label: string;
+  wrapper: number;
 }
 
 export interface LayeredMorphModel {
@@ -256,11 +262,32 @@ const posed = (element: Element, frame: MorphFrameState | undefined): Element =>
   return copy;
 };
 
+const chainMotions = new WeakMap<LayeredMorphModel, LayeredMorphMotion[][]>();
+
+export function layeredMorphMotions(model: LayeredMorphModel): LayeredMorphMotion[][] {
+  let motions = chainMotions.get(model);
+  if (!motions) {
+    const wrappers = new Map<Element, number>();
+    motions = model.chains.map(({ chain }) =>
+      chain.flatMap((element) => {
+        const label = element.attributes["data-morph-motion"];
+        if (!label) return [];
+        if (!wrappers.has(element)) wrappers.set(element, wrappers.size);
+        return [{ label, wrapper: wrappers.get(element)! }];
+      }),
+    );
+    chainMotions.set(model, motions);
+  }
+  return motions;
+}
+
 export function layeredMorphDrawn(model: LayeredMorphModel, frame?: MorphFrameState): LayeredMorphDrawn[] {
   const drawn: LayeredMorphDrawn[] = [];
-  for (const { file, chain } of model.chains) {
+  const motionsOf = layeredMorphMotions(model);
+  model.chains.forEach(({ file, chain }, at) => {
     let opacity = 1;
     let shown = true;
+    const motions = motionsOf[at]!;
     chain.forEach((element, index) => {
       const pose = posed(element, frame);
       const display = styleProperty(pose, "display") ?? pose.attributes["display"];
@@ -271,7 +298,7 @@ export function layeredMorphDrawn(model: LayeredMorphModel, frame?: MorphFrameSt
       }
       opacity *= readAlpha(styleProperty(pose, "opacity") ?? pose.attributes["opacity"] ?? "1") ?? 1;
     });
-    if (shown && opacity > 0) drawn.push({ file, opacity });
-  }
+    if (shown && opacity > 0) drawn.push({ file, opacity, motions });
+  });
   return drawn;
 }

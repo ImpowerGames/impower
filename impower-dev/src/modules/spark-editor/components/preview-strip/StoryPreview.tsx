@@ -33,7 +33,7 @@ const withWorkspace = async (
   await act(Workspace.window);
 };
 
-export default function PhonePreviewStrip({
+export default function StoryPreview({
   size = "phone",
   docked = false,
 }: {
@@ -104,6 +104,7 @@ export default function PhonePreviewStrip({
       onPlay={() => void withWorkspace((win) => win.playInFullView())}
       onOpen={() => void withWorkspace((win) => win.openFullView())}
       onCollapse={() => void withWorkspace((win) => win.collapsePreviewPane())}
+      onCollapsed={() => void withWorkspace((win) => win.finishPreviewCollapse())}
       picture={typeof window === "undefined" ? null : <Preview />}
     />
   );

@@ -731,6 +731,111 @@ layout menu {
     expect(destroyed(h, root)).toHaveLength(1);
   });
 
+  describe("in a screen with elements of its own", () => {
+    const SCREEN = `${NO_BOX}
+style banner {
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+
+screen menu {
+  banner { text "Banner" }
+  slot
+}
+
+layout home in menu {
+  home_page { text "Home" }
+}
+
+layout options in menu {
+  options_page { text "Options" }
+}
+`;
+
+    test("the screen's elements arrive with its first layout and leave with its last", async () => {
+      const h = harness(SCREEN);
+      await h.ready;
+      const ui = h.game.module.ui;
+      ui.setMotion(true);
+      h.reset();
+      await ui.openLayout("home");
+      await flushMicrotasks(10);
+      const frame = (ui as any)._mountedScreens.get("menu").element.id;
+      expect(presenceOf(h, frame)).toBe("initial");
+      expect(motions(h)).toEqual([{ element: frame, presence: "show" }]);
+      await settle(h);
+      h.reset();
+      await ui.closeLayout("home");
+      await flushMicrotasks(10);
+      expect(motions(h)).toEqual([{ element: frame, presence: "hide" }]);
+      expect(destroyed(h, frame)).toEqual([]);
+      expect((ui as any)._mountedScreens.size).toBe(0);
+      await settle(h);
+      expect(destroyed(h, frame)).toHaveLength(1);
+    });
+
+    test("a navigate between its layouts moves only the layouts at its slot", async () => {
+      const h = harness(SCREEN);
+      await h.ready;
+      const ui = h.game.module.ui;
+      ui.setMotion(true);
+      await ui.openLayout("home");
+      await flushMicrotasks(10);
+      await settle(h);
+      const frame = (ui as any)._mountedScreens.get("menu").element.id;
+      const home = (ui as any)._mountedLayouts.get("home").element.id;
+      h.reset();
+      await ui.navigateScreen("options", "menu");
+      await flushMicrotasks(10);
+      const options = (ui as any)._mountedLayouts.get("options").element.id;
+      expect(motions(h)).toEqual(
+        expect.arrayContaining([
+          { element: home, presence: "hide" },
+          { element: options, presence: "show" },
+        ]),
+      );
+      expect(motions(h)).toHaveLength(2);
+      expect(presenceOf(h, options)).toBe("initial");
+      await settle(h);
+      expect(destroyed(h, home)).toHaveLength(1);
+      expect(destroyed(h, frame)).toEqual([]);
+    });
+
+    test("a text target in its body arrives with its line and leaves when the line moves on", async () => {
+      const h = harness(`${NO_BOX}
+${FADING}
+
+screen stage {
+  dialogue { text }
+  action { text }
+  slot
+}
+
+layout scene_view in stage {
+  backdrop
+}
+`);
+      await h.ready;
+      const ui = h.game.module.ui;
+      await play(h, {
+        layout: { scene_view: [{ control: "open", name: "scene_view" }] },
+      });
+      await settle(h);
+      const [dialogue] = ui.findIds("dialogue");
+      h.reset();
+      await play(h, dialogueLine);
+      expect(presenceOf(h, dialogue!)).toBe("initial");
+      expect(motions(h)).toContainEqual({ element: dialogue, presence: "show" });
+      await settle(h);
+      h.reset();
+      await play(h, actionLine);
+      expect(motions(h)).toContainEqual({ element: dialogue, presence: "hide" });
+      expect(displayOf(h, dialogue!)).toBeUndefined();
+      await settle(h);
+      expect(displayOf(h, dialogue!)).toBe("none");
+    });
+  });
+
   test("opens and closes at once when displayed instantly", async () => {
     const h = harness(MENU);
     await h.ready;

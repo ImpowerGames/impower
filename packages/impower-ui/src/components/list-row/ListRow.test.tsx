@@ -119,7 +119,7 @@ describe("ListRow", () => {
     expect(root.querySelector("button")!.hasAttribute("aria-pressed")).toBe(false);
   });
 
-  it("draws a selectable row's mark beside its button, reporting each change, and hides it until hovered or focused", async () => {
+  it("draws a selectable row's mark beside its button, reporting each change, and hides it until its checkbox has keyboard focus, whatever the pointer does", async () => {
     const onSelectedChange = vi.fn();
     const onClick = vi.fn();
     const root = await mount(
@@ -136,8 +136,10 @@ describe("ListRow", () => {
     expect(root.querySelector("button")!.contains(mark)).toBe(false);
     const label = mark.closest("label")!.className.split(/\s+/);
     expect(label).toContain("opacity-0");
-    expect(label).toContain("group-hover/row:opacity-100");
     expect(label).toContain("has-focus-visible:opacity-100");
+    expect(label.filter((name) => name.includes("hover"))).toEqual([]);
+    const body = root.querySelector("button")!.className.split(/\s+/);
+    expect(body.filter((name) => name.includes("hover"))).toEqual([]);
     await act(async () => mark.click());
     expect(onSelectedChange).toHaveBeenCalledWith(true);
     expect(onClick).not.toHaveBeenCalled();
@@ -169,7 +171,7 @@ describe("ListRow", () => {
     expect(row.className.split(/\s+/)).toEqual(expect.arrayContaining(["ring-2", "ring-accent"]));
   });
 
-  it("puts a gutter badge before the row's button as a button of its own, keeping the row's glyph and inset", async () => {
+  it("draws an icon control over the row's hidden glyph as a button of its own, outside the row's button", async () => {
     const onBadge = vi.fn();
     const onRow = vi.fn();
     const root = await mount(
@@ -177,10 +179,10 @@ describe("ListRow", () => {
         size="rail"
         indent="row"
         depth={2}
-        gutter={
+        iconControl={
           <ListRowBadge
-            placement="gutter"
-            label="2 errors in the_rumour"
+            placement="icon"
+            label="Show 2 errors in the_rumour"
             severity="error"
             onClick={onBadge}
           />
@@ -191,18 +193,44 @@ describe("ListRow", () => {
       />,
     );
     const [badge, row] = Array.from(root.querySelectorAll("button"));
-    expect(badge!.getAttribute("aria-label")).toBe("2 errors in the_rumour");
-    expect(badge!.getAttribute("title")).toBe("2 errors in the_rumour");
+    expect(badge!.getAttribute("aria-label")).toBe("Show 2 errors in the_rumour");
+    expect(badge!.getAttribute("title")).toBe("Show 2 errors in the_rumour");
     expect(badge!.contains(row!)).toBe(false);
-    expect(badge!.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "w-(--list-row-gutter)", "[:root[data-pointer=coarse]_&]:w-11"]));
+    expect(row!.contains(badge!)).toBe(false);
+    expect(badge!.className.split(" ")).toEqual(expect.arrayContaining(["size-7", "[&>svg]:size-[17px]", "[:root[data-pointer=coarse]_&]:size-11"]));
+    const slot = badge!.parentElement!;
+    expect(slot.hasAttribute("data-list-row-icon-control")).toBe(true);
+    expect(slot.className.split(" ")).toEqual(expect.arrayContaining(["absolute", "left-[9px]", "w-[17px]"]));
+    expect(slot.style.marginLeft).toBe("");
     expect(row!.querySelector("[data-glyph]")).not.toBeNull();
-    expect(row!.className).toContain("pl-1.5");
-    expect(row!.parentElement!.style.getPropertyValue("--list-row-depth")).toBe("2");
+    expect(row!.className.split(" ")).toContain("[&>svg:first-child]:invisible");
     await act(async () => badge!.click());
     expect(onBadge).toHaveBeenCalledTimes(1);
     expect(onRow).not.toHaveBeenCalled();
     await act(async () => row!.click());
     expect(onRow).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a row's glyph visible and draws no icon control slot without one", async () => {
+    const root = await mount(<ListRow size="rail" icon={<svg data-glyph />} label="dock" onClick={() => {}} />);
+    expect(root.querySelector("[data-list-row-icon-control]")).toBeNull();
+    expect(root.querySelector("button")!.className.split(" ")).not.toContain("[&>svg:first-child]:invisible");
+  });
+
+  it("moves an icon control past the guides of a row indented by its content", async () => {
+    const root = await mount(
+      <ListRow
+        size="outline"
+        depth={2}
+        iconControl={<ListRowBadge placement="icon" label="Show 1 note in storm" severity="note" onClick={() => {}} />}
+        icon={<svg />}
+        label="storm"
+        onClick={() => {}}
+      />,
+    );
+    const slot = root.querySelector<HTMLElement>("[data-list-row-icon-control]")!;
+    expect(slot.className.split(" ")).toContain("left-[13px]");
+    expect(slot.style.marginLeft).toBe("36px");
   });
 
   it("fades a node label the same way as a string label", async () => {
@@ -262,7 +290,7 @@ describe("ListRow", () => {
     expect(root.querySelector("small")!.className).toContain("text-[11px]/[1.4]");
   });
 
-  it("draws a badge as a 44px trailing target with a 14px mark unless placed in the gutter", async () => {
+  it("draws a badge as a 44px trailing target with a 14px mark unless placed on the icon", async () => {
     const root = await mount(
       <ListRowBadge label="Scene" severity="warning" onClick={() => {}} />,
     );
@@ -371,8 +399,8 @@ describe("ListRow control", () => {
       <ListRow label="door" control={control} selection="available" selectLabel="Select door" onClick={() => undefined} />,
     );
     const mark = available.querySelector("label")!;
-    expect(mark.className).toContain("group-hover/row:opacity-0");
-    expect(mark.className).not.toContain("group-hover/row:opacity-100");
+    expect(mark.className.split(" ")).toContain("opacity-0");
+    expect(mark.className).not.toContain("hover");
     expect(available.querySelector("[data-list-row-control]")!.className).not.toContain("invisible");
     await act(async () => render(null, host!));
     host!.remove();

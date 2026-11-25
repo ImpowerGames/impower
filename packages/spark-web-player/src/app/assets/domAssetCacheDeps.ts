@@ -1,4 +1,5 @@
 import { type AssetCacheDeps, type WarmHandle } from "./AssetCache";
+import { dataUrlBytes, pictureFileTraits, streamInflate } from "../morph/pictureFileTraits";
 
 export const WARM_CONTAINER_ID = "spark-asset-warm";
 
@@ -10,7 +11,7 @@ export const cssUrl = (src: string): string =>
 
 export const createDomAssetCacheDeps = (
   doc: Document | null = typeof document === "undefined" ? null : document,
-): Pick<AssetCacheDeps, "createImage" | "warmImage"> => {
+): Pick<AssetCacheDeps, "createImage" | "warmImage" | "inspectImage"> => {
   let container: HTMLElement | undefined;
   const containerOf = (): HTMLElement | undefined => {
     const root = doc?.body ?? doc?.documentElement;
@@ -32,8 +33,20 @@ export const createDomAssetCacheDeps = (
     }
     return container;
   };
+  const view = doc?.defaultView as (Window & typeof globalThis) | null | undefined;
   return {
     createImage: () => new Image(),
+    inspectImage: view
+      ? async (src: string) => {
+          const bytes = /^data:/i.test(src)
+            ? dataUrlBytes(src)
+            : await view.fetch(src).then(
+                async (response) => (response.ok ? new Uint8Array(await response.arrayBuffer()) : undefined),
+                () => undefined,
+              );
+          return bytes ? pictureFileTraits(bytes, streamInflate(view)) : undefined;
+        }
+      : undefined,
     warmImage: doc
       ? (src: string): WarmHandle | undefined => {
           const host = containerOf();

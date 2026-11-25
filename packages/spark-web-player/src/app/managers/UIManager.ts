@@ -306,6 +306,10 @@ export default class UIManager extends Manager {
     if (morphs) {
       morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
       morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
+      morphs.residentPicture = (src) => {
+        const picture = (this.app.assets?.cache ?? this.app.assetCache)?.picture(src);
+        return picture ? { ...picture, image: picture.image as unknown as CanvasImageSource } : undefined;
+      };
     }
     this.beginReconcilePass();
     this.endCutscene(true);
@@ -2170,7 +2174,11 @@ export default class UIManager extends Manager {
             for (const pictureEl of pictureEls) {
               placePicture(pictureEl, instruction.framing);
             }
-          } else if (instruction.control === "hide") {
+          }
+          if (travel || instruction.control === "show") {
+            this.morphs?.requestRelayout();
+          }
+          if (instruction.control === "hide") {
             for (const pictureEl of pictureEls) {
               hiding.push({ pictureEl, exits: targetAnimations });
             }
@@ -2230,14 +2238,17 @@ export default class UIManager extends Manager {
               content.video && !video
                 ? content.srcs.filter((src) => src !== content.video?.src)
                 : content.srcs;
-            if (content.morph && instruction.control !== "hide") {
+            const morph = instruction.control !== "hide" ? content.morph : undefined;
+            const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
+            if (morph || pictures.length > 0) {
               this.morphs?.mount(
                 newSpanEl,
-                content.morph,
+                morph ?? { plays: [], epoch: 0 },
                 content.background,
                 property === "mask_image" ? "mask" : "background",
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
                 morphGroup,
+                pictures,
               );
             }
             if (instruction.control === "show") {
