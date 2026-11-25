@@ -221,6 +221,7 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
+const SELECTOR_LIST_ITEM_AFTER = /[^\S\n\r]*[#\[:.&>+~]|[^,]*@[_\p{L}]/uy;
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
@@ -262,7 +263,7 @@ class SparkleSelectorWriter {
       }
     }
     const sets = Array.from({ length: this.item + 1 }, (_, item) =>
-      (this.itemAtRules[item] ?? []).map(({ text }) => text).sort(),
+      [...new Set((this.itemAtRules[item] ?? []).map(({ text }) => text))].sort(),
     );
     const [first = []] = sets;
     if (sets.every((set) => set.length === first.length && set.every((text, i) => text === first[i]))) {
@@ -592,7 +593,7 @@ class SparkleSelectorWriter {
         declarations.length === 1 &&
         (char === ")" ||
           (char === "@" && this.stateAfter(0)) ||
-          (char === "," && (shorthand || this.stateInNextItem())))
+          (char === "," && (shorthand || this.listItemAfter())))
       ) {
         break;
       }
@@ -650,30 +651,9 @@ class SparkleSelectorWriter {
     return NEXT_STATE.test(this.src);
   }
 
-  private stateInNextItem(): boolean {
-    let depth = 0;
-    for (let i = this.i + 1; i < this.src.length; i++) {
-      const char = this.src[i]!;
-      if (char === "\\") {
-        i++;
-      } else if (char === '"' || char === "'") {
-        QUOTED.lastIndex = i;
-        QUOTED.test(this.src);
-        i = QUOTED.lastIndex - 1;
-      } else if (char === "(" || char === "[") {
-        depth++;
-      } else if (char === ")" || char === "]") {
-        if (depth === 0) {
-          return false;
-        }
-        depth--;
-      } else if (depth === 0 && char === ",") {
-        return false;
-      } else if (depth === 0 && char === "@" && NAME_START.test(this.src[i + 1] ?? "")) {
-        return true;
-      }
-    }
-    return false;
+  private listItemAfter(): boolean {
+    SELECTOR_LIST_ITEM_AFTER.lastIndex = this.i + 1;
+    return SELECTOR_LIST_ITEM_AFTER.test(this.src);
   }
 
   private closesNext(): boolean {

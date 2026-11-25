@@ -1,0 +1,23 @@
+style card {
+  @media (min-width: 1px) @hovered {
+    color = red
+  }
+  @media (min-width: 1px) @showing(hud) {
+    color = red
+  }
+  @hovered @media (min-width: 1px), text @focused {
+    color = red
+  }
+  @hovered @media (min-width: 1px), #selected {
+    color = red
+  }
+  @media (min-width: 1px), print {
+    color = red
+  }
+  @supports (display: grid) @hovered {
+    color = red
+  }
+  @scope (card) @hovered {
+    color = red
+  }
+}

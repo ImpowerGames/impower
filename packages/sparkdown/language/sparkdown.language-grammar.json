@@ -128,6 +128,7 @@
     "SELECTOR_WORD_PART_START": "[@][\\p{L}\\p{N}_]",
     "SELECTOR_WORD": "(?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)",
     "SELECTOR_WORD_GOES_ON": "(?:[{{SELECTOR_WORD_CHAR}}]|{{SELECTOR_WORD_PART_START}})",
+    "SELECTOR_LIST_ITEM_AFTER": "(?:{{WS}}*[#\\[:.&>+~]|[^,]*[@][_\\p{L}])",
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}-",
     "IDENTIFIER_START": "[{{IDENTIFIER_START_CHAR}}]",
@@ -7588,11 +7589,11 @@
           "include": "#RecursiveSelectorFunctionParameters"
         },
         {
-          "include": "#SelectorCssText"
+          "include": "#SelectorAtRulePreludeText"
         }
       ],
       "applyEndPatternLast": true,
-      "end": "(?=[)])|$"
+      "end": "(?=[),@])|$"
     },
     "SelectorSupportsAtRule": {
       "begin": "([@])(supports)(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
@@ -7620,11 +7621,11 @@
           "include": "#SelectorSupportsSelectorFunction"
         },
         {
-          "include": "#SelectorCssText"
+          "include": "#SelectorAtRulePreludeText"
         }
       ],
       "applyEndPatternLast": true,
-      "end": "(?=[)])|$"
+      "end": "(?=[),@])|$"
     },
     "SelectorSupportsAtRuleGroup": {
       "brackets": true,
@@ -7719,11 +7720,11 @@
           "include": "#SelectorAtRuleGroup"
         },
         {
-          "include": "#SelectorCssText"
+          "include": "#SelectorAtRulePreludeText"
         }
       ],
       "applyEndPatternLast": true,
-      "end": "(?=[)])|$"
+      "end": "(?=[),@])|$"
     },
     "SelectorAtRuleGroup": {
       "brackets": true,
@@ -7802,6 +7803,38 @@
           "include": "#SelectorCssPunctuation"
         }
       ]
+    },
+    "SelectorAtRulePreludeText": {
+      "patterns": [
+        {
+          "include": "#LuauStructBlockKeyString"
+        },
+        {
+          "include": "#StringLiteral"
+        },
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#SelectorAtRuleListComma"
+        },
+        {
+          "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorAtRulePunctuation"
+        }
+      ]
+    },
+    "SelectorAtRuleListComma": {
+      "tag": "operator",
+      "name": "keyword.operator.comma.sd",
+      "match": "([,])(?!(?:(?:[^\\S\\n\\r])*[#\\[:.&>+~]|[^,]*[@][_\\p{L}]))"
+    },
+    "SelectorAtRulePunctuation": {
+      "tag": "operator",
+      "name": "keyword.operator.css.sd",
+      "match": "([^\\s(),@\\p{L}\\p{N}_-]|[@](?![_\\p{L}]))"
     },
     "SelectorCssWord": {
       "tag": "string",

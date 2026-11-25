@@ -56,7 +56,10 @@ describe("a comma list whose selectors hold different at-rule states is reported
     ["@hovered @container-size(sm), @focused", ["@container-size(sm)"]],
     ["@hovered @media (min-width: 1px), text @focused", ["@media (min-width: 1px)"]],
     ["@hovered @container-size(sm), text", ["@container-size(sm)"]],
-    ["@hovered @media (min-width: 1px), @focused @media (min-width: 2px)", ["@media (min-width: 1px)"]],
+    ["@hovered @media (min-width: 1px), #selected", ["@media (min-width: 1px)"]],
+    ["@hovered @media (min-width: 1px), :focus", ["@media (min-width: 1px)"]],
+    ["@hovered @media (min-width: 1px), [selected]", ["@media (min-width: 1px)"]],
+    ["@hovered @media (min-width: 1px), @focused @media (min-width: 2px)", ["@media (min-width: 1px)", "@media (min-width: 2px)"]],
   ])("%s", (selector, written) => {
     expect(warnings(selector, "at-rule-list")).toEqual(written.map((w) => listWarning(selector, w)));
   });
@@ -80,8 +83,36 @@ describe("a comma list whose selectors hold different at-rule states is reported
     "@media (min-width: 1px), speech",
     "@hovered @media (min-width: 1px), text",
     "@hovered @container-size(sm), @focused @container-size(640px)",
+    "@hovered @screen-size(sm) @screen-size(sm), @focused @screen-size(sm)",
   ])("does not warn on %s", (selector) => {
     expect(warnings(selector, "at-rule-list")).toEqual([]);
+  });
+});
+
+describe("a state written after an at-rule's condition is checked as a state (#2785)", () => {
+  const messages = (selector: string) =>
+    (compile(`${LAYOUTS}
+style frame {
+  ${selector} {
+    opacity = 1
+  }
+}
+`).diagnostics?.[MAIN] ?? []).map((d: any) => ({
+      code: d.code,
+      message: typeof d.message === "string" ? d.message : d.message.value,
+    }));
+
+  it.each([
+    ["@media (min-width: 1px) @showing(missing)", "showing-name"],
+    ["@supports (display: grid) @showing(missing)", "showing-name"],
+    ["@scope (frame) @showing(missing)", "showing-name"],
+  ])("%s warns on the name as it does before the condition", (selector, code) => {
+    expect(messages(selector).filter((d) => d.code === code)).toHaveLength(1);
+    expect(messages(selector.replace(/^(.*?) (@showing\(missing\))$/, "$2 $1")).filter((d) => d.code === code)).toHaveLength(1);
+  });
+
+  it("warns on an unknown state after the condition", () => {
+    expect(messages("@media (min-width: 1px) @hoverd").filter((d) => d.message.includes("`@hoverd` is not a known state"))).toHaveLength(1);
   });
 });
 

@@ -236,6 +236,9 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     ["@busy @media (min-width: 600px), card @focused", "@media"],
     ["@busy @container-size(sm), card", "@container-size"],
     ["@busy @container (min-width: 1px), card @focused", "@container"],
+    ["@busy @media (min-width: 600px), #selected", "@media"],
+    ["@busy @media (min-width: 600px), :focus", "@media"],
+    ["@busy @media (min-width: 600px), [selected]", "@media"],
   ])("%s", (key, state) => {
     for (const colorScheme of ["attribute", "media"] as const) {
       const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });
@@ -271,6 +274,15 @@ describe("a comma list whose selectors share their at-rule states writes one rul
     });
     expect(written.refusals).toEqual([]);
     expect(written.atRules).toEqual(["@container(max-width:640px)"]);
+  });
+
+  test("a condition written twice is the same condition", () => {
+    const written = writeSparkleSelectorChecked("@busy @screen-size(sm) @screen-size(sm), @focused @screen-size(sm)", {
+      breakpoints: BREAKPOINTS,
+      colorScheme: "media",
+    });
+    expect(written.refusals).toEqual([]);
+    expect(written.atRules).toEqual(["@container screen (max-width:640px)"]);
   });
 
   for (const renderer of ["player", "preview"] as const) {
