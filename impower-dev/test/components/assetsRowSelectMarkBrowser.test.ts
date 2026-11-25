@@ -76,13 +76,14 @@ describe("Assets list rows under the select circle", () => {
     const input = touch ? "touch" : "a mouse";
 
     if (!touch) {
-      it(`with ${input}, hide a hovered row's leading box under a circle centred in it`, async () => {
+      it(`with ${input}, keep a hovered row's leading box in view and draw no circle`, async () => {
         for (const { tab, paths } of LISTS) {
           const page = await open(touch, tab, paths[0]);
           for (const path of paths) {
             await page.locator(`[data-asset-path="${path}"]`).hover();
             await frames(page);
-            expect({ path, ...(await leadingOf(page, path)) }).toEqual({ path, ...hidden });
+            const { visible, mark } = await leadingOf(page, path);
+            expect({ path, visible, mark }).toEqual({ path, visible: true, mark: false });
           }
           await page.context().close();
         }

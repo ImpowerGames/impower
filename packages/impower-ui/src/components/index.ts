@@ -304,7 +304,7 @@ export {
   default as FeatureCard,
   featureCardVariants,
   type FeatureCardProps,
-  type FeatureCardSize,
+  type FeatureCardLayout,
 } from "./feature-card/FeatureCard";
 export {
   default as PageFrame,

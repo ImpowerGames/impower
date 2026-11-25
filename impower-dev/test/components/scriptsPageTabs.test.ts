@@ -281,9 +281,9 @@ describe("the In this script tab's rows", () => {
     await mount();
     expect(badgeOf(row("Scene: dock"))).toBeNull();
     const storm = badgeOf(row("Branch: storm"))!;
-    expect(storm.getAttribute("aria-label")).toBe("1 error in storm");
+    expect(storm.getAttribute("aria-label")).toBe("Show 1 error in storm");
     const harbor = badgeOf(row("Scene: harbor"))!;
-    expect(harbor.getAttribute("aria-label")).toBe("Scene total: 1 error in harbor");
+    expect(harbor.getAttribute("aria-label")).toBe("Show 1 error in harbor, choices and branches included");
     expect(harbor.getAttribute("aria-haspopup")).toBe("dialog");
     await act(async () => harbor.click());
     expect(dialog()!.querySelector("p")!.textContent).toBe("harbor · 1 error");
@@ -303,7 +303,8 @@ describe("the In this script tab's rows", () => {
     });
     const storm = row("Branch: storm");
     expect(storm.querySelector(":scope > svg")).not.toBeNull();
-    expect(storm.compareDocumentPosition(badgeOf(storm)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(badgeOf(storm)!.parentElement!.hasAttribute("data-list-row-icon-control")).toBe(true);
+    expect(storm.contains(badgeOf(storm)!)).toBe(false);
   });
 
   it("marks the row holding the caret as current, and its scene as containing it", async () => {

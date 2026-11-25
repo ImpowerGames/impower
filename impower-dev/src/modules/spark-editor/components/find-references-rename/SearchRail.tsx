@@ -43,7 +43,7 @@ export default function SearchRail() {
       {snapshot.view === "find" ? (
         <FindView />
       ) : snapshot.view === "references" ? (
-        <ReferencesView />
+        <ReferencesView rows="rail" />
       ) : (
         <RenameView />
       )}

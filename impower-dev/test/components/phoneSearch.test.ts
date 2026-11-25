@@ -241,6 +241,12 @@ describe("the phone's References and Rename", () => {
     expect(search.openUse).toHaveBeenCalledWith(references[0]!.uses[0]);
   });
 
+  it("keeps the sheet's use rows at their default size", async () => {
+    await mount({ ...INITIAL_SEARCH, open: true, view: "references", subject, references });
+    const rows = Array.from(dialog()!.querySelectorAll("li[data-rows]"));
+    expect(rows.map((li) => li.getAttribute("data-rows"))).toEqual(["default"]);
+  });
+
   it("gives the focus back to the script when the sheet is closed", async () => {
     await mount({ ...INITIAL_SEARCH, open: true, view: "references", subject, references });
     await act(async () =>
