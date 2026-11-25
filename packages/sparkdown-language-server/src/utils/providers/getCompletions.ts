@@ -71,6 +71,7 @@ import {
 } from "./alternatorKeywordHelp";
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { getStyleValueDescription } from "./styleValueDescriptions";
 import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
 import { presenceBlockDocumentation } from "./presenceBlockHelp";
 
@@ -1117,6 +1118,16 @@ const addStructPropertyValueSchemaCompletions = (
         : relativePath;
       if (lookupPath) {
         const value = getProperty(schemaStruct, lookupPath);
+        const property = lookupPath.split(".").at(-1) ?? "";
+        const describeStyleValue = (completion: CompletionItem, option: string) => {
+          const documentation =
+            schemaStruct.$type === "style"
+              ? getStyleValueDescription(property, option)
+              : undefined;
+          if (documentation) {
+            completion.documentation = documentation;
+          }
+        };
         if (Array.isArray(value)) {
           for (const option of value) {
             const kind = getTypeKind(option);
@@ -1144,6 +1155,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1163,6 +1175,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1183,6 +1196,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
