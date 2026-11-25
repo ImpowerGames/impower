@@ -270,6 +270,10 @@ const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
 
 const STYLE_CLASS_WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/gu;
 
+const RELATED_SELECTOR = /[+~]|@has(?![\p{L}\p{N}_-])|:has\(/u;
+
+const ANY_ELEMENT = "*";
+
 const presenceAttributes = (mark: Record<string, string | null>) =>
   Object.keys(mark).length > 0 ? { attributes: mark } : {};
 
@@ -1641,6 +1645,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           for (const presence of ["show", "hide"] as const) {
             if (PRESENCE_BLOCKS[presence].test(key)) {
               for (const selector of path) {
+                if (RELATED_SELECTOR.test(selector)) {
+                  moves[presence].add(ANY_ELEMENT);
+                }
                 for (const word of selector.match(STYLE_CLASS_WORD) ?? []) {
                   moves[presence].add(word);
                 }
@@ -1665,6 +1672,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const moves = this.presenceMoves()[presence];
     if (moves.size === 0) {
       return false;
+    }
+    if (moves.has(ANY_ELEMENT)) {
+      return true;
     }
     const named = (el: Element) => el.name.split(" ").some((c) => moves.has(c));
     for (let node: Element | null = element; node; node = node.parent) {

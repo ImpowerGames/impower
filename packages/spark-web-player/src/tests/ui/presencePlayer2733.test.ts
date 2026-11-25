@@ -280,6 +280,59 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
     expect(cancelled.has(carried[2]!)).toBe(true);
   });
 
+  test("an @initial animation on a pseudo-element is handed over on that pseudo-element", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    const pop = Object.assign(new FakeTransition(box, "opacity", 2000), {
+      animationName: "pop",
+    });
+    Object.assign(pop.effect as any, {
+      pseudoElement: "::before",
+      getKeyframes: () => [{ offset: 1, computedOffset: 1, opacity: "1" }],
+      getTiming: () => ({ duration: 2000 }),
+    });
+    const options: KeyframeAnimationOptions[] = [];
+    (box as any).animate = (_: Keyframe[], timing: KeyframeAnimationOptions) => {
+      options.push(timing);
+      const replay = new FakeTransition(box, "opacity", 2000);
+      (replay as any).cancel = () => {};
+      return replay;
+    };
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "initial" ? [pop] : []) as any;
+    const presence = (h.ui as any)._presence;
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    void presence.play(box, "show");
+    await flushMicrotasks(10);
+    expect(options).toEqual([{ duration: 2000, pseudoElement: "::before" }]);
+  });
+
+  test("an arrival that ends after a newer one has started leaves the newer one's mark alone", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    const first = new FakeTransition(box, "opacity", 200);
+    const second = new FakeTransition(box, "opacity", 200);
+    let current = first;
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "show" ? [current] : []) as any;
+    const presence = (h.ui as any)._presence;
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    const older = presence.play(box, "show");
+    await flushMicrotasks(5);
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    current = second;
+    void presence.play(box, "show");
+    await older;
+    await flushMicrotasks(10);
+    expect(box.getAttribute(PRESENCE)).toBe("show");
+    second.finish();
+    await flushMicrotasks(10);
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+  });
+
   test("under reduced motion an endless move started with the arrival is stopped", async () => {
     const h = await playing(FADING_BOX);
     const win = h.overlay.ownerDocument.defaultView as any;

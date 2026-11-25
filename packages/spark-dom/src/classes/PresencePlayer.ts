@@ -48,7 +48,10 @@ const carry = (
   const keyframes = effect
     .getKeyframes()
     .map(({ computedOffset: _, ...keyframe }) => keyframe);
-  const carried = target.animate(keyframes as Keyframe[], effect.getTiming());
+  const carried = target.animate(keyframes as Keyframe[], {
+    ...effect.getTiming(),
+    ...(effect.pseudoElement ? { pseudoElement: effect.pseudoElement } : {}),
+  } as KeyframeAnimationOptions);
   carried.currentTime = time ?? 0;
   return [carried];
 };
@@ -59,6 +62,8 @@ export default class PresencePlayer {
   protected _before = new WeakMap<Element, Set<Animation>>();
 
   protected _carried = new Map<Element, Animation[]>();
+
+  protected _plays = new WeakMap<Element, object>();
 
   constructor(
     protected hold: AnimationHold,
@@ -74,6 +79,8 @@ export default class PresencePlayer {
 
   async play(element: HTMLElement, presence: Exclude<Presence, "initial">) {
     this.end(element);
+    const turn = {};
+    this._plays.set(element, turn);
     if (
       presence === "show" &&
       element.getAttribute(PRESENCE_ATTRIBUTE) !== "initial"
@@ -131,11 +138,14 @@ export default class PresencePlayer {
         this._motions.delete(element);
       }
     }
-    if (
-      presence === "show" &&
-      element.getAttribute(PRESENCE_ATTRIBUTE) === "show"
-    ) {
-      element.removeAttribute(PRESENCE_ATTRIBUTE);
+    if (this._plays.get(element) === turn) {
+      this._plays.delete(element);
+      if (
+        presence === "show" &&
+        element.getAttribute(PRESENCE_ATTRIBUTE) === "show"
+      ) {
+        element.removeAttribute(PRESENCE_ATTRIBUTE);
+      }
     }
     this.release(element, carried);
   }
