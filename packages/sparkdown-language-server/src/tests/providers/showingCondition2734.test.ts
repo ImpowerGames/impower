@@ -112,6 +112,50 @@ style frame {
       expect(positionWarnings(selector)).toEqual([]);
     },
   );
+
+  const nestedWarnings = (outer: string, inner: string) =>
+    (compile(`${LAYOUTS}
+style frame {
+  icon > badge {
+    opacity = 1
+  }
+  ${outer} {
+    ${inner} {
+      opacity = 1
+    }
+  }
+}
+`).diagnostics?.[MAIN] ?? [])
+      .filter((d: any) => d.code === "showing-position")
+      .map((d: any) => ({
+        message: typeof d.message === "string" ? d.message : d.message.value,
+        line: d.range.start.line,
+        from: d.range.start.character,
+      }));
+
+  it.each([
+    ["> icon", "@showing(hud)"],
+    ["icon + badge", "@showing(hud) @hovered"],
+    [">> nameplate", "@showing(hud)"],
+    ["icon, > badge", "@showing(hud)"],
+  ])("warns on a block nested under %s, whose joined key puts the condition after a combinator", (outer, inner) => {
+    expect(nestedWarnings(outer, inner)).toEqual([
+      {
+        message: `\`@showing\` cannot be written in a compound after a combinator, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@showing(action) @hovered\`; the style's own properties are its look while the name is not showing`,
+        line: 17,
+        from: 4,
+      },
+    ]);
+  });
+
+  it.each([
+    ["@hovered", "@showing(hud)"],
+    ["icon", "@showing(hud)"],
+    ["@screen-size(sm)", "@showing(hud)"],
+    ["@showing(hud)", "@hovered"],
+  ])("does not warn on a block nested under %s, after a sibling block with a combinator", (outer, inner) => {
+    expect(nestedWarnings(outer, inner)).toEqual([]);
+  });
 });
 
 describe("@showing(name) takes a name with @ alternates (#2734)", () => {

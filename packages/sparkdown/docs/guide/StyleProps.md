@@ -109,7 +109,7 @@ style frame {
 }
 ```
 
-Write `@showing(name)` as a state of the style's own selector, alone or beside other states such as `@hovered` or `@theme(dark)`, or as its own nested block; anywhere else, inside another function's parentheses, an at-rule or after a combinator, it gets a warning and its block never applies. For the look while a name is not showing, write it as the style's own properties, and the `@showing` block as the look while it is.
+Write `@showing(name)` as a state of the style's own selector, alone or beside other states such as `@hovered` or `@theme(dark)`, or as its own nested block, read together with the blocks it sits in; anywhere else, inside another function's parentheses, an at-rule or after a combinator (`> icon { @showing(hud) { … } }` included), it gets a warning and its block never applies. For the look while a name is not showing, write it as the style's own properties, and the `@showing` block as the look while it is.
 
 A name that is no layout and no element gets a warning, because the block would never apply.
 

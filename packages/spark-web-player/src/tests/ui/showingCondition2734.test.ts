@@ -10,7 +10,9 @@ import {
   writeSparkleSelectorChecked,
 } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { writeSparkleSelector as writeBaseSelector } from "./sparkleSelectorBase2734.fixture";
+import { getComponents, parseSparkle, renderCssVDOM } from "../../../../sparkle-screen-renderer/src";
 import { sparkleSelectorToCssSelector } from "../../../../sparkle-screen-renderer/src/runtime/css";
+import { createScreenRenderContext } from "../../../../sparkle-screen-preview/src/utils/createScreenRenderContext";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
 
 const ACTION = ':where([data-showing~="action"]) &';
@@ -117,6 +119,44 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
       const rule = anchorSelfTargeted(css).replaceAll("&", ".frame");
       expect(frameUnder().querySelector(target)!.matches(rule)).toBe(false);
       expect(frameUnder("action hud").querySelector(target)!.matches(rule)).toBe(true);
+    });
+  });
+
+  describe("a block nested under other keys is judged by its joined key, in the game and in the screen preview", () => {
+    const styled = (outer: string, inner: string) =>
+      getStyleContent(
+        { frame: { "icon > badge": { opacity: "0.5" }, [outer]: { [inner]: { opacity: "0.75" } } } },
+        { breakpoints: { sm: 640 }, theme: {} as never },
+      );
+    const previewed = (outer: string, inner: string) => {
+      const parsed = parseSparkle(
+        ["style frame", "  icon > badge", "    opacity = 0.5", `  ${outer}`, `    ${inner}`, "      opacity = 0.75"].join(
+          "\n",
+        ),
+      );
+      return JSON.stringify(renderCssVDOM(parsed, createScreenRenderContext(getComponents(parsed), {}, new Set())));
+    };
+    test.each([
+      ["> icon", "@showing(action)"],
+      ["icon + badge", "@showing(action) @hovered"],
+      [">> name", "@showing(action)"],
+      ["icon, > badge", "@showing(action)"],
+    ])("under %s, %s writes no rule", (outer, inner) => {
+      for (const css of [styled(outer, inner), previewed(outer, inner)]) {
+        expect(css).toContain("0.5");
+        expect(css).not.toContain("data-showing");
+        expect(css).not.toContain("0.75");
+      }
+    });
+    test.each([
+      ["@hovered", "@showing(action)"],
+      ["icon", "@showing(action)"],
+      ["@screen-size(sm)", "@showing(action)"],
+    ])("under %s, %s writes its rule", (outer, inner) => {
+      for (const css of [styled(outer, inner), previewed(outer, inner)]) {
+        expect(css).toContain("data-showing~=");
+        expect(css).toContain("0.75");
+      }
     });
   });
 

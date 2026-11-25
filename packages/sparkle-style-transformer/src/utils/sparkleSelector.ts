@@ -165,6 +165,7 @@ export interface SparkleSelectorOptions {
   breakpoints: Record<string, number>;
   colorScheme: "attribute" | "media";
   attributeName?: (name: string) => string;
+  afterCombinator?: boolean;
 }
 
 type ArgumentKind = "selectors" | "nth" | "value";
@@ -225,6 +226,8 @@ class SparkleSelectorWriter {
 
   private compound = 0;
 
+  leftFirstCompound = false;
+
   private item = 0;
 
   private atRule = false;
@@ -246,6 +249,7 @@ class SparkleSelectorWriter {
 
   write(): string {
     let out = "";
+    this.compound = this.firstCompound();
     while (this.i < this.src.length) {
       out += this.list("selectors", true);
       if (this.i < this.src.length) {
@@ -274,13 +278,18 @@ class SparkleSelectorWriter {
     }
   }
 
+  private firstCompound(): number {
+    return this.options.afterCombinator ? 1 : 0;
+  }
+
   private nextCompound(item = false): void {
     if (this.positions.length === 0) {
       if (item) {
         this.item++;
-        this.compound = 0;
+        this.compound = this.firstCompound();
       } else {
         this.compound++;
+        this.leftFirstCompound = true;
       }
     }
   }
@@ -720,14 +729,15 @@ const liftShowing = (selector: string, roots: string[]): string =>
 export const writeSparkleSelectorChecked = (
   selector: string,
   options: SparkleSelectorOptions,
-): { css: string; refusals: ShowingRefusal[] } => {
+): { css: string; refusals: ShowingRefusal[]; afterCombinator: boolean } => {
   const writer = new SparkleSelectorWriter(selector, options);
   const written = writer.write();
+  const afterCombinator = Boolean(options.afterCombinator) || writer.leftFirstCompound;
   if (writer.refusals.length > 0) {
-    return { css: written, refusals: writer.refusals };
+    return { css: written, refusals: writer.refusals, afterCombinator };
   }
   const css = options.colorScheme === "attribute" ? liftColorScheme(written) : written;
-  return { css: writer.roots.length > 0 ? liftShowing(css, writer.roots) : css, refusals: [] };
+  return { css: writer.roots.length > 0 ? liftShowing(css, writer.roots) : css, refusals: [], afterCombinator };
 };
 
 export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string =>

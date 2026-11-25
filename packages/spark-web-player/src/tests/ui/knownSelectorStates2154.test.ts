@@ -169,7 +169,7 @@ describe("known selector states (#2154, #2502)", () => {
   it.each(APPLIED.filter(([name]) => name !== "theme"))(
     "writes %s in the screen preview as the player does",
     (_name, source, css) => {
-      expect(sparkleSelectorToCssSelector(source, { sm: 640 })).toBe(css);
+      expect(sparkleSelectorToCssSelector(source, { sm: 640 })?.css).toBe(css);
     },
   );
 });

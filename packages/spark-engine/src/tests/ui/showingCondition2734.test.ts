@@ -231,14 +231,18 @@ end
     expect(marks).toEqual([["portrait"], []]);
   });
 
-  test("a line leaving through its @hide leaves the mark when its hide starts", async () => {
-    const { h, marks } = await play(`define ui as config with
+  test("a line cleared through its @hide leaves the mark, with what it holds, when its hide starts", async () => {
+    const h = createHarness(
+      `define ui as config with
   layouts_initial = { }
 end
 
 layout main {
   action {
     text
+    badge {
+      text = "!"
+    }
   }
   dialogue {
     text
@@ -253,21 +257,36 @@ style frame {
   @showing(action) {
     opacity = 1
   }
+  @showing(badge) {
+    opacity = 1
+  }
 }
-
-scene start
-  The door opens.
-  [[dialogue "Hello."]]
-end
-`);
-    const [action] = h.game.module.ui.findIds("action");
+`,
+      0,
+      { reactive: true, autoOpenAll: false, holdPresence: true, beforeConnect: live },
+    );
+    await h.ready;
+    await flushMicrotasks(10);
+    const ui: any = h.game.module.ui;
+    const [action] = ui.findIds("action");
+    ui.setMotion(true);
+    await ui.text.write("action", [{ text: "The door opens." }], false);
+    h.releasePresence();
+    await flushMicrotasks(30);
+    expect(ui.showingNames()).toEqual(expect.arrayContaining(["action", "badge"]));
+    h.reset();
+    void ui.text.clear("action");
+    await flushMicrotasks(10);
     const hides = wire(h.messages)
       .filter((m: any) => m?.method === "ui/presence")
       .flatMap((m: any) => m.params.effects)
       .filter((effect: any) => effect.element === action && effect.presence === "hide");
     expect(hides).toHaveLength(1);
-    expect(marks[0]).toContain("action");
-    expect(marks[1]).not.toContain("action");
+    expect(ui.showingNames()).not.toContain("action");
+    expect(ui.showingNames()).not.toContain("badge");
+    h.releasePresence();
+    await flushMicrotasks(30);
+    expect(ui.showingNames()).not.toContain("badge");
   });
 
   test("an element written in a leaving layout counts as showing until the layout is removed", async () => {

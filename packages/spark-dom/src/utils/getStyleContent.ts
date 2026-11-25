@@ -41,23 +41,24 @@ export const getStyleContent = (
   Object.entries(styles).forEach(([name, style]) => {
     let styleContent = "";
     let level = 1;
-    const process = (k: string, v: unknown) => {
+    const process = (k: string, v: unknown, afterCombinator = false) => {
       const indent = "  ".repeat(level);
       if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
-          const { css: elementSelector, refusals } = writeSparkleSelectorChecked(k, {
+          const written = writeSparkleSelectorChecked(k, {
             breakpoints: options.breakpoints,
             colorScheme: "attribute",
             attributeName,
+            afterCombinator,
           });
-          if (refusals.length > 0) {
+          if (written.refusals.length > 0) {
             return;
           }
-          const selfTargetedSelector = anchorSelfTargeted(elementSelector);
+          const selfTargetedSelector = anchorSelfTargeted(written.css);
           styleContent += `\n${indent}${selfTargetedSelector} {`;
           level++;
           Object.entries(v).forEach(([nk, nv]) => {
-            process(nk, nv);
+            process(nk, nv, written.afterCombinator);
           });
           level--;
           styleContent += `\n${indent}}`;

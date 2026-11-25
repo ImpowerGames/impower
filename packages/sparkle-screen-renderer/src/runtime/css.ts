@@ -3,7 +3,8 @@ import { writeSparkleSelectorChecked } from "../../../sparkle-style-transformer/
 export function sparkleSelectorToCssSelector(
   selector: string,
   breakpoints: Record<string, number>,
-): string | undefined {
-  const { css, refusals } = writeSparkleSelectorChecked(selector, { breakpoints, colorScheme: "media" });
-  return refusals.length > 0 ? undefined : css;
+  afterCombinator = false,
+): { css: string; afterCombinator: boolean } | undefined {
+  const written = writeSparkleSelectorChecked(selector, { breakpoints, colorScheme: "media", afterCombinator });
+  return written.refusals.length > 0 ? undefined : written;
 }
