@@ -435,6 +435,8 @@ style line {
 A box that fits its text grows to each new line's height, and lines in a column slide to make room for a new one instead of jumping.
 
 - The element's real size changes during the motion, so its text, borders and corners keep their shape. A change of place is drawn with `translate`.
+- A size that changes because its padding, border or `box-sizing` changed animates the same way, starting from the box's old size on screen.
+- An element inside a rotated, skewed, mirrored or 3D-transformed element takes its new place and size at once. A `scale` or `transform` on the element itself, mirrored or not, and a positive scale on the elements around it still animate.
 - The motion runs on the game's clock: pausing, stepping and scrubbing hold it.
 - The editor preview on a line, a step back, a loaded save and skipping show the new place and size at once, and so does the reader's reduced-motion setting.
 

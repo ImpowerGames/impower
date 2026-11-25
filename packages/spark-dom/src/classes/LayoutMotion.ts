@@ -11,7 +11,6 @@ export interface LayoutBox extends LayoutPoint {
   insets?: Partial<Record<LayoutInset, number>>;
   sizing?: string;
   undrawn?: LayoutInset[];
-  local?: Element;
 }
 
 export type LayoutInset = (typeof INSETS)[number];
@@ -114,18 +113,24 @@ const diagonalOf = (style: CSSStyleDeclaration): LayoutPoint | undefined => {
 
 const borderBoxed = (box: LayoutBox) => box.sizing === "border-box";
 
-const sizeIn = (from: LayoutBox, to: LayoutBox, axis: "width" | "height") => {
-  const across = (sides: readonly LayoutInset[]) =>
-    sides.reduce((sum, side) => sum + (from.insets?.[side] ?? 0), 0);
-  let size = from[axis];
-  if (borderBoxed(from) !== borderBoxed(to)) {
-    size += borderBoxed(to) ? across(SIDES[axis]) : -across(SIDES[axis]);
-  }
-  if (!borderBoxed(to)) {
-    size += across(SIDES[axis].filter((side) => to.undrawn?.includes(side)));
-  }
-  return size;
-};
+const insetsAcross = (
+  box: LayoutBox,
+  axis: "width" | "height",
+  drawn: (side: LayoutInset) => boolean = () => true,
+) =>
+  SIDES[axis].reduce((sum, side) => {
+    const inset = box.insets?.[side] ?? 0;
+    return sum + (drawn(side) && Number.isFinite(inset) ? inset : 0);
+  }, 0);
+
+const outerSize = (box: LayoutBox, axis: "width" | "height") =>
+  box[axis] + (borderBoxed(box) ? 0 : insetsAcross(box, axis));
+
+const startSize = (from: LayoutBox, to: LayoutBox, axis: "width" | "height") =>
+  outerSize(from, axis) -
+  (borderBoxed(to)
+    ? 0
+    : insetsAcross(from, axis, (side) => !to.undrawn?.includes(side)));
 
 export const namesLayoutTransition = (text: string): boolean =>
   LAYOUT_TRANSITION.test(text);
@@ -189,12 +194,11 @@ const changedInsets = (a: LayoutBox, b: LayoutBox): LayoutInset[] =>
     differs(a.insets?.[inset] ?? NaN, b.insets?.[inset] ?? NaN),
   );
 
-const sameSpace = (a: LayoutBox, b: LayoutBox) => a.local === b.local;
-
 const sameBox = (a: LayoutBox, b: LayoutBox) =>
-  (!sameSpace(a, b) || (!differs(a.x, b.x) && !differs(a.y, b.y))) &&
-  !differs(sizeIn(a, b, "width"), b.width) &&
-  !differs(sizeIn(a, b, "height"), b.height) &&
+  !differs(a.x, b.x) &&
+  !differs(a.y, b.y) &&
+  !differs(startSize(a, b, "width"), b.width) &&
+  !differs(startSize(a, b, "height"), b.height) &&
   changedInsets(a, b).length === 0;
 
 export const getSizeKeyframes = (
@@ -210,7 +214,7 @@ export const getSizeKeyframes = (
     frame[`max${name}`] = `${size}px`;
   };
   for (const axis of ["width", "height"] as const) {
-    const size = sizeIn(from, to, axis);
+    const size = startSize(from, to, axis);
     if (differs(size, to[axis])) {
       pin(start, axis, size);
       pin(end, axis, to[axis]);
@@ -312,10 +316,7 @@ export default class LayoutMotion {
     }
     const started: [HTMLElement, Motion][] = [];
     const begin = (el: HTMLElement, to: LayoutBox, timing: LayoutTiming) => {
-      const measured = boxes.get(el)!;
-      const from = sameSpace(measured, to)
-        ? measured
-        : { ...measured, x: to.x, y: to.y, local: to.local };
+      const from = boxes.get(el)!;
       const motion: Motion = {
         from,
         to,
@@ -413,7 +414,8 @@ export default class LayoutMotion {
       return false;
     }
     for (const [el, motion] of ordered) {
-      if (!el.isConnected) {
+      const view = el.ownerDocument.defaultView;
+      if (!el.isConnected || !view || !this.alignedWithin(el.parentElement, pass, view)) {
         this.stop(el);
         continue;
       }
@@ -454,9 +456,6 @@ export default class LayoutMotion {
     progress: number,
     pass: PlacePass,
   ): LayoutPoint {
-    if (motion.to.local) {
-      return getLayoutShift(motion.from, motion.to, this.localPlaceOf(el), progress);
-    }
     const view = el.ownerDocument.defaultView;
     const scale = view ? this.scaleOf(el.parentElement, pass, view) : UNIT;
     const shift = getLayoutShift(
@@ -469,14 +468,6 @@ export default class LayoutMotion {
     return { x: shift.x / scale.x, y: shift.y / scale.y };
   }
 
-  protected localPlaceOf(el: HTMLElement): LayoutPoint {
-    const parent = el.offsetParent as HTMLElement | null;
-    return {
-      x: (parent?.clientLeft ?? 0) + el.offsetLeft,
-      y: (parent?.clientTop ?? 0) + el.offsetTop,
-    };
-  }
-
   protected placeOf(el: HTMLElement, pass: PlacePass): LayoutPoint {
     const known = pass.places.get(el);
     if (known) {
@@ -486,10 +477,9 @@ export default class LayoutMotion {
     const parent = el.offsetParent as HTMLElement | null;
     const base = parent ? this.placeOf(parent, pass) : NO_SHIFT;
     const scale = parent && view ? this.scaleOf(parent, pass, view) : UNIT;
-    const local = this.localPlaceOf(el);
     const offset = (parent && view && this.offsetWithin(el, parent, pass, view)) ?? {
-      x: local.x * scale.x,
-      y: local.y * scale.y,
+      x: ((parent?.clientLeft ?? 0) + el.offsetLeft) * scale.x,
+      y: ((parent?.clientTop ?? 0) + el.offsetTop) * scale.y,
     };
     const place = { x: base.x + offset.x, y: base.y + offset.y };
     pass.places.set(el, place);
@@ -603,22 +593,23 @@ export default class LayoutMotion {
     inFlightWithin?: HTMLElement,
   ): LayoutBox | undefined {
     const view = el.ownerDocument.defaultView;
-    if (!view || el.getClientRects().length === 0) {
+    if (
+      !view ||
+      el.getClientRects().length === 0 ||
+      !this.alignedWithin(el.parentElement, pass, view)
+    ) {
       return undefined;
     }
-    const local = this.alignedWithin(el.parentElement, pass, view)
-      ? undefined
-      : (el.offsetParent ?? el.parentElement ?? undefined);
-    let { x, y } = local ? this.localPlaceOf(el) : this.placeOf(el, pass);
+    let { x, y } = this.placeOf(el, pass);
     if (inFlightWithin) {
       for (
         let node: HTMLElement | null = el;
-        node && node !== inFlightWithin && (node === el || !local);
+        node && node !== inFlightWithin;
         node = node.parentElement
       ) {
         const shift = this._motions.get(node)?.shift;
         if (shift) {
-          const scale = local ? UNIT : this.scaleOf(node.parentElement, pass, view);
+          const scale = this.scaleOf(node.parentElement, pass, view);
           x += shift.x * scale.x;
           y += shift.y * scale.y;
         }
@@ -640,7 +631,6 @@ export default class LayoutMotion {
       insets,
       sizing: style.boxSizing,
       ...(undrawn.length > 0 ? { undrawn } : {}),
-      ...(local ? { local } : {}),
     };
   }
 

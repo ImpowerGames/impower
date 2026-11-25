@@ -574,7 +574,7 @@ end
     root.remove();
   });
 
-  test("an element inside a rotated parent is measured in the parent's own units", () => {
+  test("an element inside a rotated parent takes its new place at once", () => {
     useLayout();
     const { root, at } = mount(`<div class="turned"><div class="slow child"></div></div>`);
     const [turned, child] = [at(".turned"), at(".child")];
@@ -589,7 +589,8 @@ end
     const boxes = motion.measure(root);
     moved = true;
     motion.play(boxes);
-    expect(shiftOf(child)).toEqual({ x: 0, y: -100 });
+    expect(motionsOf(child)).toEqual([]);
+    expect(shiftOf(child)).toEqual({ x: 0, y: 0 });
     root.remove();
   });
 
