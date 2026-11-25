@@ -46,6 +46,7 @@ export interface PictureBitmap {
   profile?: boolean;
   unread?: boolean;
   unsized?: boolean;
+  framed?: boolean;
   vector?: SvgLayerSource;
 }
 
@@ -138,10 +139,11 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
   }
   const bytes = await readPictureBytes(src, view);
   const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
-  const svg = bytes && traits?.svg && view.DOMParser ? readSvgLayer(new TextDecoder().decode(bytes), new view.DOMParser()) : undefined;
+  const svg = bytes && traits?.svg && view.DOMParser ? readSvgLayer(new TextDecoder().decode(bytes), new view.DOMParser(), { view, natural: { width: img.naturalWidth, height: img.naturalHeight } })
+      : undefined;
   const size = { image: img, width: img.naturalWidth, height: img.naturalHeight };
   if (svg && "reason" in svg) {
-    return { ...size, animated: svg.reason === "animated", unread: svg.reason === "unread", unsized: svg.reason === "unsized" };
+    return { ...size, animated: svg.reason === "animated", unread: svg.reason === "unread", unsized: svg.reason === "unsized", framed: svg.reason === "framed" };
   }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
   if (!decoded && !(img.complete && paintsAnything(img, img.naturalWidth, img.naturalHeight, doc))) return undefined;
@@ -951,7 +953,9 @@ export class MorphLayer {
             ? ("unread" as const)
             : bitmap?.unsized
               ? ("unsized" as const)
-              : undefined;
+              : bitmap?.framed
+                ? ("framed" as const)
+                : undefined;
       return reason ? [{ index, reason }] : [];
     });
     for (const { index, reason } of unfaithful) {

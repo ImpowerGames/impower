@@ -46,6 +46,26 @@ const SVG_LAYER_SIZES: [number, number][] = [
 
 const SVG_LAYER_ALLOWANCE = 0.02;
 
+const SVG_ROOT = (attributes: string, inside = "") => `<svg xmlns="http://www.w3.org/2000/svg" ${attributes}>${inside}<rect x="10" y="20" width="70" height="50"/></svg>`;
+
+const SVG_VERDICTS: [string, string, { width: number; height: number } | undefined][] = [
+  [SVG_ROOT('viewBox="0 0 100 100"', '<style>rect { font-family: "/*" } @keyframes spin { to { opacity: 0 } } rect { animation: spin 1s infinite }</style>'), "animated", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { fill: url(https://example.invalid/a/*) } rect { animation: spin 1s infinite }</style>"), "animated", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>/* @keyframes old { to { opacity: 0 } } */ @keyframes spin { to { opacity: 0 } } rect { animation-name: spin }</style>"), "animated", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { anim\\61tion-name: spin }</style>"), "animated", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>/* rect { animation: spin 1s } */ rect { fill: blue }</style>"), "kept", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>@keyframes unused { to { opacity: 0 } }</style>"), "kept", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100" style="box-sizing:border-box;padding:20px"'), "framed", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100" style="border:20px solid red"'), "framed", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>:root { padding: 4px }</style>"), "framed", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { padding: 4px; border: 2px solid red }</style>"), "kept", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100" style="border:20px none red;max-width:100px"'), "kept", undefined],
+  [SVG_ROOT('width="1e309" height="1e309"'), "unsized", undefined],
+  [SVG_ROOT('width="1e39" height="1e39"'), "unsized", undefined],
+  [SVG_ROOT('width="100" height="100"'), "unsized", { width: 300, height: 150 }],
+  [SVG_ROOT('width="1in" height="0.5in"'), "kept", { width: 96, height: 48 }],
+];
+
 const LEVELS = 8;
 const ALLOWANCE = 0.001;
 const CANVAS_ALLOWANCE = 0.0001;
@@ -93,6 +113,7 @@ type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number, o
   sparse(dot: number): Promise<boolean>;
   svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number, sibling?: boolean): Promise<void>;
   cssFit(kind: string, width: number, height: number): Promise<void>;
+  svgVerdict(text: string, natural?: { width: number; height: number }): string;
   wholePng: string;
 };
 
@@ -232,7 +253,7 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     },
   );
 
-  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice", "a size set by its own style", "a size set by a stylesheet"])(
+  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice", "a size set by its own style", "a size set by a stylesheet", "a maximum width", "a minimum width", "a minimum height", "a maximum height", "important limits in a stylesheet", "a transform on the root"])(
     "an SVG layer file with %s is drawn in the picture as CSS draws it, at uniform and stretched placements",
     async (kind, context) => {
       if (!browser) return context.skip();
@@ -249,6 +270,15 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
       }
     },
   );
+
+  test.for(SVG_VERDICTS)("the browser reads an SVG layer file %s as %s", async ([text, expected, natural], context) => {
+    if (!browser) return context.skip();
+    const verdict = await page.evaluate(
+      ({ text, natural }) => (window as unknown as { layeredMotion: Harness }).layeredMotion.svgVerdict(text, natural),
+      { text, natural },
+    );
+    expect(verdict).toBe(expected);
+  });
 
   test("the paint probe finds a single painted pixel on a large layer, and nothing on an empty one", async (context) => {
     if (!browser) return context.skip();

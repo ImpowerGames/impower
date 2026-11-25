@@ -2016,7 +2016,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
             : params.reason === "undrawn"
               ? "is an SVG the browser would not draw at the picture's size"
-              : "could not be read to check that it is a still sRGB image";
+              : params.reason === "framed"
+                ? "is an SVG whose root has padding or a border, which browsers do not draw alike on a canvas"
+                : "could not be read to check that it is a still sRGB image";
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 

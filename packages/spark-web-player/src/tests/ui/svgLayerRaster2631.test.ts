@@ -4,7 +4,7 @@ import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/m
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { MorphPlayback, type PictureBitmap, type PictureCanvasContext } from "../../app/morph/MorphPlayback";
 import { pictureFileTraits } from "../../app/morph/pictureFileTraits";
-import { fittedSvgLayer, readSvgLayer, type SvgLayerRaster } from "../../app/morph/svgLayerFile";
+import { cssWithoutComments, fittedSvgLayer, readSvgLayer, type SvgLayerRaster } from "../../app/morph/svgLayerFile";
 import { flushMicrotasks, installJSDOM } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -145,14 +145,32 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect(read(`<svg xmlns="${NS}" width="2.6e2" height="+140px"/>`)).toMatchObject({ source: { viewBox: false } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* @keyframes old { to { opacity: 0 } } */ rect { fill: blue }</style></svg>`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="fill: red; /* animation: spin 1s */"/></svg>`)).toMatchObject({ source: { viewBox: true } });
-    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* old */ @keyframes spin { to { rotate: 1turn } }</style></svg>`)).toEqual({ reason: "animated" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* old */ rect { animation: spin 1s }</style></svg>`)).toEqual({ reason: "animated" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>rect { font-family: "/*" } rect { animation: spin 1s }</style></svg>`)).toEqual({ reason: "animated" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>rect { fill: url(a/*) } rect { animation: spin 1s }</style></svg>`)).toEqual({ reason: "animated" });
+    expect(read(`<svg xmlns="${NS}" width="1e309" height="1e309"/>`)).toEqual({ reason: "unsized" });
+    expect(read(`<svg xmlns="${NS}" width="1e39" height="140"/>`)).toEqual({ reason: "unsized" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="padding:2px"/>`)).toEqual({ reason: "framed" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>svg { border: 1px solid }</style></svg>`)).toEqual({ reason: "framed" });
+    const sized = (natural: { width: number; height: number }) => readSvgLayer(`<svg xmlns="${NS}" width="1in" height="140"/>`, new view.DOMParser(), { natural });
+    expect(sized({ width: 96, height: 140 })).toMatchObject({ source: { viewBox: false } });
+    expect(sized({ width: 300, height: 150 })).toEqual({ reason: "unsized" });
+    expect(sized({ width: 0, height: 0 })).toEqual({ reason: "unsized" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect><animate attributeName="x" to="1" dur="1s"/></rect></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><set attributeName="x" to="1"/></svg>`)).toEqual({ reason: "animated" });
-    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>@keyframes spin { to { rotate: 1turn } }</style></svg>`)).toEqual({ reason: "animated" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>@keyframes spin { to { rotate: 1turn } }</style></svg>`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="fill:red; animation: spin 1s"/></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="transition: fill 1s"/></svg>`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect></svg>`)).toEqual({ reason: "unread" });
     expect(read(`<html xmlns="http://www.w3.org/1999/xhtml"/>`)).toEqual({ reason: "unread" });
+  });
+
+  test("CSS comments are removed outside strings, escapes and url tokens only", () => {
+    expect(cssWithoutComments('a { b: "/*" } /* c */ d')).toBe('a { b: "/*" }   d');
+    expect(cssWithoutComments("a { b: url(x/*y) } /* c")).toBe("a { b: url(x/*y) }  ");
+    expect(cssWithoutComments("a { b: url( '/*' ) } e")).toBe("a { b: url( '/*' ) } e");
+    expect(cssWithoutComments("a\\/* b */c")).toBe("a\\/* b */c");
+    expect(cssWithoutComments("curl(/*x*/)")).toBe("curl( )");
   });
 
   test("the fitted copy takes the canvas's size, keeps the file's own viewBox and alignment, and stretches a file without a viewBox as CSS does", () => {
@@ -167,7 +185,9 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     const stretched = fit(`<svg xmlns="${NS}" width="2in" height="1in"><rect width="1" height="1"/></svg>`, false);
     expect([stretched.getAttribute("width"), stretched.getAttribute("height"), stretched.getAttribute("viewBox"), stretched.getAttribute("preserveAspectRatio")]).toEqual(["375", "188", "0 0 100 50", "none"]);
     const styled = fit(`<svg xmlns="${NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><style>svg { width: 100px }</style></svg>`, true);
-    expect(styled.getAttribute("style")).toBe("width:100px;height:100px;width:375px !important;height:188px !important");
+    expect(styled.getAttribute("style")).toBe(
+      "width:100px;height:100px;width:375px !important;height:188px !important;min-width:0 !important;min-height:0 !important;max-width:none !important;max-height:none !important;margin:0 !important",
+    );
   });
 
   test("a layer disposed while its first raster decodes releases that raster when it arrives, and never draws it", async () => {
@@ -238,6 +258,7 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     ["an animated SVG", { animated: true }, "animated"],
     ["an SVG that does not parse", { unread: true }, "unread"],
     ["an SVG without a viewBox or a size", { unsized: true }, "unsized"],
+    ["an SVG whose root has padding or a border", { framed: true }, "framed"],
   ] as const)("%s keeps the picture on its CSS drawing, and the game is told which file", async ([, flags, reason]) => {
     const rasterize = vi.fn(async (width: number, height: number) => raster(width, height));
     const { canvas, still } = picture(flags, rasterize);

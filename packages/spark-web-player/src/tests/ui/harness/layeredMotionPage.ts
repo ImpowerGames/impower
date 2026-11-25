@@ -3,6 +3,7 @@ import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/m
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { browserPictureLoader, MorphPlayback, paintsAnything } from "../../../app/morph/MorphPlayback";
+import { readSvgLayer } from "../../../app/morph/svgLayerFile";
 
 const WIDTH = 400;
 const HEIGHT = 600;
@@ -452,6 +453,12 @@ const FIT_SVGS: Record<string, string> = {
   "an alignment and slice": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 50" preserveAspectRatio="xMaxYMin slice"><rect x="10" y="10" width="70" height="30" fill="#2040e0"/></svg>`,
   "a size set by its own style": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
   "a size set by a stylesheet": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100"><style>svg { width: 100px; height: 100px }</style><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "a maximum width": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="max-width:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "a minimum width": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="min-width:400px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "a minimum height": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="min-height:400px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "a maximum height": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="max-height:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "important limits in a stylesheet": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100"><style>svg { max-width: 100px !important; max-height: 100px !important }</style><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
+  "a transform on the root": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="transform:scale(0.5)"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
 };
 
 async function cssFit(kind: string, width: number, height: number) {
@@ -508,4 +515,9 @@ async function cssFit(kind: string, width: number, height: number) {
   await nextFrame();
 }
 
-(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, cssFit, wholePng: WHOLE_PNG };
+const svgVerdict = (text: string, natural?: { width: number; height: number }) => {
+  const verdict = readSvgLayer(text, new DOMParser(), { view: window, ...(natural ? { natural } : {}) });
+  return "reason" in verdict ? verdict.reason : "kept";
+};
+
+(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, cssFit, svgVerdict, wholePng: WHOLE_PNG };
