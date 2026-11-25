@@ -1744,7 +1744,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const layout = this._game.program?.sparkle?.layouts?.[layoutName];
     const components = this._game.program?.sparkle?.components ?? {};
-    const classes = new Set<string>(["layouts", "main", layoutName]);
+    const classes = new Set<string>([
+      "layouts",
+      "main",
+      layoutName,
+      this.layoutRootName(layoutName),
+    ]);
     const propValues: [string, string][] = [];
     const expanded = new Set<string>();
     const visit = (nodes: unknown[] | undefined) => {
@@ -2335,7 +2340,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected layoutRootName(layoutName: string): string {
-    return this.layoutHolds(layoutName, [layoutName])
+    return this._clearOnContinue.has(layoutName) ||
+      this.layoutHolds(layoutName, [layoutName])
       ? `layout_${layoutName}`
       : layoutName;
   }
@@ -2625,7 +2631,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected screenRootName(screen: ScreenNode): string {
-    return this.treeHolds(screen.children, new Set([screen.name]))
+    return this._clearOnContinue.has(screen.name) ||
+      this.treeHolds(screen.children, new Set([screen.name]))
       ? `screen_${screen.name}`
       : screen.name;
   }
