@@ -5014,10 +5014,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
-      const layoutsName = this.context.config?.ui?.layouts_element_name;
-      const layouts = layoutsName ? this._root.findChild(layoutsName) : null;
+      const roots = writes ? this.layoutRootElements() : null;
       const matches = this.searchForAll(this._root, name, found).filter(
-        (el) => !writes || !layouts || (el !== layouts && el.parent !== layouts),
+        (el) => !roots?.has(el),
       );
       const named = matches.filter((el) => el.name === name);
       const elements =
@@ -5046,6 +5045,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return elements;
     }
     return found;
+  }
+
+  protected layoutRootElements(): Set<Element> {
+    const roots = new Set<Element>();
+    const layoutsName = this.context.config?.ui?.layouts_element_name;
+    const layouts = layoutsName ? this._root?.findChild(layoutsName) : null;
+    if (layouts) {
+      roots.add(layouts);
+      for (const child of layouts.children) {
+        if (child) {
+          roots.add(child);
+        }
+      }
+    }
+    for (const { element } of this._mountedLayouts.values()) {
+      roots.add(element);
+    }
+    for (const { element } of this._mountedScreens.values()) {
+      roots.add(element);
+    }
+    return roots;
   }
 
   protected searchForAll(

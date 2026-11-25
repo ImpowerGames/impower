@@ -48,10 +48,11 @@ async function run(source: string) {
   const idsNamed = (name: string) =>
     [...names].filter(([, n]) => n === name).map(([id]) => id);
   const layoutRoot = (name: string) =>
-    idsNamed(name).filter((id) => {
-      const parent = parents.get(id);
-      return parent != null && names.get(parent) === "layouts";
-    });
+    idsNamed(name).filter((id) =>
+      [...parents].some(
+        ([child, parent]) => parent === id && names.get(child) === "column",
+      ),
+    );
   return {
     h,
     hidden,
@@ -176,6 +177,52 @@ scene start
 end
 `);
     const [root] = layoutRoot("title");
+    expect(root, created).toBeTruthy();
+    expect(hiddenIds).not.toContain(root);
+  });
+
+  test("`layout title in menu` is not hidden inside the screen's slot", async () => {
+    const { hiddenIds, layoutRoot, created } = await run(`screen menu {
+  row {
+    slot
+  }
+}
+
+layout title in menu {
+  column {
+    text "My Game"
+  }
+}
+
+scene start
+  [[navigate menu to title]]
+  You rummage.
+end
+`);
+    const [root] = layoutRoot("title");
+    expect(root, created).toBeTruthy();
+    expect(hiddenIds).not.toContain(root);
+  });
+
+  test("a screen named after a builtin target is not hidden when its layout opens", async () => {
+    const { hiddenIds, layoutRoot, created } = await run(`screen heading {
+  column {
+    slot
+  }
+}
+
+layout home in heading {
+  row {
+    text "My Game"
+  }
+}
+
+scene start
+  [[navigate heading to home]]
+  You rummage.
+end
+`);
+    const [root] = layoutRoot("heading");
     expect(root, created).toBeTruthy();
     expect(hiddenIds).not.toContain(root);
   });
