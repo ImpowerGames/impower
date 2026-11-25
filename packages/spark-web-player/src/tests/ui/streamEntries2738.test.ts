@@ -1,7 +1,8 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
 import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
+import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
 
 const STORY = `define RAFFLES as character with
   name = "RAFFLES"
@@ -227,5 +228,124 @@ end
     expect(box.length).toBeGreaterThan(0);
     expect(box.map((el) => el.textContent ?? "").join("|")).toContain("doors locked");
     expect(entriesOf(h).map(textOf)).toEqual(["slight problem", "doors locked"]);
+  });
+});
+
+const TOGGLED = (body: string) => `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+store expanded = true
+
+function toggle()
+  expanded = not expanded
+end
+
+layout phone {
+  stream {
+    dialogue.bubble {
+      ${body}
+    }
+  }
+}
+
+scene start
+  [[open phone]] RAFFLES: first message
+  RAFFLES: second message
+end
+`;
+
+const TEXT_BRANCH = `if expanded then
+        text.first
+      else
+        text.second
+      end`;
+
+const LABEL_BRANCH = `text
+      if expanded then
+        label.first "expanded"
+      else
+        label.second "collapsed"
+      end`;
+
+describe("a reactive change while an entry is typing (#2738)", () => {
+  let restore: (() => void) | undefined;
+
+  afterEach(() => {
+    restore?.();
+    restore = undefined;
+    vi.useRealTimers();
+  });
+
+  test.each([
+    ["the text child is remounted, beats not composed", TEXT_BRANCH, false],
+    ["a label beside the text is remounted, beats not composed", LABEL_BRANCH, false],
+    ["the text child is remounted, beats composed", TEXT_BRANCH, true],
+    ["a label beside the text is remounted, beats composed", LABEL_BRANCH, true],
+  ])("keeps the line's reveal where it was: %s", async (_label, body, composed) => {
+    const h = createDOMHarness(TOGGLED(body), 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    expect(h.overlay.querySelector(".phone .bubble .text")?.textContent).toBe("first message");
+    const g = globalThis as any;
+    const previous = {
+      Animation: g.Animation,
+      KeyframeEffect: g.KeyframeEffect,
+      getComputedStyle: g.getComputedStyle,
+    };
+    const win = h.overlay.ownerDocument.defaultView!;
+    g.getComputedStyle = win.getComputedStyle.bind(win);
+    g.Animation = TimedAnimation;
+    g.KeyframeEffect = TimedEffect;
+    Object.defineProperty(h.overlay.ownerDocument, "timeline", {
+      configurable: true,
+      value: timeline,
+    });
+    timeline.currentTime = 0;
+    animations.length = 0;
+    restore = () => {
+      g.Animation = previous.Animation;
+      g.KeyframeEffect = previous.KeyframeEffect;
+      g.getComputedStyle = previous.getComputedStyle;
+      animations.length = 0;
+    };
+    (h.game.context.system as any).previewing = undefined;
+    (h.game.context.system as any).composeBeats = composed;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    h.ui.onUpdate({ elapsedTime: 0 } as never);
+    const coordinator = new Coordinator(h.game, h.nextBeat()!);
+    for (let i = 0; i < 10; i += 1) {
+      coordinator.onUpdate({ deltaMS: 0 } as Clock);
+      await flushMicrotasks(40);
+    }
+    timeline.currentTime = 100;
+    vi.advanceTimersByTime(100);
+    for (const animation of animations) {
+      animation.update();
+    }
+    await flushMicrotasks(40);
+    const letters = () => [
+      ...h.overlay.querySelectorAll<HTMLElement>(".phone .bubble:last-child .text .text_letter"),
+    ];
+    const visible = () =>
+      letters().filter((letter) => {
+        const reveal = (letter as any).__sdReveal;
+        return reveal
+          ? reveal.currentTime != null &&
+              reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+          : letter.style.opacity === "1";
+      }).length;
+    expect(h.overlay.querySelectorAll(".phone .bubble")).toHaveLength(2);
+    const before = visible();
+    expect(before).toBeGreaterThan(0);
+    expect(before).toBeLessThan(letters().length);
+
+    (h.game.story as any).EvaluateFunction("toggle", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(40);
+    expect(h.overlay.querySelectorAll(".phone .second")).toHaveLength(2);
+    expect(h.overlay.querySelector(".phone .bubble:last-child")?.hasAttribute("data-latest")).toBe(true);
+    expect(visible()).toBe(before);
   });
 });

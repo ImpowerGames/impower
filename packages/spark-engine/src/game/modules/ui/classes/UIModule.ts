@@ -407,6 +407,7 @@ interface ReactiveScope {
 interface StreamEntryView {
   group: ReactiveGroup;
   scope: ReactiveScope;
+  written: Record<string, string>;
 }
 
 interface MountedStream {
@@ -6415,9 +6416,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       rewrite(mount: MountedStream, view: StreamEntryView): void {
         const index = mount.entries.indexOf(view);
-        const entry = $._state.streams?.[mount.key]?.entries[index];
+        const stream = $._state.streams?.[mount.key];
+        const entry = stream?.entries[index];
         if (entry) {
-          this.write(view, entry, true, undefined, true);
+          const presented = this._presented;
+          const typing =
+            index >= (stream?.current ?? 0) &&
+            presented !== undefined &&
+            !presented.instant;
+          this.write(
+            view,
+            entry,
+            !typing,
+            typing ? presented?.time : undefined,
+            true,
+          );
           if (view === mount.latest) {
             this.mark(view, "");
           }
@@ -6436,7 +6449,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)
           : [];
-        return { group, scope };
+        return { group, scope, written: {} };
       }
 
       protected write(
@@ -6461,6 +6474,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (!first) {
             continue;
           }
+          const written = elements
+            .flatMap((el) => [
+              el.id,
+              ...el.children
+                .filter((child) =>
+                  child.name
+                    .split(" ")
+                    .some((c) => c === "text" || c === "stroke"),
+                )
+                .map((child) => child.id),
+            ])
+            .join(" ");
+          if (remounted && view.written[target] === written) {
+            continue;
+          }
+          view.written[target] = written;
           if (remounted) {
             void $.text.writeElements(first.id, elements, null, true);
           }
