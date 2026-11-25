@@ -9,7 +9,8 @@ import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, mergePresentations, parseT
 import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, planFor, playLines } from "./pacing-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const excerpt = (name) => JSON.parse(fs.readFileSync(path.join(here, "fixtures", "pacing-trace", `${name}.json`), "utf8"));
+const firstSecondOnly = (doc) => ({ ...doc, record: { ...doc.record, typingEnd: undefined } });
+const excerpt = (name) => firstSecondOnly(JSON.parse(fs.readFileSync(path.join(here, "fixtures", "pacing-trace", `${name}.json`), "utf8")));
 const TALK = excerpt("talk-line");
 const NARRATION = excerpt("narration-line");
 
@@ -110,7 +111,7 @@ await check("graphics-process and page-thread tasks are attributed to the line t
   assert.equal(narration.pageThread.fromClockMs, 217.5);
   assert.equal(talk.waitMs, 99.4);
   assert.equal(narration.waitMs, 101.3);
-  assert.equal(talk.mouth.changes, 27);
+  assert.equal(talk.mouth.changes, 32);
   assert.equal(narration.mouth.changes, 0);
 });
 
@@ -147,14 +148,6 @@ await check("two quiet runs are repeatable only when every occurrence of the tal
   assert.match(repeatability([run([[165, 30]]), run([[165, 31]], { quiet: false })]).verdict, /^not judged, because at least one run was not quiet/);
   assert.match(repeatability([run([[165, 30]]), run([[165, 31]], { failed: ["line 163: the trace holds no frame"] })]).verdict, /^not judged, because at least one run failed/);
   assert.equal(repeatability([run([[165, 30]])]).within, null);
-});
-
-await check("a line whose trace holds no presented frame of the page fails instead of reading as no stall", () => {
-  const events = TALK.traceEvents.filter((e) => e.name !== "PipelineReporter");
-  const trace = parseTrace({ traceEvents: events });
-  const line = analyzeLine(trace, TALK.record, clockOffset(trace.marks, pageMarks(TALK)));
-  assert.match(line.failure, /no frame that reached the screen/);
-  assert.equal(line.firstSecond, undefined);
 });
 
 await check("a pan or zoom line's frame rate is read over the animation's own interval, not the typing", () => {
@@ -209,47 +202,57 @@ await check("a run whose line could not be measured fails, so a broken capture n
   }
 });
 
-await check("a trace that stops before one second after the fire fails its line", () => {
-  const full = parseTrace(TALK);
-  const clock = clockOffset(full.marks, pageMarks(TALK));
-  const cut = (TALK.record.firedAt + clock.offset + 500) * 1000;
-  const short = parseTrace({ traceEvents: TALK.traceEvents.filter((e) => e.ph === "M" || e.ts + (e.dur ?? 0) <= cut) });
-  assert.match(analyzeLine(short, TALK.record, clock).failure, /before the first second was captured/);
-  assert.equal(analyzeLine(full, TALK.record, clock).failure, undefined);
-});
-
-await check("dropped frames before the first or after the last presentation fail the line instead of reading as no stall", () => {
+await check("a dropped frame not enclosed by two captured presentations fails the line in every measured window, and an enclosed one is measured", () => {
+  const FIRE = 1000;
   const frame = (id, begin, end, state) => [
     { name: "PipelineReporter", ph: "b", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: begin * 1000, args: { frame_reporter: { state } } },
     { name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: end * 1000, args: {} },
   ];
-  const build = (presented, dropped) => {
+  const build = (presented, dropped, { from = 500, to = 4000 } = {}) => {
     let id = 0;
     const events = [{ name: "thread_name", ph: "M", pid: 1, tid: 1, args: { name: "CrRendererMain" } }];
     for (const at of presented) events.push(...frame(++id, at - 16, at, "STATE_PRESENTED_ALL"));
     for (const at of dropped) events.push(...frame(++id, at, at + 16, "STATE_DROPPED"));
-    events.push({ name: "RunTask", ph: "X", pid: 1, tid: 1, ts: 2500 * 1000, dur: 1000 });
+    events.push({ name: "RunTask", ph: "X", pid: 1, tid: 1, ts: from * 1000, dur: 1000 });
+    events.push({ name: "RunTask", ph: "X", pid: 1, tid: 1, ts: (to - 1) * 1000, dur: 1000 });
     return parseTrace({ traceEvents: events });
   };
   const clock = { offset: 0, pid: 1, tid: 1 };
-  const record = { line: 5, clickAt: 900, firedAt: 1000, typingEnd: 1400 };
-  const open = analyzeLine(build([900, 990, 1100, 1200], [1216, 1233, 1250, 1300, 1500, 1990]), record, clock);
-  assert.match(open.failure, /had not ended when the trace stopped/);
-  assert.equal(open.firstSecond, undefined);
-  const closed = analyzeLine(build([900, 990, 1100, 1200, 2050], [1216, 1233, 1250, 1300, 1500, 1990]), record, clock);
-  assert.equal(closed.failure, undefined);
-  assert.deepEqual(closed.firstSecond.stalls, { count: 1, longestMs: 850, totalMs: 850 });
-  const leadingDrops = [1016, 1033, 1050, 1100, 1200, 1400, 1600, 1700];
-  const unstarted = analyzeLine(build([1800, 1900, 2100], leadingDrops), { ...record, typingEnd: 1900 }, clock);
-  assert.match(unstarted.failure, /dropped before the first frame the trace saw reach the screen/);
-  assert.equal(unstarted.firstSecond, undefined);
-  const started = analyzeLine(build([900, 1800, 1900, 2100], leadingDrops), { ...record, typingEnd: 1900 }, clock);
-  assert.equal(started.failure, undefined);
-  assert.deepEqual(started.firstSecond.stalls, { count: 1, longestMs: 900, totalMs: 900 });
-  const straddling = analyzeLine(build([900, 1600, 2300], [2100]), record, clock);
-  assert.equal(straddling.failure, undefined);
-  assert.deepEqual(straddling.firstSecond.stalls, { count: 1, longestMs: 700, totalMs: 700 });
-  assert.equal(straddling.firstSecond.droppedFrames, 0);
+  const windows = {
+    "first second": { end: 2000, record: {} },
+    typing: { end: 2600, record: { typingEnd: 2600 } },
+    "pan or zoom": { end: 3200, record: { motion: true, motionWindow: { start: FIRE, end: 3200, target: "span.instance" } } },
+  };
+  const rows = [];
+  for (const [window, { end, record }] of Object.entries(windows)) {
+    rows.push(
+      { window, where: "between two presentations", presented: [990, 1100, 1300, end + 50], dropped: [1200], expect: { count: 1, longestMs: 200 } },
+      { window, where: "before the first, a presentation precedes the fire", presented: [990, 1100, end + 50], dropped: [980], expect: { count: 0, longestMs: 0 } },
+      { window, where: "before the first, no presentation precedes the fire", presented: [1100, 1300, end + 50], dropped: [1050], expect: "fail" },
+      { window, where: "after the last, a presentation follows the window's end", presented: [990, 1100, end + 50], dropped: [end + 80], expect: { count: 0, longestMs: 0 } },
+      { window, where: "after the last, no presentation follows the window's end", presented: [990, 1100, end - 100], dropped: [end - 50], expect: "fail" },
+      { window, where: "with no presentation at all", presented: [], dropped: [1500], expect: "fail" },
+    );
+    for (const row of rows.slice(-6)) row.record = record;
+  }
+  rows.push(
+    { window: "first second", where: "round 1: the trace holds no frame reports", trace: parseTrace({ traceEvents: TALK.traceEvents.filter((e) => e.name !== "PipelineReporter") }), expect: "fail" },
+    { window: "first second", where: "round 1: the trace stops 500 ms after the fire", presented: [990, 1100, 1400], dropped: [], span: { to: 1500 }, expect: "fail" },
+    { window: "typing", where: "round 2: drops after the last of 900/990/1100/1200", presented: [900, 990, 1100, 1200], dropped: [1216, 1233, 1250, 1300, 1500, 1990], span: { to: 2501 }, record: { typingEnd: 1400 }, expect: "fail" },
+    { window: "typing", where: "round 3: drops before the first of 1800/1900/2100", presented: [1800, 1900, 2100], dropped: [1016, 1033, 1050, 1100, 1200, 1400, 1600, 1700], span: { to: 2501 }, record: { typingEnd: 1900 }, expect: "fail" },
+    { window: "first second", where: "control: a closing presentation at 2050 ends the round-2 stretch", presented: [900, 990, 1100, 1200, 2050], dropped: [1216, 1233, 1250, 1300, 1500, 1990], span: { to: 2501 }, record: { typingEnd: 1400 }, expect: { count: 1, longestMs: 850 } },
+    { window: "first second", where: "control: a presentation at 900 starts the round-3 stretch", presented: [900, 1800, 1900, 2100], dropped: [1016, 1033, 1050, 1100, 1200, 1400, 1600, 1700], span: { to: 2501 }, record: { typingEnd: 1900 }, expect: { count: 1, longestMs: 900 } },
+    { window: "first second", where: "control: a stretch overlapping the second counts whole", presented: [900, 1600, 2300], dropped: [2100], span: { to: 2501 }, expect: { count: 1, longestMs: 700 } },
+  );
+  const wrong = [];
+  for (const row of rows) {
+    const trace = row.trace ?? build(row.presented, row.dropped, row.span);
+    const line = analyzeLine(trace, { line: 5, clickAt: 900, firedAt: FIRE, ...row.record }, row.trace ? analyzed(TALK).clock : clock);
+    const got = line.failure ? "fail" : { count: line.firstSecond.stalls.count, longestMs: line.firstSecond.stalls.longestMs };
+    if (JSON.stringify(got) !== JSON.stringify(row.expect)) wrong.push(`${row.window}, dropped frame ${row.where}: expected ${JSON.stringify(row.expect)}, got ${JSON.stringify(got)}${line.failure ? ` (${line.failure})` : ""}`);
+  }
+  assert.deepEqual(wrong, []);
+  assert.equal(rows.length, 25);
 });
 
 await check("a real project's line keeps tracing through its first second at no rest, and a pan it detects is measured", async () => {

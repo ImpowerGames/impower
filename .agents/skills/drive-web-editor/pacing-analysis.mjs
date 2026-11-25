@@ -58,9 +58,14 @@ export function parseTrace(raw) {
   }
   const byPid = new Map();
   for (const [pid, list] of frames) byPid.set(pid, { presented: mergePresentations(list.ends), dropped: list.dropped.sort((a, b) => a - b) });
+  let startsAt = null;
   let endsAt = null;
-  for (const e of events) if (e.ph !== "M" && typeof e.ts === "number") endsAt = Math.max(endsAt ?? 0, toMs(e.ts + (e.dur ?? 0)));
-  return { marks, graphics, tasks, frames: byPid, graphicsThreads: gpuThreads.size, endsAt };
+  for (const e of events) {
+    if (e.ph === "M" || typeof e.ts !== "number") continue;
+    startsAt = Math.min(startsAt ?? Infinity, toMs(e.ts));
+    endsAt = Math.max(endsAt ?? 0, toMs(e.ts + (e.dur ?? 0)));
+  }
+  return { marks, graphics, tasks, frames: byPid, graphicsThreads: gpuThreads.size, startsAt, endsAt };
 }
 
 function addFrame(list, begin, end, state) {
@@ -84,11 +89,20 @@ export function stallsIn(presented, dropped, from, to) {
     if (b <= from || a >= to) continue;
     if (dropped.some((d) => d >= a && d < b)) list.push({ from: a, to: b, ms: b - a });
   }
+  const first = presented[0];
+  const last = presented[presented.length - 1];
+  const unbounded = [];
+  for (const d of dropped) {
+    if (!presented.length) unbounded.push({ at: d, edge: "the trace holds no frame that reached the screen" });
+    else if (d < first && first > from) unbounded.push({ at: d, edge: "no captured frame reached the screen before it" });
+    else if (d >= last && last < to) unbounded.push({ at: d, edge: "no captured frame reached the screen after it" });
+  }
   return {
     count: list.length,
     longestMs: round(list.reduce((m, s) => Math.max(m, s.ms), 0)),
     totalMs: round(list.reduce((sum, s) => sum + s.ms, 0)),
     list,
+    unbounded,
   };
 }
 
@@ -166,17 +180,22 @@ export function analyzeLine(trace, record, clock) {
   };
   if (fired == null) return { ...out, failure: "no beat fired after the click" };
   const frames = trace.frames.get(clock.pid);
-  if (!frames?.presented.length) return { ...out, failure: "the trace holds no frame that reached the screen from the page's renderer" };
-  if (trace.endsAt != null && trace.endsAt < fired + FIRST_SECOND_MS) return { ...out, failure: `the trace ends ${round(trace.endsAt - fired)} ms after the fire, before the first second was captured` };
+  if (!frames) return { ...out, failure: "the trace holds no frame reports from the page's renderer" };
   const firstEnd = fired + FIRST_SECOND_MS;
-  const firstShown = frames.presented[0];
-  if (firstShown > fired && frames.dropped.some((d) => d < firstShown)) {
-    return { ...out, failure: `frames were dropped before the first frame the trace saw reach the screen, ${round(firstShown - fired)} ms after the fire, so the stall's start is unknown` };
+  const windows = [["first second", fired, firstEnd]];
+  const typingEnd = at(record.typingEnd);
+  if (typingEnd != null && typingEnd > fired) windows.push(["typing", fired, typingEnd]);
+  const motionFrom = at(record.motionWindow?.start);
+  const motionTo = at(record.motionWindow?.end);
+  if (record.motion && motionFrom != null && motionTo > motionFrom) windows.push(["pan or zoom", motionFrom, motionTo]);
+  const spanFrom = Math.min(...windows.map((w) => w[1]));
+  const spanTo = Math.max(...windows.map((w) => w[2]));
+  if (trace.startsAt == null || trace.startsAt > spanFrom || trace.endsAt < spanTo) {
+    return { ...out, failure: `the trace runs from ${round((trace.startsAt ?? NaN) - fired)} to ${round((trace.endsAt ?? NaN) - fired)} ms after the fire and does not span the measured windows (${round(spanFrom - fired)} to ${round(spanTo - fired)} ms)` };
   }
-  const lastShown = frames.presented[frames.presented.length - 1];
-  const measuredTo = Math.max(firstEnd, at(record.typingEnd) ?? 0, record.motion ? (at(record.motionWindow?.end) ?? 0) : 0);
-  if (lastShown < measuredTo && frames.dropped.some((d) => d >= lastShown)) {
-    return { ...out, failure: `a stall that began ${round(lastShown - fired)} ms after the fire had not ended when the trace stopped, so its length is unknown` };
+  for (const [name, from, to] of windows) {
+    const open = stallsIn(frames.presented, frames.dropped, from, to).unbounded[0];
+    if (open) return { ...out, failure: `a frame dropped ${round(open.at - fired)} ms after the fire, in or beside the ${name}, is not enclosed by two captured frames that reached the screen (${open.edge}), so its stall's length is unknown` };
   }
   const graphics = tasksIn(trace.graphics, fired, firstEnd, GRAPHICS_TASK_MS, fired);
   const page = tasksIn(trace.tasks.get(`${clock.pid}:${clock.tid}`) ?? [], click ?? fired, firstEnd, PAGE_TASK_MS, fired);
@@ -189,7 +208,6 @@ export function analyzeLine(trace, record, clock) {
     graphicsTasks: trace.graphicsThreads ? graphics.long : null,
   };
   out.pageThread = { fromClockMs: page.ms, longTasks: page.long, longestMs: page.longestMs };
-  const typingEnd = at(record.typingEnd);
   if (typingEnd != null && typingEnd > fired) {
     out.typing = {
       ms: round(typingEnd - fired),
@@ -198,15 +216,13 @@ export function analyzeLine(trace, record, clock) {
     };
   }
   if (record.motion) {
-    const from = at(record.motionWindow?.start);
-    const to = at(record.motionWindow?.end);
-    if (from == null || !(to > from)) out.failure = "no pan or zoom animation ran after the line fired";
+    if (motionFrom == null || !(motionTo > motionFrom)) out.failure = "no pan or zoom animation ran after the line fired";
     else {
       out.motion = {
         target: record.motionWindow.target ?? null,
-        ms: round(to - from),
-        framesPerSecond: framesPerSecond(frames.presented, from, to),
-        droppedFrames: countIn(frames.dropped, from, to),
+        ms: round(motionTo - motionFrom),
+        framesPerSecond: framesPerSecond(frames.presented, motionFrom, motionTo),
+        droppedFrames: countIn(frames.dropped, motionFrom, motionTo),
       };
       out.motionFramesPerSecond = out.motion.framesPerSecond;
     }
