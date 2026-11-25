@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getHover } from "../../utils/providers/getHover";
 import { complete } from "./completionHarness";
 
@@ -27,6 +27,10 @@ const compile = (text: string) => {
   });
   return compiler.compile({ textDocument: { uri: MAIN } }).program!;
 };
+
+beforeAll(() => {
+  compile(LAYOUTS);
+}, 60_000);
 
 const styled = (name: string) => `${LAYOUTS}
 style frame {
