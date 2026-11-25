@@ -333,17 +333,16 @@ describe("Edit keeps the script still under real sticky scene headers", () => {
     await frames(page);
   };
 
-  const scrollUnderHeader = async (page: Page) => {
-    for (const top of [2000, 2040, 2080, 2120]) {
-      await scrollTo(page, top);
-      await settle(page);
-      if (await headers(page)) {
-        await page.waitForFunction(() =>
-          (window as unknown as HarnessWindow).caretOnScreen.stickyMarginApplied(),
-        );
-        return;
-      }
-    }
+  const scrollUnderHeader = async (page: Page, line: number) => {
+    await page.evaluate((line) => {
+      const h = (window as unknown as HarnessWindow).caretOnScreen;
+      h.view.scrollDOM.scrollTop += h.lineBox(line).top - (h.scrollerBox().top + 2);
+    }, line);
+    await settle(page);
+    await page.waitForFunction(() => {
+      const h = (window as unknown as HarnessWindow).caretOnScreen;
+      return h.headersBox() != null && h.stickyMarginApplied();
+    });
   };
 
   it("leaves a caret fully visible below a top dialog where it is when the sticky header covers only the dialog", async () => {
@@ -390,7 +389,8 @@ describe("Edit keeps the script still under real sticky scene headers", () => {
         h.useStickyHeaders(false);
         h.setCaretLine(11);
       });
-      await scrollUnderHeader(page);
+      await settle(page);
+      await scrollUnderHeader(page, SCENE_20_BODY_LINE);
       const header = await headers(page);
       const before = await read(page);
       expect(header).not.toBeNull();
