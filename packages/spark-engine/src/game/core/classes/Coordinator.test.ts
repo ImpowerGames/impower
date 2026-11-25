@@ -69,6 +69,7 @@ const createGame = (
         findIds: () => [],
         whenLayoutsSettled: () => null,
         setMotion: () => {},
+        line: () => {},
         beginPresentation: () => 0,
         layoutHolds: () => true,
         getTransientTargets: () => [],
