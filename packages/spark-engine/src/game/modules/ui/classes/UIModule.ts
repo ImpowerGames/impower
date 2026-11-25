@@ -4843,7 +4843,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected hideUnwrittenTargets(layout: Element): void {
     const inLayout = (el: Element) => {
-      for (let node: Element | null = el; node; node = node.parent) {
+      for (let node: Element | null = el.parent; node; node = node.parent) {
         if (node === layout) {
           return true;
         }
