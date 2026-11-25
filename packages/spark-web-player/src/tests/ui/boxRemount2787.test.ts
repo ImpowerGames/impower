@@ -3,7 +3,7 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { EventMessage } from "../../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
-import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
+import { advanceTo, timeline, useTimedAnimations } from "./timedAnimation";
 
 const source = (body: string) => `define RAFFLES as character with
   name = "RAFFLES"
@@ -64,40 +64,10 @@ afterEach(() => {
 });
 
 function timed(h: DOMHarness) {
-  const g = globalThis as any;
-  const saved = {
-    Animation: g.Animation,
-    KeyframeEffect: g.KeyframeEffect,
-    getComputedStyle: g.getComputedStyle,
-  };
-  const win = h.overlay.ownerDocument.defaultView!;
-  g.Animation = TimedAnimation;
-  g.KeyframeEffect = TimedEffect;
-  g.getComputedStyle = win.getComputedStyle.bind(win);
-  Object.defineProperty(h.overlay.ownerDocument, "timeline", {
-    configurable: true,
-    value: timeline,
-  });
-  timeline.currentTime = 0;
-  animations.length = 0;
-  restore = () => {
-    Object.assign(g, saved);
-    animations.length = 0;
-  };
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  (h.game.context.system as any).previewing = undefined;
-  h.ui.onUpdate({ elapsedTime: 0 } as never);
+  restore = useTimedAnimations(h);
 }
 
-async function at(time: number) {
-  const delta = time - timeline.currentTime;
-  timeline.currentTime = time;
-  vi.advanceTimersByTime(delta);
-  for (const animation of animations) {
-    animation.update();
-  }
-  await flushMicrotasks(40);
-}
+const at = advanceTo;
 
 const letters = (h: DOMHarness) => [
   ...h.overlay.querySelectorAll<HTMLElement>(".main .dialogue .text .text_letter"),
@@ -171,6 +141,26 @@ describe("a box's text across a remount of its content (#2787)", () => {
     coordinator.onUpdate({ deltaMS: 0 } as Clock);
     await flushMicrotasks(40);
     expect(visible(h)).toBe(letters(h).length);
+  });
+
+  test("a box whose layout a screen branch rehosts keeps its line", async () => {
+    const h = createDOMHarness(
+      source(`dialogue {
+    text
+  }`).replace(
+        "layout main {",
+        "screen shell {\n  if expanded then\n    panel.first { slot }\n  else\n    panel.second { slot }\n  end\n}\n\nlayout main in shell {",
+      ),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    expect(texts(h)).toEqual(["first=slight problem"]);
+    await toggle(h);
+    expect(h.overlay.querySelector(".shell .panel.second .main .dialogue")).not.toBeNull();
+    expect(texts(h)).toEqual(["first=slight problem"]);
   });
 
   test("a text slot a for loop adds receives the box's line, and a sibling with its own words keeps them", async () => {

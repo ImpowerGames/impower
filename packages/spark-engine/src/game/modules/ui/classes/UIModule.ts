@@ -3112,7 +3112,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const layout = layouts?.[name];
       if (layout) {
-        this.hideUnwrittenTargets(this.constructLayoutFromAst(layout));
+        const rehosted = this.constructLayoutFromAst(layout);
+        this.hideUnwrittenTargets(rehosted);
+        this.rewriteRemounted([rehosted]);
       } else {
         this._mountedLayouts.delete(name);
       }
@@ -4603,7 +4605,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const replaced = (el: Element) => {
-      if (roots.some((root) => this.encloses(root, el))) {
+      if (roots.some((root) => this.isWithin(el, root))) {
         return true;
       }
       const slots = this._slots.get(el);
@@ -4628,15 +4630,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         child.children.length === 0 &&
         child.name.split(" ").some((c) => c === "text" || c === "stroke"),
     );
-  }
-
-  protected encloses(ancestor: Element, el: Element): boolean {
-    for (let node: Element | null = el; node; node = node.parent) {
-      if (node === ancestor) {
-        return true;
-      }
-    }
-    return false;
   }
 
   protected restoredTargets(

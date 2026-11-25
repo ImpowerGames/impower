@@ -3,7 +3,7 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { EventMessage } from "../../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
-import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
+import { advanceTo, timeline, useTimedAnimations } from "./timedAnimation";
 
 const source = (
   body: string,
@@ -72,40 +72,10 @@ afterEach(() => {
 });
 
 function timed(h: DOMHarness) {
-  const g = globalThis as any;
-  const saved = {
-    Animation: g.Animation,
-    KeyframeEffect: g.KeyframeEffect,
-    getComputedStyle: g.getComputedStyle,
-  };
-  const win = h.overlay.ownerDocument.defaultView!;
-  g.Animation = TimedAnimation;
-  g.KeyframeEffect = TimedEffect;
-  g.getComputedStyle = win.getComputedStyle.bind(win);
-  Object.defineProperty(h.overlay.ownerDocument, "timeline", {
-    configurable: true,
-    value: timeline,
-  });
-  timeline.currentTime = 0;
-  animations.length = 0;
-  restore = () => {
-    Object.assign(g, saved);
-    animations.length = 0;
-  };
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  (h.game.context.system as any).previewing = undefined;
-  h.ui.onUpdate({ elapsedTime: 0 } as never);
+  restore = useTimedAnimations(h);
 }
 
-async function at(time: number) {
-  const delta = time - timeline.currentTime;
-  timeline.currentTime = time;
-  vi.advanceTimersByTime(delta);
-  for (const animation of animations) {
-    animation.update();
-  }
-  await flushMicrotasks(40);
-}
+const at = advanceTo;
 
 const letters = (h: DOMHarness, index: number) => [
   ...entries(h)[index]!.querySelectorAll<HTMLElement>(".text_letter"),
