@@ -4,6 +4,7 @@ import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ASSET_TYPES } from "../constants/assetTypes";
 import { resolveImageAttributes } from "../utils/filterImage";
+import { resolveImageLayers } from "../utils/resolveImageLayers";
 import { fingerprintSource } from "../utils/fingerprintSource";
 import {
   collectEffectiveMorphs,
@@ -21,7 +22,7 @@ import {
   type DirectiveWord,
   type SourceDirective,
 } from "../utils/readDirective";
-import type { MorphProgramChannel } from "../../morph/types";
+import type { MorphProgramChannel, MorphRef } from "../../morph/types";
 import {
   collectLuauLints,
   duplicateGlobalMemberMessage,
@@ -4833,6 +4834,7 @@ export class SparkdownCompiler {
   }
 
   validateImageAttributes(program: SparkProgram) {
+    delete program.morphChanges;
     if (!program.context) return;
     const assetUnder = (image: any, path: string, vocabulary?: AttributeVocabulary): any => {
       if (!vocabulary) return undefined;
@@ -4973,8 +4975,12 @@ export class SparkdownCompiler {
         }
       }
       const reportedClauseIssues = new Set<string>();
+      const shownByImage = new Map<any, any>();
       for (const directive of directives) {
         const directiveImages = shownImages.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
+        if (program.morphs?.change) {
+          for (const image of directiveImages) this.collectMorphChanges(program, image.struct, shownByImage);
+        }
         const morph = morphClauseOf(directive);
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
@@ -5042,6 +5048,24 @@ export class SparkdownCompiler {
         },
         source: LANGUAGE_NAME,
       });
+    }
+  }
+
+  protected collectMorphChanges(program: SparkProgram, struct: any, shownByImage: Map<any, any>) {
+    const context = program.context!;
+    const images = [struct, ...resolveImageLayers(context, struct).map((layer) => layer.struct)].flatMap((shown) => {
+      const image = shown ? resolveImageAttributes(context, shown, { visibility: false }).image : undefined;
+      return image ? [image] : [];
+    });
+    const before = images.map((image) => shownByImage.get(image)).find((shown) => shown !== undefined);
+    for (const image of images) shownByImage.set(image, struct);
+    if (before === undefined || typeof struct?.$name !== "string") return;
+    const look = resolvePictureLook(context, program.morphs, struct, { from: { struct: before } });
+    const changes = (program.morphChanges ??= []);
+    const refs: MorphRef[] = [...look.refs, ...look.layers.flatMap((layer) => layer.refs)];
+    for (const ref of refs) {
+      if (!ref.recipes || changes.some((change) => change.variant === struct.$name && change.ref.key === ref.key)) continue;
+      changes.push({ variant: struct.$name, ref });
     }
   }
 

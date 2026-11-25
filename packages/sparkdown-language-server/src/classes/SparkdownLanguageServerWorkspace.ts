@@ -479,7 +479,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   protected morphRefs(program: SparkProgram): MorphConsumer[] {
     const refs: MorphConsumer[] = [];
-    for (const { variant, ref } of channelRefs(program.morphs)) {
+    for (const { variant, ref } of [...channelRefs(program.morphs), ...(program.morphChanges ?? [])]) {
       const image = ref.layered ? undefined : getContextEntry(program.context, "image", ref.image);
       if (image) {
         const uri = image.uri;
