@@ -18,7 +18,7 @@ import {
   type LayeredMorphDrawn,
   type LayeredMorphModel,
 } from "../../../../sparkdown/src/morph/layered";
-import { firstMorphEasingReach, parseMorphEasing } from "../../../../sparkdown/src/morph/easing";
+import { parseMorphEasing, type MorphEasing } from "../../../../sparkdown/src/morph/easing";
 import { morphMotionKeyframes } from "../../../../sparkdown/src/morph/motion";
 import { own } from "../../../../sparkdown/src/morph/own";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
@@ -644,9 +644,8 @@ export class MorphPlayback {
     if (offset === undefined || !Number.isFinite(offset)) return;
     offset = Math.max(0, Math.min(1, offset));
     const duration = Number.isFinite(occurrence.timing.duration) ? occurrence.timing.duration : 0;
-    const reach = firstMorphEasingReach(occurrence.timing.easing, offset);
-    const easing = parseMorphEasing(occurrence.timing.easing) ?? ((x: number) => x);
-    occurrence.resume = { offset, skip: reach * duration, from: Math.max(0, Math.min(1, easing(reach))) };
+    const start = lastAtOrBelow(parseMorphEasing(occurrence.timing.easing) ?? ((x: number) => x), offset);
+    occurrence.resume = { offset, skip: start.position * duration, from: start.value };
   }
 
   protected restartAll() {
@@ -2311,6 +2310,28 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+function lastAtOrBelow(easing: MorphEasing, offset: number): { position: number; value: number } {
+  const eased = (position: number) => Math.max(0, Math.min(1, easing(position)));
+  const steps = 1000;
+  let below = -1;
+  for (let i = steps; i >= 0; i -= 1) {
+    if (eased(i / steps) <= offset) {
+      below = i;
+      break;
+    }
+  }
+  if (below < 0) return { position: 0, value: eased(0) };
+  if (below === steps) return { position: 1, value: eased(1) };
+  let lo = below / steps;
+  let hi = (below + 1) / steps;
+  for (let i = 0; i < 40; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (eased(mid) <= offset) lo = mid;
+    else hi = mid;
+  }
+  return { position: lo, value: eased(lo) };
 }
 
 function sameOutside(a: string, b: string, groups: readonly string[]): boolean {

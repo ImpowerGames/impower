@@ -282,6 +282,35 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
   });
 
+  test.each([
+    ["linear", 0.25],
+    ["ease-in", 0.3],
+    ["linear(1.2, 0, 1)", 0.125],
+    ["linear(0.2, 1)", 0.4375],
+  ])("a change turning back keeps moving on from the frame on screen after its first frame (%s)", async (easing, after) => {
+    const source = SOURCE.replace("easing = linear", `easing = ${easing}`).replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
+      "  [[show portrait mia:mouth.smile]]\n  She smiles again.",
+    );
+    const { playback, shadow, lips, next } = await played(2, undefined, undefined, source);
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
+    playback.advance(after);
+    const between = numbers(lips()[0]!);
+    const interrupted = shadow();
+    await next();
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the interrupting change's view");
+    let last = numbers(lips()[0]!);
+    last.forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
+    for (let tick = 0; tick < 5; tick++) {
+      playback.advance(0.002);
+      const now = numbers(lips()[0]!);
+      now.forEach((value, i) => expect(Math.abs(value - last[i]!)).toBeLessThan(1));
+      last = now;
+    }
+    playback.advance(1);
+    expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
+  });
+
   test("flips after a curve that dips below its start carry on from the frame on screen", async () => {
     const source = SOURCE.replace("easing = linear", "easing = linear(0.6, 0, 1)").replace(
       "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.\n  [[show portrait tom:mouth.frown]]\n  Tom frowns.",
@@ -293,8 +322,9 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     let interrupted = shadow();
     await next();
     await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the second change's view");
-    playback.advance(0.15);
+    playback.advance(0.05);
     const before = numbers(lips()[0]!);
+    expect(before).not.toEqual(numbers(SMILE));
     for (const which of ["third", "fourth"]) {
       interrupted = shadow();
       await next();
