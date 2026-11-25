@@ -337,6 +337,11 @@ class SparkleSelectorWriter {
     return this.enclosed(() => this.list("raw", false));
   }
 
+  private selectorArgument(): string {
+    const { text, close } = this.argument(() => this.list("selectors", false));
+    return `(${liftRootConditions(text, this.options.colorScheme === "attribute", "*")}${close}`;
+  }
+
   private value(): string {
     const from = this.i;
     let depth = 0;
@@ -434,7 +439,7 @@ class SparkleSelectorWriter {
       const kind = ARGUMENT_KINDS.get(pseudo);
       const args =
         kind === "selectors"
-          ? this.enclosed(() => this.list("selectors", false))
+          ? this.selectorArgument()
           : kind === "nth"
             ? this.enclosed(() => this.nth())
             : kind === "value"
@@ -559,7 +564,7 @@ const rootCondition = (state: string, value: string, scheme: boolean): string | 
   return SHOWING_NAME.test(argument) ? `[${SHOWING_ATTRIBUTE}~="${argument}"]` : undefined;
 };
 
-const liftRootConditions = (selector: string, scheme: boolean): string => {
+const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*" = "&"): string => {
   const text = unquoted(selector);
   if (!text.includes(`@${COLOR_SCHEME_STATE}(`) && !text.includes(`@${SHOWING_STATE}(`)) {
     return selector;
@@ -586,8 +591,16 @@ const liftRootConditions = (selector: string, scheme: boolean): string => {
       if (!root) {
         return part.trim();
       }
-      const target = !rest ? "&" : hasNestingSelector(rest) ? rest : /^[:[]/.test(rest) ? `&${rest}` : `& ${rest}`;
-      return `:where(${root}) ${target}`;
+      const target = !rest
+        ? subject
+        : hasNestingSelector(rest)
+          ? rest
+          : /^[:[]/.test(rest)
+            ? `${subject}${rest}`
+            : subject === "&"
+              ? `& ${rest}`
+              : rest;
+      return subject === "&" ? `:where(${root}) ${target}` : `${root} ${target}`;
     })
     .join(", ");
 };

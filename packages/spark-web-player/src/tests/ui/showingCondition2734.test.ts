@@ -36,6 +36,25 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     );
   });
 
+  test("inside @not and @is it keeps the function's meaning", () => {
+    const root = document.createElement("div");
+    root.innerHTML = '<span class="frame"></span>';
+    const frame = root.querySelector(".frame")!;
+    const on = (selector: string) => frame.matches(written(selector).replaceAll("&", ".frame"));
+    expect(written("@not(@showing(action))")).toBe('&:not([data-showing~="action"] *)');
+    expect(written("@is(@showing(action), @showing(dialogue))")).toBe(
+      '&:is([data-showing~="action"] *, [data-showing~="dialogue"] *)',
+    );
+    expect(on("@not(@showing(action))")).toBe(true);
+    expect(on("@is(@showing(action), @showing(dialogue))")).toBe(false);
+    root.setAttribute("data-showing", "action");
+    expect(on("@not(@showing(action))")).toBe(false);
+    expect(on("@is(@showing(action), @showing(dialogue))")).toBe(true);
+    root.setAttribute("data-showing", "dialogue");
+    expect(on("@is(@showing(action), @showing(dialogue))")).toBe(true);
+    expect(on("@not(@showing(action)) @hovered")).toBe(false);
+  });
+
   test("the screen preview writes the same condition", () => {
     expect(writeSparkleSelector("@showing(action)", { breakpoints: {}, colorScheme: "media" })).toBe(ACTION);
   });
@@ -110,6 +129,52 @@ describe("a style under @showing(action) applies in another layout (#2734)", () 
     await showBeat(h);
     expect(h.overlay.hasAttribute("data-showing")).toBe(false);
     expect(h.overlay.querySelector(FRAME_UNDER_ACTION)).toBeNull();
+  });
+});
+
+const STYLED = (inline: string, styles: string) => `define ui as config with
+  layouts_initial = { "overlay", "hud" }
+end
+
+layout overlay {
+  badge ${inline} {
+    text "Status"
+  }
+}
+
+layout hud {
+  frame {
+    text "HUD"
+  }
+}
+
+style frame {
+  @showing(badge) { opacity = 0.5 }
+}
+
+${styles}
+
+scene start
+  Hello.
+end
+`;
+
+describe("styling an element does not change whether it is showing (#2734)", () => {
+  test.each([
+    ["a style block", "", "style badge { display = none }"],
+    ["an inline prop", "#display=none", ""],
+  ])("a badge hidden by %s stays marked", async (_way, inline, styles) => {
+    const h = createDOMHarness(STYLED(inline, styles), 0, { reactive: true, autoOpenAll: false });
+    try {
+      await h.ready;
+      await flushMicrotasks(10);
+      h.jumpTo("start");
+      await showBeat(h);
+      expect(h.overlay.querySelector(".badge")?.textContent).toContain("Status");
+      expect(h.overlay.getAttribute("data-showing")).toBe("badge");
+    } finally {
+      h.ui.onDispose();
+    }
   });
 });
 

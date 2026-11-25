@@ -1176,18 +1176,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return held;
   }
 
+  protected noteHidden(element: Element, hidden: boolean): void {
+    if (hidden) {
+      this._showingHidden.add(element);
+    } else {
+      this._showingHidden.delete(element);
+    }
+  }
+
   protected noteElementShowing(
     element: Element,
     state: ElementState | undefined,
   ): void {
-    const style = state?.style;
-    if (style && "display" in style) {
-      if (style["display"] === "none") {
-        this._showingHidden.add(element);
-      } else {
-        this._showingHidden.delete(element);
-      }
-    }
     const content = state?.content;
     if (content && "text" in content) {
       if (content.text) {
@@ -1720,6 +1720,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   show(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, false);
       this.updateElement(targetEl, { style: { display: "flex" } });
     }
   }
@@ -1732,6 +1733,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   hide(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, true);
       this.updateElement(targetEl, {
         style: { display: "none" },
       });
@@ -4941,6 +4943,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       for (const el of this.findElements(target, true)) {
         if (inLayout(el)) {
+          this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
       }
@@ -5145,6 +5148,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         for (const targetEl of targetEls) {
           if (targetEl) {
+            $.noteHidden(targetEl, !sequence);
             if (sequence) {
               $.updateElement(targetEl, {
                 style: { display: null },
@@ -5651,6 +5655,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         for (const targetEl of targetEls) {
           if (targetEl) {
+            $.noteHidden(targetEl, !sequence);
             if (sequence) {
               $.updateElement(targetEl, {
                 style: { display: null },
