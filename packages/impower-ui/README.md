@@ -136,9 +136,7 @@ surface such as the app's tool panels, only closes it: `swallowTap` cancels that
 its click, so nothing under it acts. A sheet it opens takes the `Sheet`'s `width="menu"`: at most 560px
 wide, centred on the window's foot, once the window is wider; every other sheet spans the
 window. `useDropdownForm` hands a caller with its own sheet, such as the
-asset inspector's Variants wheel, the same answer. `useSheetOpen` reports whether any
-`Sheet`, a responsive `Dialog` shown as one or a `Dropdown` opened as a sheet, is open, so a surface that must give way to a sheet reads that state
-rather than measuring the page.
+asset inspector's Variants wheel, the same answer.
 
 ### Motion belongs to the component
 
