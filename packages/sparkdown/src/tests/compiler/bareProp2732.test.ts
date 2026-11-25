@@ -75,6 +75,17 @@ describe("a bare prop on a layout element (I-2732)", () => {
     expect((program as any).context?.layout?.hud?.note).not.toHaveProperty("$clear");
   });
 
+  test("the last #clear written on an element decides, on its line or a continuation", () => {
+    const { program } = compileScript(
+      "layout hud {\n  first #clear=true #clear=false { text }\n  second #clear=false #clear { text }\n  third #clear\n    #clear=false { text }\n  fourth #clear=false\n    #clear { text }\n}\n\nscene start\n  Hello.\nend\n",
+    );
+    const hud = (program as any).context?.layout?.hud;
+    expect(hud.first).not.toHaveProperty("$clear");
+    expect(hud.second).toEqual({ text: {}, $clear: true });
+    expect(hud.third).not.toHaveProperty("$clear");
+    expect(hud.fourth).toEqual({ text: {}, $clear: true });
+  });
+
   const warningsOf = (layout: string) => {
     const { program } = compileScript(`${layout}\n\nscene start\n  Hello.\nend\n`);
     return Object.values(program.diagnostics ?? {})

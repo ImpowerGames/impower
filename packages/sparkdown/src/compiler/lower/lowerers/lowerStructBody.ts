@@ -241,7 +241,7 @@ function evaluateElement(
     const value = entry.children
       ? evaluate(entry.children, ctx, elementKeys)
       : {};
-    if (!Array.isArray(value) && segments.some((s) => holdsClearProp(s.node, ctx))) {
+    if (!Array.isArray(value) && holdsClearProp(segments, ctx)) {
       value["$clear"] = true;
     }
     obj[keyOf(null)] = value;
@@ -258,7 +258,7 @@ function evaluateElement(
   if (!key) return;
   obj[key] = valueNode
     ? readScalar(valueNode, ctx)
-    : segments.some((s) => holdsClearProp(s.node, ctx))
+    : holdsClearProp(segments, ctx)
       ? { $clear: true }
       : {};
 }
@@ -268,24 +268,23 @@ const PROP_NAME_NAMES: ReadonlySet<string> = nodeNameSet(["StyleAttributeName"])
 const PROP_ASSIGN_NAMES: ReadonlySet<string> = nodeNameSet(["EqualOperator"]);
 const PROP_BOOLEAN_NAMES: ReadonlySet<string> = nodeNameSet(["InlinePropBooleanValue"]);
 
-function holdsClearProp(node: SyntaxNode, ctx: LowerContext): boolean {
-  const found: SyntaxNode[] = [];
+function holdsClearProp(segments: ElementSegment[], ctx: LowerContext): boolean {
+  const found = new Map<number, SyntaxNode>();
   const walk = (n: SyntaxNode) => {
     if (CLEAR_PROP_NAMES.has(n.name)) {
-      found.push(n);
+      const name = firstDescendant(n, PROP_NAME_NAMES);
+      if (name && ctx.read(name.from, name.to) === "clear") found.set(n.from, n);
       return;
     }
     if (n.name === "LuauSparkleElementBlock") return;
     for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
   };
-  walk(node);
-  return found.some((attr) => {
-    const name = firstDescendant(attr, PROP_NAME_NAMES);
-    if (!name || ctx.read(name.from, name.to) !== "clear") return false;
-    if (!firstDescendant(attr, PROP_ASSIGN_NAMES)) return true;
-    const value = firstDescendant(attr, PROP_BOOLEAN_NAMES);
-    return !!value && ctx.read(value.from, value.to) === "true";
-  });
+  for (const segment of segments) walk(segment.node);
+  const last = [...found.values()].sort((a, b) => a.from - b.from).at(-1);
+  if (!last) return false;
+  if (!firstDescendant(last, PROP_ASSIGN_NAMES)) return true;
+  const value = firstDescendant(last, PROP_BOOLEAN_NAMES);
+  return !!value && ctx.read(value.from, value.to) === "true";
 }
 
 function evaluate(
