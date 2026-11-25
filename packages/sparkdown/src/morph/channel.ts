@@ -254,12 +254,17 @@ export function ambiguousSpeechMorphs(
   return chooseSpeechMorphs(members, channel.speech, undefined).ambiguous;
 }
 
+export interface ShownBefore {
+  struct: any;
+  pick?: string;
+}
+
 export function morphRefsForStruct(
   context: Context | undefined,
   channel: MorphProgramChannel | undefined,
   struct: any,
   pick?: string,
-  from?: any,
+  from?: ShownBefore,
 ): MorphRef[] {
   const refs = lookRefsForStruct(context, channel, struct, pick);
   if (from === undefined || !context || !channel?.change || refs.length > 1) return refs;
@@ -288,13 +293,13 @@ function changeMembers(
   channel: MorphProgramChannel,
   name: string,
   resolved: ReturnType<typeof resolveImageAttributes>,
-  from: any,
+  from: ShownBefore,
   driven: ReadonlySet<string>,
 ): MorphMember[] {
-  const before = resolveImageAttributes(context, from, { visibility: false });
+  const before = resolveImageAttributes(context, from.struct, { visibility: false });
   const vocabulary = resolved.vocabulary!;
   if (before.image !== resolved.image) return [];
-  const was = shownLook(context, channel, from)?.shown ?? before.selection;
+  const was = shownLook(context, channel, from.struct, morphRestPose, from.pick)?.shown ?? before.selection;
   const moves: { group: string; from: string; to: string }[] = [];
   for (const group of Object.keys(vocabulary.groups).sort()) {
     if (driven.has(group)) continue;
@@ -414,7 +419,7 @@ export function shownLook(
   struct: any,
   poseOf: (recipe: MorphRecipe) => Record<string, string> = morphRestPose,
   pick?: string,
-  from?: any,
+  from?: ShownBefore,
 ): ShownLook | undefined {
   const refs = morphRefsForStruct(context, channel, struct, pick, from);
   if (refs.length !== 1 || !context || !channel) return undefined;

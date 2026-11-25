@@ -1,6 +1,6 @@
 import { filterImage, layeredImageShownKeys, resolveImageAttributes } from "../compiler/utils/filterImage";
 import { resolveImageLayers, type ImageLayer } from "../compiler/utils/resolveImageLayers";
-import { morphRefsForStruct, shownLook, shownLookStruct, speechMorphsForStruct } from "./channel";
+import { morphRefsForStruct, shownLook, shownLookStruct, speechMorphsForStruct, type ShownBefore } from "./channel";
 import { layeredMorphArtwork, layeredMorphRoot, type LayeredMorphArtwork } from "./layered";
 import { morphRestPose } from "./recipe";
 import type { MorphProgramChannel, MorphRecipe, MorphRef } from "./types";
@@ -44,7 +44,7 @@ export interface PictureLook {
 export interface PictureLookOptions {
   pick?: LookPick;
   startPose?: LookPose;
-  from?: any;
+  from?: { struct: any; pick?: LookPick };
 }
 
 const decide = (pick: LookPick | undefined, layer: ImageLayer) => (typeof pick === "function" ? pick(layer) : pick);
@@ -81,12 +81,18 @@ export function resolvePictureLook(
       speech: [],
     };
   }
-  const before = from === undefined || root ? [] : resolveImageLayers(context, from);
+  const before = from === undefined || root ? [] : resolveImageLayers(context, from.struct);
   const rootOf = (layer: any) => resolveImageAttributes(context, layer, { visibility: false }).image;
+  const shownBefore = (layer: ImageLayer): ShownBefore => {
+    const oldPick = decide(from?.pick, layer);
+    return { struct: layer.struct, ...(oldPick === undefined ? {} : { pick: oldPick }) };
+  };
   const fromOf = (layer: ImageLayer) => {
     const image = layer.struct ? rootOf(layer.struct) : undefined;
-    return image ? before.find((old) => old.struct && rootOf(old.struct) === image)?.struct : undefined;
+    const old = image ? before.find((entry) => entry.struct && rootOf(entry.struct) === image) : undefined;
+    return old ? shownBefore(old) : undefined;
   };
+  const pictureFrom = from === undefined ? undefined : shownBefore({ src: "", struct: from.struct });
   const refsOf = (layer: ImageLayer, changes = false) =>
     layer.struct ? morphRefsForStruct(context, channel, layer.struct, decide(pick, layer), changes ? fromOf(layer) : undefined) : [];
   const layers: LookLayer[] = visible.map((layer) => {
@@ -99,7 +105,7 @@ export function resolvePictureLook(
         return { ...(filePick === undefined ? {} : { pick: filePick }), refs: refsOf(child) };
       })
     : [];
-  const refs = root ? morphRefsForStruct(context, channel, struct, picturePick, from) : [];
+  const refs = root ? morphRefsForStruct(context, channel, struct, picturePick, pictureFrom) : [];
   const conflict = refs.length > 1 ? ("overlap" as const) : undefined;
   const plays = refs.length === 1 && !!artwork;
   const ownPosed = (layer: ShownLayer, poseOf: LookPose, layerPick: string | undefined): ShownLayer => {
@@ -109,7 +115,7 @@ export function resolvePictureLook(
     return src ? { ...layer, src, shown: true as const } : layer;
   };
   const pictureLookStruct = (poseOf: LookPose) => {
-    const look = shownLook(context, channel, struct, poseOf, picturePick, from);
+    const look = shownLook(context, channel, struct, poseOf, picturePick, pictureFrom);
     if (!look?.attributes.length) return undefined;
     return struct?.$type === "filtered_image"
       ? { ...struct, attributes: [...(Array.isArray(struct.attributes) ? struct.attributes : []), ...look.attributes] }
