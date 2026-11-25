@@ -46,7 +46,7 @@ export interface PictureBitmap {
   profile?: boolean;
   unread?: boolean;
   unsized?: boolean;
-  framed?: boolean;
+  styled?: string;
   vector?: SvgLayerSource;
 }
 
@@ -143,7 +143,7 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
       : undefined;
   const size = { image: img, width: img.naturalWidth, height: img.naturalHeight };
   if (svg && "reason" in svg) {
-    return { ...size, animated: svg.reason === "animated", unread: svg.reason === "unread", unsized: svg.reason === "unsized", framed: svg.reason === "framed" };
+    return { ...size, animated: svg.reason === "animated", unread: svg.reason === "unread", unsized: svg.reason === "unsized", ...(svg.reason === "styled" ? { styled: svg.declaration } : {}) };
   }
   if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
   if (!decoded && !(img.complete && paintsAnything(img, img.naturalWidth, img.naturalHeight, doc))) return undefined;
@@ -953,13 +953,14 @@ export class MorphLayer {
             ? ("unread" as const)
             : bitmap?.unsized
               ? ("unsized" as const)
-              : bitmap?.framed
-                ? ("framed" as const)
+              : bitmap?.styled !== undefined
+                ? ("styled" as const)
                 : undefined;
       return reason ? [{ index, reason }] : [];
     });
     for (const { index, reason } of unfaithful) {
-      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason });
+      const declaration = reason === "styled" ? bitmaps.get(index)?.styled : undefined;
+      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason, ...(declaration !== undefined ? { declaration } : {}) });
     }
     const declared = svgIntrinsicSize(artifact);
     const width = declared.width || bottom?.width;

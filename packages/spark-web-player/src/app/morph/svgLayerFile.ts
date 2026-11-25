@@ -8,14 +8,42 @@ const MAX_LENGTH = 100000;
 
 const PX_PER_UNIT: Record<string, number> = { "": 1, px: 1, in: 96, cm: 96 / 2.54, mm: 96 / 25.4, q: 96 / 101.6, pt: 96 / 72, pc: 16 };
 
-const NEUTRAL_BOX = ["min-width:0", "min-height:0", "max-width:none", "max-height:none", "margin:0"];
+export const ROOT_PROPERTIES: readonly string[] = [
+  "width",
+  "height",
+  "fill",
+  "fill-opacity",
+  "fill-rule",
+  "stroke",
+  "stroke-opacity",
+  "stroke-width",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-miterlimit",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "opacity",
+  "color",
+  "clip-rule",
+  "paint-order",
+  "shape-rendering",
+  "text-rendering",
+  "image-rendering",
+  "color-interpolation",
+  "color-interpolation-filters",
+  "stop-color",
+  "stop-opacity",
+  "flood-color",
+  "flood-opacity",
+  "lighting-color",
+];
 
 export interface SvgLayerSource {
   text: string;
   viewBox: boolean;
 }
 
-export type SvgLayerVerdict = { source: SvgLayerSource } | { reason: "animated" | "unsized" | "unread" | "framed" };
+export type SvgLayerVerdict = { source: SvgLayerSource } | { reason: "animated" | "unsized" | "unread" } | { reason: "styled"; declaration: string };
 
 export interface SvgLayerRaster {
   image: CanvasImageSource;
@@ -96,21 +124,32 @@ function namesAnimation(style: CSSStyleDeclaration | undefined): boolean {
   return names.split(",").some((name) => name.trim() !== "" && name.trim() !== "none");
 }
 
-const SIDES = ["top", "right", "bottom", "left"];
+type View = (Window & typeof globalThis) | null | undefined;
 
-function framesBox(style: CSSStyleDeclaration | undefined): boolean {
-  if (!style) return false;
-  return SIDES.some((side) => {
-    if (parseFloat(style.getPropertyValue(`padding-${side}`)) > 0) return true;
-    const kind = style.getPropertyValue(`border-${side}-style`).trim();
-    const width = style.getPropertyValue(`border-${side}-width`).trim();
-    return kind !== "" && kind !== "none" && kind !== "hidden" && !(width !== "" && parseFloat(width) === 0);
-  });
+function sheetRules(text: string, view: View): CSSRuleList | undefined {
+  const Sheet = view?.CSSStyleSheet;
+  if (Sheet && typeof Sheet.prototype.replaceSync === "function") {
+    const sheet = new Sheet();
+    sheet.replaceSync(text);
+    return sheet.cssRules;
+  }
+  const inert = view?.document.implementation.createHTMLDocument("");
+  if (!inert) return undefined;
+  const style = inert.createElement("style");
+  style.textContent = text;
+  inert.head.appendChild(style);
+  return style.sheet?.cssRules ?? undefined;
+}
+
+function propertiesOf(style: CSSStyleDeclaration | undefined): string[] {
+  if (!style) return [];
+  return Array.from({ length: style.length }, (_, index) => style.item(index).toLowerCase());
 }
 
 interface CssFacts {
   animated: boolean;
-  framed: boolean;
+  rootProperties: string[];
+  unreadable?: string;
 }
 
 function ruleFacts(rules: CSSRuleList | undefined, root: Element, facts: CssFacts) {
@@ -118,53 +157,53 @@ function ruleFacts(rules: CSSRuleList | undefined, root: Element, facts: CssFact
     const style = (rule as CSSStyleRule).style;
     if (namesAnimation(style)) facts.animated = true;
     const selector = (rule as CSSStyleRule).selectorText;
-    if (selector !== undefined && framesBox(style)) {
+    if (selector !== undefined && style) {
       let matches = true;
       try {
         matches = root.matches(selector);
       } catch {}
-      if (matches) facts.framed = true;
+      if (matches) facts.rootProperties.push(...propertiesOf(style));
     }
     ruleFacts((rule as CSSGroupingRule).cssRules, root, facts);
   }
 }
 
-const CSS_BOX = /(?:^|[;{\s])(?:padding|border)(?:-[a-z-]+)?\s*:/i;
-
-function cssFacts(root: Element, sheets: string[], declarations: string[], view: (Window & typeof globalThis) | null | undefined): CssFacts {
-  const own = root.getAttribute("style") ?? "";
-  const Sheet = view?.CSSStyleSheet;
-  if (view && Sheet && typeof Sheet.prototype.replaceSync === "function") {
-    const facts: CssFacts = { animated: false, framed: false };
-    for (const text of sheets) {
-      const sheet = new Sheet();
-      try {
-        sheet.replaceSync(text);
-      } catch {
-        return { animated: true, framed: true };
-      }
-      ruleFacts(sheet.cssRules, root, facts);
+function cssFacts(root: Element, sheets: string[], declarations: string[], view: View): CssFacts {
+  const facts: CssFacts = { animated: false, rootProperties: [] };
+  for (const text of sheets) {
+    let rules: CSSRuleList | undefined;
+    try {
+      rules = sheetRules(text, view);
+    } catch {
+      rules = undefined;
     }
-    const probe = view.document.createElement("div");
-    for (const text of declarations) {
+    if (rules === undefined) {
+      facts.unreadable = "a style sheet the player cannot read";
+      if (CSS_ANIMATION.test(cssWithoutComments(text))) facts.animated = true;
+    } else ruleFacts(rules, root, facts);
+  }
+  const probe = view?.document.createElement("div");
+  const parsed = typeof view?.CSSStyleSheet?.prototype.replaceSync === "function";
+  for (const text of declarations) {
+    if (probe) {
       probe.setAttribute("style", text);
       if (namesAnimation(probe.style)) facts.animated = true;
     }
-    probe.setAttribute("style", own);
-    if (framesBox(probe.style)) facts.framed = true;
-    return facts;
+    if (!parsed && CSS_ANIMATION.test(cssWithoutComments(text))) facts.animated = true;
   }
-  const plain = [...sheets, ...declarations].map(cssWithoutComments);
-  return {
-    animated: plain.some((css) => CSS_ANIMATION.test(css)),
-    framed: [...sheets, own].map(cssWithoutComments).some((css) => CSS_BOX.test(css)),
-  };
+  if (root.hasAttribute("style")) {
+    if (probe) {
+      probe.setAttribute("style", root.getAttribute("style")!);
+      facts.rootProperties.push(...propertiesOf(probe.style));
+    } else facts.unreadable = "a style attribute the player cannot read";
+  }
+  return facts;
 }
 
 export function readSvgLayer(
   text: string,
   parser: DOMParser,
-  options: { view?: (Window & typeof globalThis) | null; natural?: { width: number; height: number } } = {},
+  options: { view?: View; natural?: { width: number; height: number } } = {},
 ): SvgLayerVerdict {
   const root = parse(text, parser);
   if (!root) return { reason: "unread" };
@@ -174,7 +213,9 @@ export function readSvgLayer(
   if (root.hasAttribute("style")) declarations.push(root.getAttribute("style")!);
   const facts = cssFacts(root, sheets, declarations, options.view);
   if (facts.animated) return { reason: "animated" };
-  if (facts.framed) return { reason: "framed" };
+  if (facts.unreadable !== undefined) return { reason: "styled", declaration: facts.unreadable };
+  const refused = facts.rootProperties.find((property) => !ROOT_PROPERTIES.includes(property));
+  if (refused !== undefined) return { reason: "styled", declaration: refused };
   const viewBox = root.hasAttribute("viewBox");
   if (!viewBox) {
     const width = length(root.getAttribute("width"));
@@ -204,7 +245,7 @@ export function fittedSvgLayer(
   root.setAttribute("width", String(width));
   root.setAttribute("height", String(height));
   const style = (root.getAttribute("style") ?? "").trim();
-  const forced = [`width:${width}px`, `height:${height}px`, ...NEUTRAL_BOX].map((declaration) => `${declaration} !important`).join(";");
+  const forced = `width:${width}px !important;height:${height}px !important`;
   root.setAttribute("style", `${style}${style && !style.endsWith(";") ? ";" : ""}${forced}`);
   return serializer.serializeToString(root.ownerDocument);
 }

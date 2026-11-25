@@ -48,6 +48,58 @@ const SVG_LAYER_ALLOWANCE = 0.02;
 
 const SVG_ROOT = (attributes: string, inside = "") => `<svg xmlns="http://www.w3.org/2000/svg" ${attributes}>${inside}<rect x="10" y="20" width="70" height="50"/></svg>`;
 
+const ALLOWED_ROOT_STYLES = [
+  "width:100px",
+  "height:100px",
+  "fill:#c03030",
+  "fill-opacity:0.5",
+  "fill-rule:evenodd",
+  "stroke:#2040e0",
+  "stroke:#2040e0;stroke-opacity:0.5",
+  "stroke:#2040e0;stroke-width:5",
+  "stroke:#2040e0;stroke-linecap:round",
+  "stroke:#2040e0;stroke-linejoin:round",
+  "stroke:#2040e0;stroke-miterlimit:2",
+  "stroke:#2040e0;stroke-dasharray:4 2",
+  "stroke:#2040e0;stroke-dasharray:4 2;stroke-dashoffset:3",
+  "opacity:0.5",
+  "color:#30c030;fill:currentColor",
+  "clip-rule:evenodd",
+  "stroke:#2040e0;stroke-width:5;paint-order:stroke",
+  "shape-rendering:crispEdges",
+  "text-rendering:geometricPrecision",
+  "image-rendering:pixelated",
+  "color-interpolation:linearRGB",
+  "color-interpolation-filters:sRGB",
+  "stop-color:red",
+  "stop-opacity:0.5",
+  "flood-color:red",
+  "flood-opacity:0.5",
+  "lighting-color:red",
+  "fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2",
+];
+
+const REFUSED_ROOT_STYLES = [
+  "min-width:400px",
+  "max-width:100px",
+  "min-height:400px",
+  "max-height:100px",
+  "box-sizing:border-box;padding:20px",
+  "border:20px solid red",
+  "border:20px none red",
+  "margin:4px",
+  "display:block",
+  "contain:paint",
+  "writing-mode:vertical-rl",
+  "overflow:visible",
+  "aspect-ratio:2",
+  "box-sizing:border-box",
+  "transform:scale(0.5)",
+  "position:absolute",
+  "zoom:2",
+  "--brand:red",
+];
+
 const SVG_VERDICTS: [string, string, { width: number; height: number } | undefined][] = [
   [SVG_ROOT('viewBox="0 0 100 100"', '<style>rect { font-family: "/*" } @keyframes spin { to { opacity: 0 } } rect { animation: spin 1s infinite }</style>'), "animated", undefined],
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { fill: url(https://example.invalid/a/*) } rect { animation: spin 1s infinite }</style>"), "animated", undefined],
@@ -55,11 +107,13 @@ const SVG_VERDICTS: [string, string, { width: number; height: number } | undefin
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { anim\\61tion-name: spin }</style>"), "animated", undefined],
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>/* rect { animation: spin 1s } */ rect { fill: blue }</style>"), "kept", undefined],
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>@keyframes unused { to { opacity: 0 } }</style>"), "kept", undefined],
-  [SVG_ROOT('viewBox="0 0 100 100" style="box-sizing:border-box;padding:20px"'), "framed", undefined],
-  [SVG_ROOT('viewBox="0 0 100 100" style="border:20px solid red"'), "framed", undefined],
-  [SVG_ROOT('viewBox="0 0 100 100"', "<style>:root { padding: 4px }</style>"), "framed", undefined],
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { padding: 4px; border: 2px solid red }</style>"), "kept", undefined],
-  [SVG_ROOT('viewBox="0 0 100 100" style="border:20px none red;max-width:100px"'), "kept", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>:root { padding: 4px }</style>"), "styled", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>svg { max-width: 100px !important; max-height: 100px !important }</style>"), "styled", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>svg { width: 100px; height: 100px; fill: red }</style>"), "kept", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100" style="--brand:red"'), "styled:--brand", undefined],
+  ...ALLOWED_ROOT_STYLES.map((style): [string, string, undefined] => [SVG_ROOT(`viewBox="0 0 100 100" style="${style}"`), "kept", undefined]),
+  ...REFUSED_ROOT_STYLES.map((style): [string, string, undefined] => [SVG_ROOT(`viewBox="0 0 100 100" style="${style}"`), "styled", undefined]),
   [SVG_ROOT('width="1e309" height="1e309"'), "unsized", undefined],
   [SVG_ROOT('width="1e39" height="1e39"'), "unsized", undefined],
   [SVG_ROOT('width="100" height="100"'), "unsized", { width: 300, height: 150 }],
@@ -253,7 +307,7 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     },
   );
 
-  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice", "a size set by its own style", "a size set by a stylesheet", "a maximum width", "a minimum width", "a minimum height", "a maximum height", "important limits in a stylesheet", "a transform on the root"])(
+  test.for(["a viewBox of another shape", "no viewBox", "an alignment and slice", "a size set by its own style", "a size set by a stylesheet", ...ALLOWED_ROOT_STYLES])(
     "an SVG layer file with %s is drawn in the picture as CSS draws it, at uniform and stretched placements",
     async (kind, context) => {
       if (!browser) return context.skip();
@@ -277,7 +331,8 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
       ({ text, natural }) => (window as unknown as { layeredMotion: Harness }).layeredMotion.svgVerdict(text, natural),
       { text, natural },
     );
-    expect(verdict).toBe(expected);
+    if (expected === "styled") expect(verdict).toMatch(/^styled:/);
+    else expect(verdict).toBe(expected);
   });
 
   test("the paint probe finds a single painted pixel on a large layer, and nothing on an empty one", async (context) => {

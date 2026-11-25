@@ -133,7 +133,7 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     const env = installJSDOM();
     restore = env.restore;
     const view = env.overlay.ownerDocument.defaultView!;
-    const read = (value: string) => readSvgLayer(value, new view.DOMParser());
+    const read = (value: string) => readSvgLayer(value, new view.DOMParser(), { view: view as never });
     expect(read(SVG)).toEqual({ source: { text: SVG, viewBox: true } });
     expect(read(`<!-- <svg preserveAspectRatio="none"> -->${SVG}`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" width="2in" height="1in"/>`)).toMatchObject({ source: { viewBox: false } });
@@ -143,22 +143,25 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect(read(`<svg xmlns="${NS}" width="calc(100%)" height="calc(100%)"/>`)).toEqual({ reason: "unsized" });
     expect(read(`<svg xmlns="${NS}" width="0" height="140"/>`)).toEqual({ reason: "unsized" });
     expect(read(`<svg xmlns="${NS}" width="2.6e2" height="+140px"/>`)).toMatchObject({ source: { viewBox: false } });
-    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* @keyframes old { to { opacity: 0 } } */ rect { fill: blue }</style></svg>`)).toMatchObject({ source: { viewBox: true } });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* @keyframes old { to { opacity: 0 } } */ rect { fill: blue }</style></svg>`)).toEqual({ reason: "styled", declaration: "a style sheet the player cannot read" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="fill: red; /* animation: spin 1s */"/></svg>`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>/* old */ rect { animation: spin 1s }</style></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>rect { font-family: "/*" } rect { animation: spin 1s }</style></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>rect { fill: url(a/*) } rect { animation: spin 1s }</style></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" width="1e309" height="1e309"/>`)).toEqual({ reason: "unsized" });
     expect(read(`<svg xmlns="${NS}" width="1e39" height="140"/>`)).toEqual({ reason: "unsized" });
-    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="padding:2px"/>`)).toEqual({ reason: "framed" });
-    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>svg { border: 1px solid }</style></svg>`)).toEqual({ reason: "framed" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="padding:2px"/>`)).toMatchObject({ reason: "styled" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>svg { border: 1px solid }</style></svg>`)).toMatchObject({ reason: "styled" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2"/>`)).toMatchObject({ source: { viewBox: true } });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="--brand:red"/>`)).toEqual({ reason: "styled", declaration: "--brand" });
+    expect(readSvgLayer(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="fill:red"/>`, new view.DOMParser())).toEqual({ reason: "styled", declaration: "a style attribute the player cannot read" });
     const sized = (natural: { width: number; height: number }) => readSvgLayer(`<svg xmlns="${NS}" width="1in" height="140"/>`, new view.DOMParser(), { natural });
     expect(sized({ width: 96, height: 140 })).toMatchObject({ source: { viewBox: false } });
     expect(sized({ width: 300, height: 150 })).toEqual({ reason: "unsized" });
     expect(sized({ width: 0, height: 0 })).toEqual({ reason: "unsized" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect><animate attributeName="x" to="1" dur="1s"/></rect></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><set attributeName="x" to="1"/></svg>`)).toEqual({ reason: "animated" });
-    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>@keyframes spin { to { rotate: 1turn } }</style></svg>`)).toMatchObject({ source: { viewBox: true } });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>@keyframes spin { to { rotate: 1turn } }</style></svg>`)).toEqual({ reason: "styled", declaration: "a style sheet the player cannot read" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="fill:red; animation: spin 1s"/></svg>`)).toEqual({ reason: "animated" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect style="transition: fill 1s"/></svg>`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><rect></svg>`)).toEqual({ reason: "unread" });
@@ -186,7 +189,7 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect([stretched.getAttribute("width"), stretched.getAttribute("height"), stretched.getAttribute("viewBox"), stretched.getAttribute("preserveAspectRatio")]).toEqual(["375", "188", "0 0 100 50", "none"]);
     const styled = fit(`<svg xmlns="${NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><style>svg { width: 100px }</style></svg>`, true);
     expect(styled.getAttribute("style")).toBe(
-      "width:100px;height:100px;width:375px !important;height:188px !important;min-width:0 !important;min-height:0 !important;max-width:none !important;max-height:none !important;margin:0 !important",
+      "width:100px;height:100px;width:375px !important;height:188px !important",
     );
   });
 
@@ -258,12 +261,12 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     ["an animated SVG", { animated: true }, "animated"],
     ["an SVG that does not parse", { unread: true }, "unread"],
     ["an SVG without a viewBox or a size", { unsized: true }, "unsized"],
-    ["an SVG whose root has padding or a border", { framed: true }, "framed"],
+    ["an SVG whose root is styled beyond the allowed properties", { styled: "padding-top" }, "styled"],
   ] as const)("%s keeps the picture on its CSS drawing, and the game is told which file", async ([, flags, reason]) => {
     const rasterize = vi.fn(async (width: number, height: number) => raster(width, height));
     const { canvas, still } = picture(flags, rasterize);
     await settle(() => still.mock.calls.length > 0);
-    expect(still).toHaveBeenCalledWith({ image: "kit", file: "brows.svg", reason });
+    expect(still).toHaveBeenCalledWith({ image: "kit", file: "brows.svg", reason, ...(reason === "styled" ? { declaration: "padding-top" } : {}) });
     expect(canvas()).toBeFalsy();
     expect(rasterize).not.toHaveBeenCalled();
   });

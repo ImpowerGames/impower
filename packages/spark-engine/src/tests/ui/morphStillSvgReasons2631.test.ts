@@ -6,11 +6,11 @@ describe("a picture that stays still because of an SVG layer file names the file
   test.for([
     ["unsized", "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"],
     ["undrawn", "is an SVG the browser would not draw at the picture's size"],
-    ["framed", "is an SVG whose root has padding or a border, which browsers do not draw alike on a canvas"],
+    ["styled", "is an SVG whose root is styled with `padding-top`, which the player only draws faithfully for colour and stroke properties and a width and height"],
   ] as const)("%s", ([reason, why]) => {
     const log = vi.fn();
     const ui = { _morphStills: new Set<string>(), _game: { log } };
-    const params: MorphStillParams = { image: "kit", file: "brows.svg", reason };
+    const params: MorphStillParams = { image: "kit", file: "brows.svg", reason, ...(reason === "styled" ? { declaration: "padding-top" } : {}) };
     UIModule.prototype.reportMorphStill.call(ui as never, params);
     UIModule.prototype.reportMorphStill.call(ui as never, params);
     expect(log.mock.calls).toEqual([[`\`kit\` stays still: its layer file \`brows.svg\` ${why}, and no morph plays on it.`, "warning"]]);

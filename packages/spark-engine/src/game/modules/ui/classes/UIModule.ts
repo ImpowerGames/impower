@@ -2002,7 +2002,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _morphStills = new Set<string>();
 
   reportMorphStill(params: MorphStillParams) {
-    const key = JSON.stringify([params.image, params.file, params.reason]);
+    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? ""]);
     if (this._morphStills.has(key)) {
       return;
     }
@@ -2016,8 +2016,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
             : params.reason === "undrawn"
               ? "is an SVG the browser would not draw at the picture's size"
-              : params.reason === "framed"
-                ? "is an SVG whose root has padding or a border, which browsers do not draw alike on a canvas"
+              : params.reason === "styled"
+                ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
                 : "could not be read to check that it is a still sRGB image";
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }

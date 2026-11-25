@@ -453,19 +453,17 @@ const FIT_SVGS: Record<string, string> = {
   "an alignment and slice": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 50" preserveAspectRatio="xMaxYMin slice"><rect x="10" y="10" width="70" height="30" fill="#2040e0"/></svg>`,
   "a size set by its own style": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
   "a size set by a stylesheet": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100"><style>svg { width: 100px; height: 100px }</style><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
-  "a maximum width": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="max-width:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
-  "a minimum width": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="min-width:400px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
-  "a minimum height": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="min-height:400px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
-  "a maximum height": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="max-height:100px"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
-  "important limits in a stylesheet": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100"><style>svg { max-width: 100px !important; max-height: 100px !important }</style><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
-  "a transform on the root": `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="transform:scale(0.5)"><rect x="10" y="20" width="70" height="50" fill="#2040e0"/></svg>`,
 };
+
+const styledFit = (style: string) =>
+  `<svg xmlns="${SVG_NS}" width="100" height="100" viewBox="0 0 100 100" style="${style}"><rect x="10" y="20" width="70" height="50"/><path d="M15 85 L85 85 L50 95 Z" stroke-width="3"/></svg>`;
 
 async function cssFit(kind: string, width: number, height: number) {
   document.body.replaceChildren();
   const holder = document.body.appendChild(document.createElement("div"));
   holder.setAttribute("style", "display:flex;gap:20px;padding:10px;background:#fff");
-  const files = [smallFile("#ffffff", 0, 0, 100, 100), `data:image/svg+xml,${encodeURIComponent(FIT_SVGS[kind]!)}`];
+  const file = FIT_SVGS[kind] ?? styledFit(kind);
+  const files = [smallFile("#ffffff", 0, 0, 100, 100), `data:image/svg+xml,${encodeURIComponent(file)}`];
   const background = [...files].reverse().map((src) => `url("${src}")`).join(", ");
   const style = `display:block;position:relative;width:${width}px;height:${height}px;background-image:${background};background-size:100% 100%;background-repeat:no-repeat`;
   const overlay = holder.appendChild(document.createElement("div"));
@@ -517,7 +515,7 @@ async function cssFit(kind: string, width: number, height: number) {
 
 const svgVerdict = (text: string, natural?: { width: number; height: number }) => {
   const verdict = readSvgLayer(text, new DOMParser(), { view: window, ...(natural ? { natural } : {}) });
-  return "reason" in verdict ? verdict.reason : "kept";
+  return "source" in verdict ? "kept" : verdict.reason === "styled" ? `styled:${verdict.declaration}` : verdict.reason;
 };
 
 (window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, cssFit, svgVerdict, wholePng: WHOLE_PNG };
