@@ -3966,7 +3966,7 @@ export class Game<T extends M = {}> {
     const targets = this._shownChoices;
     this._shownChoices = [];
     for (const target of targets) {
-      this.module.ui.text.clear(target);
+      this.module.ui.text.clearRendered(target);
       this.module.ui.image.clear(target);
       this.module.ui.unobserve("click", target);
       this.module.ui.hide(target);

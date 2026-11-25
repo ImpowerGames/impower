@@ -238,12 +238,14 @@ layout textbox {
   });
 
   test.each([
-    ["with its line stamps", false],
-    ["without line stamps", true],
-  ])("a save %s restores the text it shows in a #clear element two targets share", async (_, unstamped) => {
+    ["with its line stamps", "two targets share", "dialogue.action", false],
+    ["without line stamps", "two targets share", "dialogue.action", true],
+    ["with its line stamps", "named by its one target", "action", false],
+    ["without line stamps", "named by its one target", "action", true],
+  ])("a save %s restores the text it shows in a #clear element %s", async (_, __, element, unstamped) => {
     const source = `
 layout textbox {
-  textbox { dialogue.action #clear { text } }
+  textbox { ${element} #clear { text } }
 }
 
 scene start
@@ -322,16 +324,58 @@ end
     expect(seen).toEqual([1, 2, 2, 2]);
   });
 
-  test("choosing stamps the choices' clear no later than the chosen line's text, and a restore after it puts back that line and no choice", async () => {
-    const h = createHarness(`
+  const CHOICE_SOURCE = `
+layout textbox {
+  choices {
+    choice.0 { text }
+    choice.1 { text }
+  }
+  textbox { action #clear { text } }
+}
+
 scene start
+  Before.
+
   The gate.
   choose
     * [Pay.]
       Paid.
+    * [Climb.]
+      Climbed.
   end
 end
-`);
+`;
+
+  test("choosing a choice drops every choice's saved text and stamps its clear at the menu's line", async () => {
+    const h = createHarness(CHOICE_SOURCE);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.jumpToFlow("start");
+    let menu: any;
+    for (let beat = h.nextBeat(); beat && !menu; beat = h.nextBeat()) {
+      const coordinator = new Coordinator(h.game, beat);
+      await flushMicrotasks(20);
+      if (beat.choices?.length) {
+        menu = coordinator;
+      }
+    }
+    expect(menu).toBeDefined();
+    const line = ui.state.textLine;
+    for (const target of ["choice 0", "choice 1"]) {
+      expect(ui.state.text?.[target], target).toBeDefined();
+      expect(ui.state.textWritten?.[target], target).toBe(line);
+    }
+    menu.choose(0);
+    for (const target of ["choice 0", "choice 1"]) {
+      expect(ui.state.text?.[target], target).toBeUndefined();
+      expect(ui.state.textWritten?.[target], target).toBeUndefined();
+      expect(ui.state.textCleared?.[target], target).toBe(line);
+    }
+  });
+
+  test("rolling back from a choice menu leaves the destination's line stamps as they were saved", async () => {
+    const h = createHarness(CHOICE_SOURCE);
     await h.ready;
     expect(h.errors).toEqual([]);
     const ui: any = h.game.module.ui;
@@ -343,28 +387,44 @@ end
         await flushMicrotasks(30);
       }
     };
+    const stampsNow = () =>
+      JSON.parse(JSON.stringify([ui.state.textLine, ui.state.textWritten, ui.state.textCleared]));
     await settle();
+    expect(ui.state.text?.action?.map((s: any) => s.text).join("")).toBe("Before.");
+    const saved = stampsNow();
     for (let i = 0; i < 8 && h.game.story.currentChoices.length === 0; i += 1) {
       h.game.clickedToContinue();
       await settle();
     }
     expect(h.game.story.currentChoices.length).toBeGreaterThan(0);
-    h.game.chosePathToContinue(0);
-    await settle();
-    const choiceClears = Object.entries(ui.state.textCleared ?? {}).filter(([t]) => t.startsWith("choice"));
-    expect(choiceClears.length).toBeGreaterThan(0);
-    for (const [, line] of choiceClears) {
-      expect(line).toBeLessThanOrEqual(ui.state.textWritten.action);
-    }
-    const offset = h.messages.length;
-    await ui.onRestore();
-    await flushMicrotasks(20);
-    const restored = flattenMessages(h.messages.slice(offset))
-      .filter((m: any) => m?.method === "ui/write-text")
-      .map((m: any) => (m.params?.instructions ?? []).map((e: any) => e.text ?? "").join(""))
-      .filter(Boolean);
-    expect(restored).toContain("Paid.");
-    expect(restored).not.toContain("Pay.");
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    expect(stampsNow()).toEqual(saved);
+  });
+
+  test("a stream's templates leave an element of the same name outside the stream on screen", async () => {
+    const h = createHarness(`${SHARED_PREFIX}
+layout main {
+  action { text "Ready" }
+  stream {
+    action { text }
+  }
+}
+
+layout textbox {
+  textbox { dialogue #clear { text } }
+}
+
+scene start
+  HERO: Hello.
+end
+`);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    const ids: string[] = ui.findIds("action");
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.map((id) => displayOf(h.messages, id))).not.toContain("none");
   });
 
   test("rolling back puts back the text a shared element held through a line that wrote elsewhere, and rolling forward puts back the later line", async () => {

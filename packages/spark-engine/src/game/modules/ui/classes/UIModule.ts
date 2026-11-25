@@ -1135,7 +1135,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         !this._state.image?.[target],
     );
     await Promise.all([
-      this.text.clearAll([...transientTargets, ...emptySlots]),
+      ...[...transientTargets, ...emptySlots].map((target) => this.text.clearRendered(target)),
       this.clearTransientPictures(transientTargets),
       this.image.clearAll(emptySlots),
     ]);
@@ -4812,7 +4812,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   initLayout(layout: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(layout)) {
-      if (key.startsWith("$") || !isStruct(value)) {
+      if (key.startsWith("$") || !isStruct(value) || key.split(" ")[0] === "stream") {
         continue;
       }
       if (value["$clear"] === true) {
