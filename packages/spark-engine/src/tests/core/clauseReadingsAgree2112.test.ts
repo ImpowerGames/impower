@@ -11,6 +11,8 @@ import {
   type SourceDirective,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { compareEngines } from "@impower/sparkdown/src/tests/compiler/scopeEquality";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { layoutStreams } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import { beforeAll, describe, expect, test } from "vitest";
 import { MAIN_URI, compileUI, createHarness } from "../ui/harness/uiTestHarness";
 
@@ -347,7 +349,11 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
     reading.strays.push(keyword);
   });
   if (chunk.tag === "layout" && controlWritten && chunk.control === "clear") {
-    reading.clearWarning = chunk.target !== "textstream";
+    reading.clearWarning =
+      !chunk.target ||
+      (chunk.target !== "textstream" &&
+        Boolean(sparkle?.layouts?.[chunk.target]) &&
+        layoutStreams(sparkle, chunk.target).length === 0);
   }
   if (chunk.tag === "cutscene") {
     const strayName = parsed.some((clause) =>
@@ -476,7 +482,7 @@ function compilerReadingsOf(text: string, keep: (line: number, from: number) => 
       reading(line).valueErrors.push(`${message.match(/^`([^`]+)`/)?.[1] ?? "?"}:${zeroWidth ? "missing" : "invalid"}`);
     } else if (/is a flag and cannot take an argument/.test(message)) reading(line).flagArguments.push(at.split(/[ \t]+/).join(" "));
     else if (message.startsWith("Incomplete `navigate`")) reading(line).incompleteNavigate = true;
-    else if (message.startsWith("Only textstream has a page to clear")) reading(line).clearWarning = true;
+    else if (message.endsWith("has no stream to clear.") || message.startsWith("Incomplete `clear`")) reading(line).clearWarning = true;
     else if (message.startsWith("`play` takes one video name")) reading(line).playArity = true;
     else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
   }
@@ -512,6 +518,8 @@ function spyOnChunks(harness: ReturnType<typeof createHarness>): Seen[] {
   return seen;
 }
 
+let sparkle: SparkProgram["sparkle"];
+
 const readingOf = (found: Seen) => expected(found.bracket, found.content, found.chunk, found.parsed);
 
 const compilerReadings = new Map<number, Reading>();
@@ -523,6 +531,7 @@ beforeAll(async () => {
   for (const [line, found] of compilerReadingsOf(source, (line) => line % 2 === 1)) compilerReadings.set(line, found);
   const harness = createHarness(source);
   await harness.ready;
+  sparkle = harness.game.program?.sparkle;
   const seen = spyOnChunks(harness);
   for (let i = 0; i < ROWS.length; i += 1) {
     const before = seen.length;

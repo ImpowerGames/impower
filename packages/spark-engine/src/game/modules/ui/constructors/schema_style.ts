@@ -41,6 +41,7 @@ const PROPERTY_NAMES = [
   "border-color",
   "text-decoration-color",
 ];
+const TRANSITION_PROPERTY_NAMES = [...PROPERTY_NAMES, "layout"];
 const COLORS = ["transparent", { $type: "color" }];
 
 export const schema_style: Create<Schema<any>> = () => {
@@ -214,11 +215,11 @@ export const schema_style: Create<Schema<any>> = () => {
     ],
     filter: FILTERS,
     backdrop_filter: FILTERS,
-    transition: [],
+    transition: TRANSITION_PROPERTY_NAMES,
     transition_delay: [1, 0, 100],
     transition_duration: [1, 0, 100],
     transition_easing: [...TIMING_FUNCTIONS, { $type: "ease" }],
-    transition_property: PROPERTY_NAMES,
+    transition_property: TRANSITION_PROPERTY_NAMES,
     animation: ["none", { $type: "animation" }],
     animation_name: ["none", { $type: "animation" }],
     animation_state: ["running", "pause"],
