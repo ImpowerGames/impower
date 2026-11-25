@@ -35,6 +35,14 @@ describe("completion in a compiled project's layout and component bodies", () =>
     },
   );
 
+  test.each(["layout", "component"])("a %s body offers no slot", (keyword) => {
+    const labels = labelsAt(`${PROJECT}\n${keyword} hud {\n  sl@0\n}\n`, {
+      program,
+    });
+    expect(labels).toContain("caption");
+    expect(labels).not.toContain("slot");
+  });
+
   test("an element's property value offers no elements", () => {
     const labels = labelsAt(`${PROJECT}\nlayout hud {\n  row #gap=@0\n}\n`, {
       program,
