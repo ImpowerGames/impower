@@ -1696,7 +1696,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this._screenEdits += 1;
     this.flushUIBatch();
-    return this.emitSettled(
+    const played = this.emitSettled(
       AnimateElementsMessage.type.request({
         effects: effects.map((e) => ({
           element: e.element.id,
@@ -1704,6 +1704,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         })),
       }),
     );
+    this.composingLine()?.motions.push(played);
+    return played;
   }
 
   setMotion(motion: boolean): void {

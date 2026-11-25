@@ -340,6 +340,12 @@ layout main {
   }
 }
 
+layout menu {
+  panel {
+    text "Menu"
+  }
+}
+
 scene picture
   [[show portrait SPRITE]]
 end
@@ -350,6 +356,10 @@ end
 
 scene swap
   [[show portrait OTHER]] A typed line.
+end
+
+scene opening
+  [[open menu with fadein]] Another typed line.
 end
 `;
 
@@ -404,6 +414,24 @@ describe("everything a line changes waits for its motion (#2739)", () => {
     h.releasePresence();
     await flushMicrotasks(40);
     expect(imageWrites(h, "portrait").filter((m: any) => m.params.instructions.length > 0)).toHaveLength(1);
+  });
+
+  test("a layout opened with a with clause on the line holds the typing until its animation ends", async () => {
+    const h = await beside();
+    h.jumpToFlow("words");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    h.releasePresence();
+    await flushMicrotasks(40);
+    h.reset();
+    h.jumpToFlow("opening");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    expect(h.heldPresence()).toEqual([]);
+    const [animate] = wire(h.messages).filter((m: any) => m?.method === "ui/animate");
+    expect(animate).toBeDefined();
+    expect(typedOut(h).filter((m: any) => !m.params.held)).toEqual([]);
+    h.game.connection.receive({ jsonrpc: "2.0", id: animate.id, result: [0] } as any);
+    await flushMicrotasks(40);
+    expect(typedOut(h).filter((m: any) => !m.params.held)).toHaveLength(1);
   });
 
   test("a line shown in a box and a stream at once holds the typing in both", async () => {
