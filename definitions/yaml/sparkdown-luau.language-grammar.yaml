@@ -1620,14 +1620,6 @@ repository:
 
 
 
-  LuauElementAttribute:
-    patterns:
-      - { include: "#RequiredWhitespace" }
-      - { include: "#LuauComment" }
-      - { include: "#SparkdownLineComment" }
-      - { include: "#LuauEventAttribute" }
-      - { include: "#LuauPropAttribute" }
-
   LuauSparkleEventHandlerName:
     tag: heading
     name: keyword.control.divert.path.sd
@@ -1668,25 +1660,6 @@ repository:
         patterns:
           - { include: "#PunctuationBraceClose" }
 
-  LuauPropAttribute:
-    begin: ([#])((?:[-]{2})?{{LUAU_WORD}}(?:[-]{{LUAU_WORD}})*)({{WS}}*)([=])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StyleAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#StyleAttributeName" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-    patterns:
-      - { include: "#LuauFunctionCallShorthand" }
-      - { include: "#LuauInterpolatedStringExpression" }
-      - { include: "#LuauElementContentStringInterpolated" }
-      - { include: "#InlinePropQuotedValue" }
-      - { include: "#InlinePropLiteralValue" }
-    end: (?=$|{{WS}}+[@#])
 
   LuauElementContentStringInterpolated:
     tag: string
@@ -1780,7 +1753,10 @@ repository:
         patterns:
           - { include: "#LuauStructBlockKeyBracket" }
           - { include: "#LuauStructBlockKeyString" }
-          - { include: "#LuauElementAttribute" }
+          - { include: "#RequiredWhitespace" }
+          - { include: "#LuauComment" }
+          - { include: "#SparkdownLineComment" }
+          - { include: "#LuauEventAttribute" }
           - { include: "#LuauKeyframeSelector" }
           - { include: "#LuauSparkleElementClass" }
           - { include: "#SelectorPropertyNamePart" }
