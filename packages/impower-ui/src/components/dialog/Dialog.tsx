@@ -2,10 +2,9 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { DismissableLayer } from "@radix-ui/react-dismissable-layer";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX, RefObject } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import { useLayout } from "../../hooks/useLayout";
 import { useMountTransition } from "../../hooks/useMountTransition";
-import { holdSheetOpen } from "../../hooks/useSheetOpen";
 import { cn } from "../../utils/cn";
 import "../../utils/uniqueIds";
 import { focusReturnTarget } from "../../utils/focusReturn";
@@ -231,10 +230,6 @@ function Modal({
 }) {
   const { mounted, visible } = useMountTransition(open, DIALOG_TRANSITION_MS);
   const kept = !!keepClear && placement === "bottom";
-  useEffect(
-    () => (open && placement === "bottom" ? holdSheetOpen() : undefined),
-    [open, placement],
-  );
   const content = useRef<HTMLDivElement | null>(null);
   const top = useClearLine(
     kept ? keepClear : undefined,
