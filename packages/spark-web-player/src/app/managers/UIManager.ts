@@ -295,6 +295,7 @@ export default class UIManager extends Manager {
     if (morphs) {
       morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
       morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
+      morphs.keepWhole = (srcs) => (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(srcs);
       morphs.residentPicture = (src) => {
         const picture = (this.app.assets?.cache ?? this.app.assetCache)?.picture(src);
         return picture ? { ...picture, image: picture.image as unknown as CanvasImageSource } : undefined;
@@ -2192,6 +2193,9 @@ export default class UIManager extends Manager {
                 : content.srcs;
             const morph = instruction.control !== "hide" ? content.morph : undefined;
             const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
+            if (pictures.length === 0) {
+              (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs);
+            }
             if (morph || pictures.length > 0) {
               this.morphs?.mount(
                 newSpanEl,

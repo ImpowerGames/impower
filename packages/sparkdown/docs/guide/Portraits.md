@@ -443,11 +443,11 @@ A picture with layer files is still named `image.ava` in a define, so a named lo
 
 ## How layer files are drawn
 
-A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. A single image keeps its usual drawing, and so does a picture used as a `mask`.
+A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. A single image keeps its usual drawing, and so does a picture used as a `mask`, whose files count at their whole size.
 
 Export every layer at the size of the whole document, so the files line up. The empty part of a layer costs nothing: as the player loads a layer file it cuts it to the box of its painted pixels, plus a 2-pixel margin, and draws it back at its place. Only a pixel that is fully transparent counts as empty. A layer counts against the [loading budgets](./Loading.md#91-what-happens-on-its-own) at its cut size, so a prop that covers a tenth of the backdrop costs about a tenth of a whole file. The picture looks the same either way. `trim_layers = false` in `define assets as config` turns the cutting off.
 
-These pictures keep the usual CSS drawing, and their files are not cut:
+These pictures keep the usual CSS drawing, and their files count at their whole size once they are shown:
 
 - One of the layer files is animated: an animated GIF, an animated WebP, or an APNG.
 - The layer files are not all the same pixel size.

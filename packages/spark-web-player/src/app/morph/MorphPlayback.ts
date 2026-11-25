@@ -329,6 +329,7 @@ export class MorphPlayback {
   loadPicture: PictureLoader;
   pictureCanvas: PictureCanvasFactory;
   reportStill?: (params: MorphStillParams) => void;
+  keepWhole?: (srcs: string[]) => void;
   residentPicture?: (src: string) => PictureBitmap | undefined;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
   protected loadedPictures = new Map<string, PictureBitmap>();
@@ -992,11 +993,15 @@ export class MorphLayer {
       )
     ) {
       still.broken = true;
+      this.playback.keepWhole?.(still.picture.files.map((file) => file.src));
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    if (!this.stillPlans(still, computed)) still.broken = true;
+    if (!this.stillPlans(still, computed)) {
+      still.broken = true;
+      this.playback.keepWhole?.(still.picture.files.map((file) => file.src));
+    }
   }
 
   protected occurrenceKey(play: MorphPlay, at: number | string): string {
@@ -1048,6 +1053,7 @@ export class MorphLayer {
     const indices = model ? [...new Set([0, ...model.files])] : [];
     if (!model || indices.some((index) => !files[index])) {
       image.broken = true;
+      this.playback.keepWhole?.(files.map((file) => file.src));
       return;
     }
     const loaded = await Promise.all(indices.map((index) => this.playback.picture(files[index]!.src)));
@@ -1078,6 +1084,7 @@ export class MorphLayer {
       [...bitmaps.values()].some((bitmap) => bitmap.width !== width || bitmap.height !== height)
     ) {
       image.broken = true;
+      this.playback.keepWhole?.(files.map((file) => file.src));
       return;
     }
     image.files = { model, bitmaps, width, height };

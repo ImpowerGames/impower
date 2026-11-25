@@ -4,7 +4,7 @@ import { AssetCache, type ImageTarget, type LayerFile } from "../../app/assets/A
 import AssetManager from "../../app/managers/AssetManager";
 import { paintedBox, TRIM_MARGIN, type TrimmedLayer } from "../../app/morph/layerTrim";
 import { MorphPlayback, type PictureBitmap, type PictureCanvasContext } from "../../app/morph/MorphPlayback";
-import { installJSDOM } from "./domTestHarness";
+import { createDOMHarness, flushMicrotasks, installJSDOM } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -103,7 +103,27 @@ describe("a trimmed layer in the asset cache (#2657)", () => {
     expect(stats.bytes.image).toBe(400 * 300 * 4 + NATURAL.width * NATURAL.height * 4);
     expect(cache.picture("desk.png")).toMatchObject({ box: BOXES["desk.png"], ...NATURAL, image: { src: "desk.png#trimmed" } });
     expect(cache.picture("lamp.png")?.box).toBeUndefined();
-    expect(warmed).toEqual(["lamp.png"]);
+    expect(warmed).toEqual(["desk.png", "lamp.png"]);
+  });
+
+  test("a layer the page draws whole is counted whole, let go of without closing, and never trimmed again", async () => {
+    const { cache, closed } = trimmingCache();
+    await cache.request(layers("desk.png", "lamp.png"), 0, "line", undefined);
+    const shown = cache.picture("desk.png")!.image;
+    cache.keepWhole(["desk.png", "lamp.png", "missing.png"]);
+    expect(cache.picture("desk.png")?.box).toBeUndefined();
+    expect(cache.stats().bytes.image).toBe(2 * NATURAL.width * NATURAL.height * 4);
+    expect(cache.bytes).toBe(2 * NATURAL.width * NATURAL.height * 4);
+    expect(closed).toEqual([]);
+    expect(shown).toMatchObject({ src: "desk.png#trimmed" });
+
+    const loading = trimmingCache();
+    const request = loading.cache.request(layers("desk.png"), 0, "line", undefined);
+    loading.cache.keepWhole(["desk.png"]);
+    await request;
+    expect(loading.cache.picture("desk.png")?.box).toBeUndefined();
+    expect(loading.cache.stats().bytes.image).toBe(NATURAL.width * NATURAL.height * 4);
+    expect(loading.closed).toEqual(["desk.png"]);
   });
 
   test("dropping a trimmed layer's entry closes its bitmap", async () => {
@@ -132,7 +152,6 @@ describe("a trimmed layer in the asset cache (#2657)", () => {
     expect(on.cache.picture("desk.png")?.box).toBeUndefined();
     expect(on.cache.stats().bytes.image).toBe(NATURAL.width * NATURAL.height * 4);
     expect(on.cache.bytes).toBe(NATURAL.width * NATURAL.height * 4);
-    expect(on.warmed).toEqual(["desk.png"]);
   });
 
   test("the page's assets/configure carries trim_layers to the cache", async () => {
@@ -163,36 +182,44 @@ const OFFICE: LayeredPicture = {
 };
 const SRCS = OFFICE.files.map((file) => file.src);
 
+function mountOffice(resident: (src: string) => PictureBitmap | undefined) {
+  const env = installJSDOM();
+  restore = env.restore;
+  const frames: Drawn[][] = [];
+  const context = {
+    globalAlpha: 1,
+    imageSmoothingEnabled: true,
+    setTransform: () => {},
+    clearRect: () => frames.push([]),
+    drawImage(source: CanvasImageSource, x: number, y: number, width: number, height: number) {
+      frames.at(-1)!.push({ src: (source as unknown as { src: string }).src, x, y, width, height });
+    },
+  } as PictureCanvasContext;
+  const playback = new MorphPlayback(env.overlay, { requestFrame: () => 0, cancelFrame: () => {}, pictureCanvas: () => context });
+  const kept: string[][] = [];
+  playback.keepWhole = (srcs) => kept.push(srcs);
+  playback.residentPicture = resident;
+  const span = env.overlay.ownerDocument.createElement("span");
+  span.style.setProperty("width", "800px");
+  span.style.setProperty("height", "300px");
+  span.style.setProperty("background-size", "auto 100%");
+  span.style.setProperty("background-position", "center");
+  span.style.setProperty("background-repeat", "no-repeat");
+  env.overlay.appendChild(span);
+  const background = SRCS.map((src) => `url("${src}")`).reverse().join(", ");
+  span.style.setProperty("background-image", background);
+  playback.mount(span, { plays: [], epoch: 0 }, background, "background", "backdrop:background_image:0", undefined, [OFFICE]);
+  return { frames, kept, span };
+}
+
 describe("a trimmed layer on the picture's canvas (#2657)", () => {
   test("each trimmed layer is drawn at its box inside the picture's rectangle, and a layer whose trimming failed fills the rectangle", () => {
-    const env = installJSDOM();
-    restore = env.restore;
-    const frames: Drawn[][] = [];
-    const context = {
-      globalAlpha: 1,
-      imageSmoothingEnabled: true,
-      setTransform: () => {},
-      clearRect: () => frames.push([]),
-      drawImage(source: CanvasImageSource, x: number, y: number, width: number, height: number) {
-        frames.at(-1)!.push({ src: (source as unknown as { src: string }).src, x, y, width, height });
-      },
-    } as PictureCanvasContext;
-    const playback = new MorphPlayback(env.overlay, { requestFrame: () => 0, cancelFrame: () => {}, pictureCanvas: () => context });
     const boxes: Record<string, PictureBitmap["box"]> = {
       "office.png": { x: 0, y: 0, width: 40, height: 20 },
       "desk.png": { x: 10, y: 6, width: 8, height: 12 },
     };
-    playback.residentPicture = (src) => ({ image: { src } as never, width: 40, height: 30, ...(boxes[src] ? { box: boxes[src] } : {}) });
-    const span = env.overlay.ownerDocument.createElement("span");
-    span.style.setProperty("width", "800px");
-    span.style.setProperty("height", "300px");
-    span.style.setProperty("background-size", "auto 100%");
-    span.style.setProperty("background-position", "center");
-    span.style.setProperty("background-repeat", "no-repeat");
-    env.overlay.appendChild(span);
-    const background = SRCS.map((src) => `url("${src}")`).reverse().join(", ");
-    span.style.setProperty("background-image", background);
-    playback.mount(span, { plays: [], epoch: 0 }, background, "background", "backdrop:background_image:0", undefined, [OFFICE]);
+    const { frames, kept } = mountOffice((src) => ({ image: { src } as never, width: 40, height: 30, ...(boxes[src] ? { box: boxes[src] } : {}) }));
+    expect(kept).toEqual([]);
     expect(frames).toEqual([
       [
         { src: "office.png", x: 200, y: 0, width: 400, height: 200 },
@@ -200,5 +227,45 @@ describe("a trimmed layer on the picture's canvas (#2657)", () => {
         { src: "lamp.png", x: 200, y: 0, width: 400, height: 300 },
       ],
     ]);
+  });
+
+  test("a picture that keeps its CSS drawing asks for every one of its files whole", () => {
+    const box = { x: 10, y: 6, width: 8, height: 12 };
+    const { frames, kept, span } = mountOffice((src) => ({ image: { src } as never, width: 40, height: 30, box, ...(src === "lamp.png" ? { animated: true } : {}) }));
+    expect(frames).toEqual([]);
+    expect(span.style.getPropertyValue("background-image")).toBe(SRCS.map((src) => `url("${src}")`).reverse().join(", "));
+    expect(kept).toEqual([SRCS]);
+  });
+});
+
+const P = "inmemory:///assets/Images";
+const imageFile = (path: string) => {
+  const leaf = path.slice(path.lastIndexOf("/") + 1);
+  return { uri: `${P}/${path}`, type: "image", name: leaf.slice(0, leaf.lastIndexOf(".")), ext: "png", src: `/src/${path}` };
+};
+
+describe("an image write asks for the files it does not draw on a canvas whole (#2657)", () => {
+  test("a single image's files are asked for whole, and a layered picture drawn on its canvas is not", async () => {
+    const source = ["scene start", "  HERO:", "    [[show portrait ava]]", "    Line one.", "  HERO:", "    [[show portrait sky]]", "    Line two.", "end", ""].join("\n");
+    const h = createDOMHarness(source, 0, { files: [imageFile("ava.png"), imageFile("ava mouth.closed default.png"), imageFile("sky.png")] as never });
+    await h.ready;
+    MorphPlayback.for(h.overlay).configure({
+      requestFrame: () => 0,
+      cancelFrame: () => {},
+      pictureCanvas: () => ({ globalAlpha: 1, imageSmoothingEnabled: true, setTransform: () => {}, clearRect: () => {}, drawImage: () => {} }),
+      loadPicture: async (src) => ({ image: { src } as never, width: 40, height: 30 }),
+    });
+    restore = () => h.ui.onDispose();
+    const kept: string[][] = [];
+    const cache = (h.ui as any).app.assetCache as AssetCache;
+    cache.keepWhole = (srcs) => {
+      kept.push([...srcs]);
+    };
+    await h.preview(source.split("\n").findIndex((line) => line.includes("Line one.")));
+    await flushMicrotasks(20);
+    expect(kept.flat().filter((src) => src.includes("ava"))).toEqual([]);
+    await h.preview(source.split("\n").findIndex((line) => line.includes("Line two.")));
+    await flushMicrotasks(20);
+    expect(kept).toContainEqual(["/src/sky.png"]);
   });
 });

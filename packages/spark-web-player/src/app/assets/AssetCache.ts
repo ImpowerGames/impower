@@ -112,6 +112,7 @@ interface Entry {
   waiters: Array<() => void>;
   traits?: PictureFileTraits;
   trimmed?: TrimmedLayer;
+  whole?: boolean;
   inspecting?: Promise<void>;
 }
 
@@ -1055,17 +1056,28 @@ export class AssetCache {
     if (!trimmed) {
       return;
     }
-    if (!this._trimLayers || this._entries.get(entry.key) !== entry || trimmed.width !== width || trimmed.height !== height) {
+    if (!this._trimLayers || entry.whole || this._entries.get(entry.key) !== entry || trimmed.width !== width || trimmed.height !== height) {
       trimmed.image.close?.();
       return;
     }
     entry.trimmed = trimmed;
-    if (entry.warm) {
-      try {
-        entry.warm.remove();
-      } catch {
+  }
+
+  keepWhole(srcs: Iterable<string>): void {
+    let changed = false;
+    for (const src of srcs) {
+      const entry = this._entries.get(src);
+      if (!entry || entry.item.kind !== "image" || !entry.item.layer) {
+        continue;
       }
-      entry.warm = undefined;
+      entry.whole = true;
+      if (entry.trimmed) {
+        this.untrim(entry);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.maybeEvict();
     }
   }
 
@@ -1074,10 +1086,7 @@ export class AssetCache {
       return;
     }
     entry.trimmed = undefined;
-    if (entry.state === "resident" && entry.item.kind === "image") {
-      entry.warm = this._deps.warmImage?.(entry.item.src);
-      this.recount(entry);
-    }
+    this.recount(entry);
   }
 
   protected closeTrimmed(entry: Entry): void {
