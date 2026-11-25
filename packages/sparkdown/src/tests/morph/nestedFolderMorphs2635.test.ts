@@ -167,6 +167,8 @@ describe("the fit rule reads a portrait's layer folders (#2635)", () => {
     const warning = messages.find((message) => message.includes("does not apply to"));
     expect(warning).toBeDefined();
     expect(warning).toContain('folder "face.happy" draws no `mouth.open`');
+    expect(Object.keys(program.morphs?.variants ?? {})).not.toContain("mia:happy");
+    expect(compile(MIA, `${TALK}\nscene start\n  [[mia:happy]]\nend\n`).morphs?.variants["mia:happy"]?.length ?? 0).toBeGreaterThan(0);
   });
 
   test("the looks that show the other face still play it", () => {
