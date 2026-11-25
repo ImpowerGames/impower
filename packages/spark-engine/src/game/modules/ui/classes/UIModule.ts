@@ -1956,22 +1956,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const time = (value: number | string | undefined) =>
       typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
         ? `${value}s`
-        : value;
+        : value || "0s";
     const easing = timing?.easing;
     const ease = easing ? this.context?.ease?.[easing] : undefined;
     const iterations = timing?.iterations;
-    const delay = time(timing?.delay);
+    const fill = timing?.fill;
     return [
-      time(timing?.duration) ?? (delay ? "0s" : undefined),
-      ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing,
-      delay,
-      iterations === Infinity ? "infinite" : iterations?.toString(),
-      timing?.direction,
-      timing?.fill === "auto" ? "none" : timing?.fill,
+      time(timing?.duration),
+      (ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing) || "ease",
+      time(timing?.delay),
+      iterations === Infinity ? "infinite" : (iterations?.toString() ?? "1"),
+      timing?.direction || "normal",
+      !fill || fill === "auto" ? "none" : fill,
+      "running",
       escapeCssIdentifier(name),
-    ]
-      .filter((part) => part != null && part !== "")
-      .join(" ");
+    ].join(" ");
   }
 
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {

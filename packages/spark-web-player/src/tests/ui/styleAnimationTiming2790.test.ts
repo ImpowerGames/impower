@@ -73,6 +73,7 @@ layout main {
       "infinite",
       "alternate",
       "forwards",
+      "running",
       "whirl",
     ]);
   });
@@ -98,7 +99,7 @@ layout main {
     const parts = variable(out, "fade")?.split(/\s+/);
     expect(parts).toContain("0.6s");
     expect(parts).not.toContain("auto");
-    expect(parts?.at(-2)).toBe("none");
+    expect(parts?.at(-3)).toBe("none");
     expect(parts?.at(-1)).toBe("fade");
   });
 
@@ -120,8 +121,32 @@ layout main {
   box
 }
 `);
-    expect(variable(out, "forwards")?.split(/\s+/).slice(-2)).toEqual(["none", "forwards"]);
+    expect(variable(out, "forwards")?.split(/\s+/).slice(-3)).toEqual(["none", "running", "forwards"]);
   });
+
+  test.each(["running", "paused"])(
+    "a name that is also a play-state keyword (%s) stays the name",
+    async (name) => {
+      const out = await css(`animation ${name} {
+  keyframes {
+    from { opacity = "0" }
+    to { opacity = "1" }
+  }
+  timing {
+    duration = 0.6
+    fill = auto
+  }
+}
+style box {
+  animation = ${name}
+}
+layout main {
+  box
+}
+`);
+      expect(variable(out, name)?.split(/\s+/).slice(-2)).toEqual(["running", name]);
+    },
+  );
 
   test("a comma-separated list of names plays each declaration's timing", async () => {
     const out = await css(`${POP}animation sway {
