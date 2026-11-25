@@ -63,6 +63,7 @@ export class InteractiveFictionPresenter implements Presenter {
       ui.beginPresentation();
     }
     const composed = ui.beginCompose();
+    ui.composeSource(this._instructions.source);
     ui.page.onChoose(this._options.choose);
     if (this._options.stage) {
       clearStage(game, this._instructions, ui.getTransientTargets());

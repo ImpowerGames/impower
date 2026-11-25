@@ -4,6 +4,8 @@ All commands run from the worktree root unless stated otherwise.
 
 Before measuring or visually comparing assets, read [asset cache evidence](asset-cache.md). Browser HTTP cache and retained worker caches can mask the changed behavior.
 
+For stalls, dropped frames and graphics work while a played line shows, read [frame pacing](pacing.md) and use its `pacing` command.
+
 ## 3. When the change has no visual signature
 
 Some fixes cannot show up in a screenshot: a perf change, a memory leak, an internal data structure no pixel depends on. Two before/after PNGs that look identical prove nothing, and presenting them as the gate is worse than useless; they read as evidence while carrying none.
