@@ -199,7 +199,6 @@ import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeM
 import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
 import { SHOWING_STATE } from "../constants/selectorStates";
 import { showingRefusalAt } from "../utils/showingRefusal";
-import { SHOWING_REFUSED_POSITIONS } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -5277,7 +5276,7 @@ export class SparkdownCompiler {
               severity: DiagnosticSeverity.Warning,
               message: {
                 kind: "markdown",
-                value: `\`@showing\` cannot be written inside ${SHOWING_REFUSED_POSITIONS[refusal.position]}, so this block never applies.\n> Write it on the selector itself, beside the function or at-rule, e.g. \`@showing(action) @has(icon)\``,
+                value: `\`@showing\` cannot be written ${refusal.where}, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@showing(action) @hovered\`; the style's own properties are its look while the name is not showing`,
               },
               source: LANGUAGE_NAME,
             });

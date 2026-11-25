@@ -83,19 +83,22 @@ style frame {
       }));
 
   it.each([
-    ["@has(icon @showing(hud))", "`@has(…)`"],
-    ["@host(@showing(hud))", "`@host(…)`"],
-    ["@host-context(card @showing(hud))", "`@host-context(…)`"],
-    ["@nth-child(1 of @showing(hud))", "the `of` list of `@nth-child(…)`"],
-    ["@nth-last-child(2 of @showing(hud))", "the `of` list of `@nth-last-child(…)`"],
-    ["@scope (frame @showing(hud))", "an `@scope (…)` prelude"],
-    ["@supports selector(frame @showing(hud))", "`@supports selector(…)`"],
-    [":has(@showing(hud))", "`@has(…)`"],
-  ])("warns on %s, naming %s, on the condition", (selector, position) => {
+    ["@has(icon @showing(hud))", "inside `@has(…)`"],
+    ["@host(@showing(hud))", "inside `@host(…)`"],
+    ["@nth-child(1 of @showing(hud))", "inside `@nth-child(…)`"],
+    ["@not(@showing(hud))", "inside `@not(…)`"],
+    ["@is(@showing(hud))", "inside `@is(…)`"],
+    ["@where(@showing(hud))", "inside `@where(…)`"],
+    [":not(@showing(hud))", "inside `:not(…)`"],
+    [":has(@showing(hud))", "inside `:has(…)`"],
+    ["@scope (frame @showing(hud))", "inside an `@scope` prelude"],
+    ["@supports selector(frame @showing(hud))", "inside an `@supports` prelude"],
+    ["icon > @showing(hud)", "in a compound after a combinator"],
+  ])("warns on %s, naming the position, on the condition", (selector, where) => {
     const from = 2 + selector.indexOf("@showing");
     expect(positionWarnings(selector)).toEqual([
       {
-        message: `\`@showing\` cannot be written inside ${position}, so this block never applies.\n> Write it on the selector itself, beside the function or at-rule, e.g. \`@showing(action) @has(icon)\``,
+        message: `\`@showing\` cannot be written ${where}, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@showing(action) @hovered\`; the style's own properties are its look while the name is not showing`,
         line: 13,
         from,
         to: from + "@showing(hud)".length,
@@ -103,7 +106,7 @@ style frame {
     ]);
   });
 
-  it.each(["@showing(hud)", "@showing(hud) @hovered", "@not(@showing(hud))", "@is(@showing(hud), @showing(panel))", "@where(@showing(hud))", ":not(@showing(hud))"])(
+  it.each(["@showing(hud)", "@showing(hud) @hovered", "@hovered @showing(hud)", "@showing(hud) @showing(panel)", "@showing(hud) >> nameplate"])(
     "does not warn on %s",
     (selector) => {
       expect(positionWarnings(selector)).toEqual([]);

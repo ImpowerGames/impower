@@ -6,7 +6,13 @@ const COLOR_SCHEME_STATE = "theme";
 
 export const SHOWING_STATE = "showing";
 
-export const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
+const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
+
+export interface ShowingRefusal {
+  where: string;
+  from: number;
+  to: number;
+}
 
 const table = (entries: Record<string, string>): ReadonlyMap<string, string> => new Map(Object.entries(entries));
 
@@ -60,7 +66,7 @@ const ARGUMENT_STATE_ALIASES: ReadonlyMap<string, string> = table({
   language: "lang",
 });
 
-const AT_RULE_STATES: ReadonlyMap<string, string> = table({
+export const AT_RULE_STATES: ReadonlyMap<string, string> = table({
   container: "@container",
   layer: "@layer",
   media: "@media",
@@ -78,36 +84,9 @@ const SIZE_STATES: ReadonlyMap<string, string> = table({
   screen_size: "@container screen (max-width:",
 });
 
-const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host-context"];
+export const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host-context"];
 
-const NTH_OF_PSEUDO_CLASSES = ["nth-child", "nth-last-child"];
-
-const ROOT_LIFTED_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["not", "is", "where"]);
-
-export const SHOWING_REFUSED_POSITIONS = {
-  has: "`@has(…)`",
-  host: "`@host(…)`",
-  "host-context": "`@host-context(…)`",
-  "nth-child": "the `of` list of `@nth-child(…)`",
-  "nth-last-child": "the `of` list of `@nth-last-child(…)`",
-  scope: "an `@scope (…)` prelude",
-  supports: "`@supports selector(…)`",
-} as const;
-
-export type ShowingRefusedPosition = keyof typeof SHOWING_REFUSED_POSITIONS;
-
-export interface ShowingRefusal {
-  position: ShowingRefusedPosition;
-  from: number;
-  to: number;
-}
-
-export const SELECTOR_STATES_TAKING_SELECTORS: readonly string[] = [
-  ...SELECTOR_LIST_PSEUDO_CLASSES,
-  ...NTH_OF_PSEUDO_CLASSES,
-];
-
-export const SELECTOR_AT_RULES_TAKING_SELECTORS: readonly string[] = ["scope", "supports"];
+export const NTH_OF_PSEUDO_CLASSES = ["nth-child", "nth-last-child"];
 
 const VALUE_PSEUDO_CLASSES = ["nth-of-type", "nth-last-of-type", "dir", "lang", "state"];
 
@@ -231,7 +210,21 @@ const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match
 class SparkleSelectorWriter {
   private i = 0;
 
-  private positions: ShowingRefusedPosition[] = [];
+  private positions: string[] = [];
+
+  private compound = 0;
+
+  private item = 0;
+
+  private atRule = false;
+
+  private accepted: { from: number; to: number }[] = [];
+
+  private seen = new Set<number>();
+
+  private preludes: { from: number; to: number; where: string }[] = [];
+
+  readonly roots: string[] = [];
 
   readonly refusals: ShowingRefusal[] = [];
 
@@ -248,7 +241,62 @@ class SparkleSelectorWriter {
         out += this.src[this.i++];
       }
     }
+    if (this.atRule) {
+      for (const { from, to } of this.accepted.splice(0)) {
+        this.refusals.push({ where: "in a style key that also holds an at-rule state", from, to });
+      }
+    }
+    for (const { from, to } of showingOccurrences(this.src)) {
+      if (!this.seen.has(from)) {
+        this.refusals.push({ where: this.positionAt(from), from, to });
+      }
+    }
     return out.trim();
+  }
+
+  private within<T>(position: string, write: () => T): T {
+    this.positions.push(position);
+    try {
+      return write();
+    } finally {
+      this.positions.pop();
+    }
+  }
+
+  private nextCompound(item = false): void {
+    if (this.positions.length === 0) {
+      if (item) {
+        this.item++;
+        this.compound = 0;
+      } else {
+        this.compound++;
+      }
+    }
+  }
+
+  private positionAt(offset: number): string {
+    const prelude = this.preludes.find(({ from, to }) => from <= offset && offset < to);
+    return prelude?.where ?? "inside an argument";
+  }
+
+  private showing(): string {
+    const from = this.i - SHOWING_STATE.length - 1;
+    this.seen.add(from);
+    const { text, close } = this.argument(() => this.value());
+    const written = `@${SHOWING_STATE}(${text}${close}`;
+    const where =
+      this.positions.at(-1) ?? (this.compound > 0 ? "in a compound after a combinator" : undefined);
+    if (where) {
+      this.refusals.push({ where, from, to: this.i });
+      return written;
+    }
+    const name = text.trim();
+    if (!close || !SHOWING_NAME.test(name)) {
+      return written;
+    }
+    this.accepted.push({ from, to: this.i });
+    this.roots[this.item] = (this.roots[this.item] ?? "") + `[${SHOWING_ATTRIBUTE}~="${name}"]`;
+    return "";
   }
 
   private match(pattern: RegExp): RegExpExecArray | null {
@@ -285,6 +333,9 @@ class SparkleSelectorWriter {
       if (this.src.startsWith(">>", this.i)) {
         this.i += 2;
         this.match(WHITESPACE);
+        if (topLevel) {
+          this.nextCompound();
+        }
         if (!selectors) {
           out = out.trimEnd() + " ";
         } else if (!itemStart) {
@@ -298,6 +349,9 @@ class SparkleSelectorWriter {
       }
       if (char === ">" || char === "+" || char === "~" || char === ",") {
         this.i++;
+        if (topLevel) {
+          this.nextCompound(char === ",");
+        }
         out += char;
         classNext = selectors;
         itemStart = char === ",";
@@ -315,10 +369,21 @@ class SparkleSelectorWriter {
       if (char === "@") {
         const state = this.match(STATE);
         if (state) {
-          const written = this.state(state[1]!);
+          const name = state[1]!;
+          if (name === SHOWING_STATE && this.src[this.i] === "(") {
+            out += this.showing();
+            continue;
+          }
+          const written = this.state(name);
           out += written.text;
           if (written.atRule) {
-            out += this.prelude(written.atRule);
+            if (name !== COLOR_SCHEME_STATE && this.positions.length === 0) {
+              this.atRule = true;
+            }
+            const from = this.i;
+            const where = `inside an \`${written.atRule}\` prelude`;
+            out += this.within(where, () => this.prelude(written.atRule!));
+            this.preludes.push({ from, to: this.i, where });
           }
           continue;
         }
@@ -340,21 +405,10 @@ class SparkleSelectorWriter {
     }
     if (char === ":") {
       const pseudo = this.match(PSEUDO)![0];
-      if (this.src[this.i] !== "(") {
-        return pseudo;
-      }
-      const name = pseudo.startsWith("::") ? "" : pseudo.slice(1);
-      if (ROOT_LIFTED_PSEUDO_CLASSES.has(name)) {
-        const { text, close } = this.argument(() => this.list("raw", false));
-        return `${pseudo}(${this.lifted(text)}${close}`;
-      }
-      if (name in SHOWING_REFUSED_POSITIONS) {
-        return pseudo + this.within(name as ShowingRefusedPosition, () => this.raw());
-      }
-      return pseudo + this.raw();
+      return this.src[this.i] === "(" ? pseudo + this.within(`inside \`${pseudo}(…)\``, () => this.raw()) : pseudo;
     }
     if (char === "(") {
-      return this.raw();
+      return this.within("inside parentheses", () => this.raw());
     }
     this.i++;
     return char;
@@ -377,15 +431,6 @@ class SparkleSelectorWriter {
 
   private raw(): string {
     return this.enclosed(() => this.list("raw", false));
-  }
-
-  private lifted(selectors: string): string {
-    return liftRootConditions(selectors, false, "*");
-  }
-
-  private selectorArgument(): string {
-    const { text, close } = this.argument(() => this.list("selectors", false));
-    return `(${this.lifted(text)}${close}`;
   }
 
   private value(): string {
@@ -414,23 +459,14 @@ class SparkleSelectorWriter {
     return this.src.slice(from, this.i).trim();
   }
 
-  private within<T>(position: ShowingRefusedPosition, write: () => T): T {
-    this.positions.push(position);
-    try {
-      return write();
-    } finally {
-      this.positions.pop();
-    }
-  }
-
-  private nth(pseudo: ShowingRefusedPosition): string {
+  private nth(): string {
     const from = this.i;
     while (this.i < this.src.length && this.src[this.i] !== ")") {
       NTH_OF.lastIndex = this.i;
       if (NTH_OF.test(this.src)) {
         const step = this.src.slice(from, this.i).trim();
         this.i = NTH_OF.lastIndex;
-        return `${step} of ${this.within(pseudo, () => this.list("selectors", false))}`;
+        return `${step} of ${this.list("selectors", false)}`;
       }
       this.i++;
     }
@@ -472,15 +508,6 @@ class SparkleSelectorWriter {
         ? { text: `@media(prefers-color-scheme:${text}${close}`, atRule: "@media" }
         : { text: `@${COLOR_SCHEME_STATE}(${text}${close}` };
     }
-    if (name === SHOWING_STATE && called) {
-      const from = this.i - name.length - 1;
-      const { text, close } = this.argument(() => this.value());
-      const position = this.positions.at(-1);
-      if (position) {
-        this.refusals.push({ position, from, to: this.i });
-      }
-      return { text: `@${SHOWING_STATE}(${text}${close}` };
-    }
     const size = SIZE_STATES.get(name);
     if (size && called) {
       const { text, close } = this.argument(() => this.value());
@@ -492,27 +519,27 @@ class SparkleSelectorWriter {
     }
     const alias = SELECTOR_STATE_ALIASES.get(name);
     if (alias) {
-      return { text: called ? alias + this.raw() : alias };
+      return { text: called ? alias + this.within(`inside \`@${name}(…)\``, () => this.raw()) : alias };
     }
     const pseudo = ARGUMENT_STATE_ALIASES.get(name) ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
     if (pseudo && called) {
-      const kind = ARGUMENT_KINDS.get(pseudo);
-      const args =
-        kind === "selectors"
-          ? ROOT_LIFTED_PSEUDO_CLASSES.has(pseudo)
-            ? this.selectorArgument()
-            : this.within(pseudo as ShowingRefusedPosition, () => this.enclosed(() => this.list("selectors", false)))
-          : kind === "nth"
-            ? this.enclosed(() => this.nth(pseudo as ShowingRefusedPosition))
-            : kind === "value"
-              ? this.enclosed(() => this.value())
-              : this.raw();
-      return { text: `:${pseudo}${args}` };
+      return { text: `:${pseudo}${this.within(`inside \`@${name}(…)\``, () => this.pseudoArgument(pseudo))}` };
     }
     if (pseudo && STANDARD_PSEUDO_CLASSES.has(name)) {
       return { text: `:${pseudo}` };
     }
-    return { text: called ? `@${name}${this.raw()}` : `@${name}` };
+    return { text: called ? `@${name}${this.within(`inside \`@${name}(…)\``, () => this.raw())}` : `@${name}` };
+  }
+
+  private pseudoArgument(pseudo: string): string {
+    const kind = ARGUMENT_KINDS.get(pseudo);
+    return kind === "selectors"
+      ? this.enclosed(() => this.list("selectors", false))
+      : kind === "nth"
+        ? this.enclosed(() => this.nth())
+        : kind === "value"
+          ? this.enclosed(() => this.value())
+          : this.raw();
   }
 
   private prelude(atRule: string): string {
@@ -545,7 +572,7 @@ class SparkleSelectorWriter {
         const condition =
           atRule === "@supports" && !declarations[declarations.length - 1] && SELECTOR_FUNCTION_BEFORE.test(out);
         if (scope || condition) {
-          out += this.within(scope ? "scope" : "supports", () => this.enclosed(() => this.list("selectors", false)));
+          out += this.enclosed(() => this.list("selectors", false));
           continue;
         }
         declarations.push(declarations[declarations.length - 1]!);
@@ -581,7 +608,7 @@ class SparkleSelectorWriter {
 
 const QUOTED_PART = /("(?:\\[^]|[^"\\])*"|'(?:\\[^]|[^'\\])*')/;
 
-const ROOT_CONDITION = /@(theme|showing)[(]([^()]*)[)]/g;
+const COLOR_SCHEME_VARIANT = /@theme[(](light|dark)[)]/g;
 
 const unquoted = (selector: string) =>
   selector
@@ -616,90 +643,80 @@ const splitTopLevelCommas = (selector: string): string[] => {
   return parts;
 };
 
-const rootCondition = (state: string, value: string, scheme: boolean): string | undefined => {
-  const argument = value.trim();
-  if (state === COLOR_SCHEME_STATE) {
-    return scheme && (argument === "light" || argument === "dark")
-      ? `[${COLOR_SCHEME_ATTRIBUTE}="${argument}"]`
-      : undefined;
-  }
-  return SHOWING_NAME.test(argument) ? `[${SHOWING_ATTRIBUTE}~="${argument}"]` : undefined;
-};
-
-const hasRootConditions = (selector: string): boolean => {
-  const text = unquoted(selector);
-  return text.includes(`@${COLOR_SCHEME_STATE}(`) || text.includes(`@${SHOWING_STATE}(`);
-};
-
-const splitRootConditions = (selector: string, scheme: boolean): { root: string; rest: string }[] =>
-  splitTopLevelCommas(selector).map((part) => {
-    let theme = "";
-    let showing = "";
-    const marked = part
-      .split(QUOTED_PART)
-      .map((piece, i) =>
-        i & 1
-          ? piece
-          : piece.replace(ROOT_CONDITION, (written: string, state: string, value: string) => {
-              const condition = rootCondition(state, value, scheme);
-              if (!condition) {
-                return written;
-              }
-              if (state === SHOWING_STATE) {
-                showing += condition;
-                return LIFTED;
-              }
-              theme = condition;
-              return "";
-            }),
-      )
-      .join("")
-      .trim();
-    const rest = marked
-      .replace(LIFTED_COMPOUND, (_match, before: string, offset: number) => (offset === 0 ? "" : `${before}*`))
-      .split(LIFTED)
-      .join("")
-      .trim();
-    const root = theme + showing;
-    return { root, rest: root ? rest : part.trim() };
-  });
-
-const LIFTED = "";
-
-const LIFTED_COMPOUND = /(^|[\s>+~(,])+(?=$|[\s>+~),])/g;
-
-const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*" = "&"): string => {
-  if (!hasRootConditions(selector)) {
+const liftColorScheme = (selector: string): string => {
+  if (!unquoted(selector).includes(`@${COLOR_SCHEME_STATE}(`)) {
     return selector;
   }
-  return splitRootConditions(selector, scheme)
-    .map(({ root, rest }) => {
-      if (!root) {
-        return rest;
+  return splitTopLevelCommas(selector)
+    .map((part) => {
+      let scheme: string | undefined;
+      const rest = part
+        .split(QUOTED_PART)
+        .map((piece, i) =>
+          i & 1
+            ? piece
+            : piece.replace(COLOR_SCHEME_VARIANT, (_m, s: string) => {
+                scheme = s;
+                return "";
+              }),
+        )
+        .join("")
+        .trim();
+      if (!scheme) {
+        return part.trim();
       }
-      const target = !rest
-        ? subject
-        : hasNestingSelector(rest)
-          ? rest
-          : /^[:[]/.test(rest)
-            ? `${subject}${rest}`
-            : subject === "&"
-              ? `& ${rest}`
-              : rest;
-      return subject === "&" ? `:where(${root}) ${target}` : `${root} ${target}`;
+      const target = !rest ? "&" : hasNestingSelector(rest) ? rest : /^[:[]/.test(rest) ? `&${rest}` : `& ${rest}`;
+      return `:where([${COLOR_SCHEME_ATTRIBUTE}="${scheme}"]) ${target}`;
     })
     .join(", ");
 };
+
+const SHOWING_CALL = /@showing[(][^()]*[)]?/g;
+
+const showingOccurrences = (selector: string): { from: number; to: number }[] => {
+  const found: { from: number; to: number }[] = [];
+  let offset = 0;
+  selector.split(QUOTED_PART).forEach((piece, i) => {
+    if (!(i & 1)) {
+      for (const match of piece.matchAll(SHOWING_CALL)) {
+        found.push({ from: offset + match.index, to: offset + match.index + match[0].length });
+      }
+    }
+    offset += piece.length;
+  });
+  return found;
+};
+
+const COLOR_SCHEME_ROOT = new RegExp(`^:where\\((\\[${COLOR_SCHEME_ATTRIBUTE}="(?:light|dark)"\\])\\) `);
+
+const liftShowing = (selector: string, roots: string[]): string =>
+  splitTopLevelCommas(selector)
+    .map((part, item) => {
+      const rest = part.trim();
+      const root = roots[item];
+      if (!root) {
+        return rest;
+      }
+      const scheme = COLOR_SCHEME_ROOT.exec(rest);
+      if (scheme) {
+        return `:where(${scheme[1]}${root}) ${rest.slice(scheme[0].length)}`;
+      }
+      const target = !rest ? "&" : hasNestingSelector(rest) ? rest : /^[:[]/.test(rest) ? `&${rest}` : `& ${rest}`;
+      return `:where(${root}) ${target}`;
+    })
+    .join(", ");
 
 export const writeSparkleSelectorChecked = (
   selector: string,
   options: SparkleSelectorOptions,
 ): { css: string; refusals: ShowingRefusal[] } => {
   const writer = new SparkleSelectorWriter(selector, options);
-  const css = writer.write();
-  return writer.refusals.length > 0
-    ? { css, refusals: writer.refusals }
-    : { css: liftRootConditions(css, options.colorScheme === "attribute"), refusals: [] };
+  const written = writer.write();
+  if (writer.refusals.length > 0) {
+    return { css: written, refusals: writer.refusals };
+  }
+  const css = options.colorScheme === "attribute" ? liftColorScheme(written) : written;
+  return { css: writer.roots.length > 0 ? liftShowing(css, writer.roots) : css, refusals: [] };
 };
 
 export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string =>

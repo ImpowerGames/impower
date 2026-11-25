@@ -3,12 +3,13 @@ import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock
 import { Coordinator } from "../../../../spark-engine/src/game/core/classes/Coordinator";
 import { anchorSelfTargeted, getCSSSelector, getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import {
-  SELECTOR_AT_RULES_TAKING_SELECTORS,
-  SELECTOR_STATES_TAKING_SELECTORS,
-  SHOWING_REFUSED_POSITIONS,
+  AT_RULE_STATES,
+  NTH_OF_PSEUDO_CLASSES,
+  SELECTOR_LIST_PSEUDO_CLASSES,
   writeSparkleSelector,
   writeSparkleSelectorChecked,
 } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
+import { writeSparkleSelector as writeBaseSelector } from "./sparkleSelectorBase2734.fixture";
 import { sparkleSelectorToCssSelector } from "../../../../sparkle-screen-renderer/src/runtime/css";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
 
@@ -20,20 +21,22 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
   test("alone, it tests the root's data-showing for the name", () => {
     expect(written("@showing(action)")).toBe(ACTION);
     expect(written("@showing( action )")).toBe(ACTION);
+    expect(written("@showing(menu@pause)")).toBe(':where([data-showing~="menu@pause"]) &');
   });
 
-  test("nested with another state on either side, the state stays on the styled element", () => {
+  test("beside another state on either side, the state stays on the styled element", () => {
     expect(written("@showing(action) @hovered")).toBe(`${ACTION}:hover`);
     expect(written("@hovered @showing(action)")).toBe(`${ACTION}:hover`);
     expect(written("@showing(action) >> name")).toBe(`${ACTION} .name`);
   });
 
-  test("it joins @theme and another @showing on the same root", () => {
+  test("two conditions, and @theme on either side, join on the same root", () => {
+    expect(written("@showing(action) @showing(hud)")).toBe(':where([data-showing~="action"][data-showing~="hud"]) &');
     expect(written("@theme(dark) @showing(action)")).toBe(
       ':where([data-color-scheme="dark"][data-showing~="action"]) &',
     );
-    expect(written("@showing(action) @showing(hud)")).toBe(
-      ':where([data-showing~="action"][data-showing~="hud"]) &',
+    expect(written("@showing(action) @theme(dark)")).toBe(
+      ':where([data-color-scheme="dark"][data-showing~="action"]) &',
     );
   });
 
@@ -43,61 +46,12 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     );
   });
 
-  test("inside @not and @is it keeps the function's meaning", () => {
-    const root = document.createElement("div");
-    root.innerHTML = '<span class="frame"></span>';
-    const frame = root.querySelector(".frame")!;
-    const on = (selector: string) => frame.matches(written(selector).replaceAll("&", ".frame"));
-    expect(written("@not(@showing(action))")).toBe('&:not([data-showing~="action"] *)');
-    expect(written("@is(@showing(action), @showing(dialogue))")).toBe(
-      '&:is([data-showing~="action"] *, [data-showing~="dialogue"] *)',
-    );
-    expect(on("@not(@showing(action))")).toBe(true);
-    expect(on("@is(@showing(action), @showing(dialogue))")).toBe(false);
-    root.setAttribute("data-showing", "action");
-    expect(on("@not(@showing(action))")).toBe(false);
-    expect(on("@is(@showing(action), @showing(dialogue))")).toBe(true);
-    root.setAttribute("data-showing", "dialogue");
-    expect(on("@is(@showing(action), @showing(dialogue))")).toBe(true);
-    expect(on("@not(@showing(action)) @hovered")).toBe(false);
+  test("the screen preview writes the same condition", () => {
+    expect(writeSparkleSelector("@showing(action)", { breakpoints: {}, colorScheme: "media" })).toBe(ACTION);
   });
 
-  test("a condition that is a whole compound after a combinator leaves a universal subject", () => {
-    expect(written("icon > @showing(action)")).toBe(':where([data-showing~="action"]) & .icon>*');
-    expect(written("@theme(dark) @showing(action)")).toBe(
-      ':where([data-color-scheme="dark"][data-showing~="action"]) &',
-    );
-    const childUnder = (showing?: string) => {
-      const root = document.createElement("div");
-      if (showing) {
-        root.setAttribute("data-showing", showing);
-      }
-      root.innerHTML = '<span class="frame"><i class="icon"><b></b></i></span>';
-      return root.querySelector("b")!;
-    };
-    const selector = written("icon > @showing(action)").replaceAll("&", ".frame");
-    expect(childUnder().matches(selector)).toBe(false);
-    expect(childUnder("action").matches(selector)).toBe(true);
-  });
-
-  test.each([
-    ["@has(icon @showing(action))", "has"],
-    ["@has(>@showing(action))", "has"],
-    ["@host(@showing(action))", "host"],
-    ["@host-context(card @showing(action))", "host-context"],
-    ["@nth-child(1 of @showing(action))", "nth-child"],
-    ["@nth-last-child(2 of @showing(action))", "nth-last-child"],
-    ["@scope (frame @showing(action))", "scope"],
-    ["@supports selector(frame @showing(action))", "supports"],
-    ["@not(@has(@showing(action)))", "has"],
-    [":has(@showing(action))", "has"],
-    [":host(@showing(action))", "host"],
-    [":nth-child(1 of @showing(action))", "nth-child"],
-  ])("inside %s it is refused, naming %s", (selector, position) => {
-    const { refusals } = writeSparkleSelectorChecked(selector, { breakpoints: {}, colorScheme: "attribute" });
-    expect(refusals.map((r) => r.position)).toEqual([position]);
-    expect(selector.slice(refusals[0]!.from, refusals[0]!.to)).toBe(selector.match(/@showing\([^)]*\)/)![0]);
-    expect(sparkleSelectorToCssSelector(selector, {})).toBeUndefined();
+  test("a written argument that is not one name is left as written, so it never applies", () => {
+    expect(written("@showing(a b)")).toBe("@showing(a b)");
   });
 
   test("a refused block writes no rule, and the style's other blocks are kept", () => {
@@ -105,88 +59,92 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
       {
         frame: {
           opacity: "0.5",
-          "@has(icon @showing(action))": { opacity: "1" },
+          "@not(@showing(action))": { opacity: "1" },
+          "icon > @showing(action)": { opacity: "0.25" },
           "@showing(action)": { opacity: "0.75" },
         },
       },
       { breakpoints: {}, theme: {} as never },
     );
     expect(css).toContain('[data-showing~="action"]');
-    expect(css).not.toContain(":has(");
+    expect(css).not.toContain(":not(");
+    expect(css).not.toContain(".icon");
     expect(css).not.toContain("@showing");
+    expect(css).toContain("opacity: 0.5");
     expect(css).toContain("opacity: 0.75");
     expect(css).not.toContain("opacity: 1;");
+    expect(css).not.toContain("opacity: 0.25");
   });
 
-  test("@theme keeps its own behaviour inside the positions @showing is refused", () => {
-    expect(written("@has(icon @theme(dark))")).toBe(':where([data-color-scheme="dark"]) &:has(.icon)');
-  });
-
-  test("@theme written twice keeps the last scheme", () => {
-    expect(written("@theme(dark) @theme(light)")).toBe(':where([data-color-scheme="light"]) &');
-  });
-
-  test("conditions sharing one compound after a combinator leave one universal subject", () => {
-    expect(written("icon > @showing(action) @showing(hud)")).toBe(
-      ':where([data-showing~="action"][data-showing~="hud"]) & .icon>*',
-    );
-    expect(written("icon > @theme(dark) @showing(hud)")).toBe(
-      ':where([data-color-scheme="dark"][data-showing~="hud"]) & .icon>*',
-    );
-    expect(written("icon > @showing(hud) @theme(dark)")).toBe(
-      ':where([data-color-scheme="dark"][data-showing~="hud"]) & .icon>*',
-    );
-    const root = document.createElement("div");
-    root.setAttribute("data-showing", "action hud");
-    root.innerHTML = '<span class="frame"><i class="icon"><b></b></i></span>';
-    const selector = written("icon > @showing(action) @showing(hud)").replaceAll("&", ".frame");
-    expect(root.querySelector("b")!.matches(selector)).toBe(true);
-  });
-
-  test("the native :not, :is and :where spellings are lifted like @not, @is and @where", () => {
-    expect(written(":not(@showing(hud))")).toBe('&:not([data-showing~="hud"] *)');
-    expect(written(":is(@showing(a), @showing(b))")).toBe('&:is([data-showing~="a"] *, [data-showing~="b"] *)');
-    expect(written(":where(@showing(a))")).toBe('&:where([data-showing~="a"] *)');
-    const unmarked = document.createElement("div");
-    unmarked.innerHTML = '<span class="frame"></span>';
-    expect(unmarked.querySelector(".frame")!.matches(written(":not(@showing(hud))").replaceAll("&", ".frame"))).toBe(
-      true,
-    );
-  });
-
-  describe("every selector-taking state and at-rule the writer knows lifts @showing or refuses it", () => {
-    const states = SELECTOR_STATES_TAKING_SELECTORS.flatMap((state) =>
+  describe("every selector-taking state, at-rule prelude and combinator refuses the condition", () => {
+    const inside = [...SELECTOR_LIST_PSEUDO_CLASSES, ...NTH_OF_PSEUDO_CLASSES].flatMap((state) =>
       ["@", ":"].map((prefix) =>
-        state.startsWith("nth-") ? `${prefix}${state}(1 of @showing(action))` : `${prefix}${state}(@showing(action))`,
+        NTH_OF_PSEUDO_CLASSES.includes(state)
+          ? `${prefix}${state}(1 of @showing(action))`
+          : `${prefix}${state}(@showing(action))`,
       ),
     );
-    const atRules = SELECTOR_AT_RULES_TAKING_SELECTORS.map((rule) =>
+    const preludes = [...AT_RULE_STATES.keys()].map((rule) =>
       rule === "supports" ? `@supports selector(frame @showing(action))` : `@${rule} (frame @showing(action))`,
     );
-    test.each([...states, ...atRules])("%s", (selector) => {
-      const { css, refusals } = writeSparkleSelectorChecked(selector, { breakpoints: {}, colorScheme: "attribute" });
-      if (refusals.length > 0) {
-        expect(refusals[0]!.position in SHOWING_REFUSED_POSITIONS).toBe(true);
-        return;
-      }
-      expect(css).not.toContain("@showing");
-      expect(css).toContain('[data-showing~="action"]');
-      const root = document.createElement("div");
-      root.innerHTML = '<span class="frame"></span>';
-      expect(() => root.querySelector(anchorSelfTargeted(css).replaceAll("&", ".frame"))).not.toThrow();
+    const combinators = [">", "+", "~", ">>"].map((combinator) => `icon ${combinator} @showing(action)`);
+    test.each([...inside, ...preludes, ...combinators])("%s", (selector) => {
+      const { refusals } = writeSparkleSelectorChecked(selector, { breakpoints: {}, colorScheme: "attribute" });
+      expect(refusals).toHaveLength(1);
+      expect(selector.slice(refusals[0]!.from, refusals[0]!.to)).toBe("@showing(action)");
+      expect(sparkleSelectorToCssSelector(selector, {})).toBeUndefined();
     });
   });
 
-  test("a name with @ alternates is one name", () => {
-    expect(written("@showing(menu@pause)")).toBe(':where([data-showing~="menu@pause"]) &');
+  describe("the first compound lifts the condition to a selector that matches in the DOM", () => {
+    const frameUnder = (showing?: string) => {
+      const root = document.createElement("div");
+      if (showing) {
+        root.setAttribute("data-showing", showing);
+      }
+      root.innerHTML = '<span class="frame"><i class="name"></i></span>';
+      return root;
+    };
+    test.each([
+      ["@showing(action)", ".frame"],
+      ["@first @showing(action)", ".frame"],
+      ["@showing(action) @first", ".frame"],
+      ["@showing(action) @showing(hud)", ".frame"],
+      ["@showing(action) >> name", ".name"],
+    ])("%s", (selector, target) => {
+      const { css, refusals } = writeSparkleSelectorChecked(selector, { breakpoints: {}, colorScheme: "attribute" });
+      expect(refusals).toEqual([]);
+      const rule = anchorSelfTargeted(css).replaceAll("&", ".frame");
+      expect(frameUnder().querySelector(target)!.matches(rule)).toBe(false);
+      expect(frameUnder("action hud").querySelector(target)!.matches(rule)).toBe(true);
+    });
   });
 
-  test("the screen preview writes the same condition", () => {
-    expect(writeSparkleSelector("@showing(action)", { breakpoints: {}, colorScheme: "media" })).toBe(ACTION);
-  });
-
-  test("a written argument that is not one name is left as written, so it never applies", () => {
-    expect(written("@showing(a b)")).toBe("@showing(a b)");
+  test("keys with @theme and no @showing write exactly what the base writer writes", () => {
+    const corpus = [
+      "@theme(dark)",
+      "@theme(light) @hovered",
+      "@hovered @theme(dark)",
+      "@theme(dark) >> child",
+      "@theme(dark), @theme(light)",
+      "@theme(dark) @theme(light)",
+      "@not(@theme(dark))",
+      ":not(@theme(dark))",
+      "@has(icon @theme(dark))",
+      "icon > @theme(dark)",
+      "@theme(darkness)",
+      "@screen-size(sm) @theme(dark)",
+      "@first @theme(dark)",
+      '[title="@theme(dark)"] @theme(light)',
+    ];
+    for (const colorScheme of ["attribute", "media"] as const) {
+      for (const selector of corpus) {
+        const options = { breakpoints: { sm: 640 }, colorScheme };
+        expect(writeSparkleSelector(selector, options), `${colorScheme} ${selector}`).toBe(
+          writeBaseSelector(selector, options),
+        );
+      }
+    }
   });
 });
 
