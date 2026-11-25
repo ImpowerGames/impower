@@ -278,11 +278,13 @@ describe("a reactive change while an entry is typing (#2738)", () => {
   });
 
   test.each([
-    ["the text child is remounted, beats not composed", TEXT_BRANCH, false],
-    ["a label beside the text is remounted, beats not composed", LABEL_BRANCH, false],
-    ["the text child is remounted, beats composed", TEXT_BRANCH, true],
-    ["a label beside the text is remounted, beats composed", LABEL_BRANCH, true],
-  ])("keeps the line's reveal where it was: %s", async (_label, body, composed) => {
+    ["the text child is remounted, beats not composed", TEXT_BRANCH, false, false],
+    ["a label beside the text is remounted, beats not composed", LABEL_BRANCH, false, false],
+    ["the text child is remounted, beats composed", TEXT_BRANCH, true, false],
+    ["a label beside the text is remounted, beats composed", LABEL_BRANCH, true, false],
+    ["the entries were restored at once first, beats not composed", TEXT_BRANCH, false, true],
+    ["the entries were restored at once first, beats composed", TEXT_BRANCH, true, true],
+  ])("keeps the line's reveal where it was: %s", async (_label, body, composed, restored) => {
     const h = createDOMHarness(TOGGLED(body), 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpTo("start");
@@ -337,9 +339,19 @@ describe("a reactive change while an entry is typing (#2738)", () => {
           : letter.style.opacity === "1";
       }).length;
     expect(h.overlay.querySelectorAll(".phone .bubble")).toHaveLength(2);
+    const typed = visible();
+    expect(typed).toBeGreaterThan(0);
+    expect(typed).toBeLessThan(letters().length);
+    if (restored) {
+      h.game.module.ui.streams.restore();
+      h.game.module.ui.streams.show(false);
+      await flushMicrotasks(40);
+      for (const animation of animations) {
+        animation.update();
+      }
+      expect(visible()).toBe(letters().length);
+    }
     const before = visible();
-    expect(before).toBeGreaterThan(0);
-    expect(before).toBeLessThan(letters().length);
 
     (h.game.story as any).EvaluateFunction("toggle", []);
     h.game.module.ui.refreshLayouts();
