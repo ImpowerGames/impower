@@ -16,7 +16,7 @@ export type LoadingBarProps = {
 
 export type LoadingBarExit = "run-out" | "instant";
 
-export type LoadingBarTiming = {
+type LoadingBarTiming = {
   showDelayMs: number;
   exit: LoadingBarExit;
 };
