@@ -13,7 +13,6 @@ import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveIm
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
-import type { LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
@@ -179,6 +178,7 @@ import {
   type MorphImageContent,
   type MorphLayerPlay,
   type MorphPicture,
+  type LayeredPicture,
   type MorphPlay,
   type PictureFraming,
   type PictureTravel,
@@ -192,14 +192,24 @@ import {
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
-function pictureFileName(file: LayeredMorphFile): string {
+function pictureFileName(file: { src: string; uri?: string; name?: string }): string {
   const path = file.uri ?? file.src;
   const leaf = path.slice(path.lastIndexOf("/") + 1).split(/[?#]/)[0] ?? "";
+  const name = file.name ?? "";
   try {
-    return decodeURIComponent(leaf) || file.name;
+    return decodeURIComponent(leaf) || name;
   } catch {
-    return leaf || file.name;
+    return leaf || name;
   }
+}
+
+function isImageFile(layer: ImageLayer): boolean {
+  const struct = layer.struct;
+  if (struct?.$type !== "image") {
+    return false;
+  }
+  const ext = typeof struct.ext === "string" ? struct.ext.toLowerCase() : "";
+  return ext !== "svg" && !/^data:image\/svg\+xml/i.test(layer.src) && !/\.svg(?:[?#]|$)/i.test(layer.uri ?? "");
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -2033,6 +2043,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       content.still = still;
     }
     return content;
+  }
+
+  layeredImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
+    const layers = this.pictureLook("", name, pick)?.rest ?? [];
+    return layers.length > 1 && layers.every(isImageFile) ? layers : undefined;
+  }
+
+  getLayeredPictures(assets: string[], pickOf: (asset: string) => ImagePick | undefined): LayeredPicture[] {
+    const pictures: LayeredPicture[] = [];
+    let next = 0;
+    for (const asset of assets) {
+      const first = next;
+      const pick = pickOf(asset);
+      const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
+      next += count;
+      if (asset.at(0) === '"' && asset.at(-1) === '"') {
+        continue;
+      }
+      const layers = this.layeredImageFiles(asset, pick);
+      if (!layers || layers.length !== count) {
+        continue;
+      }
+      pictures.push({
+        layer: first,
+        span: count,
+        files: layers.map((layer) => ({
+          src: layer.src,
+          name: pictureFileName({ src: layer.src, ...(layer.uri ? { uri: layer.uri } : {}), name: layer.struct?.$name }),
+        })),
+      });
+    }
+    return pictures;
   }
 
   protected _morphStills = new Set<string>();
@@ -5395,6 +5437,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               const morph = $.getMorphContent(imageAssets, pickOf, shown);
               if (morph) {
                 content.morph = morph;
+              }
+              const pictures = $.getLayeredPictures(imageAssets, pickOf);
+              if (pictures.length > 0) {
+                content.pictures = pictures;
               }
               return content;
             });
