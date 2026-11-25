@@ -27,6 +27,12 @@ export interface LayoutTiming {
   easing: string;
 }
 
+interface Waiter {
+  root: Element;
+  pending: Map<HTMLElement, Motion>;
+  resolve: () => void;
+}
+
 interface Motion {
   from: LayoutPoint;
   to: LayoutBox;
@@ -293,7 +299,7 @@ export default class LayoutMotion {
 
   protected _frame?: () => void;
 
-  protected _waiters = new Map<HTMLElement, (() => void)[]>();
+  protected _waiters = new Set<Waiter>();
 
   constructor(hold?: AnimationHold) {
     this._hold = hold;
@@ -356,10 +362,11 @@ export default class LayoutMotion {
       if (running ? sameBox(running.to, to) : sameBox(boxes.get(el)!, to)) {
         continue;
       }
-      this.stop(el, false);
+      this.stop(el);
       begin(el, to, timing);
     }
     if (started.length === 0) {
+      this.release();
       return;
     }
     for (const [el, { to, timing }] of targets) {
@@ -375,20 +382,26 @@ export default class LayoutMotion {
       }
     }
     this.schedule(started[0]![0].ownerDocument.defaultView);
+    this.release();
   }
 
-  async finished(root: Element): Promise<void> {
-    const moving = Array.from(this._motions.keys()).filter(
-      (el) => el === root || root.contains(el),
-    );
-    await Promise.all(
-      moving.map(
-        (el) =>
-          new Promise<void>((resolve) => {
-            this._waiters.set(el, [...(this._waiters.get(el) ?? []), resolve]);
-          }),
+  finished(root: Element): Promise<void> {
+    const pending = new Map(
+      Array.from(this._motions).filter(
+        ([el, motion]) => (el === root || root.contains(el)) && !this.ended(motion),
       ),
     );
+    if (pending.size === 0) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      this._waiters.add({ root, pending, resolve });
+      for (const motion of pending.values()) {
+        void Promise.allSettled(
+          this.animationsOf(motion).map((animation) => animation.finished),
+        ).then(() => this.release());
+      }
+    });
   }
 
   settle(): void {
@@ -397,6 +410,7 @@ export default class LayoutMotion {
     for (const el of Array.from(this._motions.keys())) {
       this.stop(el);
     }
+    this.release();
   }
 
   protected styled(root: HTMLElement): boolean {
@@ -459,7 +473,32 @@ export default class LayoutMotion {
         );
       }
     }
+    this.release();
     return this._motions.size > 0;
+  }
+
+  protected ended(motion: Motion): boolean {
+    return this.animationsOf(motion).every(
+      (animation) => animation.playState === "finished" || animation.playState === "idle",
+    );
+  }
+
+  protected release(): void {
+    for (const waiter of Array.from(this._waiters)) {
+      for (const [el, motion] of Array.from(waiter.pending)) {
+        if (
+          this._motions.get(el) !== motion ||
+          this.ended(motion) ||
+          !(el === waiter.root || waiter.root.contains(el))
+        ) {
+          waiter.pending.delete(el);
+        }
+      }
+      if (waiter.pending.size === 0) {
+        this._waiters.delete(waiter);
+        waiter.resolve();
+      }
+    }
   }
 
   protected schedule(view: (Window & typeof globalThis) | null): void {
@@ -717,21 +756,13 @@ export default class LayoutMotion {
     );
   }
 
-  protected stop(el: HTMLElement, release = true): void {
+  protected stop(el: HTMLElement): void {
     const motion = this._motions.get(el);
     if (motion) {
       this._motions.delete(el);
       for (const animation of this.animationsOf(motion)) {
         animation.cancel();
       }
-    }
-    if (!release) {
-      return;
-    }
-    const waiters = this._waiters.get(el);
-    this._waiters.delete(el);
-    for (const resolve of waiters ?? []) {
-      resolve();
     }
   }
 }

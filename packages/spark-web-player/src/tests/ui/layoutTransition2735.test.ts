@@ -762,6 +762,102 @@ end
 
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("HERO: Hi."));
 
+describe("waiting for an element's layout motion (I-2735)", () => {
+  const watch = (promise: Promise<void>) => {
+    const state = { done: false };
+    void promise.then(() => {
+      state.done = true;
+    });
+    return state;
+  };
+
+  const pushed = (inner = "box") => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow top"></div><div class="box under"><div class="${inner} inner"></div></div><div class="plain"></div>`);
+    const [top, under, child, plain] = [at(".top"), at(".under"), at(".inner"), at(".plain")];
+    let target = 40;
+    const height = () => sizeNow(top, "height", target);
+    geometry.set(top, () => box(0, 0, 200, height()));
+    geometry.set(under, () => box(0, height(), 200, 40));
+    geometry.set(child, () => box(0, height(), 200, 20));
+    const motion = new LayoutMotion(new AnimationHold());
+    const grow = (to: number) => {
+      const boxes = motion.measure(root);
+      target = to;
+      motion.play(boxes);
+    };
+    return { root, top, under, inner: child, plain, motion, start: () => grow(120), grow };
+  };
+
+  test("an element with no layout motion is finished at once", async () => {
+    const { root, plain, motion, start } = pushed();
+    start();
+    const waiting = watch(motion.finished(plain));
+    await flushMicrotasks(2);
+    expect(waiting.done).toBe(true);
+    root.remove();
+  });
+
+  test("an element is finished when its own motion ends, while a slower one goes on", async () => {
+    const { root, top, under, motion, start } = pushed();
+    start();
+    expect(motionsOf(under).length).toBeGreaterThan(0);
+    const waiting = watch(motion.finished(under));
+    await advance(100);
+    expect(waiting.done).toBe(false);
+    await advance(150);
+    expect(waiting.done).toBe(true);
+    expect(sizeOf(top)?.playState).toBe("running");
+    root.remove();
+  });
+
+  test("an element waits for a slower descendant only while the descendant is inside it", async () => {
+    const { root, under, inner, motion, start } = pushed("slow");
+    start();
+    const waiting = watch(motion.finished(under));
+    await advance(300);
+    expect(waiting.done).toBe(false);
+    root.append(inner);
+    await advance(16);
+    expect(waiting.done).toBe(true);
+    root.remove();
+  });
+
+  test("an element whose motion a later beat restarts is finished at the restart", async () => {
+    const { root, top, motion, start, grow } = pushed();
+    start();
+    const waiting = watch(motion.finished(top));
+    await advance(100);
+    expect(waiting.done).toBe(false);
+    grow(200);
+    await flushMicrotasks(2);
+    expect(waiting.done).toBe(true);
+    expect(sizeOf(top)?.playState).toBe("running");
+    root.remove();
+  });
+
+  test("an element removed from the page while waited on is finished on the next frame", async () => {
+    const { root, top, motion, start } = pushed();
+    start();
+    const waiting = watch(motion.finished(top));
+    await advance(100);
+    top.remove();
+    await advance(16);
+    expect(waiting.done).toBe(true);
+    root.remove();
+  });
+
+  test("settling every motion finishes every waiter at once", async () => {
+    const { root, top, under, motion, start } = pushed();
+    start();
+    const waits = [watch(motion.finished(top)), watch(motion.finished(under)), watch(motion.finished(root))];
+    motion.settle();
+    await flushMicrotasks(2);
+    expect(waits.map((w) => w.done)).toEqual([true, true, true]);
+    root.remove();
+  });
+});
+
 const write = (text: string, time?: number) => [
   WriteTextMessage.type.request({ target: "dialogue", instructions: [], instant: true }),
   WriteTextMessage.type.request({
@@ -887,6 +983,88 @@ describe("a box whose text grows (I-2735)", () => {
     await advance(200);
     await flushMicrotasks(10);
     expect(motionsOf(dialogue)).toEqual([]);
+    expect(answered).toBe(true);
+  });
+});
+
+describe("a hide's answer (I-2735)", () => {
+  const hiding = async (styled: boolean) => {
+    const { h, dialogue } = await showing(styled);
+    geometry.set(dialogue, () =>
+      box(0, 0, 300, sizeNow(dialogue, "height", dialogue.getAttribute("data-presence") === "hide" ? 20 : 60)),
+    );
+    const app = (h.ui as any).app;
+    const answer = app.answer.bind(app);
+    const state = { answered: false };
+    app.answer = (message: unknown, work: Promise<unknown>) => {
+      void work.then(() => {
+        state.answered = true;
+      });
+      return answer(message, work);
+    };
+    const request = () =>
+      PresenceElementsMessage.type.request({
+        effects: [{ element: (dialogue as any).__sdId, presence: "hide" }],
+      } as any);
+    return { h, dialogue, state, request };
+  };
+
+  test("a hide on an element with no layout transition answers without waiting for any time", async () => {
+    const { h, dialogue, state, request } = await hiding(false);
+    timeline.currentTime = 1_000;
+    h.ui.onReceiveNotification(BeatMessage.type.notification({ messages: [request()], time: 1_000 } as any));
+    await flushMicrotasks(10);
+    expect(motionsOf(dialogue)).toEqual([]);
+    expect(state.answered).toBe(true);
+  });
+
+  test("a hide in a beat shown at once answers without waiting for any time", async () => {
+    const { h, dialogue, state, request } = await hiding(true);
+    h.ui.onReceiveNotification(BeatMessage.type.notification({ messages: [request()] } as any));
+    await flushMicrotasks(10);
+    expect(motionsOf(dialogue)).toEqual([]);
+    expect(state.answered).toBe(true);
+  });
+
+  test("a hide under the reader's reduced-motion setting answers without waiting for any time", async () => {
+    const { h, dialogue, state, request } = await hiding(true);
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.matchMedia = (query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)" });
+    try {
+      timeline.currentTime = 1_000;
+      h.ui.onReceiveNotification(BeatMessage.type.notification({ messages: [request()], time: 1_000 } as any));
+      await flushMicrotasks(10);
+      expect(motionsOf(dialogue)).toEqual([]);
+      expect(state.answered).toBe(true);
+    } finally {
+      delete win.matchMedia;
+    }
+  });
+
+  test("a hide outside any beat answers at once, or when a motion already on the element ends", async () => {
+    const { h, dialogue, request } = await hiding(true);
+    let answered = false;
+    void h.ui.onReceiveRequest(request() as any).then(() => {
+      answered = true;
+    });
+    await flushMicrotasks(10);
+    expect(answered).toBe(true);
+
+    dialogue.removeAttribute("data-presence");
+    const shown = () => dialogue.querySelector(".text")?.textContent ?? "";
+    geometry.set(dialogue, () => box(0, 0, 300, sizeNow(dialogue, "height", 20 * Math.max(1, Math.ceil(shown().length / 10)))));
+    timeline.currentTime = 1_000;
+    h.ui.onReceiveNotification(beat("A line long enough for three.", 1_000));
+    await flushMicrotasks(10);
+    expect(sizeOf(dialogue), "the box's size motion").toBeDefined();
+    answered = false;
+    void h.ui.onReceiveRequest(request() as any).then(() => {
+      answered = true;
+    });
+    await flushMicrotasks(10);
+    expect(answered).toBe(false);
+    await advance(350);
+    await flushMicrotasks(10);
     expect(answered).toBe(true);
   });
 });
