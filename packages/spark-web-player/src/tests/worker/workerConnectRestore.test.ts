@@ -44,7 +44,14 @@ const script = (box: string) =>
     `  return ""`,
     "end",
     "",
+    "define SKY as image with",
+    `  src = "https://example.com/sky.png"`,
+    "end",
+    "",
     "layout main {",
+    "  stage {",
+    "    backdrop { image }",
+    "  }",
     "  textbox {",
     `    ${box} {`,
     `      text "Says:"`,
@@ -57,12 +64,13 @@ const script = (box: string) =>
     "scene start",
     "  Before.",
     `  HERO: {set_word("First.")}{word} > {word}{word}`,
+    "  [[show backdrop SKY]]",
     "end",
   ].join("\n");
 
 const TEXT = script("dialogue");
 
-const SHARED = script("dialogue.action");
+const SHARED = script("dialogue.action.character_name");
 
 const lineOf = (text: string, needle: string) =>
   text.split("\n").findIndex((l) => l.includes(needle));
@@ -125,13 +133,13 @@ describe("a connect restores each target's text in place of what it shows (#1813
   }, 120_000);
 
   it("restores both targets that name one element onto it", async () => {
-    const line = lineOf(SHARED, "HERO:");
+    const line = lineOf(SHARED, "[[show backdrop");
     const h = await open(SHARED, line);
     try {
-      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.");
-      await editWord(h, SHARED, line);
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.HERO");
+      await editWord(h, SHARED, lineOf(SHARED, "HERO:"));
       const dom = h.snapshotDOM() as Node;
-      expect(lettersIn(dom, "dialogue")).toBe("Premier.Premier.");
+      expect(lettersIn(dom, "dialogue")).toBe("Premier.Premier.HERO");
       expect(lettersIn(dom, "dialogue")).toBe(
         await freshLetters(edited(SHARED), line, "dialogue"),
       );
