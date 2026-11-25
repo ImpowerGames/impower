@@ -421,6 +421,27 @@ end
     root.remove();
   });
 
+  test("a box anchored at its bottom with fractional sizes takes no translate from rounded places", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow anchored"></div>`);
+    const anchored = at(".anchored");
+    let grown = false;
+    geometry.set(anchored, () => {
+      const height = sizeNow(anchored, "height", grown ? 128.78 : 85.59);
+      return box(0, Math.round(794 - height), 619, height);
+    });
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    grown = true;
+    motion.play(boxes);
+    expect(sizeOf(anchored)).toBeDefined();
+    for (let step = 0; step < 20; step += 1) {
+      expect(translated(anchored)).toBe(false);
+      await advance(50);
+    }
+    root.remove();
+  });
+
   test("a pure resize never translates the element, so its stacking is unchanged", async () => {
     useLayout();
     const { root, at } = mount(`<div class="slow card"></div>`);

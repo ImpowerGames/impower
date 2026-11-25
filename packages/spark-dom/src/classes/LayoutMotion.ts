@@ -37,6 +37,8 @@ const LAYOUT_TRANSITION = /transition(?:[-_]property)?"?\s*:\s*"?[^;{}"]*\blayou
 
 const SETTLED_PX = 0.5;
 
+const ROUNDED_PLACE_PX = 1.5;
+
 const NO_SHIFT: LayoutPoint = { x: 0, y: 0 };
 
 export const namesLayoutTransition = (text: string): boolean =>
@@ -137,7 +139,9 @@ export const getLayoutShift = (
 });
 
 const settledShift = (shift: LayoutPoint): LayoutPoint =>
-  differs(shift.x, 0) || differs(shift.y, 0) ? shift : NO_SHIFT;
+  Math.abs(shift.x) > ROUNDED_PLACE_PX || Math.abs(shift.y) > ROUNDED_PLACE_PX
+    ? shift
+    : NO_SHIFT;
 
 const translateFrames = (shift: LayoutPoint): Keyframe[] => {
   if (shift === NO_SHIFT) {
