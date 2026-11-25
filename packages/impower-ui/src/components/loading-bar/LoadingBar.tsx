@@ -8,8 +8,17 @@ export type LoadingBarProps = {
   containerRef?: Ref<HTMLDivElement>;
   label: string;
   active?: boolean;
+  showDelayMs?: number;
+  exit?: LoadingBarExit;
   class?: string;
   style?: JSX.CSSProperties;
+};
+
+export type LoadingBarExit = "run-out" | "instant";
+
+type LoadingBarTiming = {
+  showDelayMs: number;
+  exit: LoadingBarExit;
 };
 
 export const LOADING_BAR_SHOW_DELAY_MS = 300;
@@ -18,6 +27,7 @@ export const LOADING_BAR_FADE_MS = 150;
 
 const SEGMENT_START = -0.5;
 const SEGMENT_END = 1;
+const SEGMENT_ON_SCREEN = -SEGMENT_START / (SEGMENT_END - SEGMENT_START);
 
 const segmentTransform = (position: number) =>
   `translateX(${position * 100}%) scaleX(0.5)`;
@@ -39,12 +49,17 @@ const prefersReducedMotion = () =>
   typeof window.matchMedia === "function" &&
   window.matchMedia(REDUCED_MOTION_QUERY).matches;
 
-function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
+function driveLoadingBar(
+  bar: HTMLElement,
+  segment: HTMLElement,
+  timing: () => LoadingBarTiming,
+) {
   let showTimer = 0;
   let shown = false;
   let sweep: Animation | undefined;
   let finish: Animation | undefined;
   let fade: Animation | undefined;
+  let sweepEntry = 0;
   const canAnimate = typeof segment.animate === "function";
 
   const cancelMotion = () => {
@@ -54,7 +69,7 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
     sweep = finish = fade = undefined;
   };
 
-  const show = () => {
+  const show = (entry = 0) => {
     showTimer = 0;
     cancelMotion();
     shown = true;
@@ -64,13 +79,20 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
       segment.style.transform = "none";
       return;
     }
-    segment.style.transform = segmentTransform(SEGMENT_START);
+    sweepEntry = entry;
+    segment.style.transform = segmentTransform(
+      SEGMENT_START + (SEGMENT_END - SEGMENT_START) * entry,
+    );
     sweep = segment.animate(
       [
         { transform: segmentTransform(SEGMENT_START) },
         { transform: segmentTransform(SEGMENT_END) },
       ],
-      { duration: LOADING_BAR_CROSSING_MS, iterations: Infinity },
+      {
+        duration: LOADING_BAR_CROSSING_MS,
+        iterations: Infinity,
+        iterationStart: entry,
+      },
     );
   };
 
@@ -96,7 +118,9 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
   const runOut = () => {
     const elapsed = Number(sweep?.currentTime ?? 0);
     const progress =
-      (elapsed % LOADING_BAR_CROSSING_MS) / LOADING_BAR_CROSSING_MS;
+      ((elapsed + sweepEntry * LOADING_BAR_CROSSING_MS) %
+        LOADING_BAR_CROSSING_MS) /
+      LOADING_BAR_CROSSING_MS;
     const position = SEGMENT_START + (SEGMENT_END - SEGMENT_START) * progress;
     sweep?.cancel();
     sweep = undefined;
@@ -128,14 +152,26 @@ function driveLoadingBar(bar: HTMLElement, segment: HTMLElement) {
         show();
         return;
       }
-      showTimer = window.setTimeout(show, LOADING_BAR_SHOW_DELAY_MS);
+      const { showDelayMs } = timing();
+      if (showDelayMs <= 0) {
+        show(SEGMENT_ON_SCREEN);
+        return;
+      }
+      showTimer = window.setTimeout(() => show(), showDelayMs);
       return;
     }
     if (showTimer) {
       window.clearTimeout(showTimer);
       showTimer = 0;
     }
-    if (!shown || finish || fade) {
+    if (!shown) {
+      return;
+    }
+    if (timing().exit === "instant") {
+      hide();
+      return;
+    }
+    if (finish || fade) {
       return;
     }
     if (sweep && !prefersReducedMotion()) {
@@ -190,6 +226,8 @@ export function LoadingBar({
   containerRef,
   label,
   active = true,
+  showDelayMs = LOADING_BAR_SHOW_DELAY_MS,
+  exit = "run-out",
   class: className,
   style,
 }: LoadingBarProps) {
@@ -198,12 +236,14 @@ export function LoadingBar({
     barRef.current = element;
   });
   const segmentRef = useRef<HTMLDivElement>(null);
+  const timingRef = useRef<LoadingBarTiming>({ showDelayMs, exit });
+  timingRef.current = { showDelayMs, exit };
 
   useLayoutEffect(() => {
     const bar = barRef.current;
     const segment = segmentRef.current;
     if (!bar || !segment) return;
-    return driveLoadingBar(bar, segment);
+    return driveLoadingBar(bar, segment, () => timingRef.current);
   }, []);
 
   return (
