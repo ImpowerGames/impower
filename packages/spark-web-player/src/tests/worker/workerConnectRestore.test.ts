@@ -56,7 +56,7 @@ const script = (box: string) =>
     "",
     "scene start",
     "  Before.",
-    `  HERO: {set_word("First.")}{word} > Second.`,
+    `  HERO: {set_word("First.")}{word} > {word}{word}`,
     "end",
   ].join("\n");
 
@@ -110,11 +110,11 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const line = lineOf(TEXT, "HERO:");
     const h = await open(TEXT, line);
     try {
-      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.");
       expect(saysIn(h.snapshotDOM() as Node, "dialogue")).toBe(false);
       await editWord(h, TEXT, line);
       const dom = h.snapshotDOM() as Node;
-      expect(lettersIn(dom, "dialogue")).toBe("Premier.Second.");
+      expect(lettersIn(dom, "dialogue")).toBe("Premier.Premier.");
       expect(lettersIn(dom, "dialogue")).toBe(
         await freshLetters(edited(TEXT), line, "dialogue"),
       );
@@ -128,10 +128,10 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const line = lineOf(SHARED, "HERO:");
     const h = await open(SHARED, line);
     try {
-      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("Before.First.Second.");
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.");
       await editWord(h, SHARED, line);
       const dom = h.snapshotDOM() as Node;
-      expect(lettersIn(dom, "dialogue")).toBe("Before.Premier.Second.");
+      expect(lettersIn(dom, "dialogue")).toBe("Premier.Premier.");
       expect(lettersIn(dom, "dialogue")).toBe(
         await freshLetters(edited(SHARED), line, "dialogue"),
       );
@@ -144,7 +144,7 @@ describe("a connect restores each target's text in place of what it shows (#1813
   it("shows a standing target the restored state does not write as its placeholder alone, as a fresh page does", async () => {
     const h = await open(TEXT, lineOf(TEXT, "HERO:"));
     try {
-      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.");
       await h.select(lineOf(TEXT, "Before."));
       const dom = h.snapshotDOM() as Node;
       expect(lettersIn(dom, "dialogue")).toBe("");
@@ -165,7 +165,7 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const line = lineOf(TEXT, "HERO:");
     const h = await open(TEXT, line);
     try {
-      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.");
       expect(await h.controller.startGameAndApp()).toBe(true);
       const shown = () => lettersIn(h.snapshotDOM() as Node, "dialogue");
       for (let i = 0; i < 150 && shown() !== "First."; i++) {
@@ -184,7 +184,7 @@ describe("a connect restores each target's text in place of what it shows (#1813
     const line = lineOf(TEXT, "HERO:");
     const h = await open(TEXT, line);
     try {
-      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.Second.");
+      expect(lettersIn(h.snapshotDOM() as Node, "dialogue")).toBe("First.First.");
       let release!: () => void;
       const held = new Promise<void>((resolve) => (release = resolve));
       const request = h.link.request.bind(h.link);
