@@ -122,6 +122,53 @@ end
   });
 });
 
+describe("a layout named after a builtin target", () => {
+  for (const target of [
+    "title",
+    "heading",
+    "transitional",
+    "dialogue",
+    "action",
+    "character_name",
+    "character_parenthetical",
+    "portrait",
+  ]) {
+    test(`\`layout ${target}\` is not hidden when it opens`, async () => {
+      const { hidden, idsNamed, created } = await run(`layout ${target} {
+  column {
+    text "My Game"
+  }
+}
+
+scene start
+  [[open ${target}]]
+  You rummage.
+end
+`);
+      expect(idsNamed(target), created).not.toEqual([]);
+      expect(hidden).not.toContain(target);
+    });
+  }
+
+  test("`layout title in menu` is not hidden when navigated to", async () => {
+    const { hidden, idsNamed, created } = await run(`screen menu {}
+
+layout title in menu {
+  column {
+    text "My Game"
+  }
+}
+
+scene start
+  [[navigate menu to title]]
+  You rummage.
+end
+`);
+    expect(idsNamed("title"), created).not.toEqual([]);
+    expect(hidden).not.toContain("title");
+  });
+});
+
 describe("a target no element is named after", () => {
   test("takes a container carrying its class as its slot in a layout that replaces `main`", async () => {
     const { h, writes, idsNamed, created } = await run(
