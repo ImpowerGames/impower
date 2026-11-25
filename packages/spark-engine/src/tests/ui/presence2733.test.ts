@@ -165,6 +165,34 @@ describe("an element that loses its content (#2733)", () => {
     });
   });
 
+  test("plays an @hide reached through a sibling selector", async () => {
+    const h = harness(`${NO_BOX}
+style anchor {
+  + dialogue {
+    @hide { opacity = 0 }
+  }
+}
+
+layout main {
+  anchor
+  dialogue {
+    text
+  }
+  action {
+    text
+  }
+}
+`);
+    await h.ready;
+    const [dialogue] = h.game.module.ui.findIds("dialogue");
+    await play(h, dialogueLine);
+    await settle(h);
+    h.reset();
+    await play(h, actionLine);
+    expect(motions(h)).toContainEqual({ element: dialogue, presence: "hide" });
+    expect(displayOf(h, dialogue!)).toBeUndefined();
+  });
+
   test("is removed at once when its style has no @hide", async () => {
     const h = harness(lines(`style dialogue {
   @initial { opacity = 0 }

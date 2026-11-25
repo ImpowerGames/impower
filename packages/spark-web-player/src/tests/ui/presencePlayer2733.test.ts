@@ -218,6 +218,68 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
     expect(box.hasAttribute(PRESENCE)).toBe(false);
   });
 
+  test("an animation set only in @initial plays out as part of the arrival", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    const pop = Object.assign(new FakeTransition(box, "opacity", 2000), {
+      animationName: "pop",
+      currentTime: 120,
+    });
+    (pop.effect as any).getKeyframes = () => [
+      { offset: 0, computedOffset: 0, opacity: "0" },
+      { offset: 1, computedOffset: 1, opacity: "1" },
+    ];
+    (pop.effect as any).getTiming = () => ({ duration: 2000, fill: "none" });
+    const carried: FakeTransition[] = [];
+    (box as any).animate = (keyframes: Keyframe[], timing: EffectTiming) => {
+      expect(keyframes).toEqual([
+        { offset: 0, opacity: "0" },
+        { offset: 1, opacity: "1" },
+      ]);
+      expect(timing.duration).toBe(2000);
+      const replay = new FakeTransition(box, "opacity", 2000);
+      carried.push(replay);
+      return replay;
+    };
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "initial" ? [pop] : []) as any;
+    const presence = (h.ui as any)._presence;
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    let arrived = false;
+    const arrival = presence.play(box, "show").then(() => {
+      arrived = true;
+    });
+    await flushMicrotasks(10);
+    expect(carried).toHaveLength(1);
+    expect(carried[0]!.currentTime).toBe(120);
+    expect(arrived).toBe(false);
+    carried[0]!.finish();
+    await arrival;
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+  });
+
+  test("under reduced motion an endless move started with the arrival is stopped", async () => {
+    const h = await playing(FADING_BOX);
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.matchMedia = (query: string) => ({ matches: query.includes("prefers-reduced-motion") });
+    const fade = new FakeTransition(h.overlay, "opacity", 200);
+    const spin = new FakeTransition(h.overlay, "rotate", Infinity);
+    const stopped = { cancelled: false };
+    (spin as any).cancel = () => {
+      stopped.cancelled = true;
+      spin.playState = "idle";
+    };
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    box.setAttribute(PRESENCE, "initial");
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "show" ? [fade, spin] : []) as any;
+    void (h.ui as any)._presence.play(box, "show");
+    await flushMicrotasks(5);
+    expect(stopped.cancelled).toBe(true);
+    expect(fade.playState).toBe("running");
+  });
+
   test("a click that shows the whole line removes a branch still leaving", async () => {
     const h = await playing(`define ui as config with
   layouts_initial = { }

@@ -36,6 +36,23 @@ const moves = (animation: Animation): boolean => {
   );
 };
 
+const carry = (
+  animation: Animation,
+  time: CSSNumberish | null,
+): Animation[] => {
+  const effect = animation.effect as KeyframeEffect | null;
+  const target = effect?.target;
+  if (!effect || !target || typeof target.animate !== "function") {
+    return [];
+  }
+  const keyframes = effect
+    .getKeyframes()
+    .map(({ computedOffset: _, ...keyframe }) => keyframe);
+  const carried = target.animate(keyframes as Keyframe[], effect.getTiming());
+  carried.currentTime = time ?? 0;
+  return [carried];
+};
+
 export default class PresencePlayer {
   protected _motions = new Map<Element, Motion>();
 
@@ -62,22 +79,36 @@ export default class PresencePlayer {
       return;
     }
     void element.ownerDocument.defaultView?.getComputedStyle(element).opacity;
+    const current = this.animations(element);
     const before =
       (presence === "show" ? this._before.get(element) : undefined) ??
-      new Set(this.animations(element));
+      new Set(current);
     this._before.delete(element);
-    element.setAttribute(PRESENCE_ATTRIBUTE, presence);
-    const started = this.animations(element).filter(
-      (animation) => !before.has(animation),
+    const initial = new Map(
+      current
+        .filter((animation) => !before.has(animation) && "animationName" in animation)
+        .map((animation) => [animation, animation.currentTime] as const),
     );
-    const timed = started.filter(finite);
+    element.setAttribute(PRESENCE_ATTRIBUTE, presence);
+    const after = this.animations(element);
+    const started = [
+      ...after.filter((animation) => !before.has(animation)),
+      ...[...initial]
+        .filter(([animation]) => !after.includes(animation))
+        .flatMap(([animation, time]) => carry(animation, time)),
+    ];
     if (this.reducedMotion()) {
-      for (const animation of timed) {
+      for (const animation of started) {
         if (moves(animation)) {
-          animation.finish();
+          if (finite(animation)) {
+            animation.finish();
+          } else {
+            animation.cancel();
+          }
         }
       }
     }
+    const timed = started.filter(finite);
     const held = started.map((animation) =>
       this.hold.add(animation).catch(() => undefined),
     );

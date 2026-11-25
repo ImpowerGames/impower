@@ -1626,28 +1626,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const styles = this.context?.style;
     let cached = this._presenceStyles;
     if (!cached || cached.styles !== styles) {
-      const holds = (value: unknown, block: RegExp): boolean =>
-        value != null &&
-        typeof value === "object" &&
-        Object.entries(value).some(
-          ([key, inner]) =>
-            (block.test(key) && inner != null && typeof inner === "object") ||
-            holds(inner, block),
-        );
       const moves: Record<PresenceMotion, Set<string>> = {
         show: new Set(),
         hide: new Set(),
       };
-      for (const [name, style] of Object.entries(styles ?? {})) {
-        if (name.startsWith("$")) {
-          continue;
+      const visit = (value: unknown, path: string[]) => {
+        if (value == null || typeof value !== "object") {
+          return;
         }
-        for (const presence of ["show", "hide"] as const) {
-          if (holds(style, PRESENCE_BLOCKS[presence])) {
-            for (const word of name.match(STYLE_CLASS_WORD) ?? []) {
-              moves[presence].add(word);
+        for (const [key, inner] of Object.entries(value)) {
+          if (inner == null || typeof inner !== "object") {
+            continue;
+          }
+          for (const presence of ["show", "hide"] as const) {
+            if (PRESENCE_BLOCKS[presence].test(key)) {
+              for (const selector of path) {
+                for (const word of selector.match(STYLE_CLASS_WORD) ?? []) {
+                  moves[presence].add(word);
+                }
+              }
             }
           }
+          visit(inner, [...path, key]);
+        }
+      };
+      for (const [name, style] of Object.entries(styles ?? {})) {
+        if (!name.startsWith("$")) {
+          visit(style, [name]);
         }
       }
       cached = { styles, moves };
