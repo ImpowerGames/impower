@@ -92,6 +92,14 @@ describe("a change morph's bake diagnostics", () => {
     expect(diagnostics[0].message).toContain('"lip" has 2 drawings in one pose and 3 in the other');
   }, 60_000);
 
+  it("a pair whose directives play no speech morph reports the problem when a speech morph would otherwise drive the group", async () => {
+    const talk = `morph talk {\n  blend = cut\n  timing { trigger = speech }\n  keyframes {\n    from { mouth { state = smile } }\n    to { mouth { state = open } }\n  }\n}\n`;
+    const { diagnostics } = await bakeDiagnostics(`${CHANGE}${talk}${scene("mia:mouth.smile morph none", "mia:mouth.frown morph none")}`);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ severity: 2, code: "morph-pairing-count", message: expect.stringContaining("Morph `bend` on `mia:mouth.frown`") }),
+    ]);
+  }, 60_000);
+
   it("a pair no directive reaches is not baked and reports nothing", async () => {
     const { workspace, publishes } = setup();
     const program = compile(`${CHANGE}${scene("mia:mouth.smile", "mia:mouth.open", "mia:mouth.smile")}`);

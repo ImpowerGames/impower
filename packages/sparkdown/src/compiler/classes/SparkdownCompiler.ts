@@ -11,7 +11,7 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { buildMorphChannel, shownLook, shownLookStruct } from "../../morph/channel";
+import { buildMorphChannel, shownLook, shownLookStruct, type ShownBefore } from "../../morph/channel";
 import { layeredSizeWarnings, type LayeredSizeWarning } from "../../morph/layered";
 import { resolvePictureLook } from "../../morph/look";
 import { MORPH_PICK_NONE } from "../../morph/types";
@@ -4975,13 +4975,14 @@ export class SparkdownCompiler {
         }
       }
       const reportedClauseIssues = new Set<string>();
-      const shownByImage = new Map<any, any>();
+      const shownByImage = new Map<any, ShownBefore>();
       for (const directive of directives) {
         const directiveImages = shownImages.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
-        if (program.morphs?.change) {
-          for (const image of directiveImages) this.collectMorphChanges(program, image.struct, shownByImage);
-        }
         const morph = morphClauseOf(directive);
+        if (program.morphs?.change) {
+          const pick = morph?.value && !morph.value.text.startsWith("$") ? morph.value.text : undefined;
+          for (const image of directiveImages) this.collectMorphChanges(program, { struct: image.struct, ...(pick === undefined ? {} : { pick }) }, shownByImage);
+        }
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
           ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
@@ -5051,16 +5052,17 @@ export class SparkdownCompiler {
     }
   }
 
-  protected collectMorphChanges(program: SparkProgram, struct: any, shownByImage: Map<any, any>) {
+  protected collectMorphChanges(program: SparkProgram, shown: ShownBefore, shownByImage: Map<any, ShownBefore>) {
     const context = program.context!;
-    const images = [struct, ...resolveImageLayers(context, struct).map((layer) => layer.struct)].flatMap((shown) => {
-      const image = shown ? resolveImageAttributes(context, shown, { visibility: false }).image : undefined;
+    const { struct, pick } = shown;
+    const images = [struct, ...resolveImageLayers(context, struct).map((layer) => layer.struct)].flatMap((layer) => {
+      const image = layer ? resolveImageAttributes(context, layer, { visibility: false }).image : undefined;
       return image ? [image] : [];
     });
-    const before = images.map((image) => shownByImage.get(image)).find((shown) => shown !== undefined);
-    for (const image of images) shownByImage.set(image, struct);
+    const before = images.map((image) => shownByImage.get(image)).find((earlier) => earlier !== undefined);
+    for (const image of images) shownByImage.set(image, shown);
     if (before === undefined || typeof struct?.$name !== "string") return;
-    const look = resolvePictureLook(context, program.morphs, struct, { from: { struct: before } });
+    const look = resolvePictureLook(context, program.morphs, struct, { ...(pick === undefined ? {} : { pick }), from: before });
     const changes = (program.morphChanges ??= []);
     const refs: MorphRef[] = [...look.refs, ...look.layers.flatMap((layer) => layer.refs)];
     for (const ref of refs) {
