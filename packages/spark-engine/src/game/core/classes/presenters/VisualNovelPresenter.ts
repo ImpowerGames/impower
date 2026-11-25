@@ -73,7 +73,9 @@ export class VisualNovelPresenter implements Presenter {
     }
 
     if (!extended || instructions.text) {
-      game.module.ui.text.clearAll(transientLayers);
+      game.module.ui.text.clearAll([
+        ...new Set([...transientLayers, ...Object.keys(instructions.text ?? {})]),
+      ]);
     }
     if (stage) {
       clearStage(game, instructions, transientLayers);

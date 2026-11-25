@@ -55,6 +55,8 @@ scene start
 
   [[show portrait hat]]
   HERO: Third words.
+
+  Another action line.
 end
 `;
 
@@ -133,12 +135,17 @@ describe("#clear decides which elements empty after their line (I-2732)", () => 
 
   test("an element without #clear keeps its content, even with a bare text or image child", async () => {
     const { states } = await play();
-    expect(states.map((s) => s.backdrop)).toEqual([["sky"], ["sky"], ["sky"], ["sky"]]);
-    expect(states.slice(1).map((s) => s.action)).toEqual([
+    expect(states.map((s) => s.backdrop)).toEqual([["sky"], ["sky"], ["sky"], ["sky"], ["sky"]]);
+    expect(states.slice(1, 4).map((s) => s.action)).toEqual([
       "A plain action line.",
       "A plain action line.",
       "A plain action line.",
     ]);
+  });
+
+  test("an element without #clear is replaced, not added to, by the next line that writes to it", async () => {
+    const { states } = await play();
+    expect(states[4]).toMatchObject({ action: "Another action line.", dialogue: "", name: "" });
   });
 
   test("an element with no content is not on screen, with or without #clear", async () => {
