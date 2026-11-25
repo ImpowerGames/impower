@@ -1,4 +1,4 @@
-import { cn, SplitPane } from "@impower/impower-ui/components";
+import { cn, SplitPane, usePreviewStripFull } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
 import problems, {
@@ -67,7 +67,8 @@ export default function Preview(_props: PreviewProps) {
 
   const game = workspace.state.value.preview?.modes?.game;
   const choosing = !!game?.running && !!game?.choosing;
-  const inStrip = stripped && !workspace.state.value.preview?.revealed;
+  const full = usePreviewStripFull();
+  const inStrip = stripped && !full && !workspace.state.value.preview?.revealed;
   const framed = !fullscreen && !inStrip;
   const stageMode = inStrip && !playsGame(mode) ? "game" : mode;
 
