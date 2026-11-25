@@ -2329,7 +2329,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected layoutRootName(layoutName: string): string {
-    return this.layoutHolds(layoutName, [layoutName])
+    return this._clearOnContinue.has(layoutName) ||
+      this.layoutHolds(layoutName, [layoutName])
       ? `layout_${layoutName}`
       : layoutName;
   }
@@ -2619,7 +2620,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected screenRootName(screen: ScreenNode): string {
-    return this.treeHolds(screen.children, new Set([screen.name]))
+    return this._clearOnContinue.has(screen.name) ||
+      this.treeHolds(screen.children, new Set([screen.name]))
       ? `screen_${screen.name}`
       : screen.name;
   }
@@ -5014,10 +5016,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
-      const roots = writes ? this.layoutRootElements() : null;
-      const matches = this.searchForAll(this._root, name, found).filter(
-        (el) => !roots?.has(el),
-      );
+      const matches = this.searchForAll(this._root, name, found);
       const named = matches.filter((el) => el.name === name);
       const elements =
         named.length > 0
@@ -5045,27 +5044,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return elements;
     }
     return found;
-  }
-
-  protected layoutRootElements(): Set<Element> {
-    const roots = new Set<Element>();
-    const layoutsName = this.context.config?.ui?.layouts_element_name;
-    const layouts = layoutsName ? this._root?.findChild(layoutsName) : null;
-    if (layouts) {
-      roots.add(layouts);
-      for (const child of layouts.children) {
-        if (child) {
-          roots.add(child);
-        }
-      }
-    }
-    for (const { element } of this._mountedLayouts.values()) {
-      roots.add(element);
-    }
-    for (const { element } of this._mountedScreens.values()) {
-      roots.add(element);
-    }
-    return roots;
   }
 
   protected searchForAll(
