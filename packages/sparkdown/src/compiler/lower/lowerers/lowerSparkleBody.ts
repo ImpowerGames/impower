@@ -41,6 +41,7 @@ import {
 } from "../utils/statementShape";
 import { documentTag } from "../utils/documentTag";
 import { unescapeString } from "../utils/unescapeString";
+import { isStream } from "../../utils/layoutStreams";
 import { structValueNode } from "../utils/structValueNode";
 import {
   sparkleBlockContent,
@@ -714,6 +715,27 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
         };
   }
   const read = readParts(parts, ctx);
+  if (tag === "stream") {
+    const sub = buildBlockEntries();
+    if (read.content && name) {
+      warnAt(name.from, name.to, STREAM_TEXT_IGNORED, ctx);
+    }
+    for (const word of blockContent ? streamIgnoredEntries(blockContent, ctx) : []) {
+      warnAt(word.from, word.to, streamEntryIgnored(word.text), ctx);
+    }
+    return {
+      kind: "element",
+      tag,
+      classes: read.classes,
+      props: { ...read.props, ...sub.props },
+      events: read.events,
+      children: [],
+      templates: sub.children.filter(
+        (child): child is ElementNode =>
+          child.kind === "element" && !isStream(child),
+      ),
+    };
+  }
   const element: ElementNode = {
     kind: "element",
     tag,
@@ -730,6 +752,59 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
     element.props = { ...element.props, ...sub.props };
   }
   return element;
+}
+
+const STREAM_TEXT_IGNORED =
+  "A stream shows the lines that go to it, so text written on the stream itself is ignored.";
+
+const streamEntryIgnored = (word: string) =>
+  `A stream copies only the elements written directly inside it, so this \`${word}\` is ignored.`;
+
+const STREAM_KEPT_ENTRIES = nodeNameSet([
+  "LuauStructBlockProperty",
+  "LuauSparkleElementBlock",
+]);
+
+function streamIgnoredEntries(
+  container: SyntaxNode,
+  ctx: LowerContext,
+): { from: number; to: number; text: string }[] {
+  const ignored: { from: number; to: number; text: string }[] = [];
+  for (const entry of sparkleBlockEntries(container)) {
+    if (isContinuation(entry, ctx) || STREAM_KEPT_ENTRIES.has(entry.name)) {
+      continue;
+    }
+    if (entry.name === "LuauSparkleElement") {
+      const name = sparkleElementParts(entry).name;
+      const tag = name ? ctx.read(name.from, name.to).trim() : "";
+      if (name && (tag === "slot" || tag === "fill" || tag === "stream")) {
+        ignored.push({ from: name.from, to: name.to, text: tag });
+      }
+      continue;
+    }
+    let keyword = entry.firstChild;
+    while (keyword?.firstChild) {
+      keyword = keyword.firstChild;
+    }
+    const at = keyword ?? entry;
+    ignored.push({ from: at.from, to: at.to, text: ctx.read(at.from, at.to).trim() });
+  }
+  return ignored;
+}
+
+function warnAt(from: number, to: number, message: string, ctx: LowerContext): void {
+  ctx.diagnostics?.push({
+    message,
+    severity: ErrorType.Warning,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(from) + 1,
+      endLineNumber: ctx.lineNumber(to) + 1,
+      startCharacterNumber: ctx.characterNumber(from) + 1,
+      endCharacterNumber: ctx.characterNumber(to) + 1,
+    },
+  });
 }
 
 function childrenByName(node: SyntaxNode, names: Set<string>): SyntaxNode[] {

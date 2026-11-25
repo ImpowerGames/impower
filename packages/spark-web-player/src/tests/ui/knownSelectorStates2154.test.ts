@@ -89,6 +89,7 @@ const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["swatch_wrapper", "@swatch_wrapper", "::-webkit-color-swatch-wrapper"],
   ["swatch-wrapper", "@swatch-wrapper", "::-webkit-color-swatch-wrapper"],
   ["busy", "@busy", '[aria-busy="true"]'],
+  ["latest", "@latest", "[data-latest]"],
   ["container-size", "@container-size(sm)", "@container(max-width:640px)"],
   ["container_size", "@container_size(sm)", "@container(max-width:640px)"],
   ["screen-size", "@screen-size(sm)", "@container screen (max-width:640px)"],

@@ -64,6 +64,7 @@ const createGame = (
       ui: {
         initialLayoutsOpened: true,
         page: { shown: () => {} },
+        streams: { shown: () => {}, record: () => {}, show: () => {} },
         openedLayoutsAfter: () => ["main"],
         findIds: () => [],
         whenLayoutsSettled: () => null,
