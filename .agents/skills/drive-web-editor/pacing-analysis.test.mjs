@@ -218,7 +218,7 @@ await check("a trace that stops before one second after the fire fails its line"
   assert.equal(analyzeLine(full, TALK.record, clock).failure, undefined);
 });
 
-await check("dropped frames after the last presentation fail the line instead of reading as no stall", () => {
+await check("dropped frames before the first or after the last presentation fail the line instead of reading as no stall", () => {
   const frame = (id, begin, end, state) => [
     { name: "PipelineReporter", ph: "b", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: begin * 1000, args: { frame_reporter: { state } } },
     { name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: end * 1000, args: {} },
@@ -239,6 +239,13 @@ await check("dropped frames after the last presentation fail the line instead of
   const closed = analyzeLine(build([900, 990, 1100, 1200, 2050], [1216, 1233, 1250, 1300, 1500, 1990]), record, clock);
   assert.equal(closed.failure, undefined);
   assert.deepEqual(closed.firstSecond.stalls, { count: 1, longestMs: 850, totalMs: 850 });
+  const leadingDrops = [1016, 1033, 1050, 1100, 1200, 1400, 1600, 1700];
+  const unstarted = analyzeLine(build([1800, 1900, 2100], leadingDrops), { ...record, typingEnd: 1900 }, clock);
+  assert.match(unstarted.failure, /dropped before the first frame the trace saw reach the screen/);
+  assert.equal(unstarted.firstSecond, undefined);
+  const started = analyzeLine(build([900, 1800, 1900, 2100], leadingDrops), { ...record, typingEnd: 1900 }, clock);
+  assert.equal(started.failure, undefined);
+  assert.deepEqual(started.firstSecond.stalls, { count: 1, longestMs: 900, totalMs: 900 });
   const straddling = analyzeLine(build([900, 1600, 2300], [2100]), record, clock);
   assert.equal(straddling.failure, undefined);
   assert.deepEqual(straddling.firstSecond.stalls, { count: 1, longestMs: 700, totalMs: 700 });
