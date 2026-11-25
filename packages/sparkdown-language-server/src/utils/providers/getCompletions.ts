@@ -28,6 +28,7 @@ import {
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { ASSET_TYPES } from "@impower/sparkdown/src/compiler/constants/assetTypes";
+import { PRESENCE_STATES } from "@impower/sparkdown/src/compiler/constants/selectorStates";
 import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
@@ -69,6 +70,7 @@ import {
 } from "./alternatorKeywordHelp";
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { presenceBlockDocumentation } from "./presenceBlockHelp";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -2283,6 +2285,33 @@ const completionsAt = (
     const keying =
       !entryInsideValue(entryBefore) &&
       !insideElementValue(tree, documentCursorOffset);
+    const typedState = /@[\w-]*$/.exec(entryBefore);
+    if (
+      keying &&
+      braceDefine.type === "style" &&
+      typedState &&
+      /^\s*@[\w-]*$/.test(entryBefore)
+    ) {
+      const range = document.range(
+        documentCursorOffset - typedState[0].length,
+        documentCursorOffset,
+      );
+      for (const presence of PRESENCE_STATES) {
+        completions.set(`@${presence}`, {
+          label: `@${presence}`,
+          filterText: `@${presence}`,
+          textEdit: { range, newText: `@${presence} { $0 }` },
+          insertTextFormat: InsertTextFormat.Snippet,
+          labelDetails: { description: "appearing and leaving" },
+          kind: CompletionItemKind.Keyword,
+          documentation: {
+            kind: MarkupKind.Markdown,
+            value: presenceBlockDocumentation(presence),
+          },
+        });
+      }
+      return buildCompletions();
+    }
     if (
       keying &&
       braceDefine.type === "screen" &&
