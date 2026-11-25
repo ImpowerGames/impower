@@ -122,8 +122,7 @@
       "layer",
       "media",
       "starting-style",
-      "starting_style",
-      "initial"
+      "starting_style"
     ],
     "SELECTOR_WORD_CHAR": "\\p{L}\\p{N}_-",
     "SELECTOR_WORD_PART_START": "[@][\\p{L}\\p{N}_]",
@@ -7698,7 +7697,7 @@
       "end": "(?=$|.)"
     },
     "SelectorAtRule": {
-      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
+      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
       "beginCaptures": {
         "1": {
           "patterns": [

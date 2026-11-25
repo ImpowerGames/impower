@@ -24,6 +24,7 @@ import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStreamElementHover } from "./streamElementHelp";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
+import { getPresenceBlockHover } from "./presenceBlockHelp";
 import {
   MarkupKind,
   type Hover,
@@ -321,6 +322,10 @@ export const getHover = async (
     const morphClauseHover = getMorphClauseHover(document, tree, position);
     if (morphClauseHover) {
       return morphClauseHover;
+    }
+    const presenceHover = getPresenceBlockHover(document, tree, position);
+    if (presenceHover) {
+      return presenceHover;
     }
   }
   if (!document || !annotations || !program) {

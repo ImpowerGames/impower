@@ -250,7 +250,7 @@ layout settings in menu {
 
 Here `panel` and its `header` stay on screen while the menu moves between `home` and `settings`, and each page's button appears inside `panel`, below the header. With no `slot`, the layout is placed after the screen's own elements. A screen with an empty body has no elements of its own and only groups its layouts.
 
-The screen's root element is named after the screen, so `style menu { … }` styles it, unless the body holds an element of that name, in which case the root is named `screen_menu`. Checkpoints and saves restore a screen's elements with its open layout.
+The screen's root element is named after the screen, so `style menu { … }` styles it, unless the body holds an element of that name, in which case the root is named `screen_menu`. A layout's root follows the same rule with `layout_`, and a layout or screen named after a kind of text such as `title` or `heading` always takes the prefixed root, `layout_title` or `screen_heading`, so `style title { … }` styles the title text and `style layout_title { … }` styles the root. Checkpoints and saves restore a screen's elements with its open layout.
 
 Move to a layout within a screen with **`[[navigate <screen> to <layout>]]`** — this is full-screen routing: it replaces whatever that screen was showing.
 

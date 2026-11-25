@@ -2,6 +2,7 @@ export interface AssetsConfig {
   predict_distance: number;
   predict_cache_size: number;
   load_cache_size: number;
+  trim_layers: boolean;
   load_distance: number;
   beat_timeout: number;
   restore_timeout: number;

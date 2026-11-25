@@ -92,6 +92,7 @@ style button {
 - `@screen-size(xs|sm|md|lg|xl) { … }` is a responsive breakpoint.
 - `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
   `@disabled { … }` target interaction states.
+- `@initial { … }` / `@show { … }` / `@hide { … }` say how an element appears and leaves (see [Appearing and leaving](#appearing-and-leaving)).
 - `@latest { … }` targets the newest entry of a [stream](./Streams.md).
 - A rule's properties are separated by a new line or a `;`, as the entries of
   any block are (see [Blocks](./Structure.md#blocks)).
@@ -99,6 +100,65 @@ style button {
 > **Inline vs block:** inline props take a `#` and can be dynamic (`#child-gap={n}`);
 > `style`-block properties use `key = value` and are evaluated once. For a value
 > that changes per frame, use an inline `#prop={expr}` or toggle a class.
+
+### Appearing and leaving
+
+Three blocks in a style say how an element appears and leaves:
+
+- `@initial { … }` is the look at the instant the element appears.
+- `@show { … }` applies only while the element is arriving. The settled look is the style's own properties, so an arrival can have its own time and ease.
+- `@hide { … }` is the look the element moves to when it leaves. The element stays in place until that motion ends, and is then removed.
+
+```sparkdown
+style frame {
+  opacity = 1
+  transition-duration = 80ms
+  @initial { opacity = 0 }
+  @show { transition-duration = 280ms }
+  @hide { opacity = 0; transition-duration = 0s }
+}
+```
+
+The frame fades in over 280ms, takes 80ms for any later change of look, and goes at once when it leaves.
+
+An element appears when it gains its content, when its layout opens with no `with` clause, and when the `if`, `for` or `match` branch that holds it is added. It leaves when it loses its content, when its layout closes with no `with` clause, and when its branch is removed. A `with` clause on `open` or `close` plays its own animation in place of the blocks for that change. An element whose styles hold no `@hide` is removed at once.
+
+The blocks apply to the element that appears or leaves and to everything inside it, so a child can change only while its parent arrives. An arrival lasts as long as the longest transition or finite animation it starts, on the element or inside it. Here the typing dots show while the bubble fades in, and are gone once it has arrived:
+
+```sparkdown
+style dots {
+  display = none
+}
+
+style bubble {
+  opacity = 1
+  transition-duration = 0.6s
+  @initial { opacity = 0 }
+  @show {
+    > dots { display = flex }
+  }
+}
+```
+
+An `animation` may be set inside any of the three blocks. A style's `animation` plays with default timing, so give its duration in the block after it:
+
+```sparkdown
+animation pop {
+  keyframes {
+    from { opacity = "0" }
+    to { opacity = "1" }
+  }
+}
+
+style badge {
+  @show {
+    animation = pop
+    animation-duration = 0.26s
+  }
+}
+```
+
+Pausing the game holds a motion where it is. The editor preview on a line, a step back and a loaded save show the settled look with no motion, and so does a click that shows a whole line at once. Under the reader's reduced-motion setting, moves and size changes happen at once and fades still play.
 
 ---
 

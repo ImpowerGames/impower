@@ -16,6 +16,7 @@ define assets as config with
   predict_cache_size = 300
   load_distance = 0
   load_cache_size = 0
+  trim_layers = true
   beat_timeout = 8
   restore_timeout = 2
   load_timeout = 30
@@ -30,6 +31,7 @@ end
 | `predict_cache_size` | Megabytes prediction may keep loaded. What is on screen, playing, mounted, or brought in by `load` does not count; beyond it the least recently used prediction assets are dropped. `0` means never drop any. |
 | `load_distance` | Beats of a scene a `load` waits for. `0` means the whole scene. |
 | `load_cache_size` | Megabytes `load` may keep pinned across the loaded scenes still on the callstack. A scene beyond it keeps what fits, in flow order, and streams the rest as it is reached. `0` means no cap: a `load` keeps its whole scene. |
+| `trim_layers` | Whether each layer file of a layered picture is cut to the box of its painted pixels as it loads, and counted at that size against `predict_cache_size` and `load_cache_size`. Pictures look the same either way; `false` only stops the cutting. Single images, SVG files and masks are never cut. |
 | `beat_timeout` | Seconds a line may wait for its assets before displaying anyway. `0` means never time out. |
 | `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. `0` means never time out. |
 | `load_timeout` | Seconds a `load` may wait before giving up and continuing. `0` means never give up. |

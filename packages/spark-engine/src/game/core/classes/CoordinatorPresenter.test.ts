@@ -69,6 +69,7 @@ const createGame = (previewing?: boolean) => {
     streams: { shown: () => {}, record: () => {}, show: () => {} },
     openedLayoutsAfter: () => ["main", "textbox"],
     layoutHolds: () => true,
+    setMotion: () => {},
     afterCompose: (work: () => void) => work(),
     getTransientTargets: () => {
       uiWrites.push("getTransientTargets");

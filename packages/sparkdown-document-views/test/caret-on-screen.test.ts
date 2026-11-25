@@ -30,6 +30,8 @@ interface Harness {
   edit(): void;
   openKeyboard(visibleHeight: number): void;
   keyboardOpen(): boolean;
+  useBottomPanelOverKeyboard(): void;
+  bottomPanelBox(): Box | null;
 }
 
 type HarnessWindow = { caretOnScreen: Harness };
@@ -402,6 +404,109 @@ describe("Edit keeps the script still under real sticky scene headers", () => {
       expect(after.scrollTop).toBe(before.scrollTop);
       expect(after.atLineStart).toBe(true);
       expect(after.caretRow!.top).toBeGreaterThanOrEqual(header!.bottom - 1);
+    } finally {
+      await page.context().close();
+    }
+  });
+});
+
+describe("Opening the keyboard over the caret", () => {
+  const VISIBLE_HEIGHT = 500;
+  const CLEARANCE = 12;
+
+  const openOverCaret = (page: Page) =>
+    page.evaluate((visibleHeight) => {
+      const h = (window as unknown as HarnessWindow).caretOnScreen;
+      h.openKeyboard(visibleHeight);
+      return {
+        caretRow: h.caretRow(),
+        panel: h.bottomPanelBox(),
+        scroller: h.scrollerBox(),
+        keyboardOpen: h.keyboardOpen(),
+      };
+    }, VISIBLE_HEIGHT);
+
+  const caretUnderKeyboard = async (page: Page) => {
+    await scrollTo(page, 2000);
+    await placeCaret(page, 20, 0.85);
+    await frames(page);
+    await edit(page);
+    const before = await read(page);
+    expect(before.focused).toBe(true);
+    expect(before.caretRow!.top).toBeGreaterThan(VISIBLE_HEIGHT);
+    return before;
+  };
+
+  it("raises the caret above the keyboard in the same task the viewport reports it", async () => {
+    const page = await open();
+    try {
+      const before = await caretUnderKeyboard(page);
+
+      const opened = await openOverCaret(page);
+
+      expect(opened.caretRow!.bottom).toBeLessThanOrEqual(VISIBLE_HEIGHT - CLEARANCE + 1);
+      expect(opened.caretRow!.bottom).toBeGreaterThan(VISIBLE_HEIGHT - CLEARANCE - 6);
+      expect(opened.keyboardOpen).toBe(true);
+      await frames(page);
+      const after = await read(page);
+      expect(after.head).toBe(before.head);
+      expect(after.caretRow!.bottom).toBe(opened.caretRow!.bottom);
+    } finally {
+      await page.context().close();
+    }
+  });
+
+  it("gives the last line room to rise above a toolbar lifted onto the keyboard", async () => {
+    const page = await open();
+    try {
+      await page.evaluate(() =>
+        (window as unknown as HarnessWindow).caretOnScreen.useBottomPanelOverKeyboard(),
+      );
+      await frames(page);
+      await page.evaluate(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        const view = h.view as unknown as { state: { doc: { lines: number } } };
+        h.setCaretLine(view.state.doc.lines);
+        h.view.scrollDOM.scrollTop = h.view.scrollDOM.scrollHeight;
+      });
+      await frames(page);
+      await edit(page);
+      const before = await read(page);
+      expect(before.focused).toBe(true);
+      expect(before.caretRow!.top).toBeGreaterThan(VISIBLE_HEIGHT);
+
+      const opened = await openOverCaret(page);
+
+      expect(opened.caretRow!.bottom).toBeLessThanOrEqual(opened.panel!.top - CLEARANCE + 1);
+      expect(opened.caretRow!.bottom).toBeGreaterThan(opened.panel!.top - CLEARANCE - 6);
+      await frames(page);
+      const after = await read(page);
+      expect(after.head).toBe(before.head);
+      expect(after.caretRow!.bottom).toBe(opened.caretRow!.bottom);
+    } finally {
+      await page.context().close();
+    }
+  });
+
+  it("keeps the script painted under a toolbar lifted onto the keyboard and the caret clear above that toolbar", async () => {
+    const page = await open();
+    try {
+      await page.evaluate(() =>
+        (window as unknown as HarnessWindow).caretOnScreen.useBottomPanelOverKeyboard(),
+      );
+      await frames(page);
+      const before = await caretUnderKeyboard(page);
+
+      const opened = await openOverCaret(page);
+
+      expect(opened.panel!.bottom).toBeCloseTo(VISIBLE_HEIGHT, 0);
+      expect(opened.scroller.bottom).toBeGreaterThan(VISIBLE_HEIGHT + 100);
+      expect(opened.caretRow!.bottom).toBeLessThanOrEqual(opened.panel!.top - CLEARANCE + 1);
+      expect(opened.caretRow!.bottom).toBeGreaterThan(opened.panel!.top - CLEARANCE - 6);
+      await frames(page);
+      const after = await read(page);
+      expect(after.head).toBe(before.head);
+      expect(after.caretRow!.bottom).toBe(opened.caretRow!.bottom);
     } finally {
       await page.context().close();
     }
