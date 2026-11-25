@@ -18,6 +18,14 @@ scene start
 end
 `;
 
+export const SCREEN_ONLY = `screen menu {
+  caption {
+    text
+  }
+  slot
+}
+`;
+
 export const UNRELATED = `portrait {
   image
 }

@@ -178,7 +178,7 @@ export function migrateMarkdownClearProp(source: string): ClearPropResult {
   return { text: lines.join("\n"), migrated };
 }
 
-const LAYOUT_HEADER = /(^|\n)[ \t]*layout[ \t]+[A-Za-z_]/;
+const BODY_HEADER = /(^|\n)[ \t]*(?:layout|screen)[ \t]+[A-Za-z_]/;
 
 function maskedTemplate(
   typescript: typeof ts,
@@ -211,7 +211,7 @@ export function migrateScriptClearProp(
   const visit = (node: ts.Node) => {
     if (typescript.isNoSubstitutionTemplateLiteral(node) || typescript.isTemplateExpression(node)) {
       const masked = maskedTemplate(typescript, node, source);
-      if (LAYOUT_HEADER.test(masked.text)) {
+      if (BODY_HEADER.test(masked.text)) {
         for (const edit of clearEdits(masked.text)) {
           edits.push({ ...edit, from: masked.from + edit.from, to: masked.from + edit.to });
         }
