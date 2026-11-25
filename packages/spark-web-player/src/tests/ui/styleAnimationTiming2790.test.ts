@@ -77,6 +77,30 @@ layout main {
     ]);
   });
 
+  test("a declared `fill = auto` leaves the shorthand valid CSS", async () => {
+    const out = await css(`animation fade {
+  keyframes {
+    from { opacity = "0" }
+    to { opacity = "1" }
+  }
+  timing {
+    duration = 0.6
+    fill = auto
+  }
+}
+style box {
+  animation = fade
+}
+layout main {
+  box
+}
+`);
+    const parts = variable(out, "fade")?.split(/\s+/);
+    expect(parts).toContain("0.6s");
+    expect(parts).not.toContain("auto");
+    expect(parts?.at(-1)).toBe("fade");
+  });
+
   test("timing written in the value itself is the animation's whole timing", async () => {
     const out = await css(`${POP}style box {
   animation = 0.5s infinite pop
