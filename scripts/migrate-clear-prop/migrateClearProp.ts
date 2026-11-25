@@ -28,6 +28,15 @@ const PARTS_WITHOUT_VALUE = new Set([
   "LuauSparkleEventParenAttribute",
 ]);
 
+const TRIVIA_PARTS = new Set([
+  "RequiredWhitespace",
+  "Whitespace",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauBlockComment",
+  "LuauStructBlockSlashComment",
+]);
+
 const parser = createSparkdownParser();
 
 function descendants(node: SyntaxNode, name: string): SyntaxNode[] {
@@ -97,7 +106,8 @@ function clearEdit(element: SyntaxNode, text: string): Edit {
     return { from: assign.from, to: assign.to, insert: " #clear " };
   }
   const { head, beginTo } = sparkleElementParts(element);
-  const at = head ? head.to : beginTo;
+  const written = childNodes(head?.firstChild).filter((part) => !TRIVIA_PARTS.has(part.name));
+  const at = written.at(-1)?.to ?? beginTo;
   return { from: at, to: at, insert: " #clear" };
 }
 

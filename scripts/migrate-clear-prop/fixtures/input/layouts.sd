@@ -41,6 +41,10 @@ layout board {
     { image }
     continued
       #gap=4 { text }
+    commented -- picture slot
+    { image }
+    slashed // a note
+    { image }
     holder {
       inner {
         text
