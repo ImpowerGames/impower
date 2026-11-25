@@ -11507,7 +11507,16 @@
               "include": "#LuauStructBlockKeyString"
             },
             {
-              "include": "#LuauElementAttribute"
+              "include": "#RequiredWhitespace"
+            },
+            {
+              "include": "#LuauComment"
+            },
+            {
+              "include": "#SparkdownLineComment"
+            },
+            {
+              "include": "#LuauEventAttribute"
             },
             {
               "include": "#LuauKeyframeSelector"

@@ -1682,7 +1682,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "StyleAttributeName") {
+    if (
+      nodeRef.name === "StyleAttributeName" &&
+      !getContextNames(nodeRef.node).includes("StyleAttribute")
+    ) {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^#/, "");
       const isPassThrough =

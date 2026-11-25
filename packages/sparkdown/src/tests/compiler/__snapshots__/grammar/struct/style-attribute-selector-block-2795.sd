@@ -1,0 +1,8 @@
+style character_name {
+  #variant=left {
+    align-self = start
+    @variant(left) { opacity = 1 }
+  }
+  #variant="right" { align-self = end }
+  > text#speaker=bunny { opacity = 0.5 }
+}
