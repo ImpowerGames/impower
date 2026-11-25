@@ -1046,7 +1046,7 @@ export class AssetCache {
     if (!inspect || item.kind !== "image") {
       return Promise.resolve(unread);
     }
-    return inspect(item.src, this._trimLayers).then(
+    return inspect(item.src, this._trimLayers && !this._whole.has(entry.key)).then(
       (file) => file ?? unread,
       () => unread,
     );

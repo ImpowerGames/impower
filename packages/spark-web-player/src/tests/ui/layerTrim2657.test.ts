@@ -117,13 +117,29 @@ describe("a trimmed layer in the asset cache (#2657)", () => {
     expect(closed).toEqual([]);
     expect(shown).toMatchObject({ src: "desk.png#trimmed" });
 
-    const loading = trimmingCache();
-    const request = loading.cache.request(layers("desk.png"), 0, "line", undefined);
-    loading.cache.keepWhole(["desk.png"]);
-    await request;
-    expect(loading.cache.picture("desk.png")?.box).toBeUndefined();
-    expect(loading.cache.stats().bytes.image).toBe(NATURAL.width * NATURAL.height * 4);
-    expect(loading.closed).toEqual(["desk.png"]);
+    const inFlight: string[] = [];
+    const loading = new AssetCache({
+      createImage: image,
+      inspectImage: async (src, trim): Promise<LayerFile> => {
+        loading.keepWhole([src]);
+        return { animated: false, profile: false, ...(trim ? { trimmed: trimmedLayer(src, BOXES["desk.png"]!, inFlight) } : {}) };
+      },
+    });
+    await loading.request(layers("desk.png"), 0, "line", undefined);
+    expect(loading.picture("desk.png")?.box).toBeUndefined();
+    expect(loading.stats().bytes.image).toBe(NATURAL.width * NATURAL.height * 4);
+    expect(inFlight).toEqual(["desk.png"]);
+
+    const reload = trimmingCache();
+    reload.cache.keepWhole(["desk.png"]);
+    await reload.cache.request(layers("desk.png"), 0, "beat:1");
+    reload.cache.release(["beat:1"], true);
+    await reload.cache.request(layers("desk.png"), 0, "beat:2");
+    expect(reload.asked).toEqual([
+      ["desk.png", false],
+      ["desk.png", false],
+    ]);
+    expect(reload.closed).toEqual([]);
   });
 
   test("a file first drawn whole as a plain image stays whole when a layered picture later loads it as a layer", async () => {
