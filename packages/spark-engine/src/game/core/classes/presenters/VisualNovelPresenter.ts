@@ -73,8 +73,13 @@ export class VisualNovelPresenter implements Presenter {
     }
 
     if (!extended || instructions.text) {
+      const written = Object.keys(instructions.text ?? {});
       game.module.ui.text.clearAll([
-        ...new Set([...transientLayers, ...Object.keys(instructions.text ?? {})]),
+        ...new Set([
+          ...transientLayers,
+          ...written,
+          ...game.module.ui.textTargetsSharingElements(written),
+        ]),
       ]);
     }
     if (stage) {

@@ -158,4 +158,39 @@ describe("#clear decides which elements empty after their line (I-2732)", () => 
       expect(ids.map((id) => displayOf(h.messages, id)), target).toEqual(ids.map(() => "none"));
     }
   });
+
+  test("a line that writes to an element shared by two targets drops the other target's saved text", async () => {
+    const h = createHarness(`define HERO as character with
+  name = "HERO"
+end
+
+layout textbox {
+  textbox {
+    dialogue.action {
+      text "Says:"
+    }
+  }
+}
+
+scene start
+  Before.
+
+  HERO: Current.
+end
+`);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.jumpToFlow("start");
+    const seen: { action: string; dialogue: string }[] = [];
+    for (let beat = h.nextBeat(); beat; beat = h.nextBeat()) {
+      new Coordinator(h.game, beat);
+      await flushMicrotasks();
+      seen.push({ action: textOf(ui, "action"), dialogue: textOf(ui, "dialogue") });
+    }
+    expect(seen).toEqual([
+      { action: "Before.", dialogue: "" },
+      { action: "", dialogue: "Current." },
+    ]);
+  });
 });

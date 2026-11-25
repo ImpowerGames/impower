@@ -512,6 +512,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _contentSlots: Set<string> = new Set();
 
+  protected _elementNames: Set<string> = new Set();
+
   protected _reactive = false;
 
   protected _refreshAll = false;
@@ -3876,6 +3878,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (key.startsWith("$") || !isStruct(value)) {
         continue;
       }
+      this._elementNames.add(key);
       if (value["$clear"] === true) {
         this._clearOnContinue.add(key);
       }
@@ -4776,6 +4779,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getTransientTargets() {
     return Array.from(this._clearOnContinue.values());
+  }
+
+  textTargetsSharingElements(targets: string[]): string[] {
+    const names = (words: string[], target: string) =>
+      target.split(" ").every((word) => words.includes(word));
+    const shared = [...this._elementNames]
+      .map((name) => name.split(" "))
+      .filter((words) => targets.some((target) => names(words, target)));
+    return Object.keys(this._state.text ?? {}).filter(
+      (saved) =>
+        !targets.includes(saved) &&
+        shared.some((words) => names(words, saved)),
+    );
   }
 
   protected hideUnwrittenTargets(layout: Element): void {

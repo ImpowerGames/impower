@@ -70,6 +70,7 @@ const createGame = (
         beginPresentation: () => 0,
         layoutHolds: () => true,
         getTransientTargets: () => [],
+        textTargetsSharingElements: () => [],
         applyLayoutInstructions: () => {},
         refreshLayouts: () => {},
         speak: () => {},

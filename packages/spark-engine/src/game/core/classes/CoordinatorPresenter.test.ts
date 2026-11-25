@@ -73,6 +73,7 @@ const createGame = (previewing?: boolean) => {
       uiWrites.push("getTransientTargets");
       return [];
     },
+    textTargetsSharingElements: () => [],
   };
   for (const name of UI_TARGET_WRITES) {
     ui[name] = () => {
