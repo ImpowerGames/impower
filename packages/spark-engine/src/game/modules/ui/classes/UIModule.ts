@@ -326,6 +326,8 @@ interface LineWait {
   held: IMessage[];
   motions: Promise<unknown>[];
   arrivals: ((play: boolean) => Promise<unknown>)[];
+  animated: Element[];
+  retirements: Retirement[];
   resolve: (time: number | null) => void;
 }
 
@@ -1914,6 +1916,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }),
     );
     this.composingLine()?.motions.push(played);
+    this._line?.animated.push(...effects.map((e) => e.element));
     return played;
   }
 
@@ -1926,7 +1929,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   beginLine(time: number): Promise<number | null> | undefined {
-    this.cancelLine();
+    if (this._line) {
+      this.endLine(this._line, null);
+    }
     if (!this.context?.system?.composeBeats || !this.moving()) {
       return undefined;
     }
@@ -1937,6 +1942,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         held: [],
         motions: [],
         arrivals: [],
+        animated: [],
+        retirements: [],
         resolve,
       };
     });
@@ -1974,6 +1981,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected cancelLine(line = this._line): void {
     if (line) {
       this.endLine(line, null);
+      for (const retiring of line.retirements.splice(0)) {
+        this.retire(retiring);
+      }
+      for (const element of line.animated.splice(0)) {
+        if (this.attached(element)) {
+          this.updateElement(element, {
+            attributes: { [PRESENCE_ATTRIBUTE]: null },
+          });
+        }
+      }
     }
   }
 
@@ -5347,6 +5364,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._mountedLayouts.delete(name);
       element.remove();
       this._retiring.add(retiring);
+      this._line?.retirements.push(retiring);
       void this.animateElements([{ element, animations: [exit] }]).then(() =>
         this.retire(retiring),
       );

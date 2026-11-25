@@ -1481,7 +1481,9 @@ export default class UIManager extends Manager {
           const element = this.getElement(effect.element);
           const animations = effect.animations;
           if (element) {
-            played.push(...player.add({ element, animations }));
+            const added = player.add({ element, animations });
+            this._presence.follow(element, added);
+            played.push(...added);
             validEffects.push(i);
           }
         }

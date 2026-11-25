@@ -20,7 +20,7 @@ const styleDriven = (animation: Animation) =>
   "transitionProperty" in animation || "animationName" in animation;
 
 const finite = (animation: Animation) =>
-  Number.isFinite(Number(animation.effect?.getComputedTiming().endTime));
+  Number.isFinite(Number(animation.effect?.getComputedTiming?.().endTime));
 
 const cssName = (key: string) =>
   key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
@@ -183,6 +183,22 @@ export default class PresencePlayer {
     for (const element of [...this._motions.keys(), ...this._carried.keys()]) {
       this.end(element);
     }
+  }
+
+  follow(element: Element, animations: Animation[]): void {
+    const timed = animations.filter(finite);
+    if (timed.length === 0) {
+      return;
+    }
+    const motion: Motion = { animations: timed, end: () => {} };
+    this._motions.set(element, motion);
+    void Promise.allSettled(timed.map((animation) => animation.finished)).then(
+      () => {
+        if (this._motions.get(element) === motion) {
+          this._motions.delete(element);
+        }
+      },
+    );
   }
 
   settle(element: Element): void {
