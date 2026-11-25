@@ -47,7 +47,6 @@ function firstDescendant(
 
 const ATTRIBUTE_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauEventAttribute",
-  "LuauPropAttribute",
   "LuauSparkleEventAttribute",
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",

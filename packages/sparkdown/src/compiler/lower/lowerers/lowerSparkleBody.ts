@@ -136,7 +136,6 @@ function firstDescendant(
 
 const ATTRIBUTE_NODES = nodeNameSet([
   "LuauEventAttribute",
-  "LuauPropAttribute",
   "LuauSparkleEventAttribute",
   "LuauSparklePropAttribute",
   "LuauSparkleEventClosureAttribute",
@@ -438,7 +437,6 @@ function lowerHandlerClosure(
 }
 
 const PROP_ATTR = nodeNameSet([
-  "LuauPropAttribute",
   "LuauSparklePropAttribute",
   "LuauSparklePropClosureAttribute",
   "LuauSparklePropParenAttribute",
