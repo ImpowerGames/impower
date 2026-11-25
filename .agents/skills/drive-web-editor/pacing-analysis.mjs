@@ -43,7 +43,7 @@ export function parseTrace(raw) {
   for (const list of tasks.values()) list.sort((a, b) => a.ts - b.ts);
   const frames = new Map();
   const frameList = (pid) => {
-    if (!frames.has(pid)) frames.set(pid, { ends: [], dropped: [] });
+    if (!frames.has(pid)) frames.set(pid, { ends: [], dropped: [], unknown: [] });
     return frames.get(pid);
   };
   const open = new Map();
@@ -56,8 +56,16 @@ export function parseTrace(raw) {
       addFrame(frameList(begin.pid), toMs(begin.ts), toMs(e.ts), reporterState(begin) || reporterState(e));
     } else if (e.ph === "X") addFrame(frameList(e.pid), toMs(e.ts), toMs(e.ts + (e.dur ?? 0)), reporterState(e));
   }
+  for (const begin of open.values()) {
+    const state = reporterState(begin);
+    const list = frameList(begin.pid);
+    if (/DROPPED/.test(state)) list.dropped.push(toMs(begin.ts));
+    else if (!/NO_UPDATE/.test(state)) list.unknown.push(toMs(begin.ts));
+  }
   const byPid = new Map();
-  for (const [pid, list] of frames) byPid.set(pid, { presented: mergePresentations(list.ends), dropped: list.dropped.sort((a, b) => a - b) });
+  for (const [pid, list] of frames) {
+    byPid.set(pid, { presented: mergePresentations(list.ends), dropped: list.dropped.sort((a, b) => a - b), unknown: list.unknown.sort((a, b) => a - b) });
+  }
   let startsAt = null;
   let endsAt = null;
   for (const e of events) {
@@ -81,7 +89,7 @@ export function mergePresentations(ends, within = MERGE_MS) {
   return merged;
 }
 
-export function stallsIn(presented, dropped, from, to) {
+export function stallsIn(presented, dropped, from, to, unknown = []) {
   const list = [];
   for (let i = 1; i < presented.length; i++) {
     const a = presented[i - 1];
@@ -89,13 +97,27 @@ export function stallsIn(presented, dropped, from, to) {
     if (b <= from || a >= to) continue;
     if (dropped.some((d) => d >= a && d < b)) list.push({ from: a, to: b, ms: b - a });
   }
-  const first = presented[0];
-  const last = presented[presented.length - 1];
+  const stretchAround = (t) => {
+    let prev = null;
+    let next = null;
+    for (const p of presented) {
+      if (p <= t) prev = p;
+      else {
+        next = p;
+        break;
+      }
+    }
+    return { prev, next, overlaps: (prev ?? -Infinity) < to && (next ?? Infinity) > from };
+  };
   const unbounded = [];
   for (const d of dropped) {
-    if (!presented.length) unbounded.push({ at: d, edge: "the trace holds no frame that reached the screen" });
-    else if (d < first && first > from) unbounded.push({ at: d, edge: "no captured frame reached the screen before it" });
-    else if (d >= last && last < to) unbounded.push({ at: d, edge: "no captured frame reached the screen after it" });
+    const { prev, next, overlaps } = stretchAround(d);
+    if (!overlaps || (prev != null && next != null)) continue;
+    const edge = !presented.length ? "the trace holds no frame that reached the screen" : prev == null ? "no captured frame reached the screen before it" : "no captured frame reached the screen after it";
+    unbounded.push({ at: d, edge });
+  }
+  for (const u of unknown) {
+    if (stretchAround(u).overlaps) unbounded.push({ at: u, edge: "the trace holds the frame's start but not whether it was shown or dropped" });
   }
   return {
     count: list.length,
@@ -188,14 +210,15 @@ export function analyzeLine(trace, record, clock) {
   const motionFrom = at(record.motionWindow?.start);
   const motionTo = at(record.motionWindow?.end);
   if (record.motion && motionFrom != null && motionTo > motionFrom) windows.push(["pan or zoom", motionFrom, motionTo]);
-  const spanFrom = Math.min(...windows.map((w) => w[1]));
-  const spanTo = Math.max(...windows.map((w) => w[2]));
+  const mouth = (record.mouthChanges ?? []).map(at).filter((t) => t != null && t >= fired && (typingEnd == null || t < typingEnd));
+  const spanFrom = Math.min(click ?? fired, ...windows.map((w) => w[1]));
+  const spanTo = Math.max(...windows.map((w) => w[2]), ...mouth.map((t) => t + MOUTH_WINDOW_MS));
   if (trace.startsAt == null || trace.startsAt > spanFrom || trace.endsAt < spanTo) {
-    return { ...out, failure: `the trace runs from ${round((trace.startsAt ?? NaN) - fired)} to ${round((trace.endsAt ?? NaN) - fired)} ms after the fire and does not span the measured windows (${round(spanFrom - fired)} to ${round(spanTo - fired)} ms)` };
+    return { ...out, failure: `the trace runs from ${round((trace.startsAt ?? NaN) - fired)} to ${round((trace.endsAt ?? NaN) - fired)} ms after the fire and does not span the intervals the line reports (${round(spanFrom - fired)} to ${round(spanTo - fired)} ms)` };
   }
   for (const [name, from, to] of windows) {
-    const open = stallsIn(frames.presented, frames.dropped, from, to).unbounded[0];
-    if (open) return { ...out, failure: `a frame dropped ${round(open.at - fired)} ms after the fire, in or beside the ${name}, is not enclosed by two captured frames that reached the screen (${open.edge}), so its stall's length is unknown` };
+    const open = stallsIn(frames.presented, frames.dropped, from, to, frames.unknown).unbounded[0];
+    if (open) return { ...out, failure: `a frame ${round(open.at - fired)} ms after the fire, in or beside the ${name}, is not enclosed by two captured frames that reached the screen (${open.edge}), so its stall's length is unknown` };
   }
   const graphics = tasksIn(trace.graphics, fired, firstEnd, GRAPHICS_TASK_MS, fired);
   const page = tasksIn(trace.tasks.get(`${clock.pid}:${clock.tid}`) ?? [], click ?? fired, firstEnd, PAGE_TASK_MS, fired);
@@ -227,7 +250,6 @@ export function analyzeLine(trace, record, clock) {
       out.motionFramesPerSecond = out.motion.framesPerSecond;
     }
   }
-  const mouth = (record.mouthChanges ?? []).map(at).filter((t) => t != null && t >= fired && (typingEnd == null || t < typingEnd));
   out.mouth = trace.graphicsThreads ? busyAfter(trace.graphics, mouth) : { changes: mouth.length };
   return out;
 }

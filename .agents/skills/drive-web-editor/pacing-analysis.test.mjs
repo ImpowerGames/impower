@@ -9,7 +9,7 @@ import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, mergePresentations, parseT
 import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, planFor, playLines } from "./pacing-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const firstSecondOnly = (doc) => ({ ...doc, record: { ...doc.record, typingEnd: undefined } });
+const firstSecondOnly = (doc) => ({ ...doc, record: { ...doc.record, typingEnd: undefined, mouthChanges: doc.record.mouthChanges.filter((t) => t < doc.record.firedAt + 1000 - 30) } });
 const excerpt = (name) => firstSecondOnly(JSON.parse(fs.readFileSync(path.join(here, "fixtures", "pacing-trace", `${name}.json`), "utf8")));
 const TALK = excerpt("talk-line");
 const NARRATION = excerpt("narration-line");
@@ -111,7 +111,7 @@ await check("graphics-process and page-thread tasks are attributed to the line t
   assert.equal(narration.pageThread.fromClockMs, 217.5);
   assert.equal(talk.waitMs, 99.4);
   assert.equal(narration.waitMs, 101.3);
-  assert.equal(talk.mouth.changes, 32);
+  assert.equal(talk.mouth.changes, 9);
   assert.equal(narration.mouth.changes, 0);
 });
 
@@ -202,17 +202,18 @@ await check("a run whose line could not be measured fails, so a broken capture n
   }
 });
 
-await check("a dropped frame not enclosed by two captured presentations fails the line in every measured window, and an enclosed one is measured", () => {
+await check("a frame not enclosed by two captured presentations, or a trace not spanning what a line reports, fails the line; an enclosed frame is measured", () => {
   const FIRE = 1000;
   const frame = (id, begin, end, state) => [
     { name: "PipelineReporter", ph: "b", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: begin * 1000, args: { frame_reporter: { state } } },
     { name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: end * 1000, args: {} },
   ];
-  const build = (presented, dropped, { from = 500, to = 4000 } = {}) => {
+  const build = (presented, dropped, { from = 500, to = 4000 } = {}, unended = []) => {
     let id = 0;
     const events = [{ name: "thread_name", ph: "M", pid: 1, tid: 1, args: { name: "CrRendererMain" } }];
     for (const at of presented) events.push(...frame(++id, at - 16, at, "STATE_PRESENTED_ALL"));
     for (const at of dropped) events.push(...frame(++id, at, at + 16, "STATE_DROPPED"));
+    for (const { at, state } of unended) events.push(frame(++id, at, at + 16, state)[0]);
     events.push({ name: "RunTask", ph: "X", pid: 1, tid: 1, ts: from * 1000, dur: 1000 });
     events.push({ name: "RunTask", ph: "X", pid: 1, tid: 1, ts: (to - 1) * 1000, dur: 1000 });
     return parseTrace({ traceEvents: events });
@@ -243,16 +244,23 @@ await check("a dropped frame not enclosed by two captured presentations fails th
     { window: "first second", where: "control: a closing presentation at 2050 ends the round-2 stretch", presented: [900, 990, 1100, 1200, 2050], dropped: [1216, 1233, 1250, 1300, 1500, 1990], span: { to: 2501 }, record: { typingEnd: 1400 }, expect: { count: 1, longestMs: 850 } },
     { window: "first second", where: "control: a presentation at 900 starts the round-3 stretch", presented: [900, 1800, 1900, 2100], dropped: [1016, 1033, 1050, 1100, 1200, 1400, 1600, 1700], span: { to: 2501 }, record: { typingEnd: 1900 }, expect: { count: 1, longestMs: 900 } },
     { window: "first second", where: "control: a stretch overlapping the second counts whole", presented: [900, 1600, 2300], dropped: [2100], span: { to: 2501 }, expect: { count: 1, longestMs: 700 } },
+    { window: "first second", where: "round 4: a dropped reporter whose end is missing, after the last of 990/1100", presented: [990, 1100], dropped: [], unended: [{ at: 1500, state: "STATE_DROPPED" }], span: { to: 3001 }, expect: "fail" },
+    { window: "first second", where: "a reporter whose end is missing, between two presentations, outcome unknown", presented: [990, 1100, 1300, 2050], dropped: [], unended: [{ at: 1200, state: "STATE_PRESENTED_ALL" }], expect: "fail" },
+    { window: "first second", where: "control: a reporter whose end is missing after the windows", presented: [990, 1100, 2050], dropped: [], unended: [{ at: 2100, state: "STATE_PRESENTED_ALL" }, { at: 2120, state: "STATE_DROPPED" }], expect: { count: 0, longestMs: 0 } },
+    { window: "first second", where: "round 4: the trace starts after the click it reads page work from", presented: [990, 1100, 2050], dropped: [], span: { from: 974 }, record: { clickAt: 800 }, expect: "fail" },
+    { window: "first second", where: "control: the trace starts before the click", presented: [990, 1100, 2050], dropped: [], span: { from: 700 }, record: { clickAt: 800 }, expect: { count: 0, longestMs: 0 } },
+    { window: "typing", where: "round 4: the trace ends inside the last mouth change's 30 ms", presented: [990, 1100, 1990], dropped: [], span: { to: 2000 }, record: { typingEnd: 2000, mouthChanges: [1995] }, expect: "fail" },
+    { window: "typing", where: "control: the trace covers the last mouth change's 30 ms", presented: [990, 1100, 2050], dropped: [], span: { to: 2100 }, record: { typingEnd: 2000, mouthChanges: [1995] }, expect: { count: 0, longestMs: 0 } },
   );
   const wrong = [];
   for (const row of rows) {
-    const trace = row.trace ?? build(row.presented, row.dropped, row.span);
+    const trace = row.trace ?? build(row.presented, row.dropped, row.span, row.unended);
     const line = analyzeLine(trace, { line: 5, clickAt: 900, firedAt: FIRE, ...row.record }, row.trace ? analyzed(TALK).clock : clock);
     const got = line.failure ? "fail" : { count: line.firstSecond.stalls.count, longestMs: line.firstSecond.stalls.longestMs };
     if (JSON.stringify(got) !== JSON.stringify(row.expect)) wrong.push(`${row.window}, dropped frame ${row.where}: expected ${JSON.stringify(row.expect)}, got ${JSON.stringify(got)}${line.failure ? ` (${line.failure})` : ""}`);
   }
   assert.deepEqual(wrong, []);
-  assert.equal(rows.length, 25);
+  assert.equal(rows.length, 32);
 });
 
 await check("a real project's line keeps tracing through its first second at no rest, and a pan it detects is measured", async () => {

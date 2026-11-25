@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { FIRST_SECOND_MS, TRACE_CATEGORIES, analyzeLine, clockOffset, cpuLoad, layerPaints, parseTrace, quietness } from "./pacing-analysis.mjs";
+import { FIRST_SECOND_MS, MOUTH_WINDOW_MS, TRACE_CATEGORIES, analyzeLine, clockOffset, cpuLoad, layerPaints, parseTrace, quietness } from "./pacing-analysis.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -244,7 +244,7 @@ export async function playLines(surface, options) {
       const typing = await surface.inGame(pacingTypingEnd, firedName);
       await sleep(300);
       const motion = await surface.inGame(pacingMotion, firedName);
-      const until = Math.max(typing.end ?? typing.now, motion?.end ?? 0, (typing.fired ?? typing.now) + FIRST_SECOND_MS, typing.now) + restMs;
+      const until = Math.max((typing.end ?? typing.now) + MOUTH_WINDOW_MS, motion?.end ?? 0, (typing.fired ?? typing.now) + FIRST_SECOND_MS, typing.now) + restMs;
       while ((await surface.inGame((w) => w.performance.now())) < until) await sleep(100);
       if (surface.beatFinished) {
         const finishBy = Date.now() + fireTimeoutMs;
