@@ -4350,6 +4350,28 @@ switch (cmd) {
     });
     break;
   }
+  case "pacing": {
+    const { pacing } = await import("./pacing.mjs");
+    await pacing(rest, {
+      importPlaywright,
+      resolveChromiumExecutablePath,
+      chromiumChoiceLine,
+      withEditor,
+      openEditorPage,
+      reloadEditorPage,
+      waitForApp,
+      seedProject,
+      switchScreen,
+      scriptEditorPresent,
+      settleEditor,
+      waitForGame,
+      waitForProgram,
+      clickLine,
+      log,
+      die,
+    });
+    break;
+  }
   default:
     log(
       [
@@ -4367,6 +4389,7 @@ switch (cmd) {
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "  measure [options]     time key press to painted preview at one line, in a browser profile of its own",
         "  timing input|metronome [options]  time input and audio against the running game, in a browser profile of its own",
+        "  pacing [options]      play the pacing fixture's lines and report stalls, dropped frames and graphics work for each, in a browser profile of its own",
         "  audit --out <dir> [--doc <file>] [options]  measure contrast, targets, keyboard, motion, forced colors and copy on every route",
         "",
         "verify options:",
@@ -4423,6 +4446,7 @@ switch (cmd) {
         "",
         "measure: see references/performance.md; `measure --help` lists its options.",
         "timing: see references/performance.md; `timing --help` lists its options.",
+        "pacing: see references/pacing.md; `pacing --help` lists its options.",
         "audit: see references/audit.md; `audit` without --out lists its options.",
       ].join("\n"),
     );

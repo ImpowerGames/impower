@@ -158,7 +158,7 @@ style bubble {
 }
 ```
 
-An `animation` may be set inside any of the three blocks. A style's `animation` plays with default timing, so give its duration in the block after it:
+An `animation` may be set inside any of the three blocks. It plays with the timing its declaration gives:
 
 ```sparkdown
 animation pop {
@@ -166,12 +166,12 @@ animation pop {
     from { opacity = "0" }
     to { opacity = "1" }
   }
+  timing { duration = 0.26 }
 }
 
 style badge {
   @show {
     animation = pop
-    animation-duration = 0.26s
   }
 }
 ```
@@ -528,7 +528,7 @@ Animations are full motion sequences, defined by an
 
 | Prop Name              | What it does                                                           | Supported Values                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `animation`            | Plays a named animation with default timing.                           | `none`, `<animation-name>`                                                                                  |
+| `animation`            | Plays a named animation with its declaration's timing.                 | `none`, `<animation-name>`                                                                                  |
 | `animation-state`      | Controls whether the animation is running or paused.                   | `running`, `paused`                                                                                         |
 | `animation-delay`      | Overrides how long to wait before the animation begins.       | `<time>`                                                                                                    |
 | `animation-duration`   | Overrides how long each cycle of the animation takes.                  | `<time>`                                                                                                    |
@@ -539,7 +539,7 @@ Animations are full motion sequences, defined by an
 
 > `animation-delay`, `animation-duration`, `animation-easing`, `animation-iterations`, `animation-direction`, and `animation-fill` will override equivalent timing settings defined in an [animation declaration](./AnimationTheme.md#82-defining-your-own-animation) as long as they are set **after** the `animation` property is set.
 
-- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration
+- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration, and the animation loops, as `bounce` declares
 - `animation-duration=3s animation=bounce` — the animation plays with its default duration **(not 3s)**
 
 > Set `animation-iterations` to `infinite` for looping effects.

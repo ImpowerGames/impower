@@ -112,6 +112,7 @@ export const properties_style = () => ({
   transition_duration: { $type: "<time>" },
   transition_easing: { $type: "ease" },
   transition_property: { $type: "<property-name>" },
+  animation: { $type: "animation" },
   animation_name: { $type: "animation" },
   animation_state: { $type: "[running | paused]" },
   animation_delay: { $type: "<time>" },

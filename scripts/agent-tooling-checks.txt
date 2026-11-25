@@ -17,6 +17,7 @@
 .agents/skills/drive-web-editor/editor-gate.test.mjs
 .agents/skills/drive-web-editor/key-combo.test.mjs
 .agents/skills/drive-web-editor/measure.test.mjs
+.agents/skills/drive-web-editor/pacing-analysis.test.mjs
 .agents/skills/drive-web-editor/redgreen.test.mjs
 .agents/skills/drive-web-editor/scrub-classification.test.mjs
 .agents/skills/drive-web-editor/seed-project.test.mjs
