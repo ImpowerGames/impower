@@ -16,6 +16,9 @@ interface Harness {
   caretMargin: number;
   view: { scrollDOM: HTMLElement; contentDOM: HTMLElement; state: { selection: { main: { head: number } } } };
   useTallScript(): void;
+  useStickyHeaders(withTopDialog: boolean): void;
+  headersBox(): Box | null;
+  stickyMarginApplied(): boolean;
   setCaretLine(line: number): void;
   setCaretAt(x: number, y: number): number | null;
   setCaretAtRowEnd(x: number, y: number): { head: number; assoc: number } | null;
@@ -317,4 +320,90 @@ describe("Edit keeps the script still", () => {
       }
     });
   }
+});
+
+describe("Edit keeps the script still under real sticky scene headers", () => {
+  const SCENE_20_BODY_LINE = 3 + 7 * 19 + 1;
+
+  const headers = (page: Page) =>
+    page.evaluate(() => (window as unknown as HarnessWindow).caretOnScreen.headersBox());
+
+  const settle = async (page: Page) => {
+    await frames(page);
+    await frames(page);
+  };
+
+  const scrollUnderHeader = async (page: Page) => {
+    for (const top of [2000, 2040, 2080, 2120]) {
+      await scrollTo(page, top);
+      await settle(page);
+      if (await headers(page)) {
+        await page.waitForFunction(() =>
+          (window as unknown as HarnessWindow).caretOnScreen.stickyMarginApplied(),
+        );
+        return;
+      }
+    }
+  };
+
+  it("leaves a caret fully visible below a top dialog where it is when the sticky header covers only the dialog", async () => {
+    const page = await open();
+    try {
+      await page.evaluate((line) => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        h.useStickyHeaders(true);
+        h.setCaretLine(line);
+      }, SCENE_20_BODY_LINE);
+      await settle(page);
+      await page.evaluate(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        const row = h.caretRow()!;
+        h.view.scrollDOM.scrollTop += row.top - (h.scrollerBox().top + 2);
+      });
+      await settle(page);
+      await page.waitForFunction(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        return h.headersBox() != null && h.stickyMarginApplied();
+      });
+      const header = await headers(page);
+      const before = await read(page);
+      expect(header).not.toBeNull();
+      expect(header!.bottom).toBeLessThanOrEqual(before.scroller.top);
+      expect(before.caretRow!.top).toBeGreaterThanOrEqual(before.scroller.top);
+      expect(before.caretRow!.top).toBeLessThan(before.scroller.top + 6);
+
+      await edit(page);
+      const after = await read(page);
+
+      expect(after.head).toBe(before.head);
+      expect(after.scrollTop).toBe(before.scrollTop);
+    } finally {
+      await page.context().close();
+    }
+  });
+
+  it("puts an off-screen caret below the sticky header when the header covers the script", async () => {
+    const page = await open();
+    try {
+      await page.evaluate(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        h.useStickyHeaders(false);
+        h.setCaretLine(11);
+      });
+      await scrollUnderHeader(page);
+      const header = await headers(page);
+      const before = await read(page);
+      expect(header).not.toBeNull();
+      expect(header!.bottom).toBeGreaterThan(before.scroller.top);
+
+      await edit(page);
+      const after = await read(page);
+
+      expect(after.scrollTop).toBe(before.scrollTop);
+      expect(after.atLineStart).toBe(true);
+      expect(after.caretRow!.top).toBeGreaterThanOrEqual(header!.bottom - 1);
+    } finally {
+      await page.context().close();
+    }
+  });
 });
