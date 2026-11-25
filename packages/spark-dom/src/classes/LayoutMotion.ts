@@ -10,6 +10,7 @@ export interface LayoutBox extends LayoutPoint {
   height: number;
   insets?: Partial<Record<LayoutInset, number>>;
   sizing?: string;
+  undrawn?: LayoutInset[];
   local?: Element;
 }
 
@@ -69,6 +70,15 @@ const NO_SHIFT: LayoutPoint = { x: 0, y: 0 };
 
 const UNIT: LayoutPoint = { x: 1, y: 1 };
 
+const BORDERS = [
+  ["borderTopWidth", "borderTopStyle"],
+  ["borderRightWidth", "borderRightStyle"],
+  ["borderBottomWidth", "borderBottomStyle"],
+  ["borderLeftWidth", "borderLeftStyle"],
+] as const;
+
+const UNDRAWN = /^(?:none|hidden)$/;
+
 const SIDES = {
   width: ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"],
   height: ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"],
@@ -105,11 +115,16 @@ const diagonalOf = (style: CSSStyleDeclaration): LayoutPoint | undefined => {
 const borderBoxed = (box: LayoutBox) => box.sizing === "border-box";
 
 const sizeIn = (from: LayoutBox, to: LayoutBox, axis: "width" | "height") => {
-  if (borderBoxed(from) === borderBoxed(to)) {
-    return from[axis];
+  const across = (sides: readonly LayoutInset[]) =>
+    sides.reduce((sum, side) => sum + (from.insets?.[side] ?? 0), 0);
+  let size = from[axis];
+  if (borderBoxed(from) !== borderBoxed(to)) {
+    size += borderBoxed(to) ? across(SIDES[axis]) : -across(SIDES[axis]);
   }
-  const sides = SIDES[axis].reduce((sum, side) => sum + (from.insets?.[side] ?? 0), 0);
-  return borderBoxed(to) ? from[axis] + sides : from[axis] - sides;
+  if (!borderBoxed(to)) {
+    size += across(SIDES[axis].filter((side) => to.undrawn?.includes(side)));
+  }
+  return size;
 };
 
 export const namesLayoutTransition = (text: string): boolean =>
@@ -202,6 +217,9 @@ export const getSizeKeyframes = (
     }
   }
   for (const inset of changedInsets(from, to)) {
+    if (to.undrawn?.includes(inset)) {
+      continue;
+    }
     start[inset] = `${from.insets![inset]}px`;
     end[inset] = `${to.insets![inset]}px`;
   }
@@ -611,6 +629,9 @@ export default class LayoutMotion {
     for (const inset of INSETS) {
       insets[inset] = Number.parseFloat(style[inset]);
     }
+    const undrawn = BORDERS.filter(([, line]) => UNDRAWN.test(style[line])).map(
+      ([inset]) => inset,
+    );
     return {
       x,
       y,
@@ -618,6 +639,7 @@ export default class LayoutMotion {
       height: Number.parseFloat(style.height),
       insets,
       sizing: style.boxSizing,
+      ...(undrawn.length > 0 ? { undrawn } : {}),
       ...(local ? { local } : {}),
     };
   }

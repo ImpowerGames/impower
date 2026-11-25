@@ -184,6 +184,18 @@ test.each(["border-box", "content-box"])(
   },
 );
 
+test.each(["border-box", "content-box"])(
+  "in Chromium, a %s box whose border style is removed changes its real size smoothly",
+  async (sizing) => {
+    const result = await run(
+      `#target { box-sizing: ${sizing}; width: 200px; height: 80px; padding: 10px; border: 10px solid black; transition: layout 1s linear; }`,
+      `<div id="target"></div>`,
+      `document.getElementById("target").style.borderStyle = "none";`,
+    );
+    expectPath(result, ["width", "height"]);
+  },
+);
+
 test.each([
   ["content-box", "border-box"],
   ["border-box", "content-box"],

@@ -363,6 +363,17 @@ end
       { ...pinned("width", 140), ...pinned("height", 20) },
       { ...pinned("width", 200), ...pinned("height", 80) },
     ]);
+    const unbordered = { ...framed, borderTopWidth: 0, borderRightWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0 };
+    expect(
+      getSizeKeyframes(contentBox, {
+        ...contentBox,
+        insets: unbordered,
+        undrawn: ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"],
+      }),
+    ).toEqual([
+      { ...pinned("width", 220), ...pinned("height", 100) },
+      { ...pinned("width", 200), ...pinned("height", 80) },
+    ]);
     const from = { x: 10, y: 100 };
     const to = { x: 10, y: 140 };
     expect(getLayoutShift(from, to, to, 0)).toEqual({ x: 0, y: -40 });
