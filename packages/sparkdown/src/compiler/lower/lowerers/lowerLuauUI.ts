@@ -134,16 +134,36 @@ export function lowerLuauScreen(
   const name = ctx.read(nameNode.from, nameNode.to).trim();
   if (!name) return { content: [] };
 
+  const contentNode = findChildByName(nodeRef.node, "LuauScreen_content");
+  const body = parseStructBody(readStructBodyEntries(contentNode, ctx), ctx, {
+    elementKeys: true,
+  });
+
   const struct: Record<string, unknown> = {
     $type: "screen",
     $name: name,
+    ...body,
   };
+
+  const savedOwner = ctx.sparkleOwner;
+  ctx.sparkleOwner = `screen_${name}`;
+  const children = buildSparkleBody(contentNode, ctx);
+  ctx.sparkleOwner = savedOwner;
+
+  const structure = validateSparkleBlocks(contentNode, ctx);
 
   return {
     content: [],
     context: { screen: { [name]: struct } },
     sparkle: {
-      screens: { [name]: { kind: "screen", name } satisfies ScreenNode },
+      screens: {
+        [name]: {
+          kind: "screen",
+          name,
+          ...(children.length > 0 ? { children } : {}),
+        } satisfies ScreenNode,
+      },
     },
+    ...(structure.length > 0 ? { diagnostics: structure } : {}),
   };
 }

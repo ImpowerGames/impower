@@ -1,5 +1,5 @@
-import { EditorSelection, EditorState } from "@codemirror/state";
-import { EditorView, showDialog } from "@codemirror/view";
+import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
+import { EditorView, showDialog, showPanel } from "@codemirror/view";
 import {
   documentSymbolsField,
   stickyScrollMargin,
@@ -175,6 +175,32 @@ const openKeyboard = (visibleHeight: number) => {
 
 const keyboardOpen = () => view.dom.classList.contains("keyboard-open");
 
+const BOTTOM_PANEL_HEIGHT = 52;
+
+const KEYBOARD_LAYOUT_STYLE = `
+html.keyboard-open section { margin-bottom: calc(-1 * var(--keyboard-height)); }
+html.keyboard-open section .cm-editor { position: relative; }
+html.keyboard-open section .cm-editor .cm-panels.cm-panels-bottom { position: absolute; transform: translateY(calc(-1 * var(--keyboard-height))); }
+`;
+
+const useBottomPanelOverKeyboard = () => {
+  document.head.appendChild(document.createElement("style")).textContent =
+    KEYBOARD_LAYOUT_STYLE;
+  const dom = document.createElement("div");
+  dom.className = "cm-test-toolbar";
+  dom.style.height = `${BOTTOM_PANEL_HEIGHT}px`;
+  view.dispatch({
+    effects: StateEffect.appendConfig.of(
+      showPanel.of(() => ({ dom, bottom: true })),
+    ),
+  });
+};
+
+const bottomPanelBox = () => {
+  const r = view.dom.querySelector(".cm-panels-bottom")?.getBoundingClientRect();
+  return r ? { top: r.top, bottom: r.bottom } : null;
+};
+
 Object.assign(window, {
   caretOnScreen: {
     stickyTop: STICKY_TOP,
@@ -195,5 +221,7 @@ Object.assign(window, {
     edit,
     openKeyboard,
     keyboardOpen,
+    useBottomPanelOverKeyboard,
+    bottomPanelBox,
   },
 });
