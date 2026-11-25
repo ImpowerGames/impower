@@ -30,8 +30,7 @@ export type BodyNode =
   | ForNode
   | MatchNode
   | SlotNode
-  | FillNode
-  | StreamNode;
+  | FillNode;
 
 export type SparkleNode =
   | LayoutNode
@@ -93,7 +92,10 @@ export interface ElementNode {
   events: EventBinding[];
   params?: PropValue[];
   children: BodyNode[];
+  templates?: ElementNode[];
 }
+
+export type StreamNode = ElementNode & { templates: ElementNode[] };
 
 export interface IfNode {
   kind: "if";
@@ -121,14 +123,6 @@ export interface MatchNode {
 export interface SlotNode {
   kind: "slot";
   name?: string;
-}
-
-export interface StreamNode {
-  kind: "stream";
-  classes: string[];
-  props: Record<string, PropValue>;
-  events: EventBinding[];
-  children: ElementNode[];
 }
 
 export interface FillNode {

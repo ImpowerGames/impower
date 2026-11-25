@@ -41,6 +41,7 @@ import {
 } from "../utils/statementShape";
 import { documentTag } from "../utils/documentTag";
 import { unescapeString } from "../utils/unescapeString";
+import { isStream } from "../../utils/layoutStreams";
 import { structValueNode } from "../utils/structValueNode";
 import {
   sparkleBlockContent,
@@ -720,12 +721,15 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
       warnAt(word.from, word.to, streamEntryIgnored(word.text), ctx);
     }
     return {
-      kind: "stream",
+      kind: "element",
+      tag,
       classes: read.classes,
       props: { ...read.props, ...sub.props },
       events: read.events,
-      children: sub.children.filter(
-        (child): child is ElementNode => child.kind === "element",
+      children: [],
+      templates: sub.children.filter(
+        (child): child is ElementNode =>
+          child.kind === "element" && !isStream(child),
       ),
     };
   }

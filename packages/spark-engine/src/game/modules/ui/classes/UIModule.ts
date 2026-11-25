@@ -60,7 +60,10 @@ import type {
   ScreenNode,
   StreamNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
-import { layoutStreams } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
+import {
+  isStream,
+  layoutStreams,
+} from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import {
   AbstractValue,
   BoolValue,
@@ -1783,9 +1786,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           continue;
         }
         const n = node as Record<string, any>;
-        if (n["kind"] === "stream") {
-          classes.add("stream");
-        }
         if (typeof n["tag"] === "string") {
           classes.add(n["tag"]);
           const body = components[n["tag"]];
@@ -1809,6 +1809,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         visit(n["children"]);
+        visit(n["templates"]);
         visit(n["else"]);
         for (const branch of n["branches"] ?? []) {
           visit(branch?.children);
@@ -2843,6 +2844,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     before: Element | null,
   ): Element | ReactiveRegion | undefined {
     if (node.kind === "element") {
+      if (isStream(node)) {
+        return this.mountStream(parent, node, scope, before);
+      }
       if (this._game.program?.sparkle?.components?.[node.tag]) {
         return this.mountComponent(parent, node, scope, before);
       }
@@ -2857,9 +2861,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.kind === "slot") {
       return this.mountSlot(parent, node, scope, before);
     }
-    if (node.kind === "stream") {
-      return this.mountStream(parent, node, scope, before);
-    }
     return undefined;
   }
 
@@ -2872,19 +2873,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     before: Element | null,
   ): Element {
     const follow = { "data-follow": "end" };
-    const el = this.mountElement(
-      parent,
-      {
-        kind: "element",
-        tag: "stream",
-        classes: node.classes,
-        props: node.props,
-        events: node.events,
-        children: [],
-      },
-      scope,
-      before,
-    );
+    const el = this.mountElement(parent, node, scope, before);
     this.updateElement(el, { attributes: follow });
     this._streamElements.add(el);
     if (parent.parent) {
@@ -6511,6 +6500,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Streams {
       protected _mounted = new Map<string, MountedStream[]>();
 
+      protected _settled = new Map<string, number>();
+
       get active(): boolean {
         return this._mounted.size > 0;
       }
@@ -6566,10 +6557,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           layoutStreams(sparkle, layout).forEach((node, index) => {
             const id = streamKey(layout, index);
             const stream = states[id] ?? { entries: [], current: 0 };
-            this.recordStream(stream, node, instructions, {
-              repeat: stream.beat === beat || Boolean(instructions.hold),
-              restarted,
-            });
+            const repeat = stream.beat === beat || Boolean(instructions.hold);
+            this.recordStream(stream, node, instructions, { repeat, restarted });
+            if (!repeat) {
+              this._settled.set(id, stream.current);
+            }
             stream.beat = beat;
             stream.key = key;
             live[id] = stream;
@@ -6626,7 +6618,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const lines = Object.keys(text).filter(
           (target) => !SPEAKER_TARGETS.includes(target),
         );
-        const template = node.children.findIndex((child) =>
+        const template = node.templates.findIndex((child) =>
           [child.tag, child.name, ...child.classes].some(
             (name) => name !== undefined && lines.includes(name),
           ),
@@ -6722,18 +6714,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         mount.entries.length = kept;
         mount.rendered.length = kept;
+        let settled = this._settled.get(mount.key) ?? current;
         if (instant) {
           for (let i = rewriteFrom ?? current; i < kept; i += 1) {
             this.write(mount.entries[i]!, entries[i]!, true);
           }
+          settled = Math.max(settled, kept);
         }
         for (let i = kept; i < entries.length; i += 1) {
           const entry = entries[i]!;
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
-          this.write(view, entry, instant || i < current, time);
+          const atOnce = instant || i < current || i < settled;
+          this.write(view, entry, atOnce, atOnce ? undefined : time);
+          if (atOnce) {
+            settled = Math.max(settled, i + 1);
+          }
         }
+        this._settled.set(mount.key, settled);
         const latest = mount.entries.at(-1);
         if (latest !== mount.latest) {
           if (mount.latest && mount.entries.includes(mount.latest)) {
@@ -6778,7 +6777,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
         const scope = $.makeScope(mount.scope.env, mount.scope.slots);
-        const template = mount.node.children[entry.template];
+        const template = mount.node.templates[entry.template];
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)
           : [];

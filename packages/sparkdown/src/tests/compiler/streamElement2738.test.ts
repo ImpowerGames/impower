@@ -36,11 +36,13 @@ describe("the stream element (#2738)", () => {
     expect(thread).toMatchObject({ kind: "element", tag: "thread" });
     expect(thread.children).toEqual([
       {
-        kind: "stream",
+        kind: "element",
+        tag: "stream",
         classes: [],
         props: {},
         events: [],
-        children: [
+        children: [],
+        templates: [
           {
             kind: "element",
             tag: "dialogue",
@@ -77,14 +79,14 @@ describe("a stream keeps the settings written on it (#2738)", () => {
 }
 `);
     const stream = ast.phone.children[0];
-    expect(stream.kind).toBe("stream");
+    expect(stream).toMatchObject({ kind: "element", tag: "stream", children: [] });
     expect(stream.classes).toEqual(["feed"]);
     expect(stream.props).toEqual({
       height: { kind: "literal", value: "44px" },
       overflow: { kind: "literal", value: "scroll" },
       gap: { kind: "literal", value: "8px" },
     });
-    expect(stream.children.map((child: any) => child.tag)).toEqual(["dialogue"]);
+    expect(stream.templates.map((child: any) => child.tag)).toEqual(["dialogue"]);
   });
 });
 
@@ -108,7 +110,7 @@ describe("a stream says what it ignores (#2738)", () => {
       "A stream copies only the elements written directly inside it, so this `stream` is ignored.",
     ]);
     const stream = layoutAst(source).phone.children[0];
-    expect(stream.children.map((child: any) => child.tag)).toEqual(["dialogue"]);
+    expect(stream.templates.map((child: any) => child.tag)).toEqual(["dialogue"]);
   });
 });
 

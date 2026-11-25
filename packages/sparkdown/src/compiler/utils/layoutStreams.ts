@@ -1,5 +1,8 @@
 import type { SparkProgram } from "../types/SparkProgram";
-import type { BodyNode, StreamNode } from "../types/SparkleNode";
+import type { BodyNode, ElementNode, StreamNode } from "../types/SparkleNode";
+
+export const isStream = (node: ElementNode): node is StreamNode =>
+  node.templates !== undefined;
 
 export function layoutStreams(
   sparkle: SparkProgram["sparkle"] | undefined,
@@ -15,10 +18,11 @@ export function layoutStreams(
   const visit = (nodes: readonly BodyNode[] | undefined): void => {
     for (const node of nodes ?? []) {
       switch (node.kind) {
-        case "stream":
-          found.push(node);
-          break;
         case "element": {
+          if (isStream(node)) {
+            found.push(node);
+            break;
+          }
           const component = components[node.tag];
           if (component && !expanded.has(node.tag)) {
             expanded.add(node.tag);
