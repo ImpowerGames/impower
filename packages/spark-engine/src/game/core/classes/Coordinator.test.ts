@@ -102,7 +102,7 @@ const createGame = (
           restoreCleared: () => {},
           write: () => {},
         },
-        style: { update: () => {} },
+        style: { update: () => {}, updateWaiting: () => {} },
         cutsceneEnded: false,
         runCutscene(cutscene: { name: string }) {
           calls.cutscenes.push(cutscene.name);
