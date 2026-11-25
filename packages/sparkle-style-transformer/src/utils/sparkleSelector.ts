@@ -219,8 +219,9 @@ const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
 const WIDTH_FEATURE_BEFORE = /(?:^|[^\p{L}\p{N}_-])(?:min-|max-)?width:$/u;
 const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
-const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
+const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
+const MEDIA_QUERY_START = /[ \t\r\n\f]*(?:[(]|(?:not|only|all|print|screen)(?![\p{L}\p{N}_-]))/iuy;
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
@@ -589,7 +590,7 @@ class SparkleSelectorWriter {
       }
       if (
         declarations.length === 1 &&
-        (char === ")" || (char === "@" && this.stateAfter(0)) || (char === "," && this.stateAfter(1)))
+        (char === ")" || (char === "@" && this.stateAfter(0)) || (char === "," && this.selectorAfter(atRule)))
       ) {
         break;
       }
@@ -645,6 +646,37 @@ class SparkleSelectorWriter {
   private stateAfter(skip: number): boolean {
     NEXT_STATE.lastIndex = this.i + skip;
     return NEXT_STATE.test(this.src);
+  }
+
+  private selectorAfter(atRule: string): boolean {
+    const from = this.i + 1;
+    MEDIA_QUERY_START.lastIndex = from;
+    if (atRule === "@media" && !MEDIA_QUERY_START.test(this.src)) {
+      return true;
+    }
+    let depth = 0;
+    for (let i = from; i < this.src.length; i++) {
+      const char = this.src[i]!;
+      if (char === "\\") {
+        i++;
+      } else if (char === '"' || char === "'") {
+        QUOTED.lastIndex = i;
+        QUOTED.test(this.src);
+        i = QUOTED.lastIndex - 1;
+      } else if (char === "(" || char === "[") {
+        depth++;
+      } else if (char === ")" || char === "]") {
+        if (depth === 0) {
+          return false;
+        }
+        depth--;
+      } else if (depth === 0 && char === ",") {
+        return false;
+      } else if (depth === 0 && char === "@" && NAME_START.test(this.src[i + 1] ?? "")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private closesNext(): boolean {

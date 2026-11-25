@@ -58,6 +58,7 @@ const PRELUDES = [
   " (min-width: sm)",
   " screen and (min-width: 1px)",
   " (min-width: 1px), print",
+  " (min-width: 1px), not screen",
   "(100px>width)",
   " sidebar (width > 1px)",
 ];
@@ -69,6 +70,7 @@ const AT_RULE_ONLY = [
       : PRELUDES.map((prelude) => `@${name}${prelude}`),
   ),
   ...AT_RULE_CASES.map(([source]) => source),
+  "@container card (min-width: 1px), sidebar (min-width: 2px)",
 ];
 
 const THEMED = SELECTOR_ONLY.flatMap((key) => [`@theme(dark) ${key}`, `${key} @theme(light)`, `@theme(dark), ${key}`]);
@@ -230,6 +232,9 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     ["@busy @media (min-width: 600px), @focused", "@media"],
     ["@busy @media (min-width: 600px), @focused @media (min-width: 700px)", "@media"],
     ["@busy, @container-size(sm)", "@container-size"],
+    ["@busy @media (min-width: 600px), card @focused", "@media"],
+    ["@busy @media (min-width: 600px), card", "@media"],
+    ["@busy @container (min-width: 1px), card @focused", "@container"],
   ])("%s", (key, state) => {
     for (const colorScheme of ["attribute", "media"] as const) {
       const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });

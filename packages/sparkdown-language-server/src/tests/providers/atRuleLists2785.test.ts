@@ -54,6 +54,8 @@ describe("a comma list whose selectors hold different at-rule states is reported
     ["@hovered, @media (min-width: 1px)", ["@media (min-width: 1px)"]],
     ["@media (min-width: 1px), @hovered", ["@media (min-width: 1px)"]],
     ["@hovered @container-size(sm), @focused", ["@container-size(sm)"]],
+    ["@hovered @media (min-width: 1px), text @focused", ["@media (min-width: 1px)"]],
+    ["@hovered @media (min-width: 1px), text", ["@media (min-width: 1px)"]],
     ["@hovered @media (min-width: 1px), @focused @media (min-width: 2px)", ["@media (min-width: 1px)"]],
   ])("%s", (selector, written) => {
     expect(warnings(selector, "at-rule-list")).toEqual(written.map((w) => listWarning(selector, w)));
