@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { holdsPresentedText } from "../../game/core/classes/presenters/textLayouts";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SOURCE = `layout main {
@@ -152,8 +153,8 @@ describe("a screen's own elements stay while any of its layouts is open", () => 
     expect(root.name).toBe("bare");
     expect(childNames(root)).toEqual(["banner", "alone"]);
     expect(only(h, "alone_page").parent?.name).toBe("alone");
-    expect(createdStyle(h, "alone").position).toBeUndefined();
-    expect(createdStyle(h, "alone").inset).toBeUndefined();
+    expect(createdStyle(h, "alone")["position"]).toBeUndefined();
+    expect(createdStyle(h, "alone")["inset"]).toBeUndefined();
   });
 
   test("a checkpoint taken with a screen's layout open restores the screen's elements", async () => {
@@ -239,7 +240,7 @@ layout home in menu {
     ui(h).refreshLayouts();
     expect(findAll(h, "frame")).toEqual([]);
     expect(childNames(only(h, "menu"))).toEqual(["banner", "home"]);
-    expect(createdStyle(h, "home").position).toBeUndefined();
+    expect(createdStyle(h, "home")["position"]).toBeUndefined();
   });
 
   test("closing every open layout of a screen together with an animation removes its elements", async () => {
@@ -299,5 +300,48 @@ layout home in menu {
       .flatMap((m: any) => m.params.items)
       .filter((item: any) => item.kind === "font");
     expect(fonts).toContainEqual(expect.objectContaining({ family: "Fancy" }));
+  });
+});
+
+describe("a screen's elements count as its layouts' own", () => {
+  test("a layout whose screen holds the dialogue box presents the text", async () => {
+    const h = await bare(`screen conversation {
+  textbox { dialogue { text } }
+  slot
+}
+
+layout page in conversation { marker }
+
+layout loose { marker }
+`);
+    expect(holdsPresentedText(h.game, "page")).toBe(true);
+    expect(holdsPresentedText(h.game, "loose")).toBe(false);
+  });
+
+  test("a slot forwarded through a component branch that leaves gives up the open layout", async () => {
+    const h = await bare(`store framed = true
+component wrapper {
+  if framed then
+    frame { slot }
+  else
+    banner
+  end
+}
+
+screen menu {
+  wrapper { slot }
+}
+
+layout home in menu { home_page }
+`);
+    await ui(h).openLayout("home", undefined, true);
+    expect(only(h, "home").parent?.name).toBe("frame");
+
+    (h.game.story as any).variablesState.$("framed", false);
+    ui(h).refreshLayouts();
+    expect(findAll(h, "frame")).toEqual([]);
+    only(h, "banner");
+    expect(only(h, "home").parent?.name).toBe("menu");
+    only(h, "home_page");
   });
 });

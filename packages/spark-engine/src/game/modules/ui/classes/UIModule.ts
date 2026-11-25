@@ -2566,7 +2566,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       for (const region of scope.regions) {
         let found: SlotRegion | undefined;
         if (region.kind === "slot") {
-          found = frame.hosts.has(region) ? region : undefined;
+          found =
+            frame.hosts.has(region) && this.regionLive(region, frame.element)
+              ? region
+              : undefined;
         } else if (region.kind === "for") {
           for (const iteration of region.iterations) {
             found ??= find(iteration.scope);
@@ -2586,13 +2589,44 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return find(frame.scope);
   }
 
-  protected isWithin(element: Element, ancestor: Element): boolean {
-    for (let node: Element | null = element; node; node = node.parent) {
-      if (node === ancestor) {
-        return true;
+  protected regionLive(region: ReactiveRegion, root: Element): boolean {
+    for (
+      let current: ReactiveRegion | undefined = region;
+      current;
+      current = current.owner
+    ) {
+      if (!this.isWithin(current.parent, root)) {
+        return false;
+      }
+      const owner = current.owner;
+      if (owner) {
+        const groups =
+          owner.kind === "for"
+            ? [
+                ...owner.iterations.map((it) => it.content),
+                owner.elseContent ?? [],
+              ]
+            : [owner.content];
+        const held = groups.some((group) =>
+          group.some((it) => "region" in it && it.region === current),
+        );
+        if (!held) {
+          return false;
+        }
       }
     }
-    return false;
+    return true;
+  }
+
+  protected isWithin(element: Element, ancestor: Element): boolean {
+    for (let node = element; node !== ancestor; ) {
+      const parent = node.parent;
+      if (!parent || !parent.children.includes(node)) {
+        return false;
+      }
+      node = parent;
+    }
+    return true;
   }
 
   protected rehostScreenLayouts(screen: string, frame: ScreenFrame): void {
@@ -4189,7 +4223,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (!layout) {
         return false;
       }
-      return this.treeHolds(layout.children, wanted);
+      const screen = layout.screen
+        ? sparkle.screens?.[layout.screen]
+        : undefined;
+      return (
+        this.treeHolds(layout.children, wanted) ||
+        this.treeHolds(screen?.children, wanted)
+      );
     }
     const layout = this.context.layout?.[layoutName];
     if (!layout) {
