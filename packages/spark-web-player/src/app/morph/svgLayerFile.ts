@@ -152,19 +152,26 @@ interface CssFacts {
   unreadable?: string;
 }
 
-function ruleFacts(rules: CSSRuleList | undefined, root: Element, facts: CssFacts) {
+function nestedSelector(selector: string, parent: string | undefined): string {
+  if (parent === undefined) return selector;
+  return selector.includes("&") ? selector.split("&").join(`:is(${parent})`) : `:is(${parent}) ${selector}`;
+}
+
+function ruleFacts(rules: CSSRuleList | undefined, root: Element, facts: CssFacts, parent?: string) {
   for (const rule of Array.from(rules ?? [])) {
+    if ((rule as CSSImportRule).href !== undefined && (rule as CSSImportRule).styleSheet !== undefined) facts.unreadable = "a style sheet the player cannot read";
     const style = (rule as CSSStyleRule).style;
     if (namesAnimation(style)) facts.animated = true;
-    const selector = (rule as CSSStyleRule).selectorText;
-    if (selector !== undefined && style) {
+    const own = (rule as CSSStyleRule).selectorText;
+    const selector = own !== undefined ? nestedSelector(own, parent) : parent;
+    if (style && selector !== undefined) {
       let matches = true;
       try {
         matches = root.matches(selector);
       } catch {}
       if (matches) facts.rootProperties.push(...propertiesOf(style));
     }
-    ruleFacts((rule as CSSGroupingRule).cssRules, root, facts);
+    ruleFacts((rule as CSSGroupingRule).cssRules, root, facts, selector);
   }
 }
 
@@ -208,11 +215,14 @@ export function readSvgLayer(
   const root = parse(text, parser);
   if (!root) return { reason: "unread" };
   if (SMIL.some((name) => root.getElementsByTagNameNS(SVG_NS, name).length > 0)) return { reason: "animated" };
-  const sheets = Array.from(root.getElementsByTagNameNS(SVG_NS, "style"), (style) => style.textContent ?? "");
+  const elements = Array.from(root.getElementsByTagName("*"));
+  const sheets = elements.filter((element) => element.localName === "style").map((style) => style.textContent ?? "");
+  const linked = elements.some((element) => element.localName === "link") || Array.from(root.ownerDocument.childNodes).some((node) => node.nodeType === 7 && node.nodeName === "xml-stylesheet");
   const declarations = Array.from(root.querySelectorAll("[style]"), (element) => element.getAttribute("style") ?? "");
   if (root.hasAttribute("style")) declarations.push(root.getAttribute("style")!);
   const facts = cssFacts(root, sheets, declarations, options.view);
   if (facts.animated) return { reason: "animated" };
+  if (linked) return { reason: "styled", declaration: "a style sheet the player cannot read" };
   if (facts.unreadable !== undefined) return { reason: "styled", declaration: facts.unreadable };
   const refused = facts.rootProperties.find((property) => !ROOT_PROPERTIES.includes(property));
   if (refused !== undefined) return { reason: "styled", declaration: refused };
@@ -244,9 +254,10 @@ export function fittedSvgLayer(
   }
   root.setAttribute("width", String(width));
   root.setAttribute("height", String(height));
-  const style = (root.getAttribute("style") ?? "").trim();
-  const forced = `width:${width}px !important;height:${height}px !important`;
-  root.setAttribute("style", `${style}${style && !style.endsWith(";") ? ";" : ""}${forced}`);
+  const style = (root as unknown as ElementCSSInlineStyle).style;
+  if (!style) return undefined;
+  style.setProperty("width", `${width}px`, "important");
+  style.setProperty("height", `${height}px`, "important");
   return serializer.serializeToString(root.ownerDocument);
 }
 
@@ -254,7 +265,7 @@ export const browserSvgLayerRasterizer: SvgLayerRasterizer = async (source, natu
   const view = doc.defaultView as (Window & typeof globalThis) | null;
   if (!view?.DOMParser || !view.XMLSerializer || !view.Image) return undefined;
   const text = fittedSvgLayer(source, natural, width, height, new view.DOMParser(), new view.XMLSerializer());
-  if (!text) return undefined;
+  if (!text || !("source" in readSvgLayer(text, new view.DOMParser(), { view }))) return undefined;
   const img = new view.Image();
   img.decoding = "async";
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text)}`;

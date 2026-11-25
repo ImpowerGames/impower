@@ -188,9 +188,8 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     const stretched = fit(`<svg xmlns="${NS}" width="2in" height="1in"><rect width="1" height="1"/></svg>`, false);
     expect([stretched.getAttribute("width"), stretched.getAttribute("height"), stretched.getAttribute("viewBox"), stretched.getAttribute("preserveAspectRatio")]).toEqual(["375", "188", "0 0 100 50", "none"]);
     const styled = fit(`<svg xmlns="${NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><style>svg { width: 100px }</style></svg>`, true);
-    expect(styled.getAttribute("style")).toBe(
-      "width:100px;height:100px;width:375px !important;height:188px !important",
-    );
+    const forced = (styled as unknown as ElementCSSInlineStyle).style;
+    expect([forced.getPropertyValue("width"), forced.getPropertyValue("height")]).toEqual(["375px", "188px"]);
   });
 
   test("a layer disposed while its first raster decodes releases that raster when it arrives, and never draws it", async () => {

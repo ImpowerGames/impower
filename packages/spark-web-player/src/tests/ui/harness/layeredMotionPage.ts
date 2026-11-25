@@ -3,7 +3,7 @@ import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/m
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { browserPictureLoader, MorphPlayback, paintsAnything } from "../../../app/morph/MorphPlayback";
-import { readSvgLayer } from "../../../app/morph/svgLayerFile";
+import { browserSvgLayerRasterizer, readSvgLayer } from "../../../app/morph/svgLayerFile";
 
 const WIDTH = 400;
 const HEIGHT = 600;
@@ -518,4 +518,12 @@ const svgVerdict = (text: string, natural?: { width: number; height: number }) =
   return "source" in verdict ? "kept" : verdict.reason === "styled" ? `styled:${verdict.declaration}` : verdict.reason;
 };
 
-(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, cssFit, svgVerdict, wholePng: WHOLE_PNG };
+const svgRaster = async (text: string, width: number, height: number) => {
+  const verdict = readSvgLayer(text, new DOMParser(), { view: window });
+  if (!("source" in verdict)) return verdict.reason;
+  const raster = await browserSvgLayerRasterizer(verdict.source, { width: 100, height: 100 }, width, height, document);
+  raster?.release();
+  return raster ? "rasterized" : "refused";
+};
+
+(window as unknown as { layeredMotion: unknown }).layeredMotion = { show, showGroup, load, sparse, svgLayer, cssFit, svgVerdict, svgRaster, wholePng: WHOLE_PNG };

@@ -77,6 +77,8 @@ const ALLOWED_ROOT_STYLES = [
   "flood-opacity:0.5",
   "lighting-color:red",
   "fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2",
+  "width:100px;height:100px;/*",
+  "width:100px;height:100px;fill:url(&quot;x",
 ];
 
 const REFUSED_ROOT_STYLES = [
@@ -100,6 +102,13 @@ const REFUSED_ROOT_STYLES = [
   "--brand:red",
 ];
 
+const SVG_RASTERS: [string, number, number, string][] = [
+  [SVG_ROOT('width="100" height="100" viewBox="0 0 100 100"'), 200, 150, "rasterized"],
+  [SVG_ROOT('width="100" height="100" viewBox="0 0 100 100"', "<style>svg[style] { padding: 20px; min-width: 400px }</style>"), 200, 150, "refused"],
+  [SVG_ROOT('width="100" height="100" viewBox="0 0 100 100"', '<style>svg[width="200"] { padding: 20px }</style>'), 200, 150, "refused"],
+  [SVG_ROOT('width="100" height="100" viewBox="0 0 100 100"', '<style>svg[width="200"] { padding: 20px }</style>'), 300, 150, "rasterized"],
+];
+
 const SVG_VERDICTS: [string, string, { width: number; height: number } | undefined][] = [
   [SVG_ROOT('viewBox="0 0 100 100"', '<style>rect { font-family: "/*" } @keyframes spin { to { opacity: 0 } } rect { animation: spin 1s infinite }</style>'), "animated", undefined],
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { fill: url(https://example.invalid/a/*) } rect { animation: spin 1s infinite }</style>"), "animated", undefined],
@@ -112,6 +121,12 @@ const SVG_VERDICTS: [string, string, { width: number; height: number } | undefin
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>svg { max-width: 100px !important; max-height: 100px !important }</style>"), "styled", undefined],
   [SVG_ROOT('viewBox="0 0 100 100"', "<style>svg { width: 100px; height: 100px; fill: red }</style>"), "kept", undefined],
   [SVG_ROOT('viewBox="0 0 100 100" style="--brand:red"'), "styled:--brand", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>svg { @media all { padding: 20px; min-width: 400px } }</style>"), "styled", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>svg { &amp; { padding: 4px } }</style>"), "styled", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>rect { @media all { padding: 4px } &amp; { border: 1px solid } }</style>"), "kept", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', '<foreignObject><style xmlns="http://www.w3.org/1999/xhtml">svg { padding: 20px; min-width: 400px }</style></foreignObject>'), "styled", undefined],
+  ['<?xml-stylesheet type="text/css" href="data:text/css,svg%7Bpadding:20px%7D"?>' + SVG_ROOT('viewBox="0 0 100 100"'), "styled", undefined],
+  [SVG_ROOT('viewBox="0 0 100 100"', "<style>@font-face { font-family: Brand; src: local(Arial) } text { font-family: Brand }</style>"), "kept", undefined],
   ...ALLOWED_ROOT_STYLES.map((style): [string, string, undefined] => [SVG_ROOT(`viewBox="0 0 100 100" style="${style}"`), "kept", undefined]),
   ...REFUSED_ROOT_STYLES.map((style): [string, string, undefined] => [SVG_ROOT(`viewBox="0 0 100 100" style="${style}"`), "styled", undefined]),
   [SVG_ROOT('width="1e309" height="1e309"'), "unsized", undefined],
@@ -168,6 +183,7 @@ type Harness = Record<"show" | "showGroup", (moved: unknown, progress: number, o
   svgLayer(outer: Record<string, string>, inner: Record<string, string>, width: number, height: number, sibling?: boolean): Promise<void>;
   cssFit(kind: string, width: number, height: number): Promise<void>;
   svgVerdict(text: string, natural?: { width: number; height: number }): string;
+  svgRaster(text: string, width: number, height: number): Promise<string>;
   wholePng: string;
 };
 
@@ -333,6 +349,15 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
     );
     if (expected === "styled") expect(verdict).toMatch(/^styled:/);
     else expect(verdict).toBe(expected);
+  });
+
+  test.for(SVG_RASTERS)("the rasterizer, fitting an SVG layer file %s to %i×%i, answers %s", async ([text, width, height, expected], context) => {
+    if (!browser) return context.skip();
+    const answer = await page.evaluate(
+      ({ text, width, height }) => (window as unknown as { layeredMotion: Harness }).layeredMotion.svgRaster(text, width, height),
+      { text, width, height },
+    );
+    expect(answer).toBe(expected);
   });
 
   test("the paint probe finds a single painted pixel on a large layer, and nothing on an empty one", async (context) => {
