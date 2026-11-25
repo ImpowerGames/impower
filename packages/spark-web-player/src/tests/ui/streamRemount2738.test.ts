@@ -205,6 +205,25 @@ describe("stream entries across remounts (#2738)", () => {
     },
   );
 
+  test("an entry still typing when the next line arrives keeps its reveal across a remount", async () => {
+    const h = createDOMHarness(source(BRANCH), 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    timed(h);
+    await next(h);
+    await at(100);
+    const before = visible(h, 0);
+    expect(before).toBeGreaterThan(0);
+    expect(before).toBeLessThan(letters(h, 0).length);
+    await next(h);
+    expect(entries(h)).toHaveLength(2);
+    expect(visible(h, 0)).toBe(before);
+    await toggle(h);
+    expect(texts(h)).toEqual(["first message", "second message"]);
+    expect(h.overlay.querySelectorAll(".phone .second")).toHaveLength(2);
+    expect(visible(h, 0)).toBe(before);
+  });
+
   test("a remount inside a composed beat that writes no stream text keeps the typing entry's reveal", async () => {
     const h = createDOMHarness(source(BRANCH), 0, { reactive: true, autoOpenAll: false });
     await h.ready;

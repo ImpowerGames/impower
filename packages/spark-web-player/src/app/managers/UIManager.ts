@@ -1837,10 +1837,17 @@ export default class UIManager extends Manager {
       const txt = (el as any).__sdTxt;
       return txt === undefined || txt === "[]";
     };
+    const leavesOf = (el: HTMLElement) => [
+      ...this.getContentElements(el, "text"),
+      ...this.getContentElements(el, "stroke"),
+    ];
+    const kept = (el: HTMLElement) =>
+      leavesOf(el).every((leaf) => (el as any).__sdLeaves?.includes(leaf));
     const holds = (el: HTMLElement) => {
       const a = el as any;
       return (
-        a.__sdTxt === sig &&
+        (a.__sdTxt === sig || JSON.stringify(a.__sdAll) === sig) &&
+        kept(el) &&
         (!stale.includes(el) ||
           (JSON.stringify(a.__sdAll) === sig && a.__sdAllRev === (a.__sdRev ?? 0)))
       );
@@ -1869,11 +1876,13 @@ export default class UIManager extends Manager {
         (decision === "rebuild" ||
           replays ||
           stale.includes(el) ||
-          holdsNoWrite(el))
+          holdsNoWrite(el) ||
+          !kept(el))
       ) {
         this.clearWrittenText(el, true);
       }
       (el as any).__sdTxt = sig;
+      (el as any).__sdLeaves = leavesOf(el);
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
       (el as any).__sdTxtAtOnce = instant;
     }

@@ -479,8 +479,16 @@ interface ReactiveScope {
 interface StreamEntryView {
   group: ReactiveGroup;
   scope: ReactiveScope;
-  written: Record<string, string>;
-  typed: boolean;
+}
+
+interface Presented {
+  time?: number;
+  complete: boolean;
+}
+
+interface PresentedText extends Presented {
+  sequence: TextInstruction[];
+  shown: number;
 }
 
 interface MountedStream {
@@ -601,6 +609,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _motion = false;
 
   protected _contents = new WeakMap<Element, Set<ContentKind>>();
+
+  protected _slots = new WeakMap<Element, Element[]>();
 
   protected _presence = new Map<Element, PresenceRecord>();
 
@@ -1135,12 +1145,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.reveal();
       }
     }
-    const tasks: Promise<void>[] = [];
-    if (this._state.text) {
-      for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target));
-      }
-    }
+    this.text.settle();
+    const tasks: Promise<void>[] = this.restoredTargets().map(({ target, elements }) =>
+      this.text.restoreOnto(target, elements),
+    );
     if (this._state.image) {
       for (const [target] of Object.entries(this._state.image)) {
         tasks.push(this.image.restore(target));
@@ -4406,11 +4414,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     for (const stream of scope.streams) {
       for (const entry of stream.entries) {
-        const edits = this._screenEdits;
         this.refreshScope(entry.scope, changes);
-        if (this._screenEdits !== edits) {
-          this.streams.rewrite(stream, entry);
-        }
       }
     }
     for (const region of scope.regions) {
@@ -4587,9 +4591,57 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected arriveGroup(group: ReactiveGroup): void {
+    const roots = this.collectNodes(group);
     if (this.moving() && this.styled("show")) {
-      this.arrive(this.collectNodes(group));
+      this.arrive(roots);
     }
+    this.rewriteRemounted(roots);
+  }
+
+  protected rewriteRemounted(roots: Element[]): void {
+    if (roots.length === 0 || this.context?.system?.simulating) {
+      return;
+    }
+    const replaced = (el: Element) => {
+      const slots = this._slots.get(el);
+      return (
+        roots.some((root) => this.encloses(root, el)) ||
+        (slots !== undefined && slots.some((slot) => !el.children.includes(slot)))
+      );
+    };
+    for (const target of this.restoredTargets(replaced)) {
+      for (const el of target.elements) {
+        this.contentsOf(el).add("text");
+      }
+      void this.text.restoreOnto(target.target, target.elements);
+    }
+    this.streams.remounted(replaced);
+  }
+
+  protected slotsOf(el: Element): Element[] {
+    return el.children.filter((child) =>
+      child.name.split(" ").some((c) => c === "text" || c === "stroke"),
+    );
+  }
+
+  protected encloses(ancestor: Element, el: Element): boolean {
+    for (let node: Element | null = el; node; node = node.parent) {
+      if (node === ancestor) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected restoredTargets(
+    within?: (el: Element) => boolean,
+  ): { target: string; elements: Element[] }[] {
+    return Object.keys(this._state.text ?? {}).flatMap((target) => {
+      const elements = this.findElements(target, true).filter(
+        (el) => !within || within(el),
+      );
+      return elements.length > 0 ? [{ target, elements }] : [];
+    });
   }
 
   initLayouts(): void {
@@ -5780,10 +5832,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      protected _presented = new Map<string, PresentedText>();
+
+      settle(): void {
+        this._presented.clear();
+      }
+
       async restore(target: string) {
+        await this.restoreOnto(target, $.findElements(target, true));
+      }
+
+      async restoreOnto(target: string, elements: Element[]) {
         const state = $._state.text?.[target];
-        if (state) {
-          await this.applyChanges(target, state, true);
+        if (!state) {
+          return;
+        }
+        const presented = this._presented.get(target);
+        if (presented && !presented.complete) {
+          await this.writeElements(
+            target,
+            elements,
+            presented.sequence,
+            false,
+            presented.time,
+            presented.shown,
+          );
+        } else {
+          await this.writeElements(target, elements, presented?.sequence ?? state, true);
         }
       }
 
@@ -5851,6 +5926,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         $.noteContent("text", writing, !sequence);
+        for (const el of writing) {
+          if (sequence) {
+            $._slots.set(el, $.slotsOf(el));
+          } else {
+            $._slots.delete(el);
+          }
+        }
         if (targetEls.length === 0) {
           if (sequence) {
             $.warnUndeclaredWriteTarget(target);
@@ -5902,6 +5984,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async clear(target: string) {
         this.saveState(target, null);
+        this._presented.delete(target);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, null, true);
         }
@@ -5918,7 +6001,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
+        const prior = $._state.text?.[target]
+          ? (this._presented.get(target)?.sequence ?? $._state.text[target]!)
+          : [];
         this.saveState(target, sequence);
+        this._presented.set(target, {
+          sequence: [...prior, ...sequence],
+          time,
+          shown: prior.length + shown,
+          complete: instant,
+        });
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant, time, shown);
         }
@@ -6945,7 +7037,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Streams {
       protected _mounted = new Map<string, MountedStream[]>();
 
-      protected _settled = new Map<string, number>();
+      protected _reveals = new Map<string, Presented>();
 
       get active(): boolean {
         return this._mounted.size > 0;
@@ -6963,6 +7055,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       loaded(): void {
         this._loaded = true;
+        this._reveals.clear();
       }
 
       started(): void {
@@ -7004,9 +7097,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const stream = states[id] ?? { entries: [], current: 0 };
             const repeat = stream.beat === beat || Boolean(instructions.hold);
             this.recordStream(stream, node, instructions, { repeat, restarted });
-            if (!repeat) {
-              this._settled.set(id, stream.current);
-            }
             stream.beat = beat;
             stream.key = key;
             live[id] = stream;
@@ -7170,23 +7260,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         mount.entries.length = kept;
         mount.rendered.length = kept;
-        let settled = this._settled.get(mount.key) ?? current;
         if (instant) {
           for (let i = rewriteFrom ?? current; i < kept; i += 1) {
-            this.write(mount.entries[i]!, entries[i]!, true);
+            this.write(mount, i, entries[i]!, { complete: true });
           }
-          settled = Math.max(settled, kept);
         }
         for (let i = kept; i < entries.length; i += 1) {
           const entry = entries[i]!;
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
-          const atOnce = instant || i < current || i < settled;
-          this.write(view, entry, atOnce, atOnce ? undefined : time);
-          if (atOnce) {
-            settled = Math.max(settled, i + 1);
-          } else if (
+          const reveal = this._reveals.get(this.revealKey(mount, i));
+          const shownBefore = reveal ? reveal.complete : !presented || i < current;
+          const atOnce = Boolean(presented?.instant) || shownBefore;
+          this.write(
+            mount,
+            i,
+            entry,
+            atOnce ? { complete: true } : { complete: false, time: reveal?.time ?? time },
+          );
+          if (
+            !atOnce &&
             arriving &&
             i >= shown &&
             $.moving() &&
@@ -7195,7 +7289,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             $.arrive($.collectNodes(view.group));
           }
         }
-        this._settled.set(mount.key, settled);
+        const live = new Set(mount.rendered.map((_, i) => this.revealKey(mount, i)));
+        for (const key of this._reveals.keys()) {
+          if (key.startsWith(`${mount.key}\n`) && !live.has(key)) {
+            this._reveals.delete(key);
+          }
+        }
         const latest = mount.entries.at(-1);
         if (latest !== mount.latest) {
           if (mount.latest && mount.entries.includes(mount.latest)) {
@@ -7208,28 +7307,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      rewrite(mount: MountedStream, view: StreamEntryView): void {
-        const index = mount.entries.indexOf(view);
-        const stream = $._state.streams?.[mount.key];
-        const entry = stream?.entries[index];
-        if (entry) {
-          const presented = this._presented;
-          const typing =
-            view.typed &&
-            index >= (stream?.current ?? 0) &&
-            presented !== undefined &&
-            !presented.instant;
-          this.write(
-            view,
-            entry,
-            !typing,
-            typing ? presented?.time : undefined,
-            true,
-          );
-          if (view === mount.latest) {
-            this.mark(view, "");
+      remounted(replaced: (el: Element) => boolean): void {
+        for (const mounts of this._mounted.values()) {
+          for (const mount of mounts) {
+            const entries = $._state.streams?.[mount.key]?.entries ?? [];
+            mount.entries.forEach((view, index) => {
+              const entry = entries[index];
+              if (!entry) {
+                return;
+              }
+              const reveal = this._reveals.get(this.revealKey(mount, index)) ?? {
+                complete: true,
+              };
+              if (this.write(mount, index, entry, reveal, replaced) && view === mount.latest) {
+                this.mark(view, "");
+              }
+            });
           }
         }
+      }
+
+      protected revealKey(mount: MountedStream, index: number): string {
+        return `${mount.key}\n${index}\n${mount.rendered[index]}`;
       }
 
       protected mark(view: StreamEntryView, latest: string | null): void {
@@ -7244,20 +7343,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)
           : [];
-        return { group, scope, written: {}, typed: false };
+        return { group, scope };
       }
 
       protected write(
-        view: StreamEntryView,
+        mount: MountedStream,
+        index: number,
         entry: StreamEntry,
-        instant: boolean,
-        time?: number,
-        remounted = false,
-      ): void {
-        const roots = $.collectNodes(view.group);
-        if (!remounted) {
-          view.typed = !instant;
-        }
+        reveal: Presented,
+        replaced?: (el: Element) => boolean,
+      ): boolean {
+        this._reveals.set(this.revealKey(mount, index), reveal);
+        const instant = reveal.complete;
+        const roots = $.collectNodes(mount.entries[index]!.group);
+        let wrote = false;
         for (const [target, events] of Object.entries(entry.text)) {
           const elements = $.writeTargets(
             roots.flatMap((root) =>
@@ -7269,40 +7368,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             true,
           );
           const first = elements[0];
-          if (!first) {
+          if (!first || (replaced && !elements.some(replaced))) {
             continue;
-          }
-          const written = elements
-            .flatMap((el) => [
-              el.id,
-              ...el.children
-                .filter((child) =>
-                  child.name
-                    .split(" ")
-                    .some((c) => c === "text" || c === "stroke"),
-                )
-                .map((child) => child.id),
-            ])
-            .join(" ");
-          if (remounted && view.written[target] === written) {
-            continue;
-          }
-          view.written[target] = written;
-          if (remounted) {
-            void $.text.writeElements(first.id, elements, null, true);
           }
           for (const el of elements) {
             $.contentsOf(el).add("text");
           }
+          wrote = true;
           void $.text.writeElements(
             first.id,
             elements,
             events,
             instant,
-            time,
+            reveal.time,
             instant ? 0 : (entry.shown?.[target] ?? 0),
           );
         }
+        return wrote;
       }
     }
     return Streams;
