@@ -15,7 +15,7 @@ end
 layout phone {
   thread {
     stream {
-      dialogue.bubble #clear { text }
+      dialogue.bubble { text }
     }
   }
 }
@@ -183,7 +183,7 @@ end
 
 layout phone {
   stream {
-    dialogue.bubble #clear {
+    dialogue.bubble {
       if expanded then
         text.first
       else
