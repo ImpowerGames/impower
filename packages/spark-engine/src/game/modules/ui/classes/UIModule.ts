@@ -4070,6 +4070,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    const screens = (this.context as Record<string, any>)?.["screen"] ?? {};
+    for (const [name, screen] of Object.entries(screens)) {
+      if (name && !name.startsWith("$") && screen) {
+        this.initLayout(screen as Record<string, any>);
+      }
+    }
   }
 
   initLayout(layout: Record<string, any>) {

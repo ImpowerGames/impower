@@ -318,6 +318,21 @@ layout loose { marker }
     expect(holdsPresentedText(h.game, "loose")).toBe(false);
   });
 
+  test("an empty text target a screen's body holds clears with each line like a layout's", async () => {
+    const h = await bare(`screen menu {
+  caption { text }
+  slot
+}
+
+layout home in menu { home_page }
+
+layout notes { note { text } }
+`);
+    const transient = ui(h).getTransientTargets();
+    expect(transient).toContain("caption");
+    expect(transient).toContain("note");
+  });
+
   test("a slot forwarded through a component branch that leaves gives up the open layout", async () => {
     const h = await bare(`store framed = true
 component wrapper {
