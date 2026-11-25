@@ -4,7 +4,9 @@ import type { SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ASSET_TYPES } from "../constants/assetTypes";
 import { resolveImageAttributes } from "../utils/filterImage";
-import { resolveImageLayers } from "../utils/resolveImageLayers";
+import { resolveImageLayers, type ImageLayer } from "../utils/resolveImageLayers";
+import { getImageOwner } from "../utils/getImageOwner";
+import { linePick } from "../utils/linePick";
 import { fingerprintSource } from "../utils/fingerprintSource";
 import {
   collectEffectiveMorphs,
@@ -13,7 +15,7 @@ import {
 } from "../morph/collectMorphDiagnostics";
 import { buildMorphChannel, shownLook, shownLookStruct, type ShownBefore } from "../../morph/channel";
 import { layeredSizeWarnings, type LayeredSizeWarning } from "../../morph/layered";
-import { resolvePictureLook } from "../../morph/look";
+import { resolvePictureLook, type LookPick } from "../../morph/look";
 import { MORPH_PICK_NONE } from "../../morph/types";
 import {
   DIRECTIVE_CLAUSE_WORDS,
@@ -101,6 +103,9 @@ interface MorphClause {
   keyword: DirectiveWord;
   value?: DirectiveWord;
 }
+
+const MORPH_CHANGE_TRIVIA: ReadonlySet<string> = new Set(["Newline", "Whitespace", "SparkdownLineComment"]);
+const MORPH_CHANGE_BEAT_TEXT: ReadonlySet<string> = new Set(["ImplicitAction", "InlineDialogue"]);
 
 function morphClauseOf(directive: SourceDirective): MorphClause | undefined {
   if (directive.kind !== "image") return undefined;
@@ -4974,15 +4979,11 @@ export class SparkdownCompiler {
           coveredTo = image.to;
         }
       }
+      if (program.morphs?.change && scriptTree) this.collectMorphChanges(program, scriptTree, directives, shownImages);
       const reportedClauseIssues = new Set<string>();
-      const shownByImage = new Map<any, ShownBefore>();
       for (const directive of directives) {
         const directiveImages = shownImages.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
         const morph = morphClauseOf(directive);
-        if (program.morphs?.change) {
-          const pick = morph?.value && !morph.value.text.startsWith("$") ? morph.value.text : undefined;
-          for (const image of directiveImages) this.collectMorphChanges(program, { struct: image.struct, ...(pick === undefined ? {} : { pick }) }, shownByImage);
-        }
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
           ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
@@ -5052,21 +5053,91 @@ export class SparkdownCompiler {
     }
   }
 
-  protected collectMorphChanges(program: SparkProgram, shown: ShownBefore, shownByImage: Map<any, ShownBefore>) {
+  protected collectMorphChanges(
+    program: SparkProgram,
+    tree: { resolveInner(pos: number, side?: -1 | 0 | 1): SyntaxNode },
+    directives: readonly SourceDirective[],
+    images: readonly { struct: any; from: number; to: number }[],
+  ) {
+    const { named } = layoutElementNames(program);
+    const imageDirectives = directives.filter((directive) => directive.bracket === "image");
+    const inside = (node: SyntaxNode) => imageDirectives.filter((directive) => node.from <= directive.from && directive.to <= node.to);
+    const lineOf = (directive: SourceDirective) => {
+      let node: SyntaxNode | null = tree.resolveInner(directive.from, 1);
+      while (node && node.name !== "ImageLine") node = node.parent;
+      return node;
+    };
+    const next = (node: SyntaxNode) => {
+      let sibling = node.nextSibling;
+      while (sibling && MORPH_CHANGE_TRIVIA.has(sibling.name)) sibling = sibling.nextSibling;
+      return sibling;
+    };
+    const beatText = (node: SyntaxNode | null) => !!node && MORPH_CHANGE_BEAT_TEXT.has(node.name) && inside(node).length === 0;
+    const writes = (line: SyntaxNode) => {
+      const written = inside(line);
+      if (!written.every((directive) => directive.kind === "image" && directive.target && named.has(directive.target.text))) return undefined;
+      return written;
+    };
+    const shownOn = (line: readonly SourceDirective[], target: string): ShownBefore | undefined => {
+      const onTarget = line.filter((directive) => directive.target!.text === target);
+      const directive = onTarget.length === 1 ? onTarget[0]! : undefined;
+      if (directive?.control?.text !== "show" || directive.names.length !== 1 || directive.names[0]!.text.includes("$")) return undefined;
+      const shown = images.filter((image) => directive.contentFrom <= image.from && image.to <= directive.contentTo);
+      const morph = morphClauseOf(directive);
+      if (shown.length !== 1 || (morph && (!morph.value || morph.value.text.startsWith("$")))) return undefined;
+      return { struct: shown[0]!.struct, ...(morph?.value ? { pick: morph.value.text } : {}) };
+    };
+    const lines = new Map<number, SyntaxNode>();
+    for (const directive of imageDirectives) {
+      const line = lineOf(directive);
+      if (line) lines.set(line.from, line);
+    }
+    for (const line of lines.values()) {
+      const before = writes(line);
+      const text = next(line);
+      const after = text && beatText(text) ? next(text) : null;
+      if (!before || !after || after.name !== "ImageLine" || !beatText(next(after))) continue;
+      const now = writes(after);
+      if (!now) continue;
+      for (const target of new Set(before.map((directive) => directive.target!.text))) {
+        const from = shownOn(before, target);
+        const to = shownOn(now, target);
+        if (from && to) this.collectMorphChange(program, from, to);
+      }
+    }
+  }
+
+  protected collectMorphChange(program: SparkProgram, from: ShownBefore, to: ShownBefore) {
     const context = program.context!;
-    const { struct, pick } = shown;
-    const images = [struct, ...resolveImageLayers(context, struct).map((layer) => layer.struct)].flatMap((layer) => {
-      const image = layer ? resolveImageAttributes(context, layer, { visibility: false }).image : undefined;
-      return image ? [image] : [];
-    });
-    const before = images.map((image) => shownByImage.get(image)).find((earlier) => earlier !== undefined);
-    for (const image of images) shownByImage.set(image, shown);
-    if (before === undefined || typeof struct?.$name !== "string") return;
-    const look = resolvePictureLook(context, program.morphs, struct, { ...(pick === undefined ? {} : { pick }), from: before });
+    const struct = to.struct;
+    if (typeof struct?.$name !== "string") return;
+    const linePicks = (shown: ShownBefore): (LookPick | undefined)[] => {
+      const name = shown.struct?.$name;
+      const owners = [name, ...resolveImageLayers(context, shown.struct).map((layer) => layer.struct?.$name)]
+        .map((layerName) => getImageOwner(context, layerName))
+        .filter((owner): owner is string => owner !== undefined);
+      const speakers = [undefined, ...new Set(owners)];
+      return [
+        shown.pick,
+        ...speakers.map((speaker) => (layer: ImageLayer) => linePick(context, name, layer, shown.pick, speaker)),
+      ];
+    };
+    const outcomes = new Map<string, MorphRef[]>();
+    for (const pick of linePicks(to)) {
+      for (const fromPick of linePicks(from)) {
+        const look = resolvePictureLook(context, program.morphs, struct, {
+          ...(pick === undefined ? {} : { pick }),
+          from: { struct: from.struct, ...(fromPick === undefined ? {} : { pick: fromPick }) },
+        });
+        const refs = [...look.refs, ...look.layers.flatMap((layer) => layer.refs)].filter((ref) => ref.recipes);
+        outcomes.set(JSON.stringify(refs.map((ref) => ref.key).sort()), refs);
+      }
+    }
+    const refs = outcomes.size === 1 ? [...outcomes.values()][0]! : [];
+    if (refs.length === 0) return;
     const changes = (program.morphChanges ??= []);
-    const refs: MorphRef[] = [...look.refs, ...look.layers.flatMap((layer) => layer.refs)];
     for (const ref of refs) {
-      if (!ref.recipes || changes.some((change) => change.variant === struct.$name && change.ref.key === ref.key)) continue;
+      if (changes.some((change) => change.variant === struct.$name && change.ref.key === ref.key)) continue;
       changes.push({ variant: struct.$name, ref });
     }
   }
