@@ -67,6 +67,10 @@ style frame {
     opacity = 1
   }
 }
+
+scene start
+  BUNNY: Hello.
+end
 `;
 
   it.each(["@variant(shout)", "@speaker(bunny)", "@variant(left) @hovered", "@speaker(bunny) >> name"])(

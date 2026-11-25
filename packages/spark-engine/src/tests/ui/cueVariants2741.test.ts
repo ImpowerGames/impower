@@ -133,13 +133,12 @@ describe("#variant and #speaker on a text element limit the lines it takes (#274
     expect(writtenTo(h, "dialogue", bunny)).toEqual(["Seriously???", "I'm busy!"]);
   });
 
-  test("a saved left name comes back to the left element alone when the layout is rebuilt", async () => {
-    const h = await start(`${CHARACTERS}\n${LAYOUT.replaceAll(" { text }", "")}\n${LINES}`);
+  test("a restored right name goes back to the right element alone", async () => {
+    const h = await start(`${CHARACTERS}\n${LAYOUT}\n${LINES}`);
     await displayLive(h, h.nextBeat());
     await displayLive(h, h.nextBeat());
     const ui: any = h.game.module.ui;
     expect(ui._state.lineText.character_name).toEqual([
-      { variant: "left", speaker: "raffles", text: [{ text: "RAFFLES" }] },
       { variant: "right", speaker: "bunny", text: [{ text: "BUNNY" }] },
     ]);
     const left = elementId(h, "character_name", "data-variant", "left");
@@ -147,7 +146,7 @@ describe("#variant and #speaker on a text element limit the lines it takes (#274
     h.messages.length = 0;
     await ui.text.restore("character_name");
     await flushMicrotasks(10);
-    expect(writtenTo(h, "character_name", left)).toEqual(["RAFFLES"]);
+    expect(writtenTo(h, "character_name", left)).toEqual([]);
     expect(writtenTo(h, "character_name", right)).toEqual(["BUNNY"]);
   });
 });

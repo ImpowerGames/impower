@@ -56,7 +56,7 @@ style character_name {
 }
 
 style dialogue {
-  @variant(shout) { text-size = lg }
+  @variant(shout) { text-size = 32px }
 }
 ```
 

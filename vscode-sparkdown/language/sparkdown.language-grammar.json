@@ -5063,7 +5063,6 @@
       }
     },
     "DialogueCharacterPosition": {
-      "tag": "definition(escape)",
       "name": "constant.character.escape.dialogue.character.position.sd",
       "match": "((?:[^\\S\\n\\r]))(\\[)((?:[^\\S\\n\\r])*)(.*?)((?:[^\\S\\n\\r])*)(\\])",
       "captures": {

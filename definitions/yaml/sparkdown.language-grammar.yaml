@@ -3479,7 +3479,6 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   DialogueCharacterPosition:
-    tag: definition(escape)
     name: constant.character.escape.dialogue.character.position.sd
     match: ({{WS}})(\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
