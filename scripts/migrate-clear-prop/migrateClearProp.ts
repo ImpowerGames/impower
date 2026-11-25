@@ -216,7 +216,6 @@ export function migrateScriptClearProp(
           edits.push({ ...edit, from: masked.from + edit.from, to: masked.from + edit.to });
         }
       }
-      return;
     }
     typescript.forEachChild(node, visit);
   };

@@ -26,6 +26,15 @@ export const SCREEN_ONLY = `screen menu {
 }
 `;
 
+const wrap = (body: string) => body;
+
+export const NESTED = `${wrap(`layout textbox {
+  action {
+    text
+  }
+}
+`)}`;
+
 export const UNRELATED = `portrait {
   image
 }

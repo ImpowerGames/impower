@@ -5519,11 +5519,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const line = this._state.textLine ?? 0;
     (this._state[kind] ??= {})[target] = line;
     const rank = new Map(
-      [...new Set(this.textLineStamps())].sort((a, b) => a - b).map((v, i) => [v, i + 1]),
+      [...new Set(this.textLineStamps())]
+        .filter((v) => v > 0)
+        .sort((a, b) => a - b)
+        .map((v, i) => [v, i + 1]),
     );
     for (const stamps of [this._state.textWritten, this._state.textCleared]) {
       for (const key of Object.keys(stamps ?? {})) {
-        stamps![key] = rank.get(stamps![key]!)!;
+        stamps![key] = rank.get(stamps![key]!) ?? stamps![key]!;
       }
     }
     this._state.textLine = rank.get(line) ?? line;
@@ -5875,6 +5878,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async clearAll(targets: string[]) {
         await Promise.all(targets.map((target) => this.clear(target)));
+      }
+
+      async clearRendered(target: string) {
+        if (!$.context?.system?.simulating) {
+          await this.applyChanges(target, null, true);
+        }
       }
 
       async write(

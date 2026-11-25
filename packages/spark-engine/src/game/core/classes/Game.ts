@@ -2873,7 +2873,7 @@ export class Game<T extends M = {}> {
     const cleared: Promise<void>[] = [];
     for (const target of stage.text) {
       if (!now.text?.[target]) {
-        cleared.push(ui.text.clear(target));
+        cleared.push(ui.text.clearRendered(target));
       }
     }
     for (const target of stage.image) {

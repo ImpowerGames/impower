@@ -193,11 +193,120 @@ end
       .filter((m: any) => m?.method === "ui/write-text")
       .map((m: any) => ({
         target: m.params?.target,
+        elements: m.params?.elements,
         text: (m.params?.instructions ?? []).map((e: any) => e.text ?? "").join(""),
       }))
       .filter((w: { text: string }) => w.text);
-    return { ui, restored };
+    return {
+      ui,
+      restored: restored.map(({ target, text }) => ({ target, text })),
+      destinations: new Map(restored.map((w) => [w.target, w.elements as string[]])),
+    };
   }
+
+  test("a restore leaves an element both targets share to the newer one and keeps the older one on its own element", async () => {
+    const { ui, restored, destinations } = await playThenRestore(`
+layout textbox {
+  textbox {
+    solo_dialogue.dialogue { text "Dialogue" }
+    solo_action.action { text "Action" }
+    decorative.dialogue.action { text "Decoration" }
+  }
+}
+`);
+    const [shared] = ui.findIds("decorative");
+    expect(ui.findIds("action")).toContain(shared);
+    expect(ui.findIds("dialogue")).toContain(shared);
+    expect(restored).toEqual(
+      expect.arrayContaining([
+        { target: "action", text: "Before." },
+        { target: "dialogue", text: "Current." },
+      ]),
+    );
+    expect(destinations.get("action")).toEqual(ui.findIds("solo_action"));
+    expect(destinations.get("dialogue")).toEqual(
+      expect.arrayContaining([...ui.findIds("solo_dialogue"), shared]),
+    );
+  });
+
+  test("a save without line stamps restores the text it shows in a #clear element two targets share", async () => {
+    const source = `
+layout textbox {
+  textbox { dialogue.action #clear { text } }
+}
+
+scene start
+  Before.
+
+  After.
+end
+`;
+    const original = createHarness(source);
+    await original.ready;
+    expect(original.errors).toEqual([]);
+    original.jumpToFlow("start");
+    new Coordinator(original.game, original.nextBeat()!);
+    await flushMicrotasks(20);
+    const save = JSON.parse(original.game.save());
+    delete save.modules.ui.textLine;
+    delete save.modules.ui.textWritten;
+    delete save.modules.ui.textCleared;
+    const h = createHarness(source, 0, { loadCheckpoint: JSON.stringify(save) });
+    await h.ready;
+    const written = flattenMessages(h.messages)
+      .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "action")
+      .flatMap((m: any) => m.params.instructions.map((e: any) => e.text ?? ""))
+      .join("");
+    expect(written).toBe("Before.");
+  });
+
+  test("rolling back puts back the text a shared element held through a line that wrote elsewhere", async () => {
+    const h = createHarness(`define HERO as character with
+  name = "HERO"
+end
+
+layout main {
+  textbox {
+    dialogue.action { text "Default" }
+    title { text "Title" }
+  }
+}
+
+scene start
+  Before.
+
+  ^: Interlude
+
+  HERO: Current.
+
+  After.
+end
+`);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.game.context.system.previewing = undefined;
+    h.game.start();
+    const settleBeat = async () => {
+      for (let i = 0; i < 5; i += 1) {
+        h.game.update({ deltaMS: 10000 } as any);
+        await flushMicrotasks(30);
+      }
+    };
+    await settleBeat();
+    h.game.clickedToContinue();
+    await settleBeat();
+    expect(ui.state.text?.action?.map((s: any) => s.text).join("")).toBe("Before.");
+    h.game.clickedToContinue();
+    await settleBeat();
+    h.reset();
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    const written = flattenMessages(h.messages)
+      .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "action")
+      .map((m: any) => m.params.instructions.map((e: any) => e.text ?? "").join(""));
+    expect(written).toContain("Before.");
+  });
 
   test("a restore puts back only the newest line's text on an element two targets share", async () => {
     const { ui, restored } = await playThenRestore(`
