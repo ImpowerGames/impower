@@ -4,6 +4,7 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
 import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
+import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
@@ -24,6 +25,7 @@ import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
+import { PresenceElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
 import {
   type PlayCutsceneParams,
   PlayCutsceneMessage,
@@ -48,6 +50,7 @@ import {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMessage";
 import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
 import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
+import { PRESENCE_ATTRIBUTE } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
@@ -268,6 +271,13 @@ export default class UIManager extends Manager {
   protected _hold = new AnimationHold();
 
   protected _layoutMotion = new LayoutMotion(this._hold);
+  protected _presence = new PresencePlayer(
+    this._hold,
+    () =>
+      this.app.overlay?.ownerDocument.defaultView?.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches ?? false,
+  );
 
   protected _heldAt?: number;
 
@@ -426,6 +436,7 @@ export default class UIManager extends Manager {
       this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
       endTravelsWithin(el);
+      this._presence.endWithin(el);
       el.remove();
     }
     this._staleIds.delete(id);
@@ -492,6 +503,7 @@ export default class UIManager extends Manager {
   override onDispose() {
     this.endSpeech();
     this._layoutMotion.settle();
+    this._presence.endAll();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
@@ -516,7 +528,10 @@ export default class UIManager extends Manager {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
       for (const op of pending.ops) {
-        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+        if (
+          AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
+          PresenceElementsMessage.type.isRequest(op as RequestMessage)
+        ) {
           this.app.answer(
             op as RequestMessage,
             Promise.reject(new Error("the beat was called off")),
@@ -763,7 +778,10 @@ export default class UIManager extends Manager {
       } finally {
         this._decision = undefined;
       }
-      if (AnimateElementsMessage.type.isRequest(request)) {
+      if (
+        AnimateElementsMessage.type.isRequest(request) ||
+        PresenceElementsMessage.type.isRequest(request)
+      ) {
         this.app.answer(request, done);
       } else {
         done.catch((error) => {
@@ -1238,6 +1256,14 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
+      if (
+        reused &&
+        el.hasAttribute(PRESENCE_ATTRIBUTE) &&
+        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes)
+      ) {
+        this._presence.settle(el);
+        el.removeAttribute(PRESENCE_ATTRIBUTE);
+      }
       const sig = createSignature(this._themeKey, params);
       const changed = !reused || (el as any).__sdCreate !== sig;
       if (changed) {
@@ -1343,6 +1369,13 @@ export default class UIManager extends Manager {
       this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       if (element) {
+        const settled =
+          params.attributes && PRESENCE_ATTRIBUTE in params.attributes
+            ? this._presence.change(
+                element,
+                params.attributes[PRESENCE_ATTRIBUTE] ?? null,
+              )
+            : undefined;
         if (params.content != undefined) {
           this.morphs?.releaseWithin(element);
           endTravelsWithin(element);
@@ -1391,6 +1424,7 @@ export default class UIManager extends Manager {
             element.style.cssText = "";
           }
         }
+        settled?.();
       }
       return UpdateElementMessage.type.result(params.element);
     }
@@ -1439,6 +1473,19 @@ export default class UIManager extends Manager {
         this.dropSettledAnimation(animation);
       }
       return AnimateElementsMessage.type.result(validEffects);
+    }
+    if (PresenceElementsMessage.type.isRequest(msg)) {
+      const played: string[] = [];
+      const motions: Promise<void>[] = [];
+      for (const effect of msg.params.effects) {
+        const element = effect.element ? this.getElement(effect.element) : undefined;
+        if (element?.isConnected) {
+          played.push(effect.element);
+          motions.push(this._presence.play(element, effect.presence));
+        }
+      }
+      await Promise.all(motions);
+      return PresenceElementsMessage.type.result(played);
     }
     if (PlayCutsceneMessage.type.isRequest(msg)) {
       await this.playCutscene(msg.params, (msg as StreamMessage).epoch);
