@@ -308,7 +308,7 @@ export const getCssAnimation = (
   }
   const variables = value
     .trim()
-    .split(/\s+/)
+    .split(/\s*,\s*|\s+/)
     .map((v) => getThemeVar(theme, "animation", `${v}${suffix}`));
   return variables.every((v) => v !== undefined)
     ? variables.join(", ")

@@ -22,4 +22,13 @@ describe("an animation value beside a theme animation name", () => {
   it("lists several theme names as several animations", () => {
     expect(valueOf("bounce shake")).toBe("var(--theme-animation-bounce), var(--theme-animation-shake)");
   });
+
+  it("lists comma-separated theme names as several animations", () => {
+    expect(valueOf("bounce, shake")).toBe("var(--theme-animation-bounce), var(--theme-animation-shake)");
+    expect(valueOf("bounce,shake")).toBe("var(--theme-animation-bounce), var(--theme-animation-shake)");
+  });
+
+  it("leaves a comma list with a name that is not a theme animation as it was", () => {
+    expect(valueOf("bounce, unknown")).toBe("bounce, unknown");
+  });
 });

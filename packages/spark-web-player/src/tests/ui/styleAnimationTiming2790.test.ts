@@ -98,7 +98,53 @@ layout main {
     const parts = variable(out, "fade")?.split(/\s+/);
     expect(parts).toContain("0.6s");
     expect(parts).not.toContain("auto");
+    expect(parts?.at(-2)).toBe("none");
     expect(parts?.at(-1)).toBe("fade");
+  });
+
+  test("a name that is also a fill keyword stays the name when the fill is auto", async () => {
+    const out = await css(`animation forwards {
+  keyframes {
+    from { opacity = "0" }
+    to { opacity = "1" }
+  }
+  timing {
+    duration = 0.6
+    fill = auto
+  }
+}
+style box {
+  animation = forwards
+}
+layout main {
+  box
+}
+`);
+    expect(variable(out, "forwards")?.split(/\s+/).slice(-2)).toEqual(["none", "forwards"]);
+  });
+
+  test("a comma-separated list of names plays each declaration's timing", async () => {
+    const out = await css(`${POP}animation sway {
+  keyframes {
+    from { rotate = 0deg }
+    to { rotate = 10deg }
+  }
+  timing {
+    duration = 2
+    iterations = infinite
+  }
+}
+style box {
+  animation = pop, sway
+}
+layout main {
+  box
+}
+`);
+    expect(rule(out, ".box")).toContain(
+      "animation: var(--theme-animation-pop), var(--theme-animation-sway);",
+    );
+    expect(variable(out, "sway")?.split(/\s+/)).toContain("infinite");
   });
 
   test("timing written in the value itself is the animation's whole timing", async () => {

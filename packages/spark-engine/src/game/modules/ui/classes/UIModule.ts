@@ -1967,7 +1967,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       delay,
       iterations === Infinity ? "infinite" : iterations?.toString(),
       timing?.direction,
-      timing?.fill === "auto" ? undefined : timing?.fill,
+      timing?.fill === "auto" ? "none" : timing?.fill,
       escapeCssIdentifier(name),
     ]
       .filter((part) => part != null && part !== "")
