@@ -85,6 +85,51 @@ async function collapse(h: UIHarness) {
   await flushMicrotasks(10);
 }
 
+describe("a line redelivered to a layout reopened during its beat (#2787)", () => {
+  test("keeps typing from the beat's start time instead of finishing at once", async () => {
+    const h = createHarness(
+      `layout panel {
+  action {
+    text
+  }
+}
+
+scene start
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false, beforeConnect: playing },
+    );
+    await h.ready;
+    await play(h, { layout: { textbox: [{ control: "close", name: "textbox" }] } });
+    h.reset();
+    await play(h, {
+      text: { action: [{ text: "Shown, typed." }] },
+      layout: {
+        textbox: [
+          { control: "close", name: "textbox" },
+          { control: "open", name: "textbox" },
+        ],
+      },
+    });
+    const [id] = h.game.module.ui.findIds("action");
+    const writes = wire(h.messages).filter(
+      (m: any) =>
+        m?.method === "ui/write-text" &&
+        m.params?.instructions?.some((e: any) => e.text === "Shown, typed."),
+    );
+    const first = writes[0];
+    const redelivered = writes.filter((m: any) => m.params.elements?.includes(id));
+    expect(first?.params.instant).toBe(false);
+    expect(redelivered.length).toBeGreaterThan(0);
+    for (const m of redelivered) {
+      expect(m.params.instant).toBe(false);
+      expect(m.params.time).toBe(first.params.time);
+    }
+  });
+});
+
 describe("a box remounted with its line (#2787)", () => {
   test("arrives once, as a fresh mount does, and its line is written without a second arrival", async () => {
     const h = createHarness(SOURCE, 0, {
