@@ -888,6 +888,9 @@ export class AssetCache {
         return;
       }
       if (ok) {
+        if (entry.item.kind === "image" && entry.item.layer && !isSvg(entry.item)) {
+          bytes = this.imageBytes(entry);
+        }
         entry.state = "resident";
         entry.bytes = bytes;
         entry.lastUsed = this._tick;

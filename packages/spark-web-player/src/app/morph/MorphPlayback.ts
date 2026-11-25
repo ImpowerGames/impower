@@ -1155,6 +1155,7 @@ export class MorphLayer {
     );
     const stills = this.stills.filter((still) => still.files && !still.broken);
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
+    for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
     const alone = (i: number, picture: ImageState | undefined) => {
       const inner = picture?.inner.find((entry) => picture.picture!.files[entry.file]?.layer === i);
       return inner && this.liveArtifact(inner.slot) ? inner : undefined;

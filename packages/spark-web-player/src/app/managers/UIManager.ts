@@ -2193,9 +2193,8 @@ export default class UIManager extends Manager {
                 : content.srcs;
             const morph = instruction.control !== "hide" ? content.morph : undefined;
             const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
-            if (pictures.length === 0) {
-              (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs);
-            }
+            const composited = new Set(pictures.flatMap((picture) => picture.files.map((file) => file.src)));
+            (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs.filter((src) => !composited.has(src)));
             if (morph || pictures.length > 0) {
               this.morphs?.mount(
                 newSpanEl,

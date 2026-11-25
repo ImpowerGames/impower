@@ -317,3 +317,102 @@ describe("an image write asks for the files it does not draw on a canvas whole (
     expect(kept).toContainEqual(["/src/sky.png"]);
   });
 });
+
+describe("whole-file use reaches the cache from every path that draws a layer file whole (#2657)", () => {
+  const FULL = NATURAL.width * NATURAL.height * 4;
+  const CROP = 400 * 300 * 4;
+  const PAIR = ["base.png", "prop.png"];
+  const croppedFile = (): LayerFile => ({
+    animated: false,
+    profile: false,
+    trimmed: { image: { width: 400, height: 300, close() {} } as never, ...NATURAL, box: { x: 100, y: 100, width: 400, height: 300 } },
+  });
+  const croppingCache = () => new AssetCache({ createImage: image, inspectImage: async () => croppedFile() });
+  const blankCanvas = (): PictureCanvasContext => ({ globalAlpha: 1, imageSmoothingEnabled: true, setTransform() {}, clearRect() {}, drawImage() {} });
+
+  test.each(["keepWhole", "configure"])("a %s between a trim's adoption and the entry's residency leaves the entry counted whole", async (mode) => {
+    let answer!: (file: LayerFile) => void;
+    const cache = new AssetCache({ createImage: image, inspectImage: () => new Promise((resolve) => (answer = resolve)) });
+    const request = cache.request(layers("base.png"), 0, "line");
+    await flushMicrotasks(4);
+    answer(croppedFile());
+    await Promise.resolve();
+    await Promise.resolve();
+    if (mode === "keepWhole") cache.keepWhole(["base.png"]);
+    else cache.configure({ trimLayers: false });
+    await request;
+    expect(cache.picture("base.png")?.box).toBeUndefined();
+    expect(cache.bytes).toBe(FULL);
+    expect(cache.stats().bytes.image).toBe(FULL);
+  });
+
+  test.each(["failed", "static"])("a layered morph picture whose artifact is %s keeps its CSS drawing and counts its files whole", async (mode) => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const cache = croppingCache();
+    await cache.request(layers(...PAIR), 0, "line");
+    expect(cache.bytes).toBe(2 * CROP);
+    const playback = new MorphPlayback(env.overlay, {
+      requestFrame: () => 0,
+      cancelFrame: () => {},
+      host: {
+        resolve: async (ref) => {
+          if (mode === "failed") throw new Error("asset unavailable");
+          return { key: ref.key, artifact: { key: ref.key, status: "static", rest: "", parts: [], segments: [] } as never, release() {}, url: () => "rest.svg" };
+        },
+      },
+      pictureCanvas: blankCanvas,
+    });
+    playback.residentPicture = (src) => cache.picture(src) as never;
+    playback.keepWhole = (srcs) => cache.keepWhole(srcs);
+    const span = env.overlay.ownerDocument.createElement("span");
+    span.style.cssText = 'width:800px;height:450px;background-image:url("prop.png"),url("base.png")';
+    env.overlay.appendChild(span);
+    const picture = { layer: 0, span: 2, files: PAIR.map((src) => ({ src, name: src })) };
+    const play = { layer: 0, picture, ref: { key: "probe", image: "kit", morphs: ["m"], selection: "{}" }, morph: "m", definition: "d", timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } };
+    playback.mount(span, { plays: [play] as never, epoch: 0 }, span.style.backgroundImage, "background", "portrait:0", undefined, [picture]);
+    await flushMicrotasks(30);
+    expect(span.querySelector("span.morph")?.shadowRoot?.querySelector("canvas") ?? null).toBeNull();
+    expect(span.style.backgroundImage).toContain("prop.png");
+    expect(cache.bytes).toBe(2 * FULL);
+  });
+
+  test("a write that draws one file as CSS beside a canvas picture counts that file whole", async () => {
+    const h = createDOMHarness("scene start\n  HERO: Hello.\nend\n", 0);
+    await h.ready;
+    restore = () => h.ui.onDispose();
+    await h.preview(1);
+    const cache = croppingCache();
+    await cache.request(layers(...PAIR, "sky.png"), 0, "line");
+    (h.ui as any).app.assetCache = cache;
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({ requestFrame: () => 0, cancelFrame: () => {}, pictureCanvas: blankCanvas });
+    playback.residentPicture = (src) => cache.picture(src) as never;
+    await h.ui.onReceiveRequest({
+      jsonrpc: "2.0",
+      id: "mixed",
+      method: "ui/write-image",
+      params: {
+        target: "portrait",
+        instant: true,
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: 'url("prop.png"), url("base.png"), url("sky.png")',
+              imageNames: "sky,kit",
+              srcs: ["sky.png", ...PAIR],
+              pictures: [{ layer: 1, span: 2, files: PAIR.map((src) => ({ src, name: src })) }],
+            },
+          },
+        ],
+      },
+    } as any);
+    await flushMicrotasks(20);
+    const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
+    expect(span.querySelector("span.morph")?.shadowRoot?.querySelector("canvas")).not.toBeNull();
+    expect(cache.picture("sky.png")?.box).toBeUndefined();
+    expect(cache.picture("base.png")?.box).toBeDefined();
+    expect(cache.bytes).toBe(FULL + 2 * CROP);
+  });
+});
