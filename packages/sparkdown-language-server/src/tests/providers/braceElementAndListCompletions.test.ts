@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { accept, completeAt } from "./braceCompletionHarness";
+import { compileProject } from "./completionHarness";
 
 const animationProgram = {
   context: { animation: {
@@ -30,11 +31,11 @@ test("anonymous list item completes values from its array schema", () => {
   expect(result.text).toBe(source.replace("|", "linear"));
 });
 
+const elementProgram = compileProject(
+  `layout parts {\n  row { text "x" }\n}\n\nscene start\nend\n`,
+);
+
 describe.each(["layout", "component"])("%s independent element completions", keyword => {
-  const fields = { row: { gap: 0 }, text: { content: "" } };
-  const program = { context: {
-    [keyword]: { $default: { $type: keyword, $name: "$default", ...fields } },
-  } } as any;
 
   test.each([
     "ro|", "text ro|", 'text "x" ro|', "text 'x' ro|",
@@ -43,10 +44,10 @@ describe.each(["layout", "component"])("%s independent element completions", key
     "row { text } ro|",
   ])("each grammar element owns its completion: %s", body => {
     const source = `${keyword} hud {\n${body}\n}\n`;
-    const item = completeAt(source, program).find(i => i.label === "row");
+    const item = completeAt(source, elementProgram).find(i => i.label === "row");
     expect(item).toBeDefined();
     const result = accept(source, item!);
     expect(result.replaced).toBe("ro");
-    expect(result.text).toBe(source.replace("ro|", "row {  }"));
+    expect(result.text).toBe(source.replace("ro|", "row"));
   });
 });
