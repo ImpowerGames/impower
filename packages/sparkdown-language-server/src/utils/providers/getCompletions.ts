@@ -991,6 +991,8 @@ const addSparkleBodyCompletions = (
       kind: CompletionItemKind.Keyword,
       labelDetails: { description: "where the open layout goes" },
     });
+  } else {
+    completions.set(STREAM_ELEMENT, streamElementCompletion());
   }
   const components = program?.sparkle?.components ?? {};
   for (const name of Object.keys(components)) {
@@ -2331,9 +2333,6 @@ const completionsAt = (
       (!braceStructPath || !braceBlock) &&
       /^\s*[A-Za-z_][\w-]*$/.test(entryBefore)
     ) {
-      if (braceDefine.type === "layout" || braceDefine.type === "component") {
-        completions.set(STREAM_ELEMENT, streamElementCompletion());
-      }
       addStructPropertyNameCompletions(
         completions,
         program,
