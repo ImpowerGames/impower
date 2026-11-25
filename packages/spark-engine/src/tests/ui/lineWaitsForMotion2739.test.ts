@@ -45,6 +45,14 @@ layout main {
 scene start
   [[show portrait SPRITE]]
 end
+
+scene instant
+  <speed=0>All at once.
+end
+
+scene typed
+  Typed out.
+end
 `;
 
 const playing = (game: Game) => {
@@ -221,14 +229,24 @@ describe("a line that makes an element arrive (#2739)", () => {
     expect(write?.params.time).toBeGreaterThanOrEqual(900);
   });
 
-  test("shows untyped text in full from the moment its element appears", async () => {
+  test("shows a line at <speed=0> in full from the moment its element appears", async () => {
     const s = await scene();
-    await play(s.h, { text: { dialogue: typed("All at once.", 0) } });
-    expect(motions(s.h)).toEqual([{ element: s.dialogue, presence: "show" }]);
+    s.h.jumpToFlow("instant");
+    await play(s.h, s.h.nextBeat()! as any);
+    expect(motions(s.h)).toEqual([{ element: s.action, presence: "show" }]);
     expect(s.h.heldPresence()).toHaveLength(1);
-    const [write] = textWrites(s.h, "dialogue");
+    expect(heldWrites(s.h, "action")).toEqual([]);
+    const [write] = typedWrites(s.h, "action");
     expect(write?.params.instructions.map((i: any) => i.text).join("")).toBe("All at once.");
-    expect(write?.params.instructions.every((i: any) => !i.after)).toBe(true);
+  });
+
+  test("holds a typed line of the same script until its element has arrived", async () => {
+    const s = await scene();
+    s.h.jumpToFlow("typed");
+    await play(s.h, s.h.nextBeat()! as any);
+    expect(motions(s.h)).toEqual([{ element: s.action, presence: "show" }]);
+    expect(typedWrites(s.h, "action")).toEqual([]);
+    expect(heldWrites(s.h, "action")).toHaveLength(1);
   });
 
   test("finishes the motion and shows the whole line on one click during the wait", async () => {
