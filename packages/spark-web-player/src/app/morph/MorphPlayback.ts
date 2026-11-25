@@ -641,7 +641,8 @@ export class MorphPlayback {
 
   startChange(occurrence: Occurrence, offset?: number) {
     this.restart(occurrence);
-    if (offset === undefined || !(offset > 0)) return;
+    if (offset === undefined || !Number.isFinite(offset)) return;
+    offset = Math.max(0, Math.min(1, offset));
     const duration = Number.isFinite(occurrence.timing.duration) ? occurrence.timing.duration : 0;
     const reach = firstMorphEasingReach(occurrence.timing.easing, offset);
     const easing = parseMorphEasing(occurrence.timing.easing) ?? ((x: number) => x);
@@ -754,7 +755,7 @@ export class MorphPlayback {
     if (elapsed <= delay) return { phase: "waiting" as const, play: 0 as const, offset: resume.offset };
     const head = occurrence.timeline.at(elapsed + resume.skip);
     if (!("offset" in head) || resume.from === resume.offset) return head;
-    const offset = resume.from < 1 ? resume.offset + ((head.offset - resume.from) * (1 - resume.offset)) / (1 - resume.from) : 1;
+    const offset = resume.from < 1 ? Math.max(0, Math.min(1, resume.offset + ((head.offset - resume.from) * (1 - resume.offset)) / (1 - resume.from))) : 1;
     return { ...head, offset };
   }
 
