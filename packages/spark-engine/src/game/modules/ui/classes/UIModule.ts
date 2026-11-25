@@ -2637,12 +2637,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         name: this.layoutRootName(layout.name),
         style: slot
           ? { display: "flex", flex_direction: "column" }
-          : {
-              position: "absolute",
-              inset: "0",
-              display: "flex",
-              flex_direction: "column",
-            },
+          : frame
+            ? { display: "flex", flex_direction: "column", flex_grow: "1" }
+            : {
+                position: "absolute",
+                inset: "0",
+                display: "flex",
+                flex_direction: "column",
+              },
       },
       slot ? this.anchorFor(slot) : null,
     );

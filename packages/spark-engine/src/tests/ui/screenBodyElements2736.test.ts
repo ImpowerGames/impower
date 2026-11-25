@@ -80,6 +80,14 @@ const childNames = (el: TreeElement): string[] =>
 const createdNames = (h: Harness): unknown[] =>
   h.snapshotFiltered("ui/create").map((m: any) => m.params?.name);
 
+const createdStyle = (h: Harness, name: string): Record<string, unknown> =>
+  (
+    h
+      .snapshotFiltered("ui/create")
+      .filter((m: any) => m.params?.name === name)
+      .at(-1) as any
+  )?.params?.style ?? {};
+
 const destroyed = (h: Harness): unknown[] =>
   h
     .snapshotFiltered("ui/destroy")
@@ -144,6 +152,8 @@ describe("a screen's own elements stay while any of its layouts is open", () => 
     expect(root.name).toBe("bare");
     expect(childNames(root)).toEqual(["banner", "alone"]);
     expect(only(h, "alone_page").parent?.name).toBe("alone");
+    expect(createdStyle(h, "alone").position).toBeUndefined();
+    expect(createdStyle(h, "alone").inset).toBeUndefined();
   });
 
   test("a checkpoint taken with a screen's layout open restores the screen's elements", async () => {
@@ -229,6 +239,7 @@ layout home in menu {
     ui(h).refreshLayouts();
     expect(findAll(h, "frame")).toEqual([]);
     expect(childNames(only(h, "menu"))).toEqual(["banner", "home"]);
+    expect(createdStyle(h, "home").position).toBeUndefined();
   });
 
   test("closing every open layout of a screen together with an animation removes its elements", async () => {
