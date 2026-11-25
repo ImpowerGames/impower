@@ -329,6 +329,7 @@ style action {
   opacity = 1
   @initial { opacity = 0 }
   @show { transition-duration = 500ms }
+  @hide { opacity = 0 }
 }
 
 layout main {
@@ -462,5 +463,146 @@ describe("everything a line changes waits for its motion (#2739)", () => {
     h.releasePresence();
     await flushMicrotasks(40);
     expect(typedOut(h).filter((m: any) => !m.params.held).length).toBe(writes.length);
+  });
+});
+
+describe("every kind of line waits behind one gate (#2739)", () => {
+  const cases: {
+    name: string;
+    prior: boolean;
+    beat: () => Record<string, unknown>;
+    continuesOnClick: number;
+  }[] = [
+    {
+      name: "a typed line",
+      prior: false,
+      beat: () => ({ text: { action: typed("Typed out.") } }),
+      continuesOnClick: 0,
+    },
+    {
+      name: "a line with only a sound",
+      prior: true,
+      beat: () => ({ audio: sound }),
+      continuesOnClick: 0,
+    },
+    {
+      name: "a picture-only line",
+      prior: true,
+      beat: () => ({ image: { portrait: [{ control: "show", assets: ["SPRITE"] }] } }),
+      continuesOnClick: 1,
+    },
+    {
+      name: "a pause",
+      prior: true,
+      beat: () => ({ hold: true }),
+      continuesOnClick: 0,
+    },
+    {
+      name: "an empty beat",
+      prior: true,
+      beat: () => ({}),
+      continuesOnClick: 1,
+    },
+  ];
+
+  for (const c of cases) {
+    test(`${c.name} does not continue before the wait ends, and one click starts it, shows it and finishes it`, async () => {
+      const h = await beside();
+      const audio = h.game.module.audio as any;
+      const sounds: number[] = [];
+      let next = 0;
+      audio.schedule = () => (next += 1);
+      audio.isReady = () => true;
+      audio.triggerAll = (_ids: number[], time: number) => {
+        sounds.push(time);
+      };
+      if (c.prior) {
+        h.jumpToFlow("words");
+        await tick(new Coordinator(h.game, h.nextBeat()!));
+        h.releasePresence();
+        await flushMicrotasks(40);
+        h.reset();
+        sounds.length = 0;
+      }
+      const coordinator = new Coordinator(h.game, { end: 0, ...c.beat() } as any);
+      await tick(coordinator);
+      expect(h.heldPresence().length).toBeGreaterThan(0);
+      for (let i = 0; i < 5; i += 1) {
+        (coordinator as any)._elapsedMS += 1_000;
+        expect(coordinator.shouldContinue()).toBe(0);
+      }
+      expect(sounds).toEqual([]);
+      expect((coordinator as any)._finishedExecution).toBe(false);
+
+      coordinator.onMessage({
+        jsonrpc: "2.0",
+        method: "event",
+        params: { type: "pointerdown", button: 0 },
+      } as any);
+      expect(coordinator.shouldContinue()).toBe(c.continuesOnClick);
+      await flushMicrotasks(40);
+      expect(sounds).toHaveLength(1);
+      expect((coordinator as any)._finishedExecution).toBe(true);
+      const marks = wire(h.messages).filter(
+        (m: any) =>
+          (m?.method === "ui/create" || m?.method === "ui/update") &&
+          m.params?.attributes &&
+          "data-presence" in m.params.attributes,
+      );
+      expect(marks.at(-1)?.params.attributes["data-presence"]).toBeNull();
+    });
+  }
+});
+
+describe("a stream entry arriving with its line (#2739)", () => {
+  const PHONE = `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+layout phone {
+  thread {
+    stream {
+      dialogue.bubble { text }
+    }
+  }
+}
+
+style bubble {
+  @initial { opacity = 0 }
+  @show { transition-duration = 400ms }
+  @hide { opacity = 0 }
+}
+`;
+
+  const said = (text: string, extra: Record<string, unknown> = {}) => ({
+    text: {
+      character_name: [{ text: "RAFFLES" }],
+      dialogue: typed(text),
+    },
+    ...extra,
+  });
+
+  test("holds the line's typing until the entry has arrived", async () => {
+    const h = createHarness(PHONE, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      holdPresence: true,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    const first = await play(h, said("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    h.releasePresence();
+    await flushMicrotasks(40);
+    await tick(first, 1);
+    h.reset();
+
+    await play(h, said("doors locked"));
+    expect(motions(h).filter((m: any) => m.presence === "show")).toHaveLength(1);
+    const typedDialogue = () =>
+      typedOut(h).filter((m: any) => m.params.target === "dialogue" && !m.params.held);
+    expect(typedDialogue()).toEqual([]);
+    h.releasePresence();
+    await flushMicrotasks(40);
+    expect(typedDialogue()).toHaveLength(1);
   });
 });

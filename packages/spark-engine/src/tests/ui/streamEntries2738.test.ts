@@ -404,14 +404,15 @@ style bubble {
       expect.arrayContaining([
         { element: first, presence: "hide" },
         { element: added[0], presence: "hide" },
-        { element: fresh[0], presence: "show" },
       ]),
     );
-    expect(motions(h)).toHaveLength(3);
+    expect(motions(h)).toHaveLength(2);
     expect(destroyed(h, first!)).toEqual([]);
     await settle(h);
     expect(destroyed(h, first!)).toHaveLength(1);
     expect(destroyed(h, added[0]!)).toHaveLength(1);
+    expect(motions(h).at(-1)).toEqual({ element: fresh[0], presence: "show" });
+    expect(motions(h)).toHaveLength(3);
   });
 
   test("a line that extends its entry keeps the entry on screen without arriving again", async () => {

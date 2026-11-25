@@ -314,6 +314,13 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (this._lineStartedMS == null) {
+      if (!this._interacted || waitingForChoice) {
+        return 0;
+      }
+      this._interacted = false;
+      this.showWhole();
+    }
     if (instructions.hold) {
       return this.continueOnInteraction(waitingForChoice);
     }
@@ -324,17 +331,8 @@ export class Coordinator<G extends Game> {
       this._timeTypedMS = this._elapsedMS;
     }
     if (!instructions.text && !waitingForChoice && !instructions.audio) {
-      if (this._lineStartedMS == null && this._interacted) {
-        this._interacted = false;
-        this._startLine?.();
-        this.display({ instant: true });
-        this.finishExecution();
-      }
       const totalDurationMS = (instructions.end ?? 0) * 1000;
-      if (
-        this._lineStartedMS != null &&
-        this._elapsedMS - this._lineStartedMS >= totalDurationMS
-      ) {
+      if (this._elapsedMS - (this._lineStartedMS ?? 0) >= totalDurationMS) {
         return 1;
       }
       return 0;
@@ -362,12 +360,16 @@ export class Coordinator<G extends Game> {
         return 2;
       }
       if (this._startedExecution && !waitingForChoice) {
-        this._startLine?.();
-        this.display({ instant: true });
-        this.finishExecution();
+        this.showWhole();
       }
     }
     return 0;
+  }
+
+  protected showWhole(): void {
+    this._startLine?.();
+    this.display({ instant: true });
+    this.finishExecution();
   }
 
   protected finishExecution(): void {
