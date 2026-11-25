@@ -121,6 +121,7 @@ vi.mock("@impower/impower-ui/components", async () => {
   return {
     cn,
     Button: element("button"),
+    usePreviewStripFull: () => false,
     SplitPane: ({ start, end }: { start: unknown; end: unknown }) =>
       h("div", {}, start as never, end as never),
     Popover: ({ children }: { children?: unknown }) => h("div", {}, children as never),
