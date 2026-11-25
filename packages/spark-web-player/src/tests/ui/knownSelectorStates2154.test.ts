@@ -45,6 +45,7 @@ const PLAIN_STANDARD_STATES = [
 
 const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["theme", "@theme(dark)", ':where([data-color-scheme="dark"]) &'],
+  ["showing", "@showing(action)", ':where([data-showing~="action"]) &'],
   ["hovered", "@hovered", ":hover"],
   ["focused", "@focused", ":focus"],
   ["pressed", "@pressed", ":active"],
@@ -169,7 +170,7 @@ describe("known selector states (#2154, #2502)", () => {
   it.each(APPLIED.filter(([name]) => name !== "theme"))(
     "writes %s in the screen preview as the player does",
     (_name, source, css) => {
-      expect(sparkleSelectorToCssSelector(source, { sm: 640 })).toBe(css);
+      expect(sparkleSelectorToCssSelector(source, { sm: 640 })?.css).toBe(css);
     },
   );
 });
