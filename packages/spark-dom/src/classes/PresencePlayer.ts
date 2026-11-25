@@ -58,6 +58,8 @@ export default class PresencePlayer {
 
   protected _before = new WeakMap<Element, Set<Animation>>();
 
+  protected _carried = new Map<Element, Animation[]>();
+
   constructor(
     protected hold: AnimationHold,
     protected reducedMotion: () => boolean,
@@ -91,11 +93,15 @@ export default class PresencePlayer {
     );
     element.setAttribute(PRESENCE_ATTRIBUTE, presence);
     const after = this.animations(element);
+    const carried = [...initial]
+      .filter(([animation]) => !after.includes(animation))
+      .flatMap(([animation, time]) => carry(animation, time));
+    if (carried.length > 0) {
+      this._carried.set(element, carried);
+    }
     const started = [
       ...after.filter((animation) => !before.has(animation)),
-      ...[...initial]
-        .filter(([animation]) => !after.includes(animation))
-        .flatMap(([animation, time]) => carry(animation, time)),
+      ...carried,
     ];
     if (this.reducedMotion()) {
       for (const animation of started) {
@@ -131,6 +137,19 @@ export default class PresencePlayer {
     ) {
       element.removeAttribute(PRESENCE_ATTRIBUTE);
     }
+    this.release(element, carried);
+  }
+
+  protected release(
+    element: Element,
+    carried = this._carried.get(element),
+  ): void {
+    if (this._carried.get(element) === carried) {
+      this._carried.delete(element);
+    }
+    for (const animation of carried ?? []) {
+      animation.cancel();
+    }
   }
 
   end(element: Element): void {
@@ -139,10 +158,11 @@ export default class PresencePlayer {
       this._motions.delete(element);
       motion.end();
     }
+    this.release(element);
   }
 
   endWithin(root: Element): void {
-    for (const element of [...this._motions.keys()]) {
+    for (const element of [...this._motions.keys(), ...this._carried.keys()]) {
       if (root === element || root.contains(element)) {
         this.end(element);
       }
@@ -150,7 +170,7 @@ export default class PresencePlayer {
   }
 
   endAll(): void {
-    for (const element of [...this._motions.keys()]) {
+    for (const element of [...this._motions.keys(), ...this._carried.keys()]) {
       this.end(element);
     }
   }

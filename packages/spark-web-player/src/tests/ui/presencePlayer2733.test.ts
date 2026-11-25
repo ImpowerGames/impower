@@ -231,6 +231,7 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
     ];
     (pop.effect as any).getTiming = () => ({ duration: 2000, fill: "none" });
     const carried: FakeTransition[] = [];
+    const cancelled = new Set<FakeTransition>();
     (box as any).animate = (keyframes: Keyframe[], timing: EffectTiming) => {
       expect(keyframes).toEqual([
         { offset: 0, opacity: "0" },
@@ -238,6 +239,7 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
       ]);
       expect(timing.duration).toBe(2000);
       const replay = new FakeTransition(box, "opacity", 2000);
+      (replay as any).cancel = () => cancelled.add(replay);
       carried.push(replay);
       return replay;
     };
@@ -254,9 +256,28 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
     expect(carried).toHaveLength(1);
     expect(carried[0]!.currentTime).toBe(120);
     expect(arrived).toBe(false);
+    expect(cancelled.has(carried[0]!)).toBe(false);
     carried[0]!.finish();
     await arrival;
     expect(box.hasAttribute(PRESENCE)).toBe(false);
+    expect(cancelled.has(carried[0]!)).toBe(true);
+
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    void presence.play(box, "show");
+    await flushMicrotasks(10);
+    expect(carried).toHaveLength(2);
+    void presence.play(box, "hide");
+    await flushMicrotasks(10);
+    expect(cancelled.has(carried[1]!)).toBe(true);
+
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    void presence.play(box, "show");
+    await flushMicrotasks(10);
+    expect(carried).toHaveLength(3);
+    presence.change(box, null);
+    expect(cancelled.has(carried[2]!)).toBe(true);
   });
 
   test("under reduced motion an endless move started with the arrival is stopped", async () => {
