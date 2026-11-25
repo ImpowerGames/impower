@@ -16,12 +16,12 @@ sparkdown [0..97]
  │   │   │   └─ LuauScreenNameHeader_end [11..12]
  │   │   │       └─ LuauScreenNameHeader_end_c1 [11..12]
  │   │   │           └─ Whitespace [11..12]: " "
- │   │   └─ LuauStructBraceBody [12..14]
- │   │       ├─ LuauStructBraceBody_begin [12..13]
- │   │       │   └─ LuauStructBraceBody_begin_c1 [12..13]
+ │   │   └─ LuauSparkleBraceBody [12..14]
+ │   │       ├─ LuauSparkleBraceBody_begin [12..13]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [12..13]
  │   │       │       └─ LuauStructBlockOpen [12..13]: "{"
- │   │       └─ LuauStructBraceBody_end [13..14]
- │   │           └─ LuauStructBraceBody_end_c1 [13..14]
+ │   │       └─ LuauSparkleBraceBody_end [13..14]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [13..14]
  │   │               └─ LuauStructBlockClose [13..14]: "}"
  │   └─ LuauScreen_end 14
  │       ├─ LuauScreen_end_c1 14
@@ -48,14 +48,14 @@ sparkdown [0..97]
  │   │   │   └─ LuauScreenNameHeader_end [26..27]
  │   │   │       └─ LuauScreenNameHeader_end_c1 [26..27]
  │   │   │           └─ Whitespace [26..27]: " "
- │   │   └─ LuauStructBraceBody [27..30]
- │   │       ├─ LuauStructBraceBody_begin [27..28]
- │   │       │   └─ LuauStructBraceBody_begin_c1 [27..28]
+ │   │   └─ LuauSparkleBraceBody [27..30]
+ │   │       ├─ LuauSparkleBraceBody_begin [27..28]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [27..28]
  │   │       │       └─ LuauStructBlockOpen [27..28]: "{"
- │   │       ├─ LuauStructBraceBody_content [28..29]
+ │   │       ├─ LuauSparkleBraceBody_content [28..29]
  │   │       │   └─ Newline [28..29]: "\n"
- │   │       └─ LuauStructBraceBody_end [29..30]
- │   │           └─ LuauStructBraceBody_end_c1 [29..30]
+ │   │       └─ LuauSparkleBraceBody_end [29..30]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [29..30]
  │   │               └─ LuauStructBlockClose [29..30]: "}"
  │   └─ LuauScreen_end 30
  │       ├─ LuauScreen_end_c1 30
@@ -120,12 +120,12 @@ sparkdown [0..97]
  │   │   │   └─ LuauScreenNameHeader_end [70..71]
  │   │   │       └─ LuauScreenNameHeader_end_c1 [70..71]
  │   │   │           └─ Whitespace [70..71]: " "
- │   │   └─ LuauStructBraceBody [71..73]
- │   │       ├─ LuauStructBraceBody_begin [71..72]
- │   │       │   └─ LuauStructBraceBody_begin_c1 [71..72]
+ │   │   └─ LuauSparkleBraceBody [71..73]
+ │   │       ├─ LuauSparkleBraceBody_begin [71..72]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [71..72]
  │   │       │       └─ LuauStructBlockOpen [71..72]: "{"
- │   │       └─ LuauStructBraceBody_end [72..73]
- │   │           └─ LuauStructBraceBody_end_c1 [72..73]
+ │   │       └─ LuauSparkleBraceBody_end [72..73]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [72..73]
  │   │               └─ LuauStructBlockClose [72..73]: "}"
  │   └─ LuauScreen_end [73..96]
  │       ├─ LuauScreen_end_c1 73

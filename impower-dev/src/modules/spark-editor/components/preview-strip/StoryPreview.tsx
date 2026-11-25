@@ -104,6 +104,7 @@ export default function StoryPreview({
       onPlay={() => void withWorkspace((win) => win.playInFullView())}
       onOpen={() => void withWorkspace((win) => win.openFullView())}
       onCollapse={() => void withWorkspace((win) => win.collapsePreviewPane())}
+      onCollapsed={() => void withWorkspace((win) => win.finishPreviewCollapse())}
       picture={typeof window === "undefined" ? null : <Preview />}
     />
   );

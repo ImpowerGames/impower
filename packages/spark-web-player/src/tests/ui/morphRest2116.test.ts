@@ -161,7 +161,7 @@ describe("a morph's still, first frame and rest in the page", () => {
     expect(span.style.backgroundImage).toBe(stack.still);
     releases.get("b")!();
     await until(() => playback.stats.live === 1, "both artifacts");
-    expect(span.style.backgroundImage).toBe("none");
+    expect(span.style.backgroundImage).toBe("none, none");
   });
 
   test("a mask shows the rest, never the still", async () => {

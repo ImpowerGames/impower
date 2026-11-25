@@ -69,6 +69,43 @@ const getLayoutControlHover = (
   };
 };
 
+export const SCREEN_KEYWORD_DESCRIPTION = [
+  "`screen` groups layouts that take turns: `layout settings in menu { … }` puts a layout in the `menu` screen, and `[[navigate menu to settings]]` shows it in place of the screen's other layouts.",
+  "",
+  "Elements written in the screen's body stay on screen while any of its layouts is open. They appear when the first one opens, stay the same elements while `navigate` swaps one layout for another, and leave when none is open.",
+  "",
+  "The open layout is placed where the body writes `slot`, so a shared frame can wrap it. With no `slot`, the layout is placed after the screen's own elements.",
+  "",
+  "```sparkdown",
+  "screen menu {",
+  "  panel {",
+  '    header { text "My Game" }',
+  "    slot",
+  "  }",
+  "}",
+  "```",
+].join("\n");
+
+const getScreenKeywordHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  const keyword = stack.find((node) => node.name === "LuauScreenKeyword");
+  if (!keyword) {
+    return null;
+  }
+  return {
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: SCREEN_KEYWORD_DESCRIPTION,
+    },
+    range: document.range(keyword.from, keyword.to),
+  };
+};
+
 const getGlueHover = (
   document: SparkdownDocument,
   tree: Tree,
@@ -272,6 +309,10 @@ export const getHover = async (
     const streamHover = getStreamElementHover(document, tree, position);
     if (streamHover) {
       return streamHover;
+    }
+    const screenKeywordHover = getScreenKeywordHover(document, tree, position);
+    if (screenKeywordHover) {
+      return screenKeywordHover;
     }
     const morphFieldHover = getMorphFieldHover(document, tree, position);
     if (morphFieldHover) {

@@ -2862,8 +2862,8 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauScreenNameHeader" }
-      - { include: "#LuauStructWithBody" }
-      - { include: "#LuauStructBraceBody" }
+      - { include: "#LuauSparkleWithBody" }
+      - { include: "#LuauSparkleBraceBody" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?

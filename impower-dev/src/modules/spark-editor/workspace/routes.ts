@@ -116,23 +116,3 @@ export const stateForRoute = (
     },
   };
 };
-
-const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
-
-export const transitionRoute = (apply: () => void): Promise<void> => {
-  const doc = typeof document === "undefined" ? undefined : document;
-  const reduced =
-    typeof window === "undefined" ||
-    typeof window.matchMedia !== "function" ||
-    window.matchMedia(REDUCED_MOTION).matches;
-  if (!doc || reduced || typeof doc.startViewTransition !== "function") {
-    apply();
-    return Promise.resolve();
-  }
-  const transition = doc.startViewTransition(async () => {
-    apply();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
-  transition.ready.catch(() => undefined);
-  return transition.updateCallbackDone.catch(() => undefined);
-};

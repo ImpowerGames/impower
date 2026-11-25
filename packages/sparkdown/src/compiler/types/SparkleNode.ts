@@ -53,6 +53,7 @@ export interface LayoutNode {
 export interface ScreenNode {
   kind: "screen";
   name: string;
+  children?: BodyNode[];
 }
 
 export interface ComponentNode {
