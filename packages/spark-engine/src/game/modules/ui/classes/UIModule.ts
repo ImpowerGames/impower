@@ -254,6 +254,7 @@ type LeaveHide = (keepShown: boolean) => void;
 interface Leave {
   kind: ContentKind;
   hide: LeaveHide;
+  moves: boolean;
 }
 
 interface PresenceRecord {
@@ -272,19 +273,18 @@ const STYLE_CLASS_WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/gu;
 const presenceAttributes = (mark: Record<string, string | null>) =>
   Object.keys(mark).length > 0 ? { attributes: mark } : {};
 
-const hidesPicture = (sequence: ImageInstruction[]): boolean => {
-  let hidden = false;
+const pictureHide = (
+  sequence: ImageInstruction[],
+): "plain" | "timed" | undefined => {
+  let hide: "plain" | "timed" | undefined;
   for (const e of sequence) {
     if (e.control === "show" && e.assets?.length) {
-      hidden = false;
+      hide = undefined;
     } else if (e.control === "hide" && !e.assets?.length) {
-      if (e.with || e.after || e.over) {
-        return false;
-      }
-      hidden = true;
+      hide = e.with || e.after || e.over ? "timed" : "plain";
     }
   }
-  return hidden;
+  return hide;
 };
 
 interface Composition {
@@ -1719,16 +1719,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return true;
     }
     const contents = this.contentsOf(element);
-    if (
-      !contents.delete(kind) ||
-      contents.size > 0 ||
-      !this.moving() ||
-      !this.movesIn(element, "hide")
-    ) {
+    if (!contents.delete(kind) || contents.size > 0 || !this.moving()) {
       return false;
     }
-    this._presence.delete(element);
-    this._leaving.set(element, { kind, hide });
+    const moves = this.movesIn(element, "hide");
+    if (!moves && !this.movesIn(element, "show")) {
+      return false;
+    }
+    this._leaving.set(element, { kind, hide, moves });
     if (!this._leavingScheduled) {
       this._leavingScheduled = true;
       queueMicrotask(() => this.startLeaving());
@@ -1738,7 +1736,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected startLeaving(): void {
     this._leavingScheduled = false;
-    const leaving = new Map(this._leaving);
+    const leaving = new Map<Element, Leave>();
+    for (const [element, leave] of this._leaving) {
+      if (leave.moves) {
+        leaving.set(element, leave);
+      } else if (this.attached(element)) {
+        this._presence.delete(element);
+        leave.hide(false);
+      }
+    }
     this._leaving.clear();
     if (leaving.size === 0) {
       return;
@@ -1784,11 +1790,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     arrives: boolean,
   ): Record<string, string | null> {
     this._leaving.delete(element);
-    const moving = this._presence.delete(element);
     if (arrives) {
+      this._presence.delete(element);
       return { [PRESENCE_ATTRIBUTE]: "initial" };
     }
-    return moving ? { [PRESENCE_ATTRIBUTE]: null } : {};
+    if (this._presence.get(element)?.presence === "hide") {
+      this._presence.delete(element);
+      return { [PRESENCE_ATTRIBUTE]: null };
+    }
+    return {};
+  }
+
+  protected settleMark(element: Element): Record<string, string | null> {
+    this._leaving.delete(element);
+    return this._presence.delete(element) ? { [PRESENCE_ATTRIBUTE]: null } : {};
   }
 
   protected present(
@@ -5354,7 +5369,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               style: { display: "none" },
               attributes: {
                 text: null,
-                ...$.presenceMark(targetEl, false),
+                ...$.settleMark(targetEl),
               },
             });
           }
@@ -5876,10 +5891,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const moving = !instant && $.moving();
         const arriving: Element[] = [];
-        const hides = sequence != null && hidesPicture(sequence);
+        const hides = sequence ? pictureHide(sequence) : undefined;
         const leaving = targetEls.filter(
           (targetEl) =>
-            (!sequence || hides) &&
+            (!sequence || hides === "plain") &&
             $.leaves(targetEl, "image", (keepShown) =>
               this.hide(target, targetEl, keepShown, sequence, view),
             ),
@@ -5887,10 +5902,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const writing = targetEls.filter((el) => !leaving.includes(el));
         for (const targetEl of writing) {
           if (hides) {
-            $.contentsOf(targetEl).delete("image");
+            const contents = $.contentsOf(targetEl);
+            contents.delete("image");
             $.updateElement(targetEl, {
               style: { display: null },
-              ...presenceAttributes($.presenceMark(targetEl, false)),
+              ...presenceAttributes(
+                contents.size === 0 ? $.settleMark(targetEl) : {},
+              ),
             });
           } else if (sequence) {
             const arrives = $.arrives(targetEl, "image", moving);
@@ -5904,7 +5922,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           } else if ($.contentsOf(targetEl).size === 0) {
             $.updateElement(targetEl, {
               style: { display: "none" },
-              ...presenceAttributes($.presenceMark(targetEl, false)),
+              ...presenceAttributes($.settleMark(targetEl)),
             });
           }
         }

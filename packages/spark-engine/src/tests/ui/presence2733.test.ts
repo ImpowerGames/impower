@@ -179,6 +179,22 @@ describe("an element that loses its content (#2733)", () => {
     expect(motions(h)).toEqual([]);
   });
 
+  test("keeps its place when the next line writes to it, even when its style has no @hide", async () => {
+    const h = harness(lines(`style dialogue {
+  @initial { opacity = 0 }
+  @show { transition-duration = 280ms }
+}`));
+    await h.ready;
+    const [dialogue] = h.game.module.ui.findIds("dialogue");
+    await play(h, dialogueLine);
+    await settle(h);
+    h.reset();
+    await play(h, { text: { dialogue: [{ text: "Again." }] } });
+    expect(motions(h)).toEqual([]);
+    expect(displayOf(h, dialogue!)).toBeNull();
+    expect(presenceOf(h, dialogue!)).toBeUndefined();
+  });
+
   test("keeps its place when the next line writes to it, with its content replaced", async () => {
     const h = harness(lines(FADING));
     await h.ready;
@@ -309,9 +325,55 @@ end
     await flushMicrotasks(10);
     expect(motions(h)).toEqual([]);
   });
+
+  test("a picture hidden with a with clause arrives again when shown", async () => {
+    const h = await shown();
+    const ui = h.game.module.ui;
+    const [portrait] = ui.findIds("portrait");
+    h.jumpToFlow("fade");
+    await ui.image.write("portrait", h.nextBeat()!.image!["portrait"]! as any, false);
+    await flushMicrotasks(10);
+    h.jumpToFlow("reveal");
+    await ui.image.write("portrait", h.nextBeat()!.image!["portrait"]! as any, false);
+    await flushMicrotasks(10);
+    expect(motions(h)).toEqual([{ element: portrait, presence: "show" }]);
+  });
 });
 
 describe("a target that holds text and a picture (#2733)", () => {
+  test("gaining a picture while its line arrives keeps the arrival running", async () => {
+    const h = harness(`${NO_BOX}
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+${FADING}
+
+layout main {
+  dialogue {
+    text
+    image
+  }
+}
+
+scene picture
+  [[show dialogue SPRITE]]
+end
+`);
+    await h.ready;
+    const ui = h.game.module.ui;
+    const [dialogue] = ui.findIds("dialogue");
+    h.jumpToFlow("picture");
+    const picture = h.nextBeat()!.image!["dialogue"]!;
+    ui.setMotion(true);
+    h.reset();
+    void ui.text.write("dialogue", [{ text: "A caption." }] as any, false);
+    void ui.image.write("dialogue", picture as any, false);
+    await flushMicrotasks(10);
+    expect(motions(h)).toEqual([{ element: dialogue, presence: "show" }]);
+    expect(presenceOf(h, dialogue!)).toBe("initial");
+  });
+
   test("clearing only its line keeps it on screen with its picture", async () => {
     const h = harness(`${NO_BOX}
 define SPRITE as image with
