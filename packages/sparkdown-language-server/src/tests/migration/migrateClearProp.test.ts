@@ -91,8 +91,10 @@ function clearMarkTargets(layout: Record<string, any>): string[] {
   return [...targets].sort();
 }
 
-function layoutNames(text: string): string[] {
-  const names = [...text.matchAll(/^layout ([A-Za-z_][A-Za-z0-9_]*)/gm)].map((m) => m[1]!);
+function bodyNames(text: string): ["layout" | "screen", string][] {
+  const names = [...text.matchAll(/^(layout|screen) ([A-Za-z_][A-Za-z0-9_]*)/gm)].map(
+    (m) => [m[1] as "layout" | "screen", m[2]!] as ["layout" | "screen", string],
+  );
   expect(names.length).toBeGreaterThan(0);
   return names;
 }
@@ -133,7 +135,7 @@ describe("scripts/migrate-clear-prop.mjs", () => {
   });
 
   test.each([
-    ["the fixture layouts", readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8")],
+    ["the fixture layouts and screens", readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8")],
     ["the built-in layouts", BUILTINS.replace(/ #clear\b/g, "")],
   ])("adds #clear exactly where the unwritten rule empties, in %s", { timeout: 300_000 }, (_, source) => {
     const before = compile(source);
@@ -141,12 +143,12 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(migrated.migrated).toBeGreaterThan(0);
     const after = compile(migrated.text);
     let compared = 0;
-    for (const name of layoutNames(source)) {
-      const alreadyClear = clearMarkTargets(before.context?.layout?.[name] ?? {});
-      const added = clearMarkTargets(after.context?.layout?.[name] ?? {}).filter(
+    for (const [kind, name] of bodyNames(source)) {
+      const alreadyClear = clearMarkTargets(before.context?.[kind]?.[name] ?? {});
+      const added = clearMarkTargets(after.context?.[kind]?.[name] ?? {}).filter(
         (t) => !alreadyClear.includes(t),
       );
-      const emptied = unwrittenRuleTargets(before.context?.layout?.[name] ?? {}).filter(
+      const emptied = unwrittenRuleTargets(before.context?.[kind]?.[name] ?? {}).filter(
         (t) => !alreadyClear.includes(t),
       );
       expect(added, name).toEqual(emptied);

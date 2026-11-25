@@ -235,7 +235,7 @@ Layouts join the screen with `in <screen>`, and referencing a screen you never d
 
 ### The screen's own elements and `slot`
 
-A screen's body holds elements that its layouts share. They stay on screen while any of the screen's layouts is open: they appear when the first one opens, stay the same elements while `navigate` swaps one layout for another, and leave when none is open. A frame, a heading or a backdrop written here keeps its place across the swap instead of being rebuilt with every page.
+A screen's body holds elements that its layouts share. They stay on screen while any of the screen's layouts is open: they appear when the first one opens, stay the same elements while `navigate` swaps one layout for another, and leave when none is open. A frame, a heading or a backdrop written here keeps its place across the swap instead of being rebuilt with every page. A text or picture part here follows [`#clear`](./Structure.md#clear-content-that-lasts-one-line) as a layout's does.
 
 The open layout is placed where the body writes `slot`, the same word a component uses for its caller's content, so a shared frame can wrap the layout and fit it:
 

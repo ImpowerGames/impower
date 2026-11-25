@@ -124,8 +124,10 @@ export function clearEdits(text: string): Edit[] {
       visit(entry.children);
     }
   };
-  for (const layout of descendants(tree.topNode, "LuauLayout")) {
-    visit(readStructBodyEntries(layout, undefined as never));
+  for (const name of ["LuauLayout", "LuauScreen"]) {
+    for (const body of descendants(tree.topNode, name)) {
+      visit(readStructBodyEntries(body, undefined as never));
+    }
   }
   return [...edits.values()].sort((a, b) => a.from - b.from);
 }

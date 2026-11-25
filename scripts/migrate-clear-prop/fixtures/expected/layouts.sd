@@ -4,6 +4,13 @@ component card(title) {
   }
 }
 
+screen menu {
+  caption #clear {
+    text
+  }
+  slot
+}
+
 layout board {
   stage {
     backdrop #clear { image }
