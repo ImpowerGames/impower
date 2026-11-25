@@ -460,7 +460,8 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 const CUTSCENE_MUSIC_FADE = 0.5;
 
-const SHOWING_CONDITION = /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*)\s*\)/gu;
+const SHOWING_CONDITION =
+  /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)\s*\)/gu;
 
 export const UNKNOWN_COLOR_SCHEME_MESSAGE =
   "ui.color_scheme must be system, light or dark. Using system.";
@@ -513,7 +514,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _showingWatched: ReadonlySet<string> = new Set();
 
-  protected _showingSent?: Set<string>;
+  protected _showingSent?: Map<string, number>;
 
   protected _showingHidden = new WeakSet<Element>();
 
@@ -1113,24 +1114,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   showingNames(): string[] {
+    return [...this.showingClaims().keys()].sort();
+  }
+
+  protected showingClaims(): Map<string, number> {
     const watched = this.showingWatched();
-    const names = new Set<string>();
-    const add = (name: string) => {
-      if (watched.has(name)) {
-        names.add(name);
+    const claims = new Map<string, number>();
+    const claim = (names: Iterable<string>) => {
+      for (const name of new Set(names)) {
+        if (watched.has(name)) {
+          claims.set(name, (claims.get(name) ?? 0) + 1);
+        }
       }
     };
-    for (const name of this._mountedLayouts.keys()) {
-      add(name);
-    }
+    claim([
+      ...this._mountedLayouts.keys(),
+      ...(this._root ? this.heldNames(this._root) : []),
+    ]);
     for (const retiring of this._retiring) {
-      add(retiring.name);
-      retiring.held.forEach(add);
+      claim([retiring.name, ...retiring.held]);
     }
-    if (this._root) {
-      this.heldNames(this._root).forEach(add);
-    }
-    return [...names].sort();
+    return claims;
   }
 
   protected heldNames(root: Element): Set<string> {
@@ -1206,17 +1210,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this.showingWatched().size === 0 && !sent?.size) {
       return;
     }
-    const names = this.showingNames();
-    const add = sent ? names.filter((name) => !sent.has(name)) : names;
-    const remove = sent ? [...sent].filter((name) => !names.includes(name)).sort() : [];
-    if (sent && add.length === 0 && remove.length === 0) {
+    const claims = this.showingClaims();
+    const changes: Record<string, number> = {};
+    for (const name of [...new Set([...claims.keys(), ...(sent?.keys() ?? [])])].sort()) {
+      const change = (claims.get(name) ?? 0) - (sent?.get(name) ?? 0);
+      if (change !== 0) {
+        changes[name] = change;
+      }
+    }
+    if (sent && Object.keys(changes).length === 0) {
       return;
     }
-    this._showingSent = new Set(names);
+    this._showingSent = claims;
     this._uiBatch.push(
       ShowingMessage.type.notification({
-        add,
-        remove,
+        changes,
         ...(sent ? {} : { reset: true }),
         ...(retired ? { retired } : {}),
       }),

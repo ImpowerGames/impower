@@ -55,6 +55,17 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     expect(on("@not(@showing(action)) @hovered")).toBe(false);
   });
 
+  test("inside nth-child's of list it keeps the list", () => {
+    expect(written("@nth-child(1 of @showing(action))")).toBe('&:nth-child(1 of [data-showing~="action"] *)');
+    expect(written("@nth-last-child(2 of @showing(action))")).toBe(
+      '&:nth-last-child(2 of [data-showing~="action"] *)',
+    );
+  });
+
+  test("a name with @ alternates is one name", () => {
+    expect(written("@showing(menu@pause)")).toBe(':where([data-showing~="menu@pause"]) &');
+  });
+
   test("the screen preview writes the same condition", () => {
     expect(writeSparkleSelector("@showing(action)", { breakpoints: {}, colorScheme: "media" })).toBe(ACTION);
   });
@@ -158,6 +169,40 @@ scene start
   Hello.
 end
 `;
+
+describe("a layout and an element named with @ alternates (#2734)", () => {
+  test("are marked under their full names", async () => {
+    const source = `define ui as config with
+  layouts_initial = { "menu@pause" }
+end
+
+layout menu@pause {
+  badge@night {
+    text "Status"
+  }
+}
+
+style frame {
+  @showing(menu@pause) { opacity = 1 }
+  @showing(badge@night) { opacity = 1 }
+}
+
+scene start
+  Hello.
+end
+`;
+    const h = createDOMHarness(source, 0, { reactive: true, autoOpenAll: false });
+    try {
+      await h.ready;
+      await flushMicrotasks(10);
+      h.jumpTo("start");
+      await showBeat(h);
+      expect(h.overlay.getAttribute("data-showing")).toBe("badge@night menu@pause");
+    } finally {
+      h.ui.onDispose();
+    }
+  });
+});
 
 describe("styling an element does not change whether it is showing (#2734)", () => {
   test.each([
@@ -264,6 +309,32 @@ describe("a layout removed while a later beat waits to show (#2734)", () => {
       expect(h.overlay.getAttribute("data-showing")).toBe("dialogue");
       await commitHeldBeat(h, timeline);
       expect(h.overlay.getAttribute("data-showing")).toBe("action");
+    });
+  }, 60_000);
+
+  test("a layout reopened by the waiting beat is unmarked between the old one's removal and that beat", async () => {
+    await heldBeat(async (h, ui, timeline) => {
+      expect(ui.beginCompose()).toBe(true);
+      await ui.closeLayout("notice", { with: "fadeout", over: 0.5 });
+      await ui.endCompose();
+      await flushMicrotasks(30);
+      const [retiring] = [...ui._retiring];
+      expect(retiring).toBeDefined();
+      timeline.currentTime = 1000;
+      expect(ui.beginCompose()).toBe(true);
+      await ui.openLayout("notice");
+      await ui.text.clear("dialogue");
+      await ui.text.write("action", [{ text: "New action.", after: 0.1 }], false, 1100);
+      await ui.endCompose({ time: 1100 });
+      await flushMicrotasks(30);
+      expect((h.overlay as any).__sdBeat).toBeDefined();
+      ui.retire(retiring);
+      await flushMicrotasks(30);
+      expect((h.overlay as any).__sdBeat).toBeDefined();
+      expect(h.overlay.querySelector(".notice")).toBeNull();
+      expect(h.overlay.getAttribute("data-showing")).toBe("dialogue");
+      await commitHeldBeat(h, timeline);
+      expect(h.overlay.getAttribute("data-showing")).toBe("action notice");
     });
   }, 60_000);
 

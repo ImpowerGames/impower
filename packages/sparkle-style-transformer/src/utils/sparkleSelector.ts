@@ -6,7 +6,7 @@ const COLOR_SCHEME_STATE = "theme";
 
 export const SHOWING_STATE = "showing";
 
-export const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*$/u;
+export const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
 
 const table = (entries: Record<string, string>): ReadonlyMap<string, string> => new Map(Object.entries(entries));
 
@@ -337,9 +337,13 @@ class SparkleSelectorWriter {
     return this.enclosed(() => this.list("raw", false));
   }
 
+  private lifted(selectors: string): string {
+    return liftRootConditions(selectors, this.options.colorScheme === "attribute", "*");
+  }
+
   private selectorArgument(): string {
     const { text, close } = this.argument(() => this.list("selectors", false));
-    return `(${liftRootConditions(text, this.options.colorScheme === "attribute", "*")}${close}`;
+    return `(${this.lifted(text)}${close}`;
   }
 
   private value(): string {
@@ -375,7 +379,7 @@ class SparkleSelectorWriter {
       if (NTH_OF.test(this.src)) {
         const step = this.src.slice(from, this.i).trim();
         this.i = NTH_OF.lastIndex;
-        return `${step} of ${this.list("selectors", false)}`;
+        return `${step} of ${this.lifted(this.list("selectors", false))}`;
       }
       this.i++;
     }

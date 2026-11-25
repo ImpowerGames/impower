@@ -738,7 +738,7 @@ const addStructReferenceCompletions = (
   }
 };
 
-const SHOWING_ARGUMENT_BEFORE = /@showing\([ \t]*[\p{L}\p{N}_-]*$/u;
+const SHOWING_ARGUMENT_BEFORE = /@showing\([ \t]*[\p{L}\p{N}_@-]*$/u;
 
 const addShowingNameCompletions = (
   completions: Map<string, CompletionItem>,

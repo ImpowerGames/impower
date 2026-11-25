@@ -102,6 +102,8 @@ interface PendingBeat {
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
 
+type OverlayWithShowing = HTMLElement & { __sdShowing?: Map<string, number> };
+
 interface Cutscene {
   element: HTMLElement;
   end: (immediate?: boolean) => void;
@@ -662,28 +664,25 @@ export default class UIManager extends Manager {
   }
 
   protected applyShowing(params: ShowingParams) {
-    const overlay = this.app.overlay as OverlayWithBeat | undefined;
+    const overlay = this.app.overlay as OverlayWithShowing | undefined;
     if (!overlay) {
       return;
     }
-    if (params.retired) {
-      for (const op of overlay.__sdBeat?.ops ?? []) {
-        if (ShowingMessage.type.isNotification(op as NotificationMessage)) {
-          const queued = (op as NotificationMessage<string, ShowingParams>).params!;
-          queued.add = queued.add.filter((name) => !params.remove.includes(name));
-        }
+    const counts = params.reset || !overlay.__sdShowing ? new Map<string, number>() : overlay.__sdShowing;
+    overlay.__sdShowing = counts;
+    for (const [name, change] of Object.entries(params.changes)) {
+      const count = (counts.get(name) ?? 0) + change;
+      if (count === 0) {
+        counts.delete(name);
+      } else {
+        counts.set(name, count);
       }
     }
-    const names = new Set(
-      params.reset ? [] : (overlay.getAttribute(SHOWING_ATTRIBUTE) ?? "").split(" ").filter(Boolean),
-    );
-    for (const name of params.remove) {
-      names.delete(name);
-    }
-    for (const name of params.add) {
-      names.add(name);
-    }
-    const value = [...names].sort().join(" ");
+    const value = [...counts]
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .sort()
+      .join(" ");
     if (value) {
       overlay.setAttribute(SHOWING_ATTRIBUTE, value);
     } else {

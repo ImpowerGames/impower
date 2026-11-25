@@ -3,8 +3,7 @@ import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/cla
 export type ShowingMethod = typeof ShowingMessage.method;
 
 export interface ShowingParams {
-  add: string[];
-  remove: string[];
+  changes: Record<string, number>;
   reset?: boolean;
   retired?: boolean;
 }

@@ -55,15 +55,16 @@ const marked = (h: UIHarness): string[] | undefined => {
   if (sent.length === 0) {
     return undefined;
   }
-  const names = new Set<string>();
+  const counts = new Map<string, number>();
   for (const { params } of sent) {
     if (params.reset) {
-      names.clear();
+      counts.clear();
     }
-    params.remove.forEach((name: string) => names.delete(name));
-    params.add.forEach((name: string) => names.add(name));
+    for (const [name, change] of Object.entries(params.changes as Record<string, number>)) {
+      counts.set(name, (counts.get(name) ?? 0) + change);
+    }
   }
-  return [...names].sort();
+  return [...counts].filter(([, count]) => count > 0).map(([name]) => name).sort();
 };
 
 const live = (game: any) => {
@@ -117,7 +118,7 @@ describe("the engine marks what is on screen for @showing (#2734)", () => {
 
   test("only names some style tests with @showing are sent", async () => {
     const { h } = await play(SOURCE);
-    const sent = new Set(showings(h).flatMap((m: any) => [...m.params.add, ...m.params.remove]));
+    const sent = new Set(showings(h).flatMap((m: any) => Object.keys(m.params.changes)));
     expect([...sent].sort()).toEqual(["action", "dialogue", "hud"]);
   });
 
@@ -187,7 +188,7 @@ end
     ui.retire(retiring);
     expect(ui.showingNames()).toEqual([]);
     const cleared = showings(h).at(-1);
-    expect(cleared?.params).toEqual({ add: [], remove: ["hud"], retired: true });
+    expect(cleared?.params).toEqual({ changes: { hud: -1 }, retired: true });
   });
 
   test("a picture hidden with an exit animation leaves the mark when its hide starts", async () => {
@@ -262,6 +263,9 @@ end
     h.reset();
     ui.retire(retiring);
     expect(ui.showingNames()).toEqual([]);
-    expect(showings(h).at(-1)?.params).toEqual({ add: [], remove: ["badge", "overlay", "text"], retired: true });
+    expect(showings(h).at(-1)?.params).toEqual({
+      changes: { badge: -1, overlay: -1, text: -1 },
+      retired: true,
+    });
   });
 });

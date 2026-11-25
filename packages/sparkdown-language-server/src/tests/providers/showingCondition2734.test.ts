@@ -65,6 +65,28 @@ describe("@showing(name) names a layout or an element (#2734)", () => {
   );
 });
 
+describe("@showing(name) takes a name with @ alternates (#2734)", () => {
+  it("does not warn on a layout named with an alternate", () => {
+    expect(
+      showingWarnings(`layout menu@pause {
+  badge@night {
+    text "Status"
+  }
+}
+
+style frame {
+  @showing(menu@pause) {
+    opacity = 1
+  }
+  @showing(badge@night) {
+    opacity = 1
+  }
+}
+`),
+    ).toEqual([]);
+  });
+});
+
 describe("editor help for @showing (#2734)", () => {
   it("completes the project's layout and element names inside the parentheses", () => {
     const source = `${LAYOUTS}
