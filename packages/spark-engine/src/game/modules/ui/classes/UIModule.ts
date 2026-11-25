@@ -390,6 +390,7 @@ interface ScreenFrame {
   element: Element;
   scope: ReactiveScope;
   hosts: WeakSet<SlotRegion>;
+  fallback?: SlotRegion;
 }
 
 interface ReactiveScope {
@@ -2520,7 +2521,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ],
     ]);
     this._mountedScreens.set(name, frame);
-    this.mountChildren(element, screen.children, scope, null);
+    const group = this.mountChildren(element, screen.children, scope, null);
+    const fallback: SlotRegion = {
+      kind: "slot",
+      parent: element,
+      content: [],
+      siblings: group,
+    };
+    group.push({ region: fallback });
+    scope.regions.push(fallback);
+    frame.hosts.add(fallback);
+    frame.fallback = fallback;
     this.hideUnwrittenTargets(element);
     return frame;
   }
@@ -2669,16 +2680,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       {
         type: "div",
         name: this.layoutRootName(layout.name),
-        style: slot
-          ? { display: "flex", flex_direction: "column" }
-          : frame
+        style: frame
+          ? slot === frame.fallback
             ? { display: "flex", flex_direction: "column", flex_grow: "1" }
-            : {
-                position: "absolute",
-                inset: "0",
-                display: "flex",
-                flex_direction: "column",
-              },
+            : { display: "flex", flex_direction: "column" }
+          : {
+              position: "absolute",
+              inset: "0",
+              display: "flex",
+              flex_direction: "column",
+            },
       },
       slot ? this.anchorFor(slot) : null,
     );

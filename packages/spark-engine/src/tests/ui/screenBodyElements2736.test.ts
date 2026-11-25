@@ -243,6 +243,29 @@ layout home in menu {
     expect(createdStyle(h, "home")["position"]).toBeUndefined();
   });
 
+  test("a screen element that appears later stays before a layout placed with no slot", async () => {
+    const h = await bare(`store expanded = false
+screen menu {
+  shared_heading { text "My Game" }
+  if expanded then
+    shared_notice { text "Notice" }
+  end
+}
+
+layout home in menu { home_page }
+`);
+    await ui(h).openLayout("home", undefined, true);
+    expect(childNames(only(h, "menu"))).toEqual(["shared_heading", "home"]);
+
+    (h.game.story as any).variablesState.$("expanded", true);
+    ui(h).refreshLayouts();
+    expect(childNames(only(h, "menu"))).toEqual([
+      "shared_heading",
+      "shared_notice",
+      "home",
+    ]);
+  });
+
   test("closing every open layout of a screen together with an animation removes its elements", async () => {
     const h = await bare(`screen menu {
   shared_heading { text "My Game" }
