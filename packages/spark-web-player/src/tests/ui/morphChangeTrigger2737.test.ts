@@ -189,6 +189,26 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
   });
 
+  test("a change turning back shows the drawing the new options choose once animation is turned off", async () => {
+    const source = SOURCE.replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
+      "  [[show portrait mia:mouth.smile]]\n  She smiles again.",
+    );
+    const { playback, shadow, lips, next } = await played(2, undefined, undefined, source);
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
+    playback.advance(0.25);
+    const interrupted = shadow();
+    await next();
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the interrupting change's view");
+    playback.advance(0.1);
+    playback.setEnabled(false);
+    expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
+    playback.setEnabled(true);
+    playback.advance(1);
+    playback.setEnabled(false);
+    expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
+  });
+
   test("a change turning back holds the frame on screen while its delay runs", async () => {
     const source = SOURCE.replace("duration = 0.5", "duration = 0.5\n    delay = 0.2").replace(
       "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",

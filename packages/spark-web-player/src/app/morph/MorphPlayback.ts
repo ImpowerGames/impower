@@ -2218,7 +2218,7 @@ export class MorphLayer {
     if (!artifact || !plays.some((p) => p.occurrence)) return;
     const heads = plays.map(({ occurrence }) => {
       const head = occurrence ? this.playback.playhead(occurrence) : undefined;
-      if (!head || !("offset" in head)) return "rest" as const;
+      if (!head || !("offset" in head)) return turned ? 0 : ("rest" as const);
       return turned ? 1 - head.offset : head.offset;
     });
     const signature = heads.join(",");
