@@ -54,5 +54,7 @@ export function writeStage(
     applyLayoutDirectives(game, instructions, instant);
   }
 
+  game.module.ui.streams.show(Boolean(instant), time);
+
   game.module.ui.refreshLayouts();
 }
