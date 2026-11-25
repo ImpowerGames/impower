@@ -40,11 +40,13 @@ One cache on the page with two budgets. `predict_cache_size` (megabytes) bounds 
 
 An image is loaded into the document, as a CSS background on a hidden element that stays there while the entry is resident; the `Image` object for the same url is the completion signal and the source of the size estimate. Chromium reuses a picture loaded that way for every later use of the url: a background, a `mask-image`, an `<img>`. A picture loaded through an `Image` object alone is reused by a later background but not by a mask, and a picture loaded through a mask is reused by nothing but masks. The renderer paints a portrait as a background and its shadow layers as masks of the same url, so an image warmed any other way is fetched again the moment it is displayed, a frame or more after the line's text.
 
-Bytes are estimated per kind: raster images as `naturalWidth * naturalHeight * 4` with a floor of 256 KiB; SVG variants as 1 MiB each, because the browser holds a resident SVG as its parsed document and rasterizes it at paint for the displayed size only, while its intrinsic size is whatever its viewBox says (a 100 KB portrait on a 5760 by 3240 viewBox is not 75 MB); fonts and video by response size; audio as `length * numberOfChannels * 4`.
+A layer file of a layered picture, an image item marked `layer`, is also read for its traits once it is resident: the page fetches its bytes and reads its header for animation and a colour profile. With `trim_layers` on, a layer file that is neither animated nor profiled is trimmed too. A worker decodes the bytes with `createImageBitmap`, finds the box of its pixels whose alpha is not zero, grows it by 2 pixels inside the file's canvas and, when the box is smaller than the canvas, crops a second bitmap to it. The entry then holds that bitmap, its box and the file's own size, the compositor draws the bitmap at its box inside the picture's rectangle, and the hidden element is removed, since the canvas draws from the bitmap. The trait read and the trim are part of the load, so a line waiting for the layer waits for them too. A file whose trim fails, or a browser without `createImageBitmap` or `OffscreenCanvas` in a worker, keeps the untrimmed entry, silently. The worker is created on the first trim and stops after a second with nothing to trim. Turning `trim_layers` off lets go of every trimmed bitmap without closing it, since a picture on screen may still draw it, counts those entries at their natural size again, and restores their hidden elements.
+
+Bytes are estimated per kind: raster images as `naturalWidth * naturalHeight * 4` with a floor of 256 KiB, and a trimmed layer file as its box's `width * height * 4` with the same floor; SVG variants as 1 MiB each, because the browser holds a resident SVG as its parsed document and rasterizes it at paint for the displayed size only, while its intrinsic size is whatever its viewBox says (a 100 KB portrait on a 5760 by 3240 viewBox is not 75 MB); fonts and video by response size; audio as `length * numberOfChannels * 4`.
 
 Pinned entries never evict. Pinned: what is displayed, playing, or used by a mounted layout; the sets brought in by explicit loads while their scene is current or on the ink callstack; the assets a line or layout mount is waiting on.
 
-When the prediction pool exceeds `predict_cache_size` after an item becomes resident, its entries that were not touched this tick are evicted least-recently-used first. Dropping an image releases the element; a font goes through `document.fonts.delete`; audio drops the buffer; video revokes the object URL.
+When the prediction pool exceeds `predict_cache_size` after an item becomes resident, its entries that were not touched this tick are evicted least-recently-used first. Dropping an image releases the element and closes a trimmed layer's bitmap; a font goes through `document.fonts.delete`; audio drops the buffer; video revokes the object URL.
 
 ## Unloading follows the arrows
 
@@ -171,6 +173,7 @@ define assets as config with
   predict_cache_size = 300
   load_distance = 0
   load_cache_size = 0
+  trim_layers = true
   beat_timeout = 8
   restore_timeout = 2
   load_timeout = 30
@@ -179,7 +182,7 @@ define assets as config with
 end
 ```
 
-`predict_distance` is a count of beats; `0` means the rest of the current scene. `predict_cache_size` is in megabytes; `0` means never evict. `load_distance` is a count of beats; `0` means the whole scene. `load_cache_size` is in megabytes; `0` means a `load` pins its whole scene. The timeouts and `loading_min` are seconds; `0` means no timeout for `beat_timeout`, `restore_timeout`, and `load_timeout`, and no minimum for `loading_min`. A `load` opens the loading layout even when nothing is left to fetch, so every `load` looks the same. A line's pin lasts until the line is written to the page, not until its gate opens. `loading_transition` names a transition or animation. Authors override any key with `define assets as config with … end`; unauthored keys keep their defaults.
+`predict_distance` is a count of beats; `0` means the rest of the current scene. `predict_cache_size` is in megabytes; `0` means never evict. `load_distance` is a count of beats; `0` means the whole scene. `load_cache_size` is in megabytes; `0` means a `load` pins its whole scene. `trim_layers`, on by default, trims layer files as they load and counts them at their trimmed size; the page receives it with the budgets in `assets/configure` as `trimLayers`, and a picture is drawn the same either way. The timeouts and `loading_min` are seconds; `0` means no timeout for `beat_timeout`, `restore_timeout`, and `load_timeout`, and no minimum for `loading_min`. A `load` opens the loading layout even when nothing is left to fetch, so every `load` looks the same. A line's pin lasts until the line is written to the page, not until its gate opens. `loading_transition` names a transition or animation. Authors override any key with `define assets as config with … end`; unauthored keys keep their defaults.
 
 ## Why background loading works in a browser
 

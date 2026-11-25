@@ -441,6 +441,27 @@ A picture with layer files is still named `image.ava` in a define, so a named lo
 
 `ava.png` beside a portrait folder `ava/` is one picture stacked two ways and gives a name-collision warning naming both. So do two files that are the same layer of one picture, such as `ava face.happy.png` and `ava face.happy.webp`. Two options of one group, `ava face.happy.png` and `ava face.sad.png`, are not a collision.
 
+## How layer files are drawn
+
+A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. A single image keeps its usual drawing, and so does a picture used as a `mask`.
+
+Export every layer at the size of the whole document, so the files line up. The empty part of a layer costs nothing: as the player loads a layer file it cuts it to the box of its painted pixels, plus a 2-pixel margin, and draws it back at its place. Only a pixel that is fully transparent counts as empty. A layer counts against the [loading budgets](./Loading.md#91-what-happens-on-its-own) at its cut size, so a prop that covers a tenth of the backdrop costs about a tenth of a whole file. The picture looks the same either way. `trim_layers = false` in `define assets as config` turns the cutting off.
+
+These pictures keep the usual CSS drawing, and their files are not cut:
+
+- One of the layer files is animated: an animated GIF, an animated WebP, or an APNG.
+- The layer files are not all the same pixel size.
+- A layer file carries a colour profile other than sRGB.
+- The picture's size or position uses a percentage inside `round()`, `mod()`, `rem()`, `abs()` or a trigonometric function when it first appears.
+
+A picture drawn on a canvas follows these rules:
+
+- `background-attachment: fixed` is ignored: the picture is drawn inside its element in every browser.
+- A transparent or translucent border does not show the picture under it: the picture is drawn inside the border.
+- A translucent background colour under a picture whose layers blend, where the picture has translucent pixels, is drawn in a different colour.
+- `background-clip: text` is ignored: the picture fills its box.
+- The canvas is drawn above the element's own content and its `::before` and `::after` decorations, unless they are positioned; positioned content is drawn above the canvas.
+
 ## When something looks wrong
 
 Malformed layer names produce a warning and their own conditions are ignored; their parent conditions still apply. Fix the name before relying on that layer's visibility. A typo does not automatically hide artwork.

@@ -6,6 +6,7 @@ import {
 } from "../../../../spark-engine/src/game/modules/assets/types/AssetItem";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
 import { type LoadAssetsResult } from "../../../../spark-engine/src/game/modules/assets/types/LoadAssetsResult";
+import { type PaintedBox, type TrimmedLayer } from "../morph/layerTrim";
 import { type PictureFileTraits } from "../morph/pictureFileTraits";
 
 export interface ImageTarget {
@@ -18,9 +19,14 @@ export interface ImageTarget {
 }
 
 export interface ResidentPicture extends PictureFileTraits {
-  image: ImageTarget;
+  image: ImageTarget | TrimmedLayer["image"];
   width: number;
   height: number;
+  box?: PaintedBox;
+}
+
+export interface LayerFile extends PictureFileTraits {
+  trimmed?: TrimmedLayer;
 }
 
 export interface FontFaceLike {
@@ -45,7 +51,7 @@ export interface AssetCacheDeps {
   warmImage?: (src: string) => WarmHandle | undefined;
   decodeAudio?: (params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>;
   fetchBytes?: (src: string) => Promise<{ bytes: ArrayBuffer; type: string }>;
-  inspectImage?: (src: string) => Promise<PictureFileTraits | undefined>;
+  inspectImage?: (src: string, trim: boolean) => Promise<LayerFile | undefined>;
   createFontFace?: (
     family: string,
     source: ArrayBuffer,
@@ -62,6 +68,7 @@ export interface AssetCacheOptions {
   expressSlots?: number;
   predictBytes?: number;
   loadBytes?: number;
+  trimLayers?: boolean;
   decodeTimeoutMs?: number;
   loadTimeoutMs?: number;
 }
@@ -104,6 +111,7 @@ interface Entry {
   videoUrl?: string;
   waiters: Array<() => void>;
   traits?: PictureFileTraits;
+  trimmed?: TrimmedLayer;
   inspecting?: Promise<void>;
 }
 
@@ -151,6 +159,8 @@ export class AssetCache {
 
   protected _loadBytes: number;
 
+  protected _trimLayers: boolean;
+
   protected _decodeTimeoutMs: number;
 
   protected _loadTimeoutMs: number;
@@ -175,6 +185,7 @@ export class AssetCache {
     );
     this._predictBytes = Math.max(0, options.predictBytes ?? 0);
     this._loadBytes = Math.max(0, options.loadBytes ?? 0);
+    this._trimLayers = options.trimLayers ?? true;
     this._decodeTimeoutMs = Math.max(
       0,
       options.decodeTimeoutMs ?? DEFAULT_DECODE_TIMEOUT_MS,
@@ -191,6 +202,10 @@ export class AssetCache {
 
   get loadBytes() {
     return this._loadBytes;
+  }
+
+  get trimLayers() {
+    return this._trimLayers;
   }
 
   protected now(): number {
@@ -229,7 +244,15 @@ export class AssetCache {
     return n;
   }
 
-  configure(options: { predictBytes?: number; loadBytes?: number }): void {
+  configure(options: { predictBytes?: number; loadBytes?: number; trimLayers?: boolean }): void {
+    if (options.trimLayers != null && options.trimLayers !== this._trimLayers) {
+      this._trimLayers = options.trimLayers;
+      if (!this._trimLayers) {
+        for (const entry of this._entries.values()) {
+          this.untrim(entry);
+        }
+      }
+    }
     if (options.loadBytes != null && Number.isFinite(options.loadBytes)) {
       this._loadBytes = Math.max(0, options.loadBytes);
     }
@@ -277,6 +300,10 @@ export class AssetCache {
     const height = image?.naturalHeight ?? 0;
     if (!image || !e?.traits || !(width > 0 && height > 0)) {
       return undefined;
+    }
+    const trimmed = e.trimmed;
+    if (trimmed && trimmed.width === width && trimmed.height === height) {
+      return { ...e.traits, image: trimmed.image, width, height, box: trimmed.box };
     }
     return { ...e.traits, image, width, height };
   }
@@ -677,6 +704,7 @@ export class AssetCache {
       } catch {
       }
     }
+    this.closeTrimmed(entry);
     entry.image = undefined;
     entry.traits = undefined;
     entry.warm = undefined;
@@ -934,9 +962,7 @@ export class AssetCache {
           if (isSvg(entry.item)) {
             return SVG_BYTES;
           }
-          const w = target.naturalWidth ?? 0;
-          const h = target.naturalHeight ?? 0;
-          return Math.max(MIN_IMAGE_BYTES, w * h * 4);
+          return this.imageBytes(entry);
         };
         const settle = () => {
           const item = entry.item;
@@ -944,8 +970,8 @@ export class AssetCache {
             resolve(estimate());
             return;
           }
-          void this.inspect(entry).then((traits) => {
-            entry.traits = traits;
+          void this.inspect(entry).then((file) => {
+            this.adopt(entry, file);
             resolve(estimate());
           });
         };
@@ -996,25 +1022,87 @@ export class AssetCache {
     if (item.kind !== "image" || !item.layer || entry.traits || entry.inspecting || !entry.image || !this._deps.inspectImage) {
       return;
     }
-    entry.inspecting = this.inspect(entry).then((traits) => {
+    entry.inspecting = this.inspect(entry).then((file) => {
       if (this._entries.get(entry.key) === entry && entry.image) {
-        entry.traits = traits;
+        this.adopt(entry, file);
+        this.recount(entry);
+      } else {
+        file.trimmed?.image.close?.();
       }
       entry.inspecting = undefined;
     });
   }
 
-  protected inspect(entry: Entry): Promise<PictureFileTraits | undefined> {
+  protected inspect(entry: Entry): Promise<LayerFile> {
     const inspect = this._deps.inspectImage;
     const item = entry.item;
+    const unread: LayerFile = { animated: false, profile: false, unread: true };
     if (!inspect || item.kind !== "image") {
-      return Promise.resolve(undefined);
+      return Promise.resolve(unread);
     }
-    const unread: PictureFileTraits = { animated: false, profile: false, unread: true };
-    return inspect(item.src).then(
-      (traits) => traits ?? unread,
+    return inspect(item.src, this._trimLayers).then(
+      (file) => file ?? unread,
       () => unread,
     );
+  }
+
+  protected adopt(entry: Entry, file: LayerFile): void {
+    const { trimmed, ...traits } = file;
+    entry.traits = traits;
+    this.closeTrimmed(entry);
+    const width = entry.image?.naturalWidth ?? 0;
+    const height = entry.image?.naturalHeight ?? 0;
+    if (!trimmed) {
+      return;
+    }
+    if (!this._trimLayers || this._entries.get(entry.key) !== entry || trimmed.width !== width || trimmed.height !== height) {
+      trimmed.image.close?.();
+      return;
+    }
+    entry.trimmed = trimmed;
+    if (entry.warm) {
+      try {
+        entry.warm.remove();
+      } catch {
+      }
+      entry.warm = undefined;
+    }
+  }
+
+  protected untrim(entry: Entry): void {
+    if (!entry.trimmed) {
+      return;
+    }
+    entry.trimmed = undefined;
+    if (entry.state === "resident" && entry.item.kind === "image") {
+      entry.warm = this._deps.warmImage?.(entry.item.src);
+      this.recount(entry);
+    }
+  }
+
+  protected closeTrimmed(entry: Entry): void {
+    const trimmed = entry.trimmed;
+    entry.trimmed = undefined;
+    trimmed?.image.close?.();
+  }
+
+  protected imageBytes(entry: Entry): number {
+    const box = entry.trimmed?.box;
+    if (box) {
+      return Math.max(MIN_IMAGE_BYTES, box.width * box.height * 4);
+    }
+    const w = entry.image?.naturalWidth ?? 0;
+    const h = entry.image?.naturalHeight ?? 0;
+    return Math.max(MIN_IMAGE_BYTES, w * h * 4);
+  }
+
+  protected recount(entry: Entry): void {
+    if (entry.state !== "resident" || isSvg(entry.item)) {
+      return;
+    }
+    const bytes = this.imageBytes(entry);
+    this._bytes += bytes - entry.bytes;
+    entry.bytes = bytes;
   }
 
   protected async loadFont(

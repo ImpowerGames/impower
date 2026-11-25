@@ -702,7 +702,7 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
       inspectImage: async () => ({ animated: false, profile: false }),
     });
     await cache.request(SRCS.map((src) => ({ kind: "image" as const, src, layer: true as const })), 0, "line", undefined);
-    expect(SRCS.map((src) => cache.picture(src)?.image.src)).toEqual(SRCS);
+    expect(SRCS.map((src) => (cache.picture(src)?.image as ImageTarget | undefined)?.src)).toEqual(SRCS);
     const { span, canvas, loads, mount } = setup({
       resident: (src) => {
         const picture = cache.picture(src);

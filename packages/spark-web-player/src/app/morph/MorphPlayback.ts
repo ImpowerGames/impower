@@ -44,6 +44,7 @@ export interface PictureBitmap {
   animated?: boolean;
   profile?: boolean;
   unread?: boolean;
+  box?: Rect;
 }
 
 export type PictureLoader = (src: string, doc: Document) => Promise<PictureBitmap | undefined>;
@@ -1449,14 +1450,14 @@ export class MorphLayer {
         let source: CanvasImageSource | undefined = bitmap.image;
         let sourceWidth = bitmap.width;
         let sourceHeight = bitmap.height;
-        if (gapped) {
+        if (gapped || bitmap.box) {
           const cell = doc.createElement("canvas");
           cell.width = Math.max(1, Math.round(periodX));
           cell.height = Math.max(1, Math.round(periodY));
           const cellContext = this.playback.pictureCanvas(cell);
           if (cellContext) {
             cellContext.imageSmoothingEnabled = smooth;
-            cellContext.drawImage(bitmap.image, 0, 0, (pattern.tile.width * cell.width) / periodX, (pattern.tile.height * cell.height) / periodY);
+            drawPicture(cellContext, bitmap, 0, 0, (pattern.tile.width * cell.width) / periodX, (pattern.tile.height * cell.height) / periodY);
             source = cell;
             sourceWidth = cell.width;
             sourceHeight = cell.height;
@@ -1482,7 +1483,7 @@ export class MorphLayer {
       }
       if (!filled) {
         for (const tile of plan.tiles) {
-          if (tile.width > 0 && tile.height > 0) context.drawImage(bitmap.image, tile.x, tile.y, tile.width, tile.height);
+          if (tile.width > 0 && tile.height > 0) drawPicture(context, bitmap, tile.x, tile.y, tile.width, tile.height);
         }
       }
       if (clipped) context.restore!();
@@ -1729,7 +1730,7 @@ export class MorphLayer {
         const bitmap = view.files.bitmaps.get(file);
         if (!bitmap) continue;
         context.globalAlpha = opacity;
-        context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
+        drawPicture(context, bitmap, 0, 0, canvas.width, canvas.height);
       }
       context.globalAlpha = 1;
     }
@@ -2035,6 +2036,18 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
     }
     write(clip.reach, "d", bound.d);
   }
+}
+
+function drawPicture(context: Pick<PictureCanvasContext, "drawImage">, bitmap: PictureBitmap, x: number, y: number, width: number, height: number) {
+  const box = bitmap.box;
+  if (!box) {
+    context.drawImage(bitmap.image, x, y, width, height);
+    return;
+  }
+  if ((bitmap.image as { width?: unknown }).width === 0) return;
+  const scaleX = width / bitmap.width;
+  const scaleY = height / bitmap.height;
+  context.drawImage(bitmap.image, x + box.x * scaleX, y + box.y * scaleY, box.width * scaleX, box.height * scaleY);
 }
 
 function write(element: Element, name: string, value: string | null) {

@@ -86,10 +86,11 @@ describe("AssetModule", () => {
     expect(configure[0].params).toEqual({
       predictBytes: 300 * 1024 * 1024,
       loadBytes: 0,
+      trimLayers: true,
     });
 
     const small = createHarness(
-      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\nend\n\n${STORY}`,
+      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\n  trim_layers = false\nend\n\n${STORY}`,
       0,
       { assets: ASSETS },
     );
@@ -97,7 +98,10 @@ describe("AssetModule", () => {
     expect(byMethod(small.messages, "assets/configure")[0].params).toEqual({
       predictBytes: 1024 * 1024,
       loadBytes: 2 * 1024 * 1024,
+      trimLayers: false,
     });
+    expect((small.game as any).program?.context?.config?.assets?.trim_layers).toBe(false);
+    expect((h.game as any).program?.context?.config?.assets?.trim_layers).toBe(true);
   });
 
   it("prefetches a scene's visuals, and only its visuals, when previewing it", async () => {
