@@ -8,7 +8,7 @@ A `text` element holds one line, and the next line replaces it. A `stream` keeps
 layout phone {
   thread {
     stream {
-      dialogue.bubble { text }
+      dialogue.bubble #clear { text }
     }
   }
 }
@@ -34,10 +34,10 @@ The elements written inside a `stream` are its templates. A line goes to the str
 layout log {
   stream {
     dialogue.said {
-      character_name { text }
-      dialogue { text }
+      character_name #clear { text }
+      dialogue #clear { text }
     }
-    action.narrated { text }
+    action.narrated #clear { text }
   }
 }
 ```
@@ -63,7 +63,7 @@ A stream is an element like any other, so it takes classes and props, and a `sty
 ```sparkdown
 layout phone {
   stream.thread #height=240px {
-    dialogue.bubble { text }
+    dialogue.bubble #clear { text }
   }
 }
 

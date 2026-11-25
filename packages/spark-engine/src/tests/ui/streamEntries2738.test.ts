@@ -26,7 +26,7 @@ end
 layout phone {
   thread {
     stream {
-      dialogue.bubble { text }
+      dialogue.bubble #clear { text }
     }
   }
 }
