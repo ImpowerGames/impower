@@ -9,6 +9,8 @@ export interface LayoutBox extends LayoutPoint {
   width: number;
   height: number;
   insets?: Partial<Record<LayoutInset, number>>;
+  sizing?: string;
+  local?: Element;
 }
 
 export type LayoutInset = (typeof INSETS)[number];
@@ -16,6 +18,7 @@ export type LayoutInset = (typeof INSETS)[number];
 interface PlacePass {
   places: Map<HTMLElement, LayoutPoint>;
   aligned: Map<Element, boolean>;
+  scales: Map<Element, LayoutPoint>;
 }
 
 export interface LayoutTiming {
@@ -64,18 +67,49 @@ const INSETS = [
 
 const NO_SHIFT: LayoutPoint = { x: 0, y: 0 };
 
-const newPass = (): PlacePass => ({ places: new Map(), aligned: new Map() });
+const UNIT: LayoutPoint = { x: 1, y: 1 };
 
-const axisAligned = (style: CSSStyleDeclaration): boolean => {
+const SIDES = {
+  width: ["paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"],
+  height: ["paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"],
+} as const;
+
+const newPass = (): PlacePass => ({
+  places: new Map(),
+  aligned: new Map(),
+  scales: new Map(),
+});
+
+const diagonalOf = (style: CSSStyleDeclaration): LayoutPoint | undefined => {
   if (style.rotate && style.rotate !== "none" && !ANGLE_ZERO.test(style.rotate)) {
-    return false;
+    return undefined;
   }
+  const scale =
+    style.scale && style.scale !== "none"
+      ? style.scale.trim().split(/\s+/).map(Number)
+      : [1];
+  let x = scale[0]!;
+  let y = scale[1] ?? x;
   const transform = style.transform;
-  if (!transform || transform === "none") {
-    return true;
+  if (transform && transform !== "none") {
+    const values = /^matrix\(([^)]*)\)$/.exec(transform)?.[1]?.split(",").map(Number);
+    if (values?.length !== 6 || values[1] !== 0 || values[2] !== 0) {
+      return undefined;
+    }
+    x *= values[0]!;
+    y *= values[3]!;
   }
-  const values = /^matrix\(([^)]*)\)$/.exec(transform)?.[1]?.split(",").map(Number);
-  return values?.length === 6 && values[1] === 0 && values[2] === 0;
+  return x > 0 && y > 0 ? { x, y } : undefined;
+};
+
+const borderBoxed = (box: LayoutBox) => box.sizing === "border-box";
+
+const sizeIn = (from: LayoutBox, to: LayoutBox, axis: "width" | "height") => {
+  if (borderBoxed(from) === borderBoxed(to)) {
+    return from[axis];
+  }
+  const sides = SIDES[axis].reduce((sum, side) => sum + (from.insets?.[side] ?? 0), 0);
+  return borderBoxed(to) ? from[axis] + sides : from[axis] - sides;
 };
 
 export const namesLayoutTransition = (text: string): boolean =>
@@ -140,11 +174,12 @@ const changedInsets = (a: LayoutBox, b: LayoutBox): LayoutInset[] =>
     differs(a.insets?.[inset] ?? NaN, b.insets?.[inset] ?? NaN),
   );
 
+const sameSpace = (a: LayoutBox, b: LayoutBox) => a.local === b.local;
+
 const sameBox = (a: LayoutBox, b: LayoutBox) =>
-  !differs(a.x, b.x) &&
-  !differs(a.y, b.y) &&
-  !differs(a.width, b.width) &&
-  !differs(a.height, b.height) &&
+  (!sameSpace(a, b) || (!differs(a.x, b.x) && !differs(a.y, b.y))) &&
+  !differs(sizeIn(a, b, "width"), b.width) &&
+  !differs(sizeIn(a, b, "height"), b.height) &&
   changedInsets(a, b).length === 0;
 
 export const getSizeKeyframes = (
@@ -159,13 +194,12 @@ export const getSizeKeyframes = (
     frame[`min${name}`] = `${size}px`;
     frame[`max${name}`] = `${size}px`;
   };
-  if (differs(from.width, to.width)) {
-    pin(start, "width", from.width);
-    pin(end, "width", to.width);
-  }
-  if (differs(from.height, to.height)) {
-    pin(start, "height", from.height);
-    pin(end, "height", to.height);
+  for (const axis of ["width", "height"] as const) {
+    const size = sizeIn(from, to, axis);
+    if (differs(size, to[axis])) {
+      pin(start, axis, size);
+      pin(end, axis, to[axis]);
+    }
   }
   for (const inset of changedInsets(from, to)) {
     start[inset] = `${from.insets![inset]}px`;
@@ -260,7 +294,10 @@ export default class LayoutMotion {
     }
     const started: [HTMLElement, Motion][] = [];
     const begin = (el: HTMLElement, to: LayoutBox, timing: LayoutTiming) => {
-      const from = boxes.get(el)!;
+      const measured = boxes.get(el)!;
+      const from = sameSpace(measured, to)
+        ? measured
+        : { ...measured, x: to.x, y: to.y, local: to.local };
       const motion: Motion = {
         from,
         to,
@@ -363,15 +400,7 @@ export default class LayoutMotion {
         continue;
       }
       const progress = motion.clock.effect?.getComputedTiming().progress ?? 1;
-      const shift = settledShift(
-        getLayoutShift(
-          motion.from,
-          motion.to,
-          this.placeOf(el, pass),
-          progress,
-          this.carried(el),
-        ),
-      );
+      const shift = settledShift(this.shiftOf(el, motion, progress, pass));
       if (shift.x !== motion.shift.x || shift.y !== motion.shift.y) {
         motion.shift = shift;
         (motion.clock.effect as KeyframeEffect | null)?.setKeyframes(
@@ -401,16 +430,48 @@ export default class LayoutMotion {
     }
   }
 
+  protected shiftOf(
+    el: HTMLElement,
+    motion: Motion,
+    progress: number,
+    pass: PlacePass,
+  ): LayoutPoint {
+    if (motion.to.local) {
+      return getLayoutShift(motion.from, motion.to, this.localPlaceOf(el), progress);
+    }
+    const view = el.ownerDocument.defaultView;
+    const scale = view ? this.scaleOf(el.parentElement, pass, view) : UNIT;
+    const shift = getLayoutShift(
+      motion.from,
+      motion.to,
+      this.placeOf(el, pass),
+      progress,
+      this.carried(el, pass),
+    );
+    return { x: shift.x / scale.x, y: shift.y / scale.y };
+  }
+
+  protected localPlaceOf(el: HTMLElement): LayoutPoint {
+    const parent = el.offsetParent as HTMLElement | null;
+    return {
+      x: (parent?.clientLeft ?? 0) + el.offsetLeft,
+      y: (parent?.clientTop ?? 0) + el.offsetTop,
+    };
+  }
+
   protected placeOf(el: HTMLElement, pass: PlacePass): LayoutPoint {
     const known = pass.places.get(el);
     if (known) {
       return known;
     }
+    const view = el.ownerDocument.defaultView;
     const parent = el.offsetParent as HTMLElement | null;
     const base = parent ? this.placeOf(parent, pass) : NO_SHIFT;
-    const offset = (parent && this.offsetWithin(el, parent, pass)) ?? {
-      x: (parent?.clientLeft ?? 0) + el.offsetLeft,
-      y: (parent?.clientTop ?? 0) + el.offsetTop,
+    const scale = parent && view ? this.scaleOf(parent, pass, view) : UNIT;
+    const local = this.localPlaceOf(el);
+    const offset = (parent && view && this.offsetWithin(el, parent, pass, view)) ?? {
+      x: local.x * scale.x,
+      y: local.y * scale.y,
     };
     const place = { x: base.x + offset.x, y: base.y + offset.y };
     pass.places.set(el, place);
@@ -421,11 +482,8 @@ export default class LayoutMotion {
     el: HTMLElement,
     parent: HTMLElement,
     pass: PlacePass,
+    view: Window & typeof globalThis,
   ): LayoutPoint | undefined {
-    const view = el.ownerDocument.defaultView;
-    if (!view || !this.alignedWithin(parent, pass, view)) {
-      return undefined;
-    }
     const style = view.getComputedStyle(el);
     const translate = pixels(style.translate ?? "");
     if (
@@ -438,61 +496,87 @@ export default class LayoutMotion {
     }
     const rect = el.getBoundingClientRect();
     const parentRect = parent.getBoundingClientRect();
-    const scale = this.scaleOf(parent, parentRect, view);
-    if (!scale) {
-      return undefined;
-    }
+    const scale = this.scaleOf(el.parentElement, pass, view);
     return {
-      x: (rect.left - parentRect.left) / scale.x - translate[0]!,
-      y: (rect.top - parentRect.top) / scale.y - translate[1]!,
+      x: rect.left - parentRect.left - translate[0]! * scale.x,
+      y: rect.top - parentRect.top - translate[1]! * scale.y,
     };
   }
 
   protected alignedWithin(
-    el: Element,
+    el: Element | null,
     pass: PlacePass,
     view: Window & typeof globalThis,
   ): boolean {
+    if (!el) {
+      return true;
+    }
     const known = pass.aligned.get(el);
     if (known != null) {
       return known;
     }
-    const parent = el.parentElement;
     const aligned =
-      axisAligned(view.getComputedStyle(el)) &&
-      (!parent || this.alignedWithin(parent, pass, view));
+      diagonalOf(view.getComputedStyle(el)) !== undefined &&
+      this.alignedWithin(el.parentElement, pass, view);
     pass.aligned.set(el, aligned);
     return aligned;
   }
 
   protected scaleOf(
-    parent: HTMLElement,
-    rect: DOMRect,
+    el: Element | null,
+    pass: PlacePass,
+    view: Window & typeof globalThis,
+  ): LayoutPoint {
+    if (!el) {
+      return UNIT;
+    }
+    const known = pass.scales.get(el);
+    if (known) {
+      return known;
+    }
+    const scale = this.measuredScaleOf(el, view) ?? this.composedScaleOf(el, pass, view);
+    pass.scales.set(el, scale);
+    return scale;
+  }
+
+  protected measuredScaleOf(
+    el: Element,
     view: Window & typeof globalThis,
   ): LayoutPoint | undefined {
-    const width = parent.offsetWidth;
-    const height = parent.offsetHeight;
-    if (!(width > 0) || !(height > 0)) {
+    if (!(el instanceof view.HTMLElement)) {
+      return undefined;
+    }
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    const rect = el.getBoundingClientRect();
+    if (!(width > 0) || !(height > 0) || !(rect.width > 0) || !(rect.height > 0)) {
       return undefined;
     }
     const near = (a: number, b: number) => Math.abs(a / b - 1) <= UNSCALED;
     if (near(rect.width, width) && near(rect.height, height)) {
-      return { x: 1, y: 1 };
+      return UNIT;
     }
-    const style = view.getComputedStyle(parent);
-    const sides = (...values: string[]) =>
-      style.boxSizing === "border-box"
+    const style = view.getComputedStyle(el);
+    const box = (axis: "width" | "height") =>
+      Number.parseFloat(style[axis]) +
+      (style.boxSizing === "border-box"
         ? 0
-        : values.reduce((sum, side) => sum + (Number.parseFloat(side) || 0), 0);
-    const boxWidth =
-      Number.parseFloat(style.width) +
-      sides(style.paddingLeft, style.paddingRight, style.borderLeftWidth, style.borderRightWidth);
-    const boxHeight =
-      Number.parseFloat(style.height) +
-      sides(style.paddingTop, style.paddingBottom, style.borderTopWidth, style.borderBottomWidth);
+        : SIDES[axis].reduce((sum, side) => sum + (Number.parseFloat(style[side]) || 0), 0));
+    const boxWidth = box("width");
+    const boxHeight = box("height");
     return boxWidth > 0 && boxHeight > 0
       ? { x: rect.width / boxWidth, y: rect.height / boxHeight }
       : undefined;
+  }
+
+  protected composedScaleOf(
+    el: Element,
+    pass: PlacePass,
+    view: Window & typeof globalThis,
+  ): LayoutPoint {
+    const above = this.scaleOf(el.parentElement, pass, view);
+    const own = diagonalOf(view.getComputedStyle(el)) ?? UNIT;
+    return { x: above.x * own.x, y: above.y * own.y };
   }
 
   protected boxOf(
@@ -504,17 +588,21 @@ export default class LayoutMotion {
     if (!view || el.getClientRects().length === 0) {
       return undefined;
     }
-    let { x, y } = this.placeOf(el, pass);
+    const local = this.alignedWithin(el.parentElement, pass, view)
+      ? undefined
+      : (el.offsetParent ?? el.parentElement ?? undefined);
+    let { x, y } = local ? this.localPlaceOf(el) : this.placeOf(el, pass);
     if (inFlightWithin) {
       for (
         let node: HTMLElement | null = el;
-        node && node !== inFlightWithin;
+        node && node !== inFlightWithin && (node === el || !local);
         node = node.parentElement
       ) {
         const shift = this._motions.get(node)?.shift;
         if (shift) {
-          x += shift.x;
-          y += shift.y;
+          const scale = local ? UNIT : this.scaleOf(node.parentElement, pass, view);
+          x += shift.x * scale.x;
+          y += shift.y * scale.y;
         }
       }
     }
@@ -529,16 +617,20 @@ export default class LayoutMotion {
       width: Number.parseFloat(style.width),
       height: Number.parseFloat(style.height),
       insets,
+      sizing: style.boxSizing,
+      ...(local ? { local } : {}),
     };
   }
 
-  protected carried(el: HTMLElement): LayoutPoint {
+  protected carried(el: HTMLElement, pass: PlacePass): LayoutPoint {
+    const view = el.ownerDocument.defaultView;
     const carried = { x: 0, y: 0 };
-    for (let node = el.parentElement; node; node = node.parentElement) {
+    for (let node = el.parentElement; node && view; node = node.parentElement) {
       const shift = this._motions.get(node)?.shift;
       if (shift) {
-        carried.x += shift.x;
-        carried.y += shift.y;
+        const scale = this.scaleOf(node.parentElement, pass, view);
+        carried.x += shift.x * scale.x;
+        carried.y += shift.y * scale.y;
       }
     }
     return carried;

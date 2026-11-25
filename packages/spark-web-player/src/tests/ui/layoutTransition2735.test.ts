@@ -352,6 +352,17 @@ end
       { ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
       { ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
     ]);
+    const framed = { paddingTop: 20, paddingRight: 20, paddingBottom: 20, paddingLeft: 20, borderTopWidth: 10, borderRightWidth: 10, borderBottomWidth: 10, borderLeftWidth: 10 };
+    const contentBox = { ...box(0, 0, 200, 80), insets: framed, sizing: "content-box" };
+    const borderBox = { ...box(0, 0, 200, 80), insets: framed, sizing: "border-box" };
+    expect(getSizeKeyframes(contentBox, borderBox)).toEqual([
+      { ...pinned("width", 260), ...pinned("height", 140) },
+      { ...pinned("width", 200), ...pinned("height", 80) },
+    ]);
+    expect(getSizeKeyframes(borderBox, contentBox)).toEqual([
+      { ...pinned("width", 140), ...pinned("height", 20) },
+      { ...pinned("width", 200), ...pinned("height", 80) },
+    ]);
     const from = { x: 10, y: 100 };
     const to = { x: 10, y: 140 };
     expect(getLayoutShift(from, to, to, 0)).toEqual({ x: 0, y: -40 });
