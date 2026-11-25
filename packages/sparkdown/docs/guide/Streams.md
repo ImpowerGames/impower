@@ -46,6 +46,8 @@ A line of a kind with no template adds nothing to the stream. Each line adds one
 
 Whatever a line writes into its entry stays there as long as the entry does. Entries stay until `[[clear phone]]` or `[[close phone]]`. After a clear, the line the clear is on becomes the first entry; after a close, the layout opens empty the next time. `clear` works on any layout that holds a stream, and on `textstream` (see [Screens & Navigation](./Screens.md)). On a layout with no stream, the editor warns "`card` has no stream to clear." and the game ignores it.
 
+An entry appears and leaves as any element does (see [Appearing and leaving](./StyleProps.md#appearing-and-leaving)): a new entry arrives from its `@initial` look, and a clear plays each entry's `@hide` before removing it. A line that extends the line before it adds to that entry, which stays on screen.
+
 The newest entry is `@latest`, so a style can set it apart from the entries before it:
 
 ```sparkdown

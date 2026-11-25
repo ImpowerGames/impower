@@ -313,3 +313,128 @@ describe("saves, checkpoints and the preview keep a stream's entries (#2738)", (
     expect(entryWrites.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("an entry that arrives or leaves plays its presence (#2738)", () => {
+  const FADING = `${LAYOUT}
+style bubble {
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+`;
+
+  const wire = (messages: any[]): any[] =>
+    messages.flatMap((m: any) =>
+      (m?.method === "ui/batch" || m?.method === "ui/beat") &&
+      Array.isArray(m.params?.messages)
+        ? wire(m.params.messages)
+        : [m],
+    );
+
+  const motions = (h: ReturnType<typeof createHarness>) =>
+    wire(h.messages)
+      .filter((m: any) => m?.method === "ui/presence")
+      .flatMap((m: any) => m.params.effects);
+
+  const destroyed = (h: ReturnType<typeof createHarness>, id: string) =>
+    wire(h.messages).filter(
+      (m: any) => m?.method === "ui/destroy" && m.params?.element === id,
+    );
+
+  const line = (text: string, extra: Record<string, unknown> = {}) => ({
+    text: {
+      character_name: [{ text: "RAFFLES" }],
+      dialogue: [{ text }],
+    },
+    ...extra,
+  });
+
+  async function show(
+    h: ReturnType<typeof createHarness>,
+    beat: Record<string, unknown>,
+    settled?: "presented",
+  ) {
+    const coordinator = new Coordinator(h.game, { end: 0, ...beat } as never, { settled });
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(10);
+      (coordinator as any)._onTick?.(100);
+    }
+    await flushMicrotasks(20);
+  }
+
+  const bubbles = (h: ReturnType<typeof createHarness>): string[] => {
+    const ui = h.game.module.ui as any;
+    return (ui.streams._mounted.get("phone/0")?.[0]?.entries ?? []).flatMap(
+      (view: any) => ui.collectNodes(view.group).map((el: any) => el.id),
+    );
+  };
+
+  async function settle(h: ReturnType<typeof createHarness>) {
+    h.releasePresence();
+    await flushMicrotasks(30);
+  }
+
+  const harness = (source: string) =>
+    createHarness(source, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      holdPresence: true,
+      beforeConnect: (game: Game) => {
+        game.context.system.previewing = undefined;
+        game.context.system.composeBeats = true;
+      },
+    });
+
+  test("only the new entry arrives, and a cleared one stays until its @hide ends", async () => {
+    const h = harness(FADING);
+    await h.ready;
+    await show(h, line("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    await settle(h);
+    const [first] = bubbles(h);
+    h.reset();
+    await show(h, line("doors locked"));
+    const added = bubbles(h).filter((id) => id !== first);
+    expect(added).toHaveLength(1);
+    expect(motions(h)).toEqual([{ element: added[0], presence: "show" }]);
+    await settle(h);
+    h.reset();
+    await show(h, line("maybe", { layout: { phone: [{ control: "clear", name: "phone" }] } }));
+    const fresh = bubbles(h);
+    expect(fresh).toHaveLength(1);
+    expect(motions(h)).toEqual(
+      expect.arrayContaining([
+        { element: first, presence: "hide" },
+        { element: added[0], presence: "hide" },
+        { element: fresh[0], presence: "show" },
+      ]),
+    );
+    expect(motions(h)).toHaveLength(3);
+    expect(destroyed(h, first!)).toEqual([]);
+    await settle(h);
+    expect(destroyed(h, first!)).toHaveLength(1);
+    expect(destroyed(h, added[0]!)).toHaveLength(1);
+  });
+
+  test("a line that extends its entry keeps the entry on screen without arriving again", async () => {
+    const h = harness(FADING);
+    await h.ready;
+    await show(h, line("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    await settle(h);
+    h.reset();
+    await show(h, line("slight problem, doors locked", { extended: { dialogue: 14 } }));
+    expect(
+      (h.game.module.ui.streams.entries("phone") as StreamEntry[]).map(said),
+    ).toEqual(["slight problem, doors locked"]);
+    expect(motions(h)).toEqual([]);
+  });
+
+  test("an entry shown at once plays no presence", async () => {
+    const h = harness(FADING);
+    await h.ready;
+    await show(h, line("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    await settle(h);
+    h.reset();
+    await show(h, line("doors locked"), "presented");
+    expect(bubbles(h)).toHaveLength(2);
+    expect(motions(h)).toEqual([]);
+  });
+});

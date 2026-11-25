@@ -3243,17 +3243,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return false;
   }
 
-  protected attached(el: Element): boolean {
-    let node = el;
-    for (let parent = node.parent; parent; parent = node.parent) {
-      if (!parent.children.includes(node)) {
-        return false;
-      }
-      node = parent;
-    }
-    return node === this._root;
-  }
-
   protected mountChildren(
     parent: Element,
     children: BodyNode[],
@@ -7163,9 +7152,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ) {
           kept += 1;
         }
+        const restarted = mount.rendered.some(
+          (signature) => !signature.startsWith(`${stream?.cleared ?? 0}:`),
+        );
+        const replaced = restarted ? 0 : mount.entries.length;
         for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
-          for (const root of $.collectNodes(mount.entries[i]!.group)) {
-            $.destroyElement(root);
+          const group = mount.entries[i]!.group;
+          if (restarted) {
+            $.removeGroup(group);
+          } else {
+            for (const root of $.collectNodes(group)) {
+              $.destroyElement(root);
+            }
           }
         }
         mount.entries.length = kept;
@@ -7180,6 +7178,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (let i = kept; i < entries.length; i += 1) {
           const entry = entries[i]!;
           const view = this.build(mount, entry);
+          if (i < replaced) {
+            for (const root of $.collectNodes(view.group)) {
+              $.contentsOf(root).add("text");
+            }
+          }
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
           const atOnce = instant || i < current || i < settled;
