@@ -59,13 +59,14 @@ function compile(text: string): any {
   return compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
 }
 
-function unwrittenRuleTargets(layout: Record<string, any>): string[] {
+function unwrittenRuleTargetsOutsideStreams(layout: Record<string, any>): string[] {
   const targets = new Set<string>();
   const walk = (node: Record<string, any>, path: string[]) => {
     for (const [key, value] of Object.entries(node)) {
       if (key.startsWith("$")) continue;
       const here = [...path, key];
       const words = key.split(" ");
+      if (words[0] === "stream") continue;
       const isContent = ["text", "stroke", "image", "mask"].some((w) => words.includes(w));
       if (isContent && value && typeof value === "object" && Object.keys(value).length === 0) {
         const parent = here.at(-2);
@@ -137,7 +138,7 @@ describe("scripts/migrate-clear-prop.mjs", () => {
   test.each([
     ["the fixture layouts and screens", readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8")],
     ["the built-in layouts", BUILTINS.replace(/ #clear\b/g, "")],
-  ])("adds #clear exactly where the unwritten rule empties, in %s", { timeout: 300_000 }, (_, source) => {
+  ])("adds #clear exactly where the unwritten rule empties outside streams, in %s", { timeout: 300_000 }, (_, source) => {
     const before = compile(source);
     const migrated = migrateClearProp(source);
     expect(migrated.migrated).toBeGreaterThan(0);
@@ -148,12 +149,25 @@ describe("scripts/migrate-clear-prop.mjs", () => {
       const added = clearMarkTargets(after.context?.[kind]?.[name] ?? {}).filter(
         (t) => !alreadyClear.includes(t),
       );
-      const emptied = unwrittenRuleTargets(before.context?.[kind]?.[name] ?? {}).filter(
+      const emptied = unwrittenRuleTargetsOutsideStreams(before.context?.[kind]?.[name] ?? {}).filter(
         (t) => !alreadyClear.includes(t),
       );
       expect(added, name).toEqual(emptied);
       compared += emptied.length;
     }
     expect(compared).toBe(migrated.migrated);
+  });
+
+  test("leaves a stream's templates as written while marking the elements beside it", () => {
+    const source = readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8");
+    const chat = source.slice(source.indexOf("layout chat"), source.lastIndexOf("scene start"));
+    const migrated = migrateClearProp(chat);
+    expect(migrated.text).toContain("heading #clear { text }");
+    expect(migrated.text).toContain("caption #clear { text }");
+    expect(migrated.text).toContain("dialogue.bubble { text }");
+    expect(migrated.text).toContain("character_name { text }");
+    expect(migrated.text).toContain("dialogue { text }");
+    expect(migrated.text).toContain("action.narrated { text }");
+    expect(migrated.migrated).toBe(2);
   });
 });

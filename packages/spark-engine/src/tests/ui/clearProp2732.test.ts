@@ -187,6 +187,13 @@ end
       await flushMicrotasks(20);
     }
     const offset = h.messages.length;
+    const stamps = JSON.parse(
+      JSON.stringify({
+        textLine: ui.state.textLine,
+        textWritten: ui.state.textWritten,
+        textCleared: ui.state.textCleared,
+      }),
+    );
     await ui.onRestore();
     await flushMicrotasks(20);
     const restored = flattenMessages(h.messages.slice(offset))
@@ -199,6 +206,7 @@ end
       .filter((w: { text: string }) => w.text);
     return {
       ui,
+      stamps,
       restored: restored.map(({ target, text }) => ({ target, text })),
       destinations: new Map(restored.map((w) => [w.target, w.elements as string[]])),
     };
@@ -229,7 +237,10 @@ layout textbox {
     );
   });
 
-  test("a save without line stamps restores the text it shows in a #clear element two targets share", async () => {
+  test.each([
+    ["with its line stamps", false],
+    ["without line stamps", true],
+  ])("a save %s restores the text it shows in a #clear element two targets share", async (_, unstamped) => {
     const source = `
 layout textbox {
   textbox { dialogue.action #clear { text } }
@@ -248,9 +259,12 @@ end
     new Coordinator(original.game, original.nextBeat()!);
     await flushMicrotasks(20);
     const save = JSON.parse(original.game.save());
-    delete save.modules.ui.textLine;
-    delete save.modules.ui.textWritten;
-    delete save.modules.ui.textCleared;
+    expect(save.modules.ui.textWritten).toEqual({ action: 1 });
+    if (unstamped) {
+      delete save.modules.ui.textLine;
+      delete save.modules.ui.textWritten;
+      delete save.modules.ui.textCleared;
+    }
     const h = createHarness(source, 0, { loadCheckpoint: JSON.stringify(save) });
     await h.ready;
     const written = flattenMessages(h.messages)
@@ -260,7 +274,100 @@ end
     expect(written).toBe("Before.");
   });
 
-  test("rolling back puts back the text a shared element held through a line that wrote elsewhere", async () => {
+  test("a restore records no line stamp", async () => {
+    const { ui, stamps } = await playThenRestore(`
+layout textbox {
+  textbox { dialogue.action { text "Says:" } }
+}
+`);
+    expect(stamps).toEqual({
+      textLine: ui.state.textLine,
+      textWritten: ui.state.textWritten,
+      textCleared: ui.state.textCleared,
+    });
+  });
+
+  test("line stamps stay numbered one up in the order their lines ran", async () => {
+    const h = createHarness(`
+layout textbox {
+  textbox {
+    action { text }
+    title { text }
+  }
+}
+
+scene start
+  One.
+
+  ^: Two
+
+  Three.
+
+  Four.
+end
+`);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.jumpToFlow("start");
+    const seen: number[] = [];
+    for (let beat = h.nextBeat(); beat; beat = h.nextBeat()) {
+      new Coordinator(h.game, beat);
+      await flushMicrotasks(20);
+      seen.push(ui.state.textLine);
+    }
+    expect(ui.state.textWritten).toEqual({ title: 1, action: 2 });
+    expect(ui.state.textCleared).toMatchObject({ title: 1, action: 2 });
+    expect(Object.values(ui.state.textCleared).every((v) => v === 1 || v === 2)).toBe(true);
+    expect(seen).toEqual([1, 2, 2, 2]);
+  });
+
+  test("choosing stamps the choices' clear no later than the chosen line's text, and a restore after it puts back that line and no choice", async () => {
+    const h = createHarness(`
+scene start
+  The gate.
+  choose
+    * [Pay.]
+      Paid.
+  end
+end
+`);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.game.context.system.previewing = undefined;
+    h.game.start();
+    const settle = async () => {
+      for (let i = 0; i < 5; i += 1) {
+        h.game.update({ deltaMS: 10000 } as any);
+        await flushMicrotasks(30);
+      }
+    };
+    await settle();
+    for (let i = 0; i < 8 && h.game.story.currentChoices.length === 0; i += 1) {
+      h.game.clickedToContinue();
+      await settle();
+    }
+    expect(h.game.story.currentChoices.length).toBeGreaterThan(0);
+    h.game.chosePathToContinue(0);
+    await settle();
+    const choiceClears = Object.entries(ui.state.textCleared ?? {}).filter(([t]) => t.startsWith("choice"));
+    expect(choiceClears.length).toBeGreaterThan(0);
+    for (const [, line] of choiceClears) {
+      expect(line).toBeLessThanOrEqual(ui.state.textWritten.action);
+    }
+    const offset = h.messages.length;
+    await ui.onRestore();
+    await flushMicrotasks(20);
+    const restored = flattenMessages(h.messages.slice(offset))
+      .filter((m: any) => m?.method === "ui/write-text")
+      .map((m: any) => (m.params?.instructions ?? []).map((e: any) => e.text ?? "").join(""))
+      .filter(Boolean);
+    expect(restored).toContain("Paid.");
+    expect(restored).not.toContain("Pay.");
+  });
+
+  test("rolling back puts back the text a shared element held through a line that wrote elsewhere, and rolling forward puts back the later line", async () => {
     const h = createHarness(`define HERO as character with
   name = "HERO"
 end
@@ -306,6 +413,13 @@ end
       .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "action")
       .map((m: any) => m.params.instructions.map((e: any) => e.text ?? "").join(""));
     expect(written).toContain("Before.");
+    h.reset();
+    const forward = await h.game.rollForward("beat");
+    expect(forward.moved).toBe(true);
+    const ahead = flattenMessages(h.messages)
+      .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "dialogue")
+      .map((m: any) => m.params.instructions.map((e: any) => e.text ?? "").join(""));
+    expect(ahead).toContain("Current.");
   });
 
   test("a restore puts back only the newest line's text on an element two targets share", async () => {

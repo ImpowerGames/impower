@@ -73,6 +73,23 @@ layout board {
   text
 }
 
+layout chat {
+  heading #clear { text }
+  thread {
+    stream {
+      dialogue.bubble { text }
+    }
+    stream.log #height=240px {
+      dialogue.said {
+        character_name { text }
+        dialogue { text }
+      }
+      action.narrated { text }
+    }
+    caption #clear { text }
+  }
+}
+
 scene start
   Hello.
 end

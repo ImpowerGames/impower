@@ -85,6 +85,11 @@ function isEmptiedContent(entry: StructEntry, text: string): boolean {
   return Boolean(entry.element) && words(entry, text).some((w) => CONTENT_TAGS.has(w)) && holdsNoValue(entry);
 }
 
+function isStream(entry: StructEntry, text: string): boolean {
+  const name = sparkleElementParts(entry.shape).name;
+  return Boolean(name) && text.slice(name!.from, name!.to) === "stream";
+}
+
 function hasClearProp(entry: StructEntry, text: string): boolean {
   return partsOf(entry).some((p) => {
     if (p.name !== "LuauSparklePropAttribute") return false;
@@ -116,7 +121,7 @@ export function clearEdits(text: string): Edit[] {
   const edits = new Map<number, Edit>();
   const visit = (entries: StructEntry[]) => {
     for (const entry of entries) {
-      if (!entry.element || !entry.children) continue;
+      if (!entry.element || !entry.children || isStream(entry, text)) continue;
       if (!hasClearProp(entry, text) && entry.children.some((child) => isEmptiedContent(child, text))) {
         const edit = clearEdit(entry.shape, text);
         edits.set(edit.from, edit);
