@@ -5145,7 +5145,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   beginTextLine(): void {
-    this._state.textLine = (this._state.textLine ?? 0) + 1;
+    this._state.textLine = Math.max(0, ...this.textLineStamps()) + 1;
+  }
+
+  protected textLineStamps(): number[] {
+    return [
+      ...Object.values(this._state.textWritten ?? {}),
+      ...Object.values(this._state.textCleared ?? {}),
+    ];
+  }
+
+  protected markTextLine(kind: "textWritten" | "textCleared", target: string): void {
+    const line = this._state.textLine ?? 0;
+    (this._state[kind] ??= {})[target] = line;
+    const rank = new Map(
+      [...new Set(this.textLineStamps())].sort((a, b) => a - b).map((v, i) => [v, i + 1]),
+    );
+    for (const stamps of [this._state.textWritten, this._state.textCleared]) {
+      for (const key of Object.keys(stamps ?? {})) {
+        stamps![key] = rank.get(stamps![key]!)!;
+      }
+    }
+    this._state.textLine = rank.get(line) ?? line;
   }
 
   protected restoreTexts(): Promise<void>[] {
@@ -5350,13 +5371,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               state.push(s);
             }
           }
-          $._state.textWritten ??= {};
-          $._state.textWritten[target] = $._state.textLine ?? 0;
+          $.markTextLine("textWritten", target);
         } else {
           delete $._state.text?.[target];
           delete $._state.textWritten?.[target];
-          $._state.textCleared ??= {};
-          $._state.textCleared[target] = $._state.textLine ?? 0;
+          $.markTextLine("textCleared", target);
         }
       }
 
