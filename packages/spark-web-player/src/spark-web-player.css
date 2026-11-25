@@ -381,6 +381,85 @@ spark-web-player .fullscreen #resize-handle {
   display: none;
 }
 
+spark-web-player #route-button {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+spark-web-player #viewport.route-open:not(.fullscreen) {
+  display: flex;
+  flex-direction: column;
+}
+
+spark-web-player #viewport.route-open:not(.fullscreen) #game {
+  flex: 1 1 0;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+spark-web-player #viewport.route-open:not(.fullscreen) #toolbar {
+  flex: none;
+}
+
+spark-web-player #route-list {
+  flex: none;
+  max-height: 50%;
+  overflow: auto;
+  pointer-events: auto;
+  background-color: var(--swp-background-color);
+  border-top: 1px solid var(--swp-toolbar-border-color);
+  font-size: var(--swp-toolbar-font-size);
+}
+
+spark-web-player .fullscreen #route-list {
+  display: none;
+}
+
+spark-web-player #saves-button {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+spark-web-player .fullscreen #saves-button {
+  display: none;
+}
+
+spark-web-player #saves-menu {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+spark-web-player #save-note {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+spark-web-player #save-note[data-hosted] {
+  top: auto;
+  bottom: 8px;
+}
+
+@keyframes swp-save-note {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 spark-web-player #left-items,
 spark-web-player #right-items {
   background-color: inherit;

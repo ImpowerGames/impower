@@ -77,7 +77,8 @@ export type PageFrameSize = NonNullable<VariantProps<typeof pageFrameVariants>["
 export type PageFrameProps = VariantProps<typeof pageFrameVariants> & {
   id?: string;
   title: string;
-  line: string;
+  line?: string;
+  intro?: boolean;
   backLabel?: string;
   onBack?: () => void;
   class?: string;
@@ -88,6 +89,7 @@ export default function PageFrame({
   id,
   title,
   line,
+  intro = true,
   backLabel = "Back to story",
   onBack,
   size,
@@ -97,20 +99,24 @@ export default function PageFrame({
   return (
     <section id={id} aria-label={title} class={cn(pageFrameVariants({ size }), className)}>
       <div class={pageFrameInnerVariants({ size })}>
-        <div class={pageFrameIntroVariants({ size })}>
-          <div>
-            <h1 class={pageFrameTitleVariants({ size })}>{title}</h1>
-            <p class="m-0 max-w-[550px] text-body text-muted">{line}</p>
-          </div>
-          {onBack && (
-            <div class={pageFrameBackVariants({ size })}>
-              <Button variant="quiet" onClick={onBack}>
-                <BackIcon />
-                {backLabel}
-              </Button>
+        {intro ? (
+          <div class={pageFrameIntroVariants({ size })}>
+            <div>
+              <h1 class={pageFrameTitleVariants({ size })}>{title}</h1>
+              {line && <p class="m-0 max-w-[550px] text-body text-muted">{line}</p>}
             </div>
-          )}
-        </div>
+            {onBack && (
+              <div class={pageFrameBackVariants({ size })}>
+                <Button variant="quiet" onClick={onBack}>
+                  <BackIcon />
+                  {backLabel}
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <h1 class="sr-only">{title}</h1>
+        )}
         {children}
       </div>
     </section>

@@ -17,6 +17,7 @@ import {
   openCustomGotoLinePanel,
 } from "../src/modules/script-editor/utils/extensions/gotoLinePanel";
 import { CARET_SCROLL_MARGIN_TOP } from "../src/modules/script-editor/utils/extensions/caretScrollMargin";
+import { focusOnScreen } from "../src/modules/script-editor/utils/caretOnScreen";
 import { getScrollableParent } from "../src/utils/getScrollableParent";
 import { ALL_ON_APPEARANCE } from "./fixtures/scriptAppearance";
 
@@ -27,6 +28,11 @@ type Callbacks = {
 };
 
 const created: { view: EditorView; config: Callbacks }[] = [];
+
+vi.mock("../src/modules/script-editor/utils/caretOnScreen", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/modules/script-editor/utils/caretOnScreen")>();
+  return { ...actual, focusOnScreen: vi.fn(actual.focusOnScreen) };
+});
 
 vi.mock("../src/modules/script-editor/utils/createEditorView", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
@@ -791,6 +797,58 @@ describe("ScriptEditorController commands", () => {
     controller.setReadonly(false);
     expect(view.state.facet(EditorView.editable)).toBe(true);
     expect(focus).toHaveBeenCalledOnce();
+  });
+
+  const caretScrolls = (dispatch: { mock: { calls: unknown[][] } }) =>
+    dispatch.mock.calls.flatMap(([spec]) =>
+      [(spec as { effects?: unknown }).effects]
+        .flat()
+        .filter((effect) => (effect as { value?: { y?: string } } | undefined)?.value?.y != null),
+    );
+
+  it("focuses for Edit through the on-screen caret and never scrolls to the caret", async () => {
+    const { controller, view } = await loadedEditor();
+    controller["handleIdle"]();
+    vi.mocked(focusOnScreen).mockClear();
+    const focus = vi.spyOn(view, "focus");
+    const dispatch = vi.spyOn(view, "dispatch");
+    expect(run(controller, "focusOnScreen")).toMatchObject({ result: { ran: true } });
+    expect(focusOnScreen).toHaveBeenCalledExactlyOnceWith(view);
+    expect(focus).toHaveBeenCalledOnce();
+    expect(caretScrolls(dispatch)).toEqual([]);
+  });
+
+  it("keeps Edit's on-screen focus while it waits for the editor to settle", async () => {
+    const { controller, view } = await loadedEditor();
+    vi.mocked(focusOnScreen).mockClear();
+    const dispatch = vi.spyOn(view, "dispatch");
+    run(controller, "focusOnScreen");
+    expect(focusOnScreen).not.toHaveBeenCalled();
+    controller["handleIdle"]();
+    expect(focusOnScreen).toHaveBeenCalledExactlyOnceWith(view);
+    expect(caretScrolls(dispatch)).toEqual([]);
+  });
+
+  it("keeps Edit's on-screen focus while it waits for the script to become editable", async () => {
+    const { controller, view } = await loadedEditor();
+    controller["handleIdle"]();
+    controller.setReadonly(true);
+    vi.mocked(focusOnScreen).mockClear();
+    run(controller, "focusOnScreen");
+    expect(focusOnScreen).not.toHaveBeenCalled();
+    controller.setReadonly(false);
+    expect(focusOnScreen).toHaveBeenCalledExactlyOnceWith(view);
+  });
+
+  it("focuses at the caret again for a plain focus after Edit's", async () => {
+    const { controller } = await loadedEditor();
+    controller["handleIdle"]();
+    run(controller, "focusOnScreen");
+    vi.mocked(focusOnScreen).mockClear();
+    const focusAtCaret = vi.spyOn(controller as unknown as { focusAtCaret: () => void }, "focusAtCaret");
+    run(controller, "focus");
+    expect(focusOnScreen).not.toHaveBeenCalled();
+    expect(focusAtCaret).toHaveBeenCalledOnce();
   });
 
   it("drops a waiting focus when the script returns to reading", async () => {

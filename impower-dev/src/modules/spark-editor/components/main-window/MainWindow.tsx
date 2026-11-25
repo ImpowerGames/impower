@@ -20,7 +20,7 @@ import { useFocusRule, WorkspaceShell } from "../desktop-shell";
 import FileDropzone from "../file-dropzone/FileDropzone";
 import { useFindShortcut } from "../find-references-rename";
 import Logic from "../logic/Logic";
-import { PhonePreviewStrip } from "../preview-strip";
+import { StoryPreview } from "../preview-strip";
 import { SettingsPage } from "../settings";
 import { SharePage } from "../share";
 import { useWorkspaceSession } from "./useWorkspaceSession";
@@ -78,7 +78,7 @@ export default function MainWindow(_props: MainWindowProps) {
   return (
     <WorkspaceShell
       phone={phone}
-      strip={phone && <PhonePreviewStrip />}
+      strip={phone && <StoryPreview />}
       scriptOnly={scriptOnly}
     >
       <div class="relative flex h-full min-h-0 flex-1">
@@ -100,7 +100,7 @@ export default function MainWindow(_props: MainWindowProps) {
                     aria-label="Preview"
                     class="relative flex h-full w-full flex-col bg-stage"
                   >
-                    <PhonePreviewStrip size="tablet" docked={desktop} />
+                    <StoryPreview size="tablet" docked={desktop} />
                     <InspectorDock />
                   </aside>
                 )

@@ -155,7 +155,7 @@ const open = async (theme: Record<string, string>, markup: string): Promise<Page
       .replace("<body>", `<body class="ready">`)
       .replace(
         "</head>",
-        `<style>${read("spark-web-player.css")}</style><style>${entryCss}</style><style>${read("route", "route-list.css")}</style><style>${read("saves", "saves.css")}</style></head>`,
+        `<style>${read("spark-web-player.css")}</style><style>${entryCss}</style></head>`,
       )
       .replace(/<spark-web-player([^>]*)><\/spark-web-player>/, `<spark-web-player$1><div id="game"><div id="saves-menu"></div></div><div id="route-list">${markup}</div></spark-web-player>`),
   );

@@ -77,9 +77,6 @@ const { default: Preview } = await import(
 const { default: problems } = await import(
   "../../src/modules/spark-editor/workspace/problems/ProblemsStore"
 );
-const { ROUTE_LIST_STYLESHEET_ID } = await import(
-  "@impower/spark-web-player/src/route/routeListStylesheet"
-);
 const { RouteSheet } = await import(
   "../../src/modules/spark-editor/components/preview-route"
 );
@@ -256,6 +253,76 @@ describe("the bar under the game", () => {
     await settle();
     expect(stored().previewPanelHeight).toBe(62);
     expect(document.getElementById("problems-panel")).toBeNull();
+  });
+
+  it("docks the Problems panel under the game in the tablet's full view, and keeps it across closing and reopening the full view", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    expect(toggle().getAttribute("aria-haspopup")).toBeNull();
+    expect(toggle().getAttribute("aria-expanded")).toBe("false");
+    expect(separator().className).not.toContain("hidden");
+    expect(separator().getAttribute("aria-valuenow")).toBe("52");
+    await act(async () => toggle().click());
+    await settle();
+    expect(toggle().getAttribute("aria-expanded")).toBe("true");
+    expect(stored().previewPanelHeight).toBe(260);
+    expect(separator().getAttribute("aria-valuenow")).toBe("260");
+    expect(document.getElementById("problems-panel")).not.toBeNull();
+    expect(host!.querySelector('[data-stage="game"]')).not.toBeNull();
+    const reveal = (revealed: boolean) =>
+      act(async () => {
+        workspace.current = {
+          ...workspace.current,
+          preview: { ...workspace.current.preview, revealed },
+        };
+      });
+    await reveal(false);
+    expect(document.getElementById("problems-panel")).toBeNull();
+    await reveal(true);
+    expect(document.getElementById("problems-panel")).not.toBeNull();
+    expect(separator().getAttribute("aria-valuenow")).toBe("260");
+    await act(async () => toggle().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(62);
+    expect(separator().getAttribute("aria-valuenow")).toBe("52");
+    expect(document.getElementById("problems-panel")).toBeNull();
+    await act(async () => toggle().click());
+    await settle();
+    expect(stored().previewPanelHeight).toBe(260);
+  });
+
+  it("keeps the Problems dialog on the tablet's strip and on the phone's full view", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    problems.closeDialog();
+    await mount({ fullView: false });
+    await act(async () => problems.showProblems());
+    expect(problems.dialog.value?.scope).toEqual({ kind: "story" });
+    expect(stored().previewPanelHeight).toBe(44);
+    expect(document.getElementById("problems-panel")).toBeNull();
+    await act(async () => route.show());
+    expect(route.sheetOpen.value).toBe(true);
+    expect(problems.panelShows.value).toBe("problems");
+    problems.closeDialog();
+    route.sheetOpen.value = false;
+    await unmount();
+    await mount();
+    expect(problems.panelDocks()).toBe(true);
+    await unmount();
+    compact = false;
+    phone = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    expect(problems.panelDocks()).toBe(false);
+    expect(toggle().getAttribute("aria-haspopup")).toBe("dialog");
+    expect(toggle().getAttribute("aria-expanded")).toBeNull();
+    await act(async () => toggle().click());
+    await settle();
+    expect(problems.dialog.value?.scope).toEqual({ kind: "story" });
+    expect(stored().previewPanelHeight).toBe(44);
+    expect(document.getElementById("problems-panel")).toBeNull();
+    problems.closeDialog();
   });
 
   it("shows the caret's line while stopped and the executing line while playing", async () => {
@@ -548,7 +615,7 @@ describe("the bar under the game", () => {
     expect(stored().previewPanelHeight).toBe(62);
   });
 
-  it("mounts the player's own route list, which closes the panel on Escape and brings its own stylesheets", async () => {
+  it("mounts the player's own route list, which closes the panel on Escape", async () => {
     await mount();
     await act(() => {
       route.view.value = forcedRoute;
@@ -556,7 +623,6 @@ describe("the bar under the game", () => {
     await act(async () => route.toggle());
     await settle();
     expect(document.querySelector("#route-panel swp-route-view > section.route-list")).not.toBeNull();
-    expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
     await key(document.body, "Escape");
     await settle();
     expect(document.getElementById("route-panel")).toBeNull();
@@ -617,9 +683,26 @@ describe("the bar under the game", () => {
     }
   });
 
-  it.each(["phone", "compact"])("shows a forced route on the %s full view's readout, whose press opens the list as a sheet", async (layout) => {
-    phone = layout === "phone";
-    compact = layout === "compact";
+  it("opens the route list from the tablet full view's readout in the panel under the game", async () => {
+    compact = true;
+    await act(async () => mediaListeners.forEach((listener) => listener()));
+    await mount();
+    await act(() => {
+      route.view.value = forcedRoute;
+    });
+    const readout = bar().querySelector<HTMLButtonElement>(
+      'button[aria-controls="route-panel"]',
+    )!;
+    await act(async () => readout.click());
+    await settle();
+    expect(readout.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById("route-panel")).not.toBeNull();
+    expect(route.sheetOpen.value).toBe(false);
+    expect(host!.querySelector('[data-stage="game"]')).not.toBeNull();
+  });
+
+  it("shows a forced route on the phone full view's readout, whose press opens the list as a sheet", async () => {
+    phone = true;
     await act(async () => mediaListeners.forEach((listener) => listener()));
     workspace.current = {
       ...workspace.current,
@@ -667,7 +750,7 @@ describe("the bar under the game", () => {
     await reveal(true);
     expect(host!.querySelector('[data-stage="game"]')).toBe(game);
     expect(bar().querySelector('button[aria-label="Close the preview"]')).not.toBeNull();
-    expect(host!.querySelector('[role="separator"][aria-label="Resize game and panel"]')!.className).toContain("hidden");
+    expect(host!.querySelector('[role="separator"][aria-label="Resize game and panel"]')!.className).not.toContain("hidden");
     await reveal(false);
     await layoutTo("desktop");
     expect(host!.querySelector('[data-stage="game"]')).toBe(game);
