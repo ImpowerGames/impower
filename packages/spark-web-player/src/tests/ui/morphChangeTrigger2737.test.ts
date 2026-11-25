@@ -97,7 +97,11 @@ async function played(beatCount: number, instant: (index: number) => boolean = (
     await h.display(h.nextBeat()!, false);
     await flushMicrotasks(10);
   };
-  return { playback, span, shadow, lips, written, next };
+  const nextTwo = async () => {
+    await Promise.all([h.display(h.nextBeat()!, false), h.display(h.nextBeat()!, false)]);
+    await flushMicrotasks(10);
+  };
+  return { playback, span, shadow, lips, written, next, nextTwo };
 }
 
 describe("a `trigger = change` morph in the player (#2737)", () => {
@@ -255,6 +259,23 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the third change's view");
     numbers(lips()[0]!).forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
     playback.advance(0.35);
+    expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
+  });
+
+  test("two changes in one frame while a change is still playing carry on from the frame on screen", async () => {
+    const source = SOURCE.replace(
+      "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.\n  [[show portrait tom:mouth.frown]]",
+      "  [[show portrait mia:mouth.smile]]\n  She smiles again.\n  [[show portrait mia:mouth.frown]]",
+    );
+    const { playback, shadow, lips, nextTwo } = await played(2, undefined, undefined, source);
+    await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
+    playback.advance(0.25);
+    const between = numbers(lips()[0]!);
+    const interrupted = shadow();
+    await nextTwo();
+    await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the last change's view");
+    numbers(lips()[0]!).forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
+    playback.advance(0.25);
     expect(numbers(lips()[0]!)).toEqual(numbers(FROWN));
   });
 

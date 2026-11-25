@@ -1079,8 +1079,10 @@ export class MorphLayer {
       if (!layer.active || layer.kind !== this.kind || layer.base !== this.base) continue;
       const old = layer.images.find((candidate) => candidate.layer === image.layer);
       const [was, more] = old?.plays ?? [];
-      if (!old || more || old.inner.length || !was?.occurrence || (!old.view && !old.canvas)) return undefined;
-      const ref = old.slot.state === "ready" && old.slot.artifact?.status === "live" ? old.drawn : undefined;
+      if (!old || more || old.inner.length || !was?.occurrence) return undefined;
+      const pending = !old.view && !old.canvas && !was.started && old.resume !== undefined;
+      if (!old.view && !old.canvas && !pending) return undefined;
+      const ref = pending || (old.slot.state === "ready" && old.slot.artifact?.status === "live") ? old.drawn : undefined;
       if (!ref || was.play.morph !== play.morph || was.play.owner !== play.owner || ref.image !== play.ref.image) return undefined;
       if (JSON.stringify(was.play.timing) !== JSON.stringify(play.timing)) return undefined;
       if (ref.morphs.length !== 1 || play.ref.morphs.length !== 1) return undefined;
@@ -1088,7 +1090,7 @@ export class MorphLayer {
       if (!drawn || drawn.kept !== pair.kept || !sameOutside(ref.selection, play.ref.selection, pair.groups)) return undefined;
       const turned = drawn.from === pair.to && drawn.to === pair.from;
       if (!turned && !(drawn.from === pair.from && drawn.to === pair.to)) return undefined;
-      const head = this.playback.playhead(was.occurrence);
+      const head = pending ? { phase: "waiting" as const, offset: old.resume! } : this.playback.playhead(was.occurrence);
       if (head.phase !== "playing" && head.phase !== "waiting") return undefined;
       const shown = old.turned ? 1 - head.offset : head.offset;
       return { ref, turned, offset: turned ? 1 - shown : shown };
