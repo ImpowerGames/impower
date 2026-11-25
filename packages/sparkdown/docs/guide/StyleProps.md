@@ -108,6 +108,8 @@ style frame {
 }
 ```
 
+Write `@showing(name)` on a style's own selector or on a nested state block, alone or with other states such as `@hovered` or `@theme(dark)`, or inside `@not(…)`, `@is(…)` and `@where(…)`. Written inside `@has(…)`, `@host(…)`, `@host-context(…)`, the `of` list of `@nth-child(…)` or `@nth-last-child(…)`, or an `@scope` or `@supports selector(…)` prelude, it gets a warning and its block never applies; write it beside the function instead, as in `@showing(action) @has(icon)`.
+
 A name that is no layout and no element gets a warning, because the block would never apply.
 
 > **Inline vs block:** inline props take a `#` and can be dynamic (`#child-gap={n}`);

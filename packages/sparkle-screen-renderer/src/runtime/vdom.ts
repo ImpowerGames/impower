@@ -271,7 +271,11 @@ export function renderVNode(
     if (type === "property" && args?.["key"]) {
       return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
     }
-    const selfTargetedSelector = anchorSelfTargeted(sparkleSelectorToCssSelector(type, breakpoints));
+    const selector = sparkleSelectorToCssSelector(type, breakpoints);
+    if (selector === undefined) {
+      return "";
+    }
+    const selfTargetedSelector = anchorSelfTargeted(selector);
     const blockContent = (children ?? [])
       .map((c, i) => {
         return renderVNode(c, ctx, el, i) as string;

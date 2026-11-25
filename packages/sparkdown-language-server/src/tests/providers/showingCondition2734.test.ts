@@ -65,6 +65,51 @@ describe("@showing(name) names a layout or an element (#2734)", () => {
   );
 });
 
+describe("@showing(name) is refused where it cannot be lifted to the game's root (#2734)", () => {
+  const positionWarnings = (selector: string) =>
+    (compile(`${LAYOUTS}
+style frame {
+  ${selector} {
+    opacity = 1
+  }
+}
+`).diagnostics?.[MAIN] ?? [])
+      .filter((d: any) => d.code === "showing-position")
+      .map((d: any) => ({
+        message: typeof d.message === "string" ? d.message : d.message.value,
+        line: d.range.start.line,
+        from: d.range.start.character,
+        to: d.range.end.character,
+      }));
+
+  it.each([
+    ["@has(icon @showing(hud))", "`@has(…)`"],
+    ["@host(@showing(hud))", "`@host(…)`"],
+    ["@host-context(card @showing(hud))", "`@host-context(…)`"],
+    ["@nth-child(1 of @showing(hud))", "the `of` list of `@nth-child(…)`"],
+    ["@nth-last-child(2 of @showing(hud))", "the `of` list of `@nth-last-child(…)`"],
+    ["@scope (frame @showing(hud))", "an `@scope (…)` prelude"],
+    ["@supports selector(frame @showing(hud))", "`@supports selector(…)`"],
+  ])("warns on %s, naming %s, on the condition", (selector, position) => {
+    const from = 2 + selector.indexOf("@showing");
+    expect(positionWarnings(selector)).toEqual([
+      {
+        message: `\`@showing\` cannot be written inside ${position}, so this block never applies.\n> Write it on the selector itself, beside the function or at-rule, e.g. \`@showing(action) @has(icon)\``,
+        line: 13,
+        from,
+        to: from + "@showing(hud)".length,
+      },
+    ]);
+  });
+
+  it.each(["@showing(hud)", "@showing(hud) @hovered", "@not(@showing(hud))", "@is(@showing(hud), @showing(panel))", "@where(@showing(hud))"])(
+    "does not warn on %s",
+    (selector) => {
+      expect(positionWarnings(selector)).toEqual([]);
+    },
+  );
+});
+
 describe("@showing(name) takes a name with @ alternates (#2734)", () => {
   it("does not warn on a layout named with an alternate", () => {
     expect(

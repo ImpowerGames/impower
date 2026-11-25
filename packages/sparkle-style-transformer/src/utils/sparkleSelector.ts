@@ -82,7 +82,32 @@ const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host
 
 const NTH_OF_PSEUDO_CLASSES = ["nth-child", "nth-last-child"];
 
-const ARGUMENT_OUTSIDE_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["has", "host", "host-context"]);
+const ROOT_LIFTED_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["not", "is", "where"]);
+
+export const SHOWING_REFUSED_POSITIONS = {
+  has: "`@has(…)`",
+  host: "`@host(…)`",
+  "host-context": "`@host-context(…)`",
+  "nth-child": "the `of` list of `@nth-child(…)`",
+  "nth-last-child": "the `of` list of `@nth-last-child(…)`",
+  scope: "an `@scope (…)` prelude",
+  supports: "`@supports selector(…)`",
+} as const;
+
+export type ShowingRefusedPosition = keyof typeof SHOWING_REFUSED_POSITIONS;
+
+export interface ShowingRefusal {
+  position: ShowingRefusedPosition;
+  from: number;
+  to: number;
+}
+
+export const SELECTOR_STATES_TAKING_SELECTORS: readonly string[] = [
+  ...SELECTOR_LIST_PSEUDO_CLASSES,
+  ...NTH_OF_PSEUDO_CLASSES,
+];
+
+export const SELECTOR_AT_RULES_TAKING_SELECTORS: readonly string[] = ["scope", "supports"];
 
 const VALUE_PSEUDO_CLASSES = ["nth-of-type", "nth-last-of-type", "dir", "lang", "state"];
 
@@ -205,6 +230,10 @@ const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match
 
 class SparkleSelectorWriter {
   private i = 0;
+
+  private positions: ShowingRefusedPosition[] = [];
+
+  readonly refusals: ShowingRefusal[] = [];
 
   constructor(
     private readonly src: string,
@@ -340,7 +369,7 @@ class SparkleSelectorWriter {
   }
 
   private lifted(selectors: string): string {
-    return liftRootConditions(selectors, this.options.colorScheme === "attribute", "*");
+    return liftRootConditions(selectors, false, "*");
   }
 
   private selectorArgument(): string {
@@ -374,14 +403,23 @@ class SparkleSelectorWriter {
     return this.src.slice(from, this.i).trim();
   }
 
-  private nth(): string {
+  private within<T>(position: ShowingRefusedPosition, write: () => T): T {
+    this.positions.push(position);
+    try {
+      return write();
+    } finally {
+      this.positions.pop();
+    }
+  }
+
+  private nth(pseudo: ShowingRefusedPosition): string {
     const from = this.i;
     while (this.i < this.src.length && this.src[this.i] !== ")") {
       NTH_OF.lastIndex = this.i;
       if (NTH_OF.test(this.src)) {
         const step = this.src.slice(from, this.i).trim();
         this.i = NTH_OF.lastIndex;
-        return `${step} of ${this.lifted(this.list("selectors", false))}`;
+        return `${step} of ${this.within(pseudo, () => this.list("selectors", false))}`;
       }
       this.i++;
     }
@@ -424,7 +462,12 @@ class SparkleSelectorWriter {
         : { text: `@${COLOR_SCHEME_STATE}(${text}${close}` };
     }
     if (name === SHOWING_STATE && called) {
+      const from = this.i - name.length - 1;
       const { text, close } = this.argument(() => this.value());
+      const position = this.positions.at(-1);
+      if (position) {
+        this.refusals.push({ position, from, to: this.i });
+      }
       return { text: `@${SHOWING_STATE}(${text}${close}` };
     }
     const size = SIZE_STATES.get(name);
@@ -441,17 +484,15 @@ class SparkleSelectorWriter {
       return { text: called ? alias + this.raw() : alias };
     }
     const pseudo = ARGUMENT_STATE_ALIASES.get(name) ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
-    if (pseudo && ARGUMENT_OUTSIDE_PSEUDO_CLASSES.has(pseudo) && called) {
-      const { text, close } = this.argument(() => this.list("selectors", false));
-      return { text: liftOutOfArgument(pseudo, text, close, this.options.colorScheme === "attribute") };
-    }
     if (pseudo && called) {
       const kind = ARGUMENT_KINDS.get(pseudo);
       const args =
         kind === "selectors"
-          ? this.selectorArgument()
+          ? ROOT_LIFTED_PSEUDO_CLASSES.has(pseudo)
+            ? this.selectorArgument()
+            : this.within(pseudo as ShowingRefusedPosition, () => this.enclosed(() => this.list("selectors", false)))
           : kind === "nth"
-            ? this.enclosed(() => this.nth())
+            ? this.enclosed(() => this.nth(pseudo as ShowingRefusedPosition))
             : kind === "value"
               ? this.enclosed(() => this.value())
               : this.raw();
@@ -493,7 +534,7 @@ class SparkleSelectorWriter {
         const condition =
           atRule === "@supports" && !declarations[declarations.length - 1] && SELECTOR_FUNCTION_BEFORE.test(out);
         if (scope || condition) {
-          out += this.selectorArgument();
+          out += this.within(scope ? "scope" : "supports", () => this.enclosed(() => this.list("selectors", false)));
           continue;
         }
         declarations.push(declarations[declarations.length - 1]!);
@@ -597,6 +638,9 @@ const splitRootConditions = (selector: string, scheme: boolean): { root: string;
                 root += condition;
                 const before = text.slice(0, offset);
                 const after = text[offset + written.length];
+                if (state !== SHOWING_STATE) {
+                  return "";
+                }
                 const leading = i === 0 && !before.replace(ROOT_CONDITION, "").trim();
                 const alone =
                   COMPOUND_START.test(before.slice(-1) || " ") && (after === undefined || COMPOUND_END.test(after));
@@ -612,21 +656,6 @@ const splitRootConditions = (selector: string, scheme: boolean): { root: string;
 const COMPOUND_START = /[\s>+~(,]/;
 
 const COMPOUND_END = /[\s>+~),]/;
-
-const liftOutOfArgument = (pseudo: string, selectors: string, close: string, scheme: boolean): string => {
-  const parts = splitRootConditions(selectors, scheme);
-  if (!close || parts.every(({ root }) => !root)) {
-    return `:${pseudo}(${selectors}${close}`;
-  }
-  const argument = (rest: string) => rest || "*";
-  const [first] = parts;
-  if (parts.every(({ root }) => root === first!.root)) {
-    return `:is(${first!.root} *):${pseudo}(${parts.map(({ rest }) => argument(rest)).join(", ")})`;
-  }
-  return `:is(${parts
-    .map(({ root, rest }) => `${root ? `:is(${root} *)` : ""}:${pseudo}(${argument(rest)})`)
-    .join(", ")})`;
-};
 
 const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*" = "&"): string => {
   if (!hasRootConditions(selector)) {
@@ -651,8 +680,19 @@ const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*
     .join(", ");
 };
 
+export const writeSparkleSelectorChecked = (
+  selector: string,
+  options: SparkleSelectorOptions,
+): { css: string; refusals: ShowingRefusal[] } => {
+  const writer = new SparkleSelectorWriter(selector, options);
+  const css = writer.write();
+  return writer.refusals.length > 0
+    ? { css, refusals: writer.refusals }
+    : { css: liftRootConditions(css, options.colorScheme === "attribute"), refusals: [] };
+};
+
 export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string =>
-  liftRootConditions(new SparkleSelectorWriter(selector, options).write(), options.colorScheme === "attribute");
+  writeSparkleSelectorChecked(selector, options).css;
 
 export const anchorSelfTargeted = (selector: string): string =>
   splitTopLevelCommas(selector)

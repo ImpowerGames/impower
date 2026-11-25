@@ -198,6 +198,8 @@ import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpli
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
 import { SHOWING_STATE } from "../constants/selectorStates";
+import { showingRefusalAt } from "../utils/showingRefusal";
+import { SHOWING_REFUSED_POSITIONS } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -5266,6 +5268,20 @@ export class SparkdownCompiler {
         enter: (node) => {
           if (node.name !== "SelectorStateName" || doc.read(node.from, node.to) !== SHOWING_STATE) {
             return undefined;
+          }
+          const refusal = showingRefusalAt(node.node, (from, to) => doc.read(from, to));
+          if (refusal) {
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(refusal.from, refusal.to),
+              code: "showing-position",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: `\`@showing\` cannot be written inside ${SHOWING_REFUSED_POSITIONS[refusal.position]}, so this block never applies.\n> Write it on the selector itself, beside the function or at-rule, e.g. \`@showing(action) @has(icon)\``,
+              },
+              source: LANGUAGE_NAME,
+            });
+            return false;
           }
           const parameters = /^\(([^()\r\n]*)\)/.exec(doc.read(node.to, node.to + 128));
           const name = parameters?.[1]?.trim();

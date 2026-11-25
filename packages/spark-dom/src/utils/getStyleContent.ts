@@ -10,6 +10,7 @@ import {
   COLOR_SCHEME_ATTRIBUTE,
   SHOWING_ATTRIBUTE,
   writeSparkleSelector,
+  writeSparkleSelectorChecked,
 } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
@@ -44,7 +45,14 @@ export const getStyleContent = (
       const indent = "  ".repeat(level);
       if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
-          const elementSelector = getCSSSelector(k, options.breakpoints);
+          const { css: elementSelector, refusals } = writeSparkleSelectorChecked(k, {
+            breakpoints: options.breakpoints,
+            colorScheme: "attribute",
+            attributeName,
+          });
+          if (refusals.length > 0) {
+            return;
+          }
           const selfTargetedSelector = anchorSelfTargeted(elementSelector);
           styleContent += `\n${indent}${selfTargetedSelector} {`;
           level++;
