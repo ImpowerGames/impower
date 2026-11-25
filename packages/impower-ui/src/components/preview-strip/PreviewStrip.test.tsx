@@ -6,7 +6,7 @@ import { portalContainer } from "../../utils/portalContainer";
 import { topToastLayer } from "../../utils/toastLayer";
 import { applied, compiledRules, edgeTreatment } from "../../../test/fadeEdge";
 import { blockExtent, hitArea } from "../../../test/hitArea";
-import PreviewStrip, { type PreviewStripStatus } from "./PreviewStrip";
+import PreviewStrip, { usePreviewStripFull, type PreviewStripStatus } from "./PreviewStrip";
 
 let host: HTMLDivElement | undefined;
 
@@ -296,6 +296,46 @@ describe("PreviewStrip", () => {
       expect(onCollapsed).toHaveBeenCalledTimes(1);
       await exit.end();
       expect(onCollapsed).toHaveBeenCalledTimes(1);
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("leaves the top layer in the same step that drops its full-screen form, and reports collapsed once it has", async () => {
+    const openWhenCollapsed: boolean[] = [];
+    const onCollapsed = vi.fn(() => openWhenCollapsed.push(dialog().open));
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      const end = new Event("animationend");
+      Object.defineProperty(end, "animationName", { value: "fade-out" });
+      Object.defineProperty(end, "pseudoElement", { value: "" });
+      dialog().dispatchEvent(end);
+      for (let i = 0; i < 5; i += 1) {
+        await Promise.resolve();
+      }
+      expect(dialog().className).toContain("scale-[0.1666667]");
+      expect(dialog().open).toBe(false);
+      expect(openWhenCollapsed).toEqual([false]);
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("tells its picture it is full screen from opening until its exit fade ends", async () => {
+    const Picture = () => <div data-full={usePreviewStripFull() ? "" : undefined} />;
+    const full = () => host!.querySelector("[data-full]") !== null;
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={<Picture />} />);
+    expect(full()).toBe(false);
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={<Picture />} expanded />);
+    expect(full()).toBe(true);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." picture={<Picture />} expanded={false} />);
+      expect(full()).toBe(true);
+      await exit.end();
+      expect(full()).toBe(false);
     } finally {
       exit.restore();
     }

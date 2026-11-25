@@ -22,6 +22,7 @@ import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { getStreamElementHover } from "./streamElementHelp";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
 import { getPresenceBlockHover } from "./presenceBlockHelp";
 import {
@@ -329,6 +330,10 @@ export const getHover = async (
     const layoutControlHover = getLayoutControlHover(document, tree, position);
     if (layoutControlHover) {
       return layoutControlHover;
+    }
+    const streamHover = getStreamElementHover(document, tree, position);
+    if (streamHover) {
+      return streamHover;
     }
     const screenKeywordHover = getScreenKeywordHover(document, tree, position);
     if (screenKeywordHover) {
