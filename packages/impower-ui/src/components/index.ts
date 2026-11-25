@@ -18,6 +18,7 @@ export {
   Sheet,
   Lightbox,
   DockedDialog,
+  DIALOG_TRANSITION_MS,
   DialogTitle,
   DialogDescription,
   DialogActions,

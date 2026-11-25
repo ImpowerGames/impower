@@ -4,6 +4,8 @@ export {
   type InspectorNeighbor,
 } from "./AssetInspector";
 export {
+  DOCKED_INSPECTOR_FADE_MS,
+  DockedInspector,
   InspectorDock,
   InspectorDockProvider,
   inspectorHost,

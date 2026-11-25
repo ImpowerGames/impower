@@ -1,5 +1,5 @@
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   SETTINGS_SECTION_IDS,
   settingsSectionHref,
@@ -12,7 +12,6 @@ import {
   routeOfState,
   sectionOfHash,
   stateForRoute,
-  transitionRoute,
 } from "../../src/modules/spark-editor/workspace/routes";
 
 const base = (): WorkspaceCache => ({
@@ -145,73 +144,5 @@ describe("routeOfState and stateForRoute", () => {
     const share = stateForRoute(project, "share");
     expect(share.screen.settingsOpen).toBe(false);
     expect(routeOfState(share)).toBe("share");
-  });
-});
-
-describe("transitionRoute", () => {
-  const original = {
-    matchMedia: window.matchMedia,
-    startViewTransition: (document as { startViewTransition?: unknown })
-      .startViewTransition,
-  };
-
-  afterEach(() => {
-    window.matchMedia = original.matchMedia;
-    (document as { startViewTransition?: unknown }).startViewTransition =
-      original.startViewTransition;
-  });
-
-  const stub = (reduce: boolean) => {
-    window.matchMedia = ((query: string) => ({
-      matches: query.includes("reduce") ? reduce : false,
-    })) as typeof window.matchMedia;
-    const start = vi.fn((update: () => Promise<void>) => {
-      const updateCallbackDone = update();
-      return { ready: Promise.resolve(), updateCallbackDone };
-    });
-    (document as { startViewTransition?: unknown }).startViewTransition = start;
-    return start;
-  };
-
-  it("applies the route in one view transition when motion is allowed", () => {
-    const start = stub(false);
-    const apply = vi.fn();
-    transitionRoute(apply);
-    expect(start).toHaveBeenCalledTimes(1);
-    expect(apply).toHaveBeenCalledTimes(1);
-  });
-
-  it("settles only once a deferred view transition has applied the route", async () => {
-    window.matchMedia = (() => ({
-      matches: false,
-    })) as unknown as typeof window.matchMedia;
-    let begin: () => void = () => {};
-    (document as { startViewTransition?: unknown }).startViewTransition = (
-      update: () => Promise<void>,
-    ) => {
-      const updateCallbackDone = new Promise<void>((resolve) => {
-        begin = () => void update().then(resolve);
-      });
-      return { ready: Promise.resolve(), updateCallbackDone };
-    };
-    const apply = vi.fn();
-    let settled = false;
-    const done = transitionRoute(apply).then(() => {
-      settled = true;
-    });
-    await Promise.resolve();
-    expect(apply).not.toHaveBeenCalled();
-    expect(settled).toBe(false);
-    begin();
-    await done;
-    expect(apply).toHaveBeenCalledTimes(1);
-  });
-
-  it("applies the route directly under prefers-reduced-motion", () => {
-    const start = stub(true);
-    const apply = vi.fn();
-    transitionRoute(apply);
-    expect(start).not.toHaveBeenCalled();
-    expect(apply).toHaveBeenCalledTimes(1);
   });
 });

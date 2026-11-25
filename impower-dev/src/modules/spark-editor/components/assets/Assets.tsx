@@ -44,7 +44,6 @@ import { useCoarsePointer, useLayout } from "@impower/impower-ui/layout";
 import type { ListsState } from "@impower/spark-editor-protocol/src/types";
 import { computed, useComputed } from "@preact/signals";
 import type { VNode } from "preact";
-import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   ASSET_TYPES,
@@ -87,7 +86,7 @@ import { audioSession } from "../../workspace/editorAudio";
 import { useSettings } from "../../workspace/settings/useSettings";
 import { AUDITION_OWNER } from "../../workspace/WorkspaceAudition";
 import workspace from "../../workspace/WorkspaceStore";
-import { AssetInspector, inspectorHost, useInspectorDock, type InspectorHost } from "../asset-inspector";
+import { AssetInspector, DockedInspector, inspectorHost, useInspectorDock, type InspectorHost } from "../asset-inspector";
 import { UsesList } from "../find-references-rename";
 import {
   DeleteDialog,
@@ -1227,7 +1226,11 @@ function AssetsBrowser() {
           </div>
         )}
       </DeleteDialog>
-      {inspector && host === "dock" && dock ? createPortal(inspector, dock) : null}
+      {host === "dock" && dock ? (
+        <DockedInspector dock={dock} open={!!inspector}>
+          {lastInspector}
+        </DockedInspector>
+      ) : null}
       {host === "sheet" && (
         <Sheet
           size="full"
