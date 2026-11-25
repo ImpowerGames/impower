@@ -6518,6 +6518,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      protected _waiting = new Set<string>();
+
       async restore(target: string) {
         const state = $._state.style?.[target];
         if (state) {
@@ -6529,9 +6531,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         target: string,
         style: Record<string, string | null> | null,
       ) {
+        const waiting = this._waiting.has(target);
         for (const targetEl of $.findElements(target)) {
-          if (targetEl) {
+          if (targetEl && (!waiting || $.streams.waits(targetEl))) {
             $.updateElement(targetEl, { style });
+          }
+        }
+      }
+
+      applyWaiting(roots: Element[]) {
+        for (const target of this._waiting) {
+          const style = $._state.style?.[target];
+          if (!style) {
+            continue;
+          }
+          for (const root of roots) {
+            for (const el of root.isMatch(target)
+              ? [root, ...$.searchForAll(root, target)]
+              : $.searchForAll(root, target)) {
+              $.updateElement(el, { style });
+            }
           }
         }
       }
@@ -6544,6 +6563,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, style);
         }
+      }
+
+      async updateWaiting(
+        target: string,
+        style: Record<string, string | null> | null,
+      ) {
+        this._waiting.add(target);
+        await this.update(target, style);
       }
     }
     return Style;
@@ -7098,6 +7125,39 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._mounted.clear();
       }
 
+      waits(el: Element): boolean {
+        if (!$.insideStream(el)) {
+          return true;
+        }
+        for (const mounts of this._mounted.values()) {
+          for (const mount of mounts) {
+            const view = this.waiting(mount);
+            if (
+              view &&
+              $.collectNodes(view.group).some((root) => {
+                for (let node: Element | null = el; node; node = node.parent) {
+                  if (node === root) {
+                    return true;
+                  }
+                }
+                return false;
+              })
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      protected waiting(mount: MountedStream): StreamEntryView | undefined {
+        const stream = $._state.streams?.[mount.key];
+        if (!stream || stream.entries.length <= stream.current) {
+          return undefined;
+        }
+        return mount.entries[stream.current];
+      }
+
       show(instant: boolean, time?: number): void {
         this._presented = { instant, time };
         this.sync(this._presented, undefined, !instant);
@@ -7182,6 +7242,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
+          if (view === this.waiting(mount)) {
+            $.style.applyWaiting($.collectNodes(view.group));
+          }
           const atOnce = instant || i < current || i < settled;
           this.write(view, entry, atOnce, atOnce ? undefined : time);
           if (atOnce) {
