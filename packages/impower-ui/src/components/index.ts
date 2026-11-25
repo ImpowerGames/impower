@@ -360,6 +360,7 @@ export {
   default as PreviewStrip,
   previewStripVariants,
   previewStripStatusVariants,
+  usePreviewStripFull,
   type PreviewStripProps,
   type PreviewStripSize,
   type PreviewStripStatus,
