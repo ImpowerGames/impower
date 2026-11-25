@@ -73,11 +73,13 @@ export const collectLayerNames = (program: SparkProgram): Set<string> => {
     }
   };
 
-  const layouts = program.context?.["layout"];
-  if (layouts && typeof layouts === "object") {
-    for (const [name, struct] of Object.entries(layouts)) {
-      addName(name);
-      walkStruct(struct, 0);
+  for (const type of ["layout", "screen"]) {
+    const structs = program.context?.[type];
+    if (structs && typeof structs === "object") {
+      for (const [name, struct] of Object.entries(structs)) {
+        addName(name);
+        walkStruct(struct, 0);
+      }
     }
   }
   const components = program.context?.["component"];
@@ -87,6 +89,7 @@ export const collectLayerNames = (program: SparkProgram): Set<string> => {
     }
   }
   walkAst(program.sparkle?.layouts, 0);
+  walkAst(program.sparkle?.screens, 0);
   walkAst(program.sparkle?.components, 0);
 
   const ui = (program.context?.["config"] as any)?.["ui"];

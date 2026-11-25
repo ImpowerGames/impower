@@ -63,7 +63,8 @@ const THEME: {
     fontVariantLigatures: "none",
   },
   "& .cm-scroller": {
-    padding: "6px 2px 0 0",
+    padding:
+      "calc(6px + var(--script-scroll-top-space, 0px)) 2px var(--script-scroll-bottom-space, 0px) 0",
     fontSize: "inherit",
     lineHeight: "inherit",
     overscrollBehavior: "none",

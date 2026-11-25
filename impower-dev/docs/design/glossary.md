@@ -30,7 +30,7 @@ The prototype's own notes state these further renames. The live markup is checke
 
 ## App menu
 
-The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is a navigation entry at the foot of the rail and the fourth bottom navigation tab.
+The app menu is a dialog. It opens from the sidebar footer on desktop and tablet and from the top-bar menu button on phones. Selecting Settings goes to the Settings page; the other items show a toast (see Toasts). The editor has no Settings item in the app menu: Settings is the fourth navigation entry of the rail, under Story, Assets and Share, and the fourth bottom navigation tab.
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
@@ -215,9 +215,9 @@ The menu opens in place of the keyboard on phones and above the bar on desktop. 
 | `picture in your assets` | kind in that description | folio-tools.js:15 |  |
 | `sound in your assets` | kind in that description | folio-tools.js:16 |  |
 | `Sparkdown guide` | row title and view title | folio-tools.js:206, folio-tools.js:249 |  |
-| `A quick reference while you write.` | row description | folio-tools.js:249 |  |
+| `A quick reference while you write.` | row description | folio-tools.js:249 | Not drawn: the row shows its label only |
 | `Keyboard shortcuts` | row title and view title | folio-tools.js:207, folio-tools.js:250 |  |
-| `For a connected keyboard.` | row description | folio-tools.js:250 |  |
+| `For a connected keyboard.` | row description | folio-tools.js:250 | Not drawn: the row shows its label only |
 | `Search` | view title | folio-tools.js:205 |  |
 | `References to ` | view title prefix, followed by the name | folio-tools.js:208 |  |
 | `Rename ` | view title prefix, followed by the name | folio-tools.js:209, folio-tools.js:243 |  |
@@ -683,25 +683,23 @@ A caption joins its parts with ` · `: where the file is (when searching), `link
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `No images yet` | heading (Images tab) | folio-assets.js:111 |  |
-| `Add portraits and backgrounds with the Add button.` | description (Images tab) | folio-assets.js:112 | prototype: `Upload portraits and backgrounds with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No audio yet` | heading (Audio tab) | folio-assets.js:114 |  |
-| `Add sounds and music with the Add button.` | description (Audio tab) | folio-assets.js:114 | prototype: `Upload sounds and music with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No video yet` | heading (Video tab) | folio-assets.js:115 |  |
-| `Add a video with the Add button.` | description (Video tab) | folio-assets.js:115 | prototype: `Upload a video with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No text yet` | heading (Text tab) | folio-assets.js:116 |  |
-| `Add notes with the Add button.` | description (Text tab) | folio-assets.js:116 | prototype: `Upload notes with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `No fonts yet` | heading (Fonts tab) | folio-assets.js:117 |  |
-| `Add a font with the Add button.` | description (Fonts tab) | folio-assets.js:117 | prototype: `Upload a font with the Add button.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `Nothing yet` | heading (Other tab) | folio-assets.js:119 |  |
-| `Files of any other type land here when you add them.` | description (Other tab) | folio-assets.js:120 | prototype: `Files of any other type land here when you upload them.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `Drop images here` | heading (Images tab, where files can be dropped) | folio-assets.js:111 | prototype: `No images yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No images yet` | heading (Images tab, under touch) | folio-assets.js:111 |  |
+| `Drop audio here` | heading (Audio tab, where files can be dropped) | folio-assets.js:114 | prototype: `No audio yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No audio yet` | heading (Audio tab, under touch) | folio-assets.js:114 |  |
+| `Drop video here` | heading (Video tab, where files can be dropped) | folio-assets.js:115 | prototype: `No video yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No video yet` | heading (Video tab, under touch) | folio-assets.js:115 |  |
+| `Drop text here` | heading (Text tab, where files can be dropped) | folio-assets.js:116 | prototype: `No text yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No text yet` | heading (Text tab, under touch) | folio-assets.js:116 |  |
+| `Drop fonts here` | heading (Fonts tab, where files can be dropped) | folio-assets.js:117 | prototype: `No fonts yet`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `No fonts yet` | heading (Fonts tab, under touch) | folio-assets.js:117 |  |
+| `Drop files here` | heading (Other tab, empty folder or project with no assets at all, where files can be dropped) | folio-assets.js:119, folio-assets.js:1335, folio-assets.js:1339 | prototype: `Nothing yet` and `This folder is empty`; replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `Nothing yet` | heading (Other tab, under touch) | folio-assets.js:119 |  |
 | `No matching assets` | heading (search) | folio-assets.js:1315 |  |
 | `Try a different name, or a kind such as music or location.` | description (search) | folio-assets.js:1315 |  |
-| `A collection of your art` | heading (project with no assets at all) | folio-assets.js:1335 |  |
-| `Your portraits, backgrounds, sounds and music will appear here.` | description (project with no assets at all) | folio-assets.js:1335 |  |
-| `Add files from this device` | button (project with no assets at all) | folio-assets.js:1335, folio-assets.js:2788 | prototype: `Upload files`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
-| `This folder is empty` | heading (empty folder) | folio-assets.js:1339 |  |
-| `Add files to it with the Add button, or drop files on it from its parent folder.` | description (empty folder) | folio-assets.js:1339 | prototype: `Upload into it with the Add button, or drop files on it from its parent folder.`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `No files yet` | heading (project with no assets at all, under touch) | folio-assets.js:1335 | replaced the prototype's description with the upload button by ImpowerGames/impower-internal#2760; touch title shows under `hover: none` |
+| `Add files from this device` | button (every empty state but search) | folio-assets.js:1335, folio-assets.js:2788 | prototype: `Upload files`; changed by the maintainer's decision of 2026-11-13 (adding a file saves it on this device and sends nothing online) |
+| `This folder is empty` | heading (empty folder, under touch) | folio-assets.js:1339 |  |
 
 ### Inspector
 
@@ -1026,24 +1024,33 @@ The panel opens from the problems toggle in the bar under the game. It has a row
 
 ## Share cards
 
-The Share page is a heading block with Back to story, then four cards. Each card has an icon, a title, a description and a tag.
+The prototype's Share page is a heading block with Back to story, then four cards, each with an icon, a title, a description and a tag. The editor draws no heading block: two cards, Export a screenplay and Export your project, then a `Coming soon` label over three one-line rows for the cards that do nothing yet.
 
 | String | Role | Source | Note |
 | --- | --- | --- | --- |
-| `Share your story` | page heading | app.js:2201 |  |
+| `Share your story` | page heading | app.js:2201 | Not drawn: the page starts with its first card, and its section is named `Share` |
 | `Download, Collaborate & Publish` | eyebrow above the heading | app.js:2202 | Not drawn: app pages have no eyebrow |
-| `Export a shareable game or screenplay. Collaborate with others. Publish it online.` | page description | app.js:2203 |  |
-| `Back to story` | button | app.js:2023, app.js:2190, app.js:2197 |  |
-| `Export a game` | card title | app.js:2207 |  |
+| `Export a shareable game or screenplay. Collaborate with others. Publish it online.` | page description | app.js:2203 | Not drawn |
+| `Back to story` | button | app.js:2023, app.js:2190, app.js:2197 | Not drawn on the Share page |
+| `Export a game` | Coming soon row title | app.js:2207 | A row under `Coming soon`, not a card |
 | `Package your game for Web, Desktop, or Mobile.` | card description | app.js:2208 |  |
 | `Export a screenplay` | card title | app.js:2213 |  |
 | `Print your story to PDF or HTML.` | card description | app.js:2214 |  |
-| `Screenplay settings` | link on the Export a screenplay card (opens Settings, Screenplay) | app.js:2216 |  |
-| `Make it together` | card title | app.js:2220 |  |
+| `Screenplay settings` | link on the Export a screenplay card (opens Settings, Screenplay) | app.js:2216 | Not drawn: `Change` after the summary line opens the same section |
+| `Change` | link after the Export a screenplay summary line (opens Settings, Screenplay; named `Change screenplay settings`) | none | Not in the prototype |
+| `Download PDF` | filled button on the Export a screenplay card | none | Not in the prototype |
+| `Download HTML` | outlined button on the Export a screenplay card | none | Not in the prototype |
+| `Export your project` | card title | none | Not in the prototype |
+| `Download every script and asset as a .zip.` | card description | none | Not in the prototype |
+| `Download .zip` | filled button on the Export your project card; the Settings, Save & sync download | none | Not in the prototype |
+| `Preparing the .zip…` | line under the button while the .zip is prepared | none | Not in the prototype; the Settings row says the same |
+| `Could not create the .zip. Try again.` | line under the button when the .zip fails, also announced | none | Not in the prototype |
+| `Open your project in VS Code` | link beside Download .zip on the Export your project card | none | Not in the prototype |
+| `Make it together` | Coming soon row title | app.js:2220 | A row under `Coming soon`, not a card |
 | `Invite someone to collaborate with you.` | card description | app.js:2221 |  |
-| `Publish it online` | card title | app.js:2226 |  |
+| `Publish it online` | Coming soon row title | app.js:2226 | A row under `Coming soon`, not a card |
 | `Create a playable link you can share with others.` | card description | app.js:2227 |  |
-| `Coming soon` | tag on every card | app.js:2209, app.js:2215, app.js:2222, app.js:2228 |  |
+| `Coming soon` | tag on every card | app.js:2209, app.js:2215, app.js:2222, app.js:2228 | Drawn once, as the label over the three rows |
 
 The Export a screenplay card also shows one summary line: the paper size, then `Title page` or `No title page`, then the scene-number wording, joined with ` · `. The wordings are `No scene numbers`, `Scene numbers on the left`, `Scene numbers on the right` and `Scene numbers on both sides`, and the paper sizes `US Letter` and `A4` (folio-settings.js).
 

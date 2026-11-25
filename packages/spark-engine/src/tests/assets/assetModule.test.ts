@@ -86,10 +86,11 @@ describe("AssetModule", () => {
     expect(configure[0].params).toEqual({
       predictBytes: 300 * 1024 * 1024,
       loadBytes: 0,
+      trimLayers: true,
     });
 
     const small = createHarness(
-      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\nend\n\n${STORY}`,
+      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\n  trim_layers = false\nend\n\n${STORY}`,
       0,
       { assets: ASSETS },
     );
@@ -97,7 +98,10 @@ describe("AssetModule", () => {
     expect(byMethod(small.messages, "assets/configure")[0].params).toEqual({
       predictBytes: 1024 * 1024,
       loadBytes: 2 * 1024 * 1024,
+      trimLayers: false,
     });
+    expect((small.game as any).program?.context?.config?.assets?.trim_layers).toBe(false);
+    expect((h.game as any).program?.context?.config?.assets?.trim_layers).toBe(true);
   });
 
   it("prefetches a scene's visuals, and only its visuals, when previewing it", async () => {
@@ -442,6 +446,41 @@ end
     expect(h.game.module.ui.getFontNamesForLayout("badge")).toEqual(["Fancy"]);
     expect(h.game.module.ui.getFontNamesForLayout("banner")).toEqual(["Fancy"]);
     expect(h.game.module.ui.getFontNamesForLayout("menu")).toEqual([]);
+  });
+
+  it("collects a font styled on a layout's prefixed root", async () => {
+    const source = `style layout_title {
+  font_family = "Fancy"
+}
+
+style layout_hud {
+  font_family = "Fancy"
+}
+
+layout title {
+  column {
+    text "My Game"
+  }
+}
+
+layout hud {
+  hud {
+    text "Score"
+  }
+}
+
+scene A
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, {
+      assets: ASSETS,
+      beforeConnect: playing,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("title")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual(["Fancy"]);
   });
 
   it("ignores a non-font property whose value equals a font name or family (#2370)", async () => {

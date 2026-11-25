@@ -55,6 +55,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
         collapsePreviewPane: () => {
           collapses.push("collapse");
         },
+        finishPreviewCollapse: () => {
+          collapses.push("collapsed");
+        },
       }),
     },
   };

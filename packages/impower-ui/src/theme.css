@@ -525,6 +525,7 @@
   --script-header-height: 68px;
   --preview-top-bar-height: 52px;
   --preview-bar-height: 62px;
+  --writer-bar-height: 62px;
   --preview-strip-height: 91px;
   --preview-strip-tablet-height: 104px;
   --bottom-navigation-height: 65px;
@@ -534,7 +535,6 @@
   --toast-height: var(--title-bar-height);
   --toast-inset: 280px;
   --sheet-gesture-clearance: 8px;
-  --list-row-gutter: 26px;
 }
 
 :root[data-layout="desktop"] {
@@ -544,11 +544,11 @@
 [data-layout="compact"],
 [data-layout="phone"] {
   --preview-bar-height: 52px;
+  --writer-bar-height: 52px;
 }
 
 :root[data-layout="compact"] {
   --title-bar-height: 54px;
-  --list-row-gutter: 22px;
   --script-header-height: 48px;
 }
 

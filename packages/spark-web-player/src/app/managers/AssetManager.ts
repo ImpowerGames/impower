@@ -119,6 +119,7 @@ export default class AssetManager extends Manager {
       this.cache.configure({
         predictBytes: msg.params.predictBytes,
         loadBytes: msg.params.loadBytes,
+        trimLayers: msg.params.trimLayers,
       });
     } else if (PrefetchAssetsMessage.type.isNotification(msg)) {
       this.cache.prefetch(msg.params.items, msg.params.priority);

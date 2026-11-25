@@ -94,6 +94,9 @@ define assets as config with
   -- callstack. A scene beyond it pins what fits in flow order and streams the
   -- rest as it is reached. 0 means no cap: a `load` keeps the whole scene.
   load_cache_size = 0
+  -- Whether each layer file of a layered picture is cut to its painted box
+  -- when it loads, and counted at that size. Pictures look the same either way.
+  trim_layers = true
   -- Beats of a scene a `load` waits for before the loading screen closes.
   -- 0 means the whole scene.
   load_distance = 0

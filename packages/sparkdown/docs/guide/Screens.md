@@ -203,7 +203,7 @@ function go_back() end
 screen menu {
 }
 
-layout title in menu {
+layout home in menu {
   column #child-gap=16 {
     text "My Game"
     button "Play" @click=start
@@ -219,13 +219,44 @@ layout settings in menu {
 }
 ```
 
-> A screen's body is reserved for future screen-level config, so leave it empty for now. Layouts join the screen with `in <screen>`, and referencing a screen you never defined is a compile error, which catches typos.
+Layouts join the screen with `in <screen>`, and referencing a screen you never defined is a compile error, which catches typos.
+
+### The screen's own elements and `slot`
+
+A screen's body holds elements that its layouts share. They stay on screen while any of the screen's layouts is open: they appear when the first one opens, stay the same elements while `navigate` swaps one layout for another, and leave when none is open. A frame, a heading or a backdrop written here keeps its place across the swap instead of being rebuilt with every page.
+
+The open layout is placed where the body writes `slot`, the same word a component uses for its caller's content, so a shared frame can wrap the layout and fit it:
+
+```sparkdown
+function start() end
+
+function go_back() end
+
+screen menu {
+  panel {
+    header { text "My Game" }
+    slot
+  }
+}
+
+layout home in menu {
+  button "Play" @click=start
+}
+
+layout settings in menu {
+  button "Back" @click=go_back
+}
+```
+
+Here `panel` and its `header` stay on screen while the menu moves between `home` and `settings`, and each page's button appears inside `panel`, below the header. With no `slot`, the layout is placed after the screen's own elements. A screen with an empty body has no elements of its own and only groups its layouts.
+
+The screen's root element is named after the screen, so `style menu { … }` styles it, unless the body holds an element of that name, in which case the root is named `screen_menu`. A layout's root follows the same rule with `layout_`, and a layout or screen named after a kind of text such as `title` or `heading` always takes the prefixed root, `layout_title` or `screen_heading`, so `style title { … }` styles the title text and `style layout_title { … }` styles the root. Checkpoints and saves restore a screen's elements with its open layout.
 
 Move to a layout within a screen with **`[[navigate <screen> to <layout>]]`** — this is full-screen routing: it replaces whatever that screen was showing.
 
 ```sparkdown
 scene menus
-  [[navigate menu to title]]
+  [[navigate menu to home]]
   -- player clicks Settings →
   [[navigate menu to settings]]
 ```
