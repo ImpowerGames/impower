@@ -10,7 +10,7 @@ import {
 } from "../problemCounts";
 import { PROJECT_SETTINGS_SCHEMA } from "../settings/settingsSchema";
 import workspaceSettings from "../settings/WorkspaceSettings";
-import { previewInStrip } from "../previewInStrip";
+import { previewDocksPanel } from "../previewInStrip";
 import workspace from "../WorkspaceStore";
 import { CLIPBOARD_UNAVAILABLE } from "@impower/spark-web-player/src/components/PlayerConsole/consoleEntries";
 import { showSnackbar } from "../../utils/snackbar";
@@ -257,8 +257,15 @@ export class ProblemsStore {
     }
   }
 
+  panelDocks() {
+    return previewDocksPanel(
+      layoutState.current(),
+      workspace.current.preview?.revealed,
+    );
+  }
+
   showPanel(panel: PreviewPanel) {
-    if (previewInStrip(layoutState.current())) {
+    if (!this.panelDocks()) {
       return false;
     }
     this.panelShows.value = panel;
@@ -299,7 +306,7 @@ export class ProblemsStore {
   }
 
   togglePanel(returnFocus?: () => HTMLElement | null) {
-    if (previewInStrip(layoutState.current())) {
+    if (!this.panelDocks()) {
       this.openDialog({ kind: "story" }, returnFocus);
     } else if (this.problemsShown.value) {
       this.collapsePanel();

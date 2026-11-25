@@ -96,8 +96,11 @@ agent or a second breakpoint.
 - **The preview dock** (`components/preview/Preview.tsx`): the preview top bar
   (`preview-top-bar/`), the game (`preview-game/`) or the screenplay
   (`preview-screenplay/`), and the bar under them (`preview-bar/`) with the Problems
-  toggle. At compact width it sits in the strip `preview-strip/PhonePreviewStrip.tsx`;
-  on phones it opens as its own pane with Back to story.
+  toggle. At compact width it sits in the strip `preview-strip/PhonePreviewStrip.tsx`,
+  and its full view is the desktop split: the game, the bar, and the Problems or Route
+  panel docked under them behind the divider. On phones it opens as its own pane with
+  Back to story, and the Problems and Route toggles open a dialog and a sheet instead
+  (`workspace/previewInStrip.ts` decides where the panel docks).
 - **The asset inspector dock** (`asset-inspector/dock.tsx`): the inspector docks
   beside the Assets page at desktop width and opens as a sheet at compact and phone widths.
 
