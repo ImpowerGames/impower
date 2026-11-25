@@ -23,12 +23,16 @@ afterAll(async () => {
   await browser?.close();
 });
 
-const editAndDone = async (scriptHeight: number, scrollTop: number) => {
+const editAndDone = async (
+  scriptHeight: number,
+  scrollTop: number,
+  readLayoutFirst: boolean,
+) => {
   const tab = await browser.newPage({ viewport: { width: 400, height: 700 } });
   try {
     await tab.setContent(page(scriptHeight));
     return await tab.evaluate(
-      async ([source, scrollTop]) => {
+      async ([source, scrollTop, readLayoutFirst]) => {
         const keep = new Function(`return (${source})`)() as (
           column: HTMLElement,
         ) => () => void;
@@ -54,10 +58,16 @@ const editAndDone = async (scriptHeight: number, scrollTop: number) => {
         const start = line.getBoundingClientRect().top;
         const startScroll = scroller.scrollTop;
         header.style.display = "none";
+        if (readLayoutFirst) {
+          scroller.getBoundingClientRect();
+        }
         const hidden = await seenBeforePaint();
         await frame();
         const hiddenLater = line.getBoundingClientRect().top;
         header.style.display = "";
+        if (readLayoutFirst) {
+          scroller.getBoundingClientRect();
+        }
         const shown = await seenBeforePaint();
         await frame();
         const shownLater = line.getBoundingClientRect().top;
@@ -78,7 +88,7 @@ const editAndDone = async (scriptHeight: number, scrollTop: number) => {
           releasedPadding: scroller.style.paddingTop,
         };
       },
-      [keepScriptStill.toString(), scrollTop] as const,
+      [keepScriptStill.toString(), scrollTop, readLayoutFirst] as const,
     );
   } finally {
     await tab.close();
@@ -86,21 +96,24 @@ const editAndDone = async (scriptHeight: number, scrollTop: number) => {
 };
 
 describe("the script under its header", () => {
-  for (const [label, scriptHeight, scrollTop] of [
-    ["scrolled well down a long script", 3000, 800],
-    ["at the top of a long script", 3000, 0],
-    ["less than the header's height down a long script", 3000, 20],
-    ["in a script too short to scroll", 300, 0],
+  for (const [label, scriptHeight, scrollTop, readLayoutFirst] of [
+    ["scrolled well down a long script", 3000, 800, false],
+    ["at the top of a long script", 3000, 0, false],
+    ["less than the header's height down a long script", 3000, 20, false],
+    ["in a script too short to scroll", 300, 0, false],
+    ["at the end of a long script", 3000, 100_000, false],
+    ["at the end of a long script, with the layout read before the frame", 3000, 100_000, true],
+    ["near the end of a long script, with the layout read before the frame", 3000, 2420, true],
   ] as const) {
     it(`holds the text still in the frame the header hides and in the frame it returns, ${label}`, async () => {
-      const moves = await editAndDone(scriptHeight, scrollTop);
+      const moves = await editAndDone(scriptHeight, scrollTop, readLayoutFirst);
 
-      expect(moves.startScroll).toBe(scrollTop);
+      expect(moves.startScroll).toBe(Math.min(scrollTop, Math.max(0, scriptHeight - 552)));
       expect(moves.hidden).toBe(moves.start);
       expect(moves.hiddenLater).toBe(moves.start);
       expect(moves.shown).toBe(moves.start);
       expect(moves.shownLater).toBe(moves.start);
-      expect(moves.endScroll).toBe(scrollTop);
+      expect(moves.endScroll).toBe(moves.startScroll);
       expect(moves.endPadding).toBe("");
       expect(moves.releasedPadding).toBe("");
     });
