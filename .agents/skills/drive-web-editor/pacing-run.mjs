@@ -76,6 +76,27 @@ export function pacingTypingEnd(w) {
   return { end, now: w.performance.now() };
 }
 
+export function pacingMotion(w, firedName) {
+  const fired = w.performance.getEntriesByName(firedName, "mark")[0]?.startTime;
+  if (fired == null) return null;
+  const timeline = w.document.timeline;
+  let longest = null;
+  for (const animation of w.document.getAnimations()) {
+    const target = animation.effect?.target;
+    if (!target || target.classList?.contains("text_letter")) continue;
+    const timing = animation.effect.getComputedTiming();
+    if (!Number.isFinite(timing.activeDuration) || timing.activeDuration < 500) continue;
+    const start = (animation.startTime ?? timeline.currentTime) + (animation.effect.getTiming().delay ?? 0);
+    if (start < fired - 100 || start > fired + 1000) continue;
+    if (!longest || timing.activeDuration > longest.end - longest.start) {
+      const cls = typeof target.className === "string" ? target.className.trim().split(/\s+/).slice(0, 2).join(".") : "";
+      const image = target.getAttribute?.("image");
+      longest = { start, end: start + timing.activeDuration, target: `${target.localName}${cls ? "." + cls : ""}${image ? `[image=${image}]` : ""}` };
+    }
+  }
+  return longest;
+}
+
 export function pacingRead(w, { firedName, sinceClicks }) {
   const label = firedName.slice("beat fired ".length);
   const entry = (type, name) => w.performance.getEntriesByName(name, type)[0] ?? null;
@@ -221,7 +242,9 @@ export async function playLines(surface, options) {
         break;
       }
       const typing = await surface.inGame(pacingTypingEnd);
-      const until = Math.max(typing.end ?? typing.now, typing.now) + restMs;
+      await sleep(300);
+      const motion = await surface.inGame(pacingMotion, firedName);
+      const until = Math.max(typing.end ?? typing.now, motion?.end ?? 0, typing.now) + restMs;
       while ((await surface.inGame((w) => w.performance.now())) < until) await sleep(100);
       if (surface.beatFinished) {
         const finishBy = Date.now() + fireTimeoutMs;
@@ -237,6 +260,7 @@ export async function playLines(surface, options) {
         motion: plan?.motion ?? false,
         text: plan?.text ?? read.text,
         typingEnd: typing.end,
+        motionWindow: motion,
         mouthChanges: read.morph.filter((m) => m.kind === "swap").map((m) => m.t),
       };
       record.layers = await describeLayers(surface.sendGame, layerPaints(layersBefore, layersAfter), layersAfter);
@@ -245,11 +269,12 @@ export async function playLines(surface, options) {
       const clock = clockOffset(trace.marks, pageMarks);
       const line = clock ? analyzeLine(trace, record, clock) : { line: read.line, kind: record.kind, failure: "the trace held none of the line's marks" };
       line.listed = plan?.line ?? null;
-      line.page = { clickAt: read.clickAt, receivedAt: read.receivedAt, firedAt: read.firedAt, typingEnd: typing.end, mouthChanges: record.mouthChanges, clockOffset: clock?.offset ?? null };
+      line.page = { clickAt: read.clickAt, receivedAt: read.receivedAt, firedAt: read.firedAt, typingEnd: typing.end, motionWindow: motion, mouthChanges: record.mouthChanges, clockOffset: clock?.offset ?? null };
       line.morphChanges = { swaps: record.mouthChanges.length, other: read.morph.length - record.mouthChanges.length };
       line.traceMB = Math.round(fs.statSync(file).size / 1e5) / 10;
       if (!keepTrace) fs.rmSync(file, { force: true });
       run.lines.push(line);
+      if (line.failure) run.failed.push(`line ${line.line}: ${line.failure}`);
       log(`pacing: line ${line.line} ${line.kind ?? ""} click>fire ${line.waitMs} ms, first second longest stall ${line.firstSecond?.stalls.longestMs ?? "-"} ms${line.failure ? ` FAILED ${line.failure}` : ""}`);
       if (surface.screenshot) await surface.screenshot(path.join(out, `line-${String(n).padStart(2, "0")}-${line.line}.png`)).catch(() => {});
       if (expected && plan === expected[expected.length - 1]) break;

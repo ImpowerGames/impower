@@ -2,10 +2,11 @@
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, mergePresentations, parseTrace, quietness, repeatability, stallsIn } from "./pacing-analysis.mjs";
-import { planFor } from "./pacing-run.mjs";
+import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, planFor, playLines } from "./pacing-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const excerpt = (name) => JSON.parse(fs.readFileSync(path.join(here, "fixtures", "pacing-trace", `${name}.json`), "utf8"));
@@ -132,18 +133,80 @@ await check("a run is quiet only while the CPU load before it stays under the li
   assert.equal(quietness(null, 25).quiet, false);
 });
 
-await check("two quiet runs are repeatable when the talking line's longest stall in each stays within 20 ms", () => {
-  const run = (figures, quiet = true) => ({ quiet: { quiet }, lines: figures.map(([listed, longestMs, kind = "talk"]) => ({ listed, kind, firstSecond: { stalls: { longestMs } } })) });
-  const close = repeatability([run([[165, 50.1], [172, 28.2, "talk-pan"], [167, 300, "narration"]]), run([[165, 32.6], [172, 0, "talk-pan"], [167, 0, "narration"]])]);
-  assert.deepEqual(close.figures, [50.1, 32.6]);
+await check("two quiet runs are repeatable only when every occurrence of the talking line stays within 20 ms of itself", () => {
+  const run = (figures, { quiet = true, failed = [] } = {}) => ({ quiet: { quiet }, failed, lines: figures.map(([listed, longestMs, kind = "talk"]) => ({ listed, kind, firstSecond: { stalls: { longestMs } } })) });
+  const close = repeatability([run([[165, 49.9], [172, 0, "talk-pan"], [167, 300, "narration"]]), run([[165, 50.1], [172, 12, "talk-pan"], [167, 0, "narration"]])]);
   assert.equal(close.within, true);
   assert.match(close.verdict, /^repeatable/);
-  assert.deepEqual(close.lines.map((l) => [l.line, l.spreadMs]), [[165, 17.5], [172, 28.2]]);
-  const far = repeatability([run([[165, 30]]), run([[165, 60]])]);
-  assert.equal(far.within, false);
-  assert.match(far.verdict, /^not repeatable/);
-  assert.match(repeatability([run([[165, 30]]), run([[165, 31]], false)]).verdict, /^not judged/);
+  assert.deepEqual(close.lines.map((l) => [l.line, l.spreadMs]), [[165, 0.2], [172, 12]]);
+  const oneFrame = repeatability([run([[165, 50.1], [172, 28.2, "talk-pan"]]), run([[165, 32.6], [172, 0, "talk-pan"]])]);
+  assert.equal(oneFrame.within, false);
+  assert.match(oneFrame.verdict, /^not repeatable/);
+  const swapped = repeatability([run([[165, 500], [172, 0, "talk-pan"]]), run([[165, 0], [172, 500, "talk-pan"]])]);
+  assert.equal(swapped.within, false);
+  assert.match(repeatability([run([[165, 30]]), run([[165, 31]], { quiet: false })]).verdict, /^not judged, because at least one run was not quiet/);
+  assert.match(repeatability([run([[165, 30]]), run([[165, 31]], { failed: ["line 163: the trace holds no frame"] })]).verdict, /^not judged, because at least one run failed/);
   assert.equal(repeatability([run([[165, 30]])]).within, null);
+});
+
+await check("a line whose trace holds no presented frame of the page fails instead of reading as no stall", () => {
+  const events = TALK.traceEvents.filter((e) => e.name !== "PipelineReporter");
+  const trace = parseTrace({ traceEvents: events });
+  const line = analyzeLine(trace, TALK.record, clockOffset(trace.marks, pageMarks(TALK)));
+  assert.match(line.failure, /no frame that reached the screen/);
+  assert.equal(line.firstSecond, undefined);
+});
+
+await check("a pan or zoom line's frame rate is read over the animation's own interval, not the typing", () => {
+  const trace = parseTrace(TALK);
+  const clock = clockOffset(trace.marks, pageMarks(TALK));
+  const fired = TALK.record.firedAt;
+  const firstSecond = analyzeLine(trace, { ...TALK.record, motion: true, motionWindow: { start: fired, end: fired + 1000, target: "span.instance" } }, clock);
+  assert.equal(firstSecond.motionFramesPerSecond, 57);
+  assert.equal(firstSecond.motion.ms, 1000);
+  const half = analyzeLine(trace, { ...TALK.record, motion: true, motionWindow: { start: fired + 500, end: fired + 1000 } }, clock);
+  const frames = trace.frames.get(clock.pid).presented.filter((t) => t >= fired + clock.offset + 500 && t < fired + clock.offset + 1000).length;
+  assert.equal(half.motionFramesPerSecond, frames * 2);
+  assert.match(analyzeLine(trace, { ...TALK.record, motion: true }, clock).failure, /no pan or zoom animation/);
+  assert.equal(analyzeLine(trace, TALK.record, clock).motion, undefined);
+});
+
+await check("a run whose line could not be measured fails, so a broken capture never passes", async () => {
+  const fixture = { start: 160, lines: [{ line: 160, kind: "warmup" }, { line: 165, kind: "talk" }] };
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "pacing-run-test-"));
+  const listeners = new Map();
+  const answers = new Map([
+    [pacingProbe, "installed"],
+    [pacingEnvironment, { refreshHz: 60, devicePixelRatio: 1, gameView: "781x563" }],
+    [pacingBeats, { fired: [], clicks: 0 }],
+    [pacingFired, "beat fired main.sd:163 #2"],
+    [pacingTypingEnd, { end: 100, now: 100 }],
+    [pacingMotion, null],
+    [pacingRead, { label: "main.sd:163 #2", line: 163, clickName: "pacing click 1", clickAt: 10, receivedAt: 20, firedAt: 30, beatWaitMs: 10, morph: [], text: "" }],
+  ]);
+  const surface = {
+    inGame: async (fn) => (answers.has(fn) ? answers.get(fn) : 1e9),
+    clickGame: async () => {},
+    sendBrowser: async (method) => {
+      if (method === "Tracing.end") setTimeout(() => listeners.get("Tracing.tracingComplete")?.({ stream: "s" }), 0);
+      if (method === "IO.read") return { data: JSON.stringify({ traceEvents: [] }), eof: true };
+      return {};
+    },
+    onBrowser: (name, handler) => {
+      listeners.set(name, handler);
+      return () => listeners.delete(name);
+    },
+    sendGame: async () => ({}),
+    onGame: () => () => {},
+  };
+  try {
+    const run = await playLines(surface, { out, fixture, restMs: 0, settleMs: 0, quietSampleMs: 0, fireTimeoutMs: 1000 });
+    assert.equal(run.lines.length, 1);
+    assert.match(run.lines[0].failure, /none of the line's marks/);
+    assert.ok(run.failed.some((f) => /line 163: the trace held none of the line's marks/.test(f)), JSON.stringify(run.failed));
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
 });
 
 if (failures) {

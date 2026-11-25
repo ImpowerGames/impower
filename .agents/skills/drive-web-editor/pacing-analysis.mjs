@@ -163,7 +163,8 @@ export function analyzeLine(trace, record, clock) {
     layers: record.layers ?? [],
   };
   if (fired == null) return { ...out, failure: "no beat fired after the click" };
-  const frames = trace.frames.get(clock.pid) ?? { presented: [], dropped: [] };
+  const frames = trace.frames.get(clock.pid);
+  if (!frames?.presented.length) return { ...out, failure: "the trace holds no frame that reached the screen from the page's renderer" };
   const firstEnd = fired + FIRST_SECOND_MS;
   const graphics = tasksIn(trace.graphics, fired, firstEnd, GRAPHICS_TASK_MS, fired);
   const page = tasksIn(trace.tasks.get(`${clock.pid}:${clock.tid}`) ?? [], click ?? fired, firstEnd, PAGE_TASK_MS, fired);
@@ -183,7 +184,20 @@ export function analyzeLine(trace, record, clock) {
       droppedFrames: countIn(frames.dropped, fired, typingEnd),
       framesPerSecond: framesPerSecond(frames.presented, fired, typingEnd),
     };
-    if (record.motion) out.motionFramesPerSecond = out.typing.framesPerSecond;
+  }
+  if (record.motion) {
+    const from = at(record.motionWindow?.start);
+    const to = at(record.motionWindow?.end);
+    if (from == null || !(to > from)) out.failure = "no pan or zoom animation ran after the line fired";
+    else {
+      out.motion = {
+        target: record.motionWindow.target ?? null,
+        ms: round(to - from),
+        framesPerSecond: framesPerSecond(frames.presented, from, to),
+        droppedFrames: countIn(frames.dropped, from, to),
+      };
+      out.motionFramesPerSecond = out.motion.framesPerSecond;
+    }
   }
   const mouth = (record.mouthChanges ?? []).map(at).filter((t) => t != null && t >= fired && (typingEnd == null || t < typingEnd));
   out.mouth = trace.graphicsThreads ? busyAfter(trace.graphics, mouth) : { changes: mouth.length };
@@ -223,19 +237,17 @@ export function repeatability(runs, limit = REPEAT_LIMIT_MS) {
     .filter(([, figures]) => figures.length === runs.length)
     .map(([line, figures]) => ({ line, figures, spreadMs: round(Math.max(...figures) - Math.min(...figures)) }));
   if (runs.length < 2 || !lines.length) return { lines, limit, within: null, verdict: "one run, or no talking line measured in every run: repeatability not judged" };
-  const figures = runs.map((_, i) => round(Math.max(...lines.map((l) => l.figures[i]))));
-  const spreadMs = round(Math.max(...figures) - Math.min(...figures));
-  const within = spreadMs <= limit;
+  const within = lines.every((l) => l.spreadMs <= limit);
   const quiet = runs.every((run) => run.quiet?.quiet);
-  const listed = lines.map((l) => `line ${l.line} ${l.figures.join("/")} ms`).join(", ");
+  const failed = runs.some((run) => run.failed?.length);
+  const listed = lines.map((l) => `line ${l.line} ${l.figures.join("/")} ms (spread ${l.spreadMs})`).join(", ");
+  const judged = failed ? "not judged, because at least one run failed" : !quiet ? "not judged, because at least one run was not quiet" : within ? "repeatable" : "not repeatable";
   return {
-    figures,
-    spreadMs,
     lines,
     limit,
-    within,
+    within: failed || !quiet ? null : within,
     quiet,
-    verdict: `${quiet ? (within ? "repeatable" : "not repeatable") : "not judged, because at least one run was not quiet"}: the talking line's longest stall in the first second was ${figures.join(" ms, ")} ms across ${runs.length} runs, ${within ? "within" : "over"} ${limit} ms of each other (each occurrence: ${listed})`,
+    verdict: `${judged}: each occurrence of the talking line's longest stall in the first second across ${runs.length} runs, ${within ? "every one within" : "not every one within"} ${limit} ms: ${listed}`,
   };
 }
 
