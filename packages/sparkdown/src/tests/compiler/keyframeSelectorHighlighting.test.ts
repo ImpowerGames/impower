@@ -57,9 +57,9 @@ describe("keyframe position keys are highlighted as positions", () => {
   });
 
   test("a bare position word in another block is coloured as a position too", () => {
-    const source = `screen home {
+    const source = `theme home {
   to {
-    button "Next"
+    color = "red"
   }
 }
 `;
@@ -67,9 +67,9 @@ describe("keyframe position keys are highlighted as positions", () => {
   });
 
   test("a key that merely starts with a position word is not a selector", () => {
-    const source = `screen menu {
+    const source = `theme menu {
   from_left {
-    text "hi"
+    color = "red"
   }
 }
 `;

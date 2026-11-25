@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import {
   caretBottomInsetOf,
   caretScrollMarginY,
+  fitCoveredBottom,
 } from "./extensions/caretScrollMargin";
 
 const EDGE_TOLERANCE = 1;
@@ -22,14 +23,19 @@ const scrollMargins = (view: EditorView, withCaretInset: boolean) => {
 
 const visibleBand = (view: EditorView, clearance: number) => {
   const scroller = view.scrollDOM.getBoundingClientRect();
-  const margins = scrollMargins(view, clearance > 0);
+  const covered = scrollMargins(view, false);
+  const inset =
+    clearance > 0 ? scrollMargins(view, true).bottom - covered.bottom : 0;
   const viewport = window.visualViewport;
   const screenBottom = viewport
     ? viewport.offsetTop + viewport.height
     : window.innerHeight;
   return {
-    top: Math.max(scroller.top, 0) + margins.top + clearance,
-    bottom: Math.min(scroller.bottom, screenBottom) - margins.bottom - clearance,
+    top: Math.max(scroller.top, 0) + covered.top + clearance,
+    bottom:
+      Math.min(scroller.bottom - covered.bottom, screenBottom) -
+      inset -
+      clearance,
   };
 };
 
@@ -73,6 +79,19 @@ export const firstLineOnScreen = (view: EditorView): number => {
     }
   }
   return firstRowOnScreen(view, top);
+};
+
+export const raiseCaretOnScreen = (view: EditorView) => {
+  fitCoveredBottom(view);
+  const { head, assoc } = view.state.selection.main;
+  const caret = view.coordsAtPos(head, assoc || 1);
+  if (!caret) {
+    return;
+  }
+  const { bottom } = visibleBand(view, caretScrollMarginY);
+  if (caret.bottom > bottom + EDGE_TOLERANCE) {
+    view.scrollDOM.scrollTop += caret.bottom - bottom;
+  }
 };
 
 export const focusOnScreen = (view: EditorView) => {

@@ -54,11 +54,11 @@ export default function WriterBar({
             aria-label="Writing"
             data-writer-bar
             class={cn(
-              "flex flex-none items-center justify-between border-t border-edge bg-paper in-data-naming:hidden in-data-script-only:hidden",
+              "flex h-[var(--writer-bar-height)] flex-none items-center justify-between border-t border-edge bg-paper in-data-naming:hidden in-data-script-only:hidden",
               phone && "in-data-editing:hidden",
               desktop
-                ? "grid h-[62px] min-h-[62px] grid-cols-[1fr_auto_1fr] gap-1 px-5"
-                : "h-[52px] min-h-[52px] gap-0 px-1",
+                ? "grid grid-cols-[1fr_auto_1fr] gap-1 px-5"
+                : "gap-0 px-1",
             )}
           >
             <div class="flex items-center gap-[3px] justify-self-start">
