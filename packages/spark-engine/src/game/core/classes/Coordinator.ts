@@ -77,6 +77,8 @@ export class Coordinator<G extends Game> {
 
   protected _onTick?: (deltaMS: number) => void;
 
+  protected _startLine?: () => void;
+
   protected _presenters: Presenter[] = [];
 
   protected _displayed = false;
@@ -349,6 +351,7 @@ export class Coordinator<G extends Game> {
         return 2;
       }
       if (this._startedExecution && !waitingForChoice) {
+        this._startLine?.();
         this.display({ instant: true });
         this.finishExecution();
       }
@@ -458,8 +461,21 @@ export class Coordinator<G extends Game> {
 
     let elapsedMS = 0;
     let ready = false;
+    let started = false;
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
+    const start = (time?: number, sound = true) => {
+      if (started) {
+        return;
+      }
+      started = true;
+      const now = game.context.system.now();
+      const at = time ?? now + BEAT_LEAD_MS;
+      if (sound) {
+        game.module.audio.triggerAll(audioTriggerIds, at);
+      }
+      elapsedMS = -(at - now + game.module.audio.outputLatency * 1000);
+    };
     const handleTick = (deltaMS: number): void => {
       if (pendingLoad) {
         loadTriggerId = assets.runLoad(pendingLoad);
@@ -476,7 +492,7 @@ export class Coordinator<G extends Game> {
           ready = true;
           this._startedExecution = true;
           const time = game.context.system.now() + BEAT_LEAD_MS;
-          game.module.audio.triggerAll(audioTriggerIds, time);
+          const line = game.module.ui.beginLine(time);
           if (assetTriggerId != null) {
             assets.trigger(assetTriggerId);
           }
@@ -488,10 +504,18 @@ export class Coordinator<G extends Game> {
             this._cutscenePlaying = true;
           }
           presenter.present(time);
-          elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
+          game.module.ui.closeLine();
+          if (line) {
+            this._startLine = () => start();
+            void line.then((at) =>
+              at === null ? start(undefined, false) : start(at),
+            );
+          } else {
+            start(time);
+          }
           game.module.ui.afterCompose(() => assets.onBeatDisplayed());
         }
-      } else if (!finished) {
+      } else if (started && !finished) {
         elapsedMS += deltaMS;
       }
       if (ready && !finished) {
@@ -503,7 +527,11 @@ export class Coordinator<G extends Game> {
           cutsceneTriggerId = null;
           this._cutscenePlaying = false;
         }
-        if (elapsedMS >= totalDurationMS && cutsceneTriggerId == null) {
+        if (
+          started &&
+          elapsedMS >= totalDurationMS &&
+          cutsceneTriggerId == null
+        ) {
           finished = true;
           handleFinished();
         }
