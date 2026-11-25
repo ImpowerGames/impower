@@ -354,7 +354,6 @@
     "repository.LuauNumericBinary": 1,
     "repository.LuauNumericDecimal": 1,
     "repository.LuauNumericHex": 1,
-    "repository.LuauPropAttribute": 1,
     "repository.LuauSequentialAlternatorBlock": 2,
     "repository.LuauSparkdownSequentialAlternatorBlock": 2,
     "repository.LuauSparkdownSingleLineSequentialAlternatorBlock": 2,

@@ -276,7 +276,6 @@ const IF_CLAUSE_TRIVIA = new Set([
   "Newline",
 ]);
 const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
-  "LuauPropAttribute",
   "LuauSparklePropAttribute",
   "LuauSparklePropClosureAttribute",
   "LuauSparklePropParenAttribute",
@@ -1667,7 +1666,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
       const context = getContextNames(nodeRef.node);
       const inPropValue =
-        context.includes("LuauPropAttribute") ||
         context.includes("LuauSparklePropAttribute") ||
         context.includes("LuauSparklePropClosureAttribute") ||
         context.includes("LuauSparklePropParenAttribute");

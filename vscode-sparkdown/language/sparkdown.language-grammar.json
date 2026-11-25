@@ -11197,25 +11197,6 @@
       "name": "constant.other.keyframe-selector.sd",
       "match": "(?<![\\w.%@-])(?:from|to|[-+]?(?:\\d*[.])?\\d+%)(?![\\w.%@-])"
     },
-    "LuauElementAttribute": {
-      "patterns": [
-        {
-          "include": "#RequiredWhitespace"
-        },
-        {
-          "include": "#LuauComment"
-        },
-        {
-          "include": "#SparkdownLineComment"
-        },
-        {
-          "include": "#LuauEventAttribute"
-        },
-        {
-          "include": "#LuauPropAttribute"
-        }
-      ]
-    },
     "LuauSparkleEventHandlerName": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
@@ -11292,50 +11273,6 @@
           ]
         }
       }
-    },
-    "LuauPropAttribute": {
-      "begin": "([#])((?:[-]{2})?(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[-](?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))*)((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StyleAttributeOperator"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#StyleAttributeName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#EqualOperator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#LuauFunctionCallShorthand"
-        },
-        {
-          "include": "#LuauInterpolatedStringExpression"
-        },
-        {
-          "include": "#LuauElementContentStringInterpolated"
-        },
-        {
-          "include": "#InlinePropQuotedValue"
-        },
-        {
-          "include": "#InlinePropLiteralValue"
-        }
-      ],
-      "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
     },
     "LuauElementContentStringInterpolated": {
       "tag": "string",
