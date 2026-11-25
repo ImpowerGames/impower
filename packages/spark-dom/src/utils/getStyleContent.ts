@@ -8,12 +8,14 @@ import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils
 import {
   anchorSelfTargeted,
   COLOR_SCHEME_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
   writeSparkleSelector,
+  writeSparkleSelectorChecked,
 } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
-export { anchorSelfTargeted, COLOR_SCHEME_ATTRIBUTE };
+export { anchorSelfTargeted, COLOR_SCHEME_ATTRIBUTE, SHOWING_ATTRIBUTE };
 
 const attributeName = (name: string): string =>
   ARIA_ATTRIBUTE_ALIASES.get(name) ?? (DATA_ATTRIBUTE_PROPS.has(name) ? `data-${name}` : name);
@@ -39,16 +41,24 @@ export const getStyleContent = (
   Object.entries(styles).forEach(([name, style]) => {
     let styleContent = "";
     let level = 1;
-    const process = (k: string, v: unknown) => {
+    const process = (k: string, v: unknown, afterCombinator = false) => {
       const indent = "  ".repeat(level);
       if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
-          const elementSelector = getCSSSelector(k, options.breakpoints);
-          const selfTargetedSelector = anchorSelfTargeted(elementSelector);
+          const written = writeSparkleSelectorChecked(k, {
+            breakpoints: options.breakpoints,
+            colorScheme: "attribute",
+            attributeName,
+            afterCombinator,
+          });
+          if (written.refusals.length > 0) {
+            return;
+          }
+          const selfTargetedSelector = anchorSelfTargeted(written.css);
           styleContent += `\n${indent}${selfTargetedSelector} {`;
           level++;
           Object.entries(v).forEach(([nk, nv]) => {
-            process(nk, nv);
+            process(nk, nv, written.afterCombinator);
           });
           level--;
           styleContent += `\n${indent}}`;

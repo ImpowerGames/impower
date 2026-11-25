@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { accept, completeAt } from "./braceCompletionHarness";
+import { compileProject } from "./completionHarness";
 
 const structProgram = {
   context: {
@@ -25,15 +26,9 @@ const structProgram = {
 
 const morphProgram = { context: { morph: { $default: {} } } } as any;
 
-const elements = { text: { content: "" }, row: { gap: 0 } };
-const elementProgram = {
-  context: {
-    layout: { $default: { $type: "layout", $name: "$default", ...elements } },
-    component: {
-      $default: { $type: "component", $name: "$default", ...elements },
-    },
-  },
-} as any;
+const elementProgram = compileProject(
+  `layout parts {\n  row { text "x" }\n}\n\nscene start\nend\n`,
+);
 
 interface Row {
   name: string;
@@ -144,7 +139,7 @@ describe.each(["layout", "component"])("%s element completion: where a brace ent
     { name: "inside a closed single-quoted attribute", body: `row { text #label='a; te|' }`, omits: ["text", "row"] },
     { name: "inside an unclosed single-quoted attribute", body: `row { text #label='a; te| }`, omits: ["text", "row"] },
     { name: "inside unclosed double-quoted content", body: `row { text "a; te| }`, omits: ["text", "row"] },
-    { name: "a `;` after closed single-quoted content", body: `row { text 'a'; te| }`, offers: ["text"], edit: { label: "text", body: `row { text 'a'; text {  } }` } },
+    { name: "a `;` after closed single-quoted content", body: `row { text 'a'; te| }`, offers: ["text"], edit: { label: "text", body: `row { text 'a'; text }` } },
     { name: "a `;` after closed double-quoted content", body: `row { text "a"; te| }`, offers: ["text"] },
     { name: "a `;` after content holding a quote", body: `row { text 'a"b'; te| }`, offers: ["text"] },
     { name: "a `;` after content holding a bracket", body: `row { text 'a[b'; te| }`, offers: ["text"] },

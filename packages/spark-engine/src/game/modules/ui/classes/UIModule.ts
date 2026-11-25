@@ -175,6 +175,10 @@ import {
   type ColorSchemeSetting,
 } from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
+  ShowingMessage,
+  type ShowingMessageMap,
+} from "./messages/ShowingMessage";
+import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
 } from "./messages/SkipCutsceneMessage";
@@ -270,6 +274,8 @@ interface ShownPicture {
 }
 
 interface Retirement {
+  name?: string;
+  held: Set<string>;
   element: Element;
   epoch: number;
   pin?: string;
@@ -572,6 +578,9 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 const CUTSCENE_MUSIC_FADE = 0.5;
 
+const SHOWING_CONDITION =
+  /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)\s*\)/gu;
+
 export const UNKNOWN_COLOR_SCHEME_MESSAGE =
   "ui.color_scheme must be system, light or dark. Using system.";
 
@@ -586,6 +595,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   PlayCutsceneMessageMap &
   PresenceElementsMessageMap &
   SetThemeMessageMap &
+  ShowingMessageMap &
   SkipCutsceneMessageMap &
   SpeechMessageMap &
   SweepReconcileMessageMap &
@@ -637,6 +647,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  protected _showingStyles?: unknown;
+
+  protected _showingWatched: ReadonlySet<string> = new Set();
+
+  protected _showingSent?: Map<string, number>;
+
+  protected _showingHidden = new WeakSet<Element>();
+
+  protected _showingContent = new WeakSet<Element>();
 
   protected _reactive = false;
 
@@ -1059,6 +1079,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphWritten.clear();
     this._morphBaking = new Set();
     this.discardCompose();
+    this._showingSent = undefined;
     this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
@@ -1205,12 +1226,161 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
     this.markDisplayTargets();
+    this.noteShowing();
     if (this._uiBatch.length === 0) {
       return;
     }
     const messages = this._uiBatch;
     this._uiBatch = [];
     this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
+  protected showingWatched(): ReadonlySet<string> {
+    const styles = this.context?.style;
+    if (styles !== this._showingStyles) {
+      this._showingStyles = styles;
+      const watched = new Set<string>();
+      const scan = (value: unknown) => {
+        if (!value || typeof value !== "object") {
+          return;
+        }
+        for (const [key, inner] of Object.entries(value)) {
+          for (const match of key.matchAll(SHOWING_CONDITION)) {
+            watched.add(match[1]!);
+          }
+          scan(inner);
+        }
+      };
+      scan(styles);
+      this._showingWatched = watched;
+    }
+    return this._showingWatched;
+  }
+
+  protected pictureShown(events: ImageState[] | undefined): boolean {
+    const picture = events?.findLast((e) => e.assets?.length);
+    const layer = events?.findLast(
+      (e) => !e.assets?.length && e.control !== "animate",
+    );
+    return picture?.control === "show" && layer?.control !== "hide";
+  }
+
+  showingNames(): string[] {
+    return [...this.showingClaims().keys()].sort();
+  }
+
+  protected showingClaims(): Map<string, number> {
+    const watched = this.showingWatched();
+    const claims = new Map<string, number>();
+    const claim = (names: Iterable<string>) => {
+      for (const name of new Set(names)) {
+        if (watched.has(name)) {
+          claims.set(name, (claims.get(name) ?? 0) + 1);
+        }
+      }
+    };
+    claim([
+      ...this._mountedLayouts.keys(),
+      ...(this._root ? this.heldNames(this._root) : []),
+    ]);
+    for (const retiring of this._retiring) {
+      claim(retiring.name ? [retiring.name, ...retiring.held] : [...retiring.held]);
+    }
+    return claims;
+  }
+
+  protected heldNames(root: Element): Set<string> {
+    const held = new Set<string>();
+    const written = new Set<Element>();
+    const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of this.findElements(target, true)) {
+        written.add(el);
+        for (const leaf of leaves) {
+          for (const child of this.getContentElements(el, leaf)) {
+            written.add(child);
+          }
+        }
+      }
+    };
+    for (const [target, state] of Object.entries(this._state.text ?? {})) {
+      if (state?.length) {
+        write(target, ["text", "stroke"]);
+      }
+    }
+    for (const [target, events] of Object.entries(this._state.image ?? {})) {
+      if (this.pictureShown(events)) {
+        write(target, ["image", "mask"]);
+      }
+    }
+    const visit = (el: Element): boolean => {
+      if (this._showingHidden.has(el)) {
+        return false;
+      }
+      let holds = this._showingContent.has(el) || written.has(el);
+      for (const child of el.children) {
+        if (visit(child)) {
+          holds = true;
+        }
+      }
+      const tag = el.name.split(" ")[0];
+      if (holds && tag) {
+        held.add(tag);
+      }
+      return holds;
+    };
+    visit(root);
+    return held;
+  }
+
+  protected noteHidden(element: Element, hidden: boolean): void {
+    if (hidden) {
+      this._showingHidden.add(element);
+    } else {
+      this._showingHidden.delete(element);
+    }
+  }
+
+  protected noteElementShowing(
+    element: Element,
+    state: ElementState | undefined,
+  ): void {
+    const content = state?.content;
+    if (content && "text" in content) {
+      if (content.text) {
+        this._showingContent.add(element);
+      } else {
+        this._showingContent.delete(element);
+      }
+    }
+  }
+
+  protected noteShowing(retired = false): void {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return;
+    }
+    const sent = this._showingSent;
+    if (this.showingWatched().size === 0 && !sent?.size) {
+      return;
+    }
+    const claims = this.showingClaims();
+    const changes: Record<string, number> = {};
+    for (const name of [...new Set([...claims.keys(), ...(sent?.keys() ?? [])])].sort()) {
+      const change = (claims.get(name) ?? 0) - (sent?.get(name) ?? 0);
+      if (change !== 0) {
+        changes[name] = change;
+      }
+    }
+    if (sent && Object.keys(changes).length === 0) {
+      return;
+    }
+    this._showingSent = claims;
+    this._uiBatch.push(
+      ShowingMessage.type.notification({
+        changes,
+        ...(sent ? {} : { reset: true }),
+        ...(retired ? { retired } : {}),
+      }),
+    );
   }
 
   protected displayTargetElements(root: Element, target: string): Element[] {
@@ -1414,6 +1584,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       this._compose = undefined;
       this._uiBatch = [];
+      this._showingSent = undefined;
       for (const id of c.expected.splice(0)) {
         this._game.connection.cancel(id, {
           code: SUPERSEDED,
@@ -1571,6 +1742,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
+    this.noteElementShowing(el, state);
     this._screenEdits += 1;
     if (this.carriesDisplayTarget(el)) {
       this._displayTargetsChanged = true;
@@ -1614,6 +1786,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ...state,
       style: { ...(state?.style || {}), [property]: background },
     });
+    if (background) {
+      this._showingContent.add(el);
+    }
     if (src) {
       this.createElement(el, {
         name: "object",
@@ -1710,6 +1885,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       empty.text.delete(element);
       empty.image.delete(element);
     }
+    this.noteElementShowing(element, state);
     this.enqueueUI(
       UpdateElementMessage.type.request({
         element: element.id,
@@ -2075,8 +2251,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     void this.present(elements, "show");
   }
 
-  protected retireElement(element: Element, pin?: string): void {
+  protected retireElement(element: Element, name?: string, pin?: string): void {
     const retiring: Retirement = {
+      ...(name ? { name } : {}),
+      held: this.heldNames(element),
       element,
       epoch: this._game.connection.epoch,
       ...(pin ? { pin } : {}),
@@ -2117,6 +2295,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   show(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, false);
       this.updateElement(targetEl, { style: { display: "flex" } });
     }
   }
@@ -2129,6 +2308,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   hide(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, true);
       this.updateElement(targetEl, {
         style: { display: "none" },
       });
@@ -5148,12 +5328,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.styled("hide")
     ) {
       this._mountedLayouts.delete(name);
-      this.retireElement(element, this._game.module.assets?.retireLayout(name));
+      this.retireElement(
+        element,
+        name,
+        this._game.module.assets?.retireLayout(name),
+      );
       return;
     }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
+        name,
+        held: this.heldNames(element),
         element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),
@@ -5178,12 +5364,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected retire(r: Retirement): void {
-    if (!this._retiring.delete(r)) {
+    if (!this._retiring.has(r)) {
       return;
     }
-    if (!this.superseded(r.epoch)) {
+    if (this.superseded(r.epoch)) {
+      this._retiring.delete(r);
+    } else {
       this.flushUIBatch();
+      this._retiring.delete(r);
       this.destroyElement(r.element, true);
+      this.noteShowing(true);
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {
@@ -5805,6 +5995,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       for (const el of this.findElements(target, true)) {
         if (inLayout(el)) {
+          this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
       }
@@ -6016,9 +6207,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               this.hide(target, targetEl, keepShown),
             ),
         );
+        for (const targetEl of leaving) {
+          $.noteHidden(targetEl, true);
+        }
         const writing = targetEls.filter((el) => !leaving.includes(el));
         for (const targetEl of writing) {
           if (sequence) {
+            $.noteHidden(targetEl, false);
             const arrives = $.arrives(targetEl, "text", moving);
             if (arrives) {
               arriving.push(targetEl);
@@ -6033,6 +6228,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           } else if ($.contentsOf(targetEl).size > 0) {
             $.updateElement(targetEl, { attributes: { text: null } });
           } else {
+            $.noteHidden(targetEl, true);
             $.updateElement(targetEl, {
               style: { display: "none" },
               attributes: {
@@ -6577,9 +6773,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               this.hide(target, targetEl, keepShown, sequence, view),
             ),
         );
+        for (const targetEl of leaving) {
+          $.noteHidden(targetEl, !sequence);
+        }
         const writing = targetEls.filter((el) => !leaving.includes(el));
         for (const targetEl of writing) {
           if (hides) {
+            $.noteHidden(targetEl, false);
             const contents = $.contentsOf(targetEl);
             contents.delete("image");
             $.updateElement(targetEl, {
@@ -6589,6 +6789,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               ),
             });
           } else if (sequence) {
+            $.noteHidden(targetEl, false);
             const arrives = $.arrives(targetEl, "image", moving);
             if (arrives) {
               arriving.push(targetEl);
@@ -6598,6 +6799,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               ...presenceAttributes($.presenceMark(targetEl, arrives)),
             });
           } else if ($.contentsOf(targetEl).size === 0) {
+            $.noteHidden(targetEl, true);
             $.updateElement(targetEl, {
               style: { display: "none" },
               ...presenceAttributes($.settleMark(targetEl)),

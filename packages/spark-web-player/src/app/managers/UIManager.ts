@@ -30,6 +30,11 @@ import {
   PlayCutsceneMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import {
+  type ShowingParams,
+  ShowingMessage,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
+import { SHOWING_ATTRIBUTE } from "../../../../spark-dom/src/utils/getStyleContent";
 import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
@@ -99,6 +104,8 @@ interface PendingBeat {
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+type OverlayWithShowing = HTMLElement & { __sdShowing?: Map<string, number> };
 
 interface Cutscene {
   element: HTMLElement;
@@ -677,6 +684,33 @@ export default class UIManager extends Manager {
     clearTimeout(pending.timer);
     this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
     this.applyBeat(pending.params, pending.ops, pending.plan);
+  }
+
+  protected applyShowing(params: ShowingParams) {
+    const overlay = this.app.overlay as OverlayWithShowing | undefined;
+    if (!overlay) {
+      return;
+    }
+    const counts = params.reset || !overlay.__sdShowing ? new Map<string, number>() : overlay.__sdShowing;
+    overlay.__sdShowing = counts;
+    for (const [name, change] of Object.entries(params.changes)) {
+      const count = (counts.get(name) ?? 0) + change;
+      if (count === 0) {
+        counts.delete(name);
+      } else {
+        counts.set(name, count);
+      }
+    }
+    const value = [...counts]
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .sort()
+      .join(" ");
+    if (value) {
+      overlay.setAttribute(SHOWING_ATTRIBUTE, value);
+    } else {
+      overlay.removeAttribute(SHOWING_ATTRIBUTE);
+    }
   }
 
   protected shiftBeat(params: BeatParams, ops: IMessage[], shift: number) {
@@ -1502,6 +1536,10 @@ export default class UIManager extends Manager {
     }
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
+    }
+    if (ShowingMessage.type.isNotification(msg)) {
+      this.applyShowing(msg.params);
+      return;
     }
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass(msg.params?.content === true);
