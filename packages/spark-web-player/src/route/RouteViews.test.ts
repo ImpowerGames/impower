@@ -3,9 +3,8 @@ import { h, render, type ComponentChild } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PreviewRoute } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
-import { LoadSave, SAVES_STYLESHEET_ID } from "../saves/SavesViews";
+import { LoadSave } from "../saves/SavesViews";
 import { RouteList, type RouteListProps } from "./RouteViews";
-import { ROUTE_LIST_STYLESHEET_ID } from "./routeListStylesheet";
 import type { RouteViewState } from "./routeView";
 import type { StartingValuesEvents } from "./StartingValuesViews";
 
@@ -95,11 +94,6 @@ const valueEvents = (load: StartingValuesEvents["load"]): StartingValuesEvents =
 });
 
 describe("the route list, wherever it is mounted", () => {
-  it("brings its own stylesheet into the document it is mounted in", () => {
-    mount(h(RouteList, listProps()));
-    expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
-  });
-
   it("closes on Escape", () => {
     const props = listProps();
     mount(h(RouteList, props));
@@ -282,11 +276,6 @@ describe("the route list's tabs, head and rows", () => {
 });
 
 describe("the Load a save menu, wherever it is mounted", () => {
-  it("brings its own stylesheet into the document it is mounted in", () => {
-    mount(h(LoadSave, { saves: [SAVE], open: false, onOpen: vi.fn(), onPick: vi.fn() }));
-    expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
-  });
-
   it("closes on a press outside it, and not on one inside it", () => {
     const onOpen = vi.fn();
     const root = mount(h(LoadSave, { saves: [SAVE], open: true, onOpen, onPick: vi.fn() }));

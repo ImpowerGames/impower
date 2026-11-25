@@ -271,7 +271,7 @@ interface ImageState {
   span: number;
   picture?: MorphPicture;
   slot: MorphArtifactSlot;
-  plays: { play: MorphLayerPlay; occurrence?: Occurrence }[];
+  plays: { play: MorphLayerPlay; occurrence?: Occurrence; started?: true }[];
   inner: FileState[];
   view?: LiveView;
   canvas?: CanvasView;
@@ -544,6 +544,10 @@ export class MorphPlayback {
     this.speech = undefined;
     this.restartAll();
     this.render();
+  }
+
+  startChange(occurrence: Occurrence) {
+    this.restart(occurrence);
   }
 
   protected restartAll() {
@@ -845,15 +849,20 @@ export class MorphLayer {
     return this.stills.some((still) => still.loading && index >= still.layer && index < still.layer + still.span);
   }
 
-  protected staticLayer(index: number): string {
-    if (this.loadingStill(index)) return "none";
-    const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
-    const pending =
+  protected unbuilt(image: ImageState | undefined): boolean {
+    return (
       !!image &&
       (image.slot.state === "idle" ||
         image.slot.state === "pending" ||
-        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.canvas && !image.broken));
-    return pending && this.still && this.playback.animating ? (this.still[index] ?? this.layers[index]!) : this.layers[index]!;
+        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.canvas && !image.broken))
+    );
+  }
+
+  protected staticLayer(index: number): string {
+    if (this.loadingStill(index)) return "none";
+    const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
+    const aligned = this.still?.length === this.layers.length;
+    return aligned && this.unbuilt(image) && this.playback.animating ? (this.still![index] ?? this.layers[index]!) : this.layers[index]!;
   }
 
   showStill() {
@@ -862,7 +871,9 @@ export class MorphLayer {
       this.layout();
       return;
     }
-    this.span.style.setProperty("background-image", this.layers.map((_, index) => this.staticLayer(index)).reverse().join(", "));
+    const whole = !!this.still && this.still.length !== this.layers.length && this.playback.animating && this.images.some((image) => this.unbuilt(image));
+    const shown = whole ? [...this.still!] : this.layers.map((_, index) => this.staticLayer(index));
+    this.span.style.setProperty("background-image", shown.reverse().join(", "));
   }
 
   protected styled?: string;
@@ -1082,9 +1093,21 @@ export class MorphLayer {
       this.applyMask();
       return;
     }
+    this.startChanges();
     this.build();
     this.showStill();
     this.playback.track(this);
+  }
+
+  protected startChanges() {
+    for (const image of this.images) {
+      if (image.slot.state !== "ready" || image.slot.artifact?.status !== "live" || (image.picture && (!image.files || image.broken))) continue;
+      for (const entry of image.plays) {
+        if (entry.started || !entry.occurrence || entry.play.timing.trigger !== "change") continue;
+        entry.started = true;
+        this.playback.startChange(entry.occurrence);
+      }
+    }
   }
 
   protected maskUrls(): Map<number, string> {

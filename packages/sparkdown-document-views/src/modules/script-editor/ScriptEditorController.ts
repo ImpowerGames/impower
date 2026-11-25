@@ -1,5 +1,6 @@
 import { setLoadingBarActive } from "@impower/impower-ui/loading-bar";
 import { scrollCaretIntoView } from "./utils/extensions/caretScrollMargin";
+import { focusOnScreen } from "./utils/caretOnScreen";
 import {
   copyLineDown,
   indentLess,
@@ -275,6 +276,7 @@ export class ScriptEditorController {
   protected _focusLeft = false;
   protected _focusWhenEditable = false;
   protected _focusWhenLoaded = false;
+  protected _focusOnScreen = false;
   protected _settling = false;
   protected _loaded = false;
   protected _editing = false;
@@ -403,17 +405,28 @@ export class ScriptEditorController {
     this.allowEditing(!readonly);
     if (!readonly && this._focusWhenEditable) {
       this._focusWhenEditable = false;
-      this.focusAtCaret();
+      this.focusAsRequested();
     }
   }
 
-  protected requestFocus() {
+  protected requestFocus(onScreen: boolean) {
+    this._focusOnScreen = onScreen;
     if (!this._loaded) {
       this._focusWhenLoaded = true;
     } else if (this._view?.state.facet(EditorView.editable)) {
-      this.focusAtCaret();
+      this.focusAsRequested();
     } else {
       this._focusWhenEditable = true;
+    }
+  }
+
+  protected focusAsRequested() {
+    const view = this._view;
+    if (!view) return;
+    if (this._focusOnScreen) {
+      focusOnScreen(view);
+    } else {
+      this.focusAtCaret();
     }
   }
 
@@ -904,7 +917,10 @@ export class ScriptEditorController {
   protected executeCommand(view: EditorView, command: EditorCommand) {
     switch (command) {
       case "focus":
-        this.requestFocus();
+        this.requestFocus(false);
+        return true;
+      case "focusOnScreen":
+        this.requestFocus(true);
         return true;
       case "indent":
         view.focus();
@@ -2013,7 +2029,7 @@ export class ScriptEditorController {
       this._loaded = true;
       if (this._focusWhenLoaded) {
         this._focusWhenLoaded = false;
-        this.requestFocus();
+        this.requestFocus(this._focusOnScreen);
       }
     }
   };

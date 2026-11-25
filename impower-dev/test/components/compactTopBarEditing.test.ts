@@ -106,6 +106,22 @@ describe("the compact top bar while a script is edited", () => {
     expect(calls.finished).toBe(1);
   });
 
+  it("draws an edge-coloured divider between the app icon and the script header only while editing", async () => {
+    await mount("story", "editing");
+    const divider = host!.querySelector<HTMLElement>("[data-title-divider]")!;
+    expect(divider).not.toBeNull();
+    expect(divider.getAttribute("aria-hidden")).toBe("true");
+    expect(divider.classList.contains("bg-edge")).toBe(true);
+    expect(divider.classList.contains("h-6")).toBe(true);
+    const folded = host!.querySelector("[data-script-header-folded]")!;
+    expect(divider.nextElementSibling).toBe(folded);
+    expect(divider.previousElementSibling?.querySelector("svg")).not.toBeNull();
+    await act(async () => render(null, host!));
+    host!.remove();
+    await mount("story", "reading");
+    expect(host!.querySelector("[data-title-divider]")).toBeNull();
+  });
+
   it("shows no edit controls off the Story page", async () => {
     await mount("assets", "editing");
     expect(projectName()).not.toBeNull();

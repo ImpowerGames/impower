@@ -823,7 +823,7 @@ describe("WorkspaceWindow store transitions", () => {
         );
         await writing;
         expect(workspace.scriptMode.value).toBe("editing");
-        expect(commands).toEqual([{ textDocument: { uri }, command: "focus" }]);
+        expect(commands).toEqual([{ textDocument: { uri }, command: "focusOnScreen" }]);
       } finally {
         window.removeEventListener(MessageProtocol.event, hear);
         workspace.scriptMode.value = "reading";
@@ -918,7 +918,7 @@ describe("WorkspaceWindow store transitions", () => {
 
       win.startEditing("main.sd");
       expect(workspace.scriptMode.value).toBe("editing");
-      expect(commands).toHaveBeenCalledWith("main.sd", "focus");
+      expect(commands).toHaveBeenCalledWith("main.sd", "focusOnScreen");
 
       win.finishEditing();
       expect(workspace.scriptMode.value).toBe("reading");

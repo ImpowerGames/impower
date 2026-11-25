@@ -1,3 +1,5 @@
+import { compile } from "@tailwindcss/node";
+import { Scanner } from "@tailwindcss/oxide";
 import { build } from "esbuild";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -33,9 +35,13 @@ export const buildGutterMarksPage = async (outDir) => {
     resolve(here, "../../src/modules/script-editor/sparkdown-script-editor.css"),
     "utf8",
   );
-  const routeCss = readFileSync(
-    resolve(here, "../../../spark-web-player/src/route/route-list.css"),
-    "utf8",
+  const playerEntry = resolve(here, "../../../spark-web-player/src/impower-ui.css");
+  const playerCompiler = await compile(readFileSync(playerEntry, "utf8"), {
+    base: dirname(playerEntry),
+    onDependency: () => {},
+  });
+  const routeCss = playerCompiler.build(
+    new Scanner({ sources: playerCompiler.sources }).scan(),
   );
   const page = join(outDir, "gutter-marks.html");
   writeFileSync(

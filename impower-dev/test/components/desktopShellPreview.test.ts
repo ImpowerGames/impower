@@ -144,6 +144,21 @@ describe("the desktop shell's docked preview", () => {
     expect(railTab("Settings").getAttribute("aria-selected")).toBe("false");
     expect(host.querySelector("[data-player]")).toBe(player);
 
+    const arrow = async (key: string) =>
+      act(async () => {
+        document.activeElement!.dispatchEvent(
+          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    railTab("Share").focus();
+    await arrow("ArrowDown");
+    expect(document.activeElement).toBe(railTab("Settings"));
+    await arrow("ArrowDown");
+    expect(document.activeElement).toBe(railTab("Story"));
+    await arrow("ArrowUp");
+    expect(document.activeElement).toBe(railTab("Settings"));
+
     expect(players.mounted).toBe(1);
     expect(players.unmounted).toBe(0);
   });

@@ -149,22 +149,23 @@ describe("morph completion in brace bodies", () => {
     ).toEqual(["none", "beep"]);
   });
 
-  test("`trigger` offers `appear` and `speech`, each documented with what it does", () => {
+  test("`trigger` offers `appear`, `speech` and `change`, each documented with what it does", () => {
     const source = `morph talk {
   timing {
     trigger = |
   }
 }
 `;
-    expect(labelsAt(source)).toEqual(["appear", "speech"]);
+    expect(labelsAt(source)).toEqual(["appear", "speech", "change"]);
     expect(labelsAt(`morph talk {
   timing { trigger = sp| }
 }
 `)).toEqual(expect.arrayContaining(["speech"]));
-    for (const label of ["appear", "speech"]) {
+    for (const label of ["appear", "speech", "change"]) {
       const doc = (itemAt(source, label).documentation as any)?.value as string;
       expect(doc).toContain("`appear` (default) plays it on its own schedule from the moment its portrait appears");
       expect(doc).toContain("`speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest");
+      expect(doc).toContain("`change` plays it once when the options chosen for a portrait already on screen change, from the drawing on screen to the drawing the new options choose");
     }
     const field = itemAt(`morph talk {
   timing {

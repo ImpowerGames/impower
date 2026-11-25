@@ -46,10 +46,11 @@ export interface MorphRef {
   groups: string[];
   src?: string;
   layered?: true;
+  recipes?: Record<string, string>;
 }
 
 export interface MorphTiming {
-  trigger?: "appear" | "speech";
+  trigger?: "appear" | "speech" | "change";
   sync?: "none" | "beep";
   duration: number;
   delay: number;
@@ -82,6 +83,7 @@ export interface MorphProgramChannel {
   variants: Record<string, MorphRef[]>;
   conditions?: Record<string, MorphConditions>;
   speech?: Record<string, { default?: true }>;
+  change?: Record<string, Record<string, never>>;
   picks?: Record<string, Record<string, MorphRef[]>>;
 }
 

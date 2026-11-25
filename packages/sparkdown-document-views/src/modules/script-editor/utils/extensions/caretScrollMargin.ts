@@ -7,21 +7,30 @@ export const caretScrollMarginY = CARET_SCROLL_MARGIN_TOP;
 
 const caretBottomInset = CARET_SCROLL_MARGIN_BOTTOM - CARET_SCROLL_MARGIN_TOP;
 
+const caretInsetMargins = new WeakSet<object>();
+
+export const caretBottomInsetOf = (margins: object) =>
+  caretInsetMargins.has(margins) ? caretBottomInset : 0;
+
 export const caretScrollMargin = (hostMargin?: {
   top?: number;
   bottom?: number;
   left?: number;
   right?: number;
-}) => [
-  EditorView.cursorScrollMargin.of({ x: 5, y: caretScrollMarginY }),
-  EditorView.scrollMargins.of(() => ({
+}) => {
+  const margins = () => ({
     ...hostMargin,
     bottom: (hostMargin?.bottom ?? 0) + caretBottomInset,
-  })),
-  EditorView.theme({
-    "& .cm-content": { paddingBottom: `${CARET_SCROLL_MARGIN_BOTTOM}px` },
-  }),
-];
+  });
+  caretInsetMargins.add(margins);
+  return [
+    EditorView.cursorScrollMargin.of({ x: 5, y: caretScrollMarginY }),
+    EditorView.scrollMargins.of(margins),
+    EditorView.theme({
+      "& .cm-content": { paddingBottom: `${CARET_SCROLL_MARGIN_BOTTOM}px` },
+    }),
+  ];
+};
 
 export const scrollCaretIntoView = (view: EditorView) =>
   view.dispatch({

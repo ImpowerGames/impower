@@ -1,5 +1,5 @@
 import { bytesToBase64 } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
-import { IMAGE_HEADER_BYTES, imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
+import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "@impower/sparkdown/src/workspace/utils/imageSize";
 import * as vscode from "vscode";
 import { type LSPAny } from "vscode-languageserver-protocol";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -18,9 +18,27 @@ const getFileBytes = async (uri: string) => {
   return bytesToBase64(buffer);
 };
 
-const getFileImageSize = async (uri: string) => {
-  const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
+const imageSizes = new Map<string, { stamp: string; size: Promise<ImageSize | null> }>();
+
+const readImageSize = async (fileUri: vscode.Uri) => {
+  const buffer = await vscode.workspace.fs.readFile(fileUri);
   return imageSizeOf(buffer.subarray(0, IMAGE_HEADER_BYTES)) ?? null;
+};
+
+const getFileImageSize = async (uri: string) => {
+  const fileUri = vscode.Uri.parse(uri);
+  const stat = await vscode.workspace.fs.stat(fileUri);
+  const stamp = `${stat.mtime}:${stat.size}`;
+  const known = imageSizes.get(uri);
+  if (known?.stamp === stamp) {
+    return known.size;
+  }
+  const size = readImageSize(fileUri);
+  imageSizes.set(uri, { stamp, size });
+  size.catch(() => {
+    if (imageSizes.get(uri)?.size === size) imageSizes.delete(uri);
+  });
+  return size;
 };
 
 const getFileSrc = (uri: string) => {

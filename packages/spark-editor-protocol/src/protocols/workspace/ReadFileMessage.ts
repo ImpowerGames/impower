@@ -4,6 +4,7 @@ export type ReadFileMethod = typeof ReadFileMessage.method;
 
 export interface ReadFileParams {
   file: { uri: string };
+  length?: number;
 }
 
 export class ReadFileMessage {

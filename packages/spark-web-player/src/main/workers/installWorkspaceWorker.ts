@@ -265,7 +265,6 @@ export function installWorkspaceWorker(
       connection.sendResponse(message, async () => {
         await controllerListening;
         await state.workspace.initialize(message.params);
-        void state.workspace.loadImageSizes();
         return {
           capabilities: {},
         };

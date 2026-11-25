@@ -99,7 +99,7 @@ import {
   planFolderMigration,
 } from "../utils/fileTree";
 import { getWorkerUrl } from "../../../workers/workerUrl";
-import { IMAGE_HEADER_BYTES, imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
+import { IMAGE_HEADER_BYTES, imageSizeOf, type ImageSize } from "@impower/sparkdown/src/workspace/utils/imageSize";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -416,11 +416,26 @@ export default class WorkspaceFileSystem {
     return new TextDecoder("utf-8").decode(buffer);
   }
 
+  protected _imageSizes = new WeakMap<object, Promise<ImageSize | null>>();
+
   async getFileImageSize(uri: string) {
     await this._initialFilesRef.settled();
+    const entry = this._files?.[uri];
+    const known = entry ? this._imageSizes.get(entry) : undefined;
+    if (known) {
+      return known;
+    }
+    const read = this.readImageSize(uri);
+    if (entry) {
+      this._imageSizes.set(entry, read);
+    }
+    return read;
+  }
+
+  protected async readImageSize(uri: string) {
     try {
-      const buffer = await this.readFile({ file: { uri } });
-      return imageSizeOf(new Uint8Array(buffer, 0, Math.min(buffer.byteLength, IMAGE_HEADER_BYTES))) ?? null;
+      const buffer = await this.readFile({ file: { uri }, length: IMAGE_HEADER_BYTES });
+      return imageSizeOf(new Uint8Array(buffer)) ?? null;
     } catch {
       return null;
     }
@@ -1082,7 +1097,7 @@ export default class WorkspaceFileSystem {
     const { uri } = params.file;
     const unstored = this._unstoredUris.has(uri) ? this._files?.[uri]?.text : undefined;
     if (unstored !== undefined) {
-      return new TextEncoder().encode(unstored).buffer as ArrayBuffer;
+      return new TextEncoder().encode(unstored).buffer.slice(0, params.length) as ArrayBuffer;
     }
     return this.sendRequest(ReadFileMessage.type, params);
   }
