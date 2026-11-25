@@ -622,6 +622,7 @@ On the second directive the mouth bends from `open` to `closed` over 0.08 second
 - It plays only when the same portrait stays on screen and its options change. A named look built on the portrait is the same portrait. Showing a different portrait, or the same options again, plays nothing.
 - `when` and `unless` are judged on the new look, as they are for any morph, and each folder that draws a changed group has to draw both of its states.
 - A group that another morph playing on the new look drives stays with that morph, and the change morph moves the other changed groups. Two change morphs that could both play on one change share its groups, so neither plays and the portrait cuts, with a warning that names them.
+- A change that comes while another change is still playing on the portrait starts from the drawing that change ends on, not from the frame on screen, and plays to the drawing the new options choose.
 - Previewing a line, stepping back, loading a save and the click that finishes a line show the new drawing at once.
 
 ### Replaying part of a play
