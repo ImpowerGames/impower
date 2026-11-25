@@ -977,15 +977,20 @@ const addStructPropertyNameContextCompletions = (
   }
 };
 
-const addScreenBodyCompletions = (
+const SPARKLE_BODY_TYPES = new Set(["screen", "layout", "component"]);
+
+const addSparkleBodyCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  type: string,
 ) => {
-  completions.set("slot", {
-    label: "slot",
-    kind: CompletionItemKind.Keyword,
-    labelDetails: { description: "where the open layout goes" },
-  });
+  if (type === "screen") {
+    completions.set("slot", {
+      label: "slot",
+      kind: CompletionItemKind.Keyword,
+      labelDetails: { description: "where the open layout goes" },
+    });
+  }
   const components = program?.sparkle?.components ?? {};
   for (const name of Object.keys(components)) {
     if (!completions.has(name)) {
@@ -2314,10 +2319,10 @@ const completionsAt = (
     }
     if (
       keying &&
-      braceDefine.type === "screen" &&
+      SPARKLE_BODY_TYPES.has(braceDefine.type) &&
       /^\s*(?:[A-Za-z_][\w-]*)?$/.test(entryBefore)
     ) {
-      addScreenBodyCompletions(completions, program);
+      addSparkleBodyCompletions(completions, program, braceDefine.type);
       return buildCompletions();
     }
     if (
