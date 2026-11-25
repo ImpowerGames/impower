@@ -44,7 +44,9 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const IHDR = pngChunk("IHDR", new Array(13).fill(0));
 const IDAT = pngChunk("IDAT", [0]);
 
-const png = (...chunks: Uint8Array[]) => bytes(PNG_SIGNATURE, ...chunks, IDAT);
+const IEND = pngChunk("IEND");
+
+const png = (...chunks: Uint8Array[]) => bytes(PNG_SIGNATURE, ...chunks, IDAT, IEND);
 
 const iccp = (profile: Uint8Array) => pngChunk("iCCP", bytes("ICC Profile", [0, 0], deflateSync(profile)));
 

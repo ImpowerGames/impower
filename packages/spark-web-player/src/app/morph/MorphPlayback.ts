@@ -13,6 +13,7 @@ import {
 } from "../../../../sparkdown/src/morph/render";
 import {
   layeredMorphDrawn,
+  layeredMorphMotions,
   layeredMorphModel,
   type LayeredMorphDrawn,
   type LayeredMorphModel,
@@ -32,8 +33,11 @@ import type {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { pictureZoomReach } from "../../../../spark-dom/src/utils/placePicture";
 import { backgroundRect, cssList, layerValue, svgIntrinsicSize, type Rect } from "./backgroundFit";
+import { IDENTITY, multiply, type Affine } from "../../../../sparkdown/src/morph/affine";
+import { computedMotionPose, type MotionBox, type MotionPose } from "./motionPose";
 import { cssLength, layerPaint, splitTopLevel, type LayerBoxes, type LayerPaint } from "./pictureLayers";
-import { dataUrlBytes, pictureFileTraits, streamInflate } from "./pictureFileTraits";
+import { dataUrlBytes, pictureFileComplete, pictureFileTraits, streamInflate } from "./pictureFileTraits";
+import { browserSvgLayerRasterizer, readSvgLayer, type SvgLayerRasterizer, type SvgLayerSource } from "./svgLayerFile";
 
 export type { MorphImageContent, MorphLayerPlay };
 
@@ -44,6 +48,9 @@ export interface PictureBitmap {
   animated?: boolean;
   profile?: boolean;
   unread?: boolean;
+  unsized?: boolean;
+  styled?: string;
+  vector?: SvgLayerSource;
 }
 
 export type PictureLoader = (src: string, doc: Document) => Promise<PictureBitmap | undefined>;
@@ -73,6 +80,18 @@ interface PictureFiles {
   bitmaps: Map<number, PictureBitmap>;
   width: number;
   height: number;
+  rasters: Map<number, FileRaster>;
+  released?: boolean;
+}
+
+interface FileRaster {
+  image: CanvasImageSource;
+  release(): void;
+  width: number;
+  height: number;
+  want?: { width: number; height: number };
+  busy?: boolean;
+  refused?: string;
 }
 
 interface MorphPictureFiles extends PictureFiles {
@@ -153,11 +172,38 @@ interface CanvasView {
   box: HTMLElement;
   runs: CanvasRun[];
   views: Map<number, LiveView>;
+  containers: Map<number, Container>;
   files: MorphPictureFiles;
   drawn: LayeredMorphDrawn[];
+  standIns: Map<string, StandIn>;
+  groups: { canvas: HTMLCanvasElement; context: PictureCanvasContext }[];
+  size?: { width: number; height: number };
   smooth?: boolean;
   last?: string;
 }
+
+interface Container {
+  element: HTMLElement;
+  label: string;
+}
+
+const CONTAINER_STYLE = "position:absolute;inset:0";
+
+interface PaintedLayer {
+  file: number;
+  alpha: number;
+  matrix?: Affine;
+  wrappers: number[];
+  fades: number[];
+}
+
+interface StandIn {
+  element: HTMLElement;
+  effect?: MorphMotionEffect | null;
+  pose?: MotionPose;
+}
+
+export type MorphPoseReader = (element: Element, box: MotionBox) => MotionPose | undefined;
 
 export const browserPictureLoader: PictureLoader = async (src, doc) => {
   const view = doc.defaultView as (Window & typeof globalThis) | null;
@@ -166,16 +212,50 @@ export const browserPictureLoader: PictureLoader = async (src, doc) => {
   const img = new Img();
   img.decoding = "async";
   img.src = src;
+  let decoded = true;
   try {
     await img.decode();
   } catch {
-    return undefined;
+    decoded = false;
   }
-  if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
   const bytes = await readPictureBytes(src, view);
   const traits = bytes ? await pictureFileTraits(bytes, streamInflate(view)) : undefined;
-  return { image: img, width: img.naturalWidth, height: img.naturalHeight, ...(traits ?? { unread: true }) };
+  const svg = bytes && traits?.svg && view.DOMParser ? readSvgLayer(new TextDecoder().decode(bytes), new view.DOMParser(), { view, natural: { width: img.naturalWidth, height: img.naturalHeight } })
+      : undefined;
+  const size = { image: img, width: img.naturalWidth, height: img.naturalHeight };
+  if (svg && "reason" in svg) {
+    return { ...size, animated: svg.reason === "animated", unread: svg.reason === "unread", unsized: svg.reason === "unsized", ...(svg.reason === "styled" ? { styled: svg.declaration } : {}) };
+  }
+  if (!(img.naturalWidth > 0 && img.naturalHeight > 0)) return undefined;
+  if (!decoded && !(img.complete && paintsAnything(img, img.naturalWidth, img.naturalHeight, doc))) return undefined;
+  if (bytes && !pictureFileComplete(bytes)) return undefined;
+  if (!traits) return { ...size, unread: true };
+  return { ...size, animated: traits.animated, profile: traits.profile, ...(traits.unread ? { unread: true } : {}), ...(svg ? { vector: svg.source } : {}) };
 };
+
+const PAINT_PROBE_BAND_PIXELS = 1 << 20;
+
+export function paintsAnything(image: CanvasImageSource, width: number, height: number, doc: Document): boolean {
+  const shrink = width * height > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / (width * height)) : 1;
+  const canvas = doc.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * shrink));
+  canvas.height = Math.max(1, Math.round(height * shrink));
+  try {
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return false;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const band = Math.max(1, Math.floor(PAINT_PROBE_BAND_PIXELS / canvas.width));
+    for (let top = 0; top < canvas.height; top += band) {
+      const pixels = context.getImageData(0, top, canvas.width, Math.min(band, canvas.height - top)).data;
+      for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 0) return true;
+    }
+  } catch {
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+  return false;
+}
 
 async function readPictureBytes(src: string, view: Window & typeof globalThis): Promise<Uint8Array | undefined> {
   if (/^data:/i.test(src)) return dataUrlBytes(src);
@@ -310,6 +390,8 @@ export interface MorphPlaybackOptions {
   animate?: MorphMotionAnimator;
   loadPicture?: PictureLoader;
   pictureCanvas?: PictureCanvasFactory;
+  readPose?: MorphPoseReader;
+  rasterizeSvgLayer?: SvgLayerRasterizer;
 }
 
 export class MorphPlayback {
@@ -327,6 +409,8 @@ export class MorphPlayback {
   animate: MorphMotionAnimator;
   loadPicture: PictureLoader;
   pictureCanvas: PictureCanvasFactory;
+  readPose: MorphPoseReader;
+  rasterizeSvgLayer: SvgLayerRasterizer;
   reportStill?: (params: MorphStillParams) => void;
   residentPicture?: (src: string) => PictureBitmap | undefined;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
@@ -356,6 +440,8 @@ export class MorphPlayback {
     this.animate = options.animate ?? browserAnimator;
     this.loadPicture = options.loadPicture ?? browserPictureLoader;
     this.pictureCanvas = options.pictureCanvas ?? browserCanvas;
+    this.readPose = options.readPose ?? computedMotionPose;
+    this.rasterizeSvgLayer = options.rasterizeSvgLayer ?? browserSvgLayerRasterizer;
     const host = (view ?? window) as Window & typeof globalThis;
     const frames = typeof host.requestAnimationFrame === "function";
     this.requestFrame =
@@ -383,6 +469,8 @@ export class MorphPlayback {
       this.loadedPictures.clear();
     }
     if (options.pictureCanvas) this.pictureCanvas = options.pictureCanvas;
+    if (options.readPose) this.readPose = options.readPose;
+    if (options.rasterizeSvgLayer) this.rasterizeSvgLayer = options.rasterizeSvgLayer;
   }
 
   pictureNow(src: string): PictureBitmap | undefined {
@@ -986,6 +1074,9 @@ export class MorphLayer {
           bitmap.animated ||
           bitmap.profile ||
           bitmap.unread ||
+          bitmap.unsized ||
+          bitmap.styled !== undefined ||
+          bitmap.vector !== undefined ||
           bitmap.width !== bottom.width ||
           bitmap.height !== bottom.height,
       )
@@ -993,7 +1084,7 @@ export class MorphLayer {
       still.broken = true;
       return;
     }
-    still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
+    still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height, rasters: new Map() };
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     if (!this.stillPlans(still, computed)) still.broken = true;
   }
@@ -1034,6 +1125,7 @@ export class MorphLayer {
     const artifact = image.slot.state === "ready" ? image.slot.artifact : undefined;
     if (!image.picture || !artifact || artifact.status !== "live") return Promise.resolve();
     if (image.loading?.artifact === artifact) return image.loading.done;
+    releaseFiles(image.files);
     image.files = undefined;
     image.broken = false;
     const done = this.decodePicture(image, image.picture, artifact);
@@ -1059,11 +1151,22 @@ export class MorphLayer {
     const bottom = bitmaps.get(0);
     const unfaithful = indices.flatMap((index) => {
       const bitmap = bitmaps.get(index);
-      const reason = bitmap?.animated ? ("animated" as const) : bitmap?.profile ? ("profile" as const) : bitmap?.unread ? ("unread" as const) : undefined;
+      const reason = bitmap?.animated
+        ? ("animated" as const)
+        : bitmap?.profile
+          ? ("profile" as const)
+          : bitmap?.unread
+            ? ("unread" as const)
+            : bitmap?.unsized
+              ? ("unsized" as const)
+              : bitmap?.styled !== undefined
+                ? ("styled" as const)
+                : undefined;
       return reason ? [{ index, reason }] : [];
     });
     for (const { index, reason } of unfaithful) {
-      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason });
+      const declaration = reason === "styled" ? bitmaps.get(index)?.styled : undefined;
+      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason, ...(declaration !== undefined ? { declaration } : {}) });
     }
     const declared = svgIntrinsicSize(artifact);
     const width = declared.width || bottom?.width;
@@ -1079,7 +1182,34 @@ export class MorphLayer {
       image.broken = true;
       return;
     }
-    image.files = { model, bitmaps, width, height };
+    const pixels = width * height;
+    const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
+    const first = { width: Math.max(1, Math.round(width * shrink)), height: Math.max(1, Math.round(height * shrink)) };
+    const doc = this.span.ownerDocument;
+    const made = await Promise.all(
+      [...bitmaps]
+        .filter(([, bitmap]) => bitmap.vector)
+        .map(async ([index, bitmap]) => {
+          const raster = await this.playback
+            .rasterizeSvgLayer(bitmap.vector!, { width: bitmap.width, height: bitmap.height }, first.width, first.height, doc)
+            .catch(() => undefined);
+          return [index, raster] as const;
+        }),
+    );
+    const current = image.loading?.artifact === artifact;
+    const refused = made.filter(([, raster]) => !raster);
+    if (!current || refused.length > 0) {
+      for (const [, raster] of made) raster?.release();
+      if (!current) return;
+      for (const [index] of refused) {
+        this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason: "undrawn" });
+      }
+      image.broken = true;
+      return;
+    }
+    const rasters = new Map<number, FileRaster>();
+    for (const [index, raster] of made) rasters.set(index, { image: raster!.image, release: raster!.release, ...first });
+    image.files = { model, bitmaps, width, height, rasters };
   }
 
   commit() {
@@ -1648,7 +1778,7 @@ export class MorphLayer {
   protected canvasView(state: ImageState, doc: Document): CanvasView | undefined {
     const files = state.files!;
     const box = doc.createElement("div");
-    box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0");
+    box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0;overflow:hidden");
     const views = new Map<number, LiveView>();
     for (const inner of state.inner) {
       const artifact = this.liveArtifact(inner.slot);
@@ -1657,13 +1787,33 @@ export class MorphLayer {
       inner.view = view;
       views.set(inner.file, view);
     }
+    const motions = layeredMorphMotions(files.model);
+    const held = new Set<number>();
+    files.model.chains.forEach(({ file }, at) => {
+      if (views.has(file)) for (const { wrapper } of motions[at]!) held.add(wrapper);
+    });
+    const containers = new Map<number, Container>();
     const runs: CanvasRun[] = [];
     let current: CanvasRun | undefined;
-    for (const { file } of files.model.chains) {
+    let open: number[] = [];
+    const parent = () => (open.length ? containers.get(open[open.length - 1]!)!.element : box);
+    for (const [at, { file }] of files.model.chains.entries()) {
+      const path = motions[at]!.filter(({ wrapper }) => held.has(wrapper));
+      let kept = 0;
+      while (kept < open.length && kept < path.length && open[kept] === path[kept]!.wrapper) kept += 1;
+      if (kept < open.length || kept < path.length) current = undefined;
+      open = open.slice(0, kept);
+      for (const { wrapper, label } of path.slice(kept)) {
+        const element = doc.createElement("div");
+        element.setAttribute("style", CONTAINER_STYLE);
+        parent().appendChild(element);
+        containers.set(wrapper, { element, label });
+        open.push(wrapper);
+      }
       const view = views.get(file);
       if (view) {
         current = undefined;
-        box.appendChild(view.box);
+        parent().appendChild(view.box);
         continue;
       }
       if (!current) {
@@ -1671,13 +1821,26 @@ export class MorphLayer {
         const context = this.playback.pictureCanvas(canvas);
         if (!context) return undefined;
         canvas.setAttribute("style", "position:absolute;inset:0;width:100%;height:100%;display:block");
-        box.appendChild(canvas);
+        parent().appendChild(canvas);
         current = { canvas, context, files: new Set() };
         runs.push(current);
       }
       current.files.add(file);
     }
-    return { box, runs, views, files, drawn: layeredMorphDrawn(files.model) };
+    const standIns = new Map<string, StandIn>();
+    const labels = new Set(motions.flatMap((chain) => chain.map(({ label }) => label)));
+    if (labels.size) {
+      const stage = doc.createElement("div");
+      stage.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none");
+      for (const label of labels) {
+        const element = doc.createElement("div");
+        element.setAttribute("style", `position:absolute;left:0;top:0;width:${files.width}px;height:${files.height}px;transform-origin:50% 50%`);
+        stage.appendChild(element);
+        standIns.set(label, { element });
+      }
+      box.appendChild(stage);
+    }
+    return { box, runs, views, containers, files, drawn: layeredMorphDrawn(files.model), standIns, groups: [] };
   }
 
   protected placeCanvas(view: CanvasView, rect: Rect) {
@@ -1695,7 +1858,7 @@ export class MorphLayer {
       x = left;
       y = top;
     }
-    const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px`;
+    const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;overflow:hidden`;
     if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
     const resolution = Math.max(view.files.width / Math.max(1, width * dpr), view.files.height / Math.max(1, height * dpr));
     const scale = Math.max(1, Math.min(pictureZoomReach(this.span), resolution));
@@ -1710,33 +1873,164 @@ export class MorphLayer {
         run.painted = undefined;
       }
     }
+    view.size = { width, height };
+    for (const [file, raster] of view.files.rasters) {
+      raster.want = { width: w, height: h };
+      this.refitRaster(view.files, file, raster);
+    }
     this.paint(view);
   }
 
+  protected refitRaster(files: PictureFiles, file: number, raster: FileRaster) {
+    const want = raster.want;
+    const bitmap = files.bitmaps.get(file);
+    if (raster.busy || files.released || !want || !bitmap?.vector) return;
+    const key = `${want.width}x${want.height}`;
+    if ((raster.width === want.width && raster.height === want.height) || raster.refused === key) return;
+    raster.busy = true;
+    void this.playback
+      .rasterizeSvgLayer(bitmap.vector, { width: bitmap.width, height: bitmap.height }, want.width, want.height, this.span.ownerDocument)
+      .catch(() => undefined)
+      .then((made) => {
+        raster.busy = false;
+        if (files.released) {
+          made?.release();
+          return;
+        }
+        if (made) {
+          raster.release();
+          raster.image = made.image;
+          raster.release = made.release;
+          raster.width = want.width;
+          raster.height = want.height;
+          const view = this.images.find((image) => image.files === files)?.canvas;
+          if (view) {
+            for (const run of view.runs) run.painted = undefined;
+            this.paint(view);
+          }
+        } else {
+          raster.refused = key;
+          const image = this.images.find((entry) => entry.files === files);
+          if (image) {
+            image.broken = true;
+            releaseFiles(files);
+            const name = image.picture?.files[file]?.name;
+            if (name !== undefined) this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: name, reason: "undrawn" });
+            this.build();
+            return;
+          }
+        }
+        this.refitRaster(files, file, raster);
+      });
+  }
+
   protected paint(view: CanvasView) {
+    const layers = view.drawn.map(({ file, opacity, motions }): PaintedLayer => {
+      const drawnHere = motions.filter(({ wrapper }) => !view.containers.has(wrapper));
+      let matrix: Affine | undefined;
+      for (const { label } of motions) {
+        const pose = view.standIns.get(label)?.pose;
+        if (pose) matrix = multiply(matrix ?? IDENTITY, pose.matrix);
+      }
+      return {
+        file,
+        alpha: opacity,
+        ...(matrix ? { matrix } : {}),
+        wrappers: drawnHere.map(({ wrapper }) => wrapper),
+        fades: drawnHere.map(({ label }) => view.standIns.get(label)?.pose?.opacity ?? 1),
+      };
+    });
     const smooth = view.smooth !== false;
     for (const run of view.runs) {
       const { canvas, context } = run;
-      const drawn = view.drawn.filter(({ file }) => run.files.has(file));
-      const key = `${canvas.width}x${canvas.height}|${smooth}|${drawn.map(({ file, opacity }) => `${file}:${opacity}`).join(",")}`;
+      const own = layers.filter(({ file }) => run.files.has(file));
+      const key = `${canvas.width}x${canvas.height}|${smooth}|${own.map(({ file, alpha, matrix, fades }) => `${file}:${alpha}:${fades.join(" ")}${matrix ? `:${matrix.join(" ")}` : ""}`).join(",")}`;
       if (run.painted === key) continue;
       run.painted = key;
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      context.globalAlpha = 1;
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.imageSmoothingEnabled = smooth;
-      for (const { file, opacity } of drawn) {
-        const bitmap = view.files.bitmaps.get(file);
-        if (!bitmap) continue;
-        context.globalAlpha = opacity;
-        context.drawImage(bitmap.image, 0, 0, canvas.width, canvas.height);
-      }
-      context.globalAlpha = 1;
+      clearCanvas(context, canvas, smooth);
+      this.paintLayers(view, run, context, own, 0, 1);
     }
     for (const [file, live] of view.views) {
-      const drawn = view.drawn.find((entry) => entry.file === file);
-      write(live.box, "style", `position:absolute;left:0;top:0;width:100%;height:100%;${drawn ? (drawn.opacity < 1 ? `opacity:${drawn.opacity}` : "") : "display:none"}`);
+      const layer = layers.find((entry) => entry.file === file);
+      const declarations = ["position:absolute;left:0;top:0;width:100%;height:100%"];
+      if (!layer) declarations.push("display:none");
+      else {
+        const opacity = layer.fades.reduce((product, fade) => product * fade, layer.alpha);
+        if (layer.matrix && view.size) {
+          const [a, b, c, d, e, f] = layer.matrix;
+          const sx = view.size.width / view.files.width;
+          const sy = view.size.height / view.files.height;
+          declarations.push("transform-origin:0 0", `transform:matrix(${a}, ${(b * sy) / sx}, ${(c * sx) / sy}, ${d}, ${e * sx}, ${f * sy})`);
+        }
+        if (opacity < 1) declarations.push(`opacity:${opacity}`);
+      }
+      write(live.box, "style", declarations.join(";"));
     }
+    for (const { element, label } of view.containers.values()) {
+      const opacity = view.standIns.get(label)?.pose?.opacity ?? 1;
+      write(element, "style", opacity < 1 ? `${CONTAINER_STYLE};opacity:${opacity}` : CONTAINER_STYLE);
+    }
+  }
+
+  protected paintLayers(view: CanvasView, run: CanvasRun, context: PictureCanvasContext, layers: PaintedLayer[], depth: number, alpha: number) {
+    for (let start = 0; start < layers.length; ) {
+      const first = layers[start]!;
+      const wrapper = first.wrappers[depth];
+      let end = start + 1;
+      while (wrapper !== undefined && end < layers.length && layers[end]!.wrappers[depth] === wrapper) end += 1;
+      const span = layers.slice(start, end);
+      start = end;
+      if (span.length === 1) {
+        this.paintLayer(view, run, context, first, first.fades.slice(depth).reduce((product, fade) => product * fade, alpha));
+        continue;
+      }
+      const fade = first.fades[depth]!;
+      if (fade <= 0) continue;
+      const group = fade < 1 ? this.groupCanvas(view, run, depth) : undefined;
+      if (!group) {
+        this.paintLayers(view, run, context, span, depth + 1, alpha * fade);
+        continue;
+      }
+      clearCanvas(group.context, group.canvas, view.smooth !== false);
+      this.paintLayers(view, run, group.context, span, depth + 1, 1);
+      context.globalAlpha = alpha * fade;
+      context.drawImage(group.canvas, 0, 0, run.canvas.width, run.canvas.height);
+      context.globalAlpha = 1;
+    }
+  }
+
+  protected paintLayer(view: CanvasView, run: CanvasRun, context: PictureCanvasContext, layer: PaintedLayer, alpha: number) {
+    const { canvas } = run;
+    const { files } = view;
+    const bitmap = files.bitmaps.get(layer.file);
+    const opacity = layer.alpha * alpha;
+    if (!bitmap || opacity <= 0) return;
+    context.globalAlpha = opacity;
+    if (layer.matrix) {
+      const [a, b, c, d, e, f] = layer.matrix;
+      const sx = canvas.width / files.width;
+      const sy = canvas.height / files.height;
+      context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
+    }
+    context.drawImage(files.rasters.get(layer.file)?.image ?? bitmap.image, 0, 0, canvas.width, canvas.height);
+    if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
+    context.globalAlpha = 1;
+  }
+
+  protected groupCanvas(view: CanvasView, run: CanvasRun, depth: number) {
+    let group = view.groups[depth];
+    if (!group) {
+      const canvas = run.canvas.ownerDocument.createElement("canvas");
+      const context = this.playback.pictureCanvas(canvas);
+      if (!context) return undefined;
+      group = { canvas, context };
+      view.groups[depth] = group;
+    }
+    if (group.canvas.width !== run.canvas.width || group.canvas.height !== run.canvas.height) {
+      group.canvas.width = run.canvas.width;
+      group.canvas.height = run.canvas.height;
+    }
+    return group;
   }
 
   layout() {
@@ -1832,8 +2126,9 @@ export class MorphLayer {
     for (const image of this.images) {
       if (image.canvas) {
         const canvas = image.canvas;
-        this.renderFrame(canvas, image.slot.artifact, image.plays, (frame) => {
+        this.renderFrame(canvas, image.slot.artifact, image.plays, (frame, heads) => {
           canvas.drawn = layeredMorphDrawn(canvas.files.model, frame);
+          image.plays.forEach(({ play }, i) => this.moveStandIns(canvas, play, heads[i]!));
           this.paint(canvas);
         });
       }
@@ -1884,11 +2179,29 @@ export class MorphLayer {
     }
   }
 
+  protected moveStandIns(view: CanvasView, play: MorphLayerPlay, at: number | "rest") {
+    const box = { width: view.files.width, height: view.files.height };
+    for (const [label, standIn] of view.standIns) {
+      const track = play.motion && own(play.motion, label);
+      if (!track) continue;
+      if (at === "rest") {
+        standIn.effect?.cancel();
+        standIn.pose = undefined;
+        continue;
+      }
+      if (standIn.effect === undefined) standIn.effect = this.playback.animate(standIn.element, morphMotionKeyframes(track) as Keyframe[]) ?? null;
+      if (!standIn.effect) continue;
+      standIn.effect.sample(at);
+      standIn.pose = this.playback.readPose(standIn.element, box);
+    }
+  }
+
   protected releaseMotions() {
     for (const image of this.images) {
       for (const view of [image.view, ...image.inner.map((inner) => inner.view)]) {
         for (const motion of view?.motions ?? []) motion.effect?.cancel();
       }
+      for (const standIn of image.canvas?.standIns.values() ?? []) standIn.effect?.cancel();
     }
   }
 
@@ -1911,6 +2224,8 @@ export class MorphLayer {
     this.releaseMotions();
     for (const image of this.images) {
       image.slot.dispose();
+      image.loading = undefined;
+      releaseFiles(image.files);
       image.view = undefined;
       image.canvas = undefined;
       for (const inner of image.inner) {
@@ -1922,6 +2237,19 @@ export class MorphLayer {
     this.playback.forget(this);
     delete (this.span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
   }
+}
+
+function releaseFiles(files: PictureFiles | undefined) {
+  if (!files || files.released) return;
+  files.released = true;
+  for (const raster of files.rasters.values()) raster.release();
+}
+
+function clearCanvas(context: PictureCanvasContext, canvas: HTMLCanvasElement, smooth = true) {
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.globalAlpha = 1;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = smooth;
 }
 
 function positioningArea(span: HTMLElement, computed: CSSStyleDeclaration | undefined) {
