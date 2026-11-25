@@ -316,6 +316,32 @@ exports[`a checkpoint saved during a simulated route > displays the layout, port
   --theme-ease-in_back: cubic-bezier(0.36,0,0.66,-0.56);
   --theme-ease-out_back: cubic-bezier(0.34,1.56,0.64,1);
   --theme-ease-in_out_back: cubic-bezier(0.68,-0.6,0.32,1.6);
+  --theme-animation-show: 0s cubic-bezier(0,0,1,1) 0s 1 normal both running show;
+  --theme-animation-hide: 0s cubic-bezier(0,0,1,1) 0s 1 normal both running hide;
+  --theme-animation-spin: 0s cubic-bezier(0,0,1,1) 0s infinite normal none running spin;
+  --theme-animation-tooltip_slide: 0s ease-out 0s 1 normal forwards running tooltip_slide;
+  --theme-animation-tooltip_caret_slide: 0s ease-out 0s 1 normal forwards running tooltip_caret_slide;
+  --theme-animation-progress_indeterminate: 0s cubic-bezier(0,0,1,1) 0s infinite normal none running progress_indeterminate;
+  --theme-animation-ping: 0s ease 0s 1 normal both running ping;
+  --theme-animation-bounce: 0s ease 0s infinite normal none running bounce;
+  --theme-animation-wave: 750ms ease-in-out 0s 1 normal both running wave;
+  --theme-animation-wavy: 750ms ease-in-out 0s infinite normal none running wavy;
+  --theme-animation-shaky: 300ms ease-in-out 0s infinite normal none running shaky;
+  --theme-animation-shake: 300ms ease-in-out 0s 1 normal none running shake;
+  --theme-animation-shaking: 300ms ease-in-out 0s infinite normal both running shaking;
+  --theme-animation-shiver: 300ms ease-in-out 0s 1 normal none running shiver;
+  --theme-animation-shivering: 300ms ease-in-out 0s infinite normal none running shivering;
+  --theme-animation-waitout: 0.5s step-end 0s 1 normal both running waitout;
+  --theme-animation-waitin: 0.5s step-end 0s 1 normal both running waitin;
+  --theme-animation-fadeout: 0.5s cubic-bezier(0,0,1,1) 0s 1 normal both running fadeout;
+  --theme-animation-fadein: 0.5s cubic-bezier(0,0,1,1) 0s 1 normal both running fadein;
+  --theme-animation-pulse: 1s cubic-bezier(0,0,1,1) 0s 1 normal both running pulse;
+  --theme-animation-blackout: 0.5s cubic-bezier(0,0,1,1) 0s 1 normal both running blackout;
+  --theme-animation-blackin: 0.5s cubic-bezier(0,0,1,1) 0s 1 normal both running blackin;
+  --theme-animation-blackpulse: 1s cubic-bezier(0,0,1,1) 0s 1 normal both running blackpulse;
+  --theme-animation-whiteout: 0.5s cubic-bezier(0,0,1,1) 0s 1 normal both running whiteout;
+  --theme-animation-whitein: 0.5s cubic-bezier(0,0,1,1) 0s 1 normal both running whitein;
+  --theme-animation-whitepulse: 1s cubic-bezier(0,0,1,1) 0s 1 normal both running whitepulse;
 }",
             },
             {
