@@ -24,6 +24,8 @@ const borders = new Map<Element, () => number>();
 
 const rects = new Map<Element, () => { left: number; top: number; width: number; height: number }>();
 
+const styles = new Map<Element, () => Record<string, string>>();
+
 const frames: FrameRequestCallback[] = [];
 
 let restore: (() => void) | undefined;
@@ -45,6 +47,7 @@ const installLayout = (win: Window & typeof globalThis) => {
     clientLeft: own("clientLeft"),
     clientTop: own("clientTop"),
     offsetWidth: own("offsetWidth"),
+    offsetHeight: own("offsetHeight"),
     getClientRects: (win.Element.prototype as any).getClientRects,
     getBoundingClientRect: (win.Element.prototype as any).getBoundingClientRect,
   };
@@ -63,6 +66,7 @@ const installLayout = (win: Window & typeof globalThis) => {
   Object.defineProperty(proto, "clientLeft", { configurable: true, get() { return borders.get(this)?.() ?? 0; } });
   Object.defineProperty(proto, "clientTop", { configurable: true, get() { return borders.get(this)?.() ?? 0; } });
   Object.defineProperty(proto, "offsetWidth", { configurable: true, get() { return Math.round(boxOf(this)?.width ?? 0); } });
+  Object.defineProperty(proto, "offsetHeight", { configurable: true, get() { return Math.round(boxOf(this)?.height ?? 0); } });
   (win.Element.prototype as any).getBoundingClientRect = function (this: Element) {
     const rect = rects.get(this)?.() ?? { left: 0, top: 0, width: 0, height: 0 };
     return { ...rect, x: rect.left, y: rect.top, right: rect.left + rect.width, bottom: rect.top + rect.height };
@@ -75,6 +79,10 @@ const installLayout = (win: Window & typeof globalThis) => {
     const style = computed.call(win, el);
     return new Proxy(style, {
       get(target, key) {
+        const own = styles.get(el)?.();
+        if (own && typeof key === "string" && key in own) {
+          return own[key];
+        }
         const box = boxOf(el);
         if (box && (key === "width" || key === "height")) {
           return `${box[key]}px`;
@@ -102,7 +110,7 @@ const installLayout = (win: Window & typeof globalThis) => {
     win.getComputedStyle = previous.getComputedStyle;
     win.requestAnimationFrame = previous.requestAnimationFrame;
     win.cancelAnimationFrame = previous.cancelAnimationFrame;
-    for (const name of ["offsetLeft", "offsetTop", "offsetParent", "clientLeft", "clientTop", "offsetWidth"] as const) {
+    for (const name of ["offsetLeft", "offsetTop", "offsetParent", "clientLeft", "clientTop", "offsetWidth", "offsetHeight"] as const) {
       const descriptor = previous[name];
       if (descriptor) {
         Object.defineProperty(proto, name, descriptor);
@@ -114,6 +122,7 @@ const installLayout = (win: Window & typeof globalThis) => {
     (win.Element.prototype as any).getBoundingClientRect = previous.getBoundingClientRect;
     geometry.clear();
     rects.clear();
+    styles.clear();
     offsetParents.clear();
     borders.clear();
   };
@@ -334,6 +343,15 @@ end
       { ...pinned("width", 300), ...pinned("height", 60) },
     ]);
     expect(getSizeKeyframes(box(0, 0, 100, 20), box(0, 30, 100.4, 20))).toBeUndefined();
+    expect(
+      getSizeKeyframes(
+        { ...box(0, 0, 100, 20), insets: { paddingTop: 0, paddingBottom: 0, paddingLeft: 4 } },
+        { ...box(0, 0, 100, 100), insets: { paddingTop: 40, paddingBottom: 40, paddingLeft: 4 } },
+      ),
+    ).toEqual([
+      { ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
+      { ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
+    ]);
     const from = { x: 10, y: 100 };
     const to = { x: 10, y: 140 };
     expect(getLayoutShift(from, to, to, 0)).toEqual({ x: 0, y: -40 });
@@ -497,6 +515,62 @@ end
     root.remove();
   });
 
+  test("a change of padding grows the box through its padding as well as its size", () => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow padded"></div>`);
+    const padded = at(".padded");
+    let grown = false;
+    geometry.set(padded, () => box(0, 0, 200, grown ? 100 : 20));
+    styles.set(padded, () => ({ paddingTop: grown ? "40px" : "0px", paddingBottom: grown ? "40px" : "0px" }));
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    grown = true;
+    motion.play(boxes);
+    expect(keyframesOf(sizeOf(padded)!)).toEqual([
+      { ...pinned("height", 20), paddingTop: "0px", paddingBottom: "0px" },
+      { ...pinned("height", 100), paddingTop: "40px", paddingBottom: "40px" },
+    ]);
+    root.remove();
+  });
+
+  test("an element inside a parent scaled unequally moves in the parent's own units", () => {
+    useLayout();
+    const { root, at } = mount(`<div class="stretched"><div class="slow child"></div></div>`);
+    const [stretched, child] = [at(".stretched"), at(".child")];
+    let moved = false;
+    geometry.set(stretched, () => box(0, 0, 100, 200));
+    rects.set(stretched, () => ({ left: 0, top: 0, width: 200, height: 200 }));
+    styles.set(stretched, () => ({ boxSizing: "border-box", width: "100px", height: "200px" }));
+    geometry.set(child, () => box(0, moved ? 100 : 0, 50, 20));
+    rects.set(child, () => ({ left: 2 * shiftOf(child).x, top: (moved ? 100 : 0) + shiftOf(child).y, width: 100, height: 20 }));
+    offsetParents.set(child, stretched);
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    moved = true;
+    motion.play(boxes);
+    expect(shiftOf(child)).toEqual({ x: 0, y: -100 });
+    root.remove();
+  });
+
+  test("an element inside a rotated parent is measured in the parent's own units", () => {
+    useLayout();
+    const { root, at } = mount(`<div class="turned"><div class="slow child"></div></div>`);
+    const [turned, child] = [at(".turned"), at(".child")];
+    let moved = false;
+    geometry.set(turned, () => box(0, 0, 200, 200));
+    rects.set(turned, () => ({ left: -41.4, top: -41.4, width: 282.8, height: 282.8 }));
+    styles.set(turned, () => ({ transform: "matrix(0.707107, 0.707107, -0.707107, 0.707107, 0, 0)" }));
+    geometry.set(child, () => box(0, moved ? 100 : 0, 50, 20));
+    rects.set(child, () => ({ left: moved ? -70.7 : 0, top: moved ? 70.7 : 0, width: 50, height: 50 }));
+    offsetParents.set(child, turned);
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    moved = true;
+    motion.play(boxes);
+    expect(shiftOf(child)).toEqual({ x: 0, y: -100 });
+    root.remove();
+  });
+
   test("a pure resize never translates the element, so its stacking is unchanged", async () => {
     useLayout();
     const { root, at } = mount(`<div class="slow card"></div>`);
@@ -563,7 +637,7 @@ end
     expect(first.currentTime).toBe(100);
 
     boxes = motion.measure(root);
-    expect(boxes!.get(under)).toEqual(box(0, 80, 200, 40));
+    expect(boxes!.get(under)).toMatchObject(box(0, 80, 200, 40));
     y = 200;
     motion.play(boxes);
     expect(first.playState).toBe("idle");

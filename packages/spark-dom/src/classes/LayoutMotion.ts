@@ -8,6 +8,14 @@ export interface LayoutPoint {
 export interface LayoutBox extends LayoutPoint {
   width: number;
   height: number;
+  insets?: Partial<Record<LayoutInset, number>>;
+}
+
+export type LayoutInset = (typeof INSETS)[number];
+
+interface PlacePass {
+  places: Map<HTMLElement, LayoutPoint>;
+  aligned: Map<Element, boolean>;
 }
 
 export interface LayoutTiming {
@@ -41,7 +49,34 @@ const UNSCALED = 0.002;
 
 const PIXELS = /^-?\d*\.?\d+(?:e-?\d+)?px$/;
 
+const ANGLE_ZERO = /^-?0*\.?0*(?:deg|rad|grad|turn)?$/;
+
+const INSETS = [
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "borderTopWidth",
+  "borderRightWidth",
+  "borderBottomWidth",
+  "borderLeftWidth",
+] as const;
+
 const NO_SHIFT: LayoutPoint = { x: 0, y: 0 };
+
+const newPass = (): PlacePass => ({ places: new Map(), aligned: new Map() });
+
+const axisAligned = (style: CSSStyleDeclaration): boolean => {
+  if (style.rotate && style.rotate !== "none" && !ANGLE_ZERO.test(style.rotate)) {
+    return false;
+  }
+  const transform = style.transform;
+  if (!transform || transform === "none") {
+    return true;
+  }
+  const values = /^matrix\(([^)]*)\)$/.exec(transform)?.[1]?.split(",").map(Number);
+  return values?.length === 6 && values[1] === 0 && values[2] === 0;
+};
 
 export const namesLayoutTransition = (text: string): boolean =>
   LAYOUT_TRANSITION.test(text);
@@ -100,11 +135,17 @@ export const getLayoutTiming = (
 
 const differs = (a: number, b: number) => Math.abs(a - b) > SETTLED_PX;
 
+const changedInsets = (a: LayoutBox, b: LayoutBox): LayoutInset[] =>
+  INSETS.filter((inset) =>
+    differs(a.insets?.[inset] ?? NaN, b.insets?.[inset] ?? NaN),
+  );
+
 const sameBox = (a: LayoutBox, b: LayoutBox) =>
   !differs(a.x, b.x) &&
   !differs(a.y, b.y) &&
   !differs(a.width, b.width) &&
-  !differs(a.height, b.height);
+  !differs(a.height, b.height) &&
+  changedInsets(a, b).length === 0;
 
 export const getSizeKeyframes = (
   from: LayoutBox,
@@ -125,6 +166,10 @@ export const getSizeKeyframes = (
   if (differs(from.height, to.height)) {
     pin(start, "height", from.height);
     pin(end, "height", to.height);
+  }
+  for (const inset of changedInsets(from, to)) {
+    start[inset] = `${from.insets![inset]}px`;
+    end[inset] = `${to.insets![inset]}px`;
   }
   return Object.keys(start).length > 0 ? [start, end] : undefined;
 };
@@ -191,10 +236,10 @@ export default class LayoutMotion {
       return undefined;
     }
     const boxes = new Map<HTMLElement, LayoutBox>();
-    const places = new Map<HTMLElement, LayoutPoint>();
+    const pass = newPass();
     for (const node of Array.from(root.querySelectorAll("*"))) {
       if (node instanceof view.HTMLElement) {
-        const box = this.boxOf(node, places, root);
+        const box = this.boxOf(node, pass, root);
         if (box) {
           boxes.set(node, box);
         }
@@ -280,7 +325,7 @@ export default class LayoutMotion {
     boxes: Map<HTMLElement, LayoutBox>,
   ): Map<HTMLElement, { to: LayoutBox; timing: LayoutTiming }> {
     const targets = new Map<HTMLElement, { to: LayoutBox; timing: LayoutTiming }>();
-    const places = new Map<HTMLElement, LayoutPoint>();
+    const pass = newPass();
     const resume = this.suspend();
     try {
       for (const el of boxes.keys()) {
@@ -289,7 +334,7 @@ export default class LayoutMotion {
           view && el.isConnected
             ? getLayoutTiming(view.getComputedStyle(el))
             : undefined;
-        const to = timing ? this.boxOf(el, places) : undefined;
+        const to = timing ? this.boxOf(el, pass) : undefined;
         if (timing && to) {
           targets.set(el, { to, timing });
         }
@@ -301,7 +346,7 @@ export default class LayoutMotion {
   }
 
   protected update(): boolean {
-    const places = new Map<HTMLElement, LayoutPoint>();
+    const pass = newPass();
     const ordered = Array.from(this._motions).sort(
       ([, a], [, b]) => a.depth - b.depth,
     );
@@ -322,7 +367,7 @@ export default class LayoutMotion {
         getLayoutShift(
           motion.from,
           motion.to,
-          this.placeOf(el, places),
+          this.placeOf(el, pass),
           progress,
           this.carried(el),
         ),
@@ -356,31 +401,29 @@ export default class LayoutMotion {
     }
   }
 
-  protected placeOf(
-    el: HTMLElement,
-    places: Map<HTMLElement, LayoutPoint>,
-  ): LayoutPoint {
-    const known = places.get(el);
+  protected placeOf(el: HTMLElement, pass: PlacePass): LayoutPoint {
+    const known = pass.places.get(el);
     if (known) {
       return known;
     }
     const parent = el.offsetParent as HTMLElement | null;
-    const base = parent ? this.placeOf(parent, places) : NO_SHIFT;
-    const offset = (parent && this.offsetWithin(el, parent)) ?? {
+    const base = parent ? this.placeOf(parent, pass) : NO_SHIFT;
+    const offset = (parent && this.offsetWithin(el, parent, pass)) ?? {
       x: (parent?.clientLeft ?? 0) + el.offsetLeft,
       y: (parent?.clientTop ?? 0) + el.offsetTop,
     };
     const place = { x: base.x + offset.x, y: base.y + offset.y };
-    places.set(el, place);
+    pass.places.set(el, place);
     return place;
   }
 
   protected offsetWithin(
     el: HTMLElement,
     parent: HTMLElement,
+    pass: PlacePass,
   ): LayoutPoint | undefined {
     const view = el.ownerDocument.defaultView;
-    if (!view) {
+    if (!view || !this.alignedWithin(parent, pass, view)) {
       return undefined;
     }
     const style = view.getComputedStyle(el);
@@ -400,47 +443,68 @@ export default class LayoutMotion {
       return undefined;
     }
     return {
-      x: (rect.left - parentRect.left) / scale - translate[0]!,
-      y: (rect.top - parentRect.top) / scale - translate[1]!,
+      x: (rect.left - parentRect.left) / scale.x - translate[0]!,
+      y: (rect.top - parentRect.top) / scale.y - translate[1]!,
     };
+  }
+
+  protected alignedWithin(
+    el: Element,
+    pass: PlacePass,
+    view: Window & typeof globalThis,
+  ): boolean {
+    const known = pass.aligned.get(el);
+    if (known != null) {
+      return known;
+    }
+    const parent = el.parentElement;
+    const aligned =
+      axisAligned(view.getComputedStyle(el)) &&
+      (!parent || this.alignedWithin(parent, pass, view));
+    pass.aligned.set(el, aligned);
+    return aligned;
   }
 
   protected scaleOf(
     parent: HTMLElement,
     rect: DOMRect,
     view: Window & typeof globalThis,
-  ): number | undefined {
+  ): LayoutPoint | undefined {
     const width = parent.offsetWidth;
-    if (!(width > 0)) {
+    const height = parent.offsetHeight;
+    if (!(width > 0) || !(height > 0)) {
       return undefined;
     }
-    if (Math.abs(rect.width / width - 1) <= UNSCALED) {
-      return 1;
+    const near = (a: number, b: number) => Math.abs(a / b - 1) <= UNSCALED;
+    if (near(rect.width, width) && near(rect.height, height)) {
+      return { x: 1, y: 1 };
     }
     const style = view.getComputedStyle(parent);
-    const sides =
+    const sides = (...values: string[]) =>
       style.boxSizing === "border-box"
         ? 0
-        : [
-            style.paddingLeft,
-            style.paddingRight,
-            style.borderLeftWidth,
-            style.borderRightWidth,
-          ].reduce((sum, side) => sum + (Number.parseFloat(side) || 0), 0);
-    const box = Number.parseFloat(style.width) + sides;
-    return box > 0 ? rect.width / box : undefined;
+        : values.reduce((sum, side) => sum + (Number.parseFloat(side) || 0), 0);
+    const boxWidth =
+      Number.parseFloat(style.width) +
+      sides(style.paddingLeft, style.paddingRight, style.borderLeftWidth, style.borderRightWidth);
+    const boxHeight =
+      Number.parseFloat(style.height) +
+      sides(style.paddingTop, style.paddingBottom, style.borderTopWidth, style.borderBottomWidth);
+    return boxWidth > 0 && boxHeight > 0
+      ? { x: rect.width / boxWidth, y: rect.height / boxHeight }
+      : undefined;
   }
 
   protected boxOf(
     el: HTMLElement,
-    places: Map<HTMLElement, LayoutPoint>,
+    pass: PlacePass,
     inFlightWithin?: HTMLElement,
   ): LayoutBox | undefined {
     const view = el.ownerDocument.defaultView;
     if (!view || el.getClientRects().length === 0) {
       return undefined;
     }
-    let { x, y } = this.placeOf(el, places);
+    let { x, y } = this.placeOf(el, pass);
     if (inFlightWithin) {
       for (
         let node: HTMLElement | null = el;
@@ -455,11 +519,16 @@ export default class LayoutMotion {
       }
     }
     const style = view.getComputedStyle(el);
+    const insets: Partial<Record<LayoutInset, number>> = {};
+    for (const inset of INSETS) {
+      insets[inset] = Number.parseFloat(style[inset]);
+    }
     return {
       x,
       y,
       width: Number.parseFloat(style.width),
       height: Number.parseFloat(style.height),
+      insets,
     };
   }
 
