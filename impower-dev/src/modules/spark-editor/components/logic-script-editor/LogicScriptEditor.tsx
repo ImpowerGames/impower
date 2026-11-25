@@ -13,6 +13,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import { toggleAddPanel } from "../add-panel";
 import ScriptHeader from "../script-header/ScriptHeader";
 import WriterBar from "../writer-bar/WriterBar";
+import { keepScriptStill } from "./keepScriptStill";
 import {
   keepsTypingOver,
   reloadsForWrite,
@@ -354,8 +355,17 @@ export default function LogicScriptEditor({
     loadFileRef.current?.();
   }, [filename, textPulledAt]);
 
+  const columnRef = useRef<HTMLDivElement>(null);
+  useEffect(
+    () => (columnRef.current ? keepScriptStill(columnRef.current) : undefined),
+    [],
+  );
+
   return (
-    <div class="relative flex flex-1 flex-col min-h-0 bg-workspace">
+    <div
+      ref={columnRef}
+      class="relative flex flex-1 flex-col min-h-0 bg-workspace"
+    >
       <ScriptHeader filename={filename || "main.sd"} />
       <div class="relative flex flex-1 flex-col min-h-0">
         <SparkdownScriptEditor

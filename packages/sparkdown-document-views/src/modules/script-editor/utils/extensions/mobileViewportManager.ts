@@ -6,7 +6,7 @@ import {
   hasScriptMode,
   openKeyboardToolbar,
 } from "./keyboardToolbar";
-import { scrollCaretIntoView } from "./caretScrollMargin";
+import { raiseCaretOnScreen } from "../caretOnScreen";
 
 const viewportTheme = EditorView.baseTheme({
   "&": {
@@ -27,12 +27,26 @@ const viewportPlugin = ViewPlugin.fromClass(
     view: EditorView;
     frame?: number;
     destroyed = false;
+    ready = false;
     releaseFit: () => void;
 
     constructor(view: EditorView) {
       this.view = view;
-      this.releaseFit = fitToKeyboard(() => this.onKeyboardUpdate());
+      this.releaseFit = fitToKeyboard(() => this.onKeyboardFit());
       this.bind();
+      this.ready = true;
+      this.onKeyboardUpdate();
+    }
+
+    onKeyboardFit() {
+      if (this.ready && !this.destroyed && keyboard().open) {
+        if (this.editorFocused()) {
+          this.view.dom.classList.add("keyboard-open");
+        }
+        if (this.view.hasFocus) {
+          raiseCaretOnScreen(this.view);
+        }
+      }
       this.onKeyboardUpdate();
     }
 
@@ -57,7 +71,7 @@ const viewportPlugin = ViewPlugin.fromClass(
         else closeKeyboardToolbar(this.view);
       }
       if (open && this.view.hasFocus) {
-        scrollCaretIntoView(this.view);
+        raiseCaretOnScreen(this.view);
       }
     }
 

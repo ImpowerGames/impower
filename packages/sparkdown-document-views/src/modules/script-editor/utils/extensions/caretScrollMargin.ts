@@ -12,15 +12,29 @@ const caretInsetMargins = new WeakSet<object>();
 export const caretBottomInsetOf = (margins: object) =>
   caretInsetMargins.has(margins) ? caretBottomInset : 0;
 
+const bottomPanelsOverlap = (view: EditorView) => {
+  const panels = view.dom.querySelector(":scope > .cm-panels-bottom");
+  if (!panels) {
+    return 0;
+  }
+  const scrollerBottom = Math.min(
+    window.innerHeight,
+    view.scrollDOM.getBoundingClientRect().bottom,
+  );
+  return Math.max(0, scrollerBottom - panels.getBoundingClientRect().top);
+};
+
 export const caretScrollMargin = (hostMargin?: {
   top?: number;
   bottom?: number;
   left?: number;
   right?: number;
 }) => {
-  const margins = () => ({
+  const margins = (view: EditorView) => ({
     ...hostMargin,
-    bottom: (hostMargin?.bottom ?? 0) + caretBottomInset,
+    bottom:
+      Math.max(hostMargin?.bottom ?? 0, bottomPanelsOverlap(view)) +
+      caretBottomInset,
   });
   caretInsetMargins.add(margins);
   return [

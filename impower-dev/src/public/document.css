@@ -194,6 +194,22 @@ html:has([data-keyboard-panel]) [data-phone-shell][data-editing] .sparkdown-scri
   display: flex;
 }
 
+@supports (overflow-clip-margin: 1px) {
+  html.keyboard-open body:has([data-phone-shell][data-editing]),
+  html.keyboard-open body:has([data-phone-shell][data-editing]) #app {
+    overflow-clip-margin: var(--keyboard-height);
+  }
+
+  html.keyboard-open [data-phone-shell][data-editing] #screen-panel {
+    height: calc(100% + var(--keyboard-height));
+  }
+
+  html.keyboard-open [data-phone-shell][data-editing] .sparkdown-script-editor-root .cm-panels-bottom {
+    position: absolute;
+    transform: translateY(calc(-1 * var(--keyboard-height)));
+  }
+}
+
 #app {
   position: absolute;
   top: 0;
