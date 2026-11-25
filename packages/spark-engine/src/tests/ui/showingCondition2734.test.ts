@@ -103,6 +103,19 @@ describe("the engine marks what is on screen for @showing (#2734)", () => {
     expect(marks).toEqual([["dialogue"], ["action"], ["action", "hud"], ["dialogue", "hud"]]);
   });
 
+  test("a name written with tabs around it inside the parentheses is watched", async () => {
+    const h = createHarness(SOURCE.replace("@showing(hud)", "@showing(\thud\t)"), 0, {
+      reactive: true,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    await flushMicrotasks(10);
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("hud");
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual(["hud"]);
+  });
+
   test("a layout closed at once is cleared with its close", async () => {
     const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;

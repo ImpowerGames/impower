@@ -1095,11 +1095,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (styles !== this._showingStyles) {
       this._showingStyles = styles;
       const watched = new Set<string>();
-      if (styles) {
-        for (const match of JSON.stringify(styles).matchAll(SHOWING_CONDITION)) {
-          watched.add(match[1]!);
+      const scan = (value: unknown) => {
+        if (!value || typeof value !== "object") {
+          return;
         }
-      }
+        for (const [key, inner] of Object.entries(value)) {
+          for (const match of key.matchAll(SHOWING_CONDITION)) {
+            watched.add(match[1]!);
+          }
+          scan(inner);
+        }
+      };
+      scan(styles);
       this._showingWatched = watched;
     }
     return this._showingWatched;

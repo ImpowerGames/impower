@@ -340,7 +340,18 @@ class SparkleSelectorWriter {
     }
     if (char === ":") {
       const pseudo = this.match(PSEUDO)![0];
-      return this.src[this.i] === "(" ? pseudo + this.raw() : pseudo;
+      if (this.src[this.i] !== "(") {
+        return pseudo;
+      }
+      const name = pseudo.startsWith("::") ? "" : pseudo.slice(1);
+      if (ROOT_LIFTED_PSEUDO_CLASSES.has(name)) {
+        const { text, close } = this.argument(() => this.list("raw", false));
+        return `${pseudo}(${this.lifted(text)}${close}`;
+      }
+      if (name in SHOWING_REFUSED_POSITIONS) {
+        return pseudo + this.within(name as ShowingRefusedPosition, () => this.raw());
+      }
+      return pseudo + this.raw();
     }
     if (char === "(") {
       return this.raw();
@@ -622,40 +633,40 @@ const hasRootConditions = (selector: string): boolean => {
 
 const splitRootConditions = (selector: string, scheme: boolean): { root: string; rest: string }[] =>
   splitTopLevelCommas(selector).map((part) => {
-    let root = "";
-    const rest = part
+    let theme = "";
+    let showing = "";
+    const marked = part
       .split(QUOTED_PART)
       .map((piece, i) =>
         i & 1
           ? piece
-          : piece.replace(
-              ROOT_CONDITION,
-              (written: string, state: string, value: string, offset: number, text: string) => {
-                const condition = rootCondition(state, value, scheme);
-                if (!condition) {
-                  return written;
-                }
-                root += condition;
-                const before = text.slice(0, offset);
-                const after = text[offset + written.length];
-                if (state !== SHOWING_STATE) {
-                  return "";
-                }
-                const leading = i === 0 && !before.replace(ROOT_CONDITION, "").trim();
-                const alone =
-                  COMPOUND_START.test(before.slice(-1) || " ") && (after === undefined || COMPOUND_END.test(after));
-                return alone && !leading ? "*" : "";
-              },
-            ),
+          : piece.replace(ROOT_CONDITION, (written: string, state: string, value: string) => {
+              const condition = rootCondition(state, value, scheme);
+              if (!condition) {
+                return written;
+              }
+              if (state === SHOWING_STATE) {
+                showing += condition;
+                return LIFTED;
+              }
+              theme = condition;
+              return "";
+            }),
       )
       .join("")
       .trim();
+    const rest = marked
+      .replace(LIFTED_COMPOUND, (_match, before: string, offset: number) => (offset === 0 ? "" : `${before}*`))
+      .split(LIFTED)
+      .join("")
+      .trim();
+    const root = theme + showing;
     return { root, rest: root ? rest : part.trim() };
   });
 
-const COMPOUND_START = /[\s>+~(,]/;
+const LIFTED = "";
 
-const COMPOUND_END = /[\s>+~),]/;
+const LIFTED_COMPOUND = /(^|[\s>+~(,])+(?=$|[\s>+~),])/g;
 
 const liftRootConditions = (selector: string, scheme: boolean, subject: "&" | "*" = "&"): string => {
   if (!hasRootConditions(selector)) {

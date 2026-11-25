@@ -90,6 +90,7 @@ style frame {
     ["@nth-last-child(2 of @showing(hud))", "the `of` list of `@nth-last-child(…)`"],
     ["@scope (frame @showing(hud))", "an `@scope (…)` prelude"],
     ["@supports selector(frame @showing(hud))", "`@supports selector(…)`"],
+    [":has(@showing(hud))", "`@has(…)`"],
   ])("warns on %s, naming %s, on the condition", (selector, position) => {
     const from = 2 + selector.indexOf("@showing");
     expect(positionWarnings(selector)).toEqual([
@@ -102,7 +103,7 @@ style frame {
     ]);
   });
 
-  it.each(["@showing(hud)", "@showing(hud) @hovered", "@not(@showing(hud))", "@is(@showing(hud), @showing(panel))", "@where(@showing(hud))"])(
+  it.each(["@showing(hud)", "@showing(hud) @hovered", "@not(@showing(hud))", "@is(@showing(hud), @showing(panel))", "@where(@showing(hud))", ":not(@showing(hud))"])(
     "does not warn on %s",
     (selector) => {
       expect(positionWarnings(selector)).toEqual([]);

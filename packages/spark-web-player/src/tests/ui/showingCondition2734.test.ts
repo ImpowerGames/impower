@@ -90,6 +90,9 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     ["@scope (frame @showing(action))", "scope"],
     ["@supports selector(frame @showing(action))", "supports"],
     ["@not(@has(@showing(action)))", "has"],
+    [":has(@showing(action))", "has"],
+    [":host(@showing(action))", "host"],
+    [":nth-child(1 of @showing(action))", "nth-child"],
   ])("inside %s it is refused, naming %s", (selector, position) => {
     const { refusals } = writeSparkleSelectorChecked(selector, { breakpoints: {}, colorScheme: "attribute" });
     expect(refusals.map((r) => r.position)).toEqual([position]);
@@ -119,9 +122,43 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     expect(written("@has(icon @theme(dark))")).toBe(':where([data-color-scheme="dark"]) &:has(.icon)');
   });
 
+  test("@theme written twice keeps the last scheme", () => {
+    expect(written("@theme(dark) @theme(light)")).toBe(':where([data-color-scheme="light"]) &');
+  });
+
+  test("conditions sharing one compound after a combinator leave one universal subject", () => {
+    expect(written("icon > @showing(action) @showing(hud)")).toBe(
+      ':where([data-showing~="action"][data-showing~="hud"]) & .icon>*',
+    );
+    expect(written("icon > @theme(dark) @showing(hud)")).toBe(
+      ':where([data-color-scheme="dark"][data-showing~="hud"]) & .icon>*',
+    );
+    expect(written("icon > @showing(hud) @theme(dark)")).toBe(
+      ':where([data-color-scheme="dark"][data-showing~="hud"]) & .icon>*',
+    );
+    const root = document.createElement("div");
+    root.setAttribute("data-showing", "action hud");
+    root.innerHTML = '<span class="frame"><i class="icon"><b></b></i></span>';
+    const selector = written("icon > @showing(action) @showing(hud)").replaceAll("&", ".frame");
+    expect(root.querySelector("b")!.matches(selector)).toBe(true);
+  });
+
+  test("the native :not, :is and :where spellings are lifted like @not, @is and @where", () => {
+    expect(written(":not(@showing(hud))")).toBe('&:not([data-showing~="hud"] *)');
+    expect(written(":is(@showing(a), @showing(b))")).toBe('&:is([data-showing~="a"] *, [data-showing~="b"] *)');
+    expect(written(":where(@showing(a))")).toBe('&:where([data-showing~="a"] *)');
+    const unmarked = document.createElement("div");
+    unmarked.innerHTML = '<span class="frame"></span>';
+    expect(unmarked.querySelector(".frame")!.matches(written(":not(@showing(hud))").replaceAll("&", ".frame"))).toBe(
+      true,
+    );
+  });
+
   describe("every selector-taking state and at-rule the writer knows lifts @showing or refuses it", () => {
-    const states = SELECTOR_STATES_TAKING_SELECTORS.map((state) =>
-      state.startsWith("nth-") ? `@${state}(1 of @showing(action))` : `@${state}(@showing(action))`,
+    const states = SELECTOR_STATES_TAKING_SELECTORS.flatMap((state) =>
+      ["@", ":"].map((prefix) =>
+        state.startsWith("nth-") ? `${prefix}${state}(1 of @showing(action))` : `${prefix}${state}(@showing(action))`,
+      ),
     );
     const atRules = SELECTOR_AT_RULES_TAKING_SELECTORS.map((rule) =>
       rule === "supports" ? `@supports selector(frame @showing(action))` : `@${rule} (frame @showing(action))`,
