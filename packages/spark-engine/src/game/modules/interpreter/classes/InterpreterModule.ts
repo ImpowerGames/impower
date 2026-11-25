@@ -53,7 +53,7 @@ import {
   type DirectiveClause,
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
-import { readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { cueVariant, readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
 import {
   type CharacterNames,
   characterNames,
@@ -71,7 +71,7 @@ export interface InterpreterState {
 export interface Cue {
   name: string;
   parenthetical: string;
-  position: string;
+  variant?: string;
   character?: string;
 }
 
@@ -276,7 +276,7 @@ export class InterpreterModule extends Module<
   protected resolveCue(characterDeclaration: string): Cue {
     const cue = readCue(characterDeclaration);
     const characterNameMatch = cue.name.text;
-    const characterPositionMatch = cue.position?.text ?? "";
+
     const characterMap = this.context?.["character"] as any;
     const ownCharacter = (key: string) =>
       characterMap && Object.hasOwn(characterMap, key)
@@ -300,16 +300,11 @@ export class InterpreterModule extends Module<
       characterObj.name
         ? scanned(characterObj.name)
         : characterNameMatch;
-    const position =
-      characterPositionMatch === "<"
-        ? "left"
-        : characterPositionMatch === ">"
-          ? "right"
-          : characterPositionMatch;
+    const variant = cue.variant ? cueVariant(cue.variant.text) : undefined;
     return {
       name: characterName,
       parenthetical: cue.parenthetical?.text ?? "",
-      position,
+      ...(variant ? { variant } : {}),
       character: characterObj?.$name,
     };
   }
@@ -353,6 +348,11 @@ export class InterpreterModule extends Module<
     } else {
       delete beat.speaker;
     }
+    if (cue?.variant) {
+      beat.variant = cue.variant;
+    } else {
+      delete beat.variant;
+    }
     if (source) {
       beat.source = source;
     } else {
@@ -384,7 +384,7 @@ export class InterpreterModule extends Module<
       const speaks = Boolean(ownCue?.name);
       boxCue = {
         name: speaks ? ownCue!.name : box.cue.name,
-        position: speaks ? ownCue!.position : box.cue.position,
+        variant: speaks ? ownCue!.variant : box.cue.variant,
         character: speaks ? ownCue!.character : box.cue.character,
         parenthetical:
           ownCue?.parenthetical || lifted?.parenthetical || box.cue.parenthetical,
@@ -396,7 +396,7 @@ export class InterpreterModule extends Module<
       box && (boxContent || pause || lifted)
         ? this.parse(boxContent, boxTarget, {
             character: typedBy?.character,
-            position: typedBy?.position,
+            variant: typedBy?.variant,
             spoken: true,
           })
         : undefined;
@@ -415,7 +415,7 @@ export class InterpreterModule extends Module<
       undefined;
     if (cue) {
       options.character = cue.character;
-      options.position = cue.position;
+      options.variant = cue.variant;
       if (cue.name) {
         characterNameInstructions = this.parse(
           cue.name,
@@ -752,6 +752,15 @@ export class InterpreterModule extends Module<
     return (this.context as any)?.[type]?.["$default"];
   }
 
+  protected typewriterFor(target: string, options?: InstructionOptions) {
+    const variant = options?.spoken ? options.variant : undefined;
+    const typewriters = (this.context as any)?.typewriter;
+    if (variant && typewriters && Object.hasOwn(typewriters, variant)) {
+      return typewriters[variant];
+    }
+    return this.lookupContextValue("typewriter", target);
+  }
+
   protected lookupContextValueName(
     type: string,
     name: string,
@@ -1045,7 +1054,7 @@ export class InterpreterModule extends Module<
     const processLine = (textLine: string, textTarget: string) => {
       const linePhrases: Phrase[] = [];
 
-      const typewriter = this.lookupContextValue("typewriter", textTarget);
+      const typewriter = this.typewriterFor(textTarget, options);
       const typewriterSynth = this.lookupContextValue(
         "synth",
         textTarget,
@@ -1563,7 +1572,7 @@ export class InterpreterModule extends Module<
     const debug = this.context?.system.debugging;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
-      const typewriter = this.lookupContextValue("typewriter", target);
+      const typewriter = this.typewriterFor(target, options);
       const letterPause = typewriter?.letter_pause ?? 0;
       const interjectionPause = typewriter?.punctuated_pause_scale ?? 1;
       const punctuatedMatcher = this.getMatcher(typewriter?.punctuated);
@@ -1627,7 +1636,7 @@ export class InterpreterModule extends Module<
     let voiced = false;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
-      const typewriter = this.lookupContextValue("typewriter", target);
+      const typewriter = this.typewriterFor(target, options);
       const fadeDuration = typewriter?.fade_duration ?? 0;
       const letterPause = typewriter?.letter_pause ?? 0;
       const animationOffset = typewriter?.animation_offset ?? 0;

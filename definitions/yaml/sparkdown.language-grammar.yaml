@@ -3503,6 +3503,8 @@ repository:
         name: punctuation.definition.position.sd
 
   DialogueCharacterPositionContent:
+    tag: labelName
+    name: entity.name.label.dialogue.character.variant.sd
     match: (.+$)
 
   Action:

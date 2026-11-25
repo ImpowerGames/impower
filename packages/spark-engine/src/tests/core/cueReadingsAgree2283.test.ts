@@ -1,5 +1,5 @@
 import { createSparkdownParser } from "@impower/sparkdown/src/compiler/utils/createSparkdownParser";
-import { readCue, type CueReading } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { cueVariant, readCue, type CueReading } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { compareEngines } from "@impower/sparkdown/src/tests/compiler/scopeEquality";
 import { beforeAll, describe, expect, test } from "vitest";
 import type { Cue } from "../../game/modules/interpreter/classes/InterpreterModule";
@@ -12,7 +12,7 @@ const CUES: readonly (readonly [label: string, cue: string])[] = [
   ["a speaker", "??? as raffles"],
   ["a speaker and a parenthetical", "??? as raffles (O.S.)"],
   ["every part", "??? as raffles (O.S.) [<]"],
-  ["a speaker and a position", "??? as bunny [>]"],
+  ["a speaker and a variant", "??? as bunny [>]"],
   ["a shown name with spaces and punctuation", "Mr. Smith, Jr.! as raffles"],
   ["another character's name as the shown name", "BUNNY as raffles"],
   ["the escaped `as`", "Dressed \\as santa"],
@@ -32,9 +32,9 @@ const CUES: readonly (readonly [label: string, cue: string])[] = [
   ["punctuation after the speaker", "??? as raffles."],
   ["a parenthetical touching the speaker", "??? as raffles(O.S.)"],
   ["two parentheticals", "Mia (cont'd) (O.S.)"],
-  ["a position without a parenthetical", "Mia [<]"],
-  ["an empty position", "Mia []"],
-  ["a position with spaces inside", "Mia [ > ]"],
+  ["a variant without a parenthetical", "Mia [<]"],
+  ["an empty variant", "Mia []"],
+  ["a variant with spaces inside", "Mia [ > ]"],
   ["a tag after the speaker", "??? as raffles # note"],
 ];
 
@@ -70,7 +70,7 @@ const COLOURED_ROLES: Readonly<Record<string, string>> = {
   DialogueCharacterAsKeyword: "as",
   DialogueCharacterSpeaker: "speaker",
   DialogueCharacterParenthetical: "parenthetical",
-  DialogueCharacterPositionContent: "position",
+  DialogueCharacterPositionContent: "variant",
 };
 
 const inOrder = (words: Coloured[]) => [...words].sort((a, b) => a[0] - b[0]).map(([from, word]) => `${from} ${word}`);
@@ -103,16 +103,16 @@ function readingColouring(reading: CueReading): string[] {
   colour("as", reading.as);
   colour("speaker", reading.speaker);
   colour("parenthetical", reading.parenthetical);
-  colour("position", reading.position);
+  colour("variant", reading.variant);
   return inOrder(words);
 }
 
 const expectedCue = (reading: CueReading): Cue => {
-  const position = reading.position?.text ?? "";
+  const variant = reading.variant ? cueVariant(reading.variant.text) : undefined;
   const cue: Cue = {
     name: reading.name.text,
     parenthetical: reading.parenthetical?.text ?? "",
-    position: position === "<" ? "left" : position === ">" ? "right" : position,
+    ...(variant ? { variant } : {}),
   };
   if (reading.speaker && CHARACTERS.includes(reading.speaker.text)) cue.character = reading.speaker.text;
   return cue;

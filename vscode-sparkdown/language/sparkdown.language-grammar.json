@@ -5106,6 +5106,8 @@
       }
     },
     "DialogueCharacterPositionContent": {
+      "tag": "labelName",
+      "name": "entity.name.label.dialogue.character.variant.sd",
       "match": "(.+$)"
     },
     "Action": {

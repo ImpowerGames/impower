@@ -32,6 +32,7 @@ export interface BeatSpeech {
 export interface Instructions {
   kind?: BeatKind;
   speaker?: BeatSpeaker;
+  variant?: string;
   speech?: BeatSpeech;
   options?: string[];
   source?: ScriptLocation;

@@ -2,7 +2,7 @@ import { PRESENCE_ATTRIBUTE } from "../../../../sparkle-style-transformer/src/ut
 
 export { PRESENCE_ATTRIBUTE };
 
-export const DATA_ATTRIBUTE_PROPS: ReadonlySet<string> = new Set(["tooltip"]);
+export const DATA_ATTRIBUTE_PROPS: ReadonlySet<string> = new Set(["tooltip", "variant", "speaker"]);
 
 export const ARIA_ATTRIBUTE_ALIASES: ReadonlyMap<string, string> = new Map([
   ["busy", "aria-busy"],

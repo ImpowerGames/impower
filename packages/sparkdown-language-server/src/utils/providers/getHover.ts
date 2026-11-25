@@ -90,6 +90,41 @@ const getShowingHover = (
   };
 };
 
+const LINE_HOVERS: Readonly<Record<string, string>> = {
+  variant:
+    "`@variant(name)` applies while the newest line showing is labelled `name` in its cue's brackets, as `BUNNY [shout]:` is labelled `shout`. It holds across the whole game, so any element's style can use it. `[<]` is `left` and `[>]` is `right`.",
+  speaker:
+    "`@speaker(name)` applies while the newest line showing is spoken by the character defined as `name`. It holds across the whole game, so any element's style can use it.",
+};
+
+const VARIANT_HOVER =
+  "A variant labels the line: a layout's `#variant=name` element takes only lines with that label, a style's `@variant(name)` applies while such a line is the newest, and a typewriter named after the variant types it. `[<]` is short for `[left]` and `[>]` for `[right]`. A variant uses letters, digits and `_`.";
+
+const getLineHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  const state = stack.find((node) => node.name === "SelectorStateName");
+  const hover = state ? LINE_HOVERS[document.read(state.from, state.to)] : undefined;
+  if (state && hover) {
+    return {
+      contents: { kind: MarkupKind.Markdown, value: hover },
+      range: document.range(state.from - 1, state.to),
+    };
+  }
+  const variant = stack.find((node) => node.name === "DialogueCharacterPositionContent");
+  if (variant) {
+    return {
+      contents: { kind: MarkupKind.Markdown, value: VARIANT_HOVER },
+      range: document.range(variant.from, variant.to),
+    };
+  }
+  return null;
+};
+
 export const SCREEN_KEYWORD_DESCRIPTION = [
   "`screen` groups layouts that take turns: `layout settings in menu { … }` puts a layout in the `menu` screen, and `[[navigate menu to settings]]` shows it in place of the screen's other layouts.",
   "",
@@ -322,6 +357,10 @@ export const getHover = async (
     const showingHover = getShowingHover(document, tree, position);
     if (showingHover) {
       return showingHover;
+    }
+    const lineHover = getLineHover(document, tree, position);
+    if (lineHover) {
+      return lineHover;
     }
     const alternatorHover = getAlternatorKeywordHover(document, tree, position);
     if (alternatorHover) {
