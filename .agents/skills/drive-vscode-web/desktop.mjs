@@ -115,7 +115,7 @@ export function validateScenario(spec) {
   if (spec.ending !== undefined && (typeof spec.ending?.badge !== "string" || typeof spec.ending?.restartText !== "string")) throw new Error("An ending check needs the badge text the last step ends on and the text Restart shows");
 }
 
-async function freePort() {
+export async function freePort() {
   const server = net.createServer();
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const port = server.address().port;

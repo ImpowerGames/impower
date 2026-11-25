@@ -16,6 +16,7 @@ import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenVal
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
 import { getHiddenUntilAnimation } from "../../../../spark-dom/src/utils/getHiddenUntilAnimation";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
+import { BeatMarks } from "../utils/BeatMarks";
 import type { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
@@ -290,6 +291,8 @@ export default class UIManager extends Manager {
 
   protected _lag = 0;
 
+  protected _beatMarks = new BeatMarks();
+
   protected _themeKey = getThemeKey([]);
 
   protected _listeners: Record<string, Record<string, (event: Event) => void>> =
@@ -534,6 +537,7 @@ export default class UIManager extends Manager {
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      this._beatMarks.dropped(pending.params);
       for (const op of pending.ops) {
         if (
           AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
@@ -546,6 +550,7 @@ export default class UIManager extends Manager {
         }
       }
     }
+    this._beatMarks.clear();
   }
 
   protected followEnd(el: HTMLElement) {
@@ -620,6 +625,7 @@ export default class UIManager extends Manager {
 
   protected receiveBeat(params: BeatParams) {
     this.flushPendingBeat();
+    this._beatMarks.received(params);
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
@@ -627,6 +633,7 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
+    this._beatMarks.ready(params);
     if (!overlay || wait <= 0) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
       this.applyBeat(params, ops, plan);
@@ -788,6 +795,7 @@ export default class UIManager extends Manager {
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
   ) {
+    this._beatMarks.fired(params);
     const layouts = this.measureLayouts(params, ops);
     for (const op of ops) {
       const decision = plan.get(op);

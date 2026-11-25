@@ -41,6 +41,7 @@ export class VisualNovelPresenter implements Presenter {
     const game = this._game;
     const presentation = game.module.ui.beginPresentation();
     const composed = game.module.ui.beginCompose();
+    game.module.ui.composeSource(this._instructions.source);
     const written = this.writeUI(time);
     if (composed) {
       void game.module.ui.endCompose(time != null ? { time } : {});
