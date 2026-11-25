@@ -63,24 +63,26 @@ export default class PresencePlayer {
     const before = new Set(this.animations(element));
     element.setAttribute(PRESENCE_ATTRIBUTE, presence);
     const started = this.animations(element).filter(
-      (animation) => !before.has(animation) && finite(animation),
+      (animation) => !before.has(animation),
     );
+    const timed = started.filter(finite);
     if (this.reducedMotion()) {
-      for (const animation of started) {
+      for (const animation of timed) {
         if (moves(animation)) {
           animation.finish();
         }
       }
     }
-    if (started.length > 0) {
+    const held = started.map((animation) =>
+      this.hold.add(animation).catch(() => undefined),
+    );
+    if (timed.length > 0) {
       let motion!: Motion;
       await new Promise<void>((resolve) => {
-        motion = { animations: started, end: resolve };
+        motion = { animations: timed, end: resolve };
         this._motions.set(element, motion);
         void Promise.all(
-          started.map((animation) =>
-            this.hold.add(animation).catch(() => undefined),
-          ),
+          held.filter((_, i) => timed.includes(started[i]!)),
         ).then(() => resolve());
       });
       if (this._motions.get(element) === motion) {

@@ -242,6 +242,112 @@ end
   });
 });
 
+describe("a picture hidden by a hide instruction (#2733)", () => {
+  const HIDDEN = `${NO_BOX}
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+style portrait {
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+
+layout main {
+  portrait {
+    image
+  }
+}
+
+scene reveal
+  [[show portrait SPRITE]]
+end
+
+scene conceal
+  [[hide portrait]]
+end
+
+scene fade
+  [[hide portrait with fadeout]]
+end
+`;
+
+  const shown = async () => {
+    const h = harness(HIDDEN);
+    await h.ready;
+    const ui = h.game.module.ui;
+    ui.setMotion(true);
+    h.jumpToFlow("reveal");
+    await ui.image.write("portrait", h.nextBeat()!.image!["portrait"]! as any, false);
+    await settle(h);
+    h.reset();
+    return h;
+  };
+
+  test("plays @hide, then writes the hide and removes the element", async () => {
+    const h = await shown();
+    const ui = h.game.module.ui;
+    const [portrait] = ui.findIds("portrait");
+    h.jumpToFlow("conceal");
+    const hide = h.nextBeat()!.image!["portrait"]!;
+    await ui.image.write("portrait", hide as any, false);
+    await flushMicrotasks(10);
+    expect(motions(h)).toEqual([{ element: portrait, presence: "hide" }]);
+    const writes = () => wire(h.messages).filter((m: any) => m?.method === "ui/write-image");
+    expect(writes()).toEqual([]);
+    await settle(h);
+    expect(displayOf(h, portrait!)).toBe("none");
+    expect(writes().at(-1)?.params).toMatchObject({ elements: [portrait] });
+    expect(writes().at(-1)?.params.instructions[0].control).toBe("hide");
+  });
+
+  test("with a with clause, plays the clause and not the block", async () => {
+    const h = await shown();
+    const ui = h.game.module.ui;
+    h.jumpToFlow("fade");
+    await ui.image.write("portrait", h.nextBeat()!.image!["portrait"]! as any, false);
+    await flushMicrotasks(10);
+    expect(motions(h)).toEqual([]);
+  });
+});
+
+describe("a target that holds text and a picture (#2733)", () => {
+  test("a picture replacing a leaving line clears the line and keeps the target", async () => {
+    const h = harness(`${NO_BOX}
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+${FADING}
+
+layout main {
+  dialogue {
+    text
+    image
+  }
+}
+
+scene picture
+  [[show dialogue SPRITE]]
+end
+`);
+    await h.ready;
+    const [dialogue] = h.game.module.ui.findIds("dialogue");
+    await play(h, dialogueLine);
+    await settle(h);
+    h.jumpToFlow("picture");
+    const beat = h.nextBeat()!;
+    h.reset();
+    await play(h, { image: beat.image });
+    expect(motions(h).filter((m: any) => m.presence === "hide")).toEqual([]);
+    expect(displayOf(h, dialogue!)).not.toBe("none");
+    expect(textWrites(h, "dialogue").at(-1)?.params).toMatchObject({
+      instructions: [],
+      elements: [dialogue],
+    });
+  });
+});
+
 describe("a beat displayed instantly shows no motion (#2733)", () => {
   test("in the editor preview on a line", async () => {
     const h = harness(lines(FADING), { live: false });

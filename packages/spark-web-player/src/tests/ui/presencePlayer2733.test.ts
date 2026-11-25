@@ -176,6 +176,115 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
     expect(box.hasAttribute(PRESENCE)).toBe(false);
   });
 
+  test("pausing also holds an endless animation started with the arrival, which does not set its length", async () => {
+    const h = await playing(FADING_BOX);
+    const fade = new FakeTransition(h.overlay, "opacity", 200);
+    const spin = new FakeTransition(h.overlay, "rotate", Infinity);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    box.setAttribute(PRESENCE, "initial");
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "show" ? [fade, spin] : []) as any;
+    const arrived = (h.ui as any)._presence.play(box, "show");
+    await flushMicrotasks(5);
+    (h.ui as any).onPause();
+    expect(fade.playState).toBe("paused");
+    expect(spin.playState).toBe("paused");
+    (h.ui as any).onUnpause();
+    fade.finish();
+    await arrived;
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+  });
+
+  test("a click that shows the whole line removes a branch still leaving", async () => {
+    const h = await playing(`define ui as config with
+  layouts_initial = { }
+end
+
+store shown = true
+
+style badge {
+  @hide { opacity = 0 }
+}
+
+layout main {
+  if shown then
+    badge {
+      text "Badge"
+    }
+  end
+  dialogue {
+    text
+  }
+}
+`);
+    const badge = h.overlay.querySelector(".badge") as HTMLElement;
+    (h.game.story as any).variablesState.$("shown", false);
+    const coordinator = new Coordinator(h.game, { end: 0, text: { dialogue: [{ text: "Hello." }] } } as any);
+    for (let i = 0; i < 10; i += 1) {
+      await flushMicrotasks(10);
+      (coordinator as any)._onTick?.(100);
+    }
+    await untilShown(h.overlay);
+    await flushMicrotasks(20);
+    expect(badge.getAttribute(PRESENCE)).toBe("hide");
+    expect(badge.isConnected).toBe(true);
+    (coordinator as any)._finishedExecution = false;
+    (coordinator as any)._startedExecution = true;
+    (coordinator as any)._interacted = true;
+    coordinator.onUpdate({ deltaMS: 0 } as any);
+    await untilShown(h.overlay);
+    await flushMicrotasks(30);
+    expect(badge.isConnected).toBe(false);
+  });
+
+  test("a redisplay during an arrival shows the settled look", async () => {
+    const h = await playing(FADING_BOX);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    const line = { end: 0, text: { dialogue: [{ text: "Hi." }] } };
+    await play(h, line);
+    expect(box.getAttribute(PRESENCE)).toBe("show");
+    await h.game.redisplay((message: any) => h.router.receive(message));
+    new Coordinator(h.game, line as any, { settled: "restored" });
+    await untilShown(h.overlay);
+    await flushMicrotasks(30);
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+    expect(motionOf(box, "show")?.playState).toBe("finished");
+  });
+
+  test("a picture replacing a leaving line clears the line and keeps the target", async () => {
+    const h = await playing(`define ui as config with
+  layouts_initial = { }
+end
+
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+style dialogue {
+  @hide { opacity = 0 }
+}
+
+layout main {
+  dialogue {
+    text
+    image
+  }
+}
+
+scene picture
+  [[show dialogue SPRITE]]
+end
+`);
+    await play(h, { text: { dialogue: [{ text: "Old caption." }] } });
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    expect(box.textContent).toContain("Old caption.");
+    h.jumpTo("picture");
+    await play(h, h.nextBeat() as any);
+    expect(box.querySelector("img")).not.toBeNull();
+    expect(box.textContent).not.toContain("Old caption.");
+    expect(box.style.display).not.toBe("none");
+  });
+
   test("under reduced motion a move ends at once and a fade still plays", async () => {
     const h = await playing(FADING_BOX);
     const win = h.overlay.ownerDocument.defaultView as any;
