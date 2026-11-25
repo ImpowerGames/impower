@@ -75,6 +75,7 @@ import {
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import type { BeatSpeech, Instructions } from "../../../core/types/Instructions";
+import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
@@ -327,6 +328,7 @@ interface Composition {
   ending?: boolean;
   time?: number;
   sweep?: boolean;
+  source?: ScriptLocation;
   standing?: StandingScreen;
   empty?: { text: Set<Element>; image: Set<Element> };
 }
@@ -1590,6 +1592,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  composeSource(source: ScriptLocation | undefined): void {
+    if (this._compose && source) {
+      this._compose.source = source;
+    }
+  }
+
   async endCompose(options: { time?: number; sweep?: boolean } = {}) {
     const c = this._compose;
     if (!c || c.ending) {
@@ -1615,6 +1623,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         messages: c.messages,
         ...(c.time != null ? { time: c.time } : {}),
         ...(c.sweep ? { sweep: true } : {}),
+        ...(c.source
+          ? { source: this._game.getDocumentLocation(c.source) }
+          : {}),
       }),
     );
     if (c.standing) {

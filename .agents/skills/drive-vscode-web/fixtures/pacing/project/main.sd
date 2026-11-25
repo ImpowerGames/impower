@@ -1,0 +1,195 @@
+define nova as character with
+  name = "NOVA"
+end
+
+define nova as synth with
+  pitch = {
+    frequency = 330
+  }
+end
+
+morph blink {
+  blend = cut
+  unless = eyes.closed
+
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+
+  timing {
+    duration = 0.2
+    iterations = infinite
+    iteration_delay_min = 1.2
+    iteration_delay_max = 2.4
+  }
+}
+
+morph talk {
+  blend = cut
+
+  keyframes {
+    0% { mouth { state = closed } }
+    25% { mouth { state = teeth } }
+    50% { mouth { state = open } }
+    75% { mouth { state = teeth } }
+    100% { mouth { state = closed } }
+  }
+
+  timing {
+    trigger = speech
+    duration = 0.4
+    easing = linear
+  }
+}
+
+framing vista_wide {
+  x = 60%
+  y = 50%
+  zoom = 1
+}
+
+framing vista_close {
+  x = 60%
+  y = 50%
+  zoom = 1.2
+}
+
+layout main {
+  stage {
+    animation
+    backdrop {
+      image = transparent
+    }
+    sigil {
+      image
+    }
+    cast {
+      portrait {
+        mask.shadow_1
+        mask.shadow_2
+        mask.shadow_3
+        mask.shadow_4
+        mask.shadow_5
+        mask.shadow_6
+        image
+      }
+    }
+  }
+  screen {
+    animation
+  }
+}
+
+style sigil {
+  position = absolute
+  top = 6%
+  left = 4%
+  width = 22%
+  aspect_ratio = 1
+}
+
+style cast {
+  position = absolute
+  top = 2%
+  right = 0
+  bottom = 0
+  left = 0
+  display = flex
+  flex_direction = row
+  justify_content = center
+}
+
+style portrait {
+  position = relative
+  aspect_ratio = 4/3
+  height = 100%
+  background_position = bottom
+  background_size = auto 100%
+}
+
+style shadow_1 {
+  opacity = 0.3
+  translate = 10px -10px
+  > * {
+    background_color = black
+  }
+}
+
+style shadow_2 {
+  opacity = 0.3
+  translate = -12px 7px
+  > * {
+    background_color = black
+  }
+}
+
+style shadow_3 {
+  translate = -7px 4px
+  > * {
+    background_color = #f2c14e
+  }
+}
+
+style shadow_4 {
+  translate = 7px -7px
+  > * {
+    background_color = #3a7ca5
+  }
+}
+
+style shadow_5 {
+  opacity = 0.3
+  translate = 2px -2px
+  > * {
+    background_color = black
+  }
+}
+
+style shadow_6 {
+  opacity = 0.5
+  translate = -2px 1px
+  > * {
+    background_color = black
+  }
+}
+
+scene start
+  [[show backdrop hall at right]]
+  The lantern hall wakes slowly, one window at a time, while the night market settles below the towers.
+
+  NOVA:
+    [[nova]]
+    ((play music theme))
+    Every lantern in this hall hums its own quiet note, and tonight I mean to learn the whole song by heart.
+
+  A cart rattles past the gate, and the hum of the lanterns fades under the clatter of its wooden wheels.
+
+  NOVA:
+    [[nova]]
+    [[animate backdrop to left over 3s ease linear]]
+    Every lantern in this hall hums its own quiet note, and tonight I mean to learn the whole song by heart.
+
+  ((play sound chime))
+  Somewhere above the towers a bell answers, bright and thin, and its echo rolls along the empty arcade.
+
+  ((play sound whoosh))
+  [[show backdrop vista at vista_wide]]
+  Beyond the arcade the harbour opens wide, its islands dark against a sea that still holds the last light.
+
+  [[animate backdrop to vista_close over 3s ease linear]]
+  The view leans closer to the far islands, where small sails drift home between the rocks and the reeds.
+
+  [[show backdrop dusk]]
+  The sky turns to a painted dusk of folded hills, each ridge a shade deeper than the ridge before it.
+
+  [[show sigil emblem]]
+  A brass emblem glints above the doorway, its rings and petals catching the warm and steady evening air.
+
+  NOVA:
+    [[nova]]
+    Every lantern in this hall hums its own quiet note, and tonight I mean to learn the whole song by heart.
+
+  The last lantern dims, the market packs away its awnings, and the hall stays quiet until tomorrow night.
+end
