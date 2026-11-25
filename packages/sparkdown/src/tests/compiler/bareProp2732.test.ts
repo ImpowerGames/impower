@@ -64,6 +64,17 @@ describe("a bare prop on a layout element (I-2732)", () => {
     });
   });
 
+  test("marks #clear=true $clear and leaves #clear=false unmarked", () => {
+    const { program } = compileScript(
+      "layout hud {\n  title #clear=true { text }\n  note #clear=false { text }\n}\n\nscene start\n  Hello.\nend\n",
+    );
+    expect((program as any).context?.layout?.hud).toMatchObject({
+      title: { text: {}, $clear: true },
+      note: { text: {} },
+    });
+    expect((program as any).context?.layout?.hud?.note).not.toHaveProperty("$clear");
+  });
+
   const warningsOf = (layout: string) => {
     const { program } = compileScript(`${layout}\n\nscene start\n  Hello.\nend\n`);
     return Object.values(program.diagnostics ?? {})

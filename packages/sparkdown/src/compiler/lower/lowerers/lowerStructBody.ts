@@ -266,6 +266,7 @@ function evaluateElement(
 const CLEAR_PROP_NAMES: ReadonlySet<string> = nodeNameSet(["LuauSparklePropAttribute"]);
 const PROP_NAME_NAMES: ReadonlySet<string> = nodeNameSet(["StyleAttributeName"]);
 const PROP_ASSIGN_NAMES: ReadonlySet<string> = nodeNameSet(["EqualOperator"]);
+const PROP_BOOLEAN_NAMES: ReadonlySet<string> = nodeNameSet(["InlinePropBooleanValue"]);
 
 function holdsClearProp(node: SyntaxNode, ctx: LowerContext): boolean {
   const found: SyntaxNode[] = [];
@@ -280,11 +281,10 @@ function holdsClearProp(node: SyntaxNode, ctx: LowerContext): boolean {
   walk(node);
   return found.some((attr) => {
     const name = firstDescendant(attr, PROP_NAME_NAMES);
-    return (
-      !!name &&
-      ctx.read(name.from, name.to) === "clear" &&
-      !firstDescendant(attr, PROP_ASSIGN_NAMES)
-    );
+    if (!name || ctx.read(name.from, name.to) !== "clear") return false;
+    if (!firstDescendant(attr, PROP_ASSIGN_NAMES)) return true;
+    const value = firstDescendant(attr, PROP_BOOLEAN_NAMES);
+    return !!value && ctx.read(value.from, value.to) === "true";
   });
 }
 
