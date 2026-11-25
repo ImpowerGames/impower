@@ -4729,7 +4729,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
-      const matches = this.searchForAll(this._root, name, found);
+      const layoutsName = this.context.config?.ui?.layouts_element_name;
+      const matches = this.searchForAll(this._root, name, found).filter(
+        (el) => !writes || !layoutsName || el.parent?.name !== layoutsName,
+      );
       const named = matches.filter((el) => el.name === name);
       const elements =
         named.length > 0
@@ -4843,7 +4846,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected hideUnwrittenTargets(layout: Element): void {
     const inLayout = (el: Element) => {
-      for (let node: Element | null = el.parent; node; node = node.parent) {
+      for (let node: Element | null = el; node; node = node.parent) {
         if (node === layout) {
           return true;
         }
