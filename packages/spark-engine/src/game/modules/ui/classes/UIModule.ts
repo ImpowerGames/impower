@@ -8,11 +8,11 @@ import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
-import type { LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
@@ -55,6 +55,7 @@ import type {
   PropValue,
   SlotNode,
   LayoutNode,
+  ScreenNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import {
   AbstractValue,
@@ -178,6 +179,7 @@ import {
   type MorphImageContent,
   type MorphLayerPlay,
   type MorphPicture,
+  type LayeredPicture,
   type MorphPlay,
   type PictureFraming,
   type PictureTravel,
@@ -191,14 +193,24 @@ import {
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
-function pictureFileName(file: LayeredMorphFile): string {
+function pictureFileName(file: { src: string; uri?: string; name?: string }): string {
   const path = file.uri ?? file.src;
   const leaf = path.slice(path.lastIndexOf("/") + 1).split(/[?#]/)[0] ?? "";
+  const name = file.name ?? "";
   try {
-    return decodeURIComponent(leaf) || file.name;
+    return decodeURIComponent(leaf) || name;
   } catch {
-    return leaf || file.name;
+    return leaf || name;
   }
+}
+
+function isImageFile(layer: ImageLayer): boolean {
+  const struct = layer.struct;
+  if (struct?.$type !== "image") {
+    return false;
+  }
+  const ext = typeof struct.ext === "string" ? struct.ext.toLowerCase() : "";
+  return ext !== "svg" && !/^data:image\/svg\+xml/i.test(layer.src) && !/\.svg(?:[?#]|$)/i.test(layer.uri ?? "");
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -233,6 +245,12 @@ interface PictureView {
   framing?: PictureFraming;
   picture: boolean;
   travelStart?: number;
+  show?: ImageInstruction;
+}
+
+interface ShownPicture {
+  asset: string;
+  pick?: ImagePick;
 }
 
 interface Retirement {
@@ -376,7 +394,21 @@ interface SlotRegion {
 
 type ReactiveRegion = CondRegion | ForRegion | ComponentRegion | SlotRegion;
 
-type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
+type SlotMap = Map<
+  string,
+  {
+    children: BodyNode[];
+    scope: ReactiveScope;
+    host?: (region: SlotRegion) => void;
+  }
+>;
+
+interface ScreenFrame {
+  element: Element;
+  scope: ReactiveScope;
+  hosts: WeakSet<SlotRegion>;
+  fallback?: SlotRegion;
+}
 
 const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
 
@@ -604,6 +636,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onReset() {
     this._events = {};
     this._mountedLayouts = new Map();
+    this._mountedScreens = new Map();
     this._morphEpoch += 1;
     this._clearedPictures = undefined;
   }
@@ -1625,9 +1658,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick): Image[] {
+  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {
     const imageName = sortFilteredName(name);
-    const look = this.pictureLook(type, name, pick);
+    const look = this.pictureLook(type, name, pick, from);
     const layers = !look
       ? []
       : !poseOf || poseOf === morphRestPose
@@ -1686,9 +1719,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return id;
   }
 
-  pictureLook(type: string, name: string, pick?: ImagePick): PictureLook | undefined {
+  pictureLook(type: string, name: string, pick?: ImagePick, from?: ShownPicture): PictureLook | undefined {
     const imageName = sortFilteredName(name);
-    const key = JSON.stringify([type, imageName, this.pickKey(pick)]);
+    const key = JSON.stringify([type, imageName, this.pickKey(pick), from === undefined ? null : [sortFilteredName(from.asset), this.pickKey(from.pick)]]);
     const cached = this._pictureLooks?.get(key);
     if (cached) {
       return cached;
@@ -1697,9 +1730,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!image) {
       return undefined;
     }
+    const before = from === undefined ? undefined : resolveImageReference(this.context, { $type: "", $name: sortFilteredName(from.asset) });
     const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
       ...(pick === undefined ? {} : { pick }),
       startPose: this.morphStartPose,
+      ...(before ? { from: { struct: before, ...(from!.pick === undefined ? {} : { pick: from!.pick }) } } : {}),
     });
     this._pictureLooks?.set(key, look);
     return look;
@@ -1772,6 +1807,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     visit(layout?.children);
+    const screen = layout?.screen
+      ? this._game.program?.sparkle?.screens?.[layout.screen]
+      : undefined;
+    if (screen?.children?.length) {
+      classes.add(this.screenRootName(screen));
+      visit(screen.children);
+    }
     const byFamily = new Map<string, string[]>();
     for (const fontName of fontNames) {
       const family = fonts[fontName]?.font_family;
@@ -1857,6 +1899,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _morphEpoch = 0;
 
+  protected _morphChanges = 0;
+
   protected _colorSchemeReported = false;
 
   protected _morphConflicts = new Set<string>();
@@ -1932,24 +1976,49 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return picks.every((pick) => pick === picks[0]) ? picks[0] : decide;
   }
 
-  getMorphContent(assets: string[], pickOf: (asset: string) => ImagePick | undefined): MorphImageContent | undefined {
+  protected pictureRoot(asset: string): unknown {
+    if (asset.at(0) === '"' && asset.at(-1) === '"') {
+      return undefined;
+    }
+    const image = resolveImageReference(this.context, { $type: "", $name: sortFilteredName(asset) });
+    return image ? resolveImageAttributes(this.context, image, { visibility: false }).image : undefined;
+  }
+
+  getMorphContent(
+    assets: string[],
+    pickOf: (asset: string) => ImagePick | undefined,
+    shown: readonly ShownPicture[] = [],
+  ): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
     }
+    const unpaired = channel.change ? shown.map((before) => ({ before, root: this.pictureRoot(before.asset) })) : [];
+    if (unpaired.length > 0) {
+      this._morphChanges += 1;
+    }
+    const froms = assets.map((asset) => {
+      const root = unpaired.length > 0 ? this.pictureRoot(asset) : undefined;
+      const at = root === undefined ? -1 : unpaired.findIndex((old) => old.root === root);
+      return at < 0 ? undefined : unpaired.splice(at, 1)[0]!.before;
+    });
     const plays: MorphLayerPlay[] = [];
     const playsOf = (ref: MorphRef, owner: string | undefined): MorphPlay[] => {
       this.deliverMorphArtifact(ref);
       return ref.morphs.map((morph) => {
         const timing = this.morphTiming(morph);
-        const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
+        const changed = ref.recipes?.[morph];
+        const motion = changed === undefined ? buildMorphMotion(this.context.morph?.[morph]?.keyframes) : undefined;
+        const recipe = changed ?? channel.recipes[morph] ?? "";
         return {
           ref,
           morph,
           timing,
           ...(motion ? { motion } : {}),
           ...(owner ? { owner } : {}),
-          definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
+          definition: hashText(
+            `${recipe}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}${changed === undefined ? "" : `\n${this._morphChanges}`}`,
+          ),
         };
       });
     };
@@ -1957,7 +2026,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       for (const each of playsOf(ref, owner)) plays.push({ layer, ...(picture ? { picture } : {}), ...each });
     };
     let next = 0;
-    for (const asset of assets) {
+    for (const [index, asset] of assets.entries()) {
       const first = next;
       const pick = pickOf(asset);
       const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
@@ -1966,7 +2035,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const imageName = sortFilteredName(asset);
-      const look = this.pictureLook("", asset, pick);
+      const look = this.pictureLook("", asset, pick, froms[index]);
       if (!look) {
         continue;
       }
@@ -2009,8 +2078,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
     const still = assets
       .map((asset, index) => {
-        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset));
-        return cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
+        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
+        return froms[index] !== undefined || cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
       })
       .reverse()
       .join(", ");
@@ -2018,6 +2087,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       content.still = still;
     }
     return content;
+  }
+
+  layeredImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
+    const layers = this.pictureLook("", name, pick)?.rest ?? [];
+    return layers.length > 1 && layers.every(isImageFile) ? layers : undefined;
+  }
+
+  getLayeredPictures(assets: string[], pickOf: (asset: string) => ImagePick | undefined): LayeredPicture[] {
+    const pictures: LayeredPicture[] = [];
+    let next = 0;
+    for (const asset of assets) {
+      const first = next;
+      const pick = pickOf(asset);
+      const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
+      next += count;
+      if (asset.at(0) === '"' && asset.at(-1) === '"') {
+        continue;
+      }
+      const layers = this.layeredImageFiles(asset, pick);
+      if (!layers || layers.length !== count) {
+        continue;
+      }
+      pictures.push({
+        layer: first,
+        span: count,
+        files: layers.map((layer) => ({
+          src: layer.src,
+          name: pictureFileName({ src: layer.src, ...(layer.uri ? { uri: layer.uri } : {}), name: layer.struct?.$name }),
+        })),
+      });
+    }
+    return pictures;
   }
 
   protected _morphStills = new Set<string>();
@@ -2084,10 +2185,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this._morphConflicts.add(key);
-    const recipes = names.flatMap((name) => {
-      const recipe = parseMorphRecipe(this._game.program?.morphs?.recipes[name] ?? "");
-      return recipe ? [recipe] : [];
-    });
+    const recipes = refs
+      .flatMap((ref) =>
+        ref.morphs.flatMap((name) => {
+          const recipe = parseMorphRecipe(ref.recipes?.[name] ?? this._game.program?.morphs?.recipes[name] ?? "");
+          return recipe ? [recipe] : [];
+        }),
+      )
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     const quote = (list: string[]) => list.map((n) => `\`${n}\``).join(", ");
     const shares = morphOverlaps(recipes).map(({ morphs, groups, moved, clips }) => {
       const what = [
@@ -2156,13 +2261,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick) {
+  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const named = this.pictureLook("", value, pick) !== undefined;
-    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
+    const named = this.pictureLook("", value, pick, from) !== undefined;
+    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick, from).map((asset) => asset.src) : undefined;
     const srcs = posed ?? this.getImageSrcsByName(value);
     if (srcs?.length) {
       return srcs
@@ -2444,13 +2549,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _mountedLayouts: Map<
     string,
-    { element: Element; scope: ReactiveScope; screen?: string }
+    {
+      element: Element;
+      scope: ReactiveScope;
+      screen?: string;
+      slot?: SlotRegion;
+    }
   > = new Map();
+
+  protected _mountedScreens: Map<string, ScreenFrame> = new Map();
+
+  protected _screenHolds: Map<string, number> = new Map();
 
   static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
     this._mountedLayouts = new Map();
+    this._mountedScreens = new Map();
     const layouts = this._game.program?.sparkle?.layouts;
     if (!layouts) {
       return;
@@ -2478,11 +2593,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected constructLayoutFromAst(layout: LayoutNode): Element {
-    const parent = this.getOrCreateRootLayoutElement();
-    const uiEl = this.createElement(parent, {
+  protected mountScreenFrame(name: string): ScreenFrame | undefined {
+    const mounted = this._mountedScreens.get(name);
+    if (mounted) {
+      return mounted;
+    }
+    const screen = this._game.program?.sparkle?.screens?.[name];
+    if (!screen?.children?.length) {
+      return undefined;
+    }
+    const element = this.createElement(this.getOrCreateRootLayoutElement(), {
       type: "div",
-      name: this.layoutRootName(layout.name),
+      name: this.screenRootName(screen),
       style: {
         position: "absolute",
         inset: "0",
@@ -2491,10 +2613,199 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
     });
     const scope = this.makeScope({});
+    const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
+    scope.slots = new Map([
+      [
+        "",
+        {
+          children: [],
+          scope,
+          host: (region) => {
+            frame.hosts.add(region);
+          },
+        },
+      ],
+    ]);
+    this._mountedScreens.set(name, frame);
+    const group = this.mountChildren(element, screen.children, scope, null);
+    const fallback: SlotRegion = {
+      kind: "slot",
+      parent: element,
+      content: [],
+      siblings: group,
+    };
+    group.push({ region: fallback });
+    scope.regions.push(fallback);
+    frame.hosts.add(fallback);
+    frame.fallback = fallback;
+    this.hideUnwrittenTargets(element);
+    return frame;
+  }
+
+  protected screenRootName(screen: ScreenNode): string {
+    return this.treeHolds(screen.children, new Set([screen.name]))
+      ? `screen_${screen.name}`
+      : screen.name;
+  }
+
+  protected screenHeld(screen: string, except?: string): boolean {
+    if ((this._screenHolds.get(screen) ?? 0) > 0) {
+      return true;
+    }
+    for (const [name, entry] of this._mountedLayouts) {
+      if (name !== except && entry.screen === screen) {
+        return true;
+      }
+    }
+    const layouts = this._game.program?.sparkle?.layouts;
+    for (const [name, opens] of this._pendingOpens) {
+      if (
+        name !== except &&
+        opens.size > 0 &&
+        layouts?.[name]?.screen === screen
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected releaseIdleScreen(screen: string): void {
+    const frame = this._mountedScreens.get(screen);
+    if (frame && !this.screenHeld(screen)) {
+      this._mountedScreens.delete(screen);
+      this.destroyElement(frame.element);
+    }
+  }
+
+  protected screenSlot(frame: ScreenFrame): SlotRegion | undefined {
+    const find = (scope: ReactiveScope): SlotRegion | undefined => {
+      for (const region of scope.regions) {
+        let found: SlotRegion | undefined;
+        if (region.kind === "slot") {
+          found =
+            frame.hosts.has(region) && this.regionLive(region, frame.element)
+              ? region
+              : undefined;
+        } else if (region.kind === "for") {
+          for (const iteration of region.iterations) {
+            found ??= find(iteration.scope);
+          }
+          if (region.elseScope) {
+            found ??= find(region.elseScope);
+          }
+        } else {
+          found = find(region.scope);
+        }
+        if (found) {
+          return found;
+        }
+      }
+      return undefined;
+    };
+    return find(frame.scope);
+  }
+
+  protected regionLive(region: ReactiveRegion, root: Element): boolean {
+    for (
+      let current: ReactiveRegion | undefined = region;
+      current;
+      current = current.owner
+    ) {
+      if (!this.isWithin(current.parent, root)) {
+        return false;
+      }
+      const owner = current.owner;
+      if (owner) {
+        const groups =
+          owner.kind === "for"
+            ? [
+                ...owner.iterations.map((it) => it.content),
+                owner.elseContent ?? [],
+              ]
+            : [owner.content];
+        const held = groups.some((group) =>
+          group.some((it) => "region" in it && it.region === current),
+        );
+        if (!held) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  protected isWithin(element: Element, ancestor: Element): boolean {
+    for (let node = element; node !== ancestor; ) {
+      const parent = node.parent;
+      if (!parent || !parent.children.includes(node)) {
+        return false;
+      }
+      node = parent;
+    }
+    return true;
+  }
+
+  protected rehostScreenLayouts(screen: string, frame: ScreenFrame): void {
+    const layouts = this._game.program?.sparkle?.layouts;
+    const slot = this.screenSlot(frame);
+    for (const [name, entry] of [...this._mountedLayouts]) {
+      if (entry.screen !== screen) {
+        continue;
+      }
+      const placed = this.isWithin(entry.element, frame.element);
+      if (placed && entry.slot === slot) {
+        continue;
+      }
+      if (placed) {
+        this.destroyElement(entry.element);
+      }
+      if (entry.slot) {
+        entry.slot.content = entry.slot.content.filter(
+          (it) => !("el" in it && it.el === entry.element),
+        );
+      }
+      const layout = layouts?.[name];
+      if (layout) {
+        this.hideUnwrittenTargets(this.constructLayoutFromAst(layout));
+      } else {
+        this._mountedLayouts.delete(name);
+      }
+    }
+  }
+
+  protected constructLayoutFromAst(layout: LayoutNode): Element {
+    const frame = layout.screen
+      ? this.mountScreenFrame(layout.screen)
+      : undefined;
+    const slot = frame ? this.screenSlot(frame) : undefined;
+    const parent =
+      slot?.parent ?? frame?.element ?? this.getOrCreateRootLayoutElement();
+    const uiEl = this.createElement(
+      parent,
+      {
+        type: "div",
+        name: this.layoutRootName(layout.name),
+        style: frame
+          ? slot === frame.fallback
+            ? { display: "flex", flex_direction: "column", flex_grow: "1" }
+            : { display: "flex", flex_direction: "column" }
+          : {
+              position: "absolute",
+              inset: "0",
+              display: "flex",
+              flex_direction: "column",
+            },
+      },
+      slot ? this.anchorFor(slot) : null,
+    );
+    slot?.content.push({ el: uiEl });
+    const scope = this.makeScope({});
     this._mountedLayouts.set(layout.name, {
       element: uiEl,
       scope,
       ...(layout.screen ? { screen: layout.screen } : {}),
+      ...(slot ? { slot } : {}),
     });
     this.mountChildren(uiEl, layout.children, scope, null);
     if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
@@ -3409,6 +3720,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     scope.regions.push(region);
     const slot = scope.slots?.get(node.name ?? "");
+    slot?.host?.(region);
     if (slot) {
       region.content = this.mountChildren(
         parent,
@@ -3621,6 +3933,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const changes = this._game.story.variablesState.takeReactiveChanges();
     this._refreshing = true;
     try {
+      for (const [screen, frame] of this._mountedScreens) {
+        this.refreshScope(frame.scope, changes);
+        this.rehostScreenLayouts(screen, frame);
+      }
       for (const { scope } of this._mountedLayouts.values()) {
         this.refreshScope(scope, changes);
       }
@@ -3871,6 +4187,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    const screens = (this.context as Record<string, any>)?.["screen"] ?? {};
+    for (const [name, screen] of Object.entries(screens)) {
+      if (name && !name.startsWith("$") && screen) {
+        this.initLayout(screen as Record<string, any>);
+      }
+    }
   }
 
   initLayout(layout: Record<string, unknown>): void {
@@ -3982,6 +4304,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
+    const components = this._game.program?.sparkle?.components ?? {};
+    const expanded = new Set<string>();
+    const visit = (value: unknown): boolean => {
+      if (Array.isArray(value)) {
+        return value.some(visit);
+      }
+      if (!value || typeof value !== "object") {
+        return false;
+      }
+      const node = value as Record<string, any>;
+      if (node["kind"] === "element") {
+        const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
+        if (names.some((n) => typeof n === "string" && wanted.has(n))) {
+          return true;
+        }
+        const tag = node["tag"];
+        const body = typeof tag === "string" ? components[tag] : undefined;
+        if (body && !expanded.has(tag)) {
+          expanded.add(tag);
+          if (visit(body.children)) {
+            return true;
+          }
+        }
+      }
+      return Object.values(node).some(
+        (v) => v !== null && typeof v === "object" && visit(v),
+      );
+    };
+    return visit(children);
+  }
+
   layoutHolds(layoutName: string, elements: readonly string[]): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
@@ -3990,35 +4344,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (!layout) {
         return false;
       }
-      const components = sparkle.components ?? {};
-      const expanded = new Set<string>();
-      const visit = (value: unknown): boolean => {
-        if (Array.isArray(value)) {
-          return value.some(visit);
-        }
-        if (!value || typeof value !== "object") {
-          return false;
-        }
-        const node = value as Record<string, any>;
-        if (node["kind"] === "element") {
-          const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
-          if (names.some((n) => typeof n === "string" && wanted.has(n))) {
-            return true;
-          }
-          const tag = node["tag"];
-          const body = typeof tag === "string" ? components[tag] : undefined;
-          if (body && !expanded.has(tag)) {
-            expanded.add(tag);
-            if (visit(body.children)) {
-              return true;
-            }
-          }
-        }
-        return Object.values(node).some(
-          (v) => v !== null && typeof v === "object" && visit(v),
-        );
-      };
-      return visit(layout.children);
+      const screen = layout.screen
+        ? sparkle.screens?.[layout.screen]
+        : undefined;
+      return (
+        this.treeHolds(layout.children, wanted) ||
+        this.treeHolds(screen?.children, wanted)
+      );
     }
     const layout = this.context.layout?.[layoutName];
     if (!layout) {
@@ -4129,6 +4461,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ) {
           this._game.module.assets?.releaseLayout(name);
         }
+        if (layout.screen) {
+          this.releaseIdleScreen(layout.screen);
+        }
         return;
       }
     }
@@ -4174,27 +4509,43 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!entry) {
       return;
     }
+    const frame = entry.screen
+      ? this._mountedScreens.get(entry.screen)
+      : undefined;
+    const leaving =
+      frame && !this.screenHeld(entry.screen!, name) ? frame : undefined;
+    if (leaving) {
+      this._mountedScreens.delete(entry.screen!);
+    } else if (entry.slot) {
+      entry.slot.content = entry.slot.content.filter(
+        (it) => !("el" in it && it.el === entry.element),
+      );
+    }
+    const element = leaving?.element ?? entry.element;
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
-        element: entry.element,
+        element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),
       };
       this._mountedLayouts.delete(name);
-      entry.element.remove();
+      element.remove();
       this._retiring.add(retiring);
-      void this.animateElements([
-        { element: entry.element, animations: [exit] },
-      ]).then(() => this.retire(retiring));
+      void this.animateElements([{ element, animations: [exit] }]).then(() =>
+        this.retire(retiring),
+      );
       return;
     }
     if (exit && !instant) {
-      await this.animateElements([{ element: entry.element, animations: [exit] }]);
+      await this.animateElements([{ element, animations: [exit] }]);
     }
-    this.destroyElement(entry.element);
+    this.destroyElement(element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
+    if (frame && !leaving) {
+      this.releaseIdleScreen(entry.screen!);
+    }
   }
 
   protected retire(r: Retirement): void {
@@ -4472,12 +4823,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         !toClose.includes(n) &&
         (screen ? layouts?.[n]?.screen === screen : true),
     );
-    await Promise.all([
-      ...[...toClose, ...pending].map((n) =>
-        this.closeLayout(n, clauses, instant),
-      ),
-      this.openLayout(name, clauses, instant),
-    ]);
+    const held = layouts?.[name]?.screen;
+    if (held) {
+      this._screenHolds.set(held, (this._screenHolds.get(held) ?? 0) + 1);
+    }
+    try {
+      await Promise.all([
+        ...[...toClose, ...pending].map((n) =>
+          this.closeLayout(n, clauses, instant),
+        ),
+        this.openLayout(name, clauses, instant),
+      ]);
+    } finally {
+      if (held) {
+        const holds = (this._screenHolds.get(held) ?? 1) - 1;
+        if (holds > 0) {
+          this._screenHolds.set(held, holds);
+        } else {
+          this._screenHolds.delete(held);
+        }
+        this.releaseIdleScreen(held);
+      }
+    }
   }
 
   protected nextLayoutState(
@@ -5182,7 +5549,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected nextView(e: ImageInstruction, view: PictureView): PictureView {
         if (e.assets?.length) {
-          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true } : view;
+          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true, show: e } : view;
         }
         if (e.control === "hide") {
           return { picture: view.picture };
@@ -5190,7 +5557,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (e.control === "animate" && e.to && view.picture) {
           const start = e.after ?? 0;
           return start >= (view.travelStart ?? -Infinity)
-            ? { picture: true, framing: $.getFraming(e.to), travelStart: start }
+            ? { picture: true, framing: $.getFraming(e.to), travelStart: start, ...(view.show ? { show: view.show } : {}) }
             : view;
         }
         return view;
@@ -5211,6 +5578,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ): WriteImageInstruction[] {
         const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
+          const before = instant || e.control !== "show" ? undefined : view.show;
+          const shown = before?.assets?.map((asset) => ({ asset, pick: $.imagePick(before, asset) }));
           view = this.nextView(e, view);
           const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
@@ -5385,9 +5754,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   ...($.showsMovieStill() ? { preview: true } : {}),
                 };
               }
-              const morph = $.getMorphContent(imageAssets, pickOf);
+              const morph = $.getMorphContent(imageAssets, pickOf, shown);
               if (morph) {
                 content.morph = morph;
+              }
+              const pictures = $.getLayeredPictures(imageAssets, pickOf);
+              if (pictures.length > 0) {
+                content.pictures = pictures;
               }
               return content;
             });

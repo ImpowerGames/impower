@@ -680,14 +680,14 @@ sparkdown [0..412]
  │   │   │   └─ LuauScreenNameHeader_end [355..356]
  │   │   │       └─ LuauScreenNameHeader_end_c1 [355..356]
  │   │   │           └─ Whitespace [355..356]: " "
- │   │   └─ LuauStructBraceBody [356..359]
- │   │       ├─ LuauStructBraceBody_begin [356..357]
- │   │       │   └─ LuauStructBraceBody_begin_c1 [356..357]
+ │   │   └─ LuauSparkleBraceBody [356..359]
+ │   │       ├─ LuauSparkleBraceBody_begin [356..357]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [356..357]
  │   │       │       └─ LuauStructBlockOpen [356..357]: "{"
- │   │       ├─ LuauStructBraceBody_content [357..358]
+ │   │       ├─ LuauSparkleBraceBody_content [357..358]
  │   │       │   └─ Newline [357..358]: "\n"
- │   │       └─ LuauStructBraceBody_end [358..359]
- │   │           └─ LuauStructBraceBody_end_c1 [358..359]
+ │   │       └─ LuauSparkleBraceBody_end [358..359]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [358..359]
  │   │               └─ LuauStructBlockClose [358..359]: "}"
  │   └─ LuauScreen_end 359
  │       ├─ LuauScreen_end_c1 359

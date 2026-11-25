@@ -421,11 +421,11 @@ sparkdown [0..265]
          │   └─ LuauScreenNameHeader_end [254..255]
          │       └─ LuauScreenNameHeader_end_c1 [254..255]
          │           └─ Whitespace [254..255]: " "
-         └─ LuauStructBraceBody [255..265]
-             ├─ LuauStructBraceBody_begin [255..256]
-             │   └─ LuauStructBraceBody_begin_c1 [255..256]
+         └─ LuauSparkleBraceBody [255..265]
+             ├─ LuauSparkleBraceBody_begin [255..256]
+             │   └─ LuauSparkleBraceBody_begin_c1 [255..256]
              │       └─ LuauStructBlockOpen [255..256]: "{"
-             └─ LuauStructBraceBody_content [256..265]
+             └─ LuauSparkleBraceBody_content [256..265]
                  ├─ Newline [256..257]: "\n"
                  ├─ Whitespace [257..259]: "  "
                  ├─ LuauStructBlockProperty [259..264]

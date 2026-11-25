@@ -247,24 +247,24 @@ sparkdown [0..158]
  │   │   │   └─ LuauScreenNameHeader_end [149..150]
  │   │   │       └─ LuauScreenNameHeader_end_c1 [149..150]
  │   │   │           └─ Whitespace [149..150]: " "
- │   │   └─ LuauStructBraceBody [150..157]
- │   │       ├─ LuauStructBraceBody_begin [150..151]
- │   │       │   └─ LuauStructBraceBody_begin_c1 [150..151]
+ │   │   └─ LuauSparkleBraceBody [150..157]
+ │   │       ├─ LuauSparkleBraceBody_begin [150..151]
+ │   │       │   └─ LuauSparkleBraceBody_begin_c1 [150..151]
  │   │       │       └─ LuauStructBlockOpen [150..151]: "{"
- │   │       ├─ LuauStructBraceBody_content [151..156]
+ │   │       ├─ LuauSparkleBraceBody_content [151..156]
  │   │       │   ├─ Newline [151..152]: "\n"
- │   │       │   ├─ LuauStructListBlock [152..155]
- │   │       │   │   ├─ LuauStructListBlock_begin [152..153]
- │   │       │   │   │   └─ LuauStructListBlock_begin_c1 [152..153]
+ │   │       │   ├─ LuauSparkleElementBlock [152..155]
+ │   │       │   │   ├─ LuauSparkleElementBlock_begin [152..153]
+ │   │       │   │   │   └─ LuauSparkleElementBlock_begin_c1 [152..153]
  │   │       │   │   │       └─ LuauStructBlockOpen [152..153]: "{"
- │   │       │   │   ├─ LuauStructListBlock_content [153..154]
+ │   │       │   │   ├─ LuauSparkleElementBlock_content [153..154]
  │   │       │   │   │   └─ Whitespace [153..154]: " "
- │   │       │   │   └─ LuauStructListBlock_end [154..155]
- │   │       │   │       └─ LuauStructListBlock_end_c1 [154..155]
+ │   │       │   │   └─ LuauSparkleElementBlock_end [154..155]
+ │   │       │   │       └─ LuauSparkleElementBlock_end_c1 [154..155]
  │   │       │   │           └─ LuauStructBlockClose [154..155]: "}"
  │   │       │   └─ Newline [155..156]: "\n"
- │   │       └─ LuauStructBraceBody_end [156..157]
- │   │           └─ LuauStructBraceBody_end_c1 [156..157]
+ │   │       └─ LuauSparkleBraceBody_end [156..157]
+ │   │           └─ LuauSparkleBraceBody_end_c1 [156..157]
  │   │               └─ LuauStructBlockClose [156..157]: "}"
  │   └─ LuauScreen_end 157
  │       ├─ LuauScreen_end_c1 157

@@ -18,6 +18,7 @@ export {
   Sheet,
   Lightbox,
   DockedDialog,
+  DIALOG_TRANSITION_MS,
   DialogTitle,
   DialogDescription,
   DialogActions,
@@ -303,7 +304,7 @@ export {
   default as FeatureCard,
   featureCardVariants,
   type FeatureCardProps,
-  type FeatureCardSize,
+  type FeatureCardLayout,
 } from "./feature-card/FeatureCard";
 export {
   default as PageFrame,
