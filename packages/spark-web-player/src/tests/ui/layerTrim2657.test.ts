@@ -126,6 +126,30 @@ describe("a trimmed layer in the asset cache (#2657)", () => {
     expect(loading.closed).toEqual(["desk.png"]);
   });
 
+  test("a file first drawn whole as a plain image stays whole when a layered picture later loads it as a layer", async () => {
+    const { cache } = trimmingCache();
+    await cache.request([{ kind: "image", src: "desk.png" }], 0, "line", undefined);
+    cache.keepWhole(["desk.png"]);
+    await cache.request(layers("desk.png"), 0, "line", undefined);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cache.picture("desk.png")?.box).toBeUndefined();
+    expect(cache.stats().bytes.image).toBe(NATURAL.width * NATURAL.height * 4);
+  });
+
+  test("a changed file's entry is dropped, and its bitmap is closed only when no picture on screen shows it", async () => {
+    const shown = trimmingCache();
+    shown.cache.setDerivedPins(() => ["desk.png"]);
+    await shown.cache.request(layers("desk.png"), 0, "line", undefined);
+    shown.cache.evictFile("desk.png");
+    expect(shown.cache.has("desk.png")).toBe(false);
+    expect(shown.closed).toEqual([]);
+
+    const hidden = trimmingCache();
+    await hidden.cache.request(layers("desk.png"), 0, "line", undefined);
+    hidden.cache.evictFile("desk.png");
+    expect(hidden.closed).toEqual(["desk.png"]);
+  });
+
   test("dropping a trimmed layer's entry closes its bitmap", async () => {
     const { cache, closed } = trimmingCache();
     await cache.request(layers("desk.png", "lamp.png"), 0, "beat:1");
@@ -182,7 +206,7 @@ const OFFICE: LayeredPicture = {
 };
 const SRCS = OFFICE.files.map((file) => file.src);
 
-function mountOffice(resident: (src: string) => PictureBitmap | undefined) {
+function mountOffice(resident: (src: string) => PictureBitmap | undefined, canvas = true) {
   const env = installJSDOM();
   restore = env.restore;
   const frames: Drawn[][] = [];
@@ -195,7 +219,7 @@ function mountOffice(resident: (src: string) => PictureBitmap | undefined) {
       frames.at(-1)!.push({ src: (source as unknown as { src: string }).src, x, y, width, height });
     },
   } as PictureCanvasContext;
-  const playback = new MorphPlayback(env.overlay, { requestFrame: () => 0, cancelFrame: () => {}, pictureCanvas: () => context });
+  const playback = new MorphPlayback(env.overlay, { requestFrame: () => 0, cancelFrame: () => {}, pictureCanvas: () => (canvas ? context : undefined) });
   const kept: string[][] = [];
   playback.keepWhole = (srcs) => kept.push(srcs);
   playback.residentPicture = resident;
@@ -227,6 +251,14 @@ describe("a trimmed layer on the picture's canvas (#2657)", () => {
         { src: "lamp.png", x: 200, y: 0, width: 400, height: 300 },
       ],
     ]);
+  });
+
+  test("a picture whose canvas cannot be made keeps its CSS drawing and asks for every one of its files whole", () => {
+    const box = { x: 10, y: 6, width: 8, height: 12 };
+    const { frames, kept, span } = mountOffice((src) => ({ image: { src } as never, width: 40, height: 30, box }), false);
+    expect(frames).toEqual([]);
+    expect(span.querySelector("span.morph")?.shadowRoot?.querySelector("canvas") ?? null).toBeNull();
+    expect(kept).toEqual([SRCS]);
   });
 
   test("a picture that keeps its CSS drawing asks for every one of its files whole", () => {

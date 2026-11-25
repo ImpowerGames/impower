@@ -112,7 +112,6 @@ interface Entry {
   waiters: Array<() => void>;
   traits?: PictureFileTraits;
   trimmed?: TrimmedLayer;
-  whole?: boolean;
   inspecting?: Promise<void>;
 }
 
@@ -161,6 +160,8 @@ export class AssetCache {
   protected _loadBytes: number;
 
   protected _trimLayers: boolean;
+
+  protected _whole = new Set<string>();
 
   protected _decodeTimeoutMs: number;
 
@@ -534,12 +535,16 @@ export class AssetCache {
       return;
     }
     const file = src.split("?")[0];
+    const shown = new Set(this._derivedPins());
     for (const e of [...this._entries.values()]) {
       if (e.file !== file) {
         continue;
       }
       if (e.state === "queued") {
         this.dequeue(e);
+      }
+      if (shown.has(e.key)) {
+        e.trimmed = undefined;
       }
       this.remove(e);
       for (const w of e.waiters.splice(0)) {
@@ -1056,7 +1061,7 @@ export class AssetCache {
     if (!trimmed) {
       return;
     }
-    if (!this._trimLayers || entry.whole || this._entries.get(entry.key) !== entry || trimmed.width !== width || trimmed.height !== height) {
+    if (!this._trimLayers || this._whole.has(entry.key) || this._entries.get(entry.key) !== entry || trimmed.width !== width || trimmed.height !== height) {
       trimmed.image.close?.();
       return;
     }
@@ -1066,12 +1071,9 @@ export class AssetCache {
   keepWhole(srcs: Iterable<string>): void {
     let changed = false;
     for (const src of srcs) {
+      this._whole.add(src);
       const entry = this._entries.get(src);
-      if (!entry || entry.item.kind !== "image" || !entry.item.layer) {
-        continue;
-      }
-      entry.whole = true;
-      if (entry.trimmed) {
+      if (entry?.trimmed) {
         this.untrim(entry);
         changed = true;
       }

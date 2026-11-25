@@ -992,16 +992,19 @@ export class MorphLayer {
           bitmap.height !== bottom.height,
       )
     ) {
-      still.broken = true;
-      this.playback.keepWhole?.(still.picture.files.map((file) => file.src));
+      this.fallBack(still, still.picture);
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height };
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
     if (!this.stillPlans(still, computed)) {
-      still.broken = true;
-      this.playback.keepWhole?.(still.picture.files.map((file) => file.src));
+      this.fallBack(still, still.picture);
     }
+  }
+
+  protected fallBack(target: { broken?: boolean }, picture: { files: { src: string }[] } | undefined) {
+    target.broken = true;
+    if (picture) this.playback.keepWhole?.(picture.files.map((file) => file.src));
   }
 
   protected occurrenceKey(play: MorphPlay, at: number | string): string {
@@ -1052,8 +1055,7 @@ export class MorphLayer {
     const files = picture.files;
     const indices = model ? [...new Set([0, ...model.files])] : [];
     if (!model || indices.some((index) => !files[index])) {
-      image.broken = true;
-      this.playback.keepWhole?.(files.map((file) => file.src));
+      this.fallBack(image, picture);
       return;
     }
     const loaded = await Promise.all(indices.map((index) => this.playback.picture(files[index]!.src)));
@@ -1083,8 +1085,7 @@ export class MorphLayer {
       bitmaps.size !== indices.length ||
       [...bitmaps.values()].some((bitmap) => bitmap.width !== width || bitmap.height !== height)
     ) {
-      image.broken = true;
-      this.playback.keepWhole?.(files.map((file) => file.src));
+      this.fallBack(image, picture);
       return;
     }
     image.files = { model, bitmaps, width, height };
@@ -1209,7 +1210,7 @@ export class MorphLayer {
           state.canvas = canvas;
           root.appendChild(canvas.box);
         } else {
-          if (this.pictureRect(files, i, computed)) state.broken = true;
+          if (this.pictureRect(files, i, computed)) this.fallBack(state, state.picture);
           for (let k = 0; k < span; k++) stillOrAlone(i + k, state);
         }
         i += span - 1;
@@ -1231,7 +1232,7 @@ export class MorphLayer {
           for (const view of picture.canvases) root.appendChild(view.box);
           this.sizeObjects(picture);
         } else {
-          picture.broken = true;
+          this.fallBack(picture, picture.picture);
           for (let k = 0; k < span; k++) still(i + k);
         }
         i += span - 1;
