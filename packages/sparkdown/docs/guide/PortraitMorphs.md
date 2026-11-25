@@ -434,7 +434,7 @@ morph blink {
 
 A length is written in `px`, as a percentage, or as a `calc()` of the two, such as `calc(50% + 2px)`. A bare number other than `0` is an error, since a browser would ignore it. An angle is in `deg`, `rad`, `grad` or `turn`.
 
-`px` are units of the artwork's own coordinates, those of the group the layer sits in, not pixels on the screen. For a layer at the top of the artwork they are the units of its `viewBox`: a portrait 2000 units tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen. A layer inside a scaled group moves in that group's units.
+`px` are units of the artwork's own coordinates, those of the group the layer sits in, not pixels on the screen. For a layer at the top of the artwork they are the units of its `viewBox`: a portrait 2000 units tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen. A layer inside a scaled group moves in that group's units. On a portrait made of image files `px` are the picture's own pixels, and a percentage and the origin are of the whole picture ([Moving a layer file](#moving-a-layer-file)).
 
 A percentage is of the moved layer's own box, the bounds of what it draws in that frame: `translate = 0 50%` moves a layer down by half its own height, and the default origin is the centre of that box. A percentage of an eyebrow's box is not a fraction of the eye's height, so a movement meant to follow the eyes is written in `px` and tuned by looking.
 
@@ -1088,7 +1088,8 @@ A file has no outline, so a morph shows, hides and fades whole layers. On a laye
 - `blend = morph` takes the layer's `fallback`, as an `<image>` inside a drawn portrait does, with no warning. A morph with no `blend` still needs a `method`, so a project of image files writes `blend = cut` or `blend = fade`. A morph that serves drawn and painted portraits gives its painted layers `blend = cut` by label under `layers`.
 - `blend = scale` and `spread` keep the warnings they give an image.
 - `timing`, speech, `rest`, `when`, `unless`, picks and the `morph none` clause work as on a drawn portrait.
-- A `paints` entry's `fill` and `stroke` do nothing, and `partner` and `depth` do not apply. Layer movement, keyframe `opacity` and a `paints` entry's `opacity` do not move or fade a layer file.
+- Layer movement and keyframe `opacity` move and fade layer files by label ([Moving a layer file](#moving-a-layer-file)).
+- A `paints` entry's `opacity` fades its layer files at its pose. Its `fill` and `stroke` do nothing there, and `partner` and `depth` do not apply.
 
 The picture's size is its bottom layer's pixel size, and every layer covers the whole picture. A morph plays only when every layer file has that size; a picture with a layer file of another size stays still, and both editors warn on each such file when a morph fits the picture. Export every layer of a painted portrait at the canvas size.
 
@@ -1097,6 +1098,31 @@ A picture also stays still, with a warning in the game naming the file, when one
 A layer that is an SVG keeps its own morphs. In a stack of a drawn portrait `ava.svg` that blinks and a painted overlay `hat.on` that a second morph switches, both move: the picture's morph shows, hides and fades the drawn layer as a whole, as it would a layer file, and the drawn layer's own morphs keep playing inside it on their own clock. A layer the picture's morph hides draws nothing, and its own morph keeps its place in its cycle, as a portrait's does when its expression changes. A morph that fits both the picture and one of its drawn layers plays once on each, each with its own cycle. When the picture stays still for one of the reasons above, or because two of its morphs share a group, a drawn layer it shows at rest keeps playing its own morphs.
 
 Before its first play a painted portrait loads every file any pose can show, and shows its still until they are ready. Problems found while preparing it appear on the layer file they name, or else on the picture's bottom file.
+
+### Moving a layer file
+
+A container named after a layer label moves every layer file with that label, with the properties of [Moving layers](#moving-layers):
+
+```sparkdown
+morph blink {
+  blend = cut
+
+  keyframes {
+    from { lids { state = off } }
+    50% {
+      lids { state = on }
+      brows { translate = 0 8px }
+    }
+    to { lids { state = off } }
+  }
+}
+```
+
+With a layer file `ava brows.png`, the brows drop 8 of the picture's pixels as the lids close.
+
+- `px` are the picture's own pixels. A picture 2000 pixels tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen.
+- A percentage and `transform_origin` are of the picture's whole rectangle, because a layer file covers it: `translate = 0 10%` moves a layer a tenth of the picture's height, and `transform_origin = center` is the centre of the picture, not of the painted eyebrow. Write an origin in `px` when the layer should turn about a point on what it paints, such as `transform_origin = 410px 620px` for a brow painted there.
+- The part of a layer moved past the picture's edge is cut off.
 
 ## Seeing it play
 

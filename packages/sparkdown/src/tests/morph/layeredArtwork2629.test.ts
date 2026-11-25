@@ -73,9 +73,9 @@ describe("the bake reads a picture made of image files as a stack of <image> lay
     expect(artifact.diagnostics).toEqual([]);
     expect(artifact.segments.flatMap((segment) => segment.transitions.map((t) => t.kind))).toEqual(["fade", "fade"]);
     expect(drawnAt(artifact, 0.5)).toEqual([
-      { file: 0, opacity: 1 },
-      { file: 1, opacity: 0.5 },
-      { file: 2, opacity: 0.5 },
+      { file: 0, opacity: 1, motions: [] },
+      { file: 1, opacity: 0.5, motions: [] },
+      { file: 2, opacity: 0.5, motions: [] },
     ]);
   });
 
