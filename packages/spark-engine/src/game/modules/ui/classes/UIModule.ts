@@ -1746,6 +1746,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           continue;
         }
         const n = node as Record<string, any>;
+        if (n["kind"] === "stream") {
+          classes.add("stream");
+        }
         if (typeof n["tag"] === "string") {
           classes.add(n["tag"]);
           const body = components[n["tag"]];

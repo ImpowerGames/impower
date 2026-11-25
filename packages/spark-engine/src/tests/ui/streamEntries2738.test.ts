@@ -223,6 +223,32 @@ end
   });
 });
 
+describe("a layout's font plan includes its streams (#2738)", () => {
+  test("a font chosen through style stream is loaded with the layout", async () => {
+    const h = createHarness(
+      `${LAYOUT}
+style stream {
+  font_family = "Fancy"
+}
+
+scene start
+  [[open phone]] RAFFLES: slight problem
+end
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        assets: [
+          { uri: "inmemory:///Fancy.ttf", type: "font", name: "Fancy", ext: "ttf", src: "/file:/proj/Fancy.ttf?v=1" },
+        ],
+      } as never,
+    );
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("phone")).toEqual(["Fancy"]);
+  });
+});
+
 describe("saves, checkpoints and the preview keep a stream's entries (#2738)", () => {
   test("a checkpoint restores the entries up to its line, and a save loads with them", () => {
     const h = play();
