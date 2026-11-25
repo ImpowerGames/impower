@@ -7,14 +7,9 @@ export function keepScriptStill(column: HTMLElement): () => void {
   let padded = 0;
   let paddedScroller: HTMLElement | null = null;
   let ownPadding = 0;
-  let observedScroller: HTMLElement | null = null;
-  let anchor: { scroller: HTMLElement; top: number } | null = null;
-  const findScroller = () => column.querySelector<HTMLElement>(".cm-scroller");
-  const textTop = (scroller: HTMLElement) =>
-    (scroller.firstElementChild ?? scroller).getBoundingClientRect().top;
-  const settle = () => {
-    const scroller = findScroller();
-    anchor = scroller ? { scroller, top: textTop(scroller) } : null;
+  let scrolled: { scroller: Element; top: number } | null = null;
+  const record = (scroller: Element) => {
+    scrolled = { scroller, top: scroller.scrollTop };
   };
   const pad = (scroller: HTMLElement, amount: number) => {
     if (amount > 0 && padded === 0) {
@@ -38,32 +33,38 @@ export function keepScriptStill(column: HTMLElement): () => void {
       scroller.scrollTop += moved - unpadded;
     }
   };
+  const clampedBy = (scroller: HTMLElement, shift: number) => {
+    if (shift >= 0 || scrolled?.scroller !== scroller) {
+      return 0;
+    }
+    const top = scroller.scrollTop;
+    const max = scroller.scrollHeight - scroller.clientHeight;
+    return top < scrolled.top && top >= max - 1
+      ? Math.max(shift, top - scrolled.top)
+      : 0;
+  };
+  const onScroll = (event: Event) => {
+    if (event.target instanceof Element && event.target.matches(".cm-scroller")) {
+      record(event.target);
+    }
+  };
   const observer = new ResizeObserver(() => {
     const next = header.getBoundingClientRect().height;
-    const scroller = findScroller();
+    const scroller = column.querySelector<HTMLElement>(".cm-scroller");
     if (scroller && height != null && next !== height) {
-      hold(
-        scroller,
-        anchor?.scroller === scroller
-          ? textTop(scroller) - anchor.top
-          : next - height,
-      );
+      const shift = next - height;
+      hold(scroller, shift - clampedBy(scroller, shift));
     }
     height = next;
-    if (scroller && scroller !== observedScroller) {
-      if (observedScroller) {
-        observer.unobserve(observedScroller);
-      }
-      observer.observe(scroller);
-      observedScroller = scroller;
+    if (scroller) {
+      record(scroller);
     }
-    settle();
   });
-  column.addEventListener("scroll", settle, true);
+  column.addEventListener("scroll", onScroll, true);
   observer.observe(header);
   return () => {
     observer.disconnect();
-    column.removeEventListener("scroll", settle, true);
+    column.removeEventListener("scroll", onScroll, true);
     if (paddedScroller) {
       pad(paddedScroller, 0);
     }

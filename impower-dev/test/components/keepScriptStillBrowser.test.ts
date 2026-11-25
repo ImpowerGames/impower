@@ -95,7 +95,70 @@ const editAndDone = async (
   }
 };
 
+const toggleDuringMomentum = async (startHidden: boolean) => {
+  const tab = await browser.newPage({ viewport: { width: 400, height: 700 } });
+  try {
+    await tab.setContent(page(3000));
+    return await tab.evaluate(
+      async ([source, startHidden]) => {
+        const keep = new Function(`return (${source})`)() as (
+          column: HTMLElement,
+        ) => () => void;
+        const column = document.getElementById("column")!;
+        const header = column.querySelector<HTMLElement>("[data-script-header]")!;
+        const scroller = column.querySelector<HTMLElement>(".cm-scroller")!;
+        const line = document.getElementById("line")!;
+        const frame = () =>
+          new Promise((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(done)),
+          );
+        scroller.scrollTop = 600;
+        keep(column);
+        if (startHidden) {
+          header.style.display = "none";
+        }
+        await frame();
+        await frame();
+        const STEP = 20;
+        return await new Promise<{ before: number; after: number }>((done) => {
+          let frames = 0;
+          const step = () => {
+            frames += 1;
+            const before = line.getBoundingClientRect().top;
+            scroller.scrollTop += STEP;
+            if (frames === 4) {
+              header.style.display = startHidden ? "" : "none";
+              const after = new ResizeObserver(() => {
+                after.disconnect();
+                done({ before: before - STEP, after: line.getBoundingClientRect().top });
+              });
+              after.observe(header);
+              return;
+            }
+            requestAnimationFrame(step);
+          };
+          requestAnimationFrame(step);
+        });
+      },
+      [keepScriptStill.toString(), startHidden] as const,
+    );
+  } finally {
+    await tab.close();
+  }
+};
+
 describe("the script under its header", () => {
+  for (const [label, startHidden] of [
+    ["returns", true],
+    ["hides", false],
+  ] as const) {
+    it(`keeps the momentum step of a JavaScript fling when the header ${label} in that frame`, async () => {
+      const moves = await toggleDuringMomentum(startHidden);
+
+      expect(moves.after).toBe(moves.before);
+    });
+  }
+
   for (const [label, scriptHeight, scrollTop, readLayoutFirst] of [
     ["scrolled well down a long script", 3000, 800, false],
     ["at the top of a long script", 3000, 0, false],
