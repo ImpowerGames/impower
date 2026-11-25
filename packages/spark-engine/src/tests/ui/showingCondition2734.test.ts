@@ -145,7 +145,7 @@ describe("the engine marks what is on screen for @showing (#2734)", () => {
   badge {
     text "Status"
   }
-  empty_slot {
+  empty_slot #clear {
     text
   }
 }
@@ -211,7 +211,7 @@ end
 
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       image
     }
   }
@@ -238,13 +238,13 @@ end
 end
 
 layout main {
-  action {
+  action #clear {
     text
     badge {
       text = "!"
     }
   }
-  dialogue {
+  dialogue #clear {
     text
   }
 }
@@ -291,7 +291,7 @@ style frame {
 
   test("an element written in a leaving layout counts as showing until the layout is removed", async () => {
     const source = `layout overlay {
-  badge {
+  badge #clear {
     text
   }
 }
