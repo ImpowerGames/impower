@@ -121,17 +121,21 @@ const live = (el: Element) => animations.filter((a) => a.effect.target === el &&
 
 const keyframesOf = (animation: TimedAnimation) => animation.effect.getKeyframes();
 
-const clockOf = (el: Element) => live(el).find((a) => "translate" in (keyframesOf(a)[0] ?? {}));
+const isClock = (a: TimedAnimation) => (a.effect.timing as { composite?: string }).composite === "add";
 
-const sizeOf = (el: Element) =>
-  live(el).find((a) => a.playState !== "finished" && !("translate" in (keyframesOf(a)[0] ?? {})));
+const isResize = (a: TimedAnimation) => ["width", "height"].some((key) => key in (keyframesOf(a)[0] ?? {}));
 
-const motionsOf = (el: Element) =>
-  live(el).filter((a) => ["translate", "width", "height"].some((key) => key in (keyframesOf(a)[0] ?? {})));
+const clockOf = (el: Element) => live(el).find(isClock);
+
+const sizeOf = (el: Element) => live(el).find((a) => a.playState !== "finished" && isResize(a));
+
+const motionsOf = (el: Element) => live(el).filter((a) => isClock(a) || isResize(a));
+
+const translated = (el: Element) => live(el).some((a) => "translate" in (keyframesOf(a)[0] ?? {}));
 
 const shiftOf = (el: Element): LayoutPoint => {
   const clock = clockOf(el);
-  if (!clock) {
+  if (!clock || !("translate" in (keyframesOf(clock)[0] ?? {}))) {
     return { x: 0, y: 0 };
   }
   const [x, y] = String((keyframesOf(clock)[0] as any).translate)
@@ -414,6 +418,51 @@ end
     expect(seen).toEqual(
       Array.from({ length: 10 }, (_, step) => rounded({ x: 20 * step, y: 40 - 4 * step })),
     );
+    root.remove();
+  });
+
+  test("a pure resize never translates the element, so its stacking is unchanged", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow card"></div>`);
+    const card = at(".card");
+    let grown = false;
+    geometry.set(card, () => box(0, 0, 200, sizeNow(card, "height", grown ? 120 : 40)));
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    grown = true;
+    motion.play(boxes);
+    expect(sizeOf(card)).toBeDefined();
+    expect(clockOf(card)).toBeDefined();
+    for (let step = 0; step < 10; step += 1) {
+      expect(translated(card)).toBe(false);
+      await advance(100);
+    }
+    root.remove();
+  });
+
+  test("an element whose old and new places match is held while a resize around it would move it", async () => {
+    useLayout();
+    const { root, at } = mount(`<div class="slow row"><div class="slow second"></div></div>`);
+    const [row, second] = [at(".row"), at(".second")];
+    let wider = false;
+    const progress = () => sizeOf(row)?.effect.getComputedTiming().progress ?? null;
+    geometry.set(row, () => box(0, 0, sizeNow(row, "width", wider ? 199 : 180), 40));
+    geometry.set(second, () => {
+      const p = progress();
+      return p != null && p > 0.3 && p < 0.7 ? box(100, 0, 100, 20) : box(0, 20, 100, 20);
+    });
+    offsetParents.set(second, row);
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    wider = true;
+    motion.play(boxes);
+    const seen: LayoutPoint[] = [];
+    for (let step = 0; step < 10; step += 1) {
+      seen.push(visualOf(second));
+      await advance(100);
+    }
+    expect(seen).toEqual(Array.from({ length: 10 }, () => ({ x: 0, y: 20 })));
+    expect(geometry.get(second)!()).toEqual(box(0, 20, 100, 20));
     root.remove();
   });
 

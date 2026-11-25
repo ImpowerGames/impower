@@ -136,7 +136,13 @@ export const getLayoutShift = (
   y: from.y + (to.y - from.y) * progress - place.y - carried.y,
 });
 
+const settledShift = (shift: LayoutPoint): LayoutPoint =>
+  differs(shift.x, 0) || differs(shift.y, 0) ? shift : NO_SHIFT;
+
 const translateFrames = (shift: LayoutPoint): Keyframe[] => {
+  if (shift === NO_SHIFT) {
+    return [];
+  }
   const translate = `${shift.x}px ${shift.y}px`;
   return [{ translate }, { translate }];
 };
@@ -193,18 +199,13 @@ export default class LayoutMotion {
       }
     }
     const started: [HTMLElement, Motion][] = [];
-    for (const [el, { to, timing }] of targets) {
+    const begin = (el: HTMLElement, to: LayoutBox, timing: LayoutTiming) => {
       const from = boxes.get(el)!;
-      const running = this._motions.get(el);
-      if (running ? sameBox(running.to, to) : sameBox(from, to)) {
-        continue;
-      }
-      this.stop(el);
       const motion: Motion = {
         from,
         to,
         depth: depthOf(el),
-        clock: this.animation(el, translateFrames(NO_SHIFT), timing, "both", "add"),
+        clock: this.animation(el, [], timing, "both", "add"),
         shift: NO_SHIFT,
       };
       const size = getSizeKeyframes(from, to);
@@ -216,9 +217,22 @@ export default class LayoutMotion {
       }
       this._motions.set(el, motion);
       started.push([el, motion]);
+    };
+    for (const [el, { to, timing }] of targets) {
+      const running = this._motions.get(el);
+      if (running ? sameBox(running.to, to) : sameBox(boxes.get(el)!, to)) {
+        continue;
+      }
+      this.stop(el);
+      begin(el, to, timing);
     }
     if (started.length === 0) {
       return;
+    }
+    for (const [el, { to, timing }] of targets) {
+      if (!this._motions.has(el)) {
+        begin(el, to, timing);
+      }
     }
     this.update();
     for (const [, motion] of started) {
@@ -289,12 +303,14 @@ export default class LayoutMotion {
         continue;
       }
       const progress = motion.clock.effect?.getComputedTiming().progress ?? 1;
-      const shift = getLayoutShift(
-        motion.from,
-        motion.to,
-        this.placeOf(el, places),
-        progress,
-        this.carried(el),
+      const shift = settledShift(
+        getLayoutShift(
+          motion.from,
+          motion.to,
+          this.placeOf(el, places),
+          progress,
+          this.carried(el),
+        ),
       );
       if (shift.x !== motion.shift.x || shift.y !== motion.shift.y) {
         motion.shift = shift;
@@ -305,7 +321,7 @@ export default class LayoutMotion {
       const finished = this.animationsOf(motion).every(
         (a) => a.playState === "finished",
       );
-      if (finished && !differs(shift.x, 0) && !differs(shift.y, 0)) {
+      if (finished && shift === NO_SHIFT) {
         this.stop(el);
       }
     }
