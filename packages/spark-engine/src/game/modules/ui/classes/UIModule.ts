@@ -5090,6 +5090,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
+      const line = this.composingLine();
+      if (line) {
+        this.updateElement(element, { style: { visibility: "hidden" } });
+        line.arrivals.push((play) => {
+          this.updateElement(element, { style: { visibility: null } });
+          return play
+            ? this.animateElements([{ element, animations: [enter] }])
+            : Promise.resolve();
+        });
+        return;
+      }
       const entering = this.animateElements([{ element, animations: [enter] }]);
       if (this._compose) {
         void entering;

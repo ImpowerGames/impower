@@ -362,6 +362,10 @@ end
 scene opening
   [[open menu with fadein]] Another typed line.
 end
+
+scene menuOnly
+  [[open menu with fadein]]
+end
 `;
 
 async function beside(stream = false) {
@@ -450,6 +454,24 @@ describe("everything a line changes waits for its motion (#2739)", () => {
     h.game.connection.receive({ jsonrpc: "2.0", id: animate.id, result: [0] } as any);
     await flushMicrotasks(40);
     expect(typedOut(h).filter((m: any) => !m.params.held)).toHaveLength(1);
+  });
+
+  test("a layout opened with a with clause enters only after the outgoing text has left", async () => {
+    const h = await beside();
+    h.jumpToFlow("words");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    h.releasePresence();
+    await flushMicrotasks(40);
+    const [action] = h.game.module.ui.findIds("action");
+    h.reset();
+    h.jumpToFlow("menuOnly");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    const animations = () => wire(h.messages).filter((m: any) => m?.method === "ui/animate");
+    expect(motions(h)).toEqual([{ element: action, presence: "hide" }]);
+    expect(animations()).toEqual([]);
+    h.releasePresence();
+    await flushMicrotasks(40);
+    expect(animations()).toHaveLength(1);
   });
 
   test("a line shown in a box and a stream at once holds the typing in both", async () => {
