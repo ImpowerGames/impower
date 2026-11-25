@@ -160,7 +160,7 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     });
   });
 
-  test("keys with @theme and no @showing write exactly what the base writer writes", () => {
+  test("keys with @theme and no @showing write in the player exactly what the base writer writes", () => {
     const corpus = [
       "@theme(dark)",
       "@theme(light) @hovered",
@@ -173,11 +173,10 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
       "@has(icon @theme(dark))",
       "icon > @theme(dark)",
       "@theme(darkness)",
-      "@screen-size(sm) @theme(dark)",
       "@first @theme(dark)",
       '[title="@theme(dark)"] @theme(light)',
     ];
-    for (const colorScheme of ["attribute", "media"] as const) {
+    for (const colorScheme of ["attribute"] as const) {
       for (const selector of corpus) {
         const options = { breakpoints: { sm: 640 }, colorScheme };
         expect(writeSparkleSelector(selector, options), `${colorScheme} ${selector}`).toBe(

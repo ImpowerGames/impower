@@ -1,16 +1,18 @@
 import type { SyntaxNode } from "@lezer/common";
 import {
-  type ShowingRefusal,
+  type SelectorRefusal,
+  type SparkleSelectorOptions,
   writeSparkleSelectorChecked,
 } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { structBlockKeyNode } from "./braceBlocks";
 
 const KEY = "LuauStructBlockKey";
 
-export const showingRefusalAt = (
+export const selectorRefusalAt = (
   stateName: SyntaxNode,
   read: (from: number, to: number) => string,
-): ShowingRefusal | undefined => {
+  colorScheme: SparkleSelectorOptions["colorScheme"] = "attribute",
+): SelectorRefusal | undefined => {
   let key: SyntaxNode | null = stateName.parent;
   while (key && key.name !== KEY) {
     key = key.parent;
@@ -29,13 +31,13 @@ export const showingRefusalAt = (
   for (const ancestor of ancestors.reverse()) {
     afterCombinator = writeSparkleSelectorChecked(read(ancestor.from, ancestor.to), {
       breakpoints: {},
-      colorScheme: "attribute",
+      colorScheme,
       afterCombinator,
     }).afterCombinator;
   }
   const { refusals } = writeSparkleSelectorChecked(read(key.from, key.to), {
     breakpoints: {},
-    colorScheme: "attribute",
+    colorScheme,
     afterCombinator,
   });
   const from = stateName.from - 1 - key.from;

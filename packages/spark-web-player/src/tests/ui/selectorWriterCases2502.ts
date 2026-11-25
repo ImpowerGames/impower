@@ -85,7 +85,7 @@ export const PUNCTUATION_CASES: readonly [source: string, css: string][] = [
 export const AT_RULE_CASES: readonly [source: string, css: string][] = [
   ["@supports (display: grid)", "@supports(display:grid)"],
   ["@layer base", "@layer base"],
-  ["@layer base, theme", "@layer base,theme"],
+  ["@layer base, theme", "@layer base, theme"],
   ["@media screen and (min-width: 1px)", "@media screen and (min-width:1px)"],
   ["@media (max-width: sm)", "@media(max-width:640px)"],
   ["@container sidebar (min-width: 400px)", "@container sidebar (min-width:400px)"],

@@ -14,7 +14,7 @@ export const SHOWING_STATE = "showing";
 
 const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
 
-export interface ShowingRefusal {
+export interface SelectorRefusal {
   where: string;
   from: number;
   to: number;
@@ -162,6 +162,9 @@ export const WRITTEN_SELECTOR_STATES: ReadonlySet<string> = new Set([
   ...STANDARD_PSEUDO_CLASSES,
 ]);
 
+export const isAtRuleState = (name: string): boolean =>
+  name === COLOR_SCHEME_STATE || AT_RULE_STATES.has(name) || SIZE_STATES.has(name);
+
 export interface SparkleSelectorOptions {
   breakpoints: Record<string, number>;
   colorScheme: "attribute" | "media";
@@ -215,7 +218,8 @@ const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
 const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
 const WIDTH_FEATURE_BEFORE = /(?:^|[^\p{L}\p{N}_-])(?:min-|max-)?width:$/u;
 const ESCAPE_OR_AT = /\\[^]|@/g;
-const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
+const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
+const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
@@ -231,17 +235,17 @@ class SparkleSelectorWriter {
 
   private item = 0;
 
-  private atRule = false;
-
-  private accepted: { from: number; to: number }[] = [];
-
   private seen = new Set<number>();
 
   private preludes: { from: number; to: number; where: string }[] = [];
 
+  private itemAtRules: { text: string; from: number; to: number }[][] = [];
+
   readonly roots: string[] = [];
 
-  readonly refusals: ShowingRefusal[] = [];
+  atRules: string[] = [];
+
+  readonly refusals: SelectorRefusal[] = [];
 
   constructor(
     private readonly src: string,
@@ -257,9 +261,15 @@ class SparkleSelectorWriter {
         out += this.src[this.i++];
       }
     }
-    if (this.atRule) {
-      for (const { from, to } of this.accepted.splice(0)) {
-        this.refusals.push({ where: "in a style key that also holds an at-rule state", from, to });
+    const sets = Array.from({ length: this.item + 1 }, (_, item) =>
+      (this.itemAtRules[item] ?? []).map(({ text }) => text).sort(),
+    );
+    const [first = []] = sets;
+    if (sets.every((set) => set.length === first.length && set.every((text, i) => text === first[i]))) {
+      this.atRules = first;
+    } else {
+      for (const { from, to } of this.itemAtRules.flat()) {
+        this.refusals.push({ where: "in a comma list whose selectors hold different at-rule states", from, to });
       }
     }
     for (const { from, to } of showingOccurrences(this.src)) {
@@ -315,7 +325,6 @@ class SparkleSelectorWriter {
     if (!close || !SHOWING_NAME.test(name)) {
       return written;
     }
-    this.accepted.push({ from, to: this.i });
     this.roots[this.item] = (this.roots[this.item] ?? "") + `[${SHOWING_ATTRIBUTE}~="${name}"]`;
     return "";
   }
@@ -388,6 +397,7 @@ class SparkleSelectorWriter {
       }
       classNext = false;
       if (char === "@") {
+        const start = this.i;
         const state = this.match(STATE);
         if (state) {
           const name = state[1]!;
@@ -396,15 +406,18 @@ class SparkleSelectorWriter {
             continue;
           }
           const written = this.state(name);
-          out += written.text;
-          if (written.atRule) {
-            if (name !== COLOR_SCHEME_STATE && this.positions.length === 0) {
-              this.atRule = true;
-            }
-            const from = this.i;
-            const where = `inside an \`${written.atRule}\` prelude`;
-            out += this.within(where, () => this.prelude(written.atRule!));
-            this.preludes.push({ from, to: this.i, where });
+          if (!written.atRule) {
+            out += written.text;
+            continue;
+          }
+          const from = this.i;
+          const where = `inside an \`${written.atRule}\` prelude`;
+          const text = written.text + this.within(where, () => this.prelude(written.atRule!));
+          this.preludes.push({ from, to: this.i, where });
+          if (this.positions.length === 0) {
+            (this.itemAtRules[this.item] ??= []).push({ text, from: start, to: this.i });
+          } else {
+            out += text;
           }
           continue;
         }
@@ -574,7 +587,10 @@ class SparkleSelectorWriter {
         space = true;
         continue;
       }
-      if (char === ")" && declarations.length === 1) {
+      if (
+        declarations.length === 1 &&
+        (char === ")" || (char === "@" && this.stateAfter(0)) || (char === "," && this.stateAfter(1)))
+      ) {
         break;
       }
       if (space) {
@@ -611,6 +627,11 @@ class SparkleSelectorWriter {
         out += char;
         continue;
       }
+      if (char === "," && declarations.length === 1) {
+        this.i++;
+        out += ", ";
+        continue;
+      }
       const word = this.match(WORD);
       if (word) {
         out += WIDTH_FEATURE_BEFORE.test(out) && this.closesNext() ? this.breakpoint(word[0]) : word[0];
@@ -618,7 +639,12 @@ class SparkleSelectorWriter {
       }
       out += this.token(char);
     }
-    return out;
+    return out.trimEnd();
+  }
+
+  private stateAfter(skip: number): boolean {
+    NEXT_STATE.lastIndex = this.i + skip;
+    return NEXT_STATE.test(this.src);
   }
 
   private closesNext(): boolean {
@@ -727,22 +753,39 @@ const liftShowing = (selector: string, roots: string[]): string =>
     })
     .join(", ");
 
+export interface WrittenSparkleSelector {
+  css: string;
+  atRules: string[];
+  refusals: SelectorRefusal[];
+  afterCombinator: boolean;
+}
+
 export const writeSparkleSelectorChecked = (
   selector: string,
   options: SparkleSelectorOptions,
-): { css: string; refusals: ShowingRefusal[]; afterCombinator: boolean } => {
+): WrittenSparkleSelector => {
   const writer = new SparkleSelectorWriter(selector, options);
   const written = writer.write();
   const afterCombinator = Boolean(options.afterCombinator) || writer.leftFirstCompound;
   if (writer.refusals.length > 0) {
-    return { css: written, refusals: writer.refusals, afterCombinator };
+    return { css: written, atRules: [], refusals: writer.refusals, afterCombinator };
   }
   const css = options.colorScheme === "attribute" ? liftColorScheme(written) : written;
-  return { css: writer.roots.length > 0 ? liftShowing(css, writer.roots) : css, refusals: [], afterCombinator };
+  return {
+    css: writer.roots.length > 0 ? liftShowing(css, writer.roots) : css,
+    atRules: writer.atRules,
+    refusals: [],
+    afterCombinator,
+  };
 };
 
-export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string =>
-  writeSparkleSelectorChecked(selector, options).css;
+export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string => {
+  const { css, atRules } = writeSparkleSelectorChecked(selector, options);
+  return [...atRules, css].filter(Boolean).join(" ");
+};
+
+export const sparkleBlockPreludes = ({ css, atRules }: Pick<WrittenSparkleSelector, "css" | "atRules">): string[] =>
+  atRules.length > 0 && !css ? atRules : [...atRules, anchorSelfTargeted(css)];
 
 export const anchorSelfTargeted = (selector: string): string =>
   splitTopLevelCommas(selector)

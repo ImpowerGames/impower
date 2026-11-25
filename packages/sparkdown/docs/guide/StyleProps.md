@@ -95,6 +95,7 @@ style button {
 - `@showing(name) { … }` applies while a layout or an element named `name` is on screen (see [What is on screen](#what-is-on-screen)).
 - `@initial { … }` / `@show { … }` / `@hide { … }` say how an element appears and leaves (see [Appearing and leaving](#appearing-and-leaving)).
 - `@latest { … }` targets the newest entry of a [stream](./Streams.md).
+- One selector can hold a state and a condition such as `@screen-size(sm)` or `@theme(dark)`: `@hovered @screen-size(sm) { … }` applies while both hold, in either order. In a list separated by commas, every selector needs the same conditions; write the selectors as separate rules when they differ.
 - A rule's properties are separated by a new line or a `;`, as the entries of
   any block are (see [Blocks](./Structure.md#blocks)).
 

@@ -199,8 +199,8 @@ import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
-import { SHOWING_STATE } from "../constants/selectorStates";
-import { showingRefusalAt } from "../utils/showingRefusal";
+import { isAtRuleState, SHOWING_STATE } from "../constants/selectorStates";
+import { selectorRefusalAt } from "../utils/selectorRefusal";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -1724,6 +1724,7 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateWriteTargets(program);
       this.validateShowingNames(program);
+      this.validateAtRuleLists(program);
       this.validateClearTargets(program);
       this.validateLints(program);
       this.validateTypes(program);
@@ -5258,6 +5259,45 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateWriteTargets", uri);
   }
 
+  validateAtRuleLists(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateAtRuleLists", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "SelectorStateName") {
+            return undefined;
+          }
+          const state = doc.read(node.from, node.to);
+          if (!isAtRuleState(state)) {
+            return false;
+          }
+          const read = (from: number, to: number) => doc.read(from, to);
+          const player = selectorRefusalAt(node.node, read, "attribute");
+          const refusal = player ?? selectorRefusalAt(node.node, read, "media");
+          if (refusal) {
+            const consequence = player ? "this block never applies" : "the screen preview drops this block";
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(refusal.from, refusal.to),
+              code: "at-rule-list",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`,
+              },
+              source: LANGUAGE_NAME,
+            });
+          }
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateAtRuleLists", uri);
+  }
+
   validateShowingNames(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateShowingNames", uri);
@@ -5271,7 +5311,7 @@ export class SparkdownCompiler {
           if (node.name !== "SelectorStateName" || doc.read(node.from, node.to) !== SHOWING_STATE) {
             return undefined;
           }
-          const refusal = showingRefusalAt(node.node, (from, to) => doc.read(from, to));
+          const refusal = selectorRefusalAt(node.node, (from, to) => doc.read(from, to));
           if (refusal) {
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({
               range: doc.range(refusal.from, refusal.to),

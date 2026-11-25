@@ -1,4 +1,5 @@
 import {
+  isAtRuleState,
   PRESENCE_STATES,
   type Presence,
   selectorStateArguments,
@@ -10,4 +11,4 @@ export const KNOWN_SELECTOR_STATES: ReadonlySet<string> = WRITTEN_SELECTOR_STATE
 
 export const isKnownSelectorState = (name: string): boolean => KNOWN_SELECTOR_STATES.has(name);
 
-export { PRESENCE_STATES, selectorStateArguments, SHOWING_STATE, type Presence };
+export { isAtRuleState, PRESENCE_STATES, selectorStateArguments, SHOWING_STATE, type Presence };
