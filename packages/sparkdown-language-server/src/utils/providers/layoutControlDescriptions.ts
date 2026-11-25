@@ -6,5 +6,5 @@ export const LAYOUT_CONTROL_DESCRIPTIONS: Record<LayoutVerb, string> = {
   navigate:
     "Switches the screen to the layout after `to`, closing the other layouts open in that screen.",
   clear:
-    "Clears the textstream page; the line it is on starts the fresh page.",
+    "Removes every entry from the layout's streams, or clears the textstream page; the line it is on starts afresh.",
 };

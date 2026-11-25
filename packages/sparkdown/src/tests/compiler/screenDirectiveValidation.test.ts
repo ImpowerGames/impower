@@ -143,17 +143,17 @@ describe("[[clear LAYOUT]] (#1991)", () => {
     expect(diagnosticsFor(inStart("[[clear textstream]]"))).toEqual([]);
   });
 
-  test("[[clear textbox]] warns that only textstream has a page to clear", () => {
+  test("[[clear textbox]] warns that textbox has no stream to clear", () => {
     expect(diagnosticsFor(inStart("[[clear textbox]]"))).toEqual([
-      "Only textstream has a page to clear.",
+      "`textbox` has no stream to clear.",
     ]);
   });
 });
 
 describe("[[clear]] with no layout (#1991)", () => {
-  test("warns that only textstream has a page to clear", () => {
+  test("warns that clear names no layout", () => {
     expect(diagnosticsFor(inStart("[[clear]]"))).toEqual([
-      "Only textstream has a page to clear.",
+      "Incomplete `clear`: name the layout to clear\n> e.g. `[[clear textstream]]`",
     ]);
   });
 });
