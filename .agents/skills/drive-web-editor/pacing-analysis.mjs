@@ -58,7 +58,9 @@ export function parseTrace(raw) {
   }
   const byPid = new Map();
   for (const [pid, list] of frames) byPid.set(pid, { presented: mergePresentations(list.ends), dropped: list.dropped.sort((a, b) => a - b) });
-  return { marks, graphics, tasks, frames: byPid, graphicsThreads: gpuThreads.size };
+  let endsAt = null;
+  for (const e of events) if (e.ph !== "M" && typeof e.ts === "number") endsAt = Math.max(endsAt ?? 0, toMs(e.ts + (e.dur ?? 0)));
+  return { marks, graphics, tasks, frames: byPid, graphicsThreads: gpuThreads.size, endsAt };
 }
 
 function addFrame(list, begin, end, state) {
@@ -165,6 +167,7 @@ export function analyzeLine(trace, record, clock) {
   if (fired == null) return { ...out, failure: "no beat fired after the click" };
   const frames = trace.frames.get(clock.pid);
   if (!frames?.presented.length) return { ...out, failure: "the trace holds no frame that reached the screen from the page's renderer" };
+  if (trace.endsAt != null && trace.endsAt < fired + FIRST_SECOND_MS) return { ...out, failure: `the trace ends ${round(trace.endsAt - fired)} ms after the fire, before the first second was captured` };
   const firstEnd = fired + FIRST_SECOND_MS;
   const graphics = tasksIn(trace.graphics, fired, firstEnd, GRAPHICS_TASK_MS, fired);
   const page = tasksIn(trace.tasks.get(`${clock.pid}:${clock.tid}`) ?? [], click ?? fired, firstEnd, PAGE_TASK_MS, fired);

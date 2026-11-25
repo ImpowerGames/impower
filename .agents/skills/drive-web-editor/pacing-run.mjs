@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TRACE_CATEGORIES, analyzeLine, clockOffset, cpuLoad, layerPaints, parseTrace, quietness } from "./pacing-analysis.mjs";
+import { FIRST_SECOND_MS, TRACE_CATEGORIES, analyzeLine, clockOffset, cpuLoad, layerPaints, parseTrace, quietness } from "./pacing-analysis.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -62,7 +62,7 @@ export function pacingFired(w, before) {
   return fired.length ? fired[fired.length - 1].name : null;
 }
 
-export function pacingTypingEnd(w) {
+export function pacingTypingEnd(w, firedName) {
   const timeline = w.document.timeline;
   let end = null;
   for (const animation of w.document.getAnimations()) {
@@ -73,7 +73,7 @@ export function pacingTypingEnd(w) {
     const at = start + (Number.isFinite(computed.endTime) ? computed.endTime : 0);
     if (end == null || at > end) end = at;
   }
-  return { end, now: w.performance.now() };
+  return { end, now: w.performance.now(), fired: firedName ? (w.performance.getEntriesByName(firedName, "mark")[0]?.startTime ?? null) : null };
 }
 
 export function pacingMotion(w, firedName) {
@@ -241,10 +241,10 @@ export async function playLines(surface, options) {
         run.failed.push(`click ${n} fired no beat within ${fireTimeoutMs} ms`);
         break;
       }
-      const typing = await surface.inGame(pacingTypingEnd);
+      const typing = await surface.inGame(pacingTypingEnd, firedName);
       await sleep(300);
       const motion = await surface.inGame(pacingMotion, firedName);
-      const until = Math.max(typing.end ?? typing.now, motion?.end ?? 0, typing.now) + restMs;
+      const until = Math.max(typing.end ?? typing.now, motion?.end ?? 0, (typing.fired ?? typing.now) + FIRST_SECOND_MS, typing.now) + restMs;
       while ((await surface.inGame((w) => w.performance.now())) < until) await sleep(100);
       if (surface.beatFinished) {
         const finishBy = Date.now() + fireTimeoutMs;
@@ -257,7 +257,7 @@ export async function playLines(surface, options) {
       const record = {
         ...read,
         kind: plan?.kind ?? (fixture ? "unlisted" : null),
-        motion: plan?.motion ?? false,
+        motion: fixture ? (plan?.motion ?? false) : motion != null,
         text: plan?.text ?? read.text,
         typingEnd: typing.end,
         motionWindow: motion,

@@ -209,6 +209,69 @@ await check("a run whose line could not be measured fails, so a broken capture n
   }
 });
 
+await check("a trace that stops before one second after the fire fails its line", () => {
+  const full = parseTrace(TALK);
+  const clock = clockOffset(full.marks, pageMarks(TALK));
+  const cut = (TALK.record.firedAt + clock.offset + 500) * 1000;
+  const short = parseTrace({ traceEvents: TALK.traceEvents.filter((e) => e.ph === "M" || e.ts + (e.dur ?? 0) <= cut) });
+  assert.match(analyzeLine(short, TALK.record, clock).failure, /before the first second was captured/);
+  assert.equal(analyzeLine(full, TALK.record, clock).failure, undefined);
+});
+
+await check("a real project's line keeps tracing through its first second at no rest, and a pan it detects is measured", async () => {
+  const marks = pageMarks(TALK);
+  const fired = marks.find((m) => m.name.startsWith("beat fired ")).name;
+  const click = marks.find((m) => m.name.startsWith("pacing click "));
+  const label = fired.slice("beat fired ".length);
+  const firedAt = TALK.record.firedAt;
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "pacing-run-test-"));
+  let now = firedAt;
+  let stoppedAt = null;
+  const listeners = new Map();
+  const answers = new Map([
+    [pacingProbe, "installed"],
+    [pacingEnvironment, { refreshHz: 60, devicePixelRatio: 1, gameView: "781x563" }],
+    [pacingBeats, { fired: [], clicks: 0 }],
+    [pacingFired, fired],
+    [pacingTypingEnd, { end: firedAt + 50, now: firedAt + 50, fired: firedAt }],
+    [pacingMotion, { start: firedAt, end: firedAt + 600, target: "span.instance[image=hall]" }],
+    [pacingRead, { label, line: TALK.record.line, clickName: click.name, clickAt: click.startTime, receivedAt: TALK.record.receivedAt, firedAt, beatWaitMs: TALK.record.beatWaitMs, morph: [], text: "" }],
+  ]);
+  const surface = {
+    inGame: async (fn) => {
+      if (answers.has(fn)) return answers.get(fn);
+      now += 100;
+      return now;
+    },
+    clickGame: async () => {},
+    sendBrowser: async (method) => {
+      if (method === "Tracing.end") {
+        stoppedAt = now;
+        setTimeout(() => listeners.get("Tracing.tracingComplete")?.({ stream: "s" }), 0);
+      }
+      if (method === "IO.read") return { data: JSON.stringify(TALK), eof: true };
+      return {};
+    },
+    onBrowser: (name, handler) => {
+      listeners.set(name, handler);
+      return () => listeners.delete(name);
+    },
+    sendGame: async () => ({}),
+    onGame: () => () => {},
+  };
+  try {
+    const run = await playLines(surface, { out, fixture: null, beats: 1, restMs: 0, settleMs: 0, quietSampleMs: 0, fireTimeoutMs: 1000 });
+    assert.deepEqual(run.failed, []);
+    assert.ok(stoppedAt >= firedAt + 1000, `the trace stopped ${stoppedAt - firedAt} ms after the fire`);
+    const offset = clockOffset(parseTrace(TALK).marks, marks).offset;
+    const shown = parseTrace(TALK).frames.get(clockOffset(parseTrace(TALK).marks, marks).pid).presented.filter((t) => t >= firedAt + offset && t < firedAt + offset + 600).length;
+    assert.equal(run.lines[0].motionFramesPerSecond, Math.round((shown / 0.6) * 10) / 10);
+    assert.equal(run.lines[0].motion.target, "span.instance[image=hall]");
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 if (failures) {
   console.log(`${failures} failed`);
   process.exit(1);
