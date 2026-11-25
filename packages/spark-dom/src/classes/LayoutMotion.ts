@@ -37,7 +37,9 @@ const LAYOUT_TRANSITION = /transition(?:[-_]property)?"?\s*:\s*"?[^;{}"]*\blayou
 
 const SETTLED_PX = 0.5;
 
-const ROUNDED_PLACE_PX = 1.5;
+const UNSCALED = 0.002;
+
+const PIXELS = /^-?\d*\.?\d+(?:e-?\d+)?px$/;
 
 const NO_SHIFT: LayoutPoint = { x: 0, y: 0 };
 
@@ -139,9 +141,18 @@ export const getLayoutShift = (
 });
 
 const settledShift = (shift: LayoutPoint): LayoutPoint =>
-  Math.abs(shift.x) > ROUNDED_PLACE_PX || Math.abs(shift.y) > ROUNDED_PLACE_PX
-    ? shift
-    : NO_SHIFT;
+  differs(shift.x, 0) || differs(shift.y, 0) ? shift : NO_SHIFT;
+
+const pixels = (value: string): number[] | undefined => {
+  if (value === "none") {
+    return [0, 0];
+  }
+  const parts = value.trim().split(/\s+/);
+  if (parts.some((part) => !PIXELS.test(part))) {
+    return undefined;
+  }
+  return [Number.parseFloat(parts[0]!), Number.parseFloat(parts[1] ?? "0")];
+};
 
 const translateFrames = (shift: LayoutPoint): Keyframe[] => {
   if (shift === NO_SHIFT) {
@@ -355,12 +366,69 @@ export default class LayoutMotion {
     }
     const parent = el.offsetParent as HTMLElement | null;
     const base = parent ? this.placeOf(parent, places) : NO_SHIFT;
-    const place = {
-      x: base.x + (parent?.clientLeft ?? 0) + el.offsetLeft,
-      y: base.y + (parent?.clientTop ?? 0) + el.offsetTop,
+    const offset = (parent && this.offsetWithin(el, parent)) ?? {
+      x: (parent?.clientLeft ?? 0) + el.offsetLeft,
+      y: (parent?.clientTop ?? 0) + el.offsetTop,
     };
+    const place = { x: base.x + offset.x, y: base.y + offset.y };
     places.set(el, place);
     return place;
+  }
+
+  protected offsetWithin(
+    el: HTMLElement,
+    parent: HTMLElement,
+  ): LayoutPoint | undefined {
+    const view = el.ownerDocument.defaultView;
+    if (!view) {
+      return undefined;
+    }
+    const style = view.getComputedStyle(el);
+    const translate = pixels(style.translate ?? "");
+    if (
+      !translate ||
+      style.transform !== "none" ||
+      style.rotate !== "none" ||
+      style.scale !== "none"
+    ) {
+      return undefined;
+    }
+    const rect = el.getBoundingClientRect();
+    const parentRect = parent.getBoundingClientRect();
+    const scale = this.scaleOf(parent, parentRect, view);
+    if (!scale) {
+      return undefined;
+    }
+    return {
+      x: (rect.left - parentRect.left) / scale - translate[0]!,
+      y: (rect.top - parentRect.top) / scale - translate[1]!,
+    };
+  }
+
+  protected scaleOf(
+    parent: HTMLElement,
+    rect: DOMRect,
+    view: Window & typeof globalThis,
+  ): number | undefined {
+    const width = parent.offsetWidth;
+    if (!(width > 0)) {
+      return undefined;
+    }
+    if (Math.abs(rect.width / width - 1) <= UNSCALED) {
+      return 1;
+    }
+    const style = view.getComputedStyle(parent);
+    const sides =
+      style.boxSizing === "border-box"
+        ? 0
+        : [
+            style.paddingLeft,
+            style.paddingRight,
+            style.borderLeftWidth,
+            style.borderRightWidth,
+          ].reduce((sum, side) => sum + (Number.parseFloat(side) || 0), 0);
+    const box = Number.parseFloat(style.width) + sides;
+    return box > 0 ? rect.width / box : undefined;
   }
 
   protected boxOf(

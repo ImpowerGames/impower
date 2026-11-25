@@ -22,6 +22,8 @@ const offsetParents = new Map<Element, Element>();
 
 const borders = new Map<Element, () => number>();
 
+const rects = new Map<Element, () => { left: number; top: number; width: number; height: number }>();
+
 const frames: FrameRequestCallback[] = [];
 
 let restore: (() => void) | undefined;
@@ -42,7 +44,9 @@ const installLayout = (win: Window & typeof globalThis) => {
     offsetParent: own("offsetParent"),
     clientLeft: own("clientLeft"),
     clientTop: own("clientTop"),
+    offsetWidth: own("offsetWidth"),
     getClientRects: (win.Element.prototype as any).getClientRects,
+    getBoundingClientRect: (win.Element.prototype as any).getBoundingClientRect,
   };
   animations.length = 0;
   frames.length = 0;
@@ -58,6 +62,11 @@ const installLayout = (win: Window & typeof globalThis) => {
   Object.defineProperty(proto, "offsetParent", { configurable: true, get() { return offsetParents.get(this) ?? null; } });
   Object.defineProperty(proto, "clientLeft", { configurable: true, get() { return borders.get(this)?.() ?? 0; } });
   Object.defineProperty(proto, "clientTop", { configurable: true, get() { return borders.get(this)?.() ?? 0; } });
+  Object.defineProperty(proto, "offsetWidth", { configurable: true, get() { return Math.round(boxOf(this)?.width ?? 0); } });
+  (win.Element.prototype as any).getBoundingClientRect = function (this: Element) {
+    const rect = rects.get(this)?.() ?? { left: 0, top: 0, width: 0, height: 0 };
+    return { ...rect, x: rect.left, y: rect.top, right: rect.left + rect.width, bottom: rect.top + rect.height };
+  };
   (win.Element.prototype as any).getClientRects = function (this: Element) {
     return boxOf(this) ? [{}] : [];
   };
@@ -69,6 +78,13 @@ const installLayout = (win: Window & typeof globalThis) => {
         const box = boxOf(el);
         if (box && (key === "width" || key === "height")) {
           return `${box[key]}px`;
+        }
+        if (rects.has(el) && (key === "transform" || key === "rotate" || key === "scale")) {
+          return "none";
+        }
+        if (rects.has(el) && key === "translate") {
+          const shift = shiftOf(el);
+          return shift.x === 0 && shift.y === 0 ? "none" : `${shift.x}px ${shift.y}px`;
         }
         const value = Reflect.get(target, key, target);
         return typeof value === "function" ? value.bind(target) : value;
@@ -86,7 +102,7 @@ const installLayout = (win: Window & typeof globalThis) => {
     win.getComputedStyle = previous.getComputedStyle;
     win.requestAnimationFrame = previous.requestAnimationFrame;
     win.cancelAnimationFrame = previous.cancelAnimationFrame;
-    for (const name of ["offsetLeft", "offsetTop", "offsetParent", "clientLeft", "clientTop"] as const) {
+    for (const name of ["offsetLeft", "offsetTop", "offsetParent", "clientLeft", "clientTop", "offsetWidth"] as const) {
       const descriptor = previous[name];
       if (descriptor) {
         Object.defineProperty(proto, name, descriptor);
@@ -95,7 +111,9 @@ const installLayout = (win: Window & typeof globalThis) => {
       }
     }
     (win.Element.prototype as any).getClientRects = previous.getClientRects;
+    (win.Element.prototype as any).getBoundingClientRect = previous.getBoundingClientRect;
     geometry.clear();
+    rects.clear();
     offsetParents.clear();
     borders.clear();
   };
@@ -423,13 +441,15 @@ end
 
   test("a box anchored at its bottom with fractional sizes takes no translate from rounded places", async () => {
     useLayout();
-    const { root, at } = mount(`<div class="slow anchored"></div>`);
-    const anchored = at(".anchored");
+    const { root, at } = mount(`<div class="frame"><div class="slow anchored"></div></div>`);
+    const [frame, anchored] = [at(".frame"), at(".anchored")];
     let grown = false;
-    geometry.set(anchored, () => {
-      const height = sizeNow(anchored, "height", grown ? 128.78 : 85.59);
-      return box(0, Math.round(794 - height), 619, height);
-    });
+    const height = () => sizeNow(anchored, "height", grown ? 128.78 : 85.59);
+    geometry.set(frame, () => box(0, 0, 619, 794));
+    rects.set(frame, () => ({ left: 0, top: 0, width: 619, height: 794 }));
+    geometry.set(anchored, () => box(0, Math.round(794 - height()), 619, height()));
+    rects.set(anchored, () => ({ left: shiftOf(anchored).x, top: 794 - height() + shiftOf(anchored).y, width: 619, height: height() }));
+    offsetParents.set(anchored, frame);
     const motion = new LayoutMotion(new AnimationHold());
     const boxes = motion.measure(root);
     grown = true;
@@ -437,6 +457,41 @@ end
     expect(sizeOf(anchored)).toBeDefined();
     for (let step = 0; step < 20; step += 1) {
       expect(translated(anchored)).toBe(false);
+      await advance(50);
+    }
+    root.remove();
+  });
+
+  test("a deeply nested element measured below a pixel takes no translate from rounded offsets", async () => {
+    useLayout();
+    const depth = 8;
+    const { root, at } = mount(
+      `<div class="slow outer">${"<div class='wrap'>".repeat(depth)}<div class="slow leaf"></div>${"</div>".repeat(depth)}</div>`,
+    );
+    const outer = at(".outer");
+    const leaf = at(".leaf");
+    const wraps = Array.from(root.querySelectorAll(".wrap"));
+    let wide = false;
+    const width = () => sizeNow(outer, "width", wide ? 305 : 205);
+    geometry.set(outer, () => box(0, 0, width(), 40));
+    rects.set(outer, () => ({ left: 0, top: 0, width: width(), height: 40 }));
+    let parent: Element = outer;
+    wraps.forEach((wrap, index) => {
+      geometry.set(wrap, () => box(Math.round(0.1 * width()), 0, width(), 40));
+      rects.set(wrap, () => ({ left: (index + 1) * 0.1 * width(), top: 0, width: width(), height: 40 }));
+      offsetParents.set(wrap, parent);
+      parent = wrap;
+    });
+    geometry.set(leaf, () => box(0, 0, 100, 20));
+    rects.set(leaf, () => ({ left: depth * 0.1 * width() + shiftOf(leaf).x, top: shiftOf(leaf).y, width: 100, height: 20 }));
+    offsetParents.set(leaf, parent);
+    const motion = new LayoutMotion(new AnimationHold());
+    const boxes = motion.measure(root);
+    wide = true;
+    motion.play(boxes);
+    expect(sizeOf(outer)).toBeDefined();
+    for (let step = 0; step < 20; step += 1) {
+      expect(translated(leaf)).toBe(false);
       await advance(50);
     }
     root.remove();
