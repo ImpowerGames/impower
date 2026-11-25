@@ -159,11 +159,48 @@ describe("#clear decides which elements empty after their line (I-2732)", () => 
     }
   });
 
-  test("a line that writes to an element shared by two targets drops the other target's saved text", async () => {
-    const h = createHarness(`define HERO as character with
+  const SHARED_PREFIX = `define HERO as character with
   name = "HERO"
 end
 
+define SKY as image with
+  src = "https://example.com/sky.png"
+end
+`;
+
+  const SHARED_STORY = `
+scene start
+  Before.
+
+  HERO: Current.
+end
+`;
+
+  async function playThenRestore(layout: string, scene = SHARED_STORY) {
+    const h = createHarness(SHARED_PREFIX + layout + scene);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.jumpToFlow("start");
+    for (let beat = h.nextBeat(); beat; beat = h.nextBeat()) {
+      new Coordinator(h.game, beat);
+      await flushMicrotasks(20);
+    }
+    const offset = h.messages.length;
+    await ui.onRestore();
+    await flushMicrotasks(20);
+    const restored = flattenMessages(h.messages.slice(offset))
+      .filter((m: any) => m?.method === "ui/write-text")
+      .map((m: any) => ({
+        target: m.params?.target,
+        text: (m.params?.instructions ?? []).map((e: any) => e.text ?? "").join(""),
+      }))
+      .filter((w: { text: string }) => w.text);
+    return { ui, restored };
+  }
+
+  test("a restore puts back only the newest line's text on an element two targets share", async () => {
+    const { ui, restored } = await playThenRestore(`
 layout textbox {
   textbox {
     dialogue.action {
@@ -171,26 +208,62 @@ layout textbox {
     }
   }
 }
+`);
+    expect(ui.findIds("dialogue")).toEqual(ui.findIds("action"));
+    expect(restored).toEqual([{ target: "dialogue", text: "Current." }]);
+  });
 
+  test("a restore keeps a target's text on its own element when another element carries both names", async () => {
+    const { ui, restored } = await playThenRestore(`
+layout textbox {
+  textbox {
+    dialogue { text "Dialogue" }
+    action { text "Action" }
+    decorative.dialogue.action { text "Decoration" }
+  }
+}
+`);
+    expect(ui.findIds("dialogue")).not.toEqual(ui.findIds("action"));
+    expect(restored).toEqual(
+      expect.arrayContaining([
+        { target: "action", text: "Before." },
+        { target: "dialogue", text: "Current." },
+      ]),
+    );
+    expect(restored).toHaveLength(2);
+  });
+
+  test("a restore puts back only the newest line's text on a shared element inside a component", async () => {
+    const { ui, restored } = await playThenRestore(`
+component shared_box {
+  dialogue.action { text "Says:" }
+}
+
+layout textbox {
+  textbox { shared_box }
+}
+`);
+    expect(ui.findIds("dialogue").length).toBeGreaterThan(0);
+    expect(ui.findIds("dialogue")).toEqual(ui.findIds("action"));
+    expect(restored).toEqual([{ target: "dialogue", text: "Current." }]);
+  });
+
+  test("a restore puts nothing back on a #clear element a later line emptied, whichever name wrote it", async () => {
+    const { ui, restored } = await playThenRestore(
+      `
+layout textbox {
+  textbox { dialogue.action #clear { text } }
+}
+`,
+      `
 scene start
   Before.
 
-  HERO: Current.
+  [[show backdrop SKY]]
 end
-`);
-    await h.ready;
-    expect(h.errors).toEqual([]);
-    const ui: any = h.game.module.ui;
-    h.jumpToFlow("start");
-    const seen: { action: string; dialogue: string }[] = [];
-    for (let beat = h.nextBeat(); beat; beat = h.nextBeat()) {
-      new Coordinator(h.game, beat);
-      await flushMicrotasks();
-      seen.push({ action: textOf(ui, "action"), dialogue: textOf(ui, "dialogue") });
-    }
-    expect(seen).toEqual([
-      { action: "Before.", dialogue: "" },
-      { action: "", dialogue: "Current." },
-    ]);
+`,
+    );
+    expect(ui.getTransientTargets()).toContain("dialogue action");
+    expect(restored).toEqual([]);
   });
 });

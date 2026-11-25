@@ -291,6 +291,9 @@ export interface StandingScreen {
 
 export interface UIState {
   text?: Record<string, TextState[]>;
+  textLine?: number;
+  textWritten?: Record<string, number>;
+  textCleared?: Record<string, number>;
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
@@ -544,7 +547,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _contentSlots: Set<string> = new Set();
 
-  protected _elementNames: Set<string> = new Set();
 
   protected _reactive = false;
 
@@ -1062,12 +1064,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.reveal();
       }
     }
-    const tasks: Promise<void>[] = [];
-    if (this._state.text) {
-      for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target));
-      }
-    }
+    const tasks: Promise<void>[] = [...this.restoreTexts()];
     if (this._state.image) {
       for (const [target] of Object.entries(this._state.image)) {
         tasks.push(this.image.restore(target));
@@ -4200,7 +4197,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (key.startsWith("$") || !isStruct(value)) {
         continue;
       }
-      this._elementNames.add(key);
       if (value["$clear"] === true) {
         this._clearOnContinue.add(key);
       }
@@ -5148,17 +5144,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Array.from(this._clearOnContinue.values());
   }
 
-  textTargetsSharingElements(targets: string[]): string[] {
-    const names = (words: string[], target: string) =>
-      target.split(" ").every((word) => words.includes(word));
-    const shared = [...this._elementNames]
-      .map((name) => name.split(" "))
-      .filter((words) => targets.some((target) => names(words, target)));
-    return Object.keys(this._state.text ?? {}).filter(
-      (saved) =>
-        !targets.includes(saved) &&
-        shared.some((words) => names(words, saved)),
-    );
+  beginTextLine(): void {
+    this._state.textLine = (this._state.textLine ?? 0) + 1;
+  }
+
+  protected restoreTexts(): Promise<void>[] {
+    const saved = Object.keys(this._state.text ?? {});
+    const written = this._state.textWritten ?? {};
+    const elementsOf = new Map(saved.map((target) => [target, this.findElements(target, true)]));
+    const newest = new Map<Element, number>();
+    for (const target of saved) {
+      for (const el of elementsOf.get(target)!) {
+        newest.set(el, Math.max(newest.get(el) ?? -Infinity, written[target] ?? 0));
+      }
+    }
+    const emptied = new Map<Element, number>();
+    for (const [name, line] of Object.entries(this._state.textCleared ?? {})) {
+      for (const el of this.findElements(name, true)) {
+        emptied.set(el, Math.max(emptied.get(el) ?? -Infinity, line));
+      }
+    }
+    return saved.map((target) => {
+      const line = written[target] ?? 0;
+      const elements = elementsOf
+        .get(target)!
+        .filter((el) => line === newest.get(el) && line >= (emptied.get(el) ?? -Infinity));
+      return elements.length > 0 ? this.text.restoreOnto(target, elements) : Promise.resolve();
+    });
   }
 
   protected hideUnwrittenTargets(layout: Element): void {
@@ -5338,8 +5350,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               state.push(s);
             }
           }
+          $._state.textWritten ??= {};
+          $._state.textWritten[target] = $._state.textLine ?? 0;
         } else {
           delete $._state.text?.[target];
+          delete $._state.textWritten?.[target];
+          $._state.textCleared ??= {};
+          $._state.textCleared[target] = $._state.textLine ?? 0;
         }
       }
 
@@ -5347,6 +5364,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const state = $._state.text?.[target];
         if (state) {
           await this.applyChanges(target, state, true);
+        }
+      }
+
+      async restoreOnto(target: string, elements: Element[]) {
+        const state = $._state.text?.[target];
+        if (state) {
+          await this.writeElements(target, elements, state, true);
         }
       }
 
