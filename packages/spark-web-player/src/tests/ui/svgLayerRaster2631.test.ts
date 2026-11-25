@@ -154,6 +154,7 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>svg { border: 1px solid }</style></svg>`)).toMatchObject({ reason: "styled" });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2"/>`)).toMatchObject({ source: { viewBox: true } });
     expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="--brand:red"/>`)).toEqual({ reason: "styled", declaration: "--brand" });
+    expect(read(`<svg xmlns="${NS}" viewBox="0 0 1 1"><style>@import url(x.css);</style></svg>`)).toEqual({ reason: "styled", declaration: "a style sheet the player cannot read" });
     expect(readSvgLayer(`<svg xmlns="${NS}" viewBox="0 0 1 1" style="fill:red"/>`, new view.DOMParser())).toEqual({ reason: "styled", declaration: "a style attribute the player cannot read" });
     const sized = (natural: { width: number; height: number }) => readSvgLayer(`<svg xmlns="${NS}" width="1in" height="140"/>`, new view.DOMParser(), { natural });
     expect(sized({ width: 96, height: 140 })).toMatchObject({ source: { viewBox: false } });
@@ -190,6 +191,15 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     const styled = fit(`<svg xmlns="${NS}" width="100" height="100" viewBox="0 0 100 100" style="width:100px;height:100px"><style>svg { width: 100px }</style></svg>`, true);
     const forced = (styled as unknown as ElementCSSInlineStyle).style;
     expect([forced.getPropertyValue("width"), forced.getPropertyValue("height")]).toEqual(["375px", "188px"]);
+  });
+
+  test("a raster refused at a later size returns the picture to its CSS drawing, releases the earlier raster, and names the file", async () => {
+    const first = raster(260, 140);
+    const { canvas, still } = picture({ vector: { text: SVG, viewBox: true } }, async (width) => (width === 260 ? first : undefined));
+    await settle(() => still.mock.calls.length > 0);
+    expect(still).toHaveBeenCalledWith({ image: "kit", file: "brows.svg", reason: "undrawn" });
+    expect(first.release).toHaveBeenCalledTimes(1);
+    expect(canvas()).toBeFalsy();
   });
 
   test("a layer disposed while its first raster decodes releases that raster when it arrives, and never draws it", async () => {

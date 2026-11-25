@@ -1908,7 +1908,18 @@ export class MorphLayer {
             for (const run of view.runs) run.painted = undefined;
             this.paint(view);
           }
-        } else raster.refused = key;
+        } else {
+          raster.refused = key;
+          const image = this.images.find((entry) => entry.files === files);
+          if (image) {
+            image.broken = true;
+            releaseFiles(files);
+            const name = image.picture?.files[file]?.name;
+            if (name !== undefined) this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: name, reason: "undrawn" });
+            this.build();
+            return;
+          }
+        }
         this.refitRaster(files, file, raster);
       });
   }

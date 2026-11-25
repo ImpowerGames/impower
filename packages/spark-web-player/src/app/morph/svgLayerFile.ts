@@ -154,12 +154,44 @@ interface CssFacts {
 
 function nestedSelector(selector: string, parent: string | undefined): string {
   if (parent === undefined) return selector;
-  return selector.includes("&") ? selector.split("&").join(`:is(${parent})`) : `:is(${parent}) ${selector}`;
+  let out = "";
+  let nested = false;
+  let quote: string | undefined;
+  for (let at = 0; at < selector.length; at++) {
+    const char = selector[at]!;
+    if (char === "\\") {
+      out += selector.slice(at, at + 2);
+      at += 1;
+    } else if (quote !== undefined) {
+      out += char;
+      if (char === quote) quote = undefined;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      out += char;
+    } else if (char === "&") {
+      nested = true;
+      out += `:is(${parent})`;
+    } else out += char;
+  }
+  return nested ? out : `:is(${parent}) ${selector}`;
+}
+
+const CSS_IMPORT = /@import\b/i;
+
+function importsIn(text: string, view: View): boolean {
+  const inert = view?.document.implementation.createHTMLDocument("");
+  if (inert) {
+    const style = inert.createElement("style");
+    style.textContent = text;
+    inert.head.appendChild(style);
+    const rules = style.sheet?.cssRules;
+    if (rules) return Array.from(rules).some((rule) => rule.type === 3);
+  }
+  return CSS_IMPORT.test(cssWithoutComments(text));
 }
 
 function ruleFacts(rules: CSSRuleList | undefined, root: Element, facts: CssFacts, parent?: string) {
   for (const rule of Array.from(rules ?? [])) {
-    if ((rule as CSSImportRule).href !== undefined && (rule as CSSImportRule).styleSheet !== undefined) facts.unreadable = "a style sheet the player cannot read";
     const style = (rule as CSSStyleRule).style;
     if (namesAnimation(style)) facts.animated = true;
     const own = (rule as CSSStyleRule).selectorText;
@@ -178,6 +210,7 @@ function ruleFacts(rules: CSSRuleList | undefined, root: Element, facts: CssFact
 function cssFacts(root: Element, sheets: string[], declarations: string[], view: View): CssFacts {
   const facts: CssFacts = { animated: false, rootProperties: [] };
   for (const text of sheets) {
+    if (importsIn(text, view)) facts.unreadable = "a style sheet the player cannot read";
     let rules: CSSRuleList | undefined;
     try {
       rules = sheetRules(text, view);
