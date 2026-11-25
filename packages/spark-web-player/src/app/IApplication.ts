@@ -20,6 +20,7 @@ export interface IApplication {
   overlay: HTMLElement | null;
   paused?: boolean;
   previewing?: boolean;
+  placeholders?: boolean;
   audioContext?: AudioContext;
   audioClock: AudioClock;
   dolly: CameraOrbitControl;

@@ -743,6 +743,8 @@ export class AssetModule extends Module<
         predictBytes: Math.max(0, this.config.predict_cache_size) * MEGABYTE,
         loadBytes: Math.max(0, this.config.load_cache_size) * MEGABYTE,
         trimLayers: this.config.trim_layers,
+        beatTimeout: this.config.beat_timeout,
+        restoreTimeout: this.config.restore_timeout,
       }),
     );
     await this.gateRestore(this._game.module.ui.restoredPictureNames());

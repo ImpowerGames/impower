@@ -224,13 +224,17 @@ function pictureFileName(file: { src: string; uri?: string; name?: string }): st
   }
 }
 
+function isVectorFile(layer: ImageLayer): boolean {
+  const ext = typeof layer.struct?.ext === "string" ? layer.struct.ext.toLowerCase() : "";
+  return ext === "svg" || /^data:image\/svg\+xml/i.test(layer.src) || [layer.uri ?? "", layer.src].some((path) => /\.svg(?:[?#]|$)/i.test(path));
+}
+
+function isPictureFile(layer: ImageLayer): boolean {
+  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && isVectorFile(layer));
+}
+
 function isImageFile(layer: ImageLayer): boolean {
-  const struct = layer.struct;
-  if (struct?.$type !== "image") {
-    return false;
-  }
-  const ext = typeof struct.ext === "string" ? struct.ext.toLowerCase() : "";
-  return ext !== "svg" && !/^data:image\/svg\+xml/i.test(layer.src) && !/\.svg(?:[?#]|$)/i.test(layer.uri ?? "");
+  return layer.struct?.$type === "image" && !isVectorFile(layer);
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -2639,6 +2643,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return layers.length > 1 && layers.every(isImageFile) ? layers : undefined;
   }
 
+  vectorImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
+    const layers = this.pictureLook("", name, pick)?.rest ?? [];
+    return layers.length > 0 && layers.every(isPictureFile) && layers.some(isVectorFile) ? layers : undefined;
+  }
+
   getLayeredPictures(assets: string[], pickOf: (asset: string) => ImagePick | undefined): LayeredPicture[] {
     const pictures: LayeredPicture[] = [];
     let next = 0;
@@ -2650,17 +2659,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (asset.at(0) === '"' && asset.at(-1) === '"') {
         continue;
       }
-      const layers = this.layeredImageFiles(asset, pick);
+      const vector = this.vectorImageFiles(asset, pick);
+      const layers = vector ?? this.layeredImageFiles(asset, pick);
       if (!layers || layers.length !== count) {
         continue;
       }
       pictures.push({
         layer: first,
         span: count,
+        name: sortFilteredName(asset),
         files: layers.map((layer) => ({
           src: layer.src,
           name: pictureFileName({ src: layer.src, ...(layer.uri ? { uri: layer.uri } : {}), name: layer.struct?.$name }),
         })),
+        ...(vector ? { vector: true as const } : {}),
       });
     }
     return pictures;
@@ -2669,7 +2681,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _morphStills = new Set<string>();
 
   reportMorphStill(params: MorphStillParams) {
-    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? ""]);
+    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? "", params.placeholder ?? false]);
     if (this._morphStills.has(key)) {
       return;
     }
@@ -2683,9 +2695,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
             : params.reason === "undrawn"
               ? "is an SVG the browser would not draw at the picture's size"
-              : params.reason === "styled"
-                ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
-                : "could not be read to check that it is a still sRGB image";
+              : params.reason === "late"
+                ? "was not drawn before the line's wait for it ran out"
+                : params.reason === "styled"
+                  ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
+                  : "could not be read to check that it is a still sRGB image";
+    if (params.placeholder) {
+      this._game.log(`\`${params.image}\` is not drawn: its file \`${params.file}\` ${why}. The previews show a placeholder in its place, and an exported game shows nothing there.`, "warning");
+      return;
+    }
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 

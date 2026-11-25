@@ -173,13 +173,14 @@ describe("a still layered picture made of image files is drawn on a canvas (#265
     ]);
   });
 
-  test("it is drawn again at the new size after its box is resized", () => {
+  test("after its box is resized it is stretched to the new box, and drawn again at the new size once the resize settles", async () => {
     const { span, canvas, mount } = setup({ resident: (src) => bitmap(src) });
     const layer = mount(SRCS, [OFFICE]);
     span.style.setProperty("height", "600px");
     layer.layout();
     expect(boxOf(span)!.getAttribute("style")).toBe("position:absolute;left:0px;top:0px;width:800px;height:600px");
-    expect(canvas.frames).toHaveLength(2);
+    expect(canvas.frames).toHaveLength(1);
+    await until(() => canvas.frames.length === 2, "the redraw once the resize settles");
     expect(canvas.frames[1]).toEqual(SRCS.map((src) => ({ src, x: 0, y: 0, width: 800, height: 600, alpha: 1 })));
   });
 

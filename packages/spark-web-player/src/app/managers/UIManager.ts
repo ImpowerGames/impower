@@ -64,7 +64,9 @@ import type { StreamMessage } from "../../../../spark-engine/src/game/core/class
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
 import type { LiveClip } from "./AudioManager";
-import { MorphGroup, MorphPlayback } from "../morph/MorphPlayback";
+import { MorphGroup, MorphPlayback, type MorphLayer } from "../morph/MorphPlayback";
+import { keyframeScale } from "../utils/keyframeScale";
+import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -103,6 +105,8 @@ interface PendingBeat {
   lag: number;
   timer?: ReturnType<typeof setTimeout>;
   owner: UIManager;
+  drawing?: MorphLayer[];
+  drawTimer?: ReturnType<typeof setTimeout>;
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
@@ -293,6 +297,10 @@ export default class UIManager extends Manager {
 
   protected _beatMarks = new BeatMarks();
 
+  protected _drawTimeouts = { beat: 8, restore: 2 };
+
+  protected _prepared = new Map<WriteImageInstruction, Map<HTMLElement, HTMLElement>>();
+
   protected _themeKey = getThemeKey([]);
 
   protected _listeners: Record<string, Record<string, (event: Event) => void>> =
@@ -319,6 +327,7 @@ export default class UIManager extends Manager {
       morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
       morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
       morphs.keepWhole = (srcs) => (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(srcs);
+      morphs.placeholders = this.app.placeholders === true;
       morphs.residentPicture = (src) => {
         const picture = (this.app.assets?.cache ?? this.app.assetCache)?.picture(src);
         return picture ? { ...picture, image: picture.image as unknown as CanvasImageSource } : undefined;
@@ -537,6 +546,7 @@ export default class UIManager extends Manager {
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      clearTimeout(pending.drawTimer);
       this._beatMarks.dropped(pending.params);
       for (const op of pending.ops) {
         if (
@@ -551,6 +561,7 @@ export default class UIManager extends Manager {
       }
     }
     this._beatMarks.clear();
+    this.discardAllPrepared();
   }
 
   protected followEnd(el: HTMLElement) {
@@ -633,14 +644,194 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
-    this._beatMarks.ready(params);
-    if (!overlay || wait <= 0) {
+    const drawing = overlay ? this.prepareDrawing(ops, plan).filter((layer) => !layer.drawn) : [];
+    if (drawing.length === 0) {
+      this._beatMarks.ready(params);
+    }
+    if (!overlay || (wait <= 0 && drawing.length === 0)) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
       this.applyBeat(params, ops, plan);
       return;
     }
-    overlay.__sdBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this };
+    const pending: PendingBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this };
+    overlay.__sdBeat = pending;
+    if (drawing.length > 0) {
+      pending.drawing = drawing;
+      const landed = () => {
+        if (overlay.__sdBeat !== pending || !pending.drawing) {
+          return;
+        }
+        pending.drawing = undefined;
+        clearTimeout(pending.drawTimer);
+        pending.drawTimer = undefined;
+        this._beatMarks.ready(params);
+        pending.owner.scheduleCommit();
+      };
+      void Promise.all(drawing.map((layer) => layer.whenDrawn())).then(landed);
+      const seconds = this.app.previewing === true ? this._drawTimeouts.restore : this._drawTimeouts.beat;
+      if (seconds > 0) {
+        pending.drawTimer = setTimeout(() => {
+          if (overlay.__sdBeat !== pending || !pending.drawing) {
+            return;
+          }
+          for (const layer of pending.drawing) {
+            if (!layer.drawn) {
+              layer.overdue();
+            }
+          }
+          landed();
+        }, seconds * 1000);
+      }
+    }
     this.scheduleCommit();
+  }
+
+  protected prepareDrawing(ops: IMessage[], plan: Map<IMessage, WriteDecision>): MorphLayer[] {
+    const morphs = this.morphs;
+    if (!morphs) {
+      return [];
+    }
+    const layers: MorphLayer[] = [];
+    const animated = this.beatAnimations(ops);
+    const scaleAt = (el: Element, own: Animation[] = []) =>
+      Math.max(
+        keyframeScale(own),
+        ...animated.filter(({ element }) => element === el || element.contains(el)).map(({ scale }) => scale),
+      );
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!WriteImageMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const decision = plan.get(op);
+      if (decision === "skip" || decision === "same") {
+        continue;
+      }
+      const { target, instructions, elements } = msg.params;
+      const targetEls = this.writeTargets(target, elements);
+      if (targetEls.length === 0) {
+        continue;
+      }
+      const sig = JSON.stringify(instructions);
+      if (
+        decision == null &&
+        !instructions.some(movesPicture) &&
+        targetEls.every((el) => (el as any).__sdImg === sig && (el as any).__sdImgRev === ((el as any).__sdRev ?? 0))
+      ) {
+        continue;
+      }
+      for (const instruction of instructions) {
+        const zoom = Math.max(instruction.framing?.zoom ?? 1, instruction.travel?.framing?.zoom ?? 1);
+        const content = instruction.content;
+        for (const targetEl of targetEls) {
+          const own = [
+            ...(instruction.targetAnimations ?? []),
+            ...(instruction.affected ?? [])
+              .filter((a) => this.findTargetElements(a.target).some((el) => el === targetEl || el.contains(targetEl)))
+              .flatMap((a) => a.animations),
+          ];
+          const els = this.getContentElements(targetEl, "image");
+          for (const contentEl of els) {
+            if (!content) {
+              for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
+                const layer = (pictureEl as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
+                if (!layer) {
+                  continue;
+                }
+                layer.size({ zoom, scale: scaleAt(pictureEl, own) });
+                layers.push(layer);
+              }
+              continue;
+            }
+            if (instruction.control === "hide" || content.video) {
+              continue;
+            }
+            const pictures = (content.pictures ?? []).filter((picture) => !content.morph || picture.vector);
+            if (pictures.length === 0) {
+              continue;
+            }
+            const span = createImageElement(
+              contentEl,
+              "background_image",
+              content.background,
+              content.imageNames,
+              content.sources ?? (content.src ? [content.src] : []),
+              this.applyStyle.bind(this),
+            );
+            span.style.setProperty("visibility", "hidden");
+            (span as any).__sdPrepared = true;
+            placePicture(span, instruction.framing);
+            const layer = morphs.mount(
+              span,
+              { plays: [], epoch: content.morph?.epoch ?? 0 },
+              content.background,
+              "background",
+              `${(targetEl as any).__sdId ?? target}:background_image:${els.indexOf(contentEl)}`,
+              new MorphGroup(),
+              pictures,
+            );
+            layer.size({ zoom, scale: scaleAt(span, [...own, ...(content.enterAnimation ? [content.enterAnimation] : [])]) });
+            let byContent = this._prepared.get(instruction);
+            if (!byContent) {
+              byContent = new Map();
+              this._prepared.set(instruction, byContent);
+            }
+            byContent.set(contentEl, span);
+            layers.push(layer);
+          }
+        }
+      }
+    }
+    return layers;
+  }
+
+  protected beatAnimations(ops: IMessage[]): { element: Element; scale: number }[] {
+    const found: { element: Element; scale: number }[] = [];
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!AnimateElementsMessage.type.isRequest(msg)) {
+        continue;
+      }
+      for (const effect of msg.params.effects) {
+        const element = this.getElement(effect.element);
+        const scale = keyframeScale(effect.animations);
+        if (element && scale > 1) {
+          found.push({ element, scale });
+        }
+      }
+    }
+    return found;
+  }
+
+  protected takePrepared(instruction: WriteImageInstruction, contentEl: HTMLElement): HTMLElement | undefined {
+    const byContent = this._prepared.get(instruction);
+    const span = byContent?.get(contentEl);
+    byContent?.delete(contentEl);
+    if (!span || !span.isConnected || span.parentElement !== contentEl) {
+      if (span) {
+        this.discardPrepared(span);
+      }
+      return undefined;
+    }
+    delete (span as any).__sdPrepared;
+    span.style.removeProperty("visibility");
+    contentEl.appendChild(span);
+    return span;
+  }
+
+  protected discardPrepared(span: HTMLElement) {
+    this.morphs?.releaseWithin(span);
+    endTravelsWithin(span);
+    span.remove();
+  }
+
+  protected discardAllPrepared() {
+    for (const byContent of this._prepared.values()) {
+      for (const span of byContent.values()) {
+        this.discardPrepared(span);
+      }
+    }
+    this._prepared.clear();
   }
 
   protected dueAt(pending: PendingBeat, now: number): number {
@@ -655,6 +846,9 @@ export default class UIManager extends Manager {
     }
     clearTimeout(pending.timer);
     pending.timer = undefined;
+    if (pending.drawing) {
+      return;
+    }
     const wait = this.dueAt(pending, this.documentNow()) - this.documentNow();
     if (wait <= 0) {
       this.flushPendingBeat();
@@ -667,7 +861,7 @@ export default class UIManager extends Manager {
 
   protected commitWhenDue(pending: PendingBeat) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
-    if (overlay?.__sdBeat !== pending || this._heldAt != null) {
+    if (overlay?.__sdBeat !== pending || this._heldAt != null || pending.drawing) {
       return;
     }
     const view = overlay.ownerDocument.defaultView;
@@ -687,6 +881,8 @@ export default class UIManager extends Manager {
     }
     overlay.__sdBeat = undefined;
     clearTimeout(pending.timer);
+    clearTimeout(pending.drawTimer);
+    pending.drawing = undefined;
     this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
     this.applyBeat(pending.params, pending.ops, pending.plan);
   }
@@ -803,6 +999,7 @@ export default class UIManager extends Manager {
         this.applyBeatMessage(op, decision);
       }
     }
+    this.discardAllPrepared();
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
       this.sweepReconcile();
@@ -1543,6 +1740,14 @@ export default class UIManager extends Manager {
 
   override onReceiveNotification(msg: NotificationMessage) {
     this.endPreviewCutscene(msg);
+    if (ConfigureAssetsMessage.type.isNotification(msg)) {
+      const { beatTimeout, restoreTimeout } = msg.params;
+      this._drawTimeouts = {
+        beat: Number.isFinite(beatTimeout) && beatTimeout >= 0 ? beatTimeout : this._drawTimeouts.beat,
+        restore: Number.isFinite(restoreTimeout) && restoreTimeout >= 0 ? restoreTimeout : this._drawTimeouts.restore,
+      };
+      return;
+    }
     if (MorphArtifactMessage.type.isNotification(msg)) {
       this.morphs?.deliver(msg.params);
       return;
@@ -2211,8 +2416,8 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
-          const pictureEls = [...imageEls, ...maskEls].flatMap(
-            (contentEl) => Array.from(contentEl.children) as HTMLElement[],
+          const pictureEls = [...imageEls, ...maskEls].flatMap((contentEl) =>
+            (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared),
           );
           const travel = instruction.travel;
           if (travel) {
@@ -2270,12 +2475,13 @@ export default class UIManager extends Manager {
         const morphGroup = new MorphGroup();
         for (const { els, property } of contentTargets) {
           for (const contentEl of els) {
-            const prevSpanEls = Array.from(contentEl.children) as HTMLElement[];
+            const prevSpanEls = (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared);
             const video =
               content.video && property === "background_image"
                 ? content.video
                 : undefined;
-            const newSpanEl = video
+            const prepared = !video && property === "background_image" ? this.takePrepared(instruction, contentEl) : undefined;
+            const newSpanEl = prepared ?? (video
               ? createVideoElement(
                   contentEl,
                   property,
@@ -2297,7 +2503,7 @@ export default class UIManager extends Manager {
                   content.imageNames,
                   content.sources ?? (content.src ? [content.src] : []),
                   applyStyle,
-                );
+                ));
             placePicture(newSpanEl, instruction.framing);
             const videoEl = newSpanEl.querySelector("video");
             if (videoEl && video) {
@@ -2317,7 +2523,8 @@ export default class UIManager extends Manager {
             const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
             const composited = new Set(pictures.flatMap((picture) => picture.files.map((file) => file.src)));
             (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs.filter((src) => !composited.has(src)));
-            if (morph || pictures.length > 0) {
+            const preparedLayer = prepared ? (prepared as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph : undefined;
+            if ((morph || pictures.length > 0) && (!preparedLayer || morph)) {
               this.morphs?.mount(
                 newSpanEl,
                 morph ?? { plays: [], epoch: 0 },
@@ -2326,6 +2533,7 @@ export default class UIManager extends Manager {
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
                 morphGroup,
                 pictures,
+                preparedLayer,
               );
             }
             if (instruction.control === "show") {

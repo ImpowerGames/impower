@@ -58,6 +58,8 @@ export interface MorphPicture {
 
 export interface LayeredPicture extends MorphPicture {
   layer: number;
+  name?: string;
+  vector?: true;
 }
 
 export interface MorphLayerPlay {
