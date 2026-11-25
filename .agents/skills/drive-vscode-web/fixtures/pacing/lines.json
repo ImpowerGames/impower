@@ -1,0 +1,18 @@
+{
+  "project": "project",
+  "script": "main.sd",
+  "start": 160,
+  "lines": [
+    { "line": 160, "kind": "warmup", "text": "The lantern hall wakes slowly", "motion": false },
+    { "line": 165, "cue": 162, "kind": "talk", "text": "Every lantern in this hall hums its own quiet note", "motion": false },
+    { "line": 167, "kind": "narration", "text": "A cart rattles past the gate", "motion": false },
+    { "line": 172, "cue": 169, "kind": "talk-pan", "text": "Every lantern in this hall hums its own quiet note", "motion": true },
+    { "line": 175, "kind": "sound", "text": "Somewhere above the towers a bell answers", "motion": false },
+    { "line": 179, "kind": "swap-layered", "text": "Beyond the arcade the harbour opens wide", "motion": false },
+    { "line": 182, "kind": "zoom-layered", "text": "The view leans closer to the far islands", "motion": true },
+    { "line": 185, "kind": "vector-backdrop", "text": "The sky turns to a painted dusk", "motion": false },
+    { "line": 188, "kind": "vector-element", "text": "A brass emblem glints above the doorway", "motion": false },
+    { "line": 192, "cue": 190, "kind": "talk", "text": "Every lantern in this hall hums its own quiet note", "motion": false },
+    { "line": 194, "kind": "narration", "text": "The last lantern dims", "motion": false }
+  ]
+}

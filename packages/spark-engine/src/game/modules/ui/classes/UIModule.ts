@@ -75,6 +75,7 @@ import {
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import type { BeatSpeech, Instructions } from "../../../core/types/Instructions";
+import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
@@ -91,6 +92,7 @@ import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { Animation } from "../types/Animation";
+import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
 import type { ElementState } from "../types/ElementState";
@@ -326,6 +328,7 @@ interface Composition {
   ending?: boolean;
   time?: number;
   sweep?: boolean;
+  source?: ScriptLocation;
   standing?: StandingScreen;
   empty?: { text: Set<Element>; image: Set<Element> };
 }
@@ -1489,6 +1492,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  composeSource(source: ScriptLocation | undefined): void {
+    if (this._compose && source) {
+      this._compose.source = source;
+    }
+  }
+
   async endCompose(options: { time?: number; sweep?: boolean } = {}) {
     const c = this._compose;
     if (!c || c.ending) {
@@ -1514,6 +1523,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         messages: c.messages,
         ...(c.time != null ? { time: c.time } : {}),
         ...(c.sweep ? { sweep: true } : {}),
+        ...(c.source
+          ? { source: this._game.getDocumentLocation(c.source) }
+          : {}),
       }),
     );
     if (c.standing) {
@@ -2162,6 +2174,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getTimingFunction(ease: Ease) {
     return `${ease.function}(${ease.parameters.join(",")})`;
+  }
+
+  getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
+    const time = (value: number | string | undefined) =>
+      typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
+        ? `${value}s`
+        : value || "0s";
+    const easing = timing?.easing;
+    const ease = easing ? this.context?.ease?.[easing] : undefined;
+    const iterations = timing?.iterations;
+    const fill = timing?.fill;
+    return [
+      time(timing?.duration),
+      (ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing) || "ease",
+      time(timing?.delay),
+      iterations === Infinity ? "infinite" : (iterations?.toString() ?? "1"),
+      timing?.direction || "normal",
+      !fill || fill === "auto" ? "none" : fill,
+      "running",
+      escapeCssIdentifier(name),
+    ].join(" ");
   }
 
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {
@@ -2919,6 +2952,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (varValue) {
             variablesStyle[varName] = varValue;
           }
+        }
+      }
+    }
+    const animations = this.context?.animation;
+    if (animations) {
+      for (const [name, animation] of Object.entries(animations)) {
+        if (!name.startsWith("$")) {
+          variablesStyle[getVarName("animation", name)] =
+            this.getAnimationShorthand(name, animation.timing);
         }
       }
     }
