@@ -194,6 +194,10 @@ html:has([data-keyboard-panel]) [data-phone-shell][data-editing] .sparkdown-scri
   display: flex;
 }
 
+[data-editing]:not([data-script-only]) [data-script-column] {
+  --script-scroll-top-space: var(--script-header-height);
+}
+
 @supports (overflow-clip-margin: 1px) {
   html.keyboard-open body:has([data-phone-shell][data-editing]),
   html.keyboard-open body:has([data-phone-shell][data-editing]) #app {
