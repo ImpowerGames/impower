@@ -222,6 +222,37 @@ test("in Chromium, a moving element whose ancestor becomes rotated mid-motion is
   }
 });
 
+test("in Chromium, waiting on an element whose own box did not change ends at once while another element moves", async () => {
+  const page = await open(
+    `#grower { position: absolute; left: 0; top: 0; width: 100px; height: 30px; transition: layout 1s linear; }
+     #target { position: absolute; left: 400px; top: 0; width: 100px; height: 30px; transition: layout 1s linear; }`,
+    `<div id="grower"></div><div id="target"></div>`,
+  );
+  try {
+    const result = await page.evaluate(async () => {
+      const w = window as any;
+      const target = document.getElementById("target")!;
+      const motion = new w.LayoutMotion();
+      const boxes = motion.measure(document.getElementById("root"), () => true);
+      document.getElementById("grower")!.style.width = "200px";
+      motion.play(boxes);
+      let done = false;
+      void motion.finished(target).then(() => {
+        done = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      const grower = document.getElementById("grower")!;
+      return { held: target.getAnimations().length, growing: grower.getAnimations().length, done };
+    });
+    expect(result.held).toBeGreaterThan(0);
+    expect(result.growing).toBeGreaterThan(0);
+    expect(result.done).toBe(true);
+  } finally {
+    await page.close();
+  }
+});
+
 test("in Chromium, a box whose width animates keeps its unchanged auto height while its new text would reflow it", async () => {
   const result = await run(
     `#target { font: 16px/20px monospace; width: 100px; transition: layout 1s linear; }`,

@@ -773,26 +773,38 @@ describe("waiting for an element's layout motion (I-2735)", () => {
 
   const pushed = (inner = "box") => {
     useLayout();
-    const { root, at } = mount(`<div class="slow top"></div><div class="box under"><div class="${inner} inner"></div></div><div class="plain"></div>`);
-    const [top, under, child, plain] = [at(".top"), at(".under"), at(".inner"), at(".plain")];
+    const { root, at } = mount(`<div class="slow top"></div><div class="box under"><div class="${inner} inner"></div></div><div class="plain"></div><div class="slow still"></div>`);
+    const [top, under, child, plain, still] = [at(".top"), at(".under"), at(".inner"), at(".plain"), at(".still")];
     let target = 40;
     const height = () => sizeNow(top, "height", target);
     geometry.set(top, () => box(0, 0, 200, height()));
     geometry.set(under, () => box(0, height(), 200, 40));
     geometry.set(child, () => box(0, height(), 200, 20));
+    geometry.set(still, () => box(400, 0, 100, 30));
     const motion = new LayoutMotion(new AnimationHold());
     const grow = (to: number) => {
       const boxes = motion.measure(root);
       target = to;
       motion.play(boxes);
     };
-    return { root, top, under, inner: child, plain, motion, start: () => grow(120), grow };
+    return { root, top, under, inner: child, plain, still, motion, start: () => grow(120), grow };
   };
 
   test("an element with no layout motion is finished at once", async () => {
     const { root, plain, motion, start } = pushed();
     start();
     const waiting = watch(motion.finished(plain));
+    await flushMicrotasks(2);
+    expect(waiting.done).toBe(true);
+    root.remove();
+  });
+
+  test("an element held in place only because another element moves is finished at once", async () => {
+    const { root, still, motion, start } = pushed();
+    start();
+    expect(motionsOf(still).length).toBeGreaterThan(0);
+    expect(translated(still)).toBe(false);
+    const waiting = watch(motion.finished(still));
     await flushMicrotasks(2);
     expect(waiting.done).toBe(true);
     root.remove();

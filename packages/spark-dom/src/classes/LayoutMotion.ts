@@ -40,6 +40,7 @@ interface Motion {
   clock: Animation;
   resize?: Animation;
   shift: LayoutPoint;
+  changed: boolean;
 }
 
 type TransitionStyle = Pick<
@@ -338,7 +339,12 @@ export default class LayoutMotion {
       }
     }
     const started: [HTMLElement, Motion][] = [];
-    const begin = (el: HTMLElement, to: LayoutBox, timing: LayoutTiming) => {
+    const begin = (
+      el: HTMLElement,
+      to: LayoutBox,
+      timing: LayoutTiming,
+      changed: boolean,
+    ) => {
       const from = boxes.get(el)!;
       const motion: Motion = {
         from,
@@ -346,6 +352,7 @@ export default class LayoutMotion {
         depth: depthOf(el),
         clock: this.animation(el, [], timing, "both", "add"),
         shift: NO_SHIFT,
+        changed,
       };
       const size = getSizeKeyframes(from, to);
       if (size) {
@@ -363,7 +370,7 @@ export default class LayoutMotion {
         continue;
       }
       this.stop(el);
-      begin(el, to, timing);
+      begin(el, to, timing, true);
     }
     if (started.length === 0) {
       this.release();
@@ -371,7 +378,7 @@ export default class LayoutMotion {
     }
     for (const [el, { to, timing }] of targets) {
       if (!this._motions.has(el)) {
-        begin(el, to, timing);
+        begin(el, to, timing, false);
       }
     }
     this.update();
@@ -388,7 +395,8 @@ export default class LayoutMotion {
   finished(root: Element): Promise<void> {
     const pending = new Map(
       Array.from(this._motions).filter(
-        ([el, motion]) => (el === root || root.contains(el)) && !this.ended(motion),
+        ([el, motion]) =>
+          motion.changed && (el === root || root.contains(el)) && !this.ended(motion),
       ),
     );
     if (pending.size === 0) {
