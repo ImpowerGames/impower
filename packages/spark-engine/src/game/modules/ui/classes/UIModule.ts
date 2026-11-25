@@ -1744,7 +1744,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const layout = this._game.program?.sparkle?.layouts?.[layoutName];
     const components = this._game.program?.sparkle?.components ?? {};
-    const classes = new Set<string>(["layouts", "main", layoutName]);
+    const classes = new Set<string>([
+      "layouts",
+      "main",
+      layoutName,
+      this.layoutRootName(layoutName),
+    ]);
     const propValues: [string, string][] = [];
     const expanded = new Set<string>();
     const visit = (nodes: unknown[] | undefined) => {

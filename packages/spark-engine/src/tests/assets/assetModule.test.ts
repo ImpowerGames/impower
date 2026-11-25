@@ -444,6 +444,41 @@ end
     expect(h.game.module.ui.getFontNamesForLayout("menu")).toEqual([]);
   });
 
+  it("collects a font styled on a layout's prefixed root", async () => {
+    const source = `style layout_title {
+  font_family = "Fancy"
+}
+
+style layout_hud {
+  font_family = "Fancy"
+}
+
+layout title {
+  column {
+    text "My Game"
+  }
+}
+
+layout hud {
+  hud {
+    text "Score"
+  }
+}
+
+scene A
+  Hello.
+end
+`;
+    const h = createHarness(source, 0, {
+      assets: ASSETS,
+      beforeConnect: playing,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    expect(h.game.module.ui.getFontNamesForLayout("title")).toEqual(["Fancy"]);
+    expect(h.game.module.ui.getFontNamesForLayout("hud")).toEqual(["Fancy"]);
+  });
+
   it("ignores a non-font property whose value equals a font name or family (#2370)", async () => {
     const source = `define Plain as font with
   src = "Plain.ttf"
