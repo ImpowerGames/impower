@@ -16,7 +16,6 @@ const SCROLLER_PADDING = (
 vi.mock("@impower/impower-ui/layout", () => ({
   useLayout: () => "phone",
   useCoarsePointer: () => true,
-  useSheetOpen: () => false,
   layoutState: { current: () => "phone", subscribe: () => () => {} },
 }));
 
