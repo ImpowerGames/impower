@@ -169,6 +169,11 @@ export function analyzeLine(trace, record, clock) {
   if (!frames?.presented.length) return { ...out, failure: "the trace holds no frame that reached the screen from the page's renderer" };
   if (trace.endsAt != null && trace.endsAt < fired + FIRST_SECOND_MS) return { ...out, failure: `the trace ends ${round(trace.endsAt - fired)} ms after the fire, before the first second was captured` };
   const firstEnd = fired + FIRST_SECOND_MS;
+  const lastShown = frames.presented[frames.presented.length - 1];
+  const measuredTo = Math.max(firstEnd, at(record.typingEnd) ?? 0, record.motion ? (at(record.motionWindow?.end) ?? 0) : 0);
+  if (lastShown < measuredTo && frames.dropped.some((d) => d >= lastShown)) {
+    return { ...out, failure: `a stall that began ${round(lastShown - fired)} ms after the fire had not ended when the trace stopped, so its length is unknown` };
+  }
   const graphics = tasksIn(trace.graphics, fired, firstEnd, GRAPHICS_TASK_MS, fired);
   const page = tasksIn(trace.tasks.get(`${clock.pid}:${clock.tid}`) ?? [], click ?? fired, firstEnd, PAGE_TASK_MS, fired);
   const stalls = stallsIn(frames.presented, frames.dropped, fired, firstEnd);

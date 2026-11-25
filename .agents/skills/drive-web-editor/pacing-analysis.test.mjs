@@ -218,6 +218,33 @@ await check("a trace that stops before one second after the fire fails its line"
   assert.equal(analyzeLine(full, TALK.record, clock).failure, undefined);
 });
 
+await check("dropped frames after the last presentation fail the line instead of reading as no stall", () => {
+  const frame = (id, begin, end, state) => [
+    { name: "PipelineReporter", ph: "b", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: begin * 1000, args: { frame_reporter: { state } } },
+    { name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: end * 1000, args: {} },
+  ];
+  const build = (presented, dropped) => {
+    let id = 0;
+    const events = [{ name: "thread_name", ph: "M", pid: 1, tid: 1, args: { name: "CrRendererMain" } }];
+    for (const at of presented) events.push(...frame(++id, at - 16, at, "STATE_PRESENTED_ALL"));
+    for (const at of dropped) events.push(...frame(++id, at, at + 16, "STATE_DROPPED"));
+    events.push({ name: "RunTask", ph: "X", pid: 1, tid: 1, ts: 2500 * 1000, dur: 1000 });
+    return parseTrace({ traceEvents: events });
+  };
+  const clock = { offset: 0, pid: 1, tid: 1 };
+  const record = { line: 5, clickAt: 900, firedAt: 1000, typingEnd: 1400 };
+  const open = analyzeLine(build([900, 990, 1100, 1200], [1216, 1233, 1250, 1300, 1500, 1990]), record, clock);
+  assert.match(open.failure, /had not ended when the trace stopped/);
+  assert.equal(open.firstSecond, undefined);
+  const closed = analyzeLine(build([900, 990, 1100, 1200, 2050], [1216, 1233, 1250, 1300, 1500, 1990]), record, clock);
+  assert.equal(closed.failure, undefined);
+  assert.deepEqual(closed.firstSecond.stalls, { count: 1, longestMs: 850, totalMs: 850 });
+  const straddling = analyzeLine(build([900, 1600, 2300], [2100]), record, clock);
+  assert.equal(straddling.failure, undefined);
+  assert.deepEqual(straddling.firstSecond.stalls, { count: 1, longestMs: 700, totalMs: 700 });
+  assert.equal(straddling.firstSecond.droppedFrames, 0);
+});
+
 await check("a real project's line keeps tracing through its first second at no rest, and a pan it detects is measured", async () => {
   const marks = pageMarks(TALK);
   const fired = marks.find((m) => m.name.startsWith("beat fired ")).name;
