@@ -79,6 +79,8 @@ export class Coordinator<G extends Game> {
 
   protected _startLine?: () => void;
 
+  protected _lineStartedMS: number | null = 0;
+
   protected _presenters: Presenter[] = [];
 
   protected _displayed = false;
@@ -323,7 +325,10 @@ export class Coordinator<G extends Game> {
     }
     if (!instructions.text && !waitingForChoice && !instructions.audio) {
       const totalDurationMS = (instructions.end ?? 0) * 1000;
-      if (this._elapsedMS >= totalDurationMS) {
+      if (
+        this._lineStartedMS != null &&
+        this._elapsedMS - this._lineStartedMS >= totalDurationMS
+      ) {
         return 1;
       }
       return 0;
@@ -463,12 +468,14 @@ export class Coordinator<G extends Game> {
     let ready = false;
     let started = false;
     let finished = false;
+    let beatTime: number | undefined;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const start = (time?: number, sound = true) => {
       if (started) {
         return;
       }
       started = true;
+      this._lineStartedMS = time === beatTime ? 0 : this._elapsedMS;
       const now = game.context.system.now();
       const at = time ?? now + BEAT_LEAD_MS;
       if (sound) {
@@ -492,6 +499,7 @@ export class Coordinator<G extends Game> {
           ready = true;
           this._startedExecution = true;
           const time = game.context.system.now() + BEAT_LEAD_MS;
+          beatTime = time;
           const line = game.module.ui.beginLine(time);
           if (assetTriggerId != null) {
             assets.trigger(assetTriggerId);
@@ -506,6 +514,7 @@ export class Coordinator<G extends Game> {
           presenter.present(time);
           game.module.ui.closeLine();
           if (line) {
+            this._lineStartedMS = null;
             this._startLine = () => start();
             void line.then((at) =>
               at === null ? start(undefined, false) : start(at),

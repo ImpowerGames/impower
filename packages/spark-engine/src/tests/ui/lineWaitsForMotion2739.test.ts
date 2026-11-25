@@ -306,3 +306,116 @@ describe("a line that makes an element arrive (#2739)", () => {
     expect(s.sounds).toEqual([400 + LEAD]);
   });
 });
+
+const BESIDE = (stream: boolean) => `define ui as config with
+  layouts_initial = { ${stream ? '"textstream"' : ""} }
+end
+
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+define OTHER as image with
+  src = "https://example.com/other.png"
+end
+
+style portrait {
+  opacity = 1
+  @initial { opacity = 0 }
+  @show { transition-duration = 500ms }
+}
+
+style action {
+  opacity = 1
+  @initial { opacity = 0 }
+  @show { transition-duration = 500ms }
+}
+
+layout main {
+  portrait {
+    image
+  }
+  action {
+    text
+  }
+}
+
+scene picture
+  [[show portrait SPRITE]]
+end
+
+scene words
+  A typed line.
+end
+
+scene swap
+  [[show portrait OTHER]] A typed line.
+end
+`;
+
+async function beside(stream = false) {
+  const h = createHarness(BESIDE(stream), 0, {
+    reactive: true,
+    autoOpenAll: false,
+    holdPresence: true,
+    beforeConnect: playing,
+  });
+  await h.ready;
+  h.releasePresence();
+  await flushMicrotasks(30);
+  h.reset();
+  return h;
+}
+
+const typedOut = (h: UIHarness) =>
+  wire(h.messages).filter(
+    (m: any) =>
+      m?.method === "ui/write-text" &&
+      m.params.instructions.some((i: any) => (i.after ?? 0) > 0),
+  );
+
+describe("everything a line changes waits for its motion (#2739)", () => {
+  test("a picture-only line does not continue until its arrival ends", async () => {
+    const h = await beside();
+    h.jumpToFlow("picture");
+    const coordinator = new Coordinator(h.game, h.nextBeat()!);
+    await tick(coordinator);
+    expect(h.heldPresence().length).toBeGreaterThan(0);
+    expect(coordinator.shouldContinue()).toBe(0);
+    h.releasePresence();
+    await flushMicrotasks(40);
+    await tick(coordinator, 1);
+    expect(coordinator.shouldContinue()).toBe(1);
+  });
+
+  test("a picture changed on an element already shown waits for the line's arrival", async () => {
+    const h = await beside();
+    const ui = h.game.module.ui;
+    h.jumpToFlow("picture");
+    ui.setMotion(true);
+    await ui.image.write("portrait", h.nextBeat()!.image!["portrait"]! as any, false);
+    h.releasePresence();
+    await flushMicrotasks(30);
+    h.reset();
+    h.jumpToFlow("swap");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    expect(h.heldPresence().length).toBeGreaterThan(0);
+    expect(imageWrites(h, "portrait").filter((m: any) => m.params.instructions.length > 0)).toEqual([]);
+    h.releasePresence();
+    await flushMicrotasks(40);
+    expect(imageWrites(h, "portrait").filter((m: any) => m.params.instructions.length > 0)).toHaveLength(1);
+  });
+
+  test("a line shown in a box and a stream at once holds the typing in both", async () => {
+    const h = await beside(true);
+    h.jumpToFlow("words");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    expect(h.heldPresence().length).toBeGreaterThan(0);
+    const writes = typedOut(h);
+    expect(new Set(writes.map((m: any) => m.params.target)).size).toBeGreaterThan(1);
+    expect(writes.filter((m: any) => !m.params.held)).toEqual([]);
+    h.releasePresence();
+    await flushMicrotasks(40);
+    expect(typedOut(h).filter((m: any) => !m.params.held).length).toBe(writes.length);
+  });
+});

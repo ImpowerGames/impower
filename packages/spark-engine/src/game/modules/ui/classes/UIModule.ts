@@ -307,6 +307,7 @@ const pictureHide = (
 
 interface LineWait {
   time: number;
+  presenting: boolean;
   composition?: Composition;
   held: IMessage[];
   motions: Promise<unknown>[];
@@ -1252,7 +1253,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     }
     const open = this._compose;
-    if (open && (open.kind === "display" || !open.ending)) {
+    if (
+      open &&
+      (open.kind === "display" ||
+        !open.ending ||
+        (open.line === this._line && open.line?.presenting))
+    ) {
       return false;
     }
     this.flushUIBatch();
@@ -1714,12 +1720,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     return new Promise<number | null>((resolve) => {
-      this._line = { time, held: [], motions: [], arrivals: [], resolve };
+      this._line = {
+        time,
+        presenting: true,
+        held: [],
+        motions: [],
+        arrivals: [],
+        resolve,
+      };
     });
   }
 
   closeLine(): void {
     const line = this._line;
+    if (line) {
+      line.presenting = false;
+    }
     if (line && !line.composition) {
       this.endLine(line, line.time);
     }
@@ -6483,11 +6499,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 : {}),
             }),
             !instant &&
-              Boolean(
-                sequence?.some(
-                  (e) => e.control === "animate" || e.with || e.after || e.over,
-                ),
-              ),
+              (writing.some((el) => !arriving.includes(el)) ||
+                Boolean(
+                  sequence?.some(
+                    (e) => e.control === "animate" || e.with || e.after || e.over,
+                  ),
+                )),
           ),
         );
       }
