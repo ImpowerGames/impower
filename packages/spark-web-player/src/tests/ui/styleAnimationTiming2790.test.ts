@@ -128,6 +128,27 @@ layout main {
     expect(longhand).toBeGreaterThan(shorthand);
   });
 
+  test("a longhand written before `animation` comes before the shorthand, and one written after it follows", async () => {
+    const out = await css(`${POP}style box {
+  animation-delay = 1s
+  animation-fill-mode = forwards
+  animation = pop
+  animation-iteration-count = 3
+}
+layout main {
+  box
+}
+`);
+    const box = rule(out, ".box");
+    const shorthand = box.indexOf("animation: var(--theme-animation-pop);");
+    expect(shorthand).toBeGreaterThanOrEqual(0);
+    expect(box.indexOf("animation-delay: 1s;")).toBeGreaterThanOrEqual(0);
+    expect(box.indexOf("animation-delay: 1s;")).toBeLessThan(shorthand);
+    expect(box.indexOf("animation-fill-mode: forwards;")).toBeGreaterThanOrEqual(0);
+    expect(box.indexOf("animation-fill-mode: forwards;")).toBeLessThan(shorthand);
+    expect(box.indexOf("animation-iteration-count: 3;")).toBeGreaterThan(shorthand);
+  });
+
   test("an animation set in a presence block uses the declared timing", async () => {
     const out = await css(`${POP}style box {
   @show { animation = pop }

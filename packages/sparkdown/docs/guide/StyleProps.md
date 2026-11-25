@@ -497,7 +497,7 @@ Animations are full motion sequences, defined by an
 
 > `animation-delay`, `animation-duration`, `animation-easing`, `animation-iterations`, `animation-direction`, and `animation-fill` will override equivalent timing settings defined in an [animation declaration](./AnimationTheme.md#82-defining-your-own-animation) as long as they are set **after** the `animation` property is set.
 
-- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration
+- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration, and the animation loops, as `bounce` declares
 - `animation-duration=3s animation=bounce` — the animation plays with its default duration **(not 3s)**
 
 > Set `animation-iterations` to `infinite` for looping effects.
