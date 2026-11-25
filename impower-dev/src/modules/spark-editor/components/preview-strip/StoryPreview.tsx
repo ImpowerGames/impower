@@ -33,7 +33,7 @@ const withWorkspace = async (
   await act(Workspace.window);
 };
 
-export default function PhonePreviewStrip({
+export default function StoryPreview({
   size = "phone",
   docked = false,
 }: {
