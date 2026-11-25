@@ -190,6 +190,33 @@ end
     expect(cleared?.params).toEqual({ add: [], remove: ["hud"], retired: true });
   });
 
+  test("a picture hidden with an exit animation leaves the mark when its hide starts", async () => {
+    const { marks } = await play(`define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+layout main {
+  stage {
+    portrait {
+      image
+    }
+  }
+}
+
+style frame {
+  @showing(portrait) {
+    opacity = 1
+  }
+}
+
+scene start
+  [[show portrait SPRITE]] Hello.
+  [[hide portrait with fadeout over 0.5s]] Bye.
+end
+`);
+    expect(marks).toEqual([["portrait"], []]);
+  });
+
   test("an element written in a leaving layout counts as showing until the layout is removed", async () => {
     const source = `layout overlay {
   badge {
