@@ -75,6 +75,7 @@ const createGame = (
         refreshLayouts: () => {},
         speak: () => {},
         beginCompose: () => false,
+        composeSource: () => {},
         composeWait: () => {},
         endCompose: async () => {},
         afterCompose: (work: () => void) => work(),
