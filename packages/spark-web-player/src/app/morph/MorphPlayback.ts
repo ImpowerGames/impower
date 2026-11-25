@@ -48,6 +48,7 @@ export interface PictureBitmap {
   animated?: boolean;
   profile?: boolean;
   unread?: boolean;
+  box?: Rect;
   unsized?: boolean;
   styled?: string;
   vector?: SvgLayerSource;
@@ -412,6 +413,7 @@ export class MorphPlayback {
   readPose: MorphPoseReader;
   rasterizeSvgLayer: SvgLayerRasterizer;
   reportStill?: (params: MorphStillParams) => void;
+  keepWhole?: (srcs: string[]) => void;
   residentPicture?: (src: string) => PictureBitmap | undefined;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
   protected loadedPictures = new Map<string, PictureBitmap>();
@@ -1081,12 +1083,19 @@ export class MorphLayer {
           bitmap.height !== bottom.height,
       )
     ) {
-      still.broken = true;
+      this.fallBack(still, still.picture);
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom.width, height: bottom.height, rasters: new Map() };
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
-    if (!this.stillPlans(still, computed)) still.broken = true;
+    if (!this.stillPlans(still, computed)) {
+      this.fallBack(still, still.picture);
+    }
+  }
+
+  protected fallBack(target: { broken?: boolean }, picture: { files: { src: string }[] } | undefined) {
+    target.broken = true;
+    if (picture) this.playback.keepWhole?.(picture.files.map((file) => file.src));
   }
 
   protected occurrenceKey(play: MorphPlay, at: number | string): string {
@@ -1138,7 +1147,7 @@ export class MorphLayer {
     const files = picture.files;
     const indices = model ? [...new Set([0, ...model.files])] : [];
     if (!model || indices.some((index) => !files[index])) {
-      image.broken = true;
+      this.fallBack(image, picture);
       return;
     }
     const loaded = await Promise.all(indices.map((index) => this.playback.picture(files[index]!.src)));
@@ -1179,7 +1188,7 @@ export class MorphLayer {
       bitmaps.size !== indices.length ||
       [...bitmaps.values()].some((bitmap) => bitmap.width !== width || bitmap.height !== height)
     ) {
-      image.broken = true;
+      this.fallBack(image, picture);
       return;
     }
     const pixels = width * height;
@@ -1276,6 +1285,7 @@ export class MorphLayer {
     );
     const stills = this.stills.filter((still) => still.files && !still.broken);
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
+    for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
     const alone = (i: number, picture: ImageState | undefined) => {
       const inner = picture?.inner.find((entry) => picture.picture!.files[entry.file]?.layer === i);
       return inner && this.liveArtifact(inner.slot) ? inner : undefined;
@@ -1331,7 +1341,7 @@ export class MorphLayer {
           state.canvas = canvas;
           root.appendChild(canvas.box);
         } else {
-          if (this.pictureRect(files, i, computed)) state.broken = true;
+          if (this.pictureRect(files, i, computed)) this.fallBack(state, state.picture);
           for (let k = 0; k < span; k++) stillOrAlone(i + k, state);
         }
         i += span - 1;
@@ -1353,7 +1363,7 @@ export class MorphLayer {
           for (const view of picture.canvases) root.appendChild(view.box);
           this.sizeObjects(picture);
         } else {
-          picture.broken = true;
+          this.fallBack(picture, picture.picture);
           for (let k = 0; k < span; k++) still(i + k);
         }
         i += span - 1;
@@ -1579,14 +1589,14 @@ export class MorphLayer {
         let source: CanvasImageSource | undefined = bitmap.image;
         let sourceWidth = bitmap.width;
         let sourceHeight = bitmap.height;
-        if (gapped) {
+        if (gapped || bitmap.box) {
           const cell = doc.createElement("canvas");
           cell.width = Math.max(1, Math.round(periodX));
           cell.height = Math.max(1, Math.round(periodY));
           const cellContext = this.playback.pictureCanvas(cell);
           if (cellContext) {
             cellContext.imageSmoothingEnabled = smooth;
-            cellContext.drawImage(bitmap.image, 0, 0, (pattern.tile.width * cell.width) / periodX, (pattern.tile.height * cell.height) / periodY);
+            drawPicture(cellContext, bitmap, 0, 0, (pattern.tile.width * cell.width) / periodX, (pattern.tile.height * cell.height) / periodY);
             source = cell;
             sourceWidth = cell.width;
             sourceHeight = cell.height;
@@ -1612,7 +1622,7 @@ export class MorphLayer {
       }
       if (!filled) {
         for (const tile of plan.tiles) {
-          if (tile.width > 0 && tile.height > 0) context.drawImage(bitmap.image, tile.x, tile.y, tile.width, tile.height);
+          if (tile.width > 0 && tile.height > 0) drawPicture(context, bitmap, tile.x, tile.y, tile.width, tile.height);
         }
       }
       if (clipped) context.restore!();
@@ -2012,7 +2022,9 @@ export class MorphLayer {
       const sy = canvas.height / files.height;
       context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
     }
-    context.drawImage(files.rasters.get(layer.file)?.image ?? bitmap.image, 0, 0, canvas.width, canvas.height);
+    const raster = files.rasters.get(layer.file)?.image;
+    if (raster) context.drawImage(raster, 0, 0, canvas.width, canvas.height);
+    else drawPicture(context, bitmap, 0, 0, canvas.width, canvas.height);
     if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
   }
@@ -2363,6 +2375,18 @@ function applyFrame(view: LiveView, frame: MorphFrameState) {
     }
     write(clip.reach, "d", bound.d);
   }
+}
+
+function drawPicture(context: Pick<PictureCanvasContext, "drawImage">, bitmap: PictureBitmap, x: number, y: number, width: number, height: number) {
+  const box = bitmap.box;
+  if (!box) {
+    context.drawImage(bitmap.image, x, y, width, height);
+    return;
+  }
+  if ((bitmap.image as { width?: unknown }).width === 0) return;
+  const scaleX = width / bitmap.width;
+  const scaleY = height / bitmap.height;
+  context.drawImage(bitmap.image, x + box.x * scaleX, y + box.y * scaleY, box.width * scaleX, box.height * scaleY);
 }
 
 function write(element: Element, name: string, value: string | null) {

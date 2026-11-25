@@ -1,3 +1,7 @@
+import { PRESENCE_ATTRIBUTE } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
+
+export { PRESENCE_ATTRIBUTE };
+
 export const DATA_ATTRIBUTE_PROPS: ReadonlySet<string> = new Set(["tooltip"]);
 
 export const ARIA_ATTRIBUTE_ALIASES: ReadonlyMap<string, string> = new Map([
@@ -57,6 +61,7 @@ const RESERVED_ATTRIBUTES = new Set([
   WIDGET_CONTROL_ATTRIBUTE,
   HANDLER_ATTRIBUTE,
   DISPLAY_TARGET_ATTRIBUTE,
+  PRESENCE_ATTRIBUTE,
 ]);
 
 export const isReservedAttribute = (prop: string): boolean =>

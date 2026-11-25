@@ -231,6 +231,45 @@ end
     expect(marks).toEqual([["portrait"], []]);
   });
 
+  test("a line leaving through its @hide leaves the mark when its hide starts", async () => {
+    const { h, marks } = await play(`define ui as config with
+  layouts_initial = { }
+end
+
+layout main {
+  action {
+    text
+  }
+  dialogue {
+    text
+  }
+}
+
+style action {
+  @hide { opacity = 0 }
+}
+
+style frame {
+  @showing(action) {
+    opacity = 1
+  }
+}
+
+scene start
+  The door opens.
+  [[dialogue "Hello."]]
+end
+`);
+    const [action] = h.game.module.ui.findIds("action");
+    const hides = wire(h.messages)
+      .filter((m: any) => m?.method === "ui/presence")
+      .flatMap((m: any) => m.params.effects)
+      .filter((effect: any) => effect.element === action && effect.presence === "hide");
+    expect(hides).toHaveLength(1);
+    expect(marks[0]).toContain("action");
+    expect(marks[1]).not.toContain("action");
+  });
+
   test("an element written in a leaving layout counts as showing until the layout is removed", async () => {
     const source = `layout overlay {
   badge {

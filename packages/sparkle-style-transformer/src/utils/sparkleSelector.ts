@@ -2,6 +2,12 @@ export const COLOR_SCHEME_ATTRIBUTE = "data-color-scheme";
 
 export const SHOWING_ATTRIBUTE = "data-showing";
 
+export const PRESENCE_ATTRIBUTE = "data-presence";
+
+export const PRESENCE_STATES = ["initial", "show", "hide"] as const;
+
+export type Presence = (typeof PRESENCE_STATES)[number];
+
 const COLOR_SCHEME_STATE = "theme";
 
 export const SHOWING_STATE = "showing";
@@ -15,6 +21,11 @@ export interface ShowingRefusal {
 }
 
 const table = (entries: Record<string, string>): ReadonlyMap<string, string> => new Map(Object.entries(entries));
+
+const presenceSelector = (presence: Presence) => {
+  const marked = `[${PRESENCE_ATTRIBUTE}="${presence}"]`;
+  return `:is(${marked},${marked} *)`;
+};
 
 const SELECTOR_STATE_ALIASES: ReadonlyMap<string, string> = table({
   hovered: ":hover",
@@ -59,6 +70,7 @@ const SELECTOR_STATE_ALIASES: ReadonlyMap<string, string> = table({
   swatch_wrapper: "::-webkit-color-swatch-wrapper",
   "swatch-wrapper": "::-webkit-color-swatch-wrapper",
   busy: '[aria-busy="true"]',
+  ...Object.fromEntries(PRESENCE_STATES.map((presence) => [presence, presenceSelector(presence)])),
 });
 
 const ARGUMENT_STATE_ALIASES: ReadonlyMap<string, string> = table({
@@ -74,7 +86,6 @@ export const AT_RULE_STATES: ReadonlyMap<string, string> = table({
   supports: "@supports",
   "starting-style": "@starting-style",
   starting_style: "@starting-style",
-  initial: "@starting-style",
 });
 
 const SIZE_STATES: ReadonlyMap<string, string> = table({

@@ -117,6 +117,15 @@ describe("the code editor under prefers-reduced-motion", () => {
   it("keeps the fold marker's fade inside the editor root the rule covers", () => {
     const fold = EDITOR_THEME["& .cm-foldGutter .cm-fold-marker"] as Spec;
     expect(fold["transition"]).toBe("opacity .12s ease, transform .15s ease");
-    expect(css).toMatch(/\.sparkdown-script-editor-root \.editor \{[^}]*transition: opacity 0\.25s;/);
+  });
+});
+
+describe("the code editor's load reveal", () => {
+  const css = readFileSync(resolve(__dirname, "../src/modules/script-editor/sparkdown-script-editor.css"), "utf8");
+
+  it("shows a loaded script at full opacity at once, with no fade from the hidden load state", () => {
+    const rule = css.match(/\.sparkdown-script-editor-root \.editor \{[^}]*\}/)?.[0] ?? "";
+    expect(rule).toMatch(/opacity: 0;/);
+    expect(rule).not.toMatch(/transition/);
   });
 });

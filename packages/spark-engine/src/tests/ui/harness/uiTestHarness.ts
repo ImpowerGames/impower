@@ -35,6 +35,8 @@ export interface UIHarness {
   flushTimers(): void;
   releaseAssets(pin?: string): number;
   heldAssetLoadCount(): number;
+  heldPresence(): any[];
+  releasePresence(): number;
 }
 
 export function compileUI(
@@ -120,6 +122,7 @@ export function createHarness(
     beforeConnect?: (game: Game) => void;
     connect?: boolean;
     holdAssets?: boolean;
+    holdPresence?: boolean;
     assets?: File[];
     scripts?: Record<string, string>;
   },
@@ -160,6 +163,7 @@ export function createHarness(
   }
 
   const heldAssetLoads: any[] = [];
+  const heldPresence: any[] = [];
 
   const reply = (msg: any) => {
     const result = resultForMethod(msg.method, msg.params);
@@ -178,9 +182,24 @@ export function createHarness(
   const respond = (sent: any) => {
     const msg = cloneMessage(sent);
     messages.push(msg);
+    if (msg?.method === "ui/beat" && Array.isArray(msg.params?.messages)) {
+      for (const inner of msg.params.messages) {
+        if (inner?.method === "ui/presence" && "id" in inner) {
+          if (opts?.holdPresence) {
+            heldPresence.push(inner);
+          } else {
+            reply(inner);
+          }
+        }
+      }
+    }
     if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
       if (opts?.holdAssets && msg.method === "assets/load") {
         heldAssetLoads.push(msg);
+        return;
+      }
+      if (opts?.holdPresence && msg.method === "ui/presence") {
+        heldPresence.push(msg);
         return;
       }
       reply(msg);
@@ -243,6 +262,7 @@ export function createHarness(
       }
       const ui = game.module.ui;
       const audio = game.module.audio;
+      ui.setMotion(!instant);
       const time = instant
         ? undefined
         : game.context.system.now() + BEAT_LEAD_MS;
@@ -336,6 +356,16 @@ export function createHarness(
     },
     heldAssetLoadCount() {
       return heldAssetLoads.length;
+    },
+    heldPresence() {
+      return heldPresence.slice();
+    },
+    releasePresence() {
+      const held = heldPresence.splice(0, heldPresence.length);
+      for (const msg of held) {
+        reply(msg);
+      }
+      return held.length;
     },
   };
 

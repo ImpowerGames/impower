@@ -1,4 +1,5 @@
 import { type AssetCacheDeps, type WarmHandle } from "./AssetCache";
+import { workerTrimmer, type LayerTrimmer } from "../morph/layerTrim";
 import { dataUrlBytes, pictureFileTraits, streamInflate } from "../morph/pictureFileTraits";
 
 export const WARM_CONTAINER_ID = "spark-asset-warm";
@@ -34,17 +35,29 @@ export const createDomAssetCacheDeps = (
     return container;
   };
   const view = doc?.defaultView as (Window & typeof globalThis) | null | undefined;
+  let trimmer: LayerTrimmer | undefined | null = null;
   return {
     createImage: () => new Image(),
     inspectImage: view
-      ? async (src: string) => {
+      ? async (src: string, trim: boolean) => {
           const bytes = /^data:/i.test(src)
             ? dataUrlBytes(src)
             : await view.fetch(src).then(
                 async (response) => (response.ok ? new Uint8Array(await response.arrayBuffer()) : undefined),
                 () => undefined,
               );
-          return bytes ? pictureFileTraits(bytes, streamInflate(view)) : undefined;
+          if (!bytes) {
+            return undefined;
+          }
+          const traits = await pictureFileTraits(bytes, streamInflate(view));
+          if (!trim || traits.animated || traits.profile || traits.unread) {
+            return traits;
+          }
+          if (trimmer === null) {
+            trimmer = workerTrimmer(view);
+          }
+          const trimmed = await trimmer?.(bytes).catch(() => undefined);
+          return trimmed ? { ...traits, trimmed } : traits;
         }
       : undefined,
     warmImage: doc

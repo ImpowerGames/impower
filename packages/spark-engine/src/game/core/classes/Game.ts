@@ -2811,6 +2811,7 @@ export class Game<T extends M = {}> {
     this._ending = null;
     this._errorEnding = null;
     this._coordinator = null;
+    ui.setMotion(false);
     this.clearChoices();
     this._run.moveTo(target);
     this._executingLocation =
