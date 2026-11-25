@@ -130,10 +130,25 @@ describe("the preview stage's game card", () => {
     expect(panel!.classList).not.toContain("overflow-hidden");
   });
 
-  it("insets and rounds the game on a phone, as the prototype's phone player does", async () => {
-    phone = true;
-    await mount();
-    expectInsetCard();
+  it("insets and rounds the game in a phone's full view, as the prototype's phone player does", async () => {
+    const preview = workspace.current.preview;
+    workspace.current = { ...workspace.current, preview: { ...preview, revealed: true } };
+    await setPhone(true);
+    try {
+      await mount();
+      expect(document.documentElement.dataset["layout"]).toBe("phone");
+      const frame = card()!;
+      expect(frame.classList).toContain("rounded-preview-frame");
+      expect(frame.classList).toContain("overflow-hidden");
+      expect(frame.classList).toContain("bg-preview-frame-fill");
+      expect(frame.parentElement!.classList).toContain("px-preview-inline");
+      expect(frame.parentElement!.classList).toContain("pt-preview-stage-gap");
+      expect((host!.firstElementChild as HTMLElement).classList).toContain("bg-preview-phone-mat");
+      expect(frame.querySelector('[data-stage="game"]')).not.toBeNull();
+    } finally {
+      await setPhone(false);
+      workspace.current = { ...workspace.current, preview };
+    }
   });
 
   it("keeps the status badge over the game inside the card", async () => {
