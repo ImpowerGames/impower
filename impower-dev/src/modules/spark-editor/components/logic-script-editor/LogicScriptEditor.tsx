@@ -355,7 +355,10 @@ export default function LogicScriptEditor({
   }, [filename, textPulledAt]);
 
   return (
-    <div class="relative flex flex-1 flex-col min-h-0 bg-workspace">
+    <div
+      data-script-column
+      class="relative flex flex-1 flex-col min-h-0 bg-workspace"
+    >
       <ScriptHeader filename={filename || "main.sd"} />
       <div class="relative flex flex-1 flex-col min-h-0">
         <SparkdownScriptEditor
