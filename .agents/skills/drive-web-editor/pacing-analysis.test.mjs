@@ -5,8 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, mergePresentations, parseTrace, quietness, repeatability, stallsIn } from "./pacing-analysis.mjs";
-import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, planFor, playLines } from "./pacing-run.mjs";
+import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, layerPaints, mergePresentations, parseTrace, quietness, repeatability, stallsIn } from "./pacing-analysis.mjs";
+import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, layerTracker, planFor, playLines } from "./pacing-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const firstSecondOnly = (doc) => ({ ...doc, record: { ...doc.record, typingEnd: undefined, mouthChanges: doc.record.mouthChanges.filter((t) => t < doc.record.firedAt + 1000 - 30) } });
@@ -208,9 +208,9 @@ await check("a frame not enclosed by two captured presentations, or a trace not 
     { name: "PipelineReporter", ph: "b", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: begin * 1000, args: { frame_reporter: { state } } },
     { name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: `0x${id}` }, ts: end * 1000, args: {} },
   ];
-  const build = (presented, dropped, { from = 500, to = 4000 } = {}, unended = []) => {
+  const build = (presented, dropped, { from = 500, to = 4000 } = {}, unended = [], extra = []) => {
     let id = 0;
-    const events = [{ name: "thread_name", ph: "M", pid: 1, tid: 1, args: { name: "CrRendererMain" } }];
+    const events = [{ name: "thread_name", ph: "M", pid: 1, tid: 1, args: { name: "CrRendererMain" } }, { name: "thread_name", ph: "M", pid: 3, tid: 4, args: { name: "CrGpuMain" } }, ...extra];
     for (const at of presented) events.push(...frame(++id, at - 16, at, "STATE_PRESENTED_ALL"));
     for (const at of dropped) events.push(...frame(++id, at, at + 16, "STATE_DROPPED"));
     for (const { at, state } of unended) events.push(frame(++id, at, at + 16, state)[0]);
@@ -250,17 +250,55 @@ await check("a frame not enclosed by two captured presentations, or a trace not 
     { window: "first second", where: "round 4: the trace starts after the click it reads page work from", presented: [990, 1100, 2050], dropped: [], span: { from: 974 }, record: { clickAt: 800 }, expect: "fail" },
     { window: "first second", where: "control: the trace starts before the click", presented: [990, 1100, 2050], dropped: [], span: { from: 700 }, record: { clickAt: 800 }, expect: { count: 0, longestMs: 0 } },
     { window: "typing", where: "round 4: the trace ends inside the last mouth change's 30 ms", presented: [990, 1100, 1990], dropped: [], span: { to: 2000 }, record: { typingEnd: 2000, mouthChanges: [1995] }, expect: "fail" },
+    { window: "typing", where: "round 5: a graphics task with no end starts inside the last mouth window", presented: [990, 1100, 1300, 2050], dropped: [], record: { typingEnd: 2000, mouthChanges: [1950] }, extra: [{ name: "GPUTask", ph: "B", pid: 3, tid: 4, ts: 1950 * 1000 }], expect: "fail" },
+    { window: "first second", where: "round 5: a page task with no end starts after the click", presented: [990, 1100, 2050], dropped: [], record: { clickAt: 900 }, extra: [{ name: "RunTask", ph: "B", pid: 1, tid: 1, ts: 950 * 1000 }], expect: "fail" },
+    { window: "typing", where: "control: tasks with no end start after every reported interval", presented: [990, 1100, 2050], dropped: [], record: { typingEnd: 2000, mouthChanges: [1950] }, extra: [{ name: "GPUTask", ph: "B", pid: 3, tid: 4, ts: 2500 * 1000 }, { name: "RunTask", ph: "B", pid: 1, tid: 1, ts: 2500 * 1000 }], expect: { count: 0, longestMs: 0 } },
+    { window: "first second", where: "a frame report whose start is missing ends between two presentations", presented: [990, 1100, 1300, 2050], dropped: [], extra: [{ name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: "0xff" }, ts: 1200 * 1000, args: {} }], expect: "fail" },
+    { window: "first second", where: "a completed frame report of an unknown state between two presentations", presented: [990, 1100, 1300, 2050], dropped: [], extra: [{ name: "PipelineReporter", ph: "b", pid: 1, tid: 2, id2: { local: "0xfe" }, ts: 1180 * 1000, args: { frame_reporter: { state: "STATE_UNKNOWN" } } }, { name: "PipelineReporter", ph: "e", pid: 1, tid: 2, id2: { local: "0xfe" }, ts: 1200 * 1000, args: {} }], expect: "fail" },
     { window: "typing", where: "control: the trace covers the last mouth change's 30 ms", presented: [990, 1100, 2050], dropped: [], span: { to: 2100 }, record: { typingEnd: 2000, mouthChanges: [1995] }, expect: { count: 0, longestMs: 0 } },
   );
   const wrong = [];
   for (const row of rows) {
-    const trace = row.trace ?? build(row.presented, row.dropped, row.span, row.unended);
+    const trace = row.trace ?? build(row.presented, row.dropped, row.span, row.unended, row.extra);
     const line = analyzeLine(trace, { line: 5, clickAt: 900, firedAt: FIRE, ...row.record }, row.trace ? analyzed(TALK).clock : clock);
     const got = line.failure ? "fail" : { count: line.firstSecond.stalls.count, longestMs: line.firstSecond.stalls.longestMs };
     if (JSON.stringify(got) !== JSON.stringify(row.expect)) wrong.push(`${row.window}, dropped frame ${row.where}: expected ${JSON.stringify(row.expect)}, got ${JSON.stringify(got)}${line.failure ? ` (${line.failure})` : ""}`);
   }
   assert.deepEqual(wrong, []);
-  assert.equal(rows.length, 32);
+  assert.equal(rows.length, 37);
+});
+
+await check("a task given as a begin and an end is measured like a complete one, and only a begin is kept as unfinished", () => {
+  const trace = parseTrace({
+    traceEvents: [
+      { name: "thread_name", ph: "M", pid: 3, tid: 4, args: { name: "CrGpuMain" } },
+      { name: "GPUTask", ph: "B", pid: 3, tid: 4, ts: 1000 * 1000 },
+      { name: "GPUTask", ph: "E", pid: 3, tid: 4, ts: 1030 * 1000 },
+      { name: "RunTask", ph: "B", pid: 1, tid: 1, ts: 1100 * 1000 },
+      { name: "RunTask", ph: "E", pid: 1, tid: 1, ts: 1160 * 1000 },
+      { name: "RunTask", ph: "B", pid: 1, tid: 1, ts: 1200 * 1000 },
+    ],
+  });
+  assert.deepEqual(trace.graphics, [{ ts: 1000, dur: 30 }]);
+  assert.deepEqual(trace.tasks.get("1:1"), [{ ts: 1100, dur: 60 }]);
+  assert.deepEqual(trace.unfinished.tasks.get("1:1"), [1200]);
+  assert.deepEqual(trace.unfinished.graphics, []);
+});
+
+await check("a picture layer that paints and then leaves the layer tree keeps its paints", () => {
+  let emit;
+  const tracker = layerTracker((name, handler) => {
+    emit = handler;
+    return () => {};
+  });
+  const portrait = (paintCount) => ({ layerId: "portrait", paintCount, drawsContent: true, width: 736, height: 552 });
+  emit({ layers: [portrait(10)] });
+  const before = tracker.begin();
+  emit({ layers: [portrait(15)] });
+  emit({ layers: [] });
+  assert.deepEqual(layerPaints(before, tracker.observed()).map((l) => l.paints), [5]);
+  emit({ layers: [portrait(17)] });
+  assert.deepEqual(layerPaints(before, tracker.observed()).map((l) => l.paints), [7]);
 });
 
 await check("a real project's line keeps tracing through its first second at no rest, and a pan it detects is measured", async () => {

@@ -170,13 +170,22 @@ export async function captureTrace(send, on, file, categories = TRACE_CATEGORIES
 
 export function layerTracker(on) {
   let layers = new Map();
+  let seen = null;
   const off = on("LayerTree.layerTreeDidChange", (params) => {
     if (!params?.layers) return;
     const next = new Map();
     for (const layer of params.layers) next.set(layer.layerId, layer);
     layers = next;
+    if (seen) for (const [id, layer] of next) seen.set(id, layer);
   });
-  return { snapshot: () => new Map(layers), stop: off };
+  return {
+    begin: () => {
+      seen = new Map(layers);
+      return new Map(layers);
+    },
+    observed: () => new Map(seen ?? layers),
+    stop: off,
+  };
 }
 
 export async function describeLayers(sendGame, painted, snapshot) {
@@ -224,7 +233,7 @@ export async function playLines(surface, options) {
       await sleep(restMs);
       await surface.inGame(pacingProbe);
       const before = await surface.inGame(pacingBeats);
-      const layersBefore = tracker.snapshot();
+      const layersBefore = tracker.begin();
       const traceFile = path.join(out, `trace-${String(n).padStart(2, "0")}.json`);
       const stopTrace = await captureTrace(surface.sendBrowser, surface.onBrowser, traceFile);
       await sleep(settleMs);
@@ -250,7 +259,7 @@ export async function playLines(surface, options) {
         const finishBy = Date.now() + fireTimeoutMs;
         while (!(await surface.beatFinished()) && Date.now() < finishBy) await sleep(100);
       }
-      const layersAfter = tracker.snapshot();
+      const layersAfter = tracker.observed();
       const read = await surface.inGame(pacingRead, { firedName, sinceClicks: before.clicks });
       const file = await stopTrace();
       const plan = planFor(fixture, read.line);

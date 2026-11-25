@@ -30,14 +30,44 @@ export function parseTrace(raw) {
   const graphics = [];
   const tasks = new Map();
   const reporters = [];
+  const slices = [];
+  const unfinished = { graphics: [], tasks: new Map() };
+  const addTask = (name, key, ts, dur) => {
+    if (name === "GPUTask") graphics.push({ ts, dur });
+    else {
+      if (!tasks.has(key)) tasks.set(key, []);
+      tasks.get(key).push({ ts, dur });
+    }
+  };
   for (const e of events) {
     const key = `${e.pid}:${e.tid}`;
-    if (e.ph === "X" && e.name === "GPUTask" && gpuThreads.has(key)) graphics.push({ ts: toMs(e.ts), dur: toMs(e.dur ?? 0) });
-    else if (e.ph === "X" && e.name === "RunTask") {
-      if (!tasks.has(key)) tasks.set(key, []);
-      tasks.get(key).push({ ts: toMs(e.ts), dur: toMs(e.dur ?? 0) });
-    } else if (e.name === "PipelineReporter") reporters.push(e);
+    const measured = (e.name === "GPUTask" && gpuThreads.has(key)) || e.name === "RunTask";
+    if (measured && e.ph === "X") addTask(e.name, key, toMs(e.ts), toMs(e.dur ?? 0));
+    else if (measured && (e.ph === "B" || e.ph === "E")) slices.push(e);
+    else if (e.name === "PipelineReporter") reporters.push(e);
     else if (isUserTiming(e)) marks.push({ name: e.name, ts: toMs(e.ts), pid: e.pid, tid: e.tid });
+  }
+  const stacks = new Map();
+  for (const e of slices.sort((a, b) => a.ts - b.ts)) {
+    const key = `${e.pid}:${e.tid}`;
+    const stackKey = `${e.name}|${key}`;
+    if (!stacks.has(stackKey)) stacks.set(stackKey, []);
+    const stack = stacks.get(stackKey);
+    if (e.ph === "B") stack.push(e);
+    else {
+      const begin = stack.pop();
+      if (begin) addTask(e.name, key, toMs(begin.ts), toMs(e.ts - begin.ts));
+    }
+  }
+  for (const stack of stacks.values()) {
+    for (const begin of stack) {
+      const key = `${begin.pid}:${begin.tid}`;
+      if (begin.name === "GPUTask") unfinished.graphics.push(toMs(begin.ts));
+      else {
+        if (!unfinished.tasks.has(key)) unfinished.tasks.set(key, []);
+        unfinished.tasks.get(key).push(toMs(begin.ts));
+      }
+    }
   }
   graphics.sort((a, b) => a.ts - b.ts);
   for (const list of tasks.values()) list.sort((a, b) => a.ts - b.ts);
@@ -51,7 +81,10 @@ export function parseTrace(raw) {
     if (e.ph === "b") open.set(reporterId(e), e);
     else if (e.ph === "e") {
       const begin = open.get(reporterId(e));
-      if (!begin) continue;
+      if (!begin) {
+        frameList(e.pid).unknown.push(toMs(e.ts));
+        continue;
+      }
       open.delete(reporterId(e));
       addFrame(frameList(begin.pid), toMs(begin.ts), toMs(e.ts), reporterState(begin) || reporterState(e));
     } else if (e.ph === "X") addFrame(frameList(e.pid), toMs(e.ts), toMs(e.ts + (e.dur ?? 0)), reporterState(e));
@@ -73,12 +106,13 @@ export function parseTrace(raw) {
     startsAt = Math.min(startsAt ?? Infinity, toMs(e.ts));
     endsAt = Math.max(endsAt ?? 0, toMs(e.ts + (e.dur ?? 0)));
   }
-  return { marks, graphics, tasks, frames: byPid, graphicsThreads: gpuThreads.size, startsAt, endsAt };
+  return { marks, graphics, tasks, unfinished, frames: byPid, graphicsThreads: gpuThreads.size, startsAt, endsAt };
 }
 
 function addFrame(list, begin, end, state) {
   if (/PRESENTED/.test(state)) list.ends.push(end);
   else if (/DROPPED/.test(state)) list.dropped.push(begin);
+  else if (!/NO_UPDATE/.test(state)) list.unknown.push(begin);
 }
 
 export function mergePresentations(ends, within = MERGE_MS) {
@@ -215,6 +249,14 @@ export function analyzeLine(trace, record, clock) {
   const spanTo = Math.max(...windows.map((w) => w[2]), ...mouth.map((t) => t + MOUTH_WINDOW_MS));
   if (trace.startsAt == null || trace.startsAt > spanFrom || trace.endsAt < spanTo) {
     return { ...out, failure: `the trace runs from ${round((trace.startsAt ?? NaN) - fired)} to ${round((trace.endsAt ?? NaN) - fired)} ms after the fire and does not span the intervals the line reports (${round(spanFrom - fired)} to ${round(spanTo - fired)} ms)` };
+  }
+  const graphicsTo = Math.max(firstEnd, ...mouth.map((t) => t + MOUTH_WINDOW_MS));
+  const openTask = [
+    ...(trace.graphicsThreads ? trace.unfinished.graphics.filter((t) => t < graphicsTo).map((t) => ["graphics-process", t]) : []),
+    ...(trace.unfinished.tasks.get(`${clock.pid}:${clock.tid}`) ?? []).filter((t) => t < firstEnd).map((t) => ["page-thread", t]),
+  ][0];
+  if (openTask) {
+    return { ...out, failure: `a ${openTask[0]} task starting ${round(openTask[1] - fired)} ms after the fire has no end in the trace, so the work it adds to the line's figures is unknown` };
   }
   for (const [name, from, to] of windows) {
     const open = stallsIn(frames.presented, frames.dropped, from, to, frames.unknown).unbounded[0];
