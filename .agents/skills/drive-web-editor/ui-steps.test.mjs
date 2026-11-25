@@ -8,7 +8,7 @@ import { MessageChannel } from "node:worker_threads";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { focusProjectName, focusScriptName, openAddMenu, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, settleViewTransitions, shotOf, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
+import { focusProjectName, focusScriptName, openAddMenu, openAppMenu, openAssetInspector, openDrawerOrRail, openFileMenu, openPreviewSettings, openProblems, openSettings, wheelList, editorViewOf, followedByMain, parseUiSteps, unionRect, languageSurface, waitLanguageSurface, liveDeps, readLanguageSurface, placeCaret, shotOf, surfaceSettled, pressInEditor, playPreview, playReached, playerReady, revealPreview, REVEALS, NAMED_STEP_BODIES, PREVIEW_PANE_SELECTOR, SHOW_PREVIEW_SELECTOR, STRIP_PLAY_DISABLED, DRIVER_PREVIEW_KEY, previewSavedHidden, advanceGame, insertText, scrubReport, diagnosticsAt } from "./driver.mjs";
 import { reportFreshWorker, workerSession } from "./worker-report.mjs";
 import { NAMED_STEPS } from "./steps.mjs";
 
@@ -1438,48 +1438,20 @@ async function inFakeDocument(fakeDocument, run) {
   }
 }
 
-await asyncCheck("a screenshot is not taken until the page's running view transition has finished", async () => {
-  const transition = deferred();
-  const order = [];
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-1009-transition-"));
+await asyncCheck("a surface still transparent before its fade starts is not settled for its screenshot", async () => {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, "getComputedStyle");
+  const previous = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = () => ({ visibility: "visible" });
   try {
-    await inFakeDocument({ activeViewTransition: { finished: transition.promise }, getAnimations: () => [] }, async (page) => {
-      page.screenshot = async () => {
-        order.push("shot");
-      };
-      const shot = shotOf(page, "page", path.join(scratch, "page.png"));
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      assert.deepEqual(order, [], "the screenshot waits while the transition runs");
-      order.push("finished");
-      transition.resolve();
-      await shot;
-    });
+    for (const [opaque, settled] of [[false, false], [true, true]]) {
+      const surface = { getBoundingClientRect: () => ({ width: 300, height: 200 }), checkVisibility: () => opaque };
+      const result = await inFakeDocument({ querySelectorAll: () => [surface], getAnimations: () => [] }, () => surfaceSettled("section"));
+      assert.equal(result, settled, opaque ? "an opaque surface with no running animation is settled" : "a surface at opacity 0 is not settled");
+    }
   } finally {
-    fs.rmSync(scratch, { recursive: true, force: true });
+    if (had) globalThis.getComputedStyle = previous;
+    else delete globalThis.getComputedStyle;
   }
-  assert.deepEqual(order, ["finished", "shot"]);
-});
-
-await asyncCheck("the wait covers ::view-transition animations only, gives up at its cap, and skips a page that cannot answer", async () => {
-  const crossfade = deferred();
-  const unrelated = deferred();
-  const animations = [
-    { effect: { pseudoElement: "::view-transition-old(root)" }, finished: crossfade.promise },
-    { effect: { pseudoElement: null }, finished: unrelated.promise },
-  ];
-  const waited = inFakeDocument({ getAnimations: () => animations }, (page) => settleViewTransitions(page, { timeout: 2000 }));
-  setTimeout(() => crossfade.resolve(), 20);
-  assert.equal(await waited, 1, "the unrelated animation that never finishes is not awaited");
-  const stuck = deferred();
-  const started = Date.now();
-  assert.equal(
-    await inFakeDocument({ activeViewTransition: { finished: stuck.promise }, getAnimations: () => [] }, (page) => settleViewTransitions(page, { timeout: 50 })),
-    -1,
-  );
-  assert.ok(Date.now() - started < 1000, "a transition that never finishes is given up on at the cap");
-  assert.equal(await inFakeDocument({ getAnimations: () => [] }, (page) => settleViewTransitions(page)), 0);
-  assert.equal(await settleViewTransitions({ evaluate: () => { throw new Error("no document"); } }), 0);
-  assert.equal(await settleViewTransitions({ evaluate: async () => { throw new Error("closed"); } }), 0);
 });
 
 await asyncCheck("--step preview-settings presses the gear and reports the quick toggles, or fails by name", async () => {

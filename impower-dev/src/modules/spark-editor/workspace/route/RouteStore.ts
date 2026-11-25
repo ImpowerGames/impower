@@ -1,5 +1,3 @@
-import { layoutState } from "@impower/impower-ui/layout";
-import { previewInStrip } from "../previewInStrip";
 import { PressedEditorChoiceMarkMessage } from "@impower/spark-editor-protocol/src/protocols/editor/PressedEditorChoiceMarkMessage";
 import { SetEditorRouteMarksMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorRouteMarksMessage";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -66,7 +64,7 @@ export class RouteStore {
   }
 
   toggle() {
-    if (previewInStrip(layoutState.current())) {
+    if (!problems.panelDocks()) {
       this.sheetOpen.value = !this.sheetOpen.peek();
     } else {
       problems.toggleRoute();
@@ -74,7 +72,7 @@ export class RouteStore {
   }
 
   show() {
-    if (previewInStrip(layoutState.current())) {
+    if (!problems.panelDocks()) {
       this.sheetOpen.value = true;
     } else if (!problems.routeShown.peek()) {
       problems.showPanel("route");

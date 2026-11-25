@@ -123,6 +123,17 @@ export const pictureViewOf = (el: Element): PictureView => {
   return progress == null ? rest : mixPictureViews(travel.from, travel.to, progress);
 };
 
+export const pictureZoomReach = (el: Element): number => {
+  const travel = travels.get(el);
+  const views = [
+    resting.get(el),
+    travel?.from,
+    travel?.to,
+    ...(scheduled.get(el) ?? []).map((pending) => pending.to),
+  ];
+  return Math.max(1, ...views.flatMap((view) => (view && Number.isFinite(view.zoom) ? [view.zoom] : [])));
+};
+
 const stop = (travel: PlayedTravel) => {
   travel.drop();
   travel.animation.cancel();

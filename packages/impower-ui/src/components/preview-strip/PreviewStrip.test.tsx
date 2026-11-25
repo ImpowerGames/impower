@@ -16,6 +16,34 @@ const mount = async (node: ComponentChild) => {
   return host;
 };
 
+const faded = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+
+const exitRunning = () => {
+  const running = { playState: "running", animationName: "fade-out", effect: { pseudoElement: null } } as unknown as Animation;
+  const element = dialog();
+  Object.defineProperty(element, "getAnimations", { configurable: true, value: () => [running] });
+  const fire = async (type: string, animationName: string, pseudoElement: string) => {
+    const event = new Event(type);
+    Object.defineProperty(event, "animationName", { value: animationName });
+    Object.defineProperty(event, "pseudoElement", { value: pseudoElement });
+    await act(async () => {
+      dialog().dispatchEvent(event);
+    });
+  };
+  return {
+    end: (pseudoElement = "") => fire("animationend", "fade-out", pseudoElement),
+    cancelEntrance: () => fire("animationcancel", "fade-in", ""),
+    restore: () => {
+      Reflect.deleteProperty(element, "getAnimations");
+    },
+  };
+};
+
+const animated = (className: string) => className.split(/\s+/).filter((name) => name.includes("anim-"));
+
 const play = () =>
   host!.querySelector<HTMLButtonElement>('button[aria-label="Play from this line"]')!;
 const dialog = () => host!.querySelector<HTMLDialogElement>("dialog")!;
@@ -226,6 +254,145 @@ describe("PreviewStrip", () => {
     showModal.mockRestore();
   });
 
+  it("fades the full preview and its backdrop in from the strip and out on collapse in 180ms, with the same picture throughout", async () => {
+    const picture = <div data-player>game</div>;
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} />);
+    const player = host!.querySelector("[data-player]");
+    expect(animated(dialog().className)).toEqual([]);
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} expanded />);
+    expect(dialog().open).toBe(true);
+    expect(animated(dialog().className)).toEqual(["motion-safe:anim-scrim-in", "motion-safe:backdrop:anim-scrim-in"]);
+    await mount(<PreviewStrip label="ACTION" words="Rain." picture={picture} expanded={false} />);
+    expect(dialog().open).toBe(true);
+    expect(dialog().className).toContain("fixed");
+    expect(dialog().inert || dialog().hasAttribute("inert")).toBe(true);
+    expect(animated(dialog().className)).toEqual(["motion-safe:anim-scrim-out", "motion-safe:backdrop:anim-scrim-out"]);
+    expect(dialog().className).toContain("motion-reduce:invisible");
+    expect(dialog().className).toContain("motion-reduce:backdrop:invisible");
+    expect(host!.querySelector("[data-player]")).toBe(player);
+    await faded();
+    expect(dialog().open).toBe(false);
+    expect(dialog().className).toContain("scale-[0.1666667]");
+    expect(animated(dialog().className)).toEqual([]);
+    expect(host!.querySelector("[data-player]")).toBe(player);
+  });
+
+  it("stays full screen while its exit fade runs, however long it takes, and reports collapsed once when the dialog's own fade ends", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      });
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+      await exit.end("::backdrop");
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+      await exit.end();
+      expect(dialog().open).toBe(false);
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+      await exit.end();
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("keeps fading out when Close cancels its entrance fade, and reports collapsed only when the exit fade ends", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await exit.cancelEntrance();
+      await faded();
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+      await exit.end();
+      expect(dialog().open).toBe(false);
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("compiles its fades as 180ms opacity animations on the dialog and its backdrop, only when motion is allowed", async () => {
+    const element = document.createElement("div");
+    element.className = [
+      "motion-safe:anim-scrim-in",
+      "motion-safe:backdrop:anim-scrim-in",
+      "motion-safe:anim-scrim-out",
+      "motion-safe:backdrop:anim-scrim-out",
+    ].join(" ");
+    const rules = await compiledRules([element]);
+    const animation = (name: string, backdrop: boolean) =>
+      rules
+        .filter((rule) => rule.selectorText.includes(name) && rule.selectorText.includes("::backdrop") === backdrop)
+        .map((rule) => ({
+          value: rule.style.getPropertyValue("animation"),
+          media: (rule.parentRule as CSSMediaRule | null)?.media?.mediaText ?? "",
+        }));
+    const seconds = (value: string) => {
+      const token = value.split(/\s+/).find((part) => /^[\d.]+m?s$/.test(part)) ?? "";
+      return token.endsWith("ms") ? parseFloat(token) : parseFloat(token) * 1000;
+    };
+    for (const backdrop of [false, true]) {
+      const [enter = { value: "", media: "" }] = animation("anim-scrim-in", backdrop);
+      const [leave = { value: "", media: "" }] = animation("anim-scrim-out", backdrop);
+      expect(enter.value).toContain("fade-in");
+      expect(enter.value).toContain("ease-out");
+      expect(seconds(enter.value)).toBe(180);
+      expect(enter.media).toContain("no-preference");
+      expect(leave.value).toContain("fade-out");
+      expect(leave.value).toContain("ease-in");
+      expect(leave.value).toContain("forwards");
+      expect(seconds(leave.value)).toBe(180);
+      expect(leave.media).toContain("no-preference");
+    }
+  });
+
+  it("collapses on the next frame when no exit fade runs, as under reduced motion, and reports collapsed", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+    expect(dialog().open).toBe(true);
+    await faded();
+    expect(dialog().open).toBe(false);
+    expect(onCollapsed).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports nothing collapsed when it opens again during its exit fade", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+      await exit.end();
+      await faded();
+      expect(dialog().open).toBe(true);
+      expect(onCollapsed).not.toHaveBeenCalled();
+    } finally {
+      exit.restore();
+    }
+  });
+
+  it("reports collapsed when it leaves the page during its exit fade", async () => {
+    const onCollapsed = vi.fn();
+    await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapsed={onCollapsed} />);
+    const exit = exitRunning();
+    try {
+      await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapsed={onCollapsed} />);
+      await mount(null);
+      expect(onCollapsed).toHaveBeenCalledTimes(1);
+    } finally {
+      exit.restore();
+    }
+  });
+
   it("asks to collapse on Escape and returns focus to Play when it collapses", async () => {
     const onCollapse = vi.fn();
     await mount(<PreviewStrip label="ACTION" words="Rain." expanded onCollapse={onCollapse} />);
@@ -234,6 +401,7 @@ describe("PreviewStrip", () => {
     expect(cancel.defaultPrevented).toBe(true);
     expect(onCollapse).toHaveBeenCalledTimes(1);
     await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} onCollapse={onCollapse} />);
+    await faded();
     expect(dialog().open).toBe(false);
     expect(dialog().style.display).toBe("");
     expect(document.activeElement).toBe(play());
@@ -244,6 +412,7 @@ describe("PreviewStrip", () => {
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded playDisabled />);
     expect(document.activeElement).toBe(document.body);
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded={false} playDisabled />);
+    await faded();
     expect(dialog().open).toBe(false);
     expect(document.activeElement).not.toBe(play());
     await mount(<PreviewStrip label="ACTION" words="Rain." expanded={false} />);
@@ -253,6 +422,7 @@ describe("PreviewStrip", () => {
   it("leaves focus where the author put it when Play is enabled only after they acted", async () => {
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded playDisabled />);
     await mount(<PreviewStrip label="YOUR GAME" words="Write a line." expanded={false} playDisabled />);
+    await faded();
     const field = document.body.appendChild(document.createElement("input"));
     try {
       field.dispatchEvent(new Event("pointerdown", { bubbles: true }));

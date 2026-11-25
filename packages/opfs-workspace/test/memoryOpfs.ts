@@ -29,14 +29,22 @@ export class MemoryFile {
     directory.entries.set(name, this);
     this.parent = directory;
   }
+  bytesRead = 0;
   async getFile() {
     const bytes = this.bytes.slice();
+    const read = (part: Uint8Array) => {
+      this.bytesRead += part.byteLength;
+      return part.buffer;
+    };
     return {
       name: this.name,
       size: bytes.byteLength,
       lastModified: this.lastModified,
-      arrayBuffer: async () => bytes.buffer,
-      text: async () => new TextDecoder().decode(bytes),
+      arrayBuffer: async () => read(bytes),
+      slice: (start?: number, end?: number) => ({
+        arrayBuffer: async () => read(bytes.slice(start, end)),
+      }),
+      text: async () => new TextDecoder().decode(read(bytes)),
     };
   }
   async createSyncAccessHandle() {
@@ -144,6 +152,7 @@ export const writeMemoryFile = (
   const file = new MemoryFile(parts[parts.length - 1]!);
   file.bytes = bytes;
   dir.entries.set(file.name, file);
+  return file;
 };
 
 export const makeMemoryDirectory = (root: MemoryDirectory, path: string) => {

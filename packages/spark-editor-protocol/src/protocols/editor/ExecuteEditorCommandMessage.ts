@@ -8,6 +8,7 @@ export type ExecuteEditorCommandMethod =
 
 export const EDITOR_COMMANDS = [
   "focus",
+  "focusOnScreen",
   "indent",
   "dedent",
   "format",

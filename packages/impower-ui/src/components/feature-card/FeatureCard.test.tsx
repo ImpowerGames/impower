@@ -21,23 +21,38 @@ afterEach(async () => {
 });
 
 describe("FeatureCard", () => {
-  it("draws the glyph, heading, sentence, extra content and tag in order, and is not a button", async () => {
+  it("draws the glyph, heading, sentence and extra content in order, and is not a button", async () => {
     await mount(
-      <FeatureCard icon={PlayIcon} title="Export a game" sentence="Package it." tag="Coming soon" class="extra">
+      <FeatureCard icon={PlayIcon} title="Export a game" sentence="Package it." class="extra">
         <a href="#x">Link</a>
       </FeatureCard>,
     );
     const card = host!.querySelector("article")!;
     expect(card.classList.contains("extra")).toBe(true);
-    expect(Array.from(card.children).map((child) => child.tagName.toLowerCase())).toEqual(["svg", "h2", "p", "a", "span"]);
+    expect(Array.from(card.children).map((child) => child.tagName.toLowerCase())).toEqual(["svg", "h2", "p", "a"]);
     expect(card.querySelector("h2")!.textContent).toBe("Export a game");
-    expect(card.querySelector("span")!.textContent).toBe("Coming soon");
     expect(card.querySelector("button")).toBeNull();
     expect(card.getAttribute("role")).toBeNull();
   });
 
-  it("omits the tag when none is given", async () => {
+  it("gives the sentence no fixed height", async () => {
     await mount(<FeatureCard icon={PlayIcon} title="Export" sentence="Print it." />);
-    expect(host!.querySelector("article > span")).toBeNull();
+    expect(host!.querySelector("article > p")!.className).not.toMatch(/min-h-\[/);
+  });
+
+  it("draws a row as the glyph beside its title and sentence, with no action", async () => {
+    await mount(
+      <FeatureCard layout="row" icon={PlayIcon} title="Export a game" sentence="Package it." class="extra" />,
+    );
+    const row = host!.querySelector("article")!;
+    expect(row.classList.contains("extra")).toBe(true);
+    expect(row.classList).toContain("flex");
+    expect(row.classList).not.toContain("flex-col");
+    expect(Array.from(row.children).map((child) => child.tagName.toLowerCase())).toEqual(["svg", "div"]);
+    expect(row.querySelector("svg")!.getAttribute("aria-hidden")).toBe("true");
+    expect(row.querySelector("h3")!.textContent).toBe("Export a game");
+    expect(row.querySelector("p")!.textContent).toBe("Package it.");
+    expect(row.querySelector("a, button, [tabindex]")).toBeNull();
+    expect(row.getAttribute("role")).toBeNull();
   });
 });

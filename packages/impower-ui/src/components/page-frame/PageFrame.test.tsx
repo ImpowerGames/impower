@@ -46,4 +46,25 @@ describe("PageFrame", () => {
     expect(host!.querySelector("h1")!.className).toContain("text-[32px]/[1.15]");
     expect(host!.querySelector("h1")!.className).not.toContain("text-[40px]");
   });
+
+  it("draws no intro when told, keeping the section's name and a heading only assistive technology reads", async () => {
+    await mount(
+      <PageFrame id="share-page" title="Share" intro={false}>
+        <div data-child>child</div>
+      </PageFrame>,
+    );
+    const section = host!.querySelector("section")!;
+    expect(section.getAttribute("aria-label")).toBe("Share");
+    const heading = section.querySelector("h1")!;
+    expect(heading.textContent).toBe("Share");
+    expect(heading.className).toBe("sr-only");
+    expect(section.querySelector("p")).toBeNull();
+    expect(heading.nextElementSibling!.hasAttribute("data-child")).toBe(true);
+  });
+
+  it("draws the title alone when no line is given", async () => {
+    await mount(<PageFrame title="Settings" />);
+    expect(host!.querySelector("h1")!.textContent).toBe("Settings");
+    expect(host!.querySelector("p")).toBeNull();
+  });
 });

@@ -37,12 +37,6 @@ const { default: PreviewTopBar } = await import(
 const { default: saves } = await import(
   "../../src/modules/spark-editor/workspace/saves/SavesStore"
 );
-const { SAVES_STYLESHEET_ID } = await import(
-  "@impower/spark-web-player/src/saves/SavesViews"
-);
-const { ROUTE_LIST_STYLESHEET_ID } = await import(
-  "@impower/spark-web-player/src/route/routeListStylesheet"
-);
 
 const initial = structuredClone(workspace.current);
 let host: HTMLDivElement | undefined;
@@ -159,7 +153,6 @@ describe("the top bar's Saves button", () => {
     await settle();
     expect(button()!.getAttribute("aria-expanded")).toBe("true");
     expect(menu(), "the player's Saves menu").not.toBeNull();
-    expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
     expect(menu()!.querySelector(".saves-here")!.textContent).toBe("Save here");
     expect(
       Array.from(menu()!.querySelectorAll("[data-save-name]")).map((n) => n.textContent),
@@ -184,33 +177,6 @@ describe("the top bar's Saves button", () => {
       menu()!.querySelector<HTMLButtonElement>('[data-save-row][data-id="s1"] .saves-play')!.click(),
     );
     expect(sentActions()).toContainEqual({ kind: "play", id: "s1" });
-  });
-
-  it("brings the stylesheets its rows and fields use when a save's values open before any route view has mounted", async () => {
-    for (const id of [SAVES_STYLESHEET_ID, ROUTE_LIST_STYLESHEET_ID]) {
-      document.getElementById(id)?.remove();
-    }
-    await mount();
-    await show(
-      view({
-        values: {
-          save: SAVES[1]!,
-          values: { values: { trust: "5" }, frames: [] },
-          listing: {
-            start: "interrogation",
-            items: [{ key: "trust", group: "stores", name: "trust", first: "0" }],
-          },
-          search: "",
-          drafts: {},
-          unsaved: {},
-        },
-      }),
-    );
-    await settle();
-    expect(document.querySelector("swp-route-view .saves-values .sv-row")).not.toBeNull();
-    expect(document.querySelector("swp-route-view .route-list")).toBeNull();
-    expect(document.getElementById(ROUTE_LIST_STYLESHEET_ID)?.tagName).toBe("STYLE");
-    expect(document.getElementById(SAVES_STYLESHEET_ID)?.tagName).toBe("STYLE");
   });
 
   it("leaves a press outside both menus to an open row menu and keeps the Saves menu open", async () => {

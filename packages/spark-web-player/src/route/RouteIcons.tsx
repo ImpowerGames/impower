@@ -1,18 +1,27 @@
 import { PinFillIcon, PinIcon } from "@impower/impower-ui/icons";
 import type { RouteIcon, RouteKind } from "./routeView";
 
+const ROUTE_ICON_SIZE = "size-(--swp-toolbar-icon-size)";
+
+export const ROUTE_ICON_CLASS = `route-icon flex-none ${ROUTE_ICON_SIZE}`;
+
 export function RouteIconSvg({
   icon,
+  size = ROUTE_ICON_SIZE,
+  class: className,
 }: {
   icon: RouteKind | NonNullable<RouteIcon> | "sliders" | "warning" | "error";
+  size?: string;
+  class?: string;
 }) {
+  const classes = ["route-icon flex-none", size, className].filter(Boolean).join(" ");
   if (icon === "auto" || icon === "pinned") {
     const Pin = icon === "pinned" ? PinFillIcon : PinIcon;
-    return <Pin class="route-icon" data-icon={icon} />;
+    return <Pin class={classes} data-icon={icon} />;
   }
   return (
     <svg
-      class="route-icon"
+      class={classes}
       data-icon={icon}
       width="16"
       height="16"

@@ -38,6 +38,7 @@ export interface WriteImageInstruction {
     exitAnimation?: Animation;
     previousHideAnimation?: Animation;
     morph?: MorphImageContent;
+    pictures?: LayeredPicture[];
   };
 }
 
@@ -53,6 +54,10 @@ export type MorphPlay = Omit<MorphLayerPlay, "layer" | "picture">;
 export interface MorphPicture {
   span: number;
   files: MorphPictureFile[];
+}
+
+export interface LayeredPicture extends MorphPicture {
+  layer: number;
 }
 
 export interface MorphLayerPlay {

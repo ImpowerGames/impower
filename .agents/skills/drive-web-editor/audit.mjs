@@ -424,7 +424,6 @@ async function goRoute(page, route, deps) {
     await deps.waitForApp(page);
     await bounded("waiting for the page to settle", deps.waitForDomQuiet(page, { quiet: 600, timeout: 10_000 }), 20_000);
   }
-  await bounded("waiting for view transitions", deps.settleViewTransitions(page), 10_000).catch(() => {});
   return page.evaluate(() => location.hash);
 }
 

@@ -62,6 +62,7 @@ interface LayeredMorphStack {
   files: LayeredMorphFile[];
   paths: Record<string, number>;
   uri?: string;
+  unsized: string[];
 }
 
 function layeredMorphStack(context: Context | undefined, image: any): LayeredMorphStack | undefined {
@@ -77,6 +78,7 @@ function layeredMorphStack(context: Context | undefined, image: any): LayeredMor
   const files: LayeredMorphFile[] = [];
   const paths: Record<string, number> = Object.create(null);
   const containing = new Set<any>([image]);
+  const unsized = new Set<string>();
   const fileOf = (layer: AttributeLayer): LayeredMorphFile | undefined | null => {
     const asset = own(image.assets ?? {}, layer.key);
     if (asset === undefined) return undefined;
@@ -87,6 +89,7 @@ function layeredMorphStack(context: Context | undefined, image: any): LayeredMor
     const root = drawn.struct?.$type === "filtered_image" ? resolveImageRoot(context, drawn.struct) : drawn.struct;
     const file = root?.$type === "image" ? root : undefined;
     const size = sizeOf(file);
+    if (!size && typeof file?.uri === "string") unsized.add(file.uri);
     const uri = typeof drawn.uri === "string" ? drawn.uri : typeof file?.uri === "string" ? file.uri : undefined;
     return {
       key: layer.key,
@@ -121,7 +124,7 @@ function layeredMorphStack(context: Context | undefined, image: any): LayeredMor
   const nodes = collect(ATTRIBUTE_ROOT, "/0");
   if (unreadable || files.length === 0) return undefined;
   const uri = files[0]!.uri ?? (typeof image.uri === "string" ? image.uri : undefined);
-  return { nodes, files, paths, ...(uri === undefined ? {} : { uri }) };
+  return { nodes, files, paths, ...(uri === undefined ? {} : { uri }), unsized: [...unsized] };
 }
 
 export interface LayeredSizeMismatch {
@@ -142,9 +145,14 @@ const mismatchesOf = (files: readonly LayeredMorphFile[]): LayeredSizeMismatch[]
   );
 };
 
-export function layeredSizeMismatches(context: Context | undefined, image: any): LayeredSizeMismatch[] {
+export interface LayeredSizeCheck {
+  mismatches: LayeredSizeMismatch[];
+  unsized: string[];
+}
+
+export function layeredSizeCheck(context: Context | undefined, image: any): LayeredSizeCheck {
   const stack = layeredMorphStack(context, image);
-  return stack ? mismatchesOf(stack.files) : [];
+  return stack ? { mismatches: mismatchesOf(stack.files), unsized: stack.unsized } : { mismatches: [], unsized: [] };
 }
 
 export interface LayeredSizeWarning {

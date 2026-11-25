@@ -230,10 +230,20 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
           const newHeight = this.dom.offsetHeight;
           if (this.lastHeight !== newHeight) {
             this.lastHeight = newHeight;
+            const headers = this.dom;
             window.requestAnimationFrame(() => {
               this.view.dispatch({
                 effects: stickyScrollMargin.reconfigure(
-                  EditorView.scrollMargins.of(() => ({ top: newHeight })),
+                  EditorView.scrollMargins.of((view) => ({
+                    top: Math.max(
+                      0,
+                      Math.min(
+                        newHeight,
+                        headers.getBoundingClientRect().bottom -
+                          view.scrollDOM.getBoundingClientRect().top,
+                      ),
+                    ),
+                  })),
                 ),
               });
             });
