@@ -318,12 +318,6 @@ export default class LayoutMotion {
           translateFrames(shift),
         );
       }
-      const finished = this.animationsOf(motion).every(
-        (a) => a.playState === "finished",
-      );
-      if (finished && shift === NO_SHIFT) {
-        this.stop(el);
-      }
     }
     return this._motions.size > 0;
   }

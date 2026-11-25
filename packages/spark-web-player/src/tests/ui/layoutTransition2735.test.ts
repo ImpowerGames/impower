@@ -440,9 +440,9 @@ end
     root.remove();
   });
 
-  test("an element whose old and new places match is held while a resize around it would move it", async () => {
+  test.each(["slow", "box"])("an element whose old and new places match is held while a resize around it would move it (%s timing)", async (timing) => {
     useLayout();
-    const { root, at } = mount(`<div class="slow row"><div class="slow second"></div></div>`);
+    const { root, at } = mount(`<div class="slow row"><div class="${timing} second"></div></div>`);
     const [row, second] = [at(".row"), at(".second")];
     let wider = false;
     const progress = () => sizeOf(row)?.effect.getComputedTiming().progress ?? null;
