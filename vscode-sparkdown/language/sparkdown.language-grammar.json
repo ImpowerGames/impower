@@ -13616,10 +13616,10 @@
           "include": "#LuauScreenNameHeader"
         },
         {
-          "include": "#LuauStructWithBody"
+          "include": "#LuauSparkleWithBody"
         },
         {
-          "include": "#LuauStructBraceBody"
+          "include": "#LuauSparkleBraceBody"
         },
         {
           "include": "#ExtraWhitespace"
