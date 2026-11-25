@@ -92,7 +92,10 @@ export interface ElementNode {
   events: EventBinding[];
   params?: PropValue[];
   children: BodyNode[];
+  templates?: ElementNode[];
 }
+
+export type StreamNode = ElementNode & { templates: ElementNode[] };
 
 export interface IfNode {
   kind: "if";

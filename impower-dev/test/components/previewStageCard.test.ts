@@ -27,6 +27,14 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 }));
 
 let phone = false;
+const mediaListeners = new Set<() => void>();
+
+const setPhone = async (value: boolean) => {
+  phone = value;
+  await act(async () => {
+    mediaListeners.forEach((listener) => listener());
+  });
+};
 
 beforeAll(() => {
   window.matchMedia = (query: string) =>
@@ -36,7 +44,9 @@ beforeAll(() => {
       },
       media: query,
       onchange: null,
-      addEventListener: () => {},
+      addEventListener: (_type: string, listener: () => void) => {
+        mediaListeners.add(listener);
+      },
       removeEventListener: () => {},
       addListener: () => {},
       removeListener: () => {},
@@ -57,6 +67,10 @@ const { default: workspaceSettings } = await import(
 const { default: Preview } = await import(
   "../../src/modules/spark-editor/components/preview/Preview"
 );
+const { default: workspace } = await import(
+  "../../src/modules/spark-editor/workspace/WorkspaceStore"
+);
+const { PreviewStrip } = await import("@impower/impower-ui/components");
 const { default: statuses, NO_GAME_STATUSES } = await import(
   "../../src/modules/spark-editor/workspace/statuses/StatusesStore"
 );
@@ -116,10 +130,25 @@ describe("the preview stage's game card", () => {
     expect(panel!.classList).not.toContain("overflow-hidden");
   });
 
-  it("insets and rounds the game on a phone, as the prototype's phone player does", async () => {
-    phone = true;
-    await mount();
-    expectInsetCard();
+  it("insets and rounds the game in a phone's full view, as the prototype's phone player does", async () => {
+    const preview = workspace.current.preview;
+    workspace.current = { ...workspace.current, preview: { ...preview, revealed: true } };
+    await setPhone(true);
+    try {
+      await mount();
+      expect(document.documentElement.dataset["layout"]).toBe("phone");
+      const frame = card()!;
+      expect(frame.classList).toContain("rounded-preview-frame");
+      expect(frame.classList).toContain("overflow-hidden");
+      expect(frame.classList).toContain("bg-preview-frame-fill");
+      expect(frame.parentElement!.classList).toContain("px-preview-inline");
+      expect(frame.parentElement!.classList).toContain("pt-preview-stage-gap");
+      expect((host!.firstElementChild as HTMLElement).classList).toContain("bg-preview-phone-mat");
+      expect(frame.querySelector('[data-stage="game"]')).not.toBeNull();
+    } finally {
+      await setPhone(false);
+      workspace.current = { ...workspace.current, preview };
+    }
   });
 
   it("keeps the status badge over the game inside the card", async () => {
@@ -162,5 +191,68 @@ describe("the preview stage's game card", () => {
     expect(frame!.classList).not.toContain("shadow-preview-frame");
     expect(frame!.parentElement!.classList).not.toContain("px-preview-inline");
     expect(frame!.parentElement!.classList).not.toContain("pt-preview-stage-gap");
+  });
+
+  it("keeps the full view's bars and inset card on a phone while the strip fades it out, and drops them once it has closed", async () => {
+    await setPhone(true);
+    const dialogProto = HTMLDialogElement.prototype as HTMLDialogElement & {
+      showModal?: () => void;
+      close?: () => void;
+    };
+    if (typeof dialogProto.showModal !== "function") {
+      dialogProto.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute("open", "");
+      };
+    }
+    if (typeof dialogProto.close !== "function") {
+      dialogProto.close = function (this: HTMLDialogElement) {
+        this.removeAttribute("open");
+      };
+    }
+    const revealed = workspace.current.preview.revealed;
+    const reveal = (value: typeof revealed) => {
+      workspace.current = {
+        ...workspace.current,
+        preview: { ...workspace.current.preview, revealed: value },
+      };
+    };
+    const strip = (expanded: boolean) => {
+      reveal(expanded);
+      return h(PreviewStrip, { label: "ACTION", words: "Rain.", expanded, picture: h(Preview, {}) });
+    };
+    const topBar = () => document.querySelector("[data-top-bar]");
+    const close = () => document.querySelector('button[aria-label="Close the preview"]');
+    try {
+      host = document.body.appendChild(document.createElement("div"));
+      await act(async () => render(strip(true), host!));
+      const dialog = host.querySelector("dialog")!;
+      expect(dialog.open).toBe(true);
+      expect(topBar()).not.toBeNull();
+      expect(card()!.classList).toContain("rounded-preview-frame");
+      Object.defineProperty(dialog, "getAnimations", {
+        configurable: true,
+        value: () => [
+          { playState: "running", animationName: "fade-out", effect: { pseudoElement: null } },
+        ],
+      });
+      await act(async () => render(strip(false), host!));
+      expect(dialog.open).toBe(true);
+      expect(topBar()).not.toBeNull();
+      expect(close()).not.toBeNull();
+      expect(card()!.classList).toContain("rounded-preview-frame");
+      const end = new Event("animationend");
+      Object.defineProperty(end, "animationName", { value: "fade-out" });
+      Object.defineProperty(end, "pseudoElement", { value: "" });
+      await act(async () => {
+        dialog.dispatchEvent(end);
+      });
+      expect(dialog.open).toBe(false);
+      expect(topBar()).toBeNull();
+      expect(close()).toBeNull();
+      expect(card()!.classList).not.toContain("rounded-preview-frame");
+    } finally {
+      await setPhone(false);
+      reveal(revealed);
+    }
   });
 });

@@ -71,6 +71,7 @@ import {
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
+import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
 import { presenceBlockDocumentation } from "./presenceBlockHelp";
 
 const IMAGE_CONTROL_KEYWORDS =
@@ -2339,6 +2340,9 @@ const completionsAt = (
       (!braceStructPath || !braceBlock) &&
       /^\s*[A-Za-z_][\w-]*$/.test(entryBefore)
     ) {
+      if (braceDefine.type === "layout" || braceDefine.type === "component") {
+        completions.set(STREAM_ELEMENT, streamElementCompletion());
+      }
       addStructPropertyNameCompletions(
         completions,
         program,
