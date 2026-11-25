@@ -4,6 +4,7 @@ export interface AudioClockParams {
   time: number;
   contextTime?: number;
   outputLatency: number;
+  sampleRate?: number;
 }
 
 export type AudioClockMethod = typeof AudioClockMessage.method;

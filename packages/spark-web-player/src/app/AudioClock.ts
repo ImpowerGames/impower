@@ -4,6 +4,7 @@ export interface AudioClockContext {
   readonly state: AudioContextState;
   readonly currentTime: number;
   readonly outputLatency?: number;
+  readonly sampleRate?: number;
   getOutputTimestamp?(): AudioTimestamp;
 }
 
@@ -36,8 +37,9 @@ export class AudioClock {
   read(): AudioClockParams {
     const context = this._context;
     const now = this._now();
+    const rate = context?.sampleRate ? { sampleRate: context.sampleRate } : {};
     if (!context || context.state !== "running") {
-      this._reading = { time: now, outputLatency: 0 };
+      this._reading = { time: now, outputLatency: 0, ...rate };
       return this._reading;
     }
     const outputLatency = context.outputLatency ?? 0;
@@ -47,12 +49,14 @@ export class AudioClock {
         time: this._timeOrigin + stamp.performanceTime,
         contextTime: stamp.contextTime + outputLatency,
         outputLatency,
+        ...rate,
       };
     } else {
       this._reading = {
         time: now,
         contextTime: context.currentTime,
         outputLatency,
+        ...rate,
       };
     }
     return this._reading;

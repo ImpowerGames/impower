@@ -97,6 +97,15 @@ export default class AudioManager extends Manager {
       const response = await fetch(params.src);
       return decodeAudioBytes(audioContext, await response.arrayBuffer());
     }
+    if (params.samples && params.sampleRate) {
+      const audioBuffer = audioContext.createBuffer(
+        1,
+        Math.max(1, params.samples.length),
+        params.sampleRate,
+      );
+      audioBuffer.copyToChannel(params.samples, 0);
+      return audioBuffer;
+    }
     if (params.synth && params.tones) {
       const synthBuffer = new SynthBuffer(
         params.synth,
@@ -592,8 +601,9 @@ export default class AudioManager extends Manager {
       return ConfigureAudioMixerMessage.type.result(msg.params);
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
+      const { samples, ...loaded } = msg.params;
       await this.onLoadAudioPlayer(msg.params);
-      return LoadAudioPlayerMessage.type.result(msg.params);
+      return LoadAudioPlayerMessage.type.result(loaded);
     }
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
       await this.onUpdateAudioPlayers(msg.params);

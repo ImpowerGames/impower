@@ -10,6 +10,8 @@ export interface LoadAudioPlayerParams {
   src?: string;
   cues?: number[];
   tones?: Tone[];
+  samples?: Float32Array<ArrayBuffer>;
+  sampleRate?: number;
   volume?: number;
   loop?: boolean;
   loopStart?: number;

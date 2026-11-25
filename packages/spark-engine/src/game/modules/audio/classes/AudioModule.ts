@@ -12,6 +12,7 @@ import type { ChannelState } from "../types/ChannelState";
 import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
 import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
+import { SynthBuffer } from "./helpers/SynthBuffer";
 import { AudioClockMessage } from "./messages/AudioClockMessage";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
@@ -61,9 +62,14 @@ export class AudioModule extends Module<
 
   protected _pageHears = false;
 
+  protected _sampleRate?: number;
+
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AudioClockMessage.type.isNotification(msg)) {
       this._outputLatency = msg.params.outputLatency;
+      if (msg.params.sampleRate) {
+        this._sampleRate = msg.params.sampleRate;
+      }
       const hears = msg.params.contextTime != null;
       if (hears && !this._pageHears && this.context.system.previewing) {
         this.forgetHeard();
@@ -410,6 +416,22 @@ export class AudioModule extends Module<
   protected async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
     const mixer = this.getMixerName(data.channel);
     const mixerGain = this.context?.mixer?.[mixer]?.gain ?? 1;
+    const sampleRate = this._sampleRate;
+    if (data.synth && data.tones && sampleRate) {
+      const samples = new SynthBuffer(data.synth, data.tones, sampleRate)
+        .soundBuffer;
+      await this.emitSettled(
+        LoadAudioPlayerMessage.type.request({
+          ...data,
+          mixer,
+          mixerGain,
+          samples,
+          sampleRate,
+        }),
+        [samples.buffer],
+      );
+      return;
+    }
     await this.emitSettled(
       LoadAudioPlayerMessage.type.request({ ...data, mixer, mixerGain }),
     );
