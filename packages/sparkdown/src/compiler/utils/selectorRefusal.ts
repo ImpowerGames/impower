@@ -12,6 +12,7 @@ export const selectorRefusalAt = (
   stateName: SyntaxNode,
   read: (from: number, to: number) => string,
   colorScheme: SparkleSelectorOptions["colorScheme"] = "attribute",
+  breakpoints: SparkleSelectorOptions["breakpoints"] = {},
 ): SelectorRefusal | undefined => {
   let key: SyntaxNode | null = stateName.parent;
   while (key && key.name !== KEY) {
@@ -30,13 +31,13 @@ export const selectorRefusalAt = (
   let afterCombinator = false;
   for (const ancestor of ancestors.reverse()) {
     afterCombinator = writeSparkleSelectorChecked(read(ancestor.from, ancestor.to), {
-      breakpoints: {},
+      breakpoints,
       colorScheme,
       afterCombinator,
     }).afterCombinator;
   }
   const { refusals } = writeSparkleSelectorChecked(read(key.from, key.to), {
-    breakpoints: {},
+    breakpoints,
     colorScheme,
     afterCombinator,
   });

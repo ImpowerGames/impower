@@ -221,7 +221,6 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
-const MEDIA_QUERY_START = /[ \t\r\n\f]*(?:[(]|(?:not|only|all|print|screen)(?![\p{L}\p{N}_-]))/iuy;
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
@@ -413,7 +412,8 @@ class SparkleSelectorWriter {
           }
           const from = this.i;
           const where = `inside an \`${written.atRule}\` prelude`;
-          const text = written.text + this.within(where, () => this.prelude(written.atRule!));
+          const shorthand = !AT_RULE_STATES.has(name);
+          const text = written.text + this.within(where, () => this.prelude(written.atRule!, shorthand));
           this.preludes.push({ from, to: this.i, where });
           if (this.positions.length === 0) {
             (this.itemAtRules[this.item] ??= []).push({ text, from: start, to: this.i });
@@ -577,7 +577,7 @@ class SparkleSelectorWriter {
           : this.raw();
   }
 
-  private prelude(atRule: string): string {
+  private prelude(atRule: string, shorthand: boolean): string {
     let out = "";
     const declarations: boolean[] = [false];
     let space = false;
@@ -590,7 +590,9 @@ class SparkleSelectorWriter {
       }
       if (
         declarations.length === 1 &&
-        (char === ")" || (char === "@" && this.stateAfter(0)) || (char === "," && this.selectorAfter(atRule)))
+        (char === ")" ||
+          (char === "@" && this.stateAfter(0)) ||
+          (char === "," && (shorthand || this.stateInNextItem())))
       ) {
         break;
       }
@@ -648,14 +650,9 @@ class SparkleSelectorWriter {
     return NEXT_STATE.test(this.src);
   }
 
-  private selectorAfter(atRule: string): boolean {
-    const from = this.i + 1;
-    MEDIA_QUERY_START.lastIndex = from;
-    if (atRule === "@media" && !MEDIA_QUERY_START.test(this.src)) {
-      return true;
-    }
+  private stateInNextItem(): boolean {
     let depth = 0;
-    for (let i = from; i < this.src.length; i++) {
+    for (let i = this.i + 1; i < this.src.length; i++) {
       const char = this.src[i]!;
       if (char === "\\") {
         i++;
@@ -802,9 +799,14 @@ export const writeSparkleSelectorChecked = (
   if (writer.refusals.length > 0) {
     return { css: written, atRules: [], refusals: writer.refusals, afterCombinator };
   }
-  const css = options.colorScheme === "attribute" ? liftColorScheme(written) : written;
+  const lifted = options.colorScheme === "attribute" ? liftColorScheme(written) : written;
+  const css = writer.roots.length > 0 ? liftShowing(lifted, writer.roots) : lifted;
+  const items = splitTopLevelCommas(css);
   return {
-    css: writer.roots.length > 0 ? liftShowing(css, writer.roots) : css,
+    css:
+      writer.atRules.length > 0 && items.length > 1
+        ? items.map((item) => item.trim() || "&").join(", ")
+        : css,
     atRules: writer.atRules,
     refusals: [],
     afterCombinator,

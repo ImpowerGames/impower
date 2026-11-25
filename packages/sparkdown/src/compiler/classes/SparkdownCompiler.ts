@@ -5262,6 +5262,7 @@ export class SparkdownCompiler {
   validateAtRuleLists(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateAtRuleLists", uri);
+    const breakpoints = program.context?.["config"]?.["ui"]?.["breakpoints"] ?? {};
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = doc ? this.documents.tree(scriptUri) : undefined;
@@ -5276,8 +5277,8 @@ export class SparkdownCompiler {
             return false;
           }
           const read = (from: number, to: number) => doc.read(from, to);
-          const player = selectorRefusalAt(node.node, read, "attribute");
-          const refusal = player ?? selectorRefusalAt(node.node, read, "media");
+          const player = selectorRefusalAt(node.node, read, "attribute", breakpoints);
+          const refusal = player ?? selectorRefusalAt(node.node, read, "media", breakpoints);
           if (refusal) {
             const consequence = player ? "this block never applies" : "the screen preview drops this block";
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({

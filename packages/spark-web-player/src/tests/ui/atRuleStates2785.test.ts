@@ -59,6 +59,7 @@ const PRELUDES = [
   " screen and (min-width: 1px)",
   " (min-width: 1px), print",
   " (min-width: 1px), not screen",
+  " (min-width: 1px), speech",
   "(100px>width)",
   " sidebar (width > 1px)",
 ];
@@ -233,7 +234,7 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     ["@busy @media (min-width: 600px), @focused @media (min-width: 700px)", "@media"],
     ["@busy, @container-size(sm)", "@container-size"],
     ["@busy @media (min-width: 600px), card @focused", "@media"],
-    ["@busy @media (min-width: 600px), card", "@media"],
+    ["@busy @container-size(sm), card", "@container-size"],
     ["@busy @container (min-width: 1px), card @focused", "@container"],
   ])("%s", (key, state) => {
     for (const colorScheme of ["attribute", "media"] as const) {
@@ -260,4 +261,37 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     expect(playerCss({ [key]: { opacity: "0.5" } })).toContain("0.5");
     expect(previewCss([key, "  opacity = 0.5"])).not.toContain("0.5");
   });
+});
+
+describe("a comma list whose selectors share their at-rule states writes one rule for all of them (#2785)", () => {
+  test("a breakpoint name and its width are the same condition", () => {
+    const written = writeSparkleSelectorChecked("@busy @container-size(sm), @focused @container-size(640px)", {
+      breakpoints: BREAKPOINTS,
+      colorScheme: "media",
+    });
+    expect(written.refusals).toEqual([]);
+    expect(written.atRules).toEqual(["@container(max-width:640px)"]);
+  });
+
+  for (const renderer of ["player", "preview"] as const) {
+    test(`${renderer}: a selector that holds only the shared condition still styles the element itself`, async () => {
+      const css = stylesheet(renderer, ["@media (min-width: 600px), @busy @media (min-width: 600px)"]);
+      const cases: [viewport: number, busy: boolean, opacity: string][] = [
+        [800, false, "0.5"],
+        [800, true, "0.5"],
+        [400, false, "1"],
+        [400, true, "1"],
+      ];
+      for (const [viewport, busy, opacity] of cases) {
+        const scene: Scene = {
+          viewport,
+          container: 700,
+          scheme: "light",
+          root: {},
+          card: busy ? { "aria-busy": "true" } : {},
+        };
+        expect(await opacityIn(css, scene), `${css}\n${viewport} busy=${busy}`).toBe(opacity);
+      }
+    }, 30_000);
+  }
 });
