@@ -1,7 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { Clock } from "../../game/core/classes/Clock";
+import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
+import { EventMessage } from "../../game/core/classes/messages/EventMessage";
 import type { StreamEntry } from "../../game/modules/ui/types/StreamState";
 import {
   createHarness,
@@ -109,13 +112,114 @@ describe("a stream adds an entry for each line that goes to it (#2738)", () => {
     expect(h.entries().map(said)).toEqual(["Hello?"]);
   });
 
-  test("clicking to finish a line does not add its entry twice", () => {
-    const h = play();
-    h.game.start();
-    h.tapTo("slight problem");
-    h.game.clickedToContinue();
-    expect(h.text()).toBe("doors locked");
-    expect(h.entries().map(said)).toEqual(["slight problem", "doors locked"]);
+  test("a click that finishes a line's typing keeps one entry for it, and the next click moves on", async () => {
+    const source = `${LAYOUT}
+scene start
+  [[open phone]] RAFFLES: slight problem
+  RAFFLES: doors locked
+end
+`;
+    const h = createHarness(source, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    (h.game.context.system as any).previewing = undefined;
+    let advanced = 0;
+    (h.game as any).clickedToContinue = () => {
+      advanced += 1;
+    };
+    const entries = () =>
+      (h.game.module.ui.streams.entries("phone") as StreamEntry[]).map(said);
+    const click = () =>
+      EventMessage.type.notification({ type: "pointerdown", button: 0 } as never);
+    h.jumpToFlow("start");
+    let beat = h.nextBeat();
+    while (beat && !beat.text?.["dialogue"]) {
+      beat = h.nextBeat();
+    }
+    const coordinator = new Coordinator(h.game, beat!);
+    coordinator.onUpdate({ deltaMS: 0 } as Clock);
+    await flushMicrotasks(10);
+    expect(entries()).toEqual(["slight problem"]);
+
+    coordinator.onMessage(click());
+    coordinator.onUpdate({ deltaMS: 0 } as Clock);
+    await flushMicrotasks(10);
+    expect(advanced).toBe(0);
+    expect(entries()).toEqual(["slight problem"]);
+
+    coordinator.onMessage(click());
+    coordinator.onUpdate({ deltaMS: 0 } as Clock);
+    expect(advanced).toBe(1);
+    expect(entries()).toEqual(["slight problem"]);
+  });
+});
+
+describe("an entry reads the values around its stream (#2738)", () => {
+  test("a component parameter used inside an entry follows its argument, as one beside the stream does", async () => {
+    const h = createHarness(
+      `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+store score = 0
+
+function inc()
+  score = score + 1
+end
+
+component feed(n) {
+  label "outside {n}"
+  stream {
+    dialogue.bubble {
+      text
+      label "inside {n}"
+    }
+  }
+}
+
+layout main {
+  feed(score)
+}
+
+scene start
+  RAFFLES: slight problem
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    (h.game.context.system as any).previewing = undefined;
+    h.jumpToFlow("start");
+    let beat = h.nextBeat();
+    while (beat && !beat.text?.["dialogue"]) {
+      beat = h.nextBeat();
+    }
+    const coordinator = new Coordinator(h.game, beat!);
+    for (let i = 0; i < 5; i += 1) {
+      coordinator.onUpdate({ deltaMS: 0 } as Clock);
+      await flushMicrotasks(10);
+    }
+    expect(h.game.module.ui.streams.entries("main")).toHaveLength(1);
+    const texts = (value: unknown, found: string[] = []): string[] => {
+      if (Array.isArray(value)) {
+        value.forEach((v) => texts(v, found));
+      } else if (value && typeof value === "object") {
+        const text = (value as any).content?.text;
+        if (typeof text === "string") {
+          found.push(text);
+        }
+        Object.values(value).forEach((v) => texts(v, found));
+      }
+      return found;
+    };
+    expect(texts(h.messages)).toContain("inside 0");
+
+    h.reset();
+    (h.game.story as any).EvaluateFunction("inc", []);
+    (h.game.module.ui as any).refreshLayouts();
+    const updated = texts(h.messages);
+    expect(updated).toContain("outside 1");
+    expect(updated).toContain("inside 1");
   });
 });
 

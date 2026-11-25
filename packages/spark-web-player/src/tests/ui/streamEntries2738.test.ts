@@ -109,7 +109,7 @@ describe("the player draws a stream's entries (#2738)", () => {
     expect(stream.style.height).toBe("44px");
     expect(stream.style.overflow).toBe("scroll");
     expect(stream.getAttribute("data-follow")).toBe("end");
-    expect([...stream.children].map(textOf)).toEqual(["slight problem"]);
+    expect(entriesOf(h).map(textOf)).toEqual(["slight problem"]);
     const css = [...h.overlay.querySelectorAll("style")]
       .map((style) => style.textContent ?? "")
       .join("\n");
@@ -117,6 +117,56 @@ describe("the player draws a stream's entries (#2738)", () => {
     expect(feed).toContain("background-color");
     expect(feed).toContain("overflow-y: auto");
     expect(feed).toContain("pointer-events: auto");
+  });
+
+  test("a template named exactly like the box's element keeps every entry's text while the box changes line", async () => {
+    const h = createDOMHarness(STORY.replace("dialogue.bubble { text }", "dialogue { text }"), 0, {
+      reactive: true,
+      autoOpenAll: false,
+    });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    await showNext(h);
+    await showNext(h);
+    expect(entriesOf(h).map(textOf)).toEqual([
+      "slight problem",
+      "doors locked",
+      "Anything you can do about it?",
+    ]);
+    const box = [...h.overlay.querySelectorAll<HTMLElement>(".dialogue")].filter(
+      (el) => !el.closest(".stream"),
+    );
+    expect(box.map((el) => el.textContent ?? "").join("|")).toContain(
+      "Anything you can do about it?",
+    );
+  });
+
+  test("a style written to a template's name reaches the entries", async () => {
+    const h = createDOMHarness(STORY, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    await showNext(h);
+    h.game.module.ui.style.update("bubble", { opacity: "0.25" });
+    await flushMicrotasks(30);
+    expect(entriesOf(h).map((el) => el.style.opacity)).toEqual(["0.25", "0.25"]);
+  });
+
+  test("a clear followed by the same line draws a new entry rather than keeping the old one", async () => {
+    const source = STORY.replace(
+      "  RAFFLES: doors locked\n",
+      "  [[clear phone]] RAFFLES: slight problem\n",
+    );
+    const h = createDOMHarness(source, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    const before = entriesOf(h);
+    await showNext(h);
+    const after = entriesOf(h);
+    expect(after.map(textOf)).toEqual(["slight problem"]);
+    expect(after[0]).not.toBe(before[0]);
   });
 
   test("with the textbox and a stream both open, a line shows in both", async () => {

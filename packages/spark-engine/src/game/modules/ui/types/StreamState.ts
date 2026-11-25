@@ -9,6 +9,7 @@ export interface StreamEntry {
 export interface StreamState {
   entries: StreamEntry[];
   current: number;
+  cleared?: number;
   key?: string;
   beat?: number;
   absorbed?: StreamEntry[];

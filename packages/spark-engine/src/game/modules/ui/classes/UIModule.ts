@@ -4761,7 +4761,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._root && name) {
       const elements = this.writeTargets(
         this.searchForAll(this._root, name, found).filter(
-          (el) => !this.insideStream(el),
+          (el) => !writes || !this.insideStream(el),
         ),
         name,
         writes,
@@ -4874,7 +4874,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected namesWriteElements(target: string, elements: Element[]): boolean {
     const name = target.split("#")[0];
     return (
-      Boolean(this._compose) || elements.some((el) => el.name !== name)
+      Boolean(this._compose) ||
+      this.streams.active ||
+      elements.some((el) => el.name !== name)
     );
   }
 
@@ -6127,6 +6129,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Streams {
       protected _mounted = new Map<string, MountedStream[]>();
 
+      get active(): boolean {
+        return this._mounted.size > 0;
+      }
+
       protected _presented?: { instant: boolean; time?: number };
 
       protected _loaded = false;
@@ -6204,6 +6210,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           ? [...stream.entries.slice(0, stream.current), ...(stream.absorbed ?? [])]
           : stream.entries;
         const entry = this.entryFor(node, instructions);
+        if (options.restarted && !options.repeat) {
+          stream.cleared = (stream.cleared ?? 0) + 1;
+        }
         let keep = options.restarted ? 0 : before.length;
         const last = before[keep - 1];
         if (
@@ -6313,7 +6322,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
         const instant = presented?.instant ?? true;
         const time = presented?.time;
-        const signatures = entries.map((entry) => JSON.stringify(entry));
+        const signatures = entries.map(
+          (entry) => `${stream?.cleared ?? 0}:${JSON.stringify(entry)}`,
+        );
         let kept = 0;
         while (
           kept < entries.length &&
@@ -6360,7 +6371,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
-        const scope = $.makeScope({ ...mount.scope.env }, mount.scope.slots);
+        const scope = $.makeScope(mount.scope.env, mount.scope.slots);
         const template = mount.node.children[entry.template];
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)
