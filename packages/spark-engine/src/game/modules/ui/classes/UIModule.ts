@@ -2219,6 +2219,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (line && presence === "show") {
       return new Promise((resolve) => {
         line.arrivals.push((play) => {
+          if (!play) {
+            for (const [element, motion] of motions) {
+              if (this._presence.get(element) === motion) {
+                this._presence.delete(element);
+                this.updateElement(element, {
+                  attributes: { [PRESENCE_ATTRIBUTE]: null },
+                });
+              }
+            }
+          }
           const ended = play
             ? this.emitPresence(elements, presence, motions)
             : Promise.resolve(new Set<Element>());

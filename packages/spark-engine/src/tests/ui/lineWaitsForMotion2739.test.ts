@@ -474,6 +474,23 @@ describe("everything a line changes waits for its motion (#2739)", () => {
     expect(animations()).toHaveLength(1);
   });
 
+  test("a line that replaces a waiting one settles the arrival the waiting one had not played", async () => {
+    const h = await beside();
+    h.jumpToFlow("words");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    h.releasePresence();
+    await flushMicrotasks(40);
+    const [portrait] = h.game.module.ui.findIds("portrait");
+    h.reset();
+    h.jumpToFlow("picture");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    expect(presenceOf(h, portrait!)).toBe("initial");
+    expect(motions(h).filter((m: any) => m.presence === "show")).toEqual([]);
+
+    await tick(new Coordinator(h.game, { end: 0, text: { action: typed("Next.") } } as any));
+    expect(presenceOf(h, portrait!)).toBeNull();
+  });
+
   test("a line shown in a box and a stream at once holds the typing in both", async () => {
     const h = await beside(true);
     h.jumpToFlow("words");
