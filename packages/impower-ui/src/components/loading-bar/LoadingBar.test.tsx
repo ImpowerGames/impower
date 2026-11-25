@@ -31,13 +31,17 @@ let host: HTMLDivElement;
 
 const flush = () => new Promise<void>((resolve) => queueMicrotask(resolve));
 
-const mount = async (active: boolean) => {
+const mount = async (
+  active: boolean,
+  options: { showDelayMs?: number; exit?: "run-out" | "instant" } = {},
+) => {
   let bar: HTMLDivElement | null = null;
   await act(async () =>
     render(
       <LoadingBar
         label="Loading"
         active={active}
+        {...options}
         containerRef={(element: HTMLDivElement | null) => {
           bar = element;
         }}
@@ -127,6 +131,29 @@ describe("LoadingBar", () => {
     expect(bar.hasAttribute("aria-hidden")).toBe(false);
     end(live(bar)[0]);
     expect(bar.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("shows at once and leaves at once with no show delay and an instant exit", async () => {
+    const { bar } = await mount(false, { showDelayMs: 0, exit: "instant" });
+    await setActive(bar, true);
+    expect(bar.style.opacity).toBe("1");
+    expect(bar.hasAttribute("aria-hidden")).toBe(false);
+    await setActive(bar, false);
+    expect(bar.style.opacity).toBe("0");
+    expect(bar.getAttribute("aria-hidden")).toBe("true");
+    expect(animations.every((a) => a.cancelled || a.finished)).toBe(true);
+  });
+
+  it("shows on mount with no show delay when it mounts active", async () => {
+    const { bar } = await mount(true, { showDelayMs: 0, exit: "instant" });
+    expect(bar.style.opacity).toBe("1");
+  });
+
+  it("starts its sweep with the segment on screen when it shows with no delay", async () => {
+    const { segment } = await mount(true, { showDelayMs: 0 });
+    const [sweep] = live(segment);
+    expect(sweep.options.iterationStart).toBe(1 / 3);
+    expect(segment.style.transform).toBe("translateX(0%) scaleX(0.5)");
   });
 
   it("shows nothing for a load shorter than the show delay", async () => {

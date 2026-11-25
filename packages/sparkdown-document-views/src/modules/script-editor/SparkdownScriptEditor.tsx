@@ -178,6 +178,8 @@ export default function SparkdownScriptEditor({
       <style>{cssText}</style>
       <LoadingBar
         label="Loading"
+        showDelayMs={0}
+        exit="instant"
         containerRef={loadingRef}
         class="absolute left-0"
         style={{ top: "-2px", zIndex: 20 }}
