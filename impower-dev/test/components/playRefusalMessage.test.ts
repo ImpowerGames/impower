@@ -62,8 +62,8 @@ const { default: workspaceSettings } = await import(
 const { default: Preview } = await import(
   "../../src/modules/spark-editor/components/preview/Preview"
 );
-const { default: PhonePreviewStrip } = await import(
-  "../../src/modules/spark-editor/components/preview-strip/PhonePreviewStrip"
+const { default: StoryPreview } = await import(
+  "../../src/modules/spark-editor/components/preview-strip/StoryPreview"
 );
 const { default: workspace } = await import(
   "../../src/modules/spark-editor/workspace/WorkspaceStore"
@@ -117,7 +117,7 @@ const reportProblemOnFirstLine = () =>
     };
   });
 
-const mount = async (component: typeof Preview | typeof PhonePreviewStrip) => {
+const mount = async (component: typeof Preview | typeof StoryPreview) => {
   vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(808);
   host = document.body.appendChild(document.createElement("div"));
   await act(async () => render(h(component, {}), host!));
@@ -174,7 +174,7 @@ describe("Play refused because the story has no scene named start", () => {
 
   it("writes the reason on the phone strip, and its press opens the entry script at the problem's line", async () => {
     phone = true;
-    await mount(PhonePreviewStrip);
+    await mount(StoryPreview);
     await setGame({ playRefusal: NO_START_SCENE_MESSAGE });
     await reportProblemOnFirstLine();
     const status = stripMessage();
@@ -202,7 +202,7 @@ describe("Play refused because the story has no scene named start", () => {
     expect(paneMessage()).toBeNull();
     await act(async () => render(null, host!));
     phone = true;
-    await act(async () => render(h(PhonePreviewStrip, {}), host!));
+    await act(async () => render(h(StoryPreview, {}), host!));
     await setGame({ playRefusal: NO_START_SCENE_MESSAGE });
     expect(stripMessage()).not.toBeNull();
     await setGame({});

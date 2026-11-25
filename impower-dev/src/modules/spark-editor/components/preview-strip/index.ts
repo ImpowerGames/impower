@@ -1,1 +1,1 @@
-export { default as PhonePreviewStrip } from "./PhonePreviewStrip";
+export { default as StoryPreview } from "./StoryPreview";

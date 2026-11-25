@@ -26,6 +26,16 @@ function CompactTopBar() {
       <span class={cn("flex w-[61px] flex-none items-center", collapsed ? "pl-[31px]" : "pl-5")}>
         <SparkLogo layout="mark" size="md" class="[&_svg]:w-6" />
       </span>
+      {editing && (
+        <span
+          data-title-divider
+          aria-hidden="true"
+          class={cn(
+            "mr-1.5 h-6 w-px flex-none bg-edge",
+            collapsed ? "ml-2" : "-ml-[3px]",
+          )}
+        />
+      )}
       {editing ? (
         <FoldedScriptHeader filename={script!} />
       ) : (
