@@ -18,7 +18,7 @@ import {
   type LayeredMorphDrawn,
   type LayeredMorphModel,
 } from "../../../../sparkdown/src/morph/layered";
-import { firstMorphEasingReach } from "../../../../sparkdown/src/morph/easing";
+import { firstMorphEasingReach, parseMorphEasing } from "../../../../sparkdown/src/morph/easing";
 import { morphMotionKeyframes } from "../../../../sparkdown/src/morph/motion";
 import { own } from "../../../../sparkdown/src/morph/own";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
@@ -286,7 +286,7 @@ export interface Occurrence {
   users: number;
   preempted: number;
   preemptedAt: number;
-  resume?: { offset: number; skip: number };
+  resume?: { offset: number; skip: number; from: number };
 }
 
 interface LiveView {
@@ -643,7 +643,9 @@ export class MorphPlayback {
     this.restart(occurrence);
     if (offset === undefined || !(offset > 0)) return;
     const duration = Number.isFinite(occurrence.timing.duration) ? occurrence.timing.duration : 0;
-    occurrence.resume = { offset, skip: firstMorphEasingReach(occurrence.timing.easing, offset) * duration };
+    const reach = firstMorphEasingReach(occurrence.timing.easing, offset);
+    const easing = parseMorphEasing(occurrence.timing.easing) ?? ((x: number) => x);
+    occurrence.resume = { offset, skip: reach * duration, from: Math.max(0, Math.min(1, easing(reach))) };
   }
 
   protected restartAll() {
@@ -749,8 +751,11 @@ export class MorphPlayback {
     const resume = occurrence.resume;
     if (!resume) return occurrence.timeline.at(elapsed);
     const delay = Number.isFinite(occurrence.timing.delay) && occurrence.timing.delay > 0 ? occurrence.timing.delay : 0;
-    if (elapsed < delay) return { phase: "waiting" as const, play: 0 as const, offset: resume.offset };
-    return occurrence.timeline.at(elapsed + resume.skip);
+    if (elapsed <= delay) return { phase: "waiting" as const, play: 0 as const, offset: resume.offset };
+    const head = occurrence.timeline.at(elapsed + resume.skip);
+    if (!("offset" in head) || resume.from === resume.offset) return head;
+    const offset = resume.from < 1 ? resume.offset + ((head.offset - resume.from) * (1 - resume.offset)) / (1 - resume.from) : 1;
+    return { ...head, offset };
   }
 
   others(layer: MorphLayer): MorphLayer[] {

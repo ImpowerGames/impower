@@ -165,6 +165,8 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     ["linear", 0.25],
     ["ease-in", 0.3],
     ["ease-out", 0.1],
+    ["linear(0, 0.25 20%, 0.25 60%, 1 60%, 1)", 0.2],
+    ["linear(0.2, 1)", 0.4375],
   ])("a change back to the drawing a change still playing started from turns back from the frame on screen (%s)", async (easing, after) => {
     const source = SOURCE.replace("easing = linear", `easing = ${easing}`).replace(
       "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
@@ -209,16 +211,19 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
   });
 
-  test("a change turning back holds the frame on screen while its delay runs", async () => {
-    const source = SOURCE.replace("duration = 0.5", "duration = 0.5\n    delay = 0.2").replace(
+  test.each([
+    ["linear", 0.45, 55, 53],
+    ["linear(0, 0.25 20%, 0.25 60%, 1 60%, 1)", 0.4, 52.5, 50],
+  ])("a change turning back holds the frame on screen while its delay runs (%s)", async (easing, after, shown, then) => {
+    const source = SOURCE.replace("duration = 0.5", "duration = 0.5\n    delay = 0.2").replace("easing = linear", `easing = ${easing}`).replace(
       "  [[show portrait mia:mouth.frown]]\n  She keeps frowning.",
       "  [[show portrait mia:mouth.smile]]\n  She smiles again.",
     );
     const { playback, shadow, lips, next } = await played(2, undefined, undefined, source);
     await until(() => !!shadow()?.querySelector("[data-morph]"), "the first change's view");
-    playback.advance(0.45);
+    playback.advance(after);
     const between = numbers(lips()[0]!);
-    expect(between[1]).toBeCloseTo(55, 1);
+    expect(between[1]).toBeCloseTo(shown, 1);
     const interrupted = shadow();
     await next();
     await until(() => shadow() !== interrupted && !!shadow()?.querySelector("[data-morph]") && lips().length > 0, "the interrupting change's view");
@@ -226,7 +231,7 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     playback.advance(0.15);
     numbers(lips()[0]!).forEach((value, i) => expect(value).toBeCloseTo(between[i]!, 1));
     playback.advance(0.15);
-    expect(numbers(lips()[0]!)[1]).toBeCloseTo(53, 1);
+    expect(numbers(lips()[0]!)[1]).toBeCloseTo(then, 1);
     playback.advance(0.2);
     expect(numbers(lips()[0]!)).toEqual(numbers(SMILE));
   });
