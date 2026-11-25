@@ -213,7 +213,6 @@ if (browser) {
       scriptEditorPresent: async () => {},
       settleEditor: async () => {},
       waitForDomQuiet: async () => {},
-      settleViewTransitions: async () => {},
       switchScreen: async () => ({ active: true }),
     };
     try {

@@ -1,7 +1,10 @@
+import { looksLikeSvg } from "./svgLayerFile";
+
 export interface PictureFileTraits {
   animated: boolean;
   profile: boolean;
   unread?: true;
+  svg?: true;
 }
 
 export type Inflate = (data: Uint8Array) => Promise<Uint8Array | undefined>;
@@ -153,7 +156,38 @@ export async function pictureFileTraits(bytes: Uint8Array, inflate?: Inflate): P
   if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") return webpTraits(bytes);
   if (bytes[0] === 0xff && bytes[1] === 0xd8) return jpegTraits(bytes);
   if (ascii(bytes, 4, 4) === "ftyp" && ascii(bytes, 8, 4) === "avis") return { animated: true, profile: false };
-  return { animated: false, profile: false };
+  if (ascii(bytes, 4, 4) === "ftyp") return { animated: false, profile: false };
+  return { animated: false, profile: false, ...(looksLikeSvg(bytes) ? { svg: true as const } : {}) };
+}
+
+function pngComplete(bytes: Uint8Array): boolean {
+  let at = 8;
+  let data = false;
+  while (at + 12 <= bytes.length) {
+    const end = at + 12 + u32be(bytes, at);
+    if (end > bytes.length) return false;
+    const type = ascii(bytes, at + 4, 4);
+    if (type === "IDAT") data = true;
+    if (type === "IEND") return data;
+    at = end;
+  }
+  return false;
+}
+
+const lastMarker = (bytes: Uint8Array, marker: number) => {
+  for (let at = bytes.length - 2; at >= 0; at--) if (bytes[at] === 0xff && bytes[at + 1] === marker) return at;
+  return -1;
+};
+
+export function pictureFileComplete(bytes: Uint8Array): boolean {
+  if (bytes[0] === 0x89 && ascii(bytes, 1, 3) === "PNG") return pngComplete(bytes);
+  if (ascii(bytes, 0, 4) === "GIF8") return bytes[bytes.length - 1] === 0x3b;
+  if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") return 8 + u32le(bytes, 4) <= bytes.length;
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    const scan = lastMarker(bytes, 0xda);
+    return scan >= 0 && lastMarker(bytes, 0xd9) > scan;
+  }
+  return true;
 }
 
 function percentDecodedBytes(text: string): Uint8Array {

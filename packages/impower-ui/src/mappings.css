@@ -328,6 +328,7 @@
   from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-5px); }
@@ -337,6 +338,8 @@
 @utility anim-menu-out { animation: fade-out 150ms ease-in forwards; }
 @utility anim-toast-in  { animation: toast-in 150ms ease-out; }
 @utility anim-toast-out { animation: fade-out 150ms ease-out forwards; }
+@utility anim-scrim-in  { animation: fade-in 180ms ease-out; }
+@utility anim-scrim-out { animation: fade-out 180ms ease-in forwards; }
 
 @keyframes wheel-row-tilt {
   from { transform: rotateX(-66deg); opacity: 0.28; }

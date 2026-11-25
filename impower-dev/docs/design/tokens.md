@@ -836,16 +836,25 @@ What the prototype does transition, for reference:
 | Asset card menu, zoom hint | `opacity .15s`, `opacity .2s` | `folio-assets.css:61`, `:106` |
 | Console message spotlight | `console-spotlight 1.4s ease-out`, a `--tint` wash fading out | `folio-playback.css:1319-1325` |
 
+One rule decides what moves: a surface that opens over the page enters and
+leaves with its family's motion below, and a change in place does not animate.
+Changes in place are page switches (Story, Scripts, Assets, Share, Settings and
+opening a script), tab panels, the rail collapsing, the Problems and Route panel
+under the game, the phone's Find bar and the keyboard-attached Writing tools and
+Add panels.
+
 The motion each component owns:
 
 | Surface | Enter | Exit | Duration and easing |
 |---|---|---|---|
 | Menu (dropdown, context menu, select, the cog and mode menus, the app menu) | Fade and scale from 0.97 at the trigger's edge | Fade | 150ms; enter `ease-out`, exit `ease-in` |
-| Popover and tooltip (hover cards, problem popovers) | Fade | Fade | 140ms `ease` |
+| Popover (hover cards, problem popovers) | As a menu: fade and scale from 0.97 | Fade | 150ms; enter `ease-out`, exit `ease-in` |
+| Asset inspector over the preview pane (desktop) | Fade | Fade; stepping to the previous or next asset does not fade | 150ms; enter `ease-out`, exit `ease-in` |
 | Dialog | Fade and scale from 0.97; backdrop fades | Fade; backdrop fades | 180ms; enter `ease-out`, exit `ease-in` |
-| Sheet (phone inspector, menus a finger opens) | Slides in from its edge; backdrop fades | Slides out; backdrop fades | 180ms; enter `ease-out`, exit `ease-in` |
+| Sheet (phone inspector, the phone's References and Rename, menus a finger opens) | Slides in from its edge; backdrop fades | Slides out; backdrop fades | 180ms; enter `ease-out`, exit `ease-in` |
+| Phone preview opening from its strip to the full screen | Fade, with its backdrop, as a sheet's backdrop; the game keeps playing | Fade on Close | 180ms; enter `ease-out`, exit `ease-in` |
 | Toast | Fades in from 5px above its place, as the prototype's | Fades | 150ms `ease-out` |
-| Route change | None; if the router adds one, a View Transitions cross-fade | — | 150ms `ease` |
+| Route change | None | None | — |
 | Button press | The press overlay appears at once and fades on release | — | 140ms, as the prototype's background transition |
 | State changes on controls (hover, switch, carets) | As the prototype's table above | — | 120–180ms `ease` |
 

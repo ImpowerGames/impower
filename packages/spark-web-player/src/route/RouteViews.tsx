@@ -1,6 +1,7 @@
 import {
   Button,
   CloseIcon,
+  cn,
   ListRow,
   PanelHead,
   Tab,
@@ -8,14 +9,14 @@ import {
   Tabs,
 } from "@impower/impower-ui/components";
 import { useId, useLayoutEffect, useState } from "preact/hooks";
-import { useRouteListStylesheet } from "./routeListStylesheet";
 import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import type {
   PreviewRouteDecision,
   PreviewRouteOption,
   RoutePin,
 } from "@impower/spark-engine/src/game/core/types/PreviewRoute";
-import { RouteIconSvg } from "./RouteIcons";
+import { ROUTE_ICON_CLASS, RouteIconSvg } from "./RouteIcons";
+import { TOOLBAR_BUTTON_CLASS } from "./routeViewParts";
 import {
   choiceSentence,
   decisionText,
@@ -52,8 +53,13 @@ export interface RouteButtonProps {
   onClose: () => void;
 }
 
+const ROUTE_BUTTON_ICON_COLOURS: Partial<Record<string, string>> = {
+  forced: "text-warning",
+  clipped: "text-warning",
+  pinned: "text-accent",
+};
+
 export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps) {
-  useRouteListStylesheet();
   const label = routeLabel(state, nameOf);
   const parts = routeLabelParts(state, nameOf);
   if (label === null || parts === null) {
@@ -64,7 +70,11 @@ export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps
   return (
     <button
       type="button"
-      class={state.failure ? "route-button failed" : "route-button"}
+      class={cn(
+        "route-button pointer-events-auto min-w-0 max-w-full gap-(--swp-toolbar-button-gap)",
+        TOOLBAR_BUTTON_CLASS,
+        state.failure && "failed text-error",
+      )}
       aria-expanded={state.open}
       aria-label={`${label}. ${title}`}
       title={title}
@@ -72,13 +82,21 @@ export function RouteButton({ state, nameOf, onOpen, onClose }: RouteButtonProps
       onClick={() => (state.open ? onClose() : onOpen())}
     >
       {icon ? (
-        <RouteIconSvg icon={icon} />
+        <RouteIconSvg
+          icon={icon}
+          class={cn(ROUTE_BUTTON_ICON_COLOURS[icon], "forced-colors:text-[CanvasText]")}
+        />
       ) : (
-        <span class="route-icon route-icon-slot" aria-hidden="true" />
+        <span
+          class={`${ROUTE_ICON_CLASS} route-icon-slot inline-block`}
+          aria-hidden="true"
+        />
       )}
-      <span class="route-button-label">
-        <span class="route-button-name">{parts.name}</span>
-        <span class="route-button-lines">{` ${parts.lines}`}</span>
+      <span class="route-button-label flex min-w-0 flex-row whitespace-pre">
+        <span class="route-button-name min-w-0 overflow-hidden text-ellipsis">
+          {parts.name}
+        </span>
+        <span class="route-button-lines flex-none">{` ${parts.lines}`}</span>
       </span>
     </button>
   );
@@ -111,30 +129,37 @@ function PinControl({
     option.location.uri === decision.location.uri &&
     option.location.range.start.line === decision.location.range.start.line;
   return (
-    <div class="route-pin-control">
-      <p class="route-pin-sentence">{choiceSentence(decision, target)}</p>
-      <ul class="route-pin-options">
+    <div class="route-pin-control mt-0 mr-0 mb-1 ml-[calc(3em+16px+3*var(--swp-toolbar-button-gap))] border-l border-solid border-edge py-1 pr-0 pl-(--swp-toolbar-button-gap)">
+      <p class="route-pin-sentence mx-0 mt-0 mb-1 whitespace-normal text-muted">
+        {choiceSentence(decision, target)}
+      </p>
+      <ul class="route-pin-options m-0 list-none p-0">
         {(decision.options ?? []).map((option) => {
           const pinned = isPinned(pins, option);
           return (
             <li
               key={`${option.location.range.start.line}:${option.offer}`}
-              class={taken(option) ? "route-pin-option taken" : "route-pin-option"}
+              class={`${taken(option) ? "route-pin-option taken" : "route-pin-option"} ${ROUTE_LINE_CLASS}`}
             >
-              <span class="route-pin-option-text">{option.text}</span>
+              <span class={`route-pin-option-text ${ROUTE_FADE_CLASS}`}>
+                {option.text}
+              </span>
               {taken(option) ? (
-                <span class="route-pin-taken">Taken</span>
+                <span class="route-pin-taken flex-none text-muted">Taken</span>
               ) : null}
               <button
                 type="button"
-                class="route-pin-button"
+                class={`route-pin-button ${ROUTE_ACTION_CLASS} aria-pressed:bg-tint`}
                 aria-pressed={pinned}
                 title={pinned ? "Unpin this option" : "Pin this option here"}
                 onClick={() =>
                   onChangePins(pinChange(pins, decision, option))
                 }
               >
-                <RouteIconSvg icon="pinned" />
+                <RouteIconSvg
+                  icon="pinned"
+                  class={cn("forced-colors:text-[CanvasText]", !pinned && "opacity-50")}
+                />
                 <span>{pinned ? "Pinned" : "Pin"}</span>
               </button>
             </li>
@@ -144,7 +169,7 @@ function PinControl({
       {stopIsPinned(pins, decision) ? (
         <button
           type="button"
-          class="route-pin-unpin"
+          class={`route-pin-unpin ${ROUTE_ACTION_CLASS} mt-0.5`}
           onClick={() => onChangePins(unpinChange(pins, decision))}
         >
           Unpin
@@ -153,6 +178,18 @@ function PinControl({
     </div>
   );
 }
+
+const ROUTE_ACTION_CLASS =
+  "flex flex-none cursor-pointer flex-row items-center gap-1 rounded-[3px] border-none bg-transparent px-1.5 py-0.5 text-accent pointer-fine:hover:not-aria-pressed:bg-control-hover";
+
+const ROUTE_FADE_CLASS =
+  "min-w-0 flex-1 overflow-hidden whitespace-nowrap [mask-image:linear-gradient(to_left,transparent_0,#000_16px)]";
+
+const ROUTE_LINE_CLASS =
+  "flex min-h-[22px] flex-row items-center gap-(--swp-toolbar-button-gap)";
+
+const ROUTE_NOTE_CLASS =
+  "m-0 px-(--swp-toolbar-button-gap) pt-0.5 pb-1.5 text-muted";
 
 const ROUTE_TAB_CLASS =
   "ml-0.5 flex-none font-normal first:ml-0 data-[state=active]:font-semibold data-[state=active]:shadow-[inset_0_-2px_0_var(--accent)]";
@@ -180,7 +217,6 @@ export function RouteList({
 }: RouteListProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const tabsId = useId();
-  useRouteListStylesheet();
   const drafts = state.values?.drafts;
   useLayoutEffect(() => {
     if (!state.open) {
@@ -304,28 +340,37 @@ export function RouteList({
           panel={panelId("route")}
           value="route"
         >
-          <div class="route-list-toggles" role="group" aria-label="Show">
+          <div
+            class="route-list-toggles flex flex-row flex-wrap gap-0.5 px-(--swp-toolbar-button-gap) py-1"
+            role="group"
+            aria-label="Show"
+          >
             {ROUTE_KINDS.map((kind) => (
               <button
                 key={kind}
                 type="button"
-                class="route-toggle"
+                class="route-toggle flex cursor-pointer flex-row items-center gap-1 rounded-[3px] border-none bg-transparent px-1.5 py-0.5 text-inherit aria-pressed:bg-tint not-aria-pressed:text-muted pointer-fine:hover:not-aria-pressed:bg-control-hover"
                 data-kind={kind}
                 aria-pressed={state.toggles[kind]}
                 title={ROUTE_KIND_MEANINGS[kind]}
                 onClick={() => onToggle(kind, !state.toggles[kind])}
               >
-                <RouteIconSvg icon={kind} />
+                <RouteIconSvg
+                  icon={kind}
+                  class={`${ROUTE_KIND_COLOURS[kind]} forced-colors:text-[CanvasText]`}
+                />
                 <span>{ROUTE_KIND_LABELS[kind]}</span>
-                <span class="route-toggle-count">{counts[kind]}</span>
+                <span class="route-toggle-count text-muted">{counts[kind]}</span>
               </button>
             ))}
           </div>
           {state.failure || !route ? (
-            <p class="route-list-failure">{state.failure?.message ?? ""}</p>
+            <p class={cn("route-list-failure", ROUTE_NOTE_CLASS, "text-error")}>
+              {state.failure?.message ?? ""}
+            </p>
           ) : (
             <>
-              <ol class="route-list-entries">
+              <ol class="route-list-entries m-0 list-none px-(--swp-toolbar-button-gap) pt-0 pb-1">
                 {shown.map((decision) => {
                   const key = entryKey(decision);
                   const choice = decision.options != null;
@@ -408,21 +453,24 @@ export function RouteList({
               </ol>
               {unresolved.length > 0 ? (
                 <ul
-                  class="route-unresolved-pins"
+                  class="route-unresolved-pins m-0 list-none px-(--swp-toolbar-button-gap) pt-0 pb-1"
                   aria-label="Pins with no option"
                 >
                   {unresolved.map((pin) => (
                     <li
                       key={`${pin.uri}:${pin.line}:${pin.offer}`}
-                      class="route-unresolved-pin"
+                      class={`route-unresolved-pin ${ROUTE_LINE_CLASS}`}
                     >
-                      <RouteIconSvg icon="pinned" />
-                      <span class="route-text">
+                      <RouteIconSvg
+                        icon="pinned"
+                        class="ml-[calc(3em+var(--swp-toolbar-button-gap))] text-muted forced-colors:text-[CanvasText]"
+                      />
+                      <span class={`route-text ${ROUTE_FADE_CLASS}`}>
                         {unresolvedPinText(pin, nameOf)}
                       </span>
                       <button
                         type="button"
-                        class="route-pin-remove"
+                        class={`route-pin-remove ${ROUTE_ACTION_CLASS}`}
                         onClick={() => onChangePins({ remove: [pin] })}
                       >
                         Remove
@@ -432,26 +480,31 @@ export function RouteList({
                 </ul>
               ) : null}
               {decisions.length === 0 ? (
-                <p class="route-list-note">
+                <p class={`route-list-note ${ROUTE_NOTE_CLASS}`}>
                   The preview runs this line as the game does
                 </p>
               ) : null}
             </>
           )}
           {state.pinNote ? (
-            <p class="route-list-note route-pin-note" role="status">
+            <p
+              class={cn("route-list-note route-pin-note", ROUTE_NOTE_CLASS, "text-error")}
+              role="status"
+            >
               {state.pinNote}
             </p>
           ) : null}
           {hidden > 0 || state.pins.length > 0 || lastRun > 0 ? (
-            <footer class="route-list-foot">
+            <footer
+              class={`route-list-foot ${ROUTE_NOTE_CLASS} flex flex-row items-center gap-(--swp-toolbar-button-gap)`}
+            >
               {hidden > 0 ? (
-                <span>{`${hidden} hidden by the toggles`}</span>
+                <span class="flex-1">{`${hidden} hidden by the toggles`}</span>
               ) : null}
               {lastRun > 0 ? (
                 <button
                   type="button"
-                  class="route-pin-last-run"
+                  class={`route-pin-last-run ${ROUTE_ACTION_CLASS}`}
                   onClick={onPinLastRun}
                 >
                   {lastRunText(lastRun)}
@@ -460,7 +513,7 @@ export function RouteList({
               {state.pins.length > 0 ? (
                 <button
                   type="button"
-                  class="route-clear-pins"
+                  class={`route-clear-pins ${ROUTE_ACTION_CLASS}`}
                   onClick={() => onChangePins({ removeAll: true })}
                 >
                   Clear pins

@@ -68,7 +68,7 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
 
 const { default: workspace } = await import("../../src/modules/spark-editor/workspace/WorkspaceStore");
 const { default: Assets } = await import("../../src/modules/spark-editor/components/assets");
-const { InspectorDock, InspectorDockProvider, inspectorHost } = await import(
+const { DOCKED_INSPECTOR_FADE_MS, InspectorDock, InspectorDockProvider, inspectorHost } = await import(
   "../../src/modules/spark-editor/components/asset-inspector"
 );
 const { setAssetFiles } = await import("../../src/modules/spark-editor/utils/assetTypes");
@@ -135,6 +135,11 @@ const key = async (target: Element, name: string) => {
   });
   await settle();
 };
+
+const faded = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, DOCKED_INSPECTOR_FADE_MS + 20));
+  });
 
 const open = async (name: string) => {
   await click(all<HTMLElement>(`button[aria-label^="Open"]`).find((b) => b.getAttribute("aria-label")!.split(",")[0]!.endsWith(` ${name}`)));
@@ -272,11 +277,42 @@ describe("the asset inspector", () => {
     await key(closeButton(), "ArrowLeft");
     expect(title()).toBe("bell");
     await key(closeButton(), "Escape");
-    expect(region()).toBeNull();
     await act(async () => {
       await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
     });
     expect(document.activeElement).toBe(rowFor("Assets/Audio/Sounds/bell.wav"));
+    await faded();
+    expect(region()).toBeNull();
+  });
+
+  it("fades in over the preview when it opens and out when it closes, in 150ms, and stepping inside it does not fade again", async () => {
+    await mount();
+    await open("door_chime");
+    const fade = () => region()!.closest<HTMLElement>("[data-docked-inspector]");
+    const shown = fade()!;
+    expect(dock().contains(shown)).toBe(true);
+    expect(shown.className).toContain("motion-safe:transition-opacity");
+    expect(shown.className).toContain("motion-safe:duration-150");
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    expect(shown.getAttribute("data-docked-inspector")).toBe("shown");
+    expect(shown.className).toContain("opacity-100");
+    expect(shown.className).toContain("ease-[ease-out]");
+    await click(step("next"));
+    expect(title()).toBe("footsteps");
+    expect(fade()).toBe(shown);
+    expect(shown.getAttribute("data-docked-inspector")).toBe("shown");
+    await key(closeButton(), "Escape");
+    expect(title()).toBe("footsteps");
+    expect(fade()).toBe(shown);
+    expect(shown.getAttribute("data-docked-inspector")).toBe("hidden");
+    expect(shown.className).toContain("opacity-0");
+    expect(shown.className).toContain("ease-[ease-in]");
+    expect(shown.className).toContain("motion-reduce:invisible");
+    expect(shown.inert || shown.hasAttribute("inert")).toBe(true);
+    await faded();
+    expect(region()).toBeNull();
   });
 
   it("keeps its scroll position while stepping", async () => {
@@ -366,6 +402,7 @@ describe("the asset inspector", () => {
     expect(fresh).not.toBe(frame);
     expect(document.activeElement).toBe(fresh);
     await key(fresh, "Escape");
+    await faded();
     expect(region()).toBeNull();
   });
 
@@ -777,6 +814,7 @@ describe("the asset inspector", () => {
     expect(title()).toBe("harbor");
     await key(closeButton(), "Escape");
     await nextFrame();
+    await faded();
     expect(region()).toBeNull();
     expect(document.activeElement).toBe(searchField());
 
@@ -787,6 +825,7 @@ describe("the asset inspector", () => {
     expect(title()).toBe("harbor");
     await key(closeButton(), "Escape");
     await nextFrame();
+    await faded();
     expect(region()).toBeNull();
     expect(document.activeElement).toBe(searchField());
   });
@@ -805,6 +844,7 @@ describe("the asset inspector", () => {
     await settle();
     expect(document.activeElement).toBe(closeButton());
     await key(closeButton(), "Escape");
+    await faded();
     expect(region()).toBeNull();
   });
 
@@ -830,6 +870,7 @@ describe("the asset inspector", () => {
       await settle();
       expect(region()!.querySelector("[data-font-failed]")).not.toBeNull();
       await key(closeButton(), "Escape");
+      await faded();
       await open("courier_prime");
       await settle();
       expect(loads).toBe(2);
@@ -1823,6 +1864,7 @@ describe("the Variants tester and the Files section", () => {
     expect(stageImage()).toBe("/picture/imani");
     expect(pressedRows()).toEqual([]);
     await key(closeButton(), "Escape");
+    await faded();
     expect(region()).toBeNull();
   });
 

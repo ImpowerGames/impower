@@ -6,6 +6,7 @@ import {
 } from "../../../../spark-engine/src/game/modules/assets/types/AssetItem";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
 import { type LoadAssetsResult } from "../../../../spark-engine/src/game/modules/assets/types/LoadAssetsResult";
+import { type PictureFileTraits } from "../morph/pictureFileTraits";
 
 export interface ImageTarget {
   src: string;
@@ -14,6 +15,12 @@ export interface ImageTarget {
   naturalWidth?: number;
   naturalHeight?: number;
   decode?: () => Promise<void>;
+}
+
+export interface ResidentPicture extends PictureFileTraits {
+  image: ImageTarget;
+  width: number;
+  height: number;
 }
 
 export interface FontFaceLike {
@@ -38,6 +45,7 @@ export interface AssetCacheDeps {
   warmImage?: (src: string) => WarmHandle | undefined;
   decodeAudio?: (params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>;
   fetchBytes?: (src: string) => Promise<{ bytes: ArrayBuffer; type: string }>;
+  inspectImage?: (src: string) => Promise<PictureFileTraits | undefined>;
   createFontFace?: (
     family: string,
     source: ArrayBuffer,
@@ -95,6 +103,8 @@ interface Entry {
   audio?: AudioBuffer;
   videoUrl?: string;
   waiters: Array<() => void>;
+  traits?: PictureFileTraits;
+  inspecting?: Promise<void>;
 }
 
 interface Tracked {
@@ -260,6 +270,17 @@ export class AssetCache {
     };
   }
 
+  picture(src: string): ResidentPicture | undefined {
+    const e = this._entries.get(src);
+    const image = e?.state === "resident" ? e.image : undefined;
+    const width = image?.naturalWidth ?? 0;
+    const height = image?.naturalHeight ?? 0;
+    if (!image || !e?.traits || !(width > 0 && height > 0)) {
+      return undefined;
+    }
+    return { ...e.traits, image, width, height };
+  }
+
   isResident(key: string): boolean {
     return this._entries.get(key)?.state === "resident";
   }
@@ -366,19 +387,32 @@ export class AssetCache {
     const pending = entries.filter(
       (e) => e.state !== "resident" && e.state !== "failed",
     );
-    if (pending.length === 0) {
+    const inspecting = entries.flatMap((e) =>
+      e.state === "resident" && e.inspecting ? [this.bounded(e.inspecting)] : [],
+    );
+    if (pending.length === 0 && inspecting.length === 0) {
       return Promise.resolve(settle());
     }
     return new Promise((resolve) => {
-      let remaining = pending.length;
+      let remaining = pending.length + inspecting.length;
+      const done = () => {
+        remaining--;
+        this.emitProgress(pin);
+        if (remaining === 0) {
+          resolve(settle());
+        }
+      };
       for (const e of pending) {
         e.waiters.push(() => {
-          remaining--;
-          this.emitProgress(pin);
-          if (remaining === 0) {
-            resolve(settle());
+          if (e.inspecting) {
+            void this.bounded(e.inspecting).then(done);
+          } else {
+            done();
           }
         });
+      }
+      for (const inspection of inspecting) {
+        void inspection.then(done);
       }
       this.pump();
     });
@@ -558,6 +592,12 @@ export class AssetCache {
     }
     if (entry) {
       entry.lastUsed = this._tick;
+      if (item.kind === "image" && item.layer && entry.item.kind === "image" && !entry.item.layer) {
+        entry.item = item;
+      }
+      if (entry.state === "resident") {
+        this.promote(entry);
+      }
       if (entry.state === "queued" && priority < entry.priority) {
         this.dequeue(entry);
         entry.priority = priority;
@@ -638,6 +678,7 @@ export class AssetCache {
       }
     }
     entry.image = undefined;
+    entry.traits = undefined;
     entry.warm = undefined;
     entry.font = undefined;
     entry.audio = undefined;
@@ -817,6 +858,7 @@ export class AssetCache {
         entry.bytes = bytes;
         entry.lastUsed = this._tick;
         this._bytes += bytes;
+        this.promote(entry);
         for (const w of entry.waiters.splice(0)) {
           w();
         }
@@ -896,6 +938,17 @@ export class AssetCache {
           const h = target.naturalHeight ?? 0;
           return Math.max(MIN_IMAGE_BYTES, w * h * 4);
         };
+        const settle = () => {
+          const item = entry.item;
+          if (item.kind !== "image" || !item.layer || !this._deps.inspectImage) {
+            resolve(estimate());
+            return;
+          }
+          void this.inspect(entry).then((traits) => {
+            entry.traits = traits;
+            resolve(estimate());
+          });
+        };
         let decode: Promise<void> | undefined;
         try {
           decode = target.decode?.();
@@ -911,18 +964,57 @@ export class AssetCache {
               if (timer !== undefined) {
                 clearTimeout(timer);
               }
-              resolve(estimate());
+              settle();
             }
           };
           decode.then(done, done);
           timer = setTimeout(done, this._decodeTimeoutMs);
         } else {
-          resolve(estimate());
+          settle();
         }
       };
       target.onerror = () => resolve(null);
       target.src = src;
     });
+  }
+
+  protected bounded(inspection: Promise<void>): Promise<void> {
+    if (!(this._loadTimeoutMs > 0)) {
+      return inspection;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, this._loadTimeoutMs);
+      void inspection.then(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  protected promote(entry: Entry): void {
+    const item = entry.item;
+    if (item.kind !== "image" || !item.layer || entry.traits || entry.inspecting || !entry.image || !this._deps.inspectImage) {
+      return;
+    }
+    entry.inspecting = this.inspect(entry).then((traits) => {
+      if (this._entries.get(entry.key) === entry && entry.image) {
+        entry.traits = traits;
+      }
+      entry.inspecting = undefined;
+    });
+  }
+
+  protected inspect(entry: Entry): Promise<PictureFileTraits | undefined> {
+    const inspect = this._deps.inspectImage;
+    const item = entry.item;
+    if (!inspect || item.kind !== "image") {
+      return Promise.resolve(undefined);
+    }
+    const unread: PictureFileTraits = { animated: false, profile: false, unread: true };
+    return inspect(item.src).then(
+      (traits) => traits ?? unread,
+      () => unread,
+    );
   }
 
   protected async loadFont(

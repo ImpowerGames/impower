@@ -347,6 +347,14 @@ describe("the rail's References and Rename views", () => {
     expect(search.openAsset).toHaveBeenCalledWith("file:///p/assets/imani.png");
   });
 
+  it("sizes its use rows with the rail rows Find uses", async () => {
+    workspace.search.value = { ...INITIAL_SEARCH, open: true, view: "references", subject, references };
+    await mount();
+    const rows = Array.from(host.querySelectorAll("li[data-rows]"));
+    expect(rows).toHaveLength(2);
+    expect(rows.map((li) => li.getAttribute("data-rows"))).toEqual(["rail", "rail"]);
+  });
+
   it("reads No script uses <name> yet. when nothing uses it", async () => {
     workspace.search.value = { ...INITIAL_SEARCH, open: true, view: "references", subject: { name: "zadie", character: false } };
     await mount();

@@ -38,44 +38,51 @@ function PanelSearch() {
     }
   }, [finding, story]);
 
-  if (!open) {
-    return null;
+  const sheetOpen = open && view !== "find";
+  const lastSheet = useRef(snapshot);
+  if (sheetOpen) {
+    lastSheet.current = snapshot;
   }
-  const title = searchTitle(snapshot);
-  if (view === "find") {
-    return story ? (
+  const held = lastSheet.current;
+  const bar =
+    finding && story ? (
       <ToolPanelRoot
         presentation="bar"
         open
         onOpen={openFromPanel}
         onClose={dismiss}
       >
-        <ToolPanel open chrome="none" title={title} onClose={dismiss}>
+        <ToolPanel open chrome="none" title={searchTitle(snapshot)} onClose={dismiss}>
           <PhoneFindBar />
         </ToolPanel>
       </ToolPanelRoot>
     ) : null;
+  if (!held.open || held.view === "find") {
+    return bar;
   }
   return (
-    <ToolPanelRoot
-      presentation="sheet"
-      open
-      onOpen={openFromPanel}
-      onClose={dismiss}
-    >
-      <ToolPanel
-        open
-        title={title}
-        closeLabel={view === "references" ? "Close references" : "Close rename"}
+    <>
+      {bar}
+      <ToolPanelRoot
+        presentation="sheet"
+        open={sheetOpen}
+        onOpen={openFromPanel}
         onClose={dismiss}
       >
-        {view === "references" ? (
-          <ReferencesView onOpened={close} />
-        ) : (
-          <RenameView />
-        )}
-      </ToolPanel>
-    </ToolPanelRoot>
+        <ToolPanel
+          open={sheetOpen}
+          title={searchTitle(held)}
+          closeLabel={held.view === "references" ? "Close references" : "Close rename"}
+          onClose={dismiss}
+        >
+          {held.view === "references" ? (
+            <ReferencesView onOpened={close} />
+          ) : (
+            <RenameView />
+          )}
+        </ToolPanel>
+      </ToolPanelRoot>
+    </>
   );
 }
 

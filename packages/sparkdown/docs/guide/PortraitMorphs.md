@@ -2,7 +2,7 @@
 
 A portrait drawn with layers already has its states: eyes open and eyes closed, a mouth open and shut, a door ajar and a door closed. [Character Portraits](./Portraits.md) shows how the script chooses one. A `morph` makes the portrait move between them on its own: the drawings of one state bend, fade or scale into the drawings of the next. Wherever a morph is not moving its portrait it holds it in its rest, the state its last pose shows unless the morph names another. A morph that stops after a set number of plays holds the pose its final play ends on: the last pose with the default `direction = normal`, the first with `reverse`, and for the alternating directions whichever end the final play reaches.
 
-A morph knows nothing about eyes. It drives whatever attribute groups its keyframes name, on every portrait that has those groups. This chapter uses a blink as its worked example because it is the most common use, but the same rules serve a mouth, a flickering lamp or a curtain.
+A morph knows nothing about eyes. It drives whatever attribute groups its keyframes name, on every portrait that has those groups. A morph marked `trigger = change` has no keyframes and drives the groups whose state a directive changes ([Playing on a change](#playing-on-a-change)). This chapter uses a blink as its worked example because it is the most common use, but the same rules serve a mouth, a flickering lamp or a curtain.
 
 The chapter covers what the art needs, how to declare the morph, how it chooses portraits, how it times its plays, and how to read its warnings.
 
@@ -105,7 +105,7 @@ A single shape the morph cannot follow fades instead of moving, with a warning n
 
 ## Declaring a morph
 
-A morph's body has these parts. Each is optional except `keyframes`, and `method` wherever shapes morph.
+A morph's body has these parts. Each is optional except `keyframes`, and `method` wherever shapes morph. A morph marked `trigger = change` takes no `keyframes` ([Playing on a change](#playing-on-a-change)).
 
 ```sparkdown
 morph blink {
@@ -434,7 +434,7 @@ morph blink {
 
 A length is written in `px`, as a percentage, or as a `calc()` of the two, such as `calc(50% + 2px)`. A bare number other than `0` is an error, since a browser would ignore it. An angle is in `deg`, `rad`, `grad` or `turn`.
 
-`px` are units of the artwork's own coordinates, those of the group the layer sits in, not pixels on the screen. For a layer at the top of the artwork they are the units of its `viewBox`: a portrait 2000 units tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen. A layer inside a scaled group moves in that group's units.
+`px` are units of the artwork's own coordinates, those of the group the layer sits in, not pixels on the screen. For a layer at the top of the artwork they are the units of its `viewBox`: a portrait 2000 units tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen. A layer inside a scaled group moves in that group's units. On a portrait made of image files `px` are the picture's own pixels, and a percentage and the origin are of the whole picture ([Moving a layer file](#moving-a-layer-file)).
 
 A percentage is of the moved layer's own box, the bounds of what it draws in that frame: `translate = 0 50%` moves a layer down by half its own height, and the default origin is the centre of that box. A percentage of an eyebrow's box is not a fraction of the eye's height, so a movement meant to follow the eyes is written in `px` and tuned by looking.
 
@@ -475,7 +475,7 @@ A problem in the parent is reported where the parent writes it.
 
 ## Which portraits a morph plays on
 
-A morph finds its portraits itself; nothing connects them by name.
+A morph finds its portraits itself; nothing connects them by name. The rules below are for a morph with keyframes; a change morph plays on any portrait a directive shows again with other options, as [Playing on a change](#playing-on-a-change) describes.
 
 - A portrait is considered when it has at least one of the groups the keyframes name. One with none of them, such as a background, is ignored silently.
 - It is compatible when it has every one of those groups, and every state the keyframes and `rest` name in them. A portrait missing a group or a state is reported on the morph, naming the portrait and what it lacks.
@@ -579,7 +579,7 @@ Timing is set in `timing { … }`. Every value is optional:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)). |
+| `trigger` | `appear` | What starts the plays: `appear` when the portrait appears, `speech` while its character speaks ([Talking](#talking)), `change` when the options of a portrait already on screen change ([Playing on a change](#playing-on-a-change)). |
 | `sync` | `none` | On a speech morph, `beep` starts each play on one of the character's voice beeps ([Flapping on the beeps](#flapping-on-the-beeps)). |
 | `duration` | `0.25` | Seconds one play lasts, at least `0.001` (one millisecond). |
 | `delay` | `0` | Seconds before the first play only. Meanwhile the portrait shows the pose that play starts from. |
@@ -592,6 +592,38 @@ Timing is set in `timing { … }`. Every value is optional:
 `iteration_delay_min` and `iteration_delay_max` are written together. Each gap is drawn independently and evenly between them, so a blink with `2` and `6` never settles into a rhythm. Without them, plays follow each other with no gap.
 
 `easing` applies once, to the whole play, not to each segment between poses: `steps(3)` gives the whole blink three visible steps.
+
+### Playing on a change
+
+A morph marked `trigger = change` plays when the options chosen for a portrait already on screen change, so a face bends from one expression into the next instead of cutting:
+
+```sparkdown
+morph bend {
+  method = match
+
+  timing {
+    trigger = change
+    duration = 0.08
+  }
+}
+
+scene gasp
+  [[mia:mouth.open]]
+  Mia gasps.
+  [[mia:mouth.closed]]
+  Then she collects herself.
+end
+```
+
+On the second directive the mouth bends from `open` to `closed` over 0.08 seconds.
+
+- A change morph has no keyframes of its own. It plays once, from the drawing on screen to the drawing the new options choose, and moves each group whose state changes. Keyframes written in it are not used, and get a warning.
+- It uses the morph's `method`, `blend`, `fallback`, `layers`, `clips`, `duration`, `delay` and `easing`, as the other triggers do. The pair of drawings is prepared when the change happens, and the play starts once it is ready. Until then, and while its `delay` runs, the portrait keeps the drawing that was on screen. It takes no `iterations`, `direction`, `iteration_delay_min`, `iteration_delay_max` or `replay`.
+- It plays only when the same portrait stays on screen and its options change. A named look built on the portrait is the same portrait. Showing a different portrait, or the same options again, plays nothing.
+- `when` and `unless` are judged on the new look, as they are for any morph, and each folder that draws a changed group has to draw both of its states.
+- A group that another morph playing on the new look drives stays with that morph, and the change morph moves the other changed groups. Two change morphs that could both play on one change share its groups, so neither plays and the portrait cuts, with a warning that names them.
+- A change that comes while another change is still playing on the portrait starts from the drawing that change ends on, not from the frame on screen, and plays to the drawing the new options choose.
+- Previewing a line, stepping back, loading a save and the click that finishes a line show the new drawing at once.
 
 ### Replaying part of a play
 
@@ -1056,7 +1088,8 @@ A file has no outline, so a morph shows, hides and fades whole layers. On a laye
 - `blend = morph` takes the layer's `fallback`, as an `<image>` inside a drawn portrait does, with no warning. A morph with no `blend` still needs a `method`, so a project of image files writes `blend = cut` or `blend = fade`. A morph that serves drawn and painted portraits gives its painted layers `blend = cut` by label under `layers`.
 - `blend = scale` and `spread` keep the warnings they give an image.
 - `timing`, speech, `rest`, `when`, `unless`, picks and the `morph none` clause work as on a drawn portrait.
-- A `paints` entry's `fill` and `stroke` do nothing, and `partner` and `depth` do not apply. Layer movement, keyframe `opacity` and a `paints` entry's `opacity` do not move or fade a layer file.
+- Layer movement and keyframe `opacity` move and fade layer files by label ([Moving a layer file](#moving-a-layer-file)).
+- A `paints` entry's `opacity` fades its layer files at its pose. Its `fill` and `stroke` do nothing there, and `partner` and `depth` do not apply.
 
 The picture's size is its bottom layer's pixel size, and every layer covers the whole picture. A morph plays only when every layer file has that size; a picture with a layer file of another size stays still, and both editors warn on each such file when a morph fits the picture. Export every layer of a painted portrait at the canvas size.
 
@@ -1065,6 +1098,31 @@ A picture also stays still, with a warning in the game naming the file, when one
 A layer that is an SVG keeps its own morphs. In a stack of a drawn portrait `ava.svg` that blinks and a painted overlay `hat.on` that a second morph switches, both move: the picture's morph shows, hides and fades the drawn layer as a whole, as it would a layer file, and the drawn layer's own morphs keep playing inside it on their own clock. A layer the picture's morph hides draws nothing, and its own morph keeps its place in its cycle, as a portrait's does when its expression changes. A morph that fits both the picture and one of its drawn layers plays once on each, each with its own cycle. When the picture stays still for one of the reasons above, or because two of its morphs share a group, a drawn layer it shows at rest keeps playing its own morphs.
 
 Before its first play a painted portrait loads every file any pose can show, and shows its still until they are ready. Problems found while preparing it appear on the layer file they name, or else on the picture's bottom file.
+
+### Moving a layer file
+
+A container named after a layer label moves every layer file with that label, with the properties of [Moving layers](#moving-layers):
+
+```sparkdown
+morph blink {
+  blend = cut
+
+  keyframes {
+    from { lids { state = off } }
+    50% {
+      lids { state = on }
+      brows { translate = 0 8px }
+    }
+    to { lids { state = off } }
+  }
+}
+```
+
+With a layer file `ava brows.png`, the brows drop 8 of the picture's pixels as the lids close.
+
+- `px` are the picture's own pixels. A picture 2000 pixels tall shown 600 pixels tall moves `translate = 0 8px` about 2.4 pixels on screen.
+- A percentage and `transform_origin` are of the picture's whole rectangle, because a layer file covers it: `translate = 0 10%` moves a layer a tenth of the picture's height, and `transform_origin = center` is the centre of the picture, not of the painted eyebrow. Write an origin in `px` when the layer should turn about a point on what it paints, such as `transform_origin = 410px 620px` for a brow painted there.
+- The part of a layer moved past the picture's edge is cut off.
 
 ## Seeing it play
 
