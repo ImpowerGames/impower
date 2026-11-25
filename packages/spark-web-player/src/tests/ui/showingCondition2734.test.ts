@@ -74,6 +74,36 @@ describe("@showing(name) compiles to a mark on the game's root (#2734)", () => {
     expect(on("@has(>icon @showing(action))")).toEqual([true, false]);
   });
 
+  test("a condition that is a whole compound after a combinator leaves a universal subject", () => {
+    expect(written("@has(>@showing(action))")).toBe('&:is([data-showing~="action"] *):has(>*)');
+    expect(written("icon > @showing(action)")).toBe(':where([data-showing~="action"]) & .icon>*');
+    expect(written("@theme(dark) @showing(action)")).toBe(
+      ':where([data-color-scheme="dark"][data-showing~="action"]) &',
+    );
+    const root = document.createElement("div");
+    root.innerHTML = '<span class="card"><i></i></span><span class="card"></span>';
+    root.setAttribute("data-showing", "action");
+    const cards = [...root.querySelectorAll(".card")];
+    expect(cards.map((card) => card.matches(written("@has(>@showing(action))").replaceAll("&", ".card")))).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  test("inside @host and @host-context it tests the element itself, keeping a compound argument", () => {
+    expect(written("@host(@showing(action))")).toBe('&:is([data-showing~="action"] *):host(*)');
+    expect(written("@host-context(card @showing(action))")).toBe(
+      '&:is([data-showing~="action"] *):host-context(.card)',
+    );
+  });
+
+  test("inside @scope and @supports selector() preludes it stays within the prelude", () => {
+    expect(written("@scope (frame @showing(action))")).toBe('@scope([data-showing~="action"] .frame)');
+    expect(written("@supports selector(frame @showing(action))")).toBe(
+      '@supports selector([data-showing~="action"] .frame)',
+    );
+  });
+
   test("inside nth-child's of list it keeps the list", () => {
     expect(written("@nth-child(1 of @showing(action))")).toBe('&:nth-child(1 of [data-showing~="action"] *)');
     expect(written("@nth-last-child(2 of @showing(action))")).toBe(

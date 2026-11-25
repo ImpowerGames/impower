@@ -82,6 +82,8 @@ const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host
 
 const NTH_OF_PSEUDO_CLASSES = ["nth-child", "nth-last-child"];
 
+const ARGUMENT_OUTSIDE_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["has", "host", "host-context"]);
+
 const VALUE_PSEUDO_CLASSES = ["nth-of-type", "nth-last-of-type", "dir", "lang", "state"];
 
 const PLAIN_PSEUDO_CLASSES = [
@@ -439,9 +441,9 @@ class SparkleSelectorWriter {
       return { text: called ? alias + this.raw() : alias };
     }
     const pseudo = ARGUMENT_STATE_ALIASES.get(name) ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
-    if (pseudo === "has" && called) {
+    if (pseudo && ARGUMENT_OUTSIDE_PSEUDO_CLASSES.has(pseudo) && called) {
       const { text, close } = this.argument(() => this.list("selectors", false));
-      return { text: liftHasConditions(text, close, this.options.colorScheme === "attribute") };
+      return { text: liftOutOfArgument(pseudo, text, close, this.options.colorScheme === "attribute") };
     }
     if (pseudo && called) {
       const kind = ARGUMENT_KINDS.get(pseudo);
@@ -491,7 +493,7 @@ class SparkleSelectorWriter {
         const condition =
           atRule === "@supports" && !declarations[declarations.length - 1] && SELECTOR_FUNCTION_BEFORE.test(out);
         if (scope || condition) {
-          out += this.enclosed(() => this.list("selectors", false));
+          out += this.selectorArgument();
           continue;
         }
         declarations.push(declarations[declarations.length - 1]!);
@@ -585,32 +587,44 @@ const splitRootConditions = (selector: string, scheme: boolean): { root: string;
       .map((piece, i) =>
         i & 1
           ? piece
-          : piece.replace(ROOT_CONDITION, (written, state: string, value: string) => {
-              const condition = rootCondition(state, value, scheme);
-              if (!condition) {
-                return written;
-              }
-              root += condition;
-              return "";
-            }),
+          : piece.replace(
+              ROOT_CONDITION,
+              (written: string, state: string, value: string, offset: number, text: string) => {
+                const condition = rootCondition(state, value, scheme);
+                if (!condition) {
+                  return written;
+                }
+                root += condition;
+                const before = text.slice(0, offset);
+                const after = text[offset + written.length];
+                const leading = i === 0 && !before.replace(ROOT_CONDITION, "").trim();
+                const alone =
+                  COMPOUND_START.test(before.slice(-1) || " ") && (after === undefined || COMPOUND_END.test(after));
+                return alone && !leading ? "*" : "";
+              },
+            ),
       )
       .join("")
       .trim();
     return { root, rest: root ? rest : part.trim() };
   });
 
-const liftHasConditions = (selectors: string, close: string, scheme: boolean): string => {
+const COMPOUND_START = /[\s>+~(,]/;
+
+const COMPOUND_END = /[\s>+~),]/;
+
+const liftOutOfArgument = (pseudo: string, selectors: string, close: string, scheme: boolean): string => {
   const parts = splitRootConditions(selectors, scheme);
   if (!close || parts.every(({ root }) => !root)) {
-    return `:has(${selectors}${close}`;
+    return `:${pseudo}(${selectors}${close}`;
   }
-  const relative = (rest: string) => rest || "*";
+  const argument = (rest: string) => rest || "*";
   const [first] = parts;
   if (parts.every(({ root }) => root === first!.root)) {
-    return `:is(${first!.root} *):has(${parts.map(({ rest }) => relative(rest)).join(", ")})`;
+    return `:is(${first!.root} *):${pseudo}(${parts.map(({ rest }) => argument(rest)).join(", ")})`;
   }
   return `:is(${parts
-    .map(({ root, rest }) => `${root ? `:is(${root} *)` : ""}:has(${relative(rest)})`)
+    .map(({ root, rest }) => `${root ? `:is(${root} *)` : ""}:${pseudo}(${argument(rest)})`)
     .join(", ")})`;
 };
 
