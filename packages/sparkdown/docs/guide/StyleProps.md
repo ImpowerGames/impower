@@ -139,7 +139,7 @@ style bubble {
 }
 ```
 
-An `animation` may be set inside any of the three blocks:
+An `animation` may be set inside any of the three blocks. A style's `animation` plays with default timing, so give its duration in the block after it:
 
 ```sparkdown
 animation pop {
@@ -147,11 +147,13 @@ animation pop {
     from { opacity = "0" }
     to { opacity = "1" }
   }
-  timing { duration = 0.26 }
 }
 
 style badge {
-  @show { animation = pop }
+  @show {
+    animation = pop
+    animation-duration = 0.26s
+  }
 }
 ```
 

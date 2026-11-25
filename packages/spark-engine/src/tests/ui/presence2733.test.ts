@@ -312,6 +312,41 @@ end
 });
 
 describe("a target that holds text and a picture (#2733)", () => {
+  test("clearing only its line keeps it on screen with its picture", async () => {
+    const h = harness(`${NO_BOX}
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+${FADING}
+
+layout main {
+  dialogue {
+    text
+    image
+  }
+}
+
+scene picture
+  [[show dialogue SPRITE]]
+end
+`);
+    await h.ready;
+    const ui = h.game.module.ui;
+    const [dialogue] = ui.findIds("dialogue");
+    ui.setMotion(true);
+    h.jumpToFlow("picture");
+    await ui.image.write("dialogue", h.nextBeat()!.image!["dialogue"]! as any, false);
+    await ui.text.write("dialogue", [{ text: "A caption." }] as any, false);
+    await settle(h);
+    h.reset();
+    await ui.text.clear("dialogue");
+    await flushMicrotasks(10);
+    expect(displayOf(h, dialogue!)).toBeUndefined();
+    expect(motions(h)).toEqual([]);
+    expect(textWrites(h, "dialogue").at(-1)?.params.instructions).toEqual([]);
+  });
+
   test("a picture replacing a leaving line clears the line and keeps the target", async () => {
     const h = harness(`${NO_BOX}
 define SPRITE as image with

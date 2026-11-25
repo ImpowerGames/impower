@@ -195,6 +195,29 @@ describe("the player plays an element's @initial, @show and @hide (#2733)", () =
     expect(box.hasAttribute(PRESENCE)).toBe(false);
   });
 
+  test("an animation started by @initial and kept by @show is part of the arrival", async () => {
+    const h = await playing(FADING_BOX);
+    const pop = new FakeTransition(h.overlay, "opacity", 600);
+    const box = h.overlay.querySelector(".dialogue") as HTMLElement;
+    box.getAnimations = (() =>
+      box.getAttribute(PRESENCE) === "initial" || box.getAttribute(PRESENCE) === "show"
+        ? [pop]
+        : []) as any;
+    const presence = (h.ui as any)._presence;
+    presence.change(box, "initial");
+    box.setAttribute(PRESENCE, "initial");
+    let arrived = false;
+    const arrival = presence.play(box, "show").then(() => {
+      arrived = true;
+    });
+    await flushMicrotasks(10);
+    expect(arrived).toBe(false);
+    expect(box.getAttribute(PRESENCE)).toBe("show");
+    pop.finish();
+    await arrival;
+    expect(box.hasAttribute(PRESENCE)).toBe(false);
+  });
+
   test("a click that shows the whole line removes a branch still leaving", async () => {
     const h = await playing(`define ui as config with
   layouts_initial = { }

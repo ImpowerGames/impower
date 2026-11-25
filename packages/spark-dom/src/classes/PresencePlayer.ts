@@ -39,6 +39,8 @@ const moves = (animation: Animation): boolean => {
 export default class PresencePlayer {
   protected _motions = new Map<Element, Motion>();
 
+  protected _before = new WeakMap<Element, Set<Animation>>();
+
   constructor(
     protected hold: AnimationHold,
     protected reducedMotion: () => boolean,
@@ -60,7 +62,10 @@ export default class PresencePlayer {
       return;
     }
     void element.ownerDocument.defaultView?.getComputedStyle(element).opacity;
-    const before = new Set(this.animations(element));
+    const before =
+      (presence === "show" ? this._before.get(element) : undefined) ??
+      new Set(this.animations(element));
+    this._before.delete(element);
     element.setAttribute(PRESENCE_ATTRIBUTE, presence);
     const started = this.animations(element).filter(
       (animation) => !before.has(animation),
@@ -127,6 +132,10 @@ export default class PresencePlayer {
   }
 
   change(element: Element, presence: string | null): () => void {
+    this._before.delete(element);
+    if (presence === "initial") {
+      this._before.set(element, new Set(this.animations(element)));
+    }
     if (presence != null) {
       this.end(element);
       return () => {};

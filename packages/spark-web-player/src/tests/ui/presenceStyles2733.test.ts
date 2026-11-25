@@ -84,9 +84,9 @@ layout main {
   timing { duration = 0.3 }
 }
 style bubble {
-  @initial { animation = pop }
-  @show { animation = pop }
-  @hide { animation = pop }
+  @initial { animation = pop; animation-duration = 0.3s }
+  @show { animation = pop; animation-duration = 0.3s }
+  @hide { animation = pop; animation-duration = 0.3s }
 }
 layout main {
   bubble
@@ -94,7 +94,9 @@ layout main {
 `);
     const bubble = blockAfter(out, ".bubble {");
     for (const presence of ["initial", "show", "hide"]) {
-      expect(blockAfter(bubble, `&${marked(presence)} {`)).toMatch(/animation[\w-]*: [^;]*pop/);
+      const block = blockAfter(bubble, `&${marked(presence)} {`);
+      expect(block).toMatch(/animation[\w-]*: [^;]*pop/);
+      expect(block).toContain("animation-duration: 0.3s;");
     }
   });
 });

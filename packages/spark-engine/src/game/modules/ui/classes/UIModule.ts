@@ -5347,6 +5347,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ...$.presenceMark(targetEl, arrives),
               },
             });
+          } else if ($.contentsOf(targetEl).size > 0) {
+            $.updateElement(targetEl, { attributes: { text: null } });
           } else {
             $.updateElement(targetEl, {
               style: { display: "none" },
@@ -5899,7 +5901,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               style: { display: null },
               ...presenceAttributes($.presenceMark(targetEl, arrives)),
             });
-          } else {
+          } else if ($.contentsOf(targetEl).size === 0) {
             $.updateElement(targetEl, {
               style: { display: "none" },
               ...presenceAttributes($.presenceMark(targetEl, false)),
