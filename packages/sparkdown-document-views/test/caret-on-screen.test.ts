@@ -456,6 +456,38 @@ describe("Opening the keyboard over the caret", () => {
     }
   });
 
+  it("gives the last line room to rise above a toolbar lifted onto the keyboard", async () => {
+    const page = await open();
+    try {
+      await page.evaluate(() =>
+        (window as unknown as HarnessWindow).caretOnScreen.useBottomPanelOverKeyboard(),
+      );
+      await frames(page);
+      await page.evaluate(() => {
+        const h = (window as unknown as HarnessWindow).caretOnScreen;
+        const view = h.view as unknown as { state: { doc: { lines: number } } };
+        h.setCaretLine(view.state.doc.lines);
+        h.view.scrollDOM.scrollTop = h.view.scrollDOM.scrollHeight;
+      });
+      await frames(page);
+      await edit(page);
+      const before = await read(page);
+      expect(before.focused).toBe(true);
+      expect(before.caretRow!.top).toBeGreaterThan(VISIBLE_HEIGHT);
+
+      const opened = await openOverCaret(page);
+
+      expect(opened.caretRow!.bottom).toBeLessThanOrEqual(opened.panel!.top - CLEARANCE + 1);
+      expect(opened.caretRow!.bottom).toBeGreaterThan(opened.panel!.top - CLEARANCE - 6);
+      await frames(page);
+      const after = await read(page);
+      expect(after.head).toBe(before.head);
+      expect(after.caretRow!.bottom).toBe(opened.caretRow!.bottom);
+    } finally {
+      await page.context().close();
+    }
+  });
+
   it("keeps the script painted under a toolbar lifted onto the keyboard and the caret clear above that toolbar", async () => {
     const page = await open();
     try {

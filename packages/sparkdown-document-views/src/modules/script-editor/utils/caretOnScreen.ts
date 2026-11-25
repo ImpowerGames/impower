@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import {
   caretBottomInsetOf,
   caretScrollMarginY,
+  fitCoveredBottom,
 } from "./extensions/caretScrollMargin";
 
 const EDGE_TOLERANCE = 1;
@@ -81,6 +82,7 @@ export const firstLineOnScreen = (view: EditorView): number => {
 };
 
 export const raiseCaretOnScreen = (view: EditorView) => {
+  fitCoveredBottom(view);
   const { head, assoc } = view.state.selection.main;
   const caret = view.coordsAtPos(head, assoc || 1);
   if (!caret) {

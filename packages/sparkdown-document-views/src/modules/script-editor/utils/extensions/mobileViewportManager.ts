@@ -7,6 +7,7 @@ import {
   openKeyboardToolbar,
 } from "./keyboardToolbar";
 import { raiseCaretOnScreen } from "../caretOnScreen";
+import { fitCoveredBottom } from "./caretScrollMargin";
 
 const viewportTheme = EditorView.baseTheme({
   "&": {
@@ -72,6 +73,8 @@ const viewportPlugin = ViewPlugin.fromClass(
       }
       if (open && this.view.hasFocus) {
         raiseCaretOnScreen(this.view);
+      } else {
+        fitCoveredBottom(this.view);
       }
     }
 

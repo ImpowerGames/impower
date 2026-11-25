@@ -1,4 +1,4 @@
-import { EditorView } from "@codemirror/view";
+import { EditorView, ViewPlugin } from "@codemirror/view";
 
 export const CARET_SCROLL_MARGIN_TOP = 8;
 export const CARET_SCROLL_MARGIN_BOTTOM = 12;
@@ -24,6 +24,39 @@ const bottomPanelsOverlap = (view: EditorView) => {
   return Math.max(0, scrollerBottom - panels.getBoundingClientRect().top);
 };
 
+const writeCoveredBottom = (view: EditorView, covered: number) => {
+  const padding =
+    covered > 0 ? `${CARET_SCROLL_MARGIN_BOTTOM + covered}px` : "";
+  if (view.contentDOM.style.paddingBottom !== padding) {
+    view.contentDOM.style.paddingBottom = padding;
+    view.requestMeasure();
+  }
+};
+
+const coveredBottomPlugin = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {}
+
+    update() {
+      this.view.requestMeasure({
+        key: this,
+        read: bottomPanelsOverlap,
+        write: (covered, view) => writeCoveredBottom(view, covered),
+      });
+    }
+
+    destroy() {
+      this.view.contentDOM.style.paddingBottom = "";
+    }
+  },
+);
+
+export const fitCoveredBottom = (view: EditorView) => {
+  if (view.plugin(coveredBottomPlugin)) {
+    writeCoveredBottom(view, bottomPanelsOverlap(view));
+  }
+};
+
 export const caretScrollMargin = (hostMargin?: {
   top?: number;
   bottom?: number;
@@ -40,6 +73,7 @@ export const caretScrollMargin = (hostMargin?: {
   return [
     EditorView.cursorScrollMargin.of({ x: 5, y: caretScrollMarginY }),
     EditorView.scrollMargins.of(margins),
+    coveredBottomPlugin,
     EditorView.theme({
       "& .cm-content": { paddingBottom: `${CARET_SCROLL_MARGIN_BOTTOM}px` },
     }),
