@@ -2022,7 +2022,9 @@ export class MorphLayer {
       const sy = canvas.height / files.height;
       context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
     }
-    context.drawImage(files.rasters.get(layer.file)?.image ?? bitmap.image, 0, 0, canvas.width, canvas.height);
+    const raster = files.rasters.get(layer.file)?.image;
+    if (raster) context.drawImage(raster, 0, 0, canvas.width, canvas.height);
+    else drawPicture(context, bitmap, 0, 0, canvas.width, canvas.height);
     if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
   }

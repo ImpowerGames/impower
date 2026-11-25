@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { createMorphHost, layeredMorphSource } from "@impower/sparkdown/src/morph/hosts";
+import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
+import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
 import type { LayeredPicture } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { AssetCache, type ImageTarget, type LayerFile } from "../../app/assets/AssetCache";
 import AssetManager from "../../app/managers/AssetManager";
@@ -414,5 +418,71 @@ describe("whole-file use reaches the cache from every path that draws a layer fi
     expect(cache.picture("sky.png")?.box).toBeUndefined();
     expect(cache.picture("base.png")?.box).toBeDefined();
     expect(cache.bytes).toBe(FULL + 2 * CROP);
+  });
+});
+
+describe("a trimmed layer of a morphing picture is drawn at its box (#2657 with #2631)", () => {
+  test("halfway through a fade the trimmed mouth layer is drawn at its box on the run canvas and the whole layers fill it", async () => {
+    const env = installJSDOM();
+    restore = env.restore;
+    const names = ["base", "closed", "open"];
+    const context = {
+      image: Object.fromEntries(names.map((name) => [name, { $type: "image", $name: name, src: `${name}.png`, uri: `file:///${name}.png` }])),
+      layered_image: {
+        kit: { $type: "layered_image", $name: "kit", assets: { base: { $name: "base" }, "mouth.closed default": { $name: "closed" }, "mouth.open": { $name: "open" } } },
+      },
+    };
+    const recipeText = serializeMorphRecipe(
+      buildMorphRecipe("m", { blend: "fade", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 1, mouth: { state: "open" } }] } as never),
+    );
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { m: recipeText }, variants: {} }),
+      readSource: layeredMorphSource(() => context as never),
+    });
+    const frames: Drawn[][] = [];
+    const recording: PictureCanvasContext = {
+      globalAlpha: 1,
+      imageSmoothingEnabled: true,
+      setTransform: () => {},
+      clearRect: () => frames.push([]),
+      drawImage(source, x, y, width, height) {
+        frames.at(-1)!.push({ src: (source as unknown as { src: string }).src, x, y, width, height });
+      },
+    };
+    const box = { x: 10, y: 6, width: 8, height: 12 };
+    const playback = new MorphPlayback(env.overlay, {
+      host,
+      seed: "s",
+      requestFrame: () => 0,
+      cancelFrame: () => {},
+      pictureCanvas: () => recording,
+      loadPicture: async (src) => ({ image: { src } as never, width: 40, height: 30, ...(src === "closed.png" ? { box } : {}) }),
+    });
+    const background = 'url("closed.png"), url("base.png")';
+    const span = env.overlay.ownerDocument.createElement("span");
+    span.style.setProperty("background-image", background);
+    env.overlay.appendChild(span);
+    const ref: MorphRef = { morphs: ["m"], key: "kit-mouth", image: "kit", selection: "{}", groups: ["mouth"] };
+    const timing: MorphTiming = { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" };
+    playback.mount(
+      span,
+      { plays: [{ layer: 0, picture: { span: 2, files: names.map((name) => ({ src: `${name}.png`, name: `${name}.png` })) }, ref, morph: "m", timing, definition: "d" }], epoch: 0 },
+      background,
+      "background",
+      "portrait:0",
+    );
+    for (let i = 0; i < 2000 && !span.querySelector("span.morph")?.shadowRoot?.querySelector("canvas"); i++) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    const canvas = span.querySelector("span.morph")!.shadowRoot!.querySelector("canvas")!;
+    playback.advance(0.5);
+    const scaleX = canvas.width / 40;
+    const scaleY = canvas.height / 30;
+    expect(frames.at(-1)).toEqual([
+      { src: "base.png", x: 0, y: 0, width: canvas.width, height: canvas.height },
+      { src: "closed.png", x: box.x * scaleX, y: box.y * scaleY, width: box.width * scaleX, height: box.height * scaleY },
+      { src: "open.png", x: 0, y: 0, width: canvas.width, height: canvas.height },
+    ]);
   });
 });
