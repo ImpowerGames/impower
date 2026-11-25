@@ -4730,8 +4730,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const found: Element[] = [];
     if (this._root && name) {
       const layoutsName = this.context.config?.ui?.layouts_element_name;
+      const layouts = layoutsName ? this._root.findChild(layoutsName) : null;
       const matches = this.searchForAll(this._root, name, found).filter(
-        (el) => !writes || !layoutsName || el.parent?.name !== layoutsName,
+        (el) => !writes || !layouts || (el !== layouts && el.parent !== layouts),
       );
       const named = matches.filter((el) => el.name === name);
       const elements =
