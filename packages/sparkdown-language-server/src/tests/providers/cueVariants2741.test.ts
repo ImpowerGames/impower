@@ -52,7 +52,13 @@ describe("a word in a cue's brackets is the line's variant (#2741)", () => {
     ]);
   });
 
-  it.each(["BUNNY [left]", "BUNNY [<]", "BUNNY [>]", "BUNNY [ shout ]", "BUNNY [shout_2]", "BUNNY", "BUNNY (O.S.) [right]"])(
+  it.each(["[]", "[   ]"])("warns on the empty brackets %s", (brackets) => {
+    expect(warnings(scene(`BUNNY ${brackets}`), "cue-variant")).toEqual([
+      { message: "A variant uses letters, digits and `_`.", text: brackets },
+    ]);
+  });
+
+  it.each(["BUNNY [left]", "BUNNY [<]", "BUNNY [>]", "BUNNY [ shout ]", "BUNNY [shout_2]", "BUNNY [constructor]", "BUNNY", "BUNNY (O.S.) [right]"])(
     "does not warn on %s",
     (cue) => {
       expect(warnings(scene(cue), "cue-variant")).toEqual([]);
@@ -149,6 +155,12 @@ end
     expect(await hoverAt(source.replace("@1", "@speaker(bunny)"), 9, 5)).toContain(
       "`@speaker(name)` applies while the newest line showing is spoken by the character defined as `name`",
     );
+  });
+
+  it("describes no line condition on a state named after an Object member", async () => {
+    const value = await hoverAt(source.replace("@1", "@constructor"), 9, 5);
+    expect(value === undefined || typeof value === "string").toBe(true);
+    expect(String(value)).not.toContain("[native code]");
   });
 
   it("describes a cue's variant on hover", async () => {

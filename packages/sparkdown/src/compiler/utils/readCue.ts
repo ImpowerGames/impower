@@ -42,13 +42,13 @@ const SPEAKER_REST = /^[a-zA-Z0-9_@]*/;
 
 const part = (text: string, from: number): CuePart => ({ text, from, to: from + text.length });
 
-const VARIANT_SHORTHANDS: Readonly<Record<string, string>> = { "<": "left", ">": "right" };
+const VARIANT_SHORTHANDS: ReadonlyMap<string, string> = new Map([["<", "left"], [">", "right"]]);
 
 const VARIANT_WORD = /^[\p{L}\p{N}_]+$/u;
 
 export function cueVariant(written: string): string | undefined {
   const word = written.trim();
-  return VARIANT_SHORTHANDS[word] ?? (VARIANT_WORD.test(word) ? word : undefined);
+  return VARIANT_SHORTHANDS.get(word) ?? (VARIANT_WORD.test(word) ? word : undefined);
 }
 
 export function readSpeakerBeingWritten(

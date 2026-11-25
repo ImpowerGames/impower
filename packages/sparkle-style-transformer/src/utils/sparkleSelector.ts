@@ -22,12 +22,14 @@ export const LINE_SPEAKER_ATTRIBUTE = "data-line-speaker";
 
 export const LINE_LABEL = /^[\p{L}\p{N}_]+$/u;
 
+const DEFINE_NAME = /^[_\p{L}][\p{L}\p{N}_]*(?:@[\p{L}\p{N}_]+)*$/u;
+
 const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
 
 export const GAME_WIDE_STATES: ReadonlyMap<string, { name: RegExp; root: (name: string) => string }> = new Map([
   [SHOWING_STATE, { name: SHOWING_NAME, root: (name: string) => `[${SHOWING_ATTRIBUTE}~="${name}"]` }],
   [VARIANT_STATE, { name: LINE_LABEL, root: (name: string) => `[${LINE_VARIANT_ATTRIBUTE}="${name}"]` }],
-  [SPEAKER_STATE, { name: LINE_LABEL, root: (name: string) => `[${LINE_SPEAKER_ATTRIBUTE}="${name}"]` }],
+  [SPEAKER_STATE, { name: DEFINE_NAME, root: (name: string) => `[${LINE_SPEAKER_ATTRIBUTE}="${name}"]` }],
 ]);
 
 export interface ShowingRefusal {

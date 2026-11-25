@@ -11,6 +11,7 @@ describe("@variant(name) and @speaker(name) compile to marks on the game's root 
   test("each tests its own attribute on the root", () => {
     expect(written("@variant(shout)")).toBe(':where([data-line-variant="shout"]) &');
     expect(written("@speaker(bunny)")).toBe(':where([data-line-speaker="bunny"]) &');
+    expect(written("@speaker(bunny@night)")).toBe(':where([data-line-speaker="bunny@night"]) &');
     expect(written("@variant(left) @hovered")).toBe(':where([data-line-variant="left"]) &:hover');
     expect(written("@showing(simultaneous) @variant(left)")).toBe(
       ':where([data-showing~="simultaneous"][data-line-variant="left"]) &',

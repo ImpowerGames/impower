@@ -5330,13 +5330,19 @@ export class SparkdownCompiler {
       if (!doc || !tree) continue;
       tree.iterate({
         enter: (node) => {
-          if (node.name !== "DialogueCharacterPositionContent") {
+          if (node.name !== "DialogueCharacterPosition") {
             return undefined;
           }
-          const word = doc.read(node.from, node.to);
-          if (!cueVariant(word)) {
+          const bracket = doc.read(node.from, node.to);
+          const open = bracket.indexOf("[");
+          const close = bracket.lastIndexOf("]");
+          const inside = bracket.slice(open + 1, close);
+          if (!cueVariant(inside)) {
+            const word = inside.trim();
+            const from = word ? node.from + open + 1 + inside.indexOf(word) : node.from + open;
+            const to = word ? from + word.length : node.from + close + 1;
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({
-              range: doc.range(node.from, node.to),
+              range: doc.range(from, to),
               code: "cue-variant",
               severity: DiagnosticSeverity.Warning,
               message: {

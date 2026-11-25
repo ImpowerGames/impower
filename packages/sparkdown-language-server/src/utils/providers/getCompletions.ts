@@ -766,7 +766,7 @@ const addShowingNameCompletions = (
   }
 };
 
-const LINE_ARGUMENT_BEFORE = /@(variant|speaker)\([ \t]*[\p{L}\p{N}_]*$/u;
+const LINE_ARGUMENT_BEFORE = /@(variant|speaker)\([ \t]*[\p{L}\p{N}_@]*$/u;
 
 const addLineLabelCompletions = (
   completions: Map<string, CompletionItem>,

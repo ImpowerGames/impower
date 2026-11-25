@@ -91,12 +91,16 @@ const getShowingHover = (
   };
 };
 
-const LINE_HOVERS: Readonly<Record<string, string>> = {
-  variant:
+const LINE_HOVERS: ReadonlyMap<string, string> = new Map([
+  [
+    "variant",
     "`@variant(name)` applies while the newest line showing is labelled `name` in its cue's brackets, as `BUNNY [shout]:` is labelled `shout`. It holds across the whole game, so any element's style can use it. `[<]` is `left` and `[>]` is `right`.",
-  speaker:
+  ],
+  [
+    "speaker",
     "`@speaker(name)` applies while the newest line showing is spoken by the character defined as `name`. It holds across the whole game, so any element's style can use it.",
-};
+  ],
+]);
 
 const VARIANT_HOVER =
   "A variant labels the line: a layout's `#variant=name` element takes only lines with that label, a style's `@variant(name)` applies while such a line is the newest, and a typewriter named after the variant types it. `[<]` is short for `[left]` and `[>]` for `[right]`. A variant uses letters, digits and `_`.";
@@ -109,7 +113,7 @@ const getLineHover = (
   const offset = document.offsetAt(position);
   const stack = getStack<SparkdownNodeName>(tree, offset, 1);
   const state = stack.find((node) => node.name === "SelectorStateName");
-  const hover = state ? LINE_HOVERS[document.read(state.from, state.to)] : undefined;
+  const hover = state ? LINE_HOVERS.get(document.read(state.from, state.to)) : undefined;
   if (state && hover) {
     return {
       contents: { kind: MarkupKind.Markdown, value: hover },

@@ -117,6 +117,11 @@ describe("a cue's brackets hold the line's variant (#2741)", () => {
     }
     expect(variants).toEqual(["left", "right", "shout", "receive", "left", undefined, undefined]);
   });
+
+  test("a variant named after an Object member is that word", async () => {
+    const h = await start(`${CHARACTERS}\nscene start\n  BUNNY [constructor]: Hm.\n  BUNNY [toString]: Hm.\nend\n`);
+    expect([h.nextBeat()?.variant, h.nextBeat()?.variant]).toEqual(["constructor", "toString"]);
+  });
 });
 
 describe("#variant and #speaker on a text element limit the lines it takes (#2741)", () => {
