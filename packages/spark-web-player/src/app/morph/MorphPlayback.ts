@@ -836,10 +836,10 @@ export class MorphPlayback {
     for (const layer of this.layers) layer.adoptNext();
   }
 
-  prepareLayouts(skip: Set<MorphLayer>): MorphLayer[] {
+  prepareLayouts(skip: Set<MorphLayer>, within: Element[]): MorphLayer[] {
     const waiting: MorphLayer[] = [];
     for (const layer of this.layers) {
-      if (skip.has(layer) || !layer.span.isConnected) continue;
+      if (skip.has(layer) || !layer.span.isConnected || !within.some((root) => root === layer.span || root.contains(layer.span))) continue;
       layer.prepareLayout();
       if (!layer.drawn) waiting.push(layer);
     }
@@ -1311,18 +1311,26 @@ export class MorphLayer {
       }
       if (still.next?.boxSize === boxSize) continue;
       this.dropNext(still);
-      const next = { boxSize, rasters: new Map<number, StillRaster>() };
-      still.next = next;
       const place = this.stillPlacement(still, plans, area, dpr);
+      const wants = new Map<number, { width: number; height: number }>();
       for (const view of views) {
         const paint = this.stillPaint(view, plans, place);
         paint.layers.forEach((index, at) => {
           const want = this.rasterWant(view, paint, at);
-          if (!want || next.rasters.has(index)) return;
-          const raster: StillRaster = { width: 0, height: 0, want };
-          next.rasters.set(index, raster);
-          this.rasterizeStill(still, index, raster);
+          if (want && !wants.has(index)) wants.set(index, want);
         });
+      }
+      const same = [...wants].every(([index, want]) => {
+        const current = still.rasters.get(index)?.want;
+        return current?.width === want.width && current.height === want.height;
+      });
+      if (same) continue;
+      const next = { boxSize, rasters: new Map<number, StillRaster>() };
+      still.next = next;
+      for (const [index, want] of wants) {
+        const raster: StillRaster = { width: 0, height: 0, want };
+        next.rasters.set(index, raster);
+        this.rasterizeStill(still, index, raster);
       }
     }
   }

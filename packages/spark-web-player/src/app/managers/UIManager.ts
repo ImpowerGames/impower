@@ -757,9 +757,9 @@ export default class UIManager extends Manager {
     }
     const layers: MorphLayer[] = [];
     let unprepared = false;
-    this.precreateTargets(ops);
+    const made = this.precreateTargets(ops);
     const animated = this.beatAnimations(ops);
-    const restore = this.applyBeatLayout(ops);
+    const { restore, changed } = this.applyBeatLayout(ops);
     try {
     const nested = (el: Element) =>
       animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
@@ -855,12 +855,9 @@ export default class UIManager extends Manager {
         }
       }
     }
-    const relaid = ops.some((op) => {
-      const msg = op as RequestMessage;
-      return CreateElementMessage.type.isRequest(msg) || (UpdateElementMessage.type.isRequest(msg) && !!(msg.params.style || msg.params.attributes));
-    });
-    if (relaid) {
-      layers.push(...morphs.prepareLayouts(new Set(layers)));
+    const relaid: Element[] = [...changed, ...made.flatMap((el) => (el.parentElement ? [el.parentElement] : []))];
+    if (relaid.length > 0) {
+      layers.push(...morphs.prepareLayouts(new Set(layers), relaid));
     }
     } finally {
       restore();
@@ -883,12 +880,12 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected precreateTargets(ops: IMessage[]) {
+  protected precreateTargets(ops: IMessage[]): HTMLElement[] {
     const creates = ops.filter((op) => CreateElementMessage.type.isRequest(op as RequestMessage)) as (RequestMessage & {
       params: { element: string; parent: string | null; name: string };
     })[];
     if (creates.length === 0) {
-      return;
+      return [];
     }
     const missing = (id: string) => !this.getElement(id);
     const needed = new Set<string>();
@@ -938,7 +935,7 @@ export default class UIManager extends Manager {
       }
     }
     if (needed.size === 0) {
-      return;
+      return [];
     }
     this._applying += 1;
     try {
@@ -950,6 +947,7 @@ export default class UIManager extends Manager {
     } finally {
       this._applying -= 1;
     }
+    const made: HTMLElement[] = [];
     for (const id of needed) {
       const parent = byId.get(id)?.params.parent;
       if (parent && needed.has(parent)) {
@@ -959,12 +957,25 @@ export default class UIManager extends Manager {
       if (el) {
         this._precreated.push({ el, value: el.style.getPropertyValue("visibility"), priority: el.style.getPropertyPriority("visibility") });
         el.style.setProperty("visibility", "hidden", "important");
+        made.push(el);
       }
     }
+    return made;
   }
 
-  protected applyBeatLayout(ops: IMessage[]): () => void {
+  protected applyBeatLayout(ops: IMessage[]): { restore: () => void; changed: HTMLElement[] } {
     const saved: { el: HTMLElement; style: string | null; attributes: [string, string | null][] }[] = [];
+    const changed: HTMLElement[] = [];
+    const put = (el: HTMLElement, name: string, value: string | null) => {
+      if (el.getAttribute(name) === value) {
+        return;
+      }
+      if (value == null) {
+        el.removeAttribute(name);
+      } else {
+        el.setAttribute(name, value);
+      }
+    };
     for (const op of ops) {
       const msg = op as RequestMessage;
       if (!UpdateElementMessage.type.isRequest(msg)) {
@@ -976,35 +987,27 @@ export default class UIManager extends Manager {
         continue;
       }
       const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked");
-      saved.push({ el, style: el.getAttribute("style"), attributes: names.map((name) => [name, el.getAttribute(name)]) });
+      const entry = { el, style: el.getAttribute("style"), attributes: names.map((name): [string, string | null] => [name, el.getAttribute(name)]) };
+      saved.push(entry);
       if (style) {
         this.applyStyle(el, style);
       }
       for (const name of names) {
-        const value = attributes![name];
-        if (value == null) {
-          el.removeAttribute(name);
-        } else {
-          el.setAttribute(name, value);
-        }
+        put(el, name, attributes![name] ?? null);
+      }
+      if (el.getAttribute("style") !== entry.style || entry.attributes.some(([name, value]) => el.getAttribute(name) !== value)) {
+        changed.push(el);
       }
     }
-    return () => {
+    const restore = () => {
       for (const { el, style, attributes } of saved.reverse()) {
-        if (style == null) {
-          el.removeAttribute("style");
-        } else {
-          el.setAttribute("style", style);
-        }
+        put(el, "style", style);
         for (const [name, value] of attributes) {
-          if (value == null) {
-            el.removeAttribute(name);
-          } else {
-            el.setAttribute(name, value);
-          }
+          put(el, name, value);
         }
       }
     };
+    return { restore, changed };
   }
 
   protected _veil?: { lift: () => void; overdue: () => void };
