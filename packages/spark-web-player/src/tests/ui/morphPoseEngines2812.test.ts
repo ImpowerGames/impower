@@ -78,7 +78,7 @@ const posed = (live: Buffer, drawn: Buffer, rest: Buffer) => {
   return { changed: changed / (live.length / 4), missed: changed ? missed / changed : 1 };
 };
 
-describe.each(ENGINES)("in %s, a drawn portrait's pose drawn as a frame matches the same pose drawn as live SVG (#2812)", (name, engine, need) => {
+describe.each(ENGINES)("in %s, a drawn portrait's pose drawn as a frame matches the same pose drawn as live SVG, its layers moved by Web Animations (#2812)", (name, engine, need) => {
   let browser: Browser | undefined;
 
   beforeAll(async () => {

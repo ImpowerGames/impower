@@ -1,5 +1,5 @@
 import { createMorphHost } from "@impower/sparkdown/src/morph/hosts";
-import { buildMorphMotion, morphMotionStyleAt } from "@impower/sparkdown/src/morph/motion";
+import { buildMorphMotion, morphMotionKeyframes, morphMotionStyleAt } from "@impower/sparkdown/src/morph/motion";
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
@@ -62,13 +62,24 @@ const box = (id: string, width: number, height: number) => {
 async function show(offsets: Record<string, number>, width: number, height: number) {
   const art = await baked();
   if (art.status !== "live") throw new Error(`the fixture portrait baked ${art.status}`);
-  const markup = moved(renderMorphAt(art, offsets), offsets["blink"]);
+  const posed = renderMorphAt(art, offsets);
+  const markup = moved(posed, offsets["blink"]);
   const live = box("live", width, height);
-  const svg = new DOMParser().parseFromString(markup, "image/svg+xml").documentElement;
+  const svg = document.importNode(new DOMParser().parseFromString(posed, "image/svg+xml").documentElement, true);
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", "100%");
   svg.setAttribute("style", "position:absolute;inset:0");
-  live.appendChild(document.importNode(svg, true));
+  live.appendChild(svg);
+  const offset = offsets["blink"];
+  for (const element of offset === undefined ? [] : Array.from(svg.querySelectorAll("[data-morph-motion]"))) {
+    const track = MOTION[element.getAttribute("data-morph-motion")!];
+    if (!track) continue;
+    const animation = element.animate(morphMotionKeyframes(track) as Keyframe[], { duration: 1000, fill: "both" });
+    animation.pause();
+    animation.currentTime = offset! * 1000;
+    animation.commitStyles();
+    animation.cancel();
+  }
   const drawn = box("drawn", width, height);
   const canvas = document.createElement("canvas");
   const dpr = window.devicePixelRatio || 1;
