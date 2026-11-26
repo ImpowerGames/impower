@@ -416,6 +416,14 @@ try {
     },
   );
   connection.onRequest(
+    "sparkdown/synthDefaults",
+    async (params: { uri: string }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri) ?? params.uri;
+      const program = await workspace.currentProgram(mainUri);
+      return program?.context?.["synth"]?.["$default"] ?? null;
+    },
+  );
+  connection.onRequest(
     "sparkdown/variantPicture",
     async (params: { uri: string; variant: ImageVariant; size?: number }) => {
       const mainUri = workspace.getMainScriptUri(params.uri);

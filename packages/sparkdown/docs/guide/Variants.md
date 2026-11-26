@@ -74,6 +74,43 @@ end
 
 The name and the parenthetical above the line keep their own typewriters.
 
+## Giving a speaker a typewriter sound
+
+In the web editor, open **Writing tools → Typewriter sound**. **Play sample** plays one key press, then a short line at the default dialogue speed. **Reroll** varies the brightness, resonance and return click while keeping the same 73 ms note. **Copy definition** gives you the settings for that particular roll. Paste them above your scenes. A character named `imani` can inherit that sound at a lower volume.
+
+```sparkdown
+define imani as story_key with
+  volume = 0.22
+end
+```
+
+You can also write the sound directly. This key has a soft return 46 ms after the initial strike.
+
+```sparkdown
+define story_key as synth with
+  shape = "whitenoise"
+  volume = 0.31
+  pitch = { frequency = 6250 }
+  envelope = {
+    attack = 0.001, decay = 0.016, sustain = 0.027, release = 0.029, level = 0.68,
+    points = {
+      { time = 0, level = 1 }, { time = 0.011, level = 1 },
+      { time = 0.012, level = 0.36 }, { time = 0.023, level = 0.105 },
+      { time = 0.035, level = 0.035 }, { time = 0.045, level = 0.035 },
+      { time = 0.046, level = 0.91 }, { time = 0.055, level = 0.91 },
+      { time = 0.058, level = 0.17 }, { time = 0.069, level = 0 }
+    }
+  }
+  bandpass = { on = true, frequency = 1600, q = 0.96 }
+  delay = { on = true, length = 0.000435, strength = 0.24, feedback = 0.65 }
+  lowpass = { on = true, cutoff = 7850, resonance = 0.04 }
+end
+```
+
+Each point multiplies the usual envelope by a level from 0 to 1. Its time is in seconds from the start of the note. The synth interpolates linearly between points and holds the first and last levels outside that interval. Attack, decay, sustain and release still set the note length used to group syllables.
+
+The band-pass frequency is its center in Hz. A higher `q` gives the key a narrower resonance. The delay length is in seconds and can be randomized in steps of one microsecond. A high-pass filter now passes treble above its cutoff. To keep the former sound of a custom high-pass setting, use `lowpass` with the same cutoff and cutoff ramp and with `resonance = 0`.
+
 ## In the screenplay
 
 The screenplay prints `[left]` and `[right]` lines, and `[<]` and `[>]` lines, side by side in two columns. A line with any other variant prints as ordinary dialogue.

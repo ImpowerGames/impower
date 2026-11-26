@@ -23,6 +23,7 @@ import { ChangeColorView } from "./ChangeColor";
 import ShortcutsSheet from "./ShortcutsSheet";
 import { shortcutSections } from "./shortcuts";
 import SparkdownGuide from "./SparkdownGuide";
+import TypewriterSound from "./TypewriterSound";
 import WritingToolsMenu, {
   type CommandRow,
   type NameAction,
@@ -43,6 +44,7 @@ const TITLES: Record<WritingToolsView, string> = {
   guide: "Sparkdown guide",
   shortcuts: "Keyboard shortcuts",
   color: "Change color",
+  typewriter: "Typewriter sound",
 };
 
 const deepActiveElement = (): HTMLElement | null => {
@@ -264,6 +266,8 @@ export default function WritingTools({
             canEdit={canEdit}
             onUse={applyColor}
           />
+        ) : view === "typewriter" ? (
+          <TypewriterSound key={filename} filename={filename} />
         ) : view === "guide" ? (
           <SparkdownGuide />
         ) : (

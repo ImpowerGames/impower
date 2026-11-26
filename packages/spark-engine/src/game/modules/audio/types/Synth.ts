@@ -4,6 +4,11 @@ import { type OscillatorType } from "./OscillatorType";
 
 export type Direction = "up" | "down" | "down-up" | "up-down";
 
+export interface EnvelopePoint {
+  time: number;
+  level: number;
+}
+
 export interface Modulator {
   on: boolean;
   order?: number;
@@ -26,6 +31,7 @@ export interface Synth extends Reference<"synth"> {
     sustain: number;
     release: number;
     level: number;
+    points?: EnvelopePoint[];
   };
   pitch: {
     frequency: number;
@@ -64,6 +70,11 @@ export interface Synth extends Reference<"synth"> {
   tremolo: Modulator;
   ring: Modulator;
   wahwah: Modulator;
+  bandpass?: {
+    on: boolean;
+    frequency: number;
+    q: number;
+  };
   distortion: {
     on: boolean;
     order?: number;

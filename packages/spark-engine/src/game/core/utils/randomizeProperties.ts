@@ -1,4 +1,5 @@
 import { type Random } from "../types/Random";
+import { type RecursivePartial } from "../types/RecursivePartial";
 import { type Schema } from "../types/Schema";
 import { clampedRandom } from "./clampedRandom";
 import { cull } from "./cull";
@@ -28,7 +29,7 @@ const roundForSchema = <T>(
 };
 
 export const randomizeProperties = <T>(
-  obj: T,
+  obj: T | RecursivePartial<T>,
   validation: Schema<T>,
   randomization: Random<T>,
   cullProp?: string,
@@ -86,7 +87,12 @@ export const randomizeProperties = <T>(
       return;
     }
 
-    setProperty(obj, k, pick(v, rng));
+    const picked = pick(v, rng);
+    setProperty(
+      obj,
+      k,
+      picked && typeof picked === "object" ? structuredClone(picked) : picked,
+    );
   });
 
   if (cullProp) {

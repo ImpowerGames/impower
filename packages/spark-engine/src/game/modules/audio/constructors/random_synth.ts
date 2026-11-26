@@ -405,9 +405,10 @@ export const random_synth_clack: Create<Random<Synth>> = () => ({
   pitch: {
     frequency: [A[4], A[8]],
   },
-  highpass: {
+  lowpass: {
     on: [true],
     cutoff: [1800, 4000],
+    resonance: [0],
   },
   vibrato: {
     on: [true],
@@ -420,4 +421,47 @@ export const random_synth_clack: Create<Random<Synth>> = () => ({
     tones: [[0]],
     levels: [[0.2, 1, 0.1, 0.05, 0.01, 1, 0]],
   },
+});
+
+function keyEnvelope(returnTime: number, returnLevel: number) {
+  return [
+    { time: 0, level: 1 },
+    { time: 0.011, level: 1 },
+    { time: 0.012, level: 0.36 },
+    { time: 0.023, level: 0.105 },
+    { time: 0.035, level: 0.035 },
+    { time: (returnTime - 1) / 1000, level: 0.035 },
+    { time: returnTime / 1000, level: returnLevel },
+    { time: (returnTime + 9) / 1000, level: returnLevel },
+    { time: (returnTime + 12) / 1000, level: 0.17 },
+    { time: 0.069, level: 0 },
+  ];
+}
+
+export const random_synth_typewriter: Create<Random<Synth>> = () => ({
+  $type: "synth",
+  $name: "$random:typewriter",
+  shape: ["whitenoise"],
+  volume: [0.31],
+  envelope: {
+    attack: [0.001],
+    decay: [0.016],
+    sustain: [0.027],
+    release: [0.029],
+    level: [0.68],
+    points: [
+      keyEnvelope(42, 0.76),
+      keyEnvelope(46, 0.91),
+      keyEnvelope(50, 0.98),
+    ],
+  },
+  pitch: { frequency: [5200, 7300] },
+  bandpass: { on: [true], frequency: [1350, 1850], q: [0.76, 1.16] },
+  delay: {
+    on: [true],
+    length: [0.00039, 0.00048],
+    strength: [0.19, 0.29],
+    feedback: [0.6, 0.7],
+  },
+  lowpass: { on: [true], cutoff: [6800, 8900], resonance: [0.04] },
 });
