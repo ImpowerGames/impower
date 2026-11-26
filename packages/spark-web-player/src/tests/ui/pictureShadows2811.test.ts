@@ -309,40 +309,75 @@ const KIT_CONTEXT = {
   },
 };
 
+const talkRecipe = () =>
+  serializeMorphRecipe(
+    buildMorphRecipe("talk", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 0.5, mouth: { state: "open" } }, { offset: 1, mouth: { state: "closed" } }] } as never),
+  );
+
+const talkingKit = (files: { src: string; name: string }[], vectorPicture: boolean): WriteImageParams =>
+  show(
+    "kit",
+    files.slice(0, 2).map((file) => file.src),
+    {
+      pictures: [{ layer: 0, span: 2, name: "kit", ...(vectorPicture ? { vector: true as const } : {}), files: files.slice(0, 2) }],
+      morph: {
+        plays: [
+          {
+            layer: 0,
+            picture: { span: 2, files },
+            ref: { morphs: ["talk"], key: `kit-talk-${vectorPicture ? "svg" : "png"}`, image: "kit", selection: "{}", groups: ["mouth"] },
+            morph: "talk",
+            owner: "nova",
+            timing: { trigger: "speech", duration: 0.4, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+            definition: "d",
+          },
+        ],
+        epoch: 0,
+      },
+    },
+  );
+
 describe("a drawn portrait's shadows keep its resting outline while a morph plays (#2811)", () => {
-  test("the outline is made once from the rest pose and is unchanged while a speech morph plays", async () => {
+  test("a portrait made only of image files with a speech morph gives its shadows one outline of its resting files", async () => {
     const t = await setup();
-    const recipe = serializeMorphRecipe(
-      buildMorphRecipe("talk", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 0.5, mouth: { state: "open" } }, { offset: 1, mouth: { state: "closed" } }] } as never),
-    );
+    const context = {
+      ...KIT_CONTEXT,
+      image: Object.fromEntries(KIT.map((name) => [name, { $type: "image", $name: name, src: `/src/${name}.png`, uri: `file:///${name}.png` }])),
+    };
     t.playback.configure({
       host: createMorphHost({
         service: new MorphBakeService(),
-        channel: () => ({ recipes: { talk: recipe }, variants: {} }),
+        channel: () => ({ recipes: { talk: talkRecipe() }, variants: {} }),
+        readSource: layeredMorphSource(() => context as never),
+      }),
+    });
+    const files = KIT.map((name) => ({ src: `/src/${name}.png`, name: `${name}.png` }));
+    t.beat([talkingKit(files, false)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(t.outlines).toHaveLength(1);
+    expect(t.events.indexOf("outline 160x120")).toBeLessThan(t.events.indexOf("applied"));
+    expect(t.outlinePaints()[0]!.draws).toEqual(["/src/base.png @160x120", "/src/closed.png @160x120"]);
+    expect(t.masks()).toEqual(Array(SHADOWS).fill('none, url("blob:outline-1")'));
+    t.playback.speak("nova", [[0, 2]]);
+    for (let i = 0; i < 10; i++) {
+      t.playback.advance(0.05);
+      await flushMicrotasks(2);
+    }
+    expect(t.outlines).toHaveLength(1);
+    expect(t.masks()).toEqual(Array(SHADOWS).fill('none, url("blob:outline-1")'));
+  });
+
+  test("the outline is made once from the rest pose and is unchanged while a speech morph plays", async () => {
+    const t = await setup();
+    t.playback.configure({
+      host: createMorphHost({
+        service: new MorphBakeService(),
+        channel: () => ({ recipes: { talk: talkRecipe() }, variants: {} }),
         readSource: layeredMorphSource(() => KIT_CONTEXT as never),
       }),
     });
     const files = KIT.map((name) => (name === "base" ? { src: "/src/base.svg", name: "base.svg" } : { src: `/src/${name}.png`, name: `${name}.png` }));
-    const srcs = ["/src/base.svg", "/src/closed.png"];
-    t.beat([
-      show("kit", srcs, {
-        pictures: [{ layer: 0, span: 2, name: "kit", vector: true, files: files.slice(0, 2) }],
-        morph: {
-          plays: [
-            {
-              layer: 0,
-              picture: { span: 2, files },
-              ref: { morphs: ["talk"], key: "kit-talk", image: "kit", selection: "{}", groups: ["mouth"] },
-              morph: "talk",
-              owner: "nova",
-              timing: { trigger: "speech", duration: 0.4, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
-              definition: "d",
-            },
-          ],
-          epoch: 0,
-        },
-      }),
-    ]);
+    t.beat([talkingKit(files, true)]);
     await until(() => t.events.includes("applied"), "the beat");
     await until(() => t.masks().every((mask) => mask === 'none, url("blob:outline-1")'), "the outline on every shadow");
     expect(t.outlines).toHaveLength(1);

@@ -112,6 +112,11 @@ type OutlineSource =
   | { state: "waiting" | "none" | "css" }
   | { state: "ready"; key: string; width: number; height: number; natural: { width: number; height: number }; draw: (context: PictureCanvasContext) => void };
 
+interface OutlineLayer {
+  bitmap: PictureBitmap;
+  raster?: { image?: CanvasImageSource; width: number; height: number };
+}
+
 interface MaskOutline {
   picture: LayeredPicture;
   state: "waiting" | "none" | "css" | "shown";
@@ -1966,24 +1971,48 @@ export class MorphLayer {
         entry.picture.files.length === picture.files.length &&
         entry.picture.files.every((file, index) => file.src === picture.files[index]!.src),
     );
-    if (!still) return undefined;
+    if (!still) return this.morphOutline(picture);
     if (still.broken || this.arealess || (still.under && this.uncomposited(still.under) && still.under.inner.length > 0)) return { state: "css" };
     if (still.undrawn) return { state: "none" };
     const files = still.files;
     const unready = { state: still.late ? "none" : "waiting" } as const;
     if (still.loading || !files) return unready;
-    const indices = [...files.bitmaps.keys()].sort((a, b) => a - b);
+    const layers: OutlineLayer[] = [...files.bitmaps.keys()]
+      .sort((a, b) => a - b)
+      .map((index) => ({ bitmap: files.bitmaps.get(index)!, raster: still.rasters.get(index) }));
+    return this.readyOutline(picture, files, layers) ?? unready;
+  }
+
+  protected morphOutline(picture: LayeredPicture): OutlineSource | undefined {
+    const image = this.images.find((entry) => entry.picture && entry.layer === picture.layer && entry.span === picture.span);
+    if (!image?.picture) return undefined;
+    if (this.uncomposited(image) || this.arealess) return { state: "css" };
+    const files = image.files;
+    if (!files) return { state: image.reported ? "none" : "waiting" };
+    const layers: OutlineLayer[] = [];
+    for (const file of picture.files) {
+      const index = image.picture.files.findIndex((entry) => entry.src === file.src);
+      const bitmap = (index >= 0 ? files.bitmaps.get(index) : undefined) ?? this.playback.pictureNow(file.src);
+      if (!bitmap || (bitmap.vector && !files.rasters.get(index))) return { state: "css" };
+      layers.push({ bitmap, ...(bitmap.vector ? { raster: files.rasters.get(index) } : {}) });
+    }
+    return this.readyOutline(picture, files, layers) ?? { state: "css" };
+  }
+
+  protected readyOutline(
+    picture: LayeredPicture,
+    files: PictureFiles,
+    layers: OutlineLayer[],
+  ): OutlineSource | undefined {
     const sources: PictureBitmap[] = [];
     let width = 0;
     let height = 0;
-    for (const index of indices) {
-      const bitmap = files.bitmaps.get(index)!;
+    for (const { bitmap, raster } of layers) {
       if (!bitmap.vector) {
         sources.push(bitmap);
         continue;
       }
-      const raster = still.rasters.get(index);
-      if (!raster?.image) return unready;
+      if (!raster?.image) return undefined;
       sources.push({ ...bitmap, image: raster.image, box: undefined });
       width = Math.max(width, raster.width);
       height = Math.max(height, raster.height);
