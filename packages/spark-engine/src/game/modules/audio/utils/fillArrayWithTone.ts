@@ -46,6 +46,8 @@ export const fillArrayWithTone = (
         pitchRange,
         volume,
         pitch,
+        undefined,
+        speed,
       );
     }
   }

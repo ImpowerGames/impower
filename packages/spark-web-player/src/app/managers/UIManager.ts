@@ -343,6 +343,7 @@ export default class UIManager extends Manager {
       morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
       morphs.keepWhole = (srcs) => (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(srcs);
       morphs.placeholders = this.app.placeholders === true;
+      morphs.frameBudget = () => (this.app.assets?.cache ?? this.app.assetCache)?.predictionRoom ?? Infinity;
       morphs.residentPicture = (src) => {
         const picture = (this.app.assets?.cache ?? this.app.assetCache)?.picture(src);
         return picture ? { ...picture, image: picture.image as unknown as CanvasImageSource } : undefined;
@@ -2168,11 +2169,13 @@ export default class UIManager extends Manager {
   override onReceiveNotification(msg: NotificationMessage) {
     this.endPreviewCutscene(msg);
     if (ConfigureAssetsMessage.type.isNotification(msg)) {
-      const { beatTimeout, restoreTimeout } = msg.params;
+      const { beatTimeout, restoreTimeout, morphFrameRate } = msg.params;
       this._drawTimeouts = {
         beat: Number.isFinite(beatTimeout) && beatTimeout >= 0 ? beatTimeout : this._drawTimeouts.beat,
         restore: Number.isFinite(restoreTimeout) && restoreTimeout >= 0 ? restoreTimeout : this._drawTimeouts.restore,
       };
+      const morphs = this.morphs;
+      if (morphs && Number.isFinite(morphFrameRate) && morphFrameRate >= 0) morphs.frameRate = morphFrameRate;
       return;
     }
     if (MorphArtifactMessage.type.isNotification(msg)) {

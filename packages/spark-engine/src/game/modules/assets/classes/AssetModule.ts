@@ -107,6 +107,7 @@ export class AssetModule extends Module<
       loading_min: seconds("loading_min"),
       loading_transition:
         typeof transition === "string" && transition ? transition : undefined,
+      morph_frame_rate: count("morph_frame_rate"),
     };
   }
 
@@ -745,6 +746,7 @@ export class AssetModule extends Module<
         trimLayers: this.config.trim_layers,
         beatTimeout: this.config.beat_timeout,
         restoreTimeout: this.config.restore_timeout,
+        morphFrameRate: this.config.morph_frame_rate,
       }),
     );
     await this.gateRestore(this._game.module.ui.restoredPictureNames());

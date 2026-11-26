@@ -86,7 +86,12 @@ export const randomizeProperties = <T>(
       return;
     }
 
-    setProperty(obj, k, pick(v, rng));
+    const picked = pick(v, rng);
+    setProperty(
+      obj,
+      k,
+      picked && typeof picked === "object" ? structuredClone(picked) : picked,
+    );
   });
 
   if (cullProp) {

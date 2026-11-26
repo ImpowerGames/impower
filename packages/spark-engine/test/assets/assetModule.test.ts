@@ -89,10 +89,11 @@ describe("AssetModule", () => {
       trimLayers: true,
       beatTimeout: 8,
       restoreTimeout: 2,
+      morphFrameRate: 24,
     });
 
     const small = createHarness(
-      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\n  trim_layers = false\nend\n\n${STORY}`,
+      `define assets as config with\n  predict_cache_size = 1\n  load_cache_size = 2\n  trim_layers = false\n  morph_frame_rate = 12\nend\n\n${STORY}`,
       0,
       { assets: ASSETS },
     );
@@ -103,7 +104,9 @@ describe("AssetModule", () => {
       trimLayers: false,
       beatTimeout: 8,
       restoreTimeout: 2,
+      morphFrameRate: 12,
     });
+    expect((small.game as any).program?.context?.config?.assets?.morph_frame_rate).toBe(12);
     expect((small.game as any).program?.context?.config?.assets?.trim_layers).toBe(false);
     expect((h.game as any).program?.context?.config?.assets?.trim_layers).toBe(true);
   });

@@ -202,6 +202,19 @@ export class AssetCache {
     return this._predictBytes;
   }
 
+  get predictionRoom(): number {
+    if (this._predictBytes <= 0) {
+      return Infinity;
+    }
+    let held = 0;
+    for (const e of this._entries.values()) {
+      if (e.state === "resident" && e.pins.size === 0) {
+        held += e.bytes;
+      }
+    }
+    return Math.max(0, this._predictBytes - held);
+  }
+
   get loadBytes() {
     return this._loadBytes;
   }
