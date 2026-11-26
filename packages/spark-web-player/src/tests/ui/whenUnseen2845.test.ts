@@ -218,7 +218,10 @@ const scenario = async (setup: string, css = ""): Promise<Scenario> => {
       const seen = () => {
         let opacity = 1;
         for (let at: Element | null = picture; at; at = at.parentElement) {
-          opacity *= Number(getComputedStyle(at).opacity);
+          const style = getComputedStyle(at);
+          if (style.display !== "contents") {
+            opacity *= Number(style.opacity);
+          }
         }
         return opacity > 0 && getComputedStyle(picture).visibility === "visible" && picture.getClientRects().length > 0;
       };
@@ -340,6 +343,26 @@ test("a picture hidden by something other than opacity waits for its effects to 
     "#picture { visibility: hidden; }",
   );
   expect(result).toEqual({ early: false, seen: false, settled: false, seenAtEnd: false });
+});
+
+test("a picture whose ancestor held at zero generates no box is seen (#2845)", async () => {
+  const result = await scenario(
+    held("portrait", `[{ opacity: "0" }, { opacity: "0" }]`, `{ duration: 6000, fill: "forwards" }`, 1000),
+    "#portrait { display: contents; }",
+  );
+  expect(result).toEqual({ early: false, seen: true, settled: false, seenAtEnd: true });
+});
+
+test("a picture whose ancestor held at zero will stop generating a box is never unseen (#2845)", async () => {
+  const result = await scenario(
+    held(
+      "portrait",
+      `[{ opacity: "0", display: "block" }, { opacity: "0", display: "contents" }]`,
+      `{ duration: 6000, fill: "forwards" }`,
+      1000,
+    ),
+  );
+  expect(result).toEqual({ early: false, seen: false, settled: false, seenAtEnd: true });
 });
 
 test("a picture displayed as none waits for its effects to end (#2845)", async () => {

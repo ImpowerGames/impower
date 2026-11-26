@@ -63,9 +63,18 @@ const holdOf = (animation: Animation): Hold => {
   return fills && animation.playbackRate > 0 && progress != null && bounded ? "pins" : "keeps";
 };
 
+const changesDisplay = (animation: Animation) => {
+  const effect = animation.effect as KeyframeEffect | null;
+  return (
+    typeof effect?.getKeyframes === "function" &&
+    effect.getKeyframes().some((frame) => frame["display"] != null)
+  );
+};
+
 const transparent = (el: Element): boolean => {
+  const animations = el.getAnimations();
   let pinned = false;
-  for (const animation of el.getAnimations()) {
+  for (const animation of animations) {
     const hold = holdOf(animation);
     if (hold === "pins") {
       pinned = true;
@@ -73,7 +82,11 @@ const transparent = (el: Element): boolean => {
       pinned = false;
     }
   }
-  return pinned && Number(el.ownerDocument.defaultView?.getComputedStyle(el).opacity) === 0;
+  if (!pinned || animations.some(changesDisplay)) {
+    return false;
+  }
+  const style = el.ownerDocument.defaultView?.getComputedStyle(el);
+  return style?.display !== "contents" && Number(style?.opacity) === 0;
 };
 
 const lineage = (el: Element): Element[] => {
