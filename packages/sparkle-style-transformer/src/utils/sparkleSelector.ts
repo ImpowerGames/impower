@@ -15,6 +15,7 @@ export const SHOWING_STATE = "showing";
 const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
 
 export interface SelectorRefusal {
+  kind: "showing" | "at-rule-list" | "query-list";
   where: string;
   from: number;
   to: number;
@@ -222,14 +223,7 @@ const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
 const NESTED_AT_RULES: ReadonlySet<string> = new Set(["@layer", "@scope"]);
-const LIST_ITEM_QUOTED = String.raw`"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'`;
-const LIST_ITEM_GROUP = String.raw`\((?:${LIST_ITEM_QUOTED}|[^()"'\r\n])*\)`;
-const LIST_ITEM_PLAIN = String.raw`[^,"'()#\[:.&>+~@\r\n]`;
-const LIST_ITEM_MARK = String.raw`[#\[:.&>+~]|@[_\p{L}]`;
-const SELECTOR_LIST_ITEM_AFTER = new RegExp(
-  String.raw`(?:${LIST_ITEM_QUOTED}|${LIST_ITEM_GROUP}|${LIST_ITEM_PLAIN})*(?:${LIST_ITEM_MARK})`,
-  "uy",
-);
+const HELD_SELECTOR = /[^,\s]/;
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
@@ -249,6 +243,10 @@ class SparkleSelectorWriter {
   private preludes: { from: number; to: number; where: string }[] = [];
 
   private itemAtRules: { rule: string; text: string; from: number; to: number }[][] = [];
+
+  private queryLists: { from: number; to: number }[] = [];
+
+  private heldState = false;
 
   readonly roots: string[] = [];
 
@@ -270,6 +268,16 @@ class SparkleSelectorWriter {
         out += this.src[this.i++];
       }
     }
+    if (HELD_SELECTOR.test(out) || this.roots.length > 0 || this.heldState) {
+      for (const { from, to } of this.queryLists) {
+        this.refusals.push({
+          kind: "query-list",
+          where: "in a style key whose at-rule lists queries with a comma beside a selector or state",
+          from,
+          to,
+        });
+      }
+    }
     const sets = Array.from({ length: this.item + 1 }, (_, item) => {
       const rules = this.itemAtRules[item] ?? [];
       const nested = rules.filter(({ rule }) => NESTED_AT_RULES.has(rule)).map(({ text }) => text);
@@ -281,12 +289,17 @@ class SparkleSelectorWriter {
       this.atRules = first;
     } else {
       for (const { from, to } of this.itemAtRules.flat()) {
-        this.refusals.push({ where: "in a comma list whose selectors hold different at-rule states", from, to });
+        this.refusals.push({
+          kind: "at-rule-list",
+          where: "in a comma list whose selectors hold different at-rule states",
+          from,
+          to,
+        });
       }
     }
     for (const { from, to } of showingOccurrences(this.src)) {
       if (!this.seen.has(from)) {
-        this.refusals.push({ where: this.positionAt(from), from, to });
+        this.refusals.push({ kind: "showing", where: this.positionAt(from), from, to });
       }
     }
     return out.trim();
@@ -330,7 +343,7 @@ class SparkleSelectorWriter {
     const where =
       this.positions.at(-1) ?? (this.compound > 0 ? "in a compound after a combinator" : undefined);
     if (where) {
-      this.refusals.push({ where, from, to: this.i });
+      this.refusals.push({ kind: "showing", where, from, to: this.i });
       return written;
     }
     const name = text.trim();
@@ -425,10 +438,17 @@ class SparkleSelectorWriter {
           const from = this.i;
           const where = `inside an \`${written.atRule}\` prelude`;
           const shorthand = !AT_RULE_STATES.has(name);
-          const text = written.text + this.within(where, () => this.prelude(written.atRule!, shorthand));
+          const prelude = this.within(where, () => this.prelude(written.atRule!, shorthand));
+          const text = written.text + prelude.text;
           this.preludes.push({ from, to: this.i, where });
           if (this.positions.length === 0) {
             (this.itemAtRules[this.item] ??= []).push({ rule: written.atRule, text, from: start, to: this.i });
+            if (name === COLOR_SCHEME_STATE || prelude.stateAfter) {
+              this.heldState = true;
+            }
+            if (prelude.listed) {
+              this.queryLists.push({ from: start, to: this.i });
+            }
           } else {
             out += text;
           }
@@ -589,11 +609,13 @@ class SparkleSelectorWriter {
           : this.raw();
   }
 
-  private prelude(atRule: string, shorthand: boolean): string {
+  private prelude(atRule: string, shorthand: boolean): { text: string; listed: boolean; stateAfter: boolean } {
     let out = "";
     const declarations: boolean[] = [false];
     let space = false;
     let atStart = true;
+    let listed = false;
+    let stateAfter = false;
     while (this.i < this.src.length) {
       const char = this.src[this.i]!;
       if (this.match(WHITESPACE)) {
@@ -602,11 +624,16 @@ class SparkleSelectorWriter {
       }
       if (
         declarations.length === 1 &&
-        (char === ")" ||
-          (char === "@" && this.stateAfter(0)) ||
-          (char === "," && (shorthand || this.listItemAfter())))
+        (char === ")" || (char === "@" && !listed && this.stateAfter(0)) || (char === "," && shorthand))
       ) {
         break;
+      }
+      if (char === "@" && listed && declarations.length === 1) {
+        STATE.lastIndex = this.i;
+        const name = STATE.exec(this.src)?.[1];
+        if (name && (name === COLOR_SCHEME_STATE || !isAtRuleState(name))) {
+          stateAfter = true;
+        }
       }
       if (space) {
         const previous = out[out.length - 1];
@@ -645,6 +672,7 @@ class SparkleSelectorWriter {
       if (char === "," && declarations.length === 1) {
         this.i++;
         out += ", ";
+        listed = true;
         continue;
       }
       const word = this.match(WORD);
@@ -654,17 +682,12 @@ class SparkleSelectorWriter {
       }
       out += this.token(char);
     }
-    return out.trimEnd();
+    return { text: out.trimEnd(), listed, stateAfter };
   }
 
   private stateAfter(skip: number): boolean {
     NEXT_STATE.lastIndex = this.i + skip;
     return NEXT_STATE.test(this.src);
-  }
-
-  private listItemAfter(): boolean {
-    SELECTOR_LIST_ITEM_AFTER.lastIndex = this.i + 1;
-    return SELECTOR_LIST_ITEM_AFTER.test(this.src);
   }
 
   private closesNext(): boolean {

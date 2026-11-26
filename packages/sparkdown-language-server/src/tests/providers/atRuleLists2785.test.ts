@@ -52,17 +52,8 @@ const listWarning = (selector: string, written: string, consequence = "this bloc
 describe("a comma list whose selectors hold different at-rule states is reported on each at-rule state (#2785)", () => {
   it.each([
     ["@hovered, @media (min-width: 1px)", ["@media (min-width: 1px)"]],
-    ["@media (min-width: 1px), @hovered", ["@media (min-width: 1px)"]],
     ["@hovered @container-size(sm), @focused", ["@container-size(sm)"]],
-    ["@hovered @media (min-width: 1px), text @focused", ["@media (min-width: 1px)"]],
     ["@hovered @container-size(sm), text", ["@container-size(sm)"]],
-    ["@hovered @media (min-width: 1px), #selected", ["@media (min-width: 1px)"]],
-    ["@hovered @media (min-width: 1px), :focus", ["@media (min-width: 1px)"]],
-    ["@hovered @media (min-width: 1px), [selected]", ["@media (min-width: 1px)"]],
-    ["@hovered @media (min-width: 1px), frame :is(:not(.absent)) @focused", ["@media (min-width: 1px)"]],
-    ["@hovered @media (min-width: 1px), frame :is(@focused)", ["@media (min-width: 1px)"]],
-    ["@hovered @media (min-width: 1px), text.headline", ["@media (min-width: 1px)"]],
-    ["@hovered @media (min-width: 1px), @focused @media (min-width: 2px)", ["@media (min-width: 1px)", "@media (min-width: 2px)"]],
   ])("%s", (selector, written) => {
     expect(warnings(selector, "at-rule-list")).toEqual(written.map((w) => listWarning(selector, w)));
   });
@@ -79,17 +70,59 @@ describe("a comma list whose selectors hold different at-rule states is reported
   it.each([
     "@hovered @media (min-width: 1px)",
     "@media (min-width: 1px) @hovered",
-    "@hovered @media (min-width: 1px), @focused @media (min-width: 1px)",
     "@hovered @theme(dark)",
     "@media (min-width: 1px)",
     "@hovered, @focused",
-    "@media (min-width: 1px), speech",
-    "@hovered @media (min-width: 1px), text",
     "@hovered @container-size(sm), @focused @container-size(640px)",
     "@hovered @screen-size(sm) @screen-size(sm), @focused @screen-size(sm)",
+  ])("does not warn on %s", (selector) => {
+    expect(warnings(selector, "at-rule-list")).toEqual([]);
+  });
+});
+
+const queryListWarning = (selector: string, state: string, consequence = "this block never applies") => {
+  const from = 2 + selector.indexOf(`@${state} `);
+  return {
+    message: `\`@${state}\` lists queries with a comma beside a selector or state, so ${consequence}.\n> Nest the blocks, as in \`@${state} (…), (…) { @hovered { … } }\`, or write each query as its own key`,
+    line: 7,
+    from,
+    to: 2 + selector.length,
+  };
+};
+
+describe("a raw at-rule that lists queries with a comma beside a selector or state is reported on the at-rule (#2785)", () => {
+  it.each([
+    ["@hovered @media (min-width: 1px), print", "media"],
+    ["@media (min-width: 1px), @hovered", "media"],
+    ["@media (min-width: 1px), (min-width: 2px) @hovered", "media"],
+    ["@hovered @media (min-width: 1px), text", "media"],
+    ["@hovered @media (min-width: 1px), text @focused", "media"],
+    ["@hovered @media (min-width: 1px), #selected", "media"],
+    ["@hovered @media (min-width: 1px), :focus", "media"],
+    ["@hovered @media (min-width: 1px), [selected]", "media"],
+    ["@hovered @media (min-width: 1px), frame :is(:not(.absent)) @focused", "media"],
+    ["@hovered @media (min-width: 1px), frame :is(@focused)", "media"],
+    ["@hovered @media (min-width: 1px), text.headline", "media"],
+    ["@hovered @media (min-width: 1px), @focused @media (min-width: 2px)", "media"],
+    ["@hovered @media (min-width: 1px), @focused @media (min-width: 1px)", "media"],
+    ["frame @container (min-width: 1px), sidebar (min-width: 2px)", "container"],
+    ['@hovered @container style(--mode: dark), style(--mode: "@night")', "container"],
+    ["@showing(hud) @media (min-width: 1px), print", "media"],
+    ["@media (min-width: 1px), print @theme(dark)", "media"],
+  ])("%s", (selector, state) => {
+    expect(warnings(selector, "at-rule-query-list")).toEqual([queryListWarning(selector, state)]);
+  });
+
+  it.each([
+    "@media (min-width: 1px), print",
+    "@media (min-width: 1px), speech",
+    "@media (min-width: 1px), text",
     '@container style(--mode: dark), style(--mode: "@night")',
     '@container style(--mode: dark), style(--label: ")@night")',
-  ])("does not warn on %s", (selector) => {
+    "@container card (min-width: 1px), sidebar (min-width: 2px)",
+    "@layer base, theme",
+  ])("does not warn on %s, which holds only the at-rule", (selector) => {
+    expect(warnings(selector, "at-rule-query-list")).toEqual([]);
     expect(warnings(selector, "at-rule-list")).toEqual([]);
   });
 });

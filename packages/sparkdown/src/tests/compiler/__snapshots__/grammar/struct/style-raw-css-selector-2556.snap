@@ -405,7 +405,7 @@ sparkdown [0..460]
  │   │       │   │   │   │               ├─ SelectorAtRule_content [271..283]
  │   │       │   │   │   │               │   ├─ Separator [271..272]: " "
  │   │       │   │   │   │               │   ├─ SelectorCssWord [272..276]: "base"
- │   │       │   │   │   │               │   ├─ SelectorAtRuleListComma [276..277]: ","
+ │   │       │   │   │   │               │   ├─ PunctuationComma [276..277]: ","
  │   │       │   │   │   │               │   ├─ Separator [277..278]: " "
  │   │       │   │   │   │               │   └─ SelectorCssWord [278..283]: "theme"
  │   │       │   │   │   │               └─ SelectorAtRule_end 283

@@ -216,36 +216,36 @@ sparkdown [0..688]
  │   │       │   │   │   │           │       └─ UnassignedSelectorAttribute_c2 [135..142]
  │   │       │   │   │   │           │           └─ SelectorStateName [135..142]: "hovered"
  │   │       │   │   │   │           ├─ RequiredWhitespace [142..143]: " "
- │   │       │   │   │   │           ├─ SelectorAtRule [143..166]
+ │   │       │   │   │   │           ├─ SelectorAtRule [143..173]
  │   │       │   │   │   │           │   ├─ SelectorAtRule_begin [143..149]
  │   │       │   │   │   │           │   │   ├─ SelectorAtRule_begin_c1 [143..144]
  │   │       │   │   │   │           │   │   │   └─ SelectorStateOperator [143..144]: "@"
  │   │       │   │   │   │           │   │   └─ SelectorAtRule_begin_c2 [144..149]
  │   │       │   │   │   │           │   │       └─ SelectorStateName [144..149]: "media"
- │   │       │   │   │   │           │   ├─ SelectorAtRule_content [149..166]
+ │   │       │   │   │   │           │   ├─ SelectorAtRule_content [149..173]
  │   │       │   │   │   │           │   │   ├─ Separator [149..150]: " "
- │   │       │   │   │   │           │   │   └─ SelectorAtRuleGroup [150..166]
- │   │       │   │   │   │           │   │       ├─ SelectorAtRuleGroup_begin [150..151]
- │   │       │   │   │   │           │   │       │   └─ SelectorAtRuleGroup_begin_c1 [150..151]
- │   │       │   │   │   │           │   │       │       └─ PunctuationParenOpen [150..151]: "("
- │   │       │   │   │   │           │   │       ├─ SelectorAtRuleGroup_content [151..165]
- │   │       │   │   │   │           │   │       │   ├─ SelectorCssWord [151..160]: "min-width"
- │   │       │   │   │   │           │   │       │   └─ SelectorAtRuleDeclarationValue [160..165]
- │   │       │   │   │   │           │   │       │       ├─ SelectorAtRuleDeclarationValue_begin [160..161]
- │   │       │   │   │   │           │   │       │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [160..161]
- │   │       │   │   │   │           │   │       │       │       └─ SelectorCssPunctuation [160..161]: ":"
- │   │       │   │   │   │           │   │       │       ├─ SelectorAtRuleDeclarationValue_content [161..165]
- │   │       │   │   │   │           │   │       │       │   ├─ Separator [161..162]: " "
- │   │       │   │   │   │           │   │       │       │   └─ SelectorCssWord [162..165]: "1px"
- │   │       │   │   │   │           │   │       │       └─ SelectorAtRuleDeclarationValue_end 165
- │   │       │   │   │   │           │   │       └─ SelectorAtRuleGroup_end [165..166]
- │   │       │   │   │   │           │   │           └─ SelectorAtRuleGroup_end_c1 [165..166]
- │   │       │   │   │   │           │   │               └─ PunctuationParenClose [165..166]: ")"
- │   │       │   │   │   │           │   └─ SelectorAtRule_end 166
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [166..167]: ","
- │   │       │   │   │   │           ├─ RequiredWhitespace [167..168]: " "
- │   │       │   │   │   │           ├─ BuiltinComponentName [168..172]: "text"
- │   │       │   │   │   │           ├─ RequiredWhitespace [172..173]: " "
+ │   │       │   │   │   │           │   │   ├─ SelectorAtRuleGroup [150..166]
+ │   │       │   │   │   │           │   │   │   ├─ SelectorAtRuleGroup_begin [150..151]
+ │   │       │   │   │   │           │   │   │   │   └─ SelectorAtRuleGroup_begin_c1 [150..151]
+ │   │       │   │   │   │           │   │   │   │       └─ PunctuationParenOpen [150..151]: "("
+ │   │       │   │   │   │           │   │   │   ├─ SelectorAtRuleGroup_content [151..165]
+ │   │       │   │   │   │           │   │   │   │   ├─ SelectorCssWord [151..160]: "min-width"
+ │   │       │   │   │   │           │   │   │   │   └─ SelectorAtRuleDeclarationValue [160..165]
+ │   │       │   │   │   │           │   │   │   │       ├─ SelectorAtRuleDeclarationValue_begin [160..161]
+ │   │       │   │   │   │           │   │   │   │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [160..161]
+ │   │       │   │   │   │           │   │   │   │       │       └─ SelectorCssPunctuation [160..161]: ":"
+ │   │       │   │   │   │           │   │   │   │       ├─ SelectorAtRuleDeclarationValue_content [161..165]
+ │   │       │   │   │   │           │   │   │   │       │   ├─ Separator [161..162]: " "
+ │   │       │   │   │   │           │   │   │   │       │   └─ SelectorCssWord [162..165]: "1px"
+ │   │       │   │   │   │           │   │   │   │       └─ SelectorAtRuleDeclarationValue_end 165
+ │   │       │   │   │   │           │   │   │   └─ SelectorAtRuleGroup_end [165..166]
+ │   │       │   │   │   │           │   │   │       └─ SelectorAtRuleGroup_end_c1 [165..166]
+ │   │       │   │   │   │           │   │   │           └─ PunctuationParenClose [165..166]: ")"
+ │   │       │   │   │   │           │   │   ├─ PunctuationComma [166..167]: ","
+ │   │       │   │   │   │           │   │   ├─ Separator [167..168]: " "
+ │   │       │   │   │   │           │   │   ├─ SelectorCssWord [168..172]: "text"
+ │   │       │   │   │   │           │   │   └─ Separator [172..173]: " "
+ │   │       │   │   │   │           │   └─ SelectorAtRule_end 173
  │   │       │   │   │   │           └─ SelectorAttribute [173..181]
  │   │       │   │   │   │               └─ UnassignedSelectorAttribute [173..181]
  │   │       │   │   │   │                   ├─ UnassignedSelectorAttribute_c1 [173..174]
@@ -310,40 +310,36 @@ sparkdown [0..688]
  │   │       │   │   │   │           │       └─ UnassignedSelectorAttribute_c2 [207..214]
  │   │       │   │   │   │           │           └─ SelectorStateName [207..214]: "hovered"
  │   │       │   │   │   │           ├─ RequiredWhitespace [214..215]: " "
- │   │       │   │   │   │           ├─ SelectorAtRule [215..238]
- │   │       │   │   │   │           │   ├─ SelectorAtRule_begin [215..221]
- │   │       │   │   │   │           │   │   ├─ SelectorAtRule_begin_c1 [215..216]
- │   │       │   │   │   │           │   │   │   └─ SelectorStateOperator [215..216]: "@"
- │   │       │   │   │   │           │   │   └─ SelectorAtRule_begin_c2 [216..221]
- │   │       │   │   │   │           │   │       └─ SelectorStateName [216..221]: "media"
- │   │       │   │   │   │           │   ├─ SelectorAtRule_content [221..238]
- │   │       │   │   │   │           │   │   ├─ Separator [221..222]: " "
- │   │       │   │   │   │           │   │   └─ SelectorAtRuleGroup [222..238]
- │   │       │   │   │   │           │   │       ├─ SelectorAtRuleGroup_begin [222..223]
- │   │       │   │   │   │           │   │       │   └─ SelectorAtRuleGroup_begin_c1 [222..223]
- │   │       │   │   │   │           │   │       │       └─ PunctuationParenOpen [222..223]: "("
- │   │       │   │   │   │           │   │       ├─ SelectorAtRuleGroup_content [223..237]
- │   │       │   │   │   │           │   │       │   ├─ SelectorCssWord [223..232]: "min-width"
- │   │       │   │   │   │           │   │       │   └─ SelectorAtRuleDeclarationValue [232..237]
- │   │       │   │   │   │           │   │       │       ├─ SelectorAtRuleDeclarationValue_begin [232..233]
- │   │       │   │   │   │           │   │       │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [232..233]
- │   │       │   │   │   │           │   │       │       │       └─ SelectorCssPunctuation [232..233]: ":"
- │   │       │   │   │   │           │   │       │       ├─ SelectorAtRuleDeclarationValue_content [233..237]
- │   │       │   │   │   │           │   │       │       │   ├─ Separator [233..234]: " "
- │   │       │   │   │   │           │   │       │       │   └─ SelectorCssWord [234..237]: "1px"
- │   │       │   │   │   │           │   │       │       └─ SelectorAtRuleDeclarationValue_end 237
- │   │       │   │   │   │           │   │       └─ SelectorAtRuleGroup_end [237..238]
- │   │       │   │   │   │           │   │           └─ SelectorAtRuleGroup_end_c1 [237..238]
- │   │       │   │   │   │           │   │               └─ PunctuationParenClose [237..238]: ")"
- │   │       │   │   │   │           │   └─ SelectorAtRule_end 238
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [238..239]: ","
- │   │       │   │   │   │           ├─ RequiredWhitespace [239..240]: " "
- │   │       │   │   │   │           └─ StyleAttribute [240..249]
- │   │       │   │   │   │               └─ UnassignedStyleAttribute [240..249]
- │   │       │   │   │   │                   ├─ UnassignedStyleAttribute_c1 [240..241]
- │   │       │   │   │   │                   │   └─ StyleAttributeOperator [240..241]: "#"
- │   │       │   │   │   │                   └─ UnassignedStyleAttribute_c2 [241..249]
- │   │       │   │   │   │                       └─ StyleAttributeName [241..249]: "selected"
+ │   │       │   │   │   │           └─ SelectorAtRule [215..249]
+ │   │       │   │   │   │               ├─ SelectorAtRule_begin [215..221]
+ │   │       │   │   │   │               │   ├─ SelectorAtRule_begin_c1 [215..216]
+ │   │       │   │   │   │               │   │   └─ SelectorStateOperator [215..216]: "@"
+ │   │       │   │   │   │               │   └─ SelectorAtRule_begin_c2 [216..221]
+ │   │       │   │   │   │               │       └─ SelectorStateName [216..221]: "media"
+ │   │       │   │   │   │               ├─ SelectorAtRule_content [221..249]
+ │   │       │   │   │   │               │   ├─ Separator [221..222]: " "
+ │   │       │   │   │   │               │   ├─ SelectorAtRuleGroup [222..238]
+ │   │       │   │   │   │               │   │   ├─ SelectorAtRuleGroup_begin [222..223]
+ │   │       │   │   │   │               │   │   │   └─ SelectorAtRuleGroup_begin_c1 [222..223]
+ │   │       │   │   │   │               │   │   │       └─ PunctuationParenOpen [222..223]: "("
+ │   │       │   │   │   │               │   │   ├─ SelectorAtRuleGroup_content [223..237]
+ │   │       │   │   │   │               │   │   │   ├─ SelectorCssWord [223..232]: "min-width"
+ │   │       │   │   │   │               │   │   │   └─ SelectorAtRuleDeclarationValue [232..237]
+ │   │       │   │   │   │               │   │   │       ├─ SelectorAtRuleDeclarationValue_begin [232..233]
+ │   │       │   │   │   │               │   │   │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [232..233]
+ │   │       │   │   │   │               │   │   │       │       └─ SelectorCssPunctuation [232..233]: ":"
+ │   │       │   │   │   │               │   │   │       ├─ SelectorAtRuleDeclarationValue_content [233..237]
+ │   │       │   │   │   │               │   │   │       │   ├─ Separator [233..234]: " "
+ │   │       │   │   │   │               │   │   │       │   └─ SelectorCssWord [234..237]: "1px"
+ │   │       │   │   │   │               │   │   │       └─ SelectorAtRuleDeclarationValue_end 237
+ │   │       │   │   │   │               │   │   └─ SelectorAtRuleGroup_end [237..238]
+ │   │       │   │   │   │               │   │       └─ SelectorAtRuleGroup_end_c1 [237..238]
+ │   │       │   │   │   │               │   │           └─ PunctuationParenClose [237..238]: ")"
+ │   │       │   │   │   │               │   ├─ PunctuationComma [238..239]: ","
+ │   │       │   │   │   │               │   ├─ Separator [239..240]: " "
+ │   │       │   │   │   │               │   ├─ SelectorAtRulePunctuation [240..241]: "#"
+ │   │       │   │   │   │               │   └─ SelectorCssWord [241..249]: "selected"
+ │   │       │   │   │   │               └─ SelectorAtRule_end 249
  │   │       │   │   │   └─ LuauStructBlock_begin_c2 [249..250]
  │   │       │   │   │       └─ Whitespace [249..250]: " "
  │   │       │   │   ├─ LuauStructBlock_content [250..271]
@@ -420,7 +416,7 @@ sparkdown [0..688]
  │   │       │   │   │   │               │   │   └─ SelectorAtRuleGroup_end [296..297]
  │   │       │   │   │   │               │   │       └─ SelectorAtRuleGroup_end_c1 [296..297]
  │   │       │   │   │   │               │   │           └─ PunctuationParenClose [296..297]: ")"
- │   │       │   │   │   │               │   ├─ SelectorAtRuleListComma [297..298]: ","
+ │   │       │   │   │   │               │   ├─ PunctuationComma [297..298]: ","
  │   │       │   │   │   │               │   ├─ Separator [298..299]: " "
  │   │       │   │   │   │               │   └─ SelectorCssWord [299..304]: "print"
  │   │       │   │   │   │               └─ SelectorAtRule_end 304
@@ -663,7 +659,7 @@ sparkdown [0..688]
  │   │       │   │   │   │               │   │   └─ SelectorAtRuleGroup_end [464..465]
  │   │       │   │   │   │               │   │       └─ SelectorAtRuleGroup_end_c1 [464..465]
  │   │       │   │   │   │               │   │           └─ PunctuationParenClose [464..465]: ")"
- │   │       │   │   │   │               │   ├─ SelectorAtRuleListComma [465..466]: ","
+ │   │       │   │   │   │               │   ├─ PunctuationComma [465..466]: ","
  │   │       │   │   │   │               │   ├─ Separator [466..467]: " "
  │   │       │   │   │   │               │   ├─ SelectorCssWord [467..472]: "style"
  │   │       │   │   │   │               │   └─ SelectorAtRuleGroup [472..490]
@@ -742,72 +738,64 @@ sparkdown [0..688]
  │   │       │   │   │   │           │       └─ UnassignedSelectorAttribute_c2 [516..523]
  │   │       │   │   │   │           │           └─ SelectorStateName [516..523]: "hovered"
  │   │       │   │   │   │           ├─ RequiredWhitespace [523..524]: " "
- │   │       │   │   │   │           ├─ SelectorAtRule [524..547]
+ │   │       │   │   │   │           ├─ SelectorAtRule [524..573]
  │   │       │   │   │   │           │   ├─ SelectorAtRule_begin [524..530]
  │   │       │   │   │   │           │   │   ├─ SelectorAtRule_begin_c1 [524..525]
  │   │       │   │   │   │           │   │   │   └─ SelectorStateOperator [524..525]: "@"
  │   │       │   │   │   │           │   │   └─ SelectorAtRule_begin_c2 [525..530]
  │   │       │   │   │   │           │   │       └─ SelectorStateName [525..530]: "media"
- │   │       │   │   │   │           │   ├─ SelectorAtRule_content [530..547]
+ │   │       │   │   │   │           │   ├─ SelectorAtRule_content [530..573]
  │   │       │   │   │   │           │   │   ├─ Separator [530..531]: " "
- │   │       │   │   │   │           │   │   └─ SelectorAtRuleGroup [531..547]
- │   │       │   │   │   │           │   │       ├─ SelectorAtRuleGroup_begin [531..532]
- │   │       │   │   │   │           │   │       │   └─ SelectorAtRuleGroup_begin_c1 [531..532]
- │   │       │   │   │   │           │   │       │       └─ PunctuationParenOpen [531..532]: "("
- │   │       │   │   │   │           │   │       ├─ SelectorAtRuleGroup_content [532..546]
- │   │       │   │   │   │           │   │       │   ├─ SelectorCssWord [532..541]: "min-width"
- │   │       │   │   │   │           │   │       │   └─ SelectorAtRuleDeclarationValue [541..546]
- │   │       │   │   │   │           │   │       │       ├─ SelectorAtRuleDeclarationValue_begin [541..542]
- │   │       │   │   │   │           │   │       │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [541..542]
- │   │       │   │   │   │           │   │       │       │       └─ SelectorCssPunctuation [541..542]: ":"
- │   │       │   │   │   │           │   │       │       ├─ SelectorAtRuleDeclarationValue_content [542..546]
- │   │       │   │   │   │           │   │       │       │   ├─ Separator [542..543]: " "
- │   │       │   │   │   │           │   │       │       │   └─ SelectorCssWord [543..546]: "1px"
- │   │       │   │   │   │           │   │       │       └─ SelectorAtRuleDeclarationValue_end 546
- │   │       │   │   │   │           │   │       └─ SelectorAtRuleGroup_end [546..547]
- │   │       │   │   │   │           │   │           └─ SelectorAtRuleGroup_end_c1 [546..547]
- │   │       │   │   │   │           │   │               └─ PunctuationParenClose [546..547]: ")"
- │   │       │   │   │   │           │   └─ SelectorAtRule_end 547
- │   │       │   │   │   │           ├─ LuauStructBlockKeyChar [547..548]: ","
- │   │       │   │   │   │           ├─ RequiredWhitespace [548..549]: " "
- │   │       │   │   │   │           ├─ CustomComponentName [549..553]: "card"
- │   │       │   │   │   │           ├─ RequiredWhitespace [553..554]: " "
- │   │       │   │   │   │           ├─ SelectorPseudoClass [554..557]
- │   │       │   │   │   │           │   ├─ SelectorPseudoClass_c1 [554..555]
- │   │       │   │   │   │           │   │   └─ SelectorPseudoClassOperator [554..555]: ":"
- │   │       │   │   │   │           │   └─ SelectorPseudoClass_c2 [555..557]
- │   │       │   │   │   │           │       └─ SelectorPseudoClassName [555..557]: "is"
- │   │       │   │   │   │           ├─ ParenPropertyIdentifierString [557..572]
- │   │       │   │   │   │           │   ├─ ParenPropertyIdentifierString_begin [557..558]
- │   │       │   │   │   │           │   │   ├─ ParenPropertyIdentifierString_begin_c1 [557..558]
- │   │       │   │   │   │           │   │   │   └─ PunctuationParenOpen [557..558]: "("
- │   │       │   │   │   │           │   │   └─ ParenPropertyIdentifierString_begin_c2 558
- │   │       │   │   │   │           │   ├─ ParenPropertyIdentifierString_content [558..571]
- │   │       │   │   │   │           │   │   ├─ SelectorPseudoClass [558..562]
- │   │       │   │   │   │           │   │   │   ├─ SelectorPseudoClass_c1 [558..559]
- │   │       │   │   │   │           │   │   │   │   └─ SelectorPseudoClassOperator [558..559]: ":"
- │   │       │   │   │   │           │   │   │   └─ SelectorPseudoClass_c2 [559..562]
- │   │       │   │   │   │           │   │   │       └─ SelectorPseudoClassName [559..562]: "not"
- │   │       │   │   │   │           │   │   └─ ParenPropertyIdentifierString [562..571]
- │   │       │   │   │   │           │   │       ├─ ParenPropertyIdentifierString_begin [562..563]
- │   │       │   │   │   │           │   │       │   ├─ ParenPropertyIdentifierString_begin_c1 [562..563]
- │   │       │   │   │   │           │   │       │   │   └─ PunctuationParenOpen [562..563]: "("
- │   │       │   │   │   │           │   │       │   └─ ParenPropertyIdentifierString_begin_c2 563
- │   │       │   │   │   │           │   │       ├─ ParenPropertyIdentifierString_content [563..570]
- │   │       │   │   │   │           │   │       │   └─ LuauSparkleElementClass [563..570]
- │   │       │   │   │   │           │   │       │       ├─ LuauSparkleElementClass_c1 [563..564]
- │   │       │   │   │   │           │   │       │       │   └─ LuauSparkleClassDot [563..564]: "."
- │   │       │   │   │   │           │   │       │       └─ LuauSparkleElementClass_c2 [564..570]
- │   │       │   │   │   │           │   │       │           └─ LuauSparkleClassName [564..570]: "absent"
- │   │       │   │   │   │           │   │       └─ ParenPropertyIdentifierString_end [570..571]
- │   │       │   │   │   │           │   │           ├─ ParenPropertyIdentifierString_end_c1 570
- │   │       │   │   │   │           │   │           └─ ParenPropertyIdentifierString_end_c2 [570..571]
- │   │       │   │   │   │           │   │               └─ PunctuationParenClose [570..571]: ")"
- │   │       │   │   │   │           │   └─ ParenPropertyIdentifierString_end [571..572]
- │   │       │   │   │   │           │       ├─ ParenPropertyIdentifierString_end_c1 571
- │   │       │   │   │   │           │       └─ ParenPropertyIdentifierString_end_c2 [571..572]
- │   │       │   │   │   │           │           └─ PunctuationParenClose [571..572]: ")"
- │   │       │   │   │   │           ├─ RequiredWhitespace [572..573]: " "
+ │   │       │   │   │   │           │   │   ├─ SelectorAtRuleGroup [531..547]
+ │   │       │   │   │   │           │   │   │   ├─ SelectorAtRuleGroup_begin [531..532]
+ │   │       │   │   │   │           │   │   │   │   └─ SelectorAtRuleGroup_begin_c1 [531..532]
+ │   │       │   │   │   │           │   │   │   │       └─ PunctuationParenOpen [531..532]: "("
+ │   │       │   │   │   │           │   │   │   ├─ SelectorAtRuleGroup_content [532..546]
+ │   │       │   │   │   │           │   │   │   │   ├─ SelectorCssWord [532..541]: "min-width"
+ │   │       │   │   │   │           │   │   │   │   └─ SelectorAtRuleDeclarationValue [541..546]
+ │   │       │   │   │   │           │   │   │   │       ├─ SelectorAtRuleDeclarationValue_begin [541..542]
+ │   │       │   │   │   │           │   │   │   │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [541..542]
+ │   │       │   │   │   │           │   │   │   │       │       └─ SelectorCssPunctuation [541..542]: ":"
+ │   │       │   │   │   │           │   │   │   │       ├─ SelectorAtRuleDeclarationValue_content [542..546]
+ │   │       │   │   │   │           │   │   │   │       │   ├─ Separator [542..543]: " "
+ │   │       │   │   │   │           │   │   │   │       │   └─ SelectorCssWord [543..546]: "1px"
+ │   │       │   │   │   │           │   │   │   │       └─ SelectorAtRuleDeclarationValue_end 546
+ │   │       │   │   │   │           │   │   │   └─ SelectorAtRuleGroup_end [546..547]
+ │   │       │   │   │   │           │   │   │       └─ SelectorAtRuleGroup_end_c1 [546..547]
+ │   │       │   │   │   │           │   │   │           └─ PunctuationParenClose [546..547]: ")"
+ │   │       │   │   │   │           │   │   ├─ PunctuationComma [547..548]: ","
+ │   │       │   │   │   │           │   │   ├─ Separator [548..549]: " "
+ │   │       │   │   │   │           │   │   ├─ SelectorCssWord [549..553]: "card"
+ │   │       │   │   │   │           │   │   ├─ Separator [553..554]: " "
+ │   │       │   │   │   │           │   │   ├─ SelectorAtRulePunctuation [554..555]: ":"
+ │   │       │   │   │   │           │   │   ├─ SelectorCssWord [555..557]: "is"
+ │   │       │   │   │   │           │   │   ├─ SelectorAtRuleGroup [557..572]
+ │   │       │   │   │   │           │   │   │   ├─ SelectorAtRuleGroup_begin [557..558]
+ │   │       │   │   │   │           │   │   │   │   └─ SelectorAtRuleGroup_begin_c1 [557..558]
+ │   │       │   │   │   │           │   │   │   │       └─ PunctuationParenOpen [557..558]: "("
+ │   │       │   │   │   │           │   │   │   ├─ SelectorAtRuleGroup_content [558..571]
+ │   │       │   │   │   │           │   │   │   │   └─ SelectorAtRuleDeclarationValue [558..571]
+ │   │       │   │   │   │           │   │   │   │       ├─ SelectorAtRuleDeclarationValue_begin [558..559]
+ │   │       │   │   │   │           │   │   │   │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [558..559]
+ │   │       │   │   │   │           │   │   │   │       │       └─ SelectorCssPunctuation [558..559]: ":"
+ │   │       │   │   │   │           │   │   │   │       ├─ SelectorAtRuleDeclarationValue_content [559..571]
+ │   │       │   │   │   │           │   │   │   │       │   ├─ SelectorCssWord [559..562]: "not"
+ │   │       │   │   │   │           │   │   │   │       │   └─ SelectorAtRuleGroup [562..571]
+ │   │       │   │   │   │           │   │   │   │       │       ├─ SelectorAtRuleGroup_begin [562..563]
+ │   │       │   │   │   │           │   │   │   │       │       │   └─ SelectorAtRuleGroup_begin_c1 [562..563]
+ │   │       │   │   │   │           │   │   │   │       │       │       └─ PunctuationParenOpen [562..563]: "("
+ │   │       │   │   │   │           │   │   │   │       │       ├─ SelectorAtRuleGroup_content [563..570]
+ │   │       │   │   │   │           │   │   │   │       │       │   ├─ SelectorCssPunctuation [563..564]: "."
+ │   │       │   │   │   │           │   │   │   │       │       │   └─ SelectorCssWord [564..570]: "absent"
+ │   │       │   │   │   │           │   │   │   │       │       └─ SelectorAtRuleGroup_end [570..571]
+ │   │       │   │   │   │           │   │   │   │       │           └─ SelectorAtRuleGroup_end_c1 [570..571]
+ │   │       │   │   │   │           │   │   │   │       │               └─ PunctuationParenClose [570..571]: ")"
+ │   │       │   │   │   │           │   │   │   │       └─ SelectorAtRuleDeclarationValue_end 571
+ │   │       │   │   │   │           │   │   │   └─ SelectorAtRuleGroup_end [571..572]
+ │   │       │   │   │   │           │   │   │       └─ SelectorAtRuleGroup_end_c1 [571..572]
+ │   │       │   │   │   │           │   │   │           └─ PunctuationParenClose [571..572]: ")"
+ │   │       │   │   │   │           │   │   └─ Separator [572..573]: " "
+ │   │       │   │   │   │           │   └─ SelectorAtRule_end 573
  │   │       │   │   │   │           └─ SelectorAttribute [573..581]
  │   │       │   │   │   │               └─ UnassignedSelectorAttribute [573..581]
  │   │       │   │   │   │                   ├─ UnassignedSelectorAttribute_c1 [573..574]
@@ -891,7 +879,7 @@ sparkdown [0..688]
  │   │       │   │   │   │               │   │   └─ SelectorAtRuleGroup_end [635..636]
  │   │       │   │   │   │               │   │       └─ SelectorAtRuleGroup_end_c1 [635..636]
  │   │       │   │   │   │               │   │           └─ PunctuationParenClose [635..636]: ")"
- │   │       │   │   │   │               │   ├─ SelectorAtRuleListComma [636..637]: ","
+ │   │       │   │   │   │               │   ├─ PunctuationComma [636..637]: ","
  │   │       │   │   │   │               │   ├─ Separator [637..638]: " "
  │   │       │   │   │   │               │   ├─ SelectorCssWord [638..643]: "style"
  │   │       │   │   │   │               │   └─ SelectorAtRuleGroup [643..663]

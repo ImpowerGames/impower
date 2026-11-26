@@ -171,8 +171,6 @@ const COMBINED: [keys: string[], conditions: Condition[]][] = [
   [["@showing(x) @media (min-width: 600px)"], [SHOWING, WIDE]],
   [["@media (min-width: 600px) @showing(x) @busy"], [SHOWING, BUSY, WIDE]],
   [["@busy @supports (display: grid) @media (min-width: 600px)"], [BUSY, WIDE]],
-  [["@busy @media (min-width: 600px), @focused @media (min-width: 600px)"], [BUSY, WIDE]],
-  [["@busy @media (min-width: 600px), card :is(:not(.absent)) @focused @media (min-width: 600px)"], [BUSY, WIDE]],
   [["@media (min-width: 600px)", "@busy @container-size(sm)"], [BUSY, WIDE, NARROW_CONTAINER]],
   [["@busy", "@media (min-width: 600px) @theme(dark)"], [BUSY, WIDE, DARK]],
 ];
@@ -233,24 +231,131 @@ describe("a key that holds a selector state and an at-rule state applies under b
   }
 });
 
+const RAW_QUERY_LISTS = [
+  "@media (min-width: 600px), print",
+  "@media (min-width: 600px), speech",
+  "@media (min-width: 600px), text",
+  "@media (min-width: 600px), (min-width: 700px)",
+  "@media screen and (min-resolution: 1.5dppx), print",
+  "@container (min-width: 1px), card",
+  "@container card (min-width: 1px), sidebar (min-width: 2px)",
+  '@container style(--mode: dark), style(--mode: "@night")',
+  '@container style(--mode: dark), style(--label: ")@night")',
+  "@container style(--mode: dark), style(--label: ')@night')",
+  "@container (min-width: 1px), style(--x: fn(@y))",
+  "@layer base, theme",
+  "@layer base, theme.dark",
+];
+
+const BEFORE_QUERY_LIST = [
+  "@busy",
+  "@hovered",
+  "card",
+  "card @focused",
+  "#selected",
+  "[selected]",
+  ":focus",
+  ".big",
+  "text.headline",
+  "card .big",
+  "card :is(:not(.absent))",
+  "card :is(@focused)",
+  "@showing(action)",
+  "@theme(dark)",
+];
+
+const AFTER_QUERY_LIST = [
+  "@busy",
+  "@focused",
+  "@is(@focused)",
+  "card @focused",
+  "@focused @media (min-width: 600px)",
+  "#selected @focused",
+  "@showing(action)",
+  "@theme(dark)",
+];
+
+const EARLIER_COUNTEREXAMPLES = [
+  "@media (min-width: 600px), @busy",
+  "@busy @media (min-width: 600px), @focused",
+  "@busy @media (min-width: 600px), @focused @media (min-width: 600px)",
+  "@busy @media (min-width: 600px), @focused @media (min-width: 700px)",
+  "@busy @media (min-width: 600px), card @focused",
+  "@busy @media (min-width: 600px), card :is(:not(.absent)) @focused",
+  "@busy @media (min-width: 600px), card :is(:not(.absent)) @focused @media (min-width: 600px)",
+  "@busy @media (min-width: 600px), card :is(@focused)",
+  "@busy @media (min-width: 600px), #selected",
+  "@busy @media (min-width: 600px), :focus",
+  "@busy @media (min-width: 600px), [selected]",
+  "@busy @media (min-width: 600px), .big",
+  "@busy @media (min-width: 600px), text.headline",
+  "@busy @media (min-width: 600px), card .big",
+  "@busy @container (min-width: 1px), card @focused",
+  "@busy @container (min-width: 1px), card",
+  "@hovered @media (min-width: 1px), text @focused",
+  "@media (min-width: 1px), (b) @hovered",
+  "@media (min-width: 600px), @busy @media (min-width: 600px)",
+  "@hovered @media (min-width: 1px), @focused @media (min-width: 2px)",
+];
+
+const MIXED_QUERY_LISTS = [
+  ...RAW_QUERY_LISTS.flatMap((list) => BEFORE_QUERY_LIST.map((part) => `${part} ${list}`)),
+  ...RAW_QUERY_LISTS.flatMap((list) => AFTER_QUERY_LIST.map((part) => `${list} ${part}`)),
+  ...EARLIER_COUNTEREXAMPLES,
+];
+
+describe("a raw at-rule that lists queries with a comma beside a selector or state writes no rule (#2785)", () => {
+  test(`each of ${MIXED_QUERY_LISTS.length} keys is refused at its query list in both colour-scheme modes and written by neither renderer`, () => {
+    for (const key of MIXED_QUERY_LISTS) {
+      for (const colorScheme of ["attribute", "media"] as const) {
+        const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });
+        const lists = refusals.filter(({ kind }) => kind === "query-list");
+        expect(lists.length, `${colorScheme} ${key}`).toBeGreaterThan(0);
+        for (const { from, to } of lists) {
+          expect(key.slice(from, to), `${colorScheme} ${key}`).toMatch(/^@(media|container|layer) .*,/);
+        }
+      }
+      for (const css of [
+        playerCss({ opacity: "1", [key]: { opacity: "0.5" } }),
+        previewCss(["opacity = 1", key, "  opacity = 0.5"]),
+      ]) {
+        expect(css, key).toContain("opacity");
+        expect(css, key).not.toContain("0.5");
+      }
+    }
+  });
+
+  test(`each of ${RAW_QUERY_LISTS.length} keys made only of an at-rule with a query list is written by both renderers as on main`, () => {
+    for (const key of RAW_QUERY_LISTS) {
+      expect(writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).refusals).toEqual([]);
+      expect(playerCss({ [key]: { opacity: "0.5" } }), key).toBe(
+        `.card {\n  ${basePrelude(key, "attribute").prelude} {\n    opacity: 0.5;\n  }\n}`,
+      );
+      expect(previewCss([key, "  opacity = 0.5"]), key).toBe(
+        `.style.card { ${basePrelude(key, "media").prelude} { opacity:0.5; } }`,
+      );
+    }
+  });
+
+  test("a comma after a shorthand condition starts another selector", () => {
+    for (const colorScheme of ["attribute", "media"] as const) {
+      const written = writeSparkleSelectorChecked("@busy @screen-size(sm), @focused @screen-size(sm)", {
+        breakpoints: BREAKPOINTS,
+        colorScheme,
+      });
+      expect(written.refusals).toEqual([]);
+      expect(written.atRules).toEqual(["@container screen (max-width:640px)"]);
+      expect(written.css).toBe('[aria-busy="true"], :focus');
+    }
+  });
+});
+
 describe("a comma list whose selectors hold different at-rule states writes no rule (#2785)", () => {
   test.each([
     ["@busy, @media (min-width: 600px)", "@media"],
-    ["@media (min-width: 600px), @busy", "@media"],
-    ["@busy @media (min-width: 600px), @focused", "@media"],
-    ["@busy @media (min-width: 600px), @focused @media (min-width: 700px)", "@media"],
     ["@busy, @container-size(sm)", "@container-size"],
-    ["@busy @media (min-width: 600px), card @focused", "@media"],
     ["@busy @container-size(sm), card", "@container-size"],
-    ["@busy @container (min-width: 1px), card @focused", "@container"],
-    ["@busy @media (min-width: 600px), #selected", "@media"],
-    ["@busy @media (min-width: 600px), :focus", "@media"],
-    ["@busy @media (min-width: 600px), [selected]", "@media"],
-    ["@busy @media (min-width: 600px), .big", "@media"],
-    ["@busy @media (min-width: 600px), card :is(:not(.absent)) @focused", "@media"],
-    ["@busy @media (min-width: 600px), card :is(@focused)", "@media"],
-    ["@busy @media (min-width: 600px), text.headline", "@media"],
-    ["@busy @media (min-width: 600px), card .big", "@media"],
+    ["@busy @screen-size(sm), @focused", "@screen-size"],
   ])("%s", (key, state) => {
     for (const colorScheme of ["attribute", "media"] as const) {
       const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });
@@ -332,22 +437,22 @@ describe("a comma list whose selectors share their at-rule states writes one rul
 
   for (const renderer of ["player", "preview"] as const) {
     test(`${renderer}: a selector that holds only the shared condition still styles the element itself`, async () => {
-      const css = stylesheet(renderer, ["@media (min-width: 600px), @busy @media (min-width: 600px)"]);
-      const cases: [viewport: number, busy: boolean, opacity: string][] = [
-        [800, false, "0.5"],
-        [800, true, "0.5"],
-        [400, false, "1"],
-        [400, true, "1"],
+      const css = stylesheet(renderer, ["@container-size(sm), @busy @container-size(sm)"]);
+      const cases: [container: number, busy: boolean, opacity: string][] = [
+        [300, false, "0.5"],
+        [300, true, "0.5"],
+        [700, false, "1"],
+        [700, true, "1"],
       ];
-      for (const [viewport, busy, opacity] of cases) {
+      for (const [container, busy, opacity] of cases) {
         const scene: Scene = {
-          viewport,
-          container: 700,
+          viewport: 800,
+          container,
           scheme: "light",
           root: {},
           card: busy ? { "aria-busy": "true" } : {},
         };
-        expect(await opacityIn(css, scene), `${css}\n${viewport} busy=${busy}`).toBe(opacity);
+        expect(await opacityIn(css, scene), `${css}\n${container} busy=${busy}`).toBe(opacity);
       }
     }, 30_000);
   }

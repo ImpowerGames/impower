@@ -5279,16 +5279,17 @@ export class SparkdownCompiler {
           const read = (from: number, to: number) => doc.read(from, to);
           const player = selectorRefusalAt(node.node, read, "attribute", breakpoints);
           const refusal = player ?? selectorRefusalAt(node.node, read, "media", breakpoints);
-          if (refusal) {
+          if (refusal && refusal.kind !== "showing") {
             const consequence = player ? "this block never applies" : "the screen preview drops this block";
+            const value =
+              refusal.kind === "query-list"
+                ? `\`@${state}\` lists queries with a comma beside a selector or state, so ${consequence}.\n> Nest the blocks, as in \`@${state} (…), (…) { @hovered { … } }\`, or write each query as its own key`
+                : `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`;
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({
               range: doc.range(refusal.from, refusal.to),
-              code: "at-rule-list",
+              code: refusal.kind === "query-list" ? "at-rule-query-list" : "at-rule-list",
               severity: DiagnosticSeverity.Warning,
-              message: {
-                kind: "markdown",
-                value: `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`,
-              },
+              message: { kind: "markdown", value },
               source: LANGUAGE_NAME,
             });
           }
