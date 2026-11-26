@@ -2480,10 +2480,11 @@ const completionsAt = (
         .replace(/[\r\n]+$/, "");
       const nameRest = /^[\p{L}\p{N}_-]*/u.exec(after)![0];
       const rest = after.slice(nameRest.length);
-      const closes = typedSelector[1] === "[" && rest.startsWith("]");
-      const written = /^[~|^$*]?=/.test(rest)
+      const closing =
+        typedSelector[1] === "[" ? (/^\s*\]/.exec(rest)?.[0] ?? "") : "";
+      const written = /^\s*[~|^$*]?=/.test(rest)
         ? "value"
-        : (closes ? rest.slice(1) : rest).trim()
+        : rest.slice(closing.length).trim()
           ? "body"
           : "nothing";
       addSelectorAttributeCompletions(
@@ -2491,9 +2492,7 @@ const completionsAt = (
         typedSelector,
         document.range(
           documentCursorOffset - typedLength,
-          documentCursorOffset +
-            nameRest.length +
-            (closes && written !== "value" ? 1 : 0),
+          documentCursorOffset + nameRest.length + closing.length,
         ),
         scripts,
         program,

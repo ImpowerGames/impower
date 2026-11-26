@@ -102,6 +102,9 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     ["  [data-sp@1] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=] { opacity = 1 }"],
     ["  [data-sp@1eaker=bunny] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=bunny] { opacity = 1 }"],
     ["  [dis@1] { opacity = 1 }", "[", "[disabled]", "  [disabled] { opacity = 1 }"],
+    ["  [data-sp@1 = bunny] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker = bunny] { opacity = 1 }"],
+    ["  [data-sp@1 ] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=] { opacity = 1 }"],
+    ["  [data-sp@1 ]", "[", "[data-speaker]", "  [data-speaker=] {  }"],
   ])("completes the key of an existing block in %j without writing another block", (body, trigger, label, expected) => {
     const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
     expect(accepted(body, item)).toBe(styled(expected));
