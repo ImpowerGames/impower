@@ -39,6 +39,12 @@ const CASES: { name: string; screen: string; player: string; expected: string }[
     player: `animation both {\n  keyframes {\n    to { opacity = "1" }\n  }\n  timing {\n    easing = ease-out\n  }\n}\n`,
     expected: "0s ease-out 0s 1 normal both running both",
   },
+  {
+    name: "fade",
+    screen: "animation fade\n  keyframes\n    to\n      opacity = 1\n",
+    player: `animation fade {\n  keyframes {\n    to { opacity = "1" }\n  }\n}\n`,
+    expected: "0s ease 0s 1 normal both running fade",
+  },
 ];
 
 describe("the screen preview writes an animation's timing as the player's shorthand (#2822)", () => {

@@ -289,7 +289,9 @@ export function renderVNode(
 
   if (el.root === "animation") {
     if (type === "animation") {
-      const styleContent = (children ?? [])
+      const nodes = children ?? [];
+      const timed = nodes.some((c) => c.type === "timing");
+      const styleContent = (timed ? nodes : [...nodes, { root: "animation", type: "timing" } as SparkleNode])
         .map((c, i) => renderVNode(c, ctx, el, i))
         .join("\n");
       return {
@@ -317,10 +319,10 @@ export function renderVNode(
       const name = parent?.args?.["name"];
       return `@keyframes ${escapeCssIdentifier(name ?? "")} { ${styleContent} }`;
     }
-    if (type === "timing" && children?.length) {
+    if (type === "timing") {
       const name = parent?.args?.["name"];
       const timing: AnimationShorthandTiming = {};
-      for (const c of children) {
+      for (const c of children ?? []) {
         const key = c.args?.["key"];
         const value = c.args?.["value"];
         if (key === "duration" || key === "animation-duration") {
