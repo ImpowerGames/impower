@@ -1751,7 +1751,6 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#LuauStructBlockKeyEscape" }
           - { include: "#LuauStructBlockKeyBracket" }
           - { include: "#LuauStructBlockKeyString" }
           - { include: "#RequiredWhitespace" }
@@ -1764,11 +1763,6 @@ repository:
           - { include: "#ComponentName" }
           - { include: "#PropertyName" }
           - { include: "#LuauStructBlockKeyChar" }
-
-  LuauStructBlockKeyEscape:
-    tag: escape
-    name: constant.character.escape.struct-block-key.sd
-    match: ({{STRUCT_BLOCK_ESCAPE}})
 
   LuauStructBlockKeyChar:
     match: (.)

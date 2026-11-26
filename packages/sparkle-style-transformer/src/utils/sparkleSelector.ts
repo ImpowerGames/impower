@@ -33,7 +33,7 @@ export const GAME_WIDE_STATES: ReadonlyMap<string, { name: RegExp; root: (name: 
 ]);
 
 export interface SelectorRefusal {
-  kind: "game-wide" | "at-rule-list" | "query-list";
+  kind: "game-wide" | "at-rule-list" | "query-list" | "escape";
   state: string;
   where: string;
   from: number;
@@ -226,7 +226,12 @@ export const selectorStateArguments = (name: string): SelectorStateArguments | u
 };
 
 const WHITESPACE = /[ \t\r\n\f]+/y;
-const WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/uy;
+const UNESCAPED_AFTER_BACKSLASH = /[\s{};"=[]/;
+const HEADER_READ = /[\s{};"=,[]/;
+const LONE_BACKSLASH_AT_END = /(?:^|[^\\])(?:\\\\)*\\$/;
+const escapeAt = (src: string, i: number): boolean =>
+  src[i] === "\\" && i + 1 < src.length && !UNESCAPED_AFTER_BACKSLASH.test(src[i + 1]!);
+const WORD =/[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/uy;
 const NAME_START = /^[_\p{L}]/u;
 const STATE = /@([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/uy;
 const PSEUDO = /::?[\p{L}\p{N}_-]*/uy;
@@ -299,6 +304,12 @@ class SparkleSelectorWriter {
           to,
         });
       }
+      const backslash = headerReadBackslash(this.src);
+      if (backslash !== undefined) {
+        for (const { state, from, to } of this.itemAtRules.flat()) {
+          this.refusals.push({ kind: "escape", state, where: backslash, from, to });
+        }
+      }
     }
     const sets = Array.from({ length: this.item + 1 }, (_, item) => {
       const rules = this.itemAtRules[item] ?? [];
@@ -328,7 +339,7 @@ class SparkleSelectorWriter {
         this.refusals.push({ kind: "game-wide", state, where: this.positionAt(from), from, to });
       }
     }
-    return trimEndUnescaped(out.trimStart());
+    return out.trim();
   }
 
   private within<T>(position: string, write: () => T): T {
@@ -504,11 +515,6 @@ class SparkleSelectorWriter {
     if (char === "(") {
       return this.within("inside parentheses", () => this.raw());
     }
-    if (char === "\\") {
-      const escaped = this.src.slice(this.i, this.i + 2);
-      this.i += escaped.length;
-      return escaped;
-    }
     this.i++;
     return char;
   }
@@ -679,10 +685,9 @@ class SparkleSelectorWriter {
         space = false;
       }
       atStart = false;
-      if (char === "\\") {
-        const escaped = this.src.slice(this.i, this.i + 2);
-        this.i += escaped.length;
-        out += escaped;
+      if (escapeAt(this.src, this.i)) {
+        out += this.src.slice(this.i, this.i + 2);
+        this.i += 2;
         continue;
       }
       if (char === "(") {
@@ -708,7 +713,7 @@ class SparkleSelectorWriter {
         out += char;
         continue;
       }
-      if (char === "," && declarations.length === 1) {
+      if (char === "," && declarations.length === 1 && !LONE_BACKSLASH_AT_END.test(out)) {
         this.i++;
         out += ", ";
         listed = true;
@@ -721,7 +726,7 @@ class SparkleSelectorWriter {
       }
       out += this.token(char);
     }
-    return { text: trimEndUnescaped(out), listed, stateAfter };
+    return { text: out.trimEnd(), listed, stateAfter };
   }
 
   private stateAfter(skip: number): boolean {
@@ -816,15 +821,38 @@ const gameWideOccurrences = (selector: string): { state: string; from: number; t
   return found;
 };
 
+const HEADER_READ_NAMES: Readonly<Record<string, string>> = { " ": "a space", "\t": "a tab", "\r": "a line break", "\n": "a line break", "\f": "a form feed" };
+
+const headerReadBackslash = (selector: string): string | undefined => {
+  let quote = "";
+  for (let i = 0; i < selector.length; i++) {
+    const char = selector[i]!;
+    if (quote) {
+      if (char === "\\") i++;
+      else if (char === quote) quote = "";
+    } else if (char === "\\") {
+      const next = selector[i + 1];
+      if (next === undefined || HEADER_READ.test(next)) {
+        return next === undefined ? "at the end of the key" : `before ${HEADER_READ_NAMES[next] ?? `\`${next}\``}`;
+      }
+      i++;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    }
+  }
+  return undefined;
+};
+
 const groupDepthAt = (selector: string, offset: number): number => {
   let depth = 0;
   let quote = "";
   for (let i = 0; i < offset; i++) {
     const char = selector[i]!;
-    if (char === "\\") {
+    if (quote) {
+      if (char === "\\") i++;
+      else if (char === quote) quote = "";
+    } else if (escapeAt(selector, i)) {
       i++;
-    } else if (quote) {
-      if (char === quote) quote = "";
     } else if (char === '"' || char === "'") {
       quote = char;
     } else if (char === "(" || char === "[") {
@@ -834,13 +862,6 @@ const groupDepthAt = (selector: string, offset: number): number => {
     }
   }
   return depth;
-};
-
-const ESCAPE_AT_END = /(?:^|[^\\])(?:\\\\)*\\$/;
-
-export const trimEndUnescaped = (text: string): string => {
-  const trimmed = text.trimEnd();
-  return trimmed.length < text.length && ESCAPE_AT_END.test(trimmed) ? text.slice(0, trimmed.length + 1) : trimmed;
 };
 
 const COLOR_SCHEME_ROOT = new RegExp(`^:where\\((\\[${COLOR_SCHEME_ATTRIBUTE}="(?:light|dark)"\\])\\) `);

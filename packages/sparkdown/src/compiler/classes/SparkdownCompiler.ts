@@ -5291,10 +5291,14 @@ export class SparkdownCompiler {
             const value =
               refusal.kind === "query-list"
                 ? `\`@${state}\` lists queries with a comma beside a selector or state, so ${consequence}.\n> Nest the blocks, as in \`@${state} (…), (…) { @hovered { … } }\`, or write each query as its own key`
-                : `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`;
+                : refusal.kind === "escape"
+                  ? `\`@${state}\` sits beside a selector or state in a key with a backslash ${refusal.where}, which a block header does not read as an escape, so ${consequence}.\n> Nest the blocks, as in \`@${state} … { @hovered { … } }\`, or write the key without that backslash`
+                  : `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`;
+            const code =
+              refusal.kind === "query-list" ? "at-rule-query-list" : refusal.kind === "escape" ? "at-rule-escape" : "at-rule-list";
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({
               range: doc.range(refusal.from, refusal.to),
-              code: refusal.kind === "query-list" ? "at-rule-query-list" : "at-rule-list",
+              code,
               severity: DiagnosticSeverity.Warning,
               message: { kind: "markdown", value },
               source: LANGUAGE_NAME,

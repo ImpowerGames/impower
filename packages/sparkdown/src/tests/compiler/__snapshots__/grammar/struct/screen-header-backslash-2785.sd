@@ -1,8 +1,0 @@
-screen hud {
-  C:\Users\name\notes {
-    x = 5
-  }
-  "quoted \" key" {
-    x = 6
-  }
-}

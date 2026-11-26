@@ -248,7 +248,6 @@ const RAW_QUERY_LISTS = [
   "@media (min-width: 1px), (foo: url(x\\)\\)@hovered))",
   "@container (min-width: 1px), style(--x: url(a\\(b))",
   "@media (min-width: 1px), print \\@hovered",
-  '@media (min-width: 1px), custom\\"type',
 ];
 
 const BEFORE_QUERY_LIST = [
@@ -305,7 +304,6 @@ const EARLIER_COUNTEREXAMPLES = [
   "@hovered @media (foo: url(foo\\)bar)), print",
   "@media (min-width: 1px), print @variant(shout)",
   "@media (min-width: 1px), print @speaker(bunny)",
-  '@hovered @media (min-width: 1px), custom\\"type',
 ];
 
 const MIXED_QUERY_LISTS = [
@@ -360,6 +358,81 @@ describe("a raw at-rule that lists queries with a comma beside a selector or sta
   });
 });
 
+const HEADER_READ = [" ", "\t", "{", "}", ";", '"', "=", ",", "["];
+
+const BACKSLASH_KEYS = [
+  "@media printE",
+  "@media (min-width: 1px), printE",
+  "@media printE, (min-width: 1px)",
+  "@media (min-width: 1px)E",
+  "@media (min-width: 1px)E, print",
+  "@layer fooE",
+  "@layer fooE, bar",
+  "@container cardE (min-width: 1px)",
+  "@supports (display: gridE)",
+  "cardE",
+  "cardE @hovered",
+  "@hovered cardE",
+  "@hovered @media printE",
+  "@media printE @hovered",
+  "@hovered @media (min-width: 1px), printE",
+  "@media (min-width: 1px)E, print @hovered",
+  "cardE @media print",
+  "@media print cardE",
+  "@busy @container-size(sm) cardE",
+  "@showing(hud) @media printE",
+].flatMap((template) => [
+  ...HEADER_READ.map((char) => template.replace("E", `\\${char}`)),
+  template.slice(0, template.indexOf("E")) + "\\",
+]);
+
+describe("a key holding a backslash the block header reads on its own is written as on main or refused (#2785)", () => {
+  const refused = (key: string, colorScheme: "attribute" | "media") =>
+    writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme }).refusals.length > 0;
+
+  test(`each of ${BACKSLASH_KEYS.length} keys is written by both renderers as main writes it, or refused and written by neither`, () => {
+    const outcomes = { identical: 0, refused: 0 };
+    for (const key of BACKSLASH_KEYS) {
+      const player = playerCss({ [key]: { opacity: "0.5" } });
+      if (refused(key, "attribute")) {
+        outcomes.refused++;
+        expect(player, `player ${key}`).not.toContain("0.5");
+      } else {
+        outcomes.identical++;
+        expect(player, `player ${key}`).toBe(`.card {\n  ${basePrelude(key, "attribute").prelude} {\n    opacity: 0.5;\n  }\n}`);
+      }
+      const preview = previewCss([key, "  opacity = 0.5"]);
+      if (refused(key, "media")) {
+        outcomes.refused++;
+        expect(preview, `preview ${key}`).not.toContain("0.5");
+      } else {
+        outcomes.identical++;
+        expect(preview, `preview ${key}`).toBe(`.style.card { ${basePrelude(key, "media").prelude} { opacity:0.5; } }`);
+      }
+    }
+    expect(outcomes.identical).toBeGreaterThan(0);
+    expect(outcomes.refused).toBeGreaterThan(0);
+  });
+
+  test("a key with a state beside an at-rule and such a backslash is refused in both colour-scheme modes", () => {
+    for (const colorScheme of ["attribute", "media"] as const) {
+      for (const key of ["@hovered @media print\\ ", "@media (min-width: 1px)\\, print @hovered", "card\\= @media print"]) {
+        const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });
+        expect(refusals.map(({ kind }) => kind), `${colorScheme} ${key}`).toContain("escape");
+      }
+    }
+  });
+
+  test("an escape before any other character stays one unit in the prelude", () => {
+    const written = writeSparkleSelectorChecked("@hovered @media (foo: url(foo\\(bar))", {
+      breakpoints: BREAKPOINTS,
+      colorScheme: "attribute",
+    });
+    expect(written.refusals).toEqual([]);
+    expect(written.atRules).toEqual(["@media(foo:url(foo\\(bar))"]);
+  });
+});
+
 describe("a comma list whose selectors hold different at-rule states writes no rule (#2785)", () => {
   test.each([
     ["@busy, @media (min-width: 600px)", "@media"],
@@ -390,22 +463,6 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     ).toEqual(["@theme(dark)"]);
     expect(playerCss({ [key]: { opacity: "0.5" } })).toContain("0.5");
     expect(previewCss([key, "  opacity = 0.5"])).not.toContain("0.5");
-  });
-});
-
-describe("an escape at the end of a key is kept (#2785)", () => {
-  test.each(["@layer foo\\ ", "@layer foo\\\t", "@layer foo\\,"])("%j keeps its escape in the at-rule", (key) => {
-    expect(writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).atRules).toEqual([key]);
-  });
-
-  test("an escaped space ending a selector stays in the selector", () => {
-    expect(writeSparkleSelectorChecked("item\\ ", { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).css).toMatch(/item\\ $/);
-  });
-
-  test("an escaped backslash before a closing space does not keep the space", () => {
-    expect(writeSparkleSelectorChecked("@layer foo\\\\ ", { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).atRules).toEqual([
-      "@layer foo\\\\",
-    ]);
   });
 });
 

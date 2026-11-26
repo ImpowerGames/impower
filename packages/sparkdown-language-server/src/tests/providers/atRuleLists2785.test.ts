@@ -157,23 +157,11 @@ style frame {
     ]);
   });
 
-  it("warns on a query list ending in an escaped quote beside a state, and reads the block", () => {
-    expect(allDiagnostics('@hovered @media (min-width: 1px), custom\\"type').map(({ code }) => code)).toEqual([
-      "at-rule-query-list",
-    ]);
-  });
-
-  it("reads a query list ending in an escaped quote, with no state, as an at-rule and no warning", () => {
-    const messages = (compile(`${LAYOUTS}
-style frame {
-  @media (min-width: 1px), custom\\"type {
-    opacity = 1
-  }
-}
-`).diagnostics?.[MAIN] ?? [])
-      .map((d: any) => (typeof d.message === "string" ? d.message : d.message.value))
-      .filter((message: string) => !message.startsWith("no scene named start"));
-    expect(messages).toEqual([]);
+  it("warns on a state beside an at-rule in a key with a backslash the block header reads on its own", () => {
+    const [warning] = warnings("@hovered @media (min-width: 1px)\\= print", "at-rule-escape");
+    expect(warning?.message).toBe(
+      "`@media` sits beside a selector or state in a key with a backslash before `=`, which a block header does not read as an escape, so this block never applies.\n> Nest the blocks, as in `@media … { @hovered { … } }`, or write the key without that backslash",
+    );
   });
 
   it.each([
@@ -188,33 +176,6 @@ style frame {
 }
 `).diagnostics?.[MAIN] ?? []).map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
     expect(all.filter((message: string) => message.includes("Missing ')'"))).toEqual([]);
-  });
-});
-
-describe("a style key ending in an escape keeps it (#2785)", () => {
-  const styleKeys = (headers: string[]) => {
-    const program: any = compile(`${LAYOUTS}
-style frame {
-${headers.map((header, i) => `  ${header} {\n    opacity = ${i + 1}\n  }`).join("\n")}
-}
-`);
-    const { $type, $name, ...keys } = program.context.style.frame;
-    return keys;
-  };
-
-  it.each(["@layer foo\\,", "@layer foo\\ ", "@layer foo\\\t", "item\\ "])("%j is one key", (header) => {
-    expect(styleKeys([header])).toEqual({ [header]: { opacity: "1" } });
-  });
-
-  it("keeps two keys that differ only in their escaped ending apart", () => {
-    expect(styleKeys(["@layer foo\\ ", "@layer foo\\,"])).toEqual({
-      "@layer foo\\ ": { opacity: "1" },
-      "@layer foo\\,": { opacity: "2" },
-    });
-  });
-
-  it("ends a key at a space after an escaped backslash", () => {
-    expect(styleKeys(["@layer foo\\\\"])).toEqual({ "@layer foo\\\\": { opacity: "1" } });
   });
 });
 
