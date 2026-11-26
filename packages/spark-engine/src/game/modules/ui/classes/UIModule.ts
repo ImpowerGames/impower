@@ -92,6 +92,7 @@ import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
 import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
@@ -159,6 +160,10 @@ import {
   type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
+  LayoutMotionMessage,
+  type LayoutMotionMessageMap,
+} from "./messages/LayoutMotionMessage";
+import {
   PresenceElementsMessage,
   type PresenceElementsMessageMap,
   type PresenceMotion,
@@ -211,6 +216,7 @@ import {
 import {
   WriteTextMessage,
   type WriteTextMessageMap,
+  type WriteTextParams,
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
@@ -320,8 +326,39 @@ const pictureHide = (
   return hide;
 };
 
+type MotionPhase = "leave" | "move" | "arrive";
+
+interface OwnedMotion {
+  phase: MotionPhase;
+  removes?: boolean;
+  started?: Promise<unknown>;
+  start: () => Promise<unknown>;
+  finish: () => void;
+  settle: () => void;
+}
+
+interface LineWait {
+  time: number;
+  presenting: boolean;
+  composition?: Composition;
+  held: IMessage[];
+  motions: OwnedMotion[];
+  resolve: (time: number | null) => void;
+}
+
+const namesLayout = (value: string): boolean =>
+  /(^|[\s,])layout([\s,]|$)/.test(value);
+
+const moved = (result: unknown): boolean =>
+  result instanceof Set
+    ? result.size > 0
+    : Array.isArray(result)
+      ? result.length > 0
+      : false;
+
 interface Composition {
   kind: "display" | "beat";
+  line?: LineWait;
   messages: IMessage[];
   realizing: { done: boolean }[];
   afterSent: (() => void)[];
@@ -598,6 +635,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
   PresenceElementsMessageMap &
+  LayoutMotionMessageMap &
   SetThemeMessageMap &
   ShowingMessageMap &
   SkipCutsceneMessageMap &
@@ -627,6 +665,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _motion = false;
 
+  protected _still = false;
+
   protected _contents = new WeakMap<Element, Set<ContentKind>>();
 
   protected _presence = new Map<Element, PresenceRecord>();
@@ -634,6 +674,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _leaving = new Map<Element, Leave>();
 
   protected _leavingScheduled = false;
+
+  protected _line?: LineWait;
+
+  protected _layoutStyles?: { styles: unknown; layout: boolean };
+
+  protected _inlineLayout = false;
+
+  protected _lineRemovals = false;
+
+  protected _lineTimed = new WeakSet<IMessage>();
 
   protected _presenceStyles?: {
     styles: unknown;
@@ -753,6 +803,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override onReset() {
+    this.settleLine();
+    this._inlineLayout = false;
     this._events = {};
     this._mountedLayouts = new Map();
     this._mountedScreens = new Map();
@@ -1561,7 +1613,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     }
     const open = this._compose;
-    if (open && (open.kind === "display" || !open.ending)) {
+    if (
+      open &&
+      (open.kind === "display" ||
+        !open.ending ||
+        (open.line === this._line && open.line?.presenting))
+    ) {
       return false;
     }
     this.flushUIBatch();
@@ -1572,6 +1629,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       afterSent: [],
       expected: [],
     };
+    const line = this._line;
+    if (kind === "beat" && line && !line.composition) {
+      line.composition = next;
+      next.line = line;
+    }
     if (open) {
       next.realizing.push(...open.realizing.filter((e) => !e.done));
       for (const [mount, owner] of this._mountOwners) {
@@ -1629,6 +1691,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._compose !== c) {
       return;
     }
+    const line = this.lineOf(c);
+    if (line) {
+      if (this.transitionsLayout()) {
+        this.ownLayoutMotion(line, "leave");
+      }
+      if (!line.motions.some((m) => m.phase === "leave")) {
+        this.startPhase(line, "arrive");
+      }
+    }
     this.sendCompose(c);
   }
 
@@ -1637,9 +1708,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.flushUIBatch();
       this._compose = undefined;
     }
+    const line = this.lineOf(c);
+    const waits = line != null && line.motions.length > 0;
     void super.emit(
       BeatMessage.type.notification({
-        messages: c.messages,
+        messages: waits
+          ? c.messages.flatMap((m) =>
+              !line.held.includes(m)
+                ? [m]
+                : WriteTextMessage.type.isRequest(m as RequestMessage)
+                  ? [this.heldWrite(m as RequestMessage<string, WriteTextParams>)]
+                  : [],
+            )
+          : c.messages,
         ...(c.time != null ? { time: c.time } : {}),
         ...(c.sweep ? { sweep: true } : {}),
         ...(c.source
@@ -1652,11 +1733,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._standingOps = this._uiOps;
     }
     this.runAfterSent(c);
+    if (waits) {
+      void this.playOut(line);
+    } else if (line) {
+      this.endLine(line, line.time);
+    }
+  }
+
+  protected heldWrite(
+    write: RequestMessage<string, WriteTextParams>,
+  ): RequestMessage<string, WriteTextParams> {
+    return { ...write, params: { ...write.params, held: true } };
   }
 
   protected discardCompose() {
     const c = this._compose;
     if (c) {
+      if (c.line) {
+        this.settleLine(c.line);
+      }
       this._compose = undefined;
       this._uiBatch = [];
       this._showingSent = undefined;
@@ -1767,19 +1862,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       UnobserveElementMessage.type.isNotification(msg as any) ||
       SpeechMessage.type.isNotification(msg as any)
     ) {
-      c.messages.push(structuredClone(msg));
+      this.captureInto(c, msg);
       return { result: undefined };
     }
     if (
       WriteTextMessage.type.isRequest(msg as any) ||
       WriteImageMessage.type.isRequest(msg as any)
     ) {
-      c.messages.push(structuredClone(msg));
+      this.captureInto(c, msg);
       return { result: params.target };
     }
     if (
       AnimateElementsMessage.type.isRequest(msg as any) ||
-      PresenceElementsMessage.type.isRequest(msg as any)
+      PresenceElementsMessage.type.isRequest(msg as any) ||
+      LayoutMotionMessage.type.isRequest(msg as any)
     ) {
       c.messages.push(structuredClone(msg));
       c.expected.push((msg as RequestMessage).id);
@@ -1788,6 +1884,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       };
     }
     return undefined;
+  }
+
+  protected captureInto(c: Composition, msg: IMessage): void {
+    const captured = structuredClone(msg);
+    c.messages.push(captured);
+    if (c.line && this._lineTimed.has(msg)) {
+      c.line.held.push(captured);
+    }
+  }
+
+  protected onLine<T extends IMessage>(msg: T, timed: boolean): T {
+    if (timed) {
+      this._lineTimed.add(msg);
+    }
+    return msg;
   }
 
   protected createElement(
@@ -1800,6 +1911,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const id = this.generateId(parent, name, type);
     const content = state?.content;
     const style = state?.style;
+    this.noteLayoutStyle(style);
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
@@ -1936,6 +2048,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected updateElement(element: Element, state?: ElementState): void {
     const content = state?.content;
     const style = state?.style;
+    this.noteLayoutStyle(style);
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     if (this._refreshing) {
@@ -1966,7 +2079,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this._screenEdits += 1;
     this.flushUIBatch();
-    return this.emitSettled(
+    const played = this.emitSettled(
       AnimateElementsMessage.type.request({
         effects: effects.map((e) => ({
           element: e.element.id,
@@ -1974,13 +2087,228 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         })),
       }),
     );
+    return played;
   }
 
-  setMotion(motion: boolean): void {
+  setMotion(motion: boolean, still = false): void {
     if (!motion) {
+      this.settleLine();
       this.settlePresence();
     }
     this._motion = motion;
+    this._still = still;
+  }
+
+  get still(): boolean {
+    return this._still;
+  }
+
+  beginLine(time: number): Promise<number | null> | undefined {
+    this.abandonLine();
+    if (!this.context?.system?.composeBeats || !this.moving()) {
+      return undefined;
+    }
+    return new Promise<number | null>((resolve) => {
+      this._line = {
+        time,
+        presenting: true,
+        held: [],
+        motions: [],
+        resolve,
+      };
+    });
+  }
+
+  closeLine(): void {
+    const line = this._line;
+    if (line) {
+      line.presenting = false;
+    }
+    if (line && !line.composition) {
+      this.endLine(line, line.time);
+    }
+  }
+
+  protected lineOf(c: Composition): LineWait | undefined {
+    return c.line && c.line === this._line ? c.line : undefined;
+  }
+
+  protected composingLine(): LineWait | undefined {
+    const c = this._compose;
+    return c ? this.lineOf(c) : undefined;
+  }
+
+  protected endLine(line: LineWait, time: number | null): void {
+    if (this._line === line) {
+      this._line = undefined;
+    }
+    line.resolve(time);
+  }
+
+  protected own(line: LineWait, motion: OwnedMotion): void {
+    line.motions.push(motion);
+    if (motion.phase === "leave") {
+      motion.started = motion.start();
+    }
+  }
+
+  protected ownLayoutMotion(line: LineWait, phase: MotionPhase): void {
+    this.own(line, {
+      phase,
+      start: () => {
+        this.flushUIBatch();
+        return this.emitSettled(LayoutMotionMessage.type.request({}));
+      },
+      finish: () => {},
+      settle: () => {
+        this.flushUIBatch();
+        void this.emitSettled(
+          LayoutMotionMessage.type.request({ settle: true }),
+        );
+      },
+    });
+  }
+
+  protected noteLayoutStyle(
+    style: Record<string, unknown> | null | undefined,
+  ): void {
+    if (this._inlineLayout || !style) {
+      return;
+    }
+    for (const [key, value] of Object.entries(style)) {
+      if (
+        key.includes("transition") &&
+        typeof value === "string" &&
+        namesLayout(value)
+      ) {
+        this._inlineLayout = true;
+        return;
+      }
+    }
+  }
+
+  protected transitionsLayout(): boolean {
+    if (this._inlineLayout) {
+      return true;
+    }
+    const styles = this.context?.style;
+    let cached = this._layoutStyles;
+    if (!cached || cached.styles !== styles) {
+      let layout = false;
+      const visit = (value: unknown, key: string) => {
+        if (layout) {
+          return;
+        }
+        if (typeof value === "string") {
+          layout = key.includes("transition") && namesLayout(value);
+          return;
+        }
+        if (value != null && typeof value === "object") {
+          for (const [inner, child] of Object.entries(value)) {
+            visit(child, inner);
+          }
+        }
+      };
+      visit(styles, "");
+      cached = { styles, layout };
+      this._layoutStyles = cached;
+    }
+    return cached.layout;
+  }
+
+  protected startPhase(line: LineWait, phase: MotionPhase): OwnedMotion[] {
+    const due = line.motions.filter((m) => m.phase === phase);
+    for (const motion of due) {
+      motion.started ??= motion.start();
+    }
+    return due;
+  }
+
+  protected settleLine(line = this._line): void {
+    if (line && this._line === line) {
+      this.endLine(line, null);
+      for (const motion of line.motions) {
+        motion.settle();
+      }
+    }
+  }
+
+  protected abandonLine(line = this._line): void {
+    if (line && this._line === line) {
+      this.endLine(line, null);
+      for (const motion of line.motions) {
+        if (motion.started) {
+          void motion.started.then(() => motion.finish());
+        } else {
+          motion.settle();
+        }
+      }
+    }
+  }
+
+  protected async playOut(line: LineWait): Promise<void> {
+    let anyMoved = false;
+    const play = async (phase: MotionPhase) => {
+      const due = this.startPhase(line, phase);
+      const results = await Promise.all(due.map((m) => m.started));
+      if (this._line !== line) {
+        return false;
+      }
+      anyMoved = anyMoved || results.some(moved);
+      if (phase !== "leave") {
+        for (const motion of due) {
+          motion.finish();
+        }
+      }
+      return true;
+    };
+    if (!(await play("leave"))) {
+      return;
+    }
+    if (line.motions.some((m) => m.removes)) {
+      const composed = this.beginCompose();
+      this._lineRemovals = true;
+      try {
+        for (const motion of line.motions) {
+          if (motion.phase === "leave") {
+            motion.finish();
+          }
+        }
+      } finally {
+        this._lineRemovals = false;
+      }
+      if (this.transitionsLayout()) {
+        this.ownLayoutMotion(line, "move");
+        this.startPhase(line, "move");
+      }
+      if (composed) {
+        void this.endCompose({
+          time: this.context.system.now() + BEAT_LEAD_MS,
+        });
+      }
+      if (!(await play("move"))) {
+        return;
+      }
+    }
+    if (!(await play("arrive"))) {
+      return;
+    }
+    const time = anyMoved
+      ? this.context.system.now() + BEAT_LEAD_MS
+      : line.time;
+    const shift = time - line.time;
+    for (const message of line.held) {
+      const params = (message as { params?: { time?: unknown } }).params;
+      if (typeof params?.time === "number") {
+        params.time += shift;
+      }
+    }
+    this.endLine(line, time);
+    if (line.held.length > 0) {
+      void super.emit(
+        BeatMessage.type.notification({ messages: line.held, time }),
+      );
+    }
   }
 
   protected moving(): boolean {
@@ -2128,17 +2456,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     for (const [element, motion] of motions) {
-      if (motion.retiring) {
-        this.retire(motion.retiring);
-      } else if (!this.attached(element)) {
-        continue;
-      } else if (motion.leave) {
-        motion.leave.hide(false);
-      } else {
-        this.updateElement(element, {
-          attributes: { [PRESENCE_ATTRIBUTE]: null },
-        });
-      }
+      this.settleElement(element, motion);
+    }
+  }
+
+  protected settleElement(element: Element, motion: PresenceRecord): void {
+    if (this._presence.get(element) === motion) {
+      this._presence.delete(element);
+    }
+    if (motion.retiring) {
+      this.retire(motion.retiring);
+    } else if (!this.attached(element)) {
+      return;
+    } else if (motion.leave) {
+      motion.leave.hide(false);
+    } else {
+      this.updateElement(element, {
+        attributes: { [PRESENCE_ATTRIBUTE]: null },
+      });
     }
   }
 
@@ -2174,6 +2509,59 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       motions.set(element, motion);
       this._presence.set(element, motion);
     }
+    const line = this.composingLine();
+    if (!line) {
+      return this.emitPresence(elements, presence, motions);
+    }
+    let done = false;
+    const end = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      for (const [element, motion] of motions) {
+        if (this._presence.get(element) === motion) {
+          this.settleElement(element, motion);
+        }
+      }
+    };
+    if (presence === "show") {
+      return new Promise((resolve) => {
+        this.own(line, {
+          phase: "arrive",
+          start: () => this.emitPresence(elements, presence, motions),
+          finish: () => {
+            done = true;
+            resolve(new Set(elements));
+          },
+          settle: () => {
+            end();
+            resolve(new Set());
+          },
+        });
+      });
+    }
+    this.own(line, {
+      phase: "leave",
+      removes: true,
+      start: () =>
+        this.emitPresence(elements, presence, motions).then((ended) => {
+          for (const element of ended) {
+            this._presence.set(element, motions.get(element)!);
+          }
+          return ended;
+        }),
+      finish: end,
+      settle: end,
+    });
+    return Promise.resolve(new Set());
+  }
+
+  protected emitPresence(
+    elements: Element[],
+    presence: PresenceMotion,
+    motions: Map<Element, PresenceRecord>,
+  ): Promise<Set<Element>> {
     this.flushUIBatch();
     return this.emitSettled(
       PresenceElementsMessage.type.request({
@@ -2216,12 +2604,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     element.remove();
     this._retiring.add(retiring);
-    void this.present([element], "hide", () => ({ retiring })).then(() =>
-      this.retire(retiring),
-    );
+    const owned = this.composingLine() != null;
+    const ended = this.present([element], "hide", () => ({ retiring }));
+    if (!owned) {
+      void ended.then(() => this.retire(retiring));
+    }
   }
 
   protected forgetPresence(): void {
+    this.settleLine();
     this._motion = false;
     this._presence.clear();
     this._leaving.clear();
@@ -2838,14 +3229,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this._speaking = speaking;
     void this.emit(
-      SpeechMessage.type.notification({
-        ...(speech?.character ? { character: speech.character } : {}),
-        spans,
-        ...(beeps ? { beeps } : {}),
-        ...(voiced ? { voiced: true as const } : {}),
-        ...(voiced && instant ? { revealed: true as const } : {}),
-        ...(time != null ? { time } : {}),
-      }),
+      this.onLine(
+        SpeechMessage.type.notification({
+          ...(speech?.character ? { character: speech.character } : {}),
+          spans,
+          ...(beeps ? { beeps } : {}),
+          ...(voiced ? { voiced: true as const } : {}),
+          ...(voiced && instant ? { revealed: true as const } : {}),
+          ...(time != null ? { time } : {}),
+        }),
+        !instant && time != null,
+      ),
     );
   }
 
@@ -5257,6 +5651,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
+      const line = this.composingLine();
+      if (line) {
+        this.updateElement(element, { style: { visibility: "hidden" } });
+        let started = false;
+        this.own(line, {
+          phase: "arrive",
+          start: () => {
+            started = true;
+            this.updateElement(element, { style: { visibility: null } });
+            return this.animateElements([{ element, animations: [enter] }]);
+          },
+          finish: () => {},
+          settle: () => {
+            this.updateElement(element, {
+              style: { visibility: null },
+              ...(started ? { attributes: { [PRESENCE_ATTRIBUTE]: null } } : {}),
+            });
+          },
+        });
+        return;
+      }
       const entering = this.animateElements([{ element, animations: [enter] }]);
       if (this._compose) {
         void entering;
@@ -5323,6 +5738,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._mountedLayouts.delete(name);
       element.remove();
       this._retiring.add(retiring);
+      const line = this.composingLine();
+      if (line) {
+        this.own(line, {
+          phase: "leave",
+          removes: true,
+          start: () => this.animateElements([{ element, animations: [exit] }]),
+          finish: () => this.retire(retiring),
+          settle: () => this.retire(retiring),
+        });
+        return;
+      }
       void this.animateElements([{ element, animations: [exit] }]).then(() =>
         this.retire(retiring),
       );
@@ -5353,8 +5779,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {
-        this._uiOps += 1;
-        void super.emit(BatchElementsMessage.type.notification({ messages }));
+        const batch = BatchElementsMessage.type.notification({ messages });
+        if (this._lineRemovals) {
+          void this.emit(batch);
+        } else {
+          this._uiOps += 1;
+          void super.emit(batch);
+        }
       }
     }
     if (r.pin) {
@@ -6267,16 +6698,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           void $.present(arriving, "show");
         }
         await $.emitSettled(
-          WriteTextMessage.type.request({
-            target,
-            instructions: sequence ?? [],
-            instant,
-            ...(time != null ? { time } : {}),
-            ...(shown > 0 ? { shown } : {}),
-            ...(subset || leaving.length > 0 || $.namesWriteElements(target, writing)
-              ? { elements: writing.map((el) => el.id) }
-              : {}),
-          }),
+          $.onLine(
+            WriteTextMessage.type.request({
+              target,
+              instructions: sequence ?? [],
+              instant,
+              ...(time != null ? { time } : {}),
+              ...(shown > 0 ? { shown } : {}),
+              ...(subset || leaving.length > 0 || $.namesWriteElements(target, writing)
+                ? { elements: writing.map((el) => el.id) }
+                : {}),
+            }),
+            !instant &&
+              Boolean(sequence?.slice(shown).some((e) => (e.after ?? 0) > 0)),
+          ),
         );
       }
 
@@ -6825,15 +7260,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           void $.present(arriving, "show");
         }
         await $.emitSettled(
-          WriteImageMessage.type.request({
-            target,
-            instructions: sequence ? this.resolve(sequence, instant, view) : [],
-            instant,
-            ...(time != null ? { time } : {}),
-            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
-              ? { elements: writing.map((el) => el.id) }
-              : {}),
-          }),
+          $.onLine(
+            WriteImageMessage.type.request({
+              target,
+              instructions: sequence ? this.resolve(sequence, instant, view) : [],
+              instant,
+              ...(time != null ? { time } : {}),
+              ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+                ? { elements: writing.map((el) => el.id) }
+                : {}),
+            }),
+            !instant &&
+              (writing.some((el) => !arriving.includes(el)) ||
+                Boolean(
+                  sequence?.some(
+                    (e) => e.control === "animate" || e.with || e.after || e.over,
+                  ),
+                )),
+          ),
         );
       }
 

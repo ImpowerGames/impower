@@ -10,6 +10,7 @@ export interface WriteTextParams {
   time?: number;
   shown?: number;
   elements?: string[];
+  held?: boolean;
 }
 
 export class WriteTextMessage {

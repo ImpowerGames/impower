@@ -161,4 +161,10 @@ export default class AnimationPlayer {
       }),
     );
   }
+
+  retime(startTime: number): void {
+    for (const instance of this._instances) {
+      instance.animation.startTime = startTime;
+    }
+  }
 }
