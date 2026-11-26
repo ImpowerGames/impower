@@ -79,6 +79,8 @@ export class Coordinator<G extends Game> {
 
   protected _startLine?: () => void;
 
+  protected _still = false;
+
   protected _lineStartedMS: number | null = 0;
 
   protected _presenters: Presenter[] = [];
@@ -104,9 +106,11 @@ export class Coordinator<G extends Game> {
       settled?: "restored" | "presented";
       played?: () => void;
       held?: boolean;
+      still?: boolean;
     },
   ) {
     this._game = game;
+    this._still = Boolean(options?.still);
     this._instructions = instructions;
     this._reportsShown =
       !game.context.system.previewing &&
@@ -391,7 +395,7 @@ export class Coordinator<G extends Game> {
     const instant = options?.instant;
     const previewing = options?.preview;
 
-    game.module.ui.setMotion(!instant);
+    game.module.ui.setMotion(!instant && !this._still);
 
     openInitialLayouts(
       game,

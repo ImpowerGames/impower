@@ -447,6 +447,8 @@ export class Game<T extends M = {}> {
 
   protected _resumeShown?: Instructions | null;
 
+  protected _resumeStill = false;
+
   protected _savesSceneEntries = false;
 
   protected _runtimeErrorsReported = 0;
@@ -2584,12 +2586,14 @@ export class Game<T extends M = {}> {
     const resumed = this._resumeShown;
     this._resumeShown = undefined;
     if (resumed !== undefined) {
+      this._resumeStill = true;
       this.observeStanding();
       this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
       }
       this.continue(true);
+      this._resumeStill = false;
       this.endResumedEnding();
     } else if (this._simulation === "success") {
       this.observeStanding();
@@ -3848,7 +3852,9 @@ export class Game<T extends M = {}> {
       this._coordinator = new Coordinator(this, instructions, {
         settled: drawing === "settled" ? "presented" : undefined,
         held: drawing === "held",
+        still: this._resumeStill,
       });
+      this._resumeStill = false;
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
         this._shownBeatOnScreen = instructions;

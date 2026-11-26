@@ -593,3 +593,113 @@ describe("a line orders its departures, its moves and its arrivals (#2739)", () 
     expect(s.sounds).toEqual([900 + LEAD]);
   });
 });
+
+describe("the gaps round 4 named, exercised (#2739)", () => {
+  test("a player that never answers holds the line, however long, until one click settles it", async () => {
+    const s = await scene(true);
+    const words = "A much longer line the player never answers for.";
+    const coordinator = new Coordinator(s.h.game, {
+      end: 0,
+      text: { dialogue: typed("Hi."), action: typed(words) },
+      audio: sound,
+    } as any);
+    await tick(coordinator);
+    expect(s.h.heldLayout()).not.toEqual([]);
+    for (let i = 0; i < 30; i += 1) {
+      s.clock.now += 1_000;
+      (coordinator as any)._elapsedMS += 1_000;
+      await tick(coordinator, 1);
+      expect(coordinator.shouldContinue()).toBe(0);
+    }
+    expect(typedWrites(s.h, words)).toEqual([]);
+    expect(s.sounds).toEqual([]);
+    coordinator.onMessage({
+      jsonrpc: "2.0",
+      method: "event",
+      params: { type: "pointerdown", button: 0 },
+    } as any);
+    coordinator.shouldContinue();
+    await flushMicrotasks(40);
+    expect(instantWrites(s.h, words)).toHaveLength(1);
+    expect(layoutSettles(s.h)).toHaveLength(1);
+    expect(s.sounds).toHaveLength(1);
+  });
+
+  const STORY = SOURCE.replace(
+    /scene start[^]*$/,
+    `scene start
+  [[open main]]
+  BUNNY: First words from the dialogue.
+  Then a line of action arrives.
+end
+`,
+  );
+
+  const running = async () => {
+    const h = createHarness(STORY, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      holdPresence: true,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    const drive = async (times = 10) => {
+      for (let i = 0; i < times; i += 1) {
+        await flushMicrotasks(10);
+        (h.game as any)._coordinator?.onUpdate({ deltaMS: 100 });
+        h.releaseLayout();
+      }
+      await flushMicrotasks(20);
+    };
+    const text = () => (h.game.story.currentText ?? "").trim();
+    h.game.start();
+    await drive();
+    for (let i = 0; i < 12 && text() !== "First words from the dialogue."; i += 1) {
+      h.releasePresence();
+      h.game.clickedToContinue();
+      await drive();
+    }
+    expect(text()).toBe("First words from the dialogue.");
+    h.releasePresence();
+    await drive();
+    const save = h.game.saveHere();
+    h.game.clickedToContinue();
+    await drive();
+    expect(text()).toBe("Then a line of action arrives.");
+    expect(h.heldPresence()).not.toEqual([]);
+    expect((h.game.module.ui as any)._line).toBeDefined();
+    return { h, drive, text, save };
+  };
+
+  const settledAfter = async (r: Awaited<ReturnType<typeof running>>) => {
+    expect((r.h.game.module.ui as any)._line).toBeUndefined();
+    r.h.reset();
+    r.h.releasePresence();
+    await r.drive();
+    expect(typedWrites(r.h, "Then a line of action arrives.")).toEqual([]);
+    const initial = wire(r.h.messages).filter(
+      (m: any) =>
+        (m?.method === "ui/create" || m?.method === "ui/update") &&
+        m.params?.attributes?.["data-presence"] === "initial",
+    );
+    expect(initial).toEqual([]);
+  };
+
+  test("a step back during a line's wait ends the wait and shows the earlier line settled", async () => {
+    const r = await running();
+    const back = await r.h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    expect(r.text()).toBe("First words from the dialogue.");
+    await settledAfter(r);
+  });
+
+  test("a loaded save during a line's wait ends the wait and shows the saved line settled", async () => {
+    const r = await running();
+    expect(r.save).not.toBeNull();
+    expect(r.h.game.loadToResume(r.save!.data)).toBe(true);
+    r.h.game.start();
+    await r.drive();
+    expect(r.text()).toBe("First words from the dialogue.");
+    await settledAfter(r);
+  });
+});
