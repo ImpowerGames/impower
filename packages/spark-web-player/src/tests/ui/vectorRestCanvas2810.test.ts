@@ -134,7 +134,7 @@ async function setup(options: { placeholders?: boolean; holdRasters?: boolean; r
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -290,6 +290,84 @@ describe("a vector picture's rest pose is drawn on a canvas before its beat fire
   });
 });
 
+describe("the beat's drawing barrier holds against what follows it, and sizes from the beat's own layout (#2810)", () => {
+  test("a beat that arrives while an earlier beat waits for its drawing waits behind it, and each fires only once drawn", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])], 50);
+    await until(() => t.rasters.length === 1, "the first raster");
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])], 52);
+    await flushMicrotasks(20);
+    expect(t.events).toEqual([]);
+    expect(marks(52)["received"]).toBeDefined();
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.rasters.length === 2, "the second beat's raster");
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    expect(t.spanOf("sigil")?.style.getPropertyValue("visibility")).toBe("hidden");
+    const second = t.rasters[1]!;
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the second beat");
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", `paint ${second.width}x${second.height}`, "applied"]);
+  });
+
+  test("a beat that arrives while an earlier beat's created element waits for its drawing waits too, and the element stays hidden until drawn", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 54, [
+      { method: "ui/create", params: { parent: stage.__sdId, element: "made-plaque", type: "div", name: "plaque", breakpoints: {} } },
+      { method: "ui/create", params: { parent: "made-plaque", element: "made-plaque-image", type: "div", name: "image", breakpoints: {} } },
+    ]);
+    await until(() => t.events.includes("applied") && t.rasters.length === 1, "the first beat and its raster");
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])], 56);
+    await flushMicrotasks(20);
+    const plaque = t.h.overlay.querySelector(".plaque") as HTMLElement;
+    expect(plaque.style.getPropertyValue("visibility")).toBe("hidden");
+    expect(t.events).toEqual(["applied"]);
+    expect(marks(54)["fired"]).toBeUndefined();
+    const asked = t.rasters[0]!;
+    asked.resolve(raster(asked.src, asked.width, asked.height));
+    await until(() => marks(54)["fired"] !== undefined, "the first beat's fired mark");
+    expect(plaque.style.getPropertyValue("visibility")).toBe("");
+    await until(() => t.rasters.length === 2, "the second beat's raster");
+  });
+
+  test("a UI message that arrives while a beat waits for its drawing applies it with its undrawn picture marked late, never as drawn", async () => {
+    const t = await setup({ holdRasters: true, placeholders: true });
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])], 58);
+    await until(() => t.rasters.length === 1, "the raster");
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
+    await t.h.ui.onReceiveRequest({ jsonrpc: "2.0", id: "lone-update", method: "ui/update", params: { element: sigil.__sdId, style: { opacity: "0.5" }, breakpoints: {} } } as never);
+    expect(t.events).toEqual(["applied"]);
+    expect(t.shadowOf("backdrop")!.querySelector("[data-undrawn]")?.getAttribute("data-undrawn")).toBe("late");
+    expect(t.reports).toHaveBeenCalledWith({ image: "dusk", file: "dusk.svg", reason: "late", placeholder: true });
+  });
+
+  test("a beat that widens the target before its write prepares the picture at the new size and paints it once", async () => {
+    const t = await setup({ holdRasters: true });
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])], 60, [{ method: "ui/update", params: { element: sigil.__sdId, attributes: { class: "sigil wide" }, breakpoints: {} } }]);
+    await until(() => t.rasters.length === 1, "the raster");
+    expect(sigil.className).toBe("sigil");
+    const asked = t.rasters[0]!;
+    expect([asked.width, asked.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    asked.resolve(raster(asked.src, asked.width, asked.height));
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(sigil.className).toBe("sigil wide");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(t.events).toEqual([`paint ${asked.width}x${asked.height}`, "applied"]);
+  });
+
+  test("scale functions in one keyframe compose", async () => {
+    const t = await setup();
+    const twice = { ...grow, $name: "twice", keyframes: [{ transform: "scale(1)" }, { transform: "scale(2) scale(1.5)", scale: "1.1" }] } as unknown as Animation;
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"], { enter: twice })], 62);
+    await until(() => t.events.includes("applied"), "the beat");
+    const width = Math.round(BOX.width * DPR * STYLE_SCALE * 3.3);
+    const height = Math.round(BOX.height * DPR * STYLE_SCALE * 3.3);
+    expect(t.events).toEqual([`paint ${width}x${height}`, "applied"]);
+  });
+});
+
 describe("a vector picture in an element the beat reveals or creates (#2810)", () => {
   test("in an element the beat reveals, it is drawn before the beat at the size its span has once shown, the element stays hidden until the beat, and nothing is painted again once it shows", async () => {
     const t = await setup({ holdRasters: true });
@@ -344,6 +422,51 @@ const KIT_CONTEXT = {
 };
 
 describe("a layered bitmap picture a morph plays on is drawn before its beat fires (#2810)", () => {
+  test("when its morph's drawing is not ready at the timeout, the beat applies with its still picture and the game warns once", async () => {
+    const t = await setup();
+    t.h.ui.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0.05, restoreTimeout: 0.05 },
+    } as never);
+    t.playback.configure({ host: { resolve: () => new Promise(() => {}) } as never });
+    const files = KIT.map((name) => ({ src: `/src/${name}.png`, name: `${name}.png` }));
+    t.beat([
+      {
+        target: "badge",
+        instant: false,
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: 'url("/src/closed.png"), url("/src/base.png")',
+              imageNames: "kit",
+              srcs: files.map((file) => file.src),
+              morph: {
+                plays: [
+                  {
+                    layer: 0,
+                    picture: { span: 2, files },
+                    ref: { morphs: ["m"], key: "kit-late", image: "kit", selection: "{}", groups: ["mouth"] },
+                    morph: "m",
+                    timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+                    definition: "d",
+                  },
+                ],
+                epoch: 0,
+              },
+              pictures: [{ layer: 0, span: 2, name: "kit", files: files.slice(0, 2) }],
+            },
+          },
+        ],
+      },
+    ]);
+    await until(() => t.events.includes("applied"), "the beat after its timeout");
+    expect(t.reports).toHaveBeenCalledTimes(1);
+    expect(t.reports).toHaveBeenCalledWith({ image: "kit", file: "base.png", reason: "late" });
+    expect(t.spanOf("badge")!.style.getPropertyValue("background-image")).toBe('url("/src/closed.png"), url("/src/base.png")');
+  });
+
   test("its morph canvas is painted before the beat is applied, and a change morph on it starts only when the beat applies", async () => {
     const t = await setup();
     const recipe = serializeMorphRecipe(

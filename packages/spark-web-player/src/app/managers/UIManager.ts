@@ -562,6 +562,9 @@ export default class UIManager extends Manager {
       }
     }
     this.liftVeil();
+    for (const waiting of this._waitingBeats.splice(0)) {
+      this._beatMarks.dropped(waiting);
+    }
     this._beatMarks.clear();
     this.discardAllPrepared();
   }
@@ -636,10 +639,44 @@ export default class UIManager extends Manager {
     return found;
   }
 
+  protected _waitingBeats: BeatParams[] = [];
+
+  protected _draining = false;
+
+  protected _applying = 0;
+
   protected receiveBeat(params: BeatParams) {
-    this.flushPendingBeat();
-    this.liftVeil();
     this._beatMarks.received(params);
+    this._waitingBeats.push(params);
+    this.drainWaiting();
+  }
+
+  protected drawingPending(): boolean {
+    const pending = (this.app.overlay as OverlayWithBeat | undefined)?.__sdBeat;
+    return !!this._veil || (!!pending && pending.owner === this && !!pending.drawing);
+  }
+
+  protected drainWaiting() {
+    if (this._draining || this._applying > 0) {
+      return;
+    }
+    this._draining = true;
+    try {
+      while (this._waitingBeats.length > 0 && !this.drawingPending()) {
+        const next = this._waitingBeats.shift()!;
+        this.flushPendingBeat();
+        if (this.drawingPending()) {
+          this._waitingBeats.unshift(next);
+          break;
+        }
+        this.processBeat(next);
+      }
+    } finally {
+      this._draining = false;
+    }
+  }
+
+  protected processBeat(params: BeatParams, force = false) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
@@ -648,14 +685,23 @@ export default class UIManager extends Manager {
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
     const prepared = overlay ? this.prepareDrawing(ops, plan) : { layers: [], unprepared: false };
-    const drawing = prepared.layers.filter((layer) => !layer.drawn);
+    let drawing = prepared.layers.filter((layer) => !layer.drawn);
+    if (force) {
+      for (const layer of drawing) {
+        layer.overdue();
+      }
+      drawing = [];
+    }
     const veil = prepared.unprepared;
     if (drawing.length === 0 && !veil) {
       this._beatMarks.ready(params);
     }
-    if (!overlay || (wait <= 0 && drawing.length === 0)) {
+    if (!overlay || force || (wait <= 0 && drawing.length === 0)) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
       this.applyBeat(params, ops, plan, veil);
+      if (force) {
+        this._veil?.overdue();
+      }
       return;
     }
     const pending: PendingBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this, ...(veil ? { veil } : {}) };
@@ -673,6 +719,7 @@ export default class UIManager extends Manager {
           this._beatMarks.ready(params);
         }
         pending.owner.scheduleCommit();
+        pending.owner.drainWaiting();
       };
       void Promise.all(drawing.map((layer) => layer.whenDrawn())).then(landed);
       const seconds = this.drawSeconds();
@@ -705,6 +752,8 @@ export default class UIManager extends Manager {
     const layers: MorphLayer[] = [];
     let unprepared = false;
     const animated = this.beatAnimations(ops);
+    const restore = this.applyBeatLayout(ops);
+    try {
     const nested = (el: Element) =>
       animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
     for (const op of ops) {
@@ -791,6 +840,7 @@ export default class UIManager extends Manager {
                 true,
               );
               layer.size({ zoom, scale: around * keyframeScale(content.enterAnimation ? [content.enterAnimation] : []) * nested(span) });
+              layer.presize();
               this.presizeHidden(span, layer);
               let byContent = this._prepared.get(instruction);
               if (!byContent) {
@@ -804,10 +854,57 @@ export default class UIManager extends Manager {
         }
       }
     }
+    } finally {
+      restore();
+    }
     return { layers, unprepared };
   }
 
-  protected _veil?: { lift: () => void };
+  protected applyBeatLayout(ops: IMessage[]): () => void {
+    const saved: { el: HTMLElement; style: string | null; attributes: [string, string | null][] }[] = [];
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!UpdateElementMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const { element, style, attributes } = msg.params;
+      const el = this.getElement(element);
+      if (!el || (!style && !attributes)) {
+        continue;
+      }
+      const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked");
+      saved.push({ el, style: el.getAttribute("style"), attributes: names.map((name) => [name, el.getAttribute(name)]) });
+      if (style) {
+        this.applyStyle(el, style);
+      }
+      for (const name of names) {
+        const value = attributes![name];
+        if (value == null) {
+          el.removeAttribute(name);
+        } else {
+          el.setAttribute(name, value);
+        }
+      }
+    }
+    return () => {
+      for (const { el, style, attributes } of saved.reverse()) {
+        if (style == null) {
+          el.removeAttribute("style");
+        } else {
+          el.setAttribute("style", style);
+        }
+        for (const [name, value] of attributes) {
+          if (value == null) {
+            el.removeAttribute(name);
+          } else {
+            el.setAttribute(name, value);
+          }
+        }
+      }
+    };
+  }
+
+  protected _veil?: { lift: () => void; overdue: () => void };
 
   protected liftVeil() {
     this._veil?.lift();
@@ -857,20 +954,22 @@ export default class UIManager extends Manager {
         }
         this._beatMarks.ready(params);
         this._beatMarks.fired(params);
+        this.drainWaiting();
       },
-    };
-    this._veil = veil;
-    void Promise.all(waiting.map((layer) => layer.whenDrawn())).then(() => veil.lift());
-    const seconds = this.drawSeconds();
-    if (seconds > 0) {
-      timer = setTimeout(() => {
+      overdue: () => {
         for (const layer of waiting) {
           if (!layer.drawn) {
             layer.overdue();
           }
         }
         veil.lift();
-      }, seconds * 1000);
+      },
+    };
+    this._veil = veil;
+    void Promise.all(waiting.map((layer) => layer.whenDrawn())).then(() => veil.lift());
+    const seconds = this.drawSeconds();
+    if (seconds > 0) {
+      timer = setTimeout(() => veil.overdue(), seconds * 1000);
     }
   }
 
@@ -985,18 +1084,30 @@ export default class UIManager extends Manager {
     this.flushPendingBeat();
   }
 
-  protected flushPendingBeat() {
+  protected flushPendingBeat(force = false) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
-    if (!overlay || !pending) {
+    if (overlay && pending) {
+      overlay.__sdBeat = undefined;
+      clearTimeout(pending.timer);
+      clearTimeout(pending.drawTimer);
+      for (const layer of pending.drawing ?? []) {
+        if (!layer.drawn) {
+          layer.overdue();
+        }
+      }
+      pending.drawing = undefined;
+      this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
+      this.applyBeat(pending.params, pending.ops, pending.plan, pending.veil);
+    }
+    if (!force || this._applying > 0) {
+      this.drainWaiting();
       return;
     }
-    overlay.__sdBeat = undefined;
-    clearTimeout(pending.timer);
-    clearTimeout(pending.drawTimer);
-    pending.drawing = undefined;
-    this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
-    this.applyBeat(pending.params, pending.ops, pending.plan, pending.veil);
+    this._veil?.overdue();
+    for (let next = this._waitingBeats.shift(); next; next = this._waitingBeats.shift()) {
+      this.processBeat(next, true);
+    }
   }
 
   protected applyShowing(params: ShowingParams) {
@@ -1104,6 +1215,15 @@ export default class UIManager extends Manager {
     plan: Map<IMessage, WriteDecision>,
     veil = false,
   ) {
+    this._applying += 1;
+    try {
+      this.applyBeatOps(params, ops, plan, veil);
+    } finally {
+      this._applying -= 1;
+    }
+  }
+
+  protected applyBeatOps(params: BeatParams, ops: IMessage[], plan: Map<IMessage, WriteDecision>, veil: boolean) {
     const overlay = this.app.overlay;
     const before = veil && overlay ? new WeakSet<Element>(Array.from(overlay.querySelectorAll("*"))) : undefined;
     if (!before) {
@@ -1565,7 +1685,7 @@ export default class UIManager extends Manager {
     const decision = this._decision;
     this.endPreviewCutscene(msg);
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
-      this.flushPendingBeat();
+      this.flushPendingBeat(true);
       this.morphs?.requestRelayout();
     }
     this.touch(this.touchesOf(msg));
@@ -1889,7 +2009,7 @@ export default class UIManager extends Manager {
       this.morphs?.requestRelayout();
     }
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
-      this.flushPendingBeat();
+      this.flushPendingBeat(true);
     }
     if (ShowingMessage.type.isNotification(msg)) {
       this.applyShowing(msg.params);

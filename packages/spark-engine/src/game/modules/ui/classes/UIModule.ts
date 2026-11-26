@@ -2704,6 +2704,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._game.log(`\`${params.image}\` is not drawn: its file \`${params.file}\` ${why}. The previews show a placeholder in its place, and an exported game shows nothing there.`, "warning");
       return;
     }
+    if (params.reason === "late") {
+      this._game.log(`\`${params.image}\` was drawn late: its morph's drawing was not ready before the line's wait for it ran out, so the line showed its still picture until it was.`, "warning");
+      return;
+    }
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 

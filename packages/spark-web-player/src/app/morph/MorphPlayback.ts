@@ -398,6 +398,7 @@ interface ImageState {
   files?: MorphPictureFiles;
   loading?: { artifact: MorphArtifact; done: Promise<void> };
   broken?: boolean;
+  reported?: boolean;
 }
 
 const restFrame = (): MorphFrameState => ({
@@ -1314,6 +1315,7 @@ export class MorphLayer {
   }
 
   protected areaOf(computed: CSSStyleDeclaration | undefined) {
+    if (this.held && this.presized) return this.presized;
     const area = positioningArea(this.span, computed);
     return area.width > 0 && area.height > 0 ? area : (this.presized ?? area);
   }
@@ -1361,13 +1363,19 @@ export class MorphLayer {
     if (!this.active) return;
     let changed = false;
     for (const still of this.stills) {
-      if (this.stillDrawn(still) || still.under) continue;
+      if (this.stillDrawn(still)) continue;
       still.late = true;
       changed = true;
       this.report(still, {
         reason: "late",
         file: still.picture.files.find((_, index) => still.files?.bitmaps.get(index)?.vector)?.name ?? still.picture.files[0]!.name,
       });
+    }
+    for (const image of this.images) {
+      if (!image.picture || image.reported || this.canvasDrawn(image)) continue;
+      if (this.stills.some((still) => still.under === image && !still.late && this.stillDrawn(still))) continue;
+      image.reported = true;
+      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: image.picture.files[0]?.name ?? "", reason: "late" });
     }
     if (changed) this.build();
     for (const resolve of this.drawnWaiters.splice(0)) resolve();
