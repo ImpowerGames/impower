@@ -345,6 +345,9 @@ interface LineWait {
   resolve: (time: number | null) => void;
 }
 
+const namesLayout = (value: string): boolean =>
+  /(^|[\s,])layout([\s,]|$)/.test(value);
+
 const moved = (result: unknown): boolean =>
   result instanceof Set
     ? result.size > 0
@@ -659,6 +662,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _line?: LineWait;
 
   protected _layoutStyles?: { styles: unknown; layout: boolean };
+
+  protected _inlineLayout = false;
+
+  protected _lineRemovals = false;
 
   protected _lineTimed = new WeakSet<IMessage>();
 
@@ -1781,6 +1788,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const id = this.generateId(parent, name, type);
     const content = state?.content;
     const style = state?.style;
+    this.noteLayoutStyle(style);
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
@@ -1917,6 +1925,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected updateElement(element: Element, state?: ElementState): void {
     const content = state?.content;
     const style = state?.style;
+    this.noteLayoutStyle(style);
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     if (this._refreshing) {
@@ -2032,7 +2041,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
+  protected noteLayoutStyle(
+    style: Record<string, unknown> | null | undefined,
+  ): void {
+    if (this._inlineLayout || !style) {
+      return;
+    }
+    for (const [key, value] of Object.entries(style)) {
+      if (
+        key.includes("transition") &&
+        typeof value === "string" &&
+        namesLayout(value)
+      ) {
+        this._inlineLayout = true;
+        return;
+      }
+    }
+  }
+
   protected transitionsLayout(): boolean {
+    if (this._inlineLayout) {
+      return true;
+    }
     const styles = this.context?.style;
     let cached = this._layoutStyles;
     if (!cached || cached.styles !== styles) {
@@ -2042,9 +2072,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         if (typeof value === "string") {
-          layout =
-            key.includes("transition") &&
-            /(^|[\s,])layout([\s,]|$)/.test(value);
+          layout = key.includes("transition") && namesLayout(value);
           return;
         }
         if (value != null && typeof value === "object") {
@@ -2111,10 +2139,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     if (line.motions.some((m) => m.removes)) {
       const composed = this.beginCompose();
-      for (const motion of line.motions) {
-        if (motion.phase === "leave") {
-          motion.finish();
+      this._lineRemovals = true;
+      try {
+        for (const motion of line.motions) {
+          if (motion.phase === "leave") {
+            motion.finish();
+          }
         }
+      } finally {
+        this._lineRemovals = false;
       }
       if (this.transitionsLayout()) {
         this.ownLayoutMotion(line, "move");
@@ -5612,8 +5645,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {
-        this._uiOps += 1;
-        void super.emit(BatchElementsMessage.type.notification({ messages }));
+        const batch = BatchElementsMessage.type.notification({ messages });
+        if (this._lineRemovals) {
+          void this.emit(batch);
+        } else {
+          this._uiOps += 1;
+          void super.emit(batch);
+        }
       }
     }
     if (r.pin) {

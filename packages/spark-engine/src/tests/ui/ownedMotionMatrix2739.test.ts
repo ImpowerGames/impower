@@ -66,6 +66,11 @@ scene start
 end
 `;
 
+const INLINE = SOURCE.replace(/style action \{[^}]*\}/, "").replace(
+  "  action {",
+  "  action #transition-property=layout #transition-duration=0.5s {",
+);
+
 const LEAD = 20;
 
 const typed = (text: string) =>
@@ -170,8 +175,12 @@ interface Scene {
   ids: { portrait: string; dialogue: string; caption: string; action: string };
 }
 
-async function scene(holdLayout: boolean): Promise<Scene> {
-  const h = createHarness(SOURCE, 0, {
+async function scene(
+  holdLayout: boolean,
+  source = SOURCE,
+  menuOpen = false,
+): Promise<Scene> {
+  const h = createHarness(source, 0, {
     reactive: true,
     autoOpenAll: false,
     holdPresence: true,
@@ -214,6 +223,10 @@ async function scene(holdLayout: boolean): Promise<Scene> {
     caption: ui.findIds("caption")[0]!,
     action: ui.findIds("action")[0]!,
   };
+  if (menuOpen) {
+    await ui.openLayout("menu", undefined, true);
+    await flushMicrotasks(30);
+  }
   h.reset();
   sounds.length = 0;
   return { h, clock, sounds, ids };
@@ -228,6 +241,10 @@ const answerAnimations = (h: UIHarness) => {
 interface Kind {
   name: string;
   holdLayout: boolean;
+  source?: string;
+  menuOpen?: boolean;
+  playedOut?: (s: Scene) => void;
+  settled?: (s: Scene) => void;
   words: string;
   beat: (words: string) => Record<string, unknown>;
   pending: (s: Scene) => void;
@@ -318,7 +335,74 @@ const kinds: Kind[] = [
     },
     final: () => {},
   },
+  {
+    name: "an inline layout move",
+    holdLayout: true,
+    source: INLINE,
+    words: "A much longer line that makes the inline box grow.",
+    beat: (words) => ({
+      text: { dialogue: typed("Hi."), action: typed(words) },
+      audio: sound,
+      image: shake,
+    }),
+    pending: (s) => {
+      expect(s.h.heldLayout()).not.toEqual([]);
+    },
+    release: (s) => {
+      s.h.releaseLayout([s.ids.action]);
+    },
+    final: () => {},
+    settled: (s) => {
+      expect(layoutSettles(s.h)).toHaveLength(1);
+    },
+  },
+  {
+    name: "a retiring layout departure",
+    holdLayout: false,
+    menuOpen: true,
+    words: "Closing.",
+    beat: (words) => ({
+      text: { dialogue: typed("Hi."), action: typed(words) },
+      layout: { menu: [{ control: "close", name: "menu", with: "fadeout" }] },
+      audio: sound,
+      image: shake,
+    }),
+    pending: (s) => {
+      expect(animateRequests(s.h)).toHaveLength(1);
+      expect(destroyedIn(s.h, menuOf(s.h))).toEqual([]);
+    },
+    release: (s) => {
+      answerAnimations(s.h);
+    },
+    final: (s) => {
+      expect(destroyedIn(s.h, menuOf(s.h))).toHaveLength(1);
+    },
+    playedOut: (s) => {
+      const menu = menuOf(s.h);
+      const beats = s.h.messages.filter(
+        (m: any) =>
+          m?.method === "ui/beat" &&
+          wire(m.params.messages).some(
+            (inner: any) => inner?.method === "ui/destroy" && inner.params?.element === menu,
+          ),
+      );
+      expect(beats).toHaveLength(1);
+      expect(
+        wire(beats[0].params.messages).some((inner: any) => inner?.method === "ui/layout"),
+      ).toBe(true);
+    },
+    settled: (s) => {
+      expect(destroyedIn(s.h, menuOf(s.h))).toHaveLength(1);
+    },
+  },
 ];
+
+const menuOf = (h: UIHarness): string => animateRequests(h)[0]?.params.effects[0]?.element;
+
+const destroyedIn = (h: UIHarness, id: string) =>
+  wire(h.messages).filter(
+    (m: any) => m?.method === "ui/destroy" && m.params?.element === id,
+  );
 
 interface Ending {
   name: string;
@@ -345,6 +429,7 @@ const endings: Ending[] = [
       const [animate] = shakes(s.h);
       expect(animate?.params.time).toBeGreaterThanOrEqual(MOTION_END);
       expect((s.h.game.module.ui as any)._line).toBeUndefined();
+      kind.playedOut?.(s);
     },
   },
   {
@@ -377,6 +462,7 @@ const endings: Ending[] = [
       if (kind.name === "a layout move") {
         expect(layoutSettles(s.h)).toHaveLength(1);
       }
+      kind.settled?.(s);
     },
   },
   {
@@ -418,6 +504,7 @@ const endings: Ending[] = [
       if (kind.name === "a layout move") {
         expect(layoutSettles(s.h)).toHaveLength(1);
       }
+      kind.settled?.(s);
     },
   },
   {
@@ -435,6 +522,7 @@ const endings: Ending[] = [
       if (kind.name === "a layout move") {
         expect(layoutSettles(s.h)).toHaveLength(1);
       }
+      kind.settled?.(s);
     },
   },
 ];
@@ -443,7 +531,7 @@ describe("every kind of motion a line owns, with every way its wait ends (#2739)
   for (const kind of kinds) {
     for (const ending of endings) {
       test(`${kind.name}: ${ending.name}`, async () => {
-        const s = await scene(kind.holdLayout);
+        const s = await scene(kind.holdLayout, kind.source, kind.menuOpen);
         const coordinator = new Coordinator(s.h.game, {
           end: 0,
           ...kind.beat(kind.words),
