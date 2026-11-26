@@ -123,7 +123,16 @@ async function until(check: () => boolean, what: string) {
   throw new Error(`Timed out waiting for ${what}`);
 }
 
-async function setup(options: { placeholders?: boolean; holdRasters?: boolean; refuse?: (src: string) => boolean; load?: (src: string) => Promise<PictureBitmap | undefined> } = {}) {
+async function setup(
+  options: {
+    placeholders?: boolean;
+    holdRasters?: boolean;
+    refuse?: (src: string) => boolean;
+    load?: (src: string) => Promise<PictureBitmap | undefined>;
+    stretch?: { x: number; y: number };
+  } = {},
+) {
+  const stretch = options.stretch ?? { x: STYLE_SCALE, y: STYLE_SCALE };
   const h = createDOMHarness(SOURCE, 0, { compose: true });
   await h.ready;
   await h.rerender(SOURCE, 0);
@@ -134,7 +143,7 @@ async function setup(options: { placeholders?: boolean; holdRasters?: boolean; r
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -149,11 +158,20 @@ async function setup(options: { placeholders?: boolean; holdRasters?: boolean; r
       return laidOut(this) ? BOX.width : 0;
     },
   });
+  const height = Object.getOwnPropertyDescriptor(proto, "offsetHeight");
+  Object.defineProperty(proto, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return laidOut(this) ? BOX.height : 0;
+    },
+  });
   Object.defineProperty(proto, "getBoundingClientRect", {
     configurable: true,
     value(this: HTMLElement) {
-      const scale = laidOut(this) ? STYLE_SCALE * pictureViewOf(this).zoom : 0;
-      return { x: 0, y: 0, left: 0, top: 0, right: BOX.width * scale, bottom: BOX.height * scale, width: BOX.width * scale, height: BOX.height * scale, toJSON() {} };
+      const zoom = laidOut(this) ? pictureViewOf(this).zoom : 0;
+      const across = BOX.width * stretch.x * zoom;
+      const down = BOX.height * stretch.y * zoom;
+      return { x: 0, y: 0, left: 0, top: 0, right: across, bottom: down, width: across, height: down, toJSON() {} };
     },
   });
   const events: string[] = [];
@@ -216,6 +234,8 @@ async function setup(options: { placeholders?: boolean; holdRasters?: boolean; r
     h.ui.onDispose();
     if (width) Object.defineProperty(proto, "offsetWidth", width);
     else delete (proto as unknown as Record<string, unknown>)["offsetWidth"];
+    if (height) Object.defineProperty(proto, "offsetHeight", height);
+    else delete (proto as unknown as Record<string, unknown>)["offsetHeight"];
     if (rect) Object.defineProperty(proto, "getBoundingClientRect", rect);
   };
   return { h, win, events, paints, rasters, reports, beat, spanOf, shadowOf, pending, playback };
@@ -310,25 +330,46 @@ describe("the beat's drawing barrier holds against what follows it, and sizes fr
     expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", `paint ${second.width}x${second.height}`, "applied"]);
   });
 
-  test("a beat that arrives while an earlier beat's created element waits for its drawing waits too, and the element stays hidden until drawn", async () => {
+  test("a beat that arrives while an earlier beat waits for the picture of an element it creates waits too", async () => {
     const t = await setup({ holdRasters: true });
     const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
     t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 54, [
       { method: "ui/create", params: { parent: stage.__sdId, element: "made-plaque", type: "div", name: "plaque", breakpoints: {} } },
       { method: "ui/create", params: { parent: "made-plaque", element: "made-plaque-image", type: "div", name: "image", breakpoints: {} } },
     ]);
-    await until(() => t.events.includes("applied") && t.rasters.length === 1, "the first beat and its raster");
+    await until(() => t.rasters.length === 1, "the first beat's raster");
     t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])], 56);
     await flushMicrotasks(20);
     const plaque = t.h.overlay.querySelector(".plaque") as HTMLElement;
     expect(plaque.style.getPropertyValue("visibility")).toBe("hidden");
-    expect(t.events).toEqual(["applied"]);
-    expect(marks(54)["fired"]).toBeUndefined();
+    expect(t.events).toEqual([]);
     const asked = t.rasters[0]!;
     asked.resolve(raster(asked.src, asked.width, asked.height));
-    await until(() => marks(54)["fired"] !== undefined, "the first beat's fired mark");
+    await until(() => t.events.includes("applied"), "the first beat");
     expect(plaque.style.getPropertyValue("visibility")).toBe("");
     await until(() => t.rasters.length === 2, "the second beat's raster");
+  });
+
+  test("a beat that changes the target's picture styles before its write draws the picture with the new styles before it fires, and not again after", async () => {
+    const t = await setup({ holdRasters: true });
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
+    sigil.className = "sigil half";
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])], 64, [{ method: "ui/update", params: { element: sigil.__sdId, attributes: { class: "sigil" }, breakpoints: {} } }]);
+    await until(() => t.rasters.length === 1, "the raster");
+    const asked = t.rasters[0]!;
+    expect([asked.width, asked.height]).toEqual([Math.round(BOX.width * DPR * STYLE_SCALE), Math.round(BOX.height * DPR * STYLE_SCALE)]);
+    asked.resolve(raster(asked.src, asked.width, asked.height));
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(t.events).toEqual([`paint ${asked.width}x${asked.height}`, "applied"]);
+    expect(t.rasters).toHaveLength(1);
+  });
+
+  test("a style that magnifies the picture more in one direction draws it at the larger magnification", async () => {
+    const t = await setup({ stretch: { x: 1, y: 2 } });
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])], 66);
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(t.events).toEqual([`paint ${BOX.width * DPR * 2}x${BOX.height * DPR * 2}`, "applied"]);
   });
 
   test("a UI message that arrives while a beat waits for its drawing applies it with its undrawn picture marked late, never as drawn", async () => {
@@ -387,22 +428,27 @@ describe("a vector picture in an element the beat reveals or creates (#2810)", (
     expect(t.events).toEqual([`paint ${width}x${height}`, "applied"]);
   });
 
-  test("in an element the beat creates, the element stays hidden until its picture is drawn, and the beat's ready and fired marks land with the drawing", async () => {
+  test("in an element the beat creates, the whole beat waits for the picture: the element is made hidden, the rest of the beat holds, and the beat fires once it is drawn", async () => {
     const t = await setup({ holdRasters: true });
     const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
     t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 40, [
       { method: "ui/create", params: { parent: stage.__sdId, element: "made-plaque", type: "div", name: "plaque", breakpoints: {} } },
       { method: "ui/create", params: { parent: "made-plaque", element: "made-plaque-image", type: "div", name: "image", breakpoints: {} } },
+      { method: "ui/update", params: { element: sigil.__sdId, style: { opacity: "0.5" }, breakpoints: {} } },
     ]);
-    await until(() => t.events.includes("applied") && t.rasters.length === 1, "the beat and its raster");
+    await until(() => t.rasters.length === 1, "the raster");
     const plaque = t.h.overlay.querySelector(".plaque") as HTMLElement;
     expect(plaque.style.getPropertyValue("visibility")).toBe("hidden");
+    expect(sigil.style.getPropertyValue("opacity")).toBe("");
+    expect(t.events).toEqual([]);
     expect(marks(40)["fired"]).toBeUndefined();
     const asked = t.rasters[0]!;
     asked.resolve(raster(asked.src, asked.width, asked.height));
     await until(() => marks(40)["fired"] !== undefined, "the fired mark");
     expect(plaque.style.getPropertyValue("visibility")).toBe("");
-    expect(t.events).toEqual(["applied", `paint ${asked.width}x${asked.height}`]);
+    expect(sigil.style.getPropertyValue("opacity")).toBe("0.5");
+    expect(t.events).toEqual([`paint ${asked.width}x${asked.height}`, "applied"]);
     expect(marks(40)["ready"]).toBeGreaterThanOrEqual(Math.max(...t.paints.map((paint) => paint.at)));
     expect(marks(40)["fired"]).toBeGreaterThanOrEqual(marks(40)["ready"]!);
   });

@@ -1037,7 +1037,7 @@ export class MorphLayer {
 
   protected styleKey(): string {
     const view = this.span.ownerDocument.defaultView;
-    const computed = view?.getComputedStyle(this.span);
+    const computed = this.computed();
     const values = computed ? STYLE_KEYS.map((name) => computed.getPropertyValue(name)).join("|") : "";
     return `${values}#${view?.devicePixelRatio ?? 1}#${pictureZoomReach(this.span)}`;
   }
@@ -1229,7 +1229,7 @@ export class MorphLayer {
       return;
     }
     still.files = { bitmaps: new Map(loaded.map((bitmap, index) => [index, bitmap!])), width: bottom!.width, height: bottom!.height, rasters: new Map() };
-    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const computed = this.computed();
     if (!this.stillPlans(still, computed)) {
       if (still.picture.vector) this.refuse(still, { reason: "undrawn", file: still.picture.files[0]!.name });
       else this.fallBack(still, still.picture);
@@ -1295,12 +1295,21 @@ export class MorphLayer {
 
   protected measureStyle() {
     const span = this.span;
-    const width = span.offsetWidth;
     const rect = typeof span.getBoundingClientRect === "function" ? span.getBoundingClientRect() : undefined;
     const zoom = pictureViewOf(span).zoom;
-    if (!(width > 0 && rect && rect.width > 0 && zoom > 0)) return;
-    const ratio = rect.width / width / zoom;
-    this.sizing.style = Number.isFinite(ratio) && ratio > 1 ? ratio : 1;
+    if (!rect || !(zoom > 0)) return;
+    const across = span.offsetWidth > 0 && rect.width > 0 ? rect.width / span.offsetWidth : 0;
+    const down = span.offsetHeight > 0 && rect.height > 0 ? rect.height / span.offsetHeight : 0;
+    const ratio = Math.max(across, down) / zoom;
+    if (!(ratio > 0) || !Number.isFinite(ratio)) return;
+    this.sizing.style = ratio > 1 ? ratio : 1;
+  }
+
+  protected snapshot?: CSSStyleDeclaration;
+
+  protected computed(): CSSStyleDeclaration | undefined {
+    if (this.held && this.snapshot) return this.snapshot;
+    return this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
   }
 
   protected presized?: { width: number; height: number };
@@ -1310,6 +1319,10 @@ export class MorphLayer {
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
     this.presized = area;
+    if (computed && this.held) {
+      const values = new Map(STYLE_KEYS.map((name) => [name, computed.getPropertyValue(name)]));
+      this.snapshot = { getPropertyValue: (name: string) => values.get(name) ?? computed.getPropertyValue(name) } as unknown as CSSStyleDeclaration;
+    }
     this.measureStyle();
     this.relayout();
   }
@@ -1618,7 +1631,7 @@ export class MorphLayer {
     const root = this.shadowHost.shadowRoot!;
     root.replaceChildren();
     this.statics = [];
-    const computed = doc.defaultView?.getComputedStyle(this.span);
+    const computed = this.computed();
     const count = this.layers.length;
     const still = (i: number) => {
       const div = doc.createElement("div");
@@ -1844,6 +1857,7 @@ export class MorphLayer {
         for (const view of views) {
           if (view.still) {
             view.still = { ...view.still, plans: view.segment.layers.map((index) => plans[index]!) };
+            this.wantRasters(still, view, view.still);
             this.paintStill(view, view.still, still);
           }
         }
@@ -2527,7 +2541,7 @@ export class MorphLayer {
 
   layout() {
     if (!this.shadowHost) return;
-    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const computed = this.computed();
     const count = this.layers.length;
     for (const { inner, layer } of this.alone) {
       if (inner.broken) continue;

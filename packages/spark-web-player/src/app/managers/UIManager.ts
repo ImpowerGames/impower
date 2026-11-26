@@ -173,6 +173,11 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
 
 let travelWrites = 0;
 
+function drawsPicture(instruction: WriteImageInstruction): boolean {
+  const content = instruction.content;
+  return instruction.control !== "hide" && !!content && !content.video && (!!content.morph || (content.pictures?.length ?? 0) > 0);
+}
+
 function imageSignature(instructions: WriteImageInstruction[]): string {
   const sig = JSON.stringify(instructions);
   if (!instructions.some(movesPicture)) {
@@ -754,6 +759,7 @@ export default class UIManager extends Manager {
     const animated = this.beatAnimations(ops);
     const restore = this.applyBeatLayout(ops);
     try {
+      this.precreateTargets(ops);
     const nested = (el: Element) =>
       animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
     for (const op of ops) {
@@ -768,13 +774,7 @@ export default class UIManager extends Manager {
       const { target, instructions, elements } = msg.params;
       const targetEls = this.writeTargets(target, elements);
       if (targetEls.length === 0) {
-        unprepared ||= instructions.some(
-          (instruction) =>
-            instruction.control !== "hide" &&
-            !!instruction.content &&
-            !instruction.content.video &&
-            (!!instruction.content.morph || (instruction.content.pictures?.length ?? 0) > 0),
-        );
+        unprepared ||= instructions.some(drawsPicture);
         continue;
       }
       const sig = JSON.stringify(instructions);
@@ -858,6 +858,74 @@ export default class UIManager extends Manager {
       restore();
     }
     return { layers, unprepared };
+  }
+
+  protected _precreated: HTMLElement[] = [];
+
+  protected precreateTargets(ops: IMessage[]) {
+    const creates = ops.filter((op) => CreateElementMessage.type.isRequest(op as RequestMessage)) as (RequestMessage & {
+      params: { element: string; parent: string | null; name: string };
+    })[];
+    if (creates.length === 0) {
+      return;
+    }
+    const needed = new Set<string>();
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!WriteImageMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const { target, elements, instructions } = msg.params;
+      if (!instructions.some(drawsPicture) || this.writeTargets(target, elements).length > 0) {
+        continue;
+      }
+      const names = (target.split("#")[0] ?? "").split(" ").filter(Boolean);
+      for (const create of creates) {
+        const classes = (create.params.name || "").split(" ");
+        if (elements ? elements.includes(create.params.element) : names.length > 0 && names.every((name) => classes.includes(name))) {
+          needed.add(create.params.element);
+        }
+      }
+    }
+    if (needed.size === 0) {
+      return;
+    }
+    const byId = new Map(creates.map((create) => [create.params.element, create]));
+    for (const id of [...needed]) {
+      for (let parent = byId.get(id)?.params.parent; parent && byId.has(parent) && !needed.has(parent); parent = byId.get(parent)?.params.parent) {
+        needed.add(parent);
+      }
+    }
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const create of creates) {
+        if (!needed.has(create.params.element) && create.params.parent && needed.has(create.params.parent)) {
+          needed.add(create.params.element);
+          grew = true;
+        }
+      }
+    }
+    this._applying += 1;
+    try {
+      for (const create of creates) {
+        if (needed.has(create.params.element) && !this.getElement(create.params.element)) {
+          void this.onReceiveRequest(create);
+        }
+      }
+    } finally {
+      this._applying -= 1;
+    }
+    for (const id of needed) {
+      const parent = byId.get(id)?.params.parent;
+      if (parent && needed.has(parent)) {
+        continue;
+      }
+      const el = this.getElement(id);
+      if (el) {
+        el.style.setProperty("visibility", "hidden", "important");
+        this._precreated.push(el);
+      }
+    }
   }
 
   protected applyBeatLayout(ops: IMessage[]): () => void {
@@ -1237,6 +1305,9 @@ export default class UIManager extends Manager {
       }
     }
     this.discardAllPrepared();
+    for (const el of this._precreated.splice(0)) {
+      el.style.removeProperty("visibility");
+    }
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
       this.sweepReconcile();
