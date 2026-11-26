@@ -99,7 +99,11 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     ["  [data-sp@1] }", "[", "[data-speaker]", "  [data-speaker=] {  } }"],
     ["  #dis@1; opacity = 1", "#", "#disabled", "  #disabled {  }; opacity = 1"],
     ["  #var@1, opacity = 1", "#", "#variant", "  #variant= {  }, opacity = 1"],
-  ])("writes the whole block before the enclosing body's } or the next entry in %j", (body, trigger, label, expected) => {
+    ["  #dis@1 -- keep this note", "#", "#disabled", "  #disabled {  } -- keep this note"],
+    ["  [data-sp@1] // keep this note", "[", "[data-speaker]", "  [data-speaker=] {  } // keep this note"],
+    ["  #var@1 -- a { brace", "#", "#variant", "  #variant= {  } -- a { brace"],
+    ["  #var@1; x = { 1 }", "#", "#variant", "  #variant= {  }; x = { 1 }"],
+  ])("writes the whole block before the enclosing body's }, the next entry or a comment in %j", (body, trigger, label, expected) => {
     const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
     expect(accepted(body, item)).toBe(styled(expected));
   });
