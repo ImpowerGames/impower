@@ -14,6 +14,7 @@ import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
 import { SynthBuffer } from "./helpers/SynthBuffer";
 import { AudioClockMessage } from "./messages/AudioClockMessage";
+import { AudioReleasedMessage } from "./messages/AudioReleasedMessage";
 import { AudioSampleRateMessage } from "./messages/AudioSampleRateMessage";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
@@ -65,6 +66,8 @@ export class AudioModule extends Module<
 
   protected _sampleRate?: number;
 
+  protected _pageHolds = new Map<string, number>();
+
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AudioClockMessage.type.isNotification(msg)) {
       this._outputLatency = msg.params.outputLatency;
@@ -76,6 +79,9 @@ export class AudioModule extends Module<
     }
     if (AudioSampleRateMessage.type.isNotification(msg)) {
       this._sampleRate = msg.params.sampleRate;
+    }
+    if (AudioReleasedMessage.type.isNotification(msg)) {
+      this._pageHolds.delete(`${msg.params.channel}/${msg.params.key}`);
     }
   }
 
@@ -418,10 +424,17 @@ export class AudioModule extends Module<
     const mixer = this.getMixerName(data.channel);
     const mixerGain = this.context?.mixer?.[mixer]?.gain ?? 1;
     const sampleRate = this._sampleRate;
-    if (data.synth && data.tones && sampleRate) {
+    const held = `${data.channel}/${data.key}`;
+    const epoch = this._game.connection.epoch;
+    if (
+      data.synth &&
+      data.tones &&
+      sampleRate &&
+      this._pageHolds.get(held) !== epoch
+    ) {
       const samples = new SynthBuffer(data.synth, data.tones, sampleRate)
         .soundBuffer;
-      await this.emitSettled(
+      const loaded = await this.emitSettled(
         LoadAudioPlayerMessage.type.request({
           ...data,
           mixer,
@@ -431,6 +444,9 @@ export class AudioModule extends Module<
         }),
         [samples.buffer],
       );
+      if (loaded && this._game.connection.epoch === epoch) {
+        this._pageHolds.set(held, epoch);
+      }
       return;
     }
     await this.emitSettled(

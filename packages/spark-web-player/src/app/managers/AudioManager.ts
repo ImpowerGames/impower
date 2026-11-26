@@ -3,6 +3,7 @@ import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import AudioProbe from "./AudioProbe";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { AudioReleasedMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioReleasedMessage";
 import { AudioSampleRateMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioSampleRateMessage";
 import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
@@ -52,7 +53,8 @@ export default class AudioManager extends Manager {
   }
 
   protected reportSampleRate() {
-    const sampleRate = this.app.audioContext?.sampleRate;
+    const sampleRate =
+      this.app.audioContext?.sampleRate ?? this.app.audioClock?.sampleRate;
     if (sampleRate) {
       this.app.emit(AudioSampleRateMessage.type.notification({ sampleRate }));
     }
@@ -295,6 +297,7 @@ export default class AudioManager extends Manager {
         audioChannel.delete(key);
         this._synthKeys.delete(key);
         player.dispose();
+        this.app.emit(AudioReleasedMessage.type.notification({ channel, key }));
       }
     });
   }
@@ -305,6 +308,12 @@ export default class AudioManager extends Manager {
     const audioChannel = this.getAudioChannel(params.channel);
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
+    }
+    if (
+      params.synth &&
+      this._pendingPlayers.has(`${params.channel}/${params.key}`)
+    ) {
+      return undefined;
     }
     const audioBuffer = await this.getAudioBuffer(params);
     if (audioChannel.get(params.key)) {
