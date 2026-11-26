@@ -213,14 +213,14 @@ function enclosingObject(text, index) {
   return text.slice(open);
 }
 
-const files = execFileSync("git", ["ls-files", "-z", "--", ".agents", ".claude/hooks", ".github/scripts", "scripts"], { cwd: root, encoding: "utf8", windowsHide: true })
+const files = execFileSync("git", ["ls-files", "-z", "--", ".agents", ".claude/hooks", ".github/scripts", "scripts", "test"], { cwd: root, encoding: "utf8", windowsHide: true })
   .split("\0")
   .filter((f) => /\.(?:mjs|cjs|js)$/.test(f) && !f.includes("/node_modules/") && f !== "test/scripts/windows-hide.test.mjs");
-assert.ok(files.includes("scripts/typecheck.mjs"), "tooling script discovery is incomplete");
+assert.ok(files.includes("scripts/typecheck.mjs") && files.includes("test/scripts/test-suite.test.mjs"), "tooling script discovery is incomplete");
 
 const problems = [];
 const detached = [];
-const detaches = new Set([HELPER, HELPER.replace(/\.mjs$/, ".test.mjs")]);
+const detaches = new Set([HELPER, "test/scripts/detached-launch.test.mjs"]);
 for (const file of files) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
   if (/child_process/.test(text)) for (const site of unhiddenCalls(text)) problems.push(`${file}:${site}`);

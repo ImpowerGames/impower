@@ -198,9 +198,9 @@ try {
   if (typescript) assert.ok(result.scanners.has(`TypeScript ${typescript.version}`), [...result.scanners].join(", "));
 
   const listing = path.join(tempDir("check-comments-listing-"), "files.json");
-  const run = (files, env = {}, cwd = checkout) => {
+  const run = (files, extraArgs = []) => {
     fs.writeFileSync(listing, JSON.stringify(files));
-    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base], { cwd, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "", ...env } });
+    return spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base, ...extraArgs], { cwd: checkout, encoding: "utf8", windowsHide: true, env: { ...process.env, GITHUB_STEP_SUMMARY: "", COMMENT_POLICY_REQUIRE_TYPESCRIPT: "", COMMENT_POLICY_REQUIRE_YAML: "" } });
   };
 
   const failing = run(records);
@@ -217,10 +217,11 @@ try {
   const none = run([record(base, "README.md")]);
   assert.equal(none.status, 0, none.stdout + none.stderr);
 
-  const truncated = run(Array.from({ length: LISTING_LIMIT }, (_, k) => ({ filename: `docs/page-${k}.md`, status: "added", additions: 1, patch: "@@ -0,0 +1 @@\n+text" })));
+  const cappedFiles = Array.from({ length: LISTING_LIMIT }, (_, k) => ({ filename: `docs/page-${k}.md`, status: "added", additions: 1, patch: "@@ -0,0 +1 @@\n+text" }));
+  const truncated = run(cappedFiles);
   assert.equal(truncated.status, 1, "a listing at the endpoint's cap fails rather than passes");
   assert.match(truncated.stdout, /3000 files/);
-  const complete = spawnSync(process.execPath, [script, "--files", listing, "--merge-base", base, "--head", head], { cwd: checkout, encoding: "utf8", windowsHide: true });
+  const complete = run(cappedFiles, ["--head", head]);
   assert.equal(complete.status, 1, complete.stdout + complete.stderr);
   assert.match(complete.stdout, /src\/existing\.ts:2/);
   assert.doesNotMatch(complete.stdout, /listing may be incomplete/);
