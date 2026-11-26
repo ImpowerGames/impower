@@ -455,10 +455,11 @@ export const getCssValueWithUnit = (
 };
 
 export const getCssProperty = (value: string): string => {
-  return value
-    .split(",")
-    .map((part) => SPARKLE_TO_CSS_NAME_MAP[part] ?? part)
-    .join(",");
+  return value.replace(
+    /(^|[\s,])([a-zA-Z-][\w-]*)(?=[\s,]|$)/g,
+    (_, before: string, name: string) =>
+      before + (SPARKLE_TO_CSS_NAME_MAP[name] ?? name),
+  );
 };
 
 export const getCssTextWhitespace = (value: string): string => {
