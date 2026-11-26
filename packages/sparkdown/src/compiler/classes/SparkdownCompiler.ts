@@ -106,6 +106,31 @@ interface MorphClause {
 
 const MORPH_CHANGE_TRIVIA: ReadonlySet<string> = new Set(["Newline", "Whitespace", "SparkdownLineComment"]);
 const MORPH_CHANGE_BEAT_TEXT: ReadonlySet<string> = new Set(["ImplicitAction", "InlineDialogue"]);
+const MORPH_CHANGE_PROSE: ReadonlySet<string> = new Set([
+  "ImplicitAction",
+  "InlineDialogue",
+  "ActionLineEnd",
+  "LineEnd",
+  "Newline",
+  "TextChunk",
+  "Word",
+  "Punctuation",
+  "Space",
+  "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "ColonSeparator",
+  "Italic",
+  "Bold",
+  "Underline",
+  "EmphasisTilde",
+  "SpanOpenMark",
+  "SpanCloseMark",
+  "DialogueCharacter",
+  "DialogueCharacterName",
+  "DialogueCharacterParenthetical",
+]);
+const proseNodeName = (name: string) => name.replace(/(_(begin|content|end))?(_c\d+)*$/, "");
 
 function morphClauseOf(directive: SourceDirective): MorphClause | undefined {
   if (directive.kind !== "image") return undefined;
@@ -204,7 +229,7 @@ import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
-import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
+import { layoutElementNames, mainLayoutElementNames, showingNames } from "../utils/layoutElementNames";
 import { SHOWING_STATE } from "../constants/selectorStates";
 import { showingRefusalAt } from "../utils/showingRefusal";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
@@ -5059,8 +5084,13 @@ export class SparkdownCompiler {
     directives: readonly SourceDirective[],
     images: readonly { struct: any; from: number; to: number }[],
   ) {
-    const { named } = layoutElementNames(program);
+    const named = mainLayoutElementNames(program);
     const imageDirectives = directives.filter((directive) => directive.bracket === "image");
+    const prose = (node: SyntaxNode): boolean => {
+      if (!MORPH_CHANGE_PROSE.has(proseNodeName(node.name))) return false;
+      for (let child = node.firstChild; child; child = child.nextSibling) if (!prose(child)) return false;
+      return true;
+    };
     const inside = (node: SyntaxNode) => imageDirectives.filter((directive) => node.from <= directive.from && directive.to <= node.to);
     const lineOf = (directive: SourceDirective) => {
       let node: SyntaxNode | null = tree.resolveInner(directive.from, 1);
@@ -5072,7 +5102,7 @@ export class SparkdownCompiler {
       while (sibling && MORPH_CHANGE_TRIVIA.has(sibling.name)) sibling = sibling.nextSibling;
       return sibling;
     };
-    const beatText = (node: SyntaxNode | null) => !!node && MORPH_CHANGE_BEAT_TEXT.has(node.name) && inside(node).length === 0;
+    const beatText = (node: SyntaxNode | null) => !!node && MORPH_CHANGE_BEAT_TEXT.has(node.name) && inside(node).length === 0 && prose(node);
     const writes = (line: SyntaxNode) => {
       const written = inside(line);
       if (!written.every((directive) => directive.kind === "image" && directive.target && named.has(directive.target.text))) return undefined;
@@ -5129,7 +5159,8 @@ export class SparkdownCompiler {
           ...(pick === undefined ? {} : { pick }),
           from: { struct: from.struct, ...(fromPick === undefined ? {} : { pick: fromPick }) },
         });
-        const refs = [...look.refs, ...look.layers.flatMap((layer) => layer.refs)].filter((ref) => ref.recipes);
+        const conflict = look.refs.length > 1 || look.layers.some((layer) => layer.refs.length > 1);
+        const refs = conflict ? [] : [...look.refs, ...look.layers.flatMap((layer) => layer.refs)].filter((ref) => ref.recipes);
         outcomes.set(JSON.stringify(refs.map((ref) => ref.key).sort()), refs);
       }
     }

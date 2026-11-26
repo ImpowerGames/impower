@@ -134,7 +134,15 @@ describe("a change morph's bake diagnostics", () => {
     ["a hide between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  [[hide portrait]]\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
     ["a beat between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  Mia waits.\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
     ["two shows in one beat", `\nscene start\n  [[show portrait mia:mouth.smile]] [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
+    ["a jump at the end of the line between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  First. -> elsewhere\n  [[show portrait mia:mouth.frown]]\n  Second.\nend\n\nscene elsewhere\n  Arrived.\nend\n`],
+    ["a target only a layout the game never opens holds", `\nlayout unused {\n  ghost\n}\n\nscene start\n  [[show ghost mia:mouth.smile]]\n  Mia smiles.\n  [[show ghost mia:mouth.frown]]\n  Then she does not.\nend\n`],
+    ["two change morphs that both drive the changed group", `${CHANGE.replace("morph bend", "morph sway")}\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
   ])("%s is not a certain pair, so nothing is baked", (_case, scene) => {
     expect(compile(`${CHANGE}${scene}`).morphChanges).toBeUndefined();
+  });
+
+  it("emphasis and a dialogue cue in the lines of text keep the pair certain", () => {
+    const program = compile(`${CHANGE}\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia *smiles*, "quietly" -- (a lot)!\n  [[show portrait mia:mouth.frown]]\n  MIA (softly): Then she does not.\nend\n`);
+    expect(program.morphChanges?.map(({ variant }: any) => variant)).toEqual(["mia:mouth.frown"]);
   });
 });
