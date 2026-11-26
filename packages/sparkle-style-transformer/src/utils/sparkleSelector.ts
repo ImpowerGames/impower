@@ -322,11 +322,13 @@ class SparkleSelectorWriter {
     }
     const refusedLists = this.refusals.filter(({ kind }) => kind === "query-list");
     for (const { state, from, to } of gameWideOccurrences(this.src)) {
-      if (!this.seen.has(from) && !refusedLists.some((list) => list.from <= from && from < list.to)) {
+      const swallowed =
+        groupDepthAt(this.src, from) === 0 && refusedLists.some((list) => list.from <= from && from < list.to);
+      if (!this.seen.has(from) && !swallowed) {
         this.refusals.push({ kind: "game-wide", state, where: this.positionAt(from), from, to });
       }
     }
-    return out.trim();
+    return trimEndUnescaped(out.trimStart());
   }
 
   private within<T>(position: string, write: () => T): T {
@@ -501,6 +503,11 @@ class SparkleSelectorWriter {
     }
     if (char === "(") {
       return this.within("inside parentheses", () => this.raw());
+    }
+    if (char === "\\") {
+      const escaped = this.src.slice(this.i, this.i + 2);
+      this.i += escaped.length;
+      return escaped;
     }
     this.i++;
     return char;
@@ -714,7 +721,7 @@ class SparkleSelectorWriter {
       }
       out += this.token(char);
     }
-    return { text: out.trimEnd(), listed, stateAfter };
+    return { text: trimEndUnescaped(out), listed, stateAfter };
   }
 
   private stateAfter(skip: number): boolean {
@@ -807,6 +814,33 @@ const gameWideOccurrences = (selector: string): { state: string; from: number; t
     offset += piece.length;
   });
   return found;
+};
+
+const groupDepthAt = (selector: string, offset: number): number => {
+  let depth = 0;
+  let quote = "";
+  for (let i = 0; i < offset; i++) {
+    const char = selector[i]!;
+    if (char === "\\") {
+      i++;
+    } else if (quote) {
+      if (char === quote) quote = "";
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "(" || char === "[") {
+      depth++;
+    } else if ((char === ")" || char === "]") && depth > 0) {
+      depth--;
+    }
+  }
+  return depth;
+};
+
+const ESCAPE_AT_END = /(?:^|[^\\])(?:\\\\)*\\$/;
+
+export const trimEndUnescaped = (text: string): string => {
+  const trimmed = text.trimEnd();
+  return trimmed.length < text.length && ESCAPE_AT_END.test(trimmed) ? text.slice(0, trimmed.length + 1) : trimmed;
 };
 
 const COLOR_SCHEME_ROOT = new RegExp(`^:where\\((\\[${COLOR_SCHEME_ATTRIBUTE}="(?:light|dark)"\\])\\) `);

@@ -393,6 +393,22 @@ describe("a comma list whose selectors hold different at-rule states writes no r
   });
 });
 
+describe("an escape at the end of a key is kept (#2785)", () => {
+  test.each(["@layer foo\\ ", "@layer foo\\\t", "@layer foo\\,"])("%j keeps its escape in the at-rule", (key) => {
+    expect(writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).atRules).toEqual([key]);
+  });
+
+  test("an escaped space ending a selector stays in the selector", () => {
+    expect(writeSparkleSelectorChecked("item\\ ", { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).css).toMatch(/item\\ $/);
+  });
+
+  test("an escaped backslash before a closing space does not keep the space", () => {
+    expect(writeSparkleSelectorChecked("@layer foo\\\\ ", { breakpoints: BREAKPOINTS, colorScheme: "attribute" }).atRules).toEqual([
+      "@layer foo\\\\",
+    ]);
+  });
+});
+
 describe("scopes keep the order they are written in (#2785)", () => {
   const key = "item @busy @scope (.z) @scope (.a)";
   const nested = { "@scope (.z)": { "@scope (.a)": { "item @busy": { opacity: "0.5" } } } };

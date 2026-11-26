@@ -150,6 +150,13 @@ style frame {
     expect(allDiagnostics(selector).map(({ code }) => code)).toEqual(["at-rule-query-list"]);
   });
 
+  it("keeps the warning on a game-wide state written inside a group of a refused query list", () => {
+    expect(allDiagnostics("@media (min-width: 1px), print @is(@variant(shout))").map(({ code }) => code).sort()).toEqual([
+      "at-rule-query-list",
+      "showing-position",
+    ]);
+  });
+
   it("warns on a query list ending in an escaped quote beside a state, and reads the block", () => {
     expect(allDiagnostics('@hovered @media (min-width: 1px), custom\\"type').map(({ code }) => code)).toEqual([
       "at-rule-query-list",
@@ -181,6 +188,33 @@ style frame {
 }
 `).diagnostics?.[MAIN] ?? []).map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
     expect(all.filter((message: string) => message.includes("Missing ')'"))).toEqual([]);
+  });
+});
+
+describe("a style key ending in an escape keeps it (#2785)", () => {
+  const styleKeys = (headers: string[]) => {
+    const program: any = compile(`${LAYOUTS}
+style frame {
+${headers.map((header, i) => `  ${header} {\n    opacity = ${i + 1}\n  }`).join("\n")}
+}
+`);
+    const { $type, $name, ...keys } = program.context.style.frame;
+    return keys;
+  };
+
+  it.each(["@layer foo\\,", "@layer foo\\ ", "@layer foo\\\t", "item\\ "])("%j is one key", (header) => {
+    expect(styleKeys([header])).toEqual({ [header]: { opacity: "1" } });
+  });
+
+  it("keeps two keys that differ only in their escaped ending apart", () => {
+    expect(styleKeys(["@layer foo\\ ", "@layer foo\\,"])).toEqual({
+      "@layer foo\\ ": { opacity: "1" },
+      "@layer foo\\,": { opacity: "2" },
+    });
+  });
+
+  it("ends a key at a space after an escaped backslash", () => {
+    expect(styleKeys(["@layer foo\\\\"])).toEqual({ "@layer foo\\\\": { opacity: "1" } });
   });
 });
 

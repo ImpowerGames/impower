@@ -12,6 +12,7 @@ import {
 } from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
 import { structReference } from "../utils/structReference";
+import { trimEndUnescaped } from "../../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 
 const FIELD_VALUE_NAMES: ReadonlySet<string> = nodeNameSet([
   "StringFieldValueInterpolated",
@@ -276,7 +277,7 @@ function evaluate(
       }
     } else if (entry.kind === "header") {
       const key = entry.key
-        ? textWithoutAttributes(entry.key, ctx).trim()
+        ? trimEndUnescaped(textWithoutAttributes(entry.key, ctx).trimStart())
         : "";
       obj[key] = entry.children
         ? evaluate(entry.children, ctx, elementKeys)
