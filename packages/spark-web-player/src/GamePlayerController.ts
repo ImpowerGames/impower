@@ -115,6 +115,7 @@ import {
 } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application, type GameEndpoint } from "./app/Application";
 import { MorphPlayback } from "./app/morph/MorphPlayback";
+import { markPlayStarted } from "./app/utils/AudioStartMarks";
 import type { WorkerGameLink } from "./main/workers/WorkerGameLink";
 import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseError";
@@ -1443,6 +1444,7 @@ export class GamePlayerController {
   };
 
   protected async runOrRestart() {
+    markPlayStarted();
     const stops = this._stops;
     const clicked = this._plays;
     await this.ensureAudioContext();
@@ -2123,6 +2125,7 @@ export class GamePlayerController {
     if (this._workerPlay?.save !== undefined) {
       return StartGameMessage.type.response(message.id, { success: true });
     }
+    markPlayStarted();
     const { started: success, refusal } = await this.startPlay();
     this.updateLaunchStateIcon();
     return success
@@ -2143,6 +2146,7 @@ export class GamePlayerController {
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
+    markPlayStarted();
     const { started, refusal } = await this.restartPlay(true);
     return started || !refusal
       ? RestartGameMessage.type.response(message.id, {})
