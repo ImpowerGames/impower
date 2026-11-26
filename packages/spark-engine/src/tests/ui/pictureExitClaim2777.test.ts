@@ -310,6 +310,199 @@ end
     expect(claims(h)).toBe(0);
   });
 
+  test("a report that arrives after its picture's layout was closed changes nothing (#2777 round 3)", async () => {
+    const h = await pairExiting();
+    await h.game.module.ui.closeLayout("main", undefined, true);
+    await flushMicrotasks(20);
+    expect(claims(h)).toBe(0);
+    const before = wire(h.messages).filter((m: any) => m?.method === "ui/showing").length;
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(20);
+    expect(wire(h.messages).filter((m: any) => m?.method === "ui/showing").length).toBe(before);
+    expect(marked(h)).toEqual([]);
+    expect(claims(h)).toBe(0);
+  });
+
+  const claimed = (h: UIHarness): Element[] =>
+    [...(h.game.module.ui as any)._exits].flatMap((exit: any) => exit.elements);
+
+  const attached = (h: UIHarness, el: any): boolean => {
+    const root = (h.game.module.ui as any)._root;
+    for (let node = el; node; node = node.parent) {
+      if (node === root) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  async function hideOutsideALine(h: UIHarness, target: string) {
+    const ui = h.game.module.ui;
+    await ui.image.write(target, [{ control: "show", assets: ["SPRITE"] }] as any, true);
+    await flushMicrotasks(20);
+    void ui.image.write(target, [{ control: "hide", with: "fadeout", over: 5 }] as any, false);
+    await flushMicrotasks(20);
+    expect(h.heldExits()).toHaveLength(1);
+  }
+
+  test("a for loop's iteration that leaves during the exit takes only its own picture out of the claim (#2777 round 3)", async () => {
+    const h = createHarness(
+      `define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+store items = {1, 2}
+
+function shrink()
+  items = {1}
+end
+
+layout gallery {
+  for n in items do
+    face {
+      image
+    }
+  end
+}
+
+style frame {
+  @showing(face) {
+    opacity = 1
+  }
+}
+`,
+      0,
+      { reactive: true, autoOpenAll: false, holdExits: true },
+    );
+    await h.ready;
+    const ui = h.game.module.ui as any;
+    await ui.openLayout("gallery", undefined, true);
+    await flushMicrotasks(20);
+    expect(ui.findIds("face")).toHaveLength(2);
+    await hideOutsideALine(h, "face");
+    expect(claimed(h)).toHaveLength(2);
+    expect(marked(h)).toEqual(["face"]);
+    (h.game.story as any).EvaluateFunction("shrink", []);
+    ui.refreshLayouts();
+    await flushMicrotasks(20);
+    expect(ui.findIds("face")).toHaveLength(1);
+    expect(claimed(h)).toHaveLength(1);
+    expect(claimed(h).every((el) => attached(h, el))).toBe(true);
+    expect(marked(h)).toEqual(["face"]);
+    h.releaseExits();
+    await flushMicrotasks(20);
+    expect(marked(h)).toEqual([]);
+    expect(claims(h)).toBe(0);
+  });
+
+  test("a picture inside a stream entry is never written by a picture target, so it never holds a claim (#2777 round 3)", async () => {
+    const h = createHarness(
+      `define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+layout phone {
+  thread {
+    stream {
+      dialogue.bubble {
+        face {
+          image
+        }
+        text
+      }
+    }
+  }
+}
+
+style frame {
+  @showing(face) {
+    opacity = 1
+  }
+}
+
+scene start
+  [[open phone]]
+  RAFFLES: slight problem
+  RAFFLES: doors locked
+  [[clear phone]]
+  RAFFLES: maybe
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false, holdExits: true, beforeConnect: live },
+    );
+    await h.ready;
+    await flushMicrotasks(10);
+    h.jumpToFlow("start");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    const ui = h.game.module.ui as any;
+    expect(ui.searchForAll(ui._root, "face", []).length).toBeGreaterThan(0);
+    expect(ui.findElements("face", true)).toEqual([]);
+    const ui2 = h.game.module.ui;
+    await ui2.image.write("face", [{ control: "show", assets: ["SPRITE"] }] as any, true);
+    await flushMicrotasks(20);
+    void ui2.image.write("face", [{ control: "hide", with: "fadeout", over: 5 }] as any, false);
+    await flushMicrotasks(20);
+    expect(h.heldExits()).toEqual([]);
+    expect(claims(h)).toBe(0);
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    await flushMicrotasks(20);
+    expect(claims(h)).toBe(0);
+  });
+
+  test("a layout its screen moves to another slot during the exit leaves no claim on its old elements (#2777 round 3)", async () => {
+    const h = createHarness(
+      `define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+store left = true
+
+screen menu {
+  if left then
+    left_panel { slot }
+  else
+    right_panel { slot }
+  end
+}
+
+layout home in menu {
+  face {
+    image
+  }
+}
+
+style frame {
+  @showing(face) {
+    opacity = 1
+  }
+}
+`,
+      0,
+      { reactive: true, autoOpenAll: false, holdExits: true },
+    );
+    await h.ready;
+    const ui = h.game.module.ui as any;
+    await ui.openLayout("home", undefined, true);
+    await flushMicrotasks(20);
+    expect(ui.findIds("face")).toHaveLength(1);
+    await hideOutsideALine(h, "face");
+    expect(marked(h)).toEqual(["face"]);
+    (h.game.story as any).variablesState.$("left", false);
+    ui.refreshLayouts();
+    await flushMicrotasks(20);
+    expect(claims(h)).toBe(0);
+    expect(marked(h)).toEqual([]);
+    h.releaseExits();
+    await flushMicrotasks(20);
+    expect(marked(h)).toEqual([]);
+  });
+
   test("two targets shown and hidden with exits in one line keep their marks until their own reports", async () => {
     const source = `define SPRITE as image with
   src = "https://example.com/hero.png"
