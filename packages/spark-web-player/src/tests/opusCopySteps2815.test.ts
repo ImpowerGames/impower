@@ -205,7 +205,29 @@ describe("the Opus fallback's copy into the AudioBuffer (#2815)", () => {
     });
   });
 
-  test("copies a three-minute stereo clip in bounded steps across tasks", async () => {
+  test.each([
+    ["scheduler.yield", () => undefined],
+    [
+      "a message task where scheduler.yield is missing",
+      () => {
+        vi.stubGlobal("scheduler", undefined);
+        vi.stubGlobal(
+          "MessageChannel",
+          class {
+            port1 = { onmessage: null as null | (() => void), close: () => undefined };
+            port2 = {
+              postMessage: () =>
+                setImmediate(() => {
+                  clock.step++;
+                  this.port1.onmessage?.();
+                }),
+            };
+          },
+        );
+      },
+    ],
+  ])("copies a three-minute stereo clip in bounded steps across tasks, yielding with %s", async (_, yielding) => {
+    yielding();
     const minutes = Array.from({ length: 180 }, () => TONE_PACKETS).flat();
     const buffer = await load(mux(minutes));
     expect(buffer.numberOfChannels).toBe(2);
