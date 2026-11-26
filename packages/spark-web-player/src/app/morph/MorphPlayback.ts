@@ -1293,8 +1293,25 @@ export class MorphLayer {
     const width = span.offsetWidth;
     const rect = typeof span.getBoundingClientRect === "function" ? span.getBoundingClientRect() : undefined;
     const zoom = pictureViewOf(span).zoom;
-    const ratio = width > 0 && rect && rect.width > 0 && zoom > 0 ? rect.width / width / zoom : 1;
+    if (!(width > 0 && rect && rect.width > 0 && zoom > 0)) return;
+    const ratio = rect.width / width / zoom;
     this.sizing.style = Number.isFinite(ratio) && ratio > 1 ? ratio : 1;
+  }
+
+  protected presized?: { width: number; height: number };
+
+  presize() {
+    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const area = positioningArea(this.span, computed);
+    if (!(area.width > 0 && area.height > 0)) return;
+    this.presized = area;
+    this.measureStyle();
+    this.relayout();
+  }
+
+  protected areaOf(computed: CSSStyleDeclaration | undefined) {
+    const area = positioningArea(this.span, computed);
+    return area.width > 0 && area.height > 0 ? area : (this.presized ?? area);
   }
 
   protected reach(): number {
@@ -1710,7 +1727,7 @@ export class MorphLayer {
   }
 
   protected layerBoxes(computed: CSSStyleDeclaration | undefined): LayerBoxes {
-    const area = positioningArea(this.span, computed);
+    const area = this.areaOf(computed);
     const px = (name: string) => Number.parseFloat(computed?.getPropertyValue(name) ?? "") || 0;
     const width = Number.isFinite(area.width) ? area.width : 0;
     const height = Number.isFinite(area.height) ? area.height : 0;
@@ -1804,8 +1821,12 @@ export class MorphLayer {
         const style = `position:absolute;left:${last.left}px;top:${last.top}px;width:${area.width}px;height:${area.height}px${blended}`;
         if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
       }
-      const wanted = this.stillBacking(still, plans, area, dpr);
-      const grows = views.some((view) => wanted.w > view.canvas.width || wanted.h > view.canvas.height);
+      const grows = views.some((view) => {
+        const last = view.still;
+        if (!last) return false;
+        const wanted = this.stillBacking(still, plans, { width: view.canvas.width / last.unitX, height: view.canvas.height / last.unitY }, dpr);
+        return wanted.w > view.canvas.width || wanted.h > view.canvas.height;
+      });
       if (resized || grows) this.settleSoon();
       if (!resized) {
         for (const view of views) {
@@ -2528,7 +2549,7 @@ export class MorphLayer {
       if (div.getAttribute("style") !== style) div.setAttribute("style", style);
     }
     this.isolateBackground(computed, frame);
-    const area = positioningArea(this.span, computed);
+    const area = this.areaOf(computed);
     this.arealess = !(area.width > 0 && area.height > 0);
     if (this.arealess) {
       this.checkDrawn();

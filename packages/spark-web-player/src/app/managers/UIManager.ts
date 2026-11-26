@@ -771,6 +771,7 @@ export default class UIManager extends Manager {
               pictures,
             );
             layer.size({ zoom, scale: scaleAt(span, [...own, ...(content.enterAnimation ? [content.enterAnimation] : [])]) });
+            this.presizeHidden(span, layer);
             let byContent = this._prepared.get(instruction);
             if (!byContent) {
               byContent = new Map();
@@ -783,6 +784,29 @@ export default class UIManager extends Manager {
       }
     }
     return layers;
+  }
+
+  protected presizeHidden(span: HTMLElement, layer: MorphLayer) {
+    if (span.offsetWidth > 0 || span.offsetHeight > 0) {
+      return;
+    }
+    const lifted: { el: HTMLElement; priority: string }[] = [];
+    for (let el = span.parentElement; el && el !== this.app.overlay; el = el.parentElement) {
+      if (el.style.getPropertyValue("display") === "none") {
+        lifted.push({ el, priority: el.style.getPropertyPriority("display") });
+        el.style.removeProperty("display");
+      }
+    }
+    if (lifted.length === 0) {
+      return;
+    }
+    try {
+      layer.presize();
+    } finally {
+      for (const { el, priority } of lifted) {
+        el.style.setProperty("display", "none", priority);
+      }
+    }
   }
 
   protected beatAnimations(ops: IMessage[]): { element: Element; scale: number }[] {

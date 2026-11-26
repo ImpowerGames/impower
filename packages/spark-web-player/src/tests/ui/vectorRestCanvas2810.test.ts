@@ -130,21 +130,25 @@ async function setup(options: { placeholders?: boolean; holdRasters?: boolean; r
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
+  const laidOut = (el: HTMLElement) => {
+    for (let at: HTMLElement | null = el; at; at = at.parentElement) if (at.style.getPropertyValue("display") === "none") return false;
+    return el.classList.contains("instance");
+  };
   const width = Object.getOwnPropertyDescriptor(proto, "offsetWidth");
   const rect = Object.getOwnPropertyDescriptor(proto, "getBoundingClientRect");
   Object.defineProperty(proto, "offsetWidth", {
     configurable: true,
     get(this: HTMLElement) {
-      return this.classList.contains("instance") ? BOX.width : 0;
+      return laidOut(this) ? BOX.width : 0;
     },
   });
   Object.defineProperty(proto, "getBoundingClientRect", {
     configurable: true,
     value(this: HTMLElement) {
-      const scale = this.classList.contains("instance") ? STYLE_SCALE * pictureViewOf(this).zoom : 0;
+      const scale = laidOut(this) ? STYLE_SCALE * pictureViewOf(this).zoom : 0;
       return { x: 0, y: 0, left: 0, top: 0, right: BOX.width * scale, bottom: BOX.height * scale, width: BOX.width * scale, height: BOX.height * scale, toJSON() {} };
     },
   });
@@ -275,6 +279,20 @@ describe("a vector picture's rest pose is drawn on a canvas before its beat fire
     const entries = marks(30);
     expect(entries["ready"]).toBeGreaterThanOrEqual(Math.max(...t.paints.map((paint) => paint.at)));
     expect(entries["fired"]).toBeGreaterThanOrEqual(entries["ready"]!);
+  });
+});
+
+describe("a vector picture in an element the beat reveals (#2810)", () => {
+  test("is drawn before the beat at the size its span has once the element shows, and the element stays hidden until the beat", async () => {
+    const t = await setup();
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement;
+    sigil.style.setProperty("display", "none");
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])]);
+    await until(() => t.events.includes("applied"), "the beat");
+    const width = Math.round(BOX.width * DPR * STYLE_SCALE);
+    const height = Math.round(BOX.height * DPR * STYLE_SCALE);
+    expect(t.events).toEqual([`paint ${width}x${height}`, "applied"]);
+    expect(sigil.style.getPropertyValue("display")).toBe("none");
   });
 });
 
