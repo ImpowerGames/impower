@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 
-const css = (key: string, value: string) => getCssEquivalent(key, value, {});
+const css = (key: string, value: string) => getCssEquivalent(key, value, new Set());
 
 describe("Sparkle names in transition lists reach the page as CSS names", () => {
   test("transition-property maps every listed Sparkle name", () => {
