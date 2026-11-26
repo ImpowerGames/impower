@@ -54,6 +54,7 @@ import {
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { ownList } from "../../../core/utils/ownEntry";
 import { cueVariant, readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
 import {
   type CharacterNames,
@@ -174,7 +175,7 @@ export class InterpreterModule extends Module<
       a.text ??= {};
       if (b.text) {
         for (const [k, v] of Object.entries(b.text)) {
-          a.text[k] ??= [];
+          ownList(a.text, k);
           if (prefix) {
             a.text[k]!.unshift(...v);
           } else {
@@ -187,7 +188,7 @@ export class InterpreterModule extends Module<
       a.audio ??= {};
       if (b.audio) {
         for (const [k, v] of Object.entries(b.audio)) {
-          a.audio[k] ??= [];
+          ownList(a.audio, k);
           if (prefix) {
             a.audio[k]!.unshift(...v);
           } else {
@@ -200,7 +201,7 @@ export class InterpreterModule extends Module<
       a.image ??= {};
       if (b.image) {
         for (const [k, v] of Object.entries(b.image)) {
-          a.image[k] ??= [];
+          ownList(a.image, k);
           if (prefix) {
             a.image[k]!.unshift(...v);
           } else {
@@ -213,7 +214,7 @@ export class InterpreterModule extends Module<
       a.layout ??= {};
       if (b.layout) {
         for (const [k, v] of Object.entries(b.layout)) {
-          a.layout[k] ??= [];
+          ownList(a.layout, k);
           if (prefix) {
             a.layout[k]!.unshift(...v);
           } else {
@@ -441,7 +442,7 @@ export class InterpreterModule extends Module<
       }
       if (carries && box) {
         const text = (contentInstructions.text ??= {});
-        text[textTarget] = [...box.text, ...(text[textTarget] ?? [])];
+        ownList(text, textTarget).unshift(...box.text);
         const extended: Record<string, number> = {
           [textTarget]: box.text.length,
         };
@@ -1707,7 +1708,7 @@ export class InterpreterModule extends Module<
               }
             }
             result.text ??= {};
-            result.text[target] ??= [];
+            ownList(result.text, target);
             result.text[target]!.push(event);
             const spoken = c.voiced && c.speed > 0 ? letterPause / c.speed : 0;
             if (speaker && spoken > 0) {
@@ -1770,7 +1771,7 @@ export class InterpreterModule extends Module<
               }
             }
             result.image ??= {};
-            result.image[target] ??= [];
+            ownList(result.image, target);
             result.image[target]!.push(event);
           }
           if (c.tag === "load") {
@@ -1843,7 +1844,7 @@ export class InterpreterModule extends Module<
               }
               const key = layoutName || screen;
               result.layout ??= {};
-              result.layout[key] ??= [];
+              ownList(result.layout, key);
               result.layout[key]!.push(event);
             }
           }
@@ -1893,7 +1894,7 @@ export class InterpreterModule extends Module<
               }
             }
             result.audio ??= {};
-            result.audio[target] ??= [];
+            ownList(result.audio, target);
             result.audio[target]!.push(event);
           }
           if (c.duration) {
@@ -1902,7 +1903,7 @@ export class InterpreterModule extends Module<
                 "synth",
                 "typewriter",
               );
-              if (!Object.hasOwn(synthEvents, synthName)) synthEvents[synthName] = [];
+              ownList(synthEvents, synthName);
               synthEvents[synthName]!.push({
                 time,
                 speed: c.speed ?? 1,
@@ -1916,7 +1917,7 @@ export class InterpreterModule extends Module<
                     target || "",
                     "typewriter",
                   );
-              if (!Object.hasOwn(synthEvents, synthName)) synthEvents[synthName] = [];
+              ownList(synthEvents, synthName);
               synthEvents[synthName]!.push({
                 time,
                 speed: c.speed ?? 1,

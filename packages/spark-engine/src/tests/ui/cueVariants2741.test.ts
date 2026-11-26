@@ -140,6 +140,44 @@ end
   });
 });
 
+describe("a line written to a target named after an Object member is written (#2741)", () => {
+  test.each(["constructor", "toString", "__proto__"])("@%s: is read and shown", async (name) => {
+    const h = await start(`${CHARACTERS}
+define ui as config with
+  layouts_initial = { "main" }
+end
+
+layout main {
+  box {
+    note.${name} #speaker=bunny { text }
+  }
+}
+
+scene start
+  @${name}: Hello.
+  BUNNY: Bye.
+end
+`);
+    const first = h.nextBeat();
+    expect(Object.hasOwn(first?.text ?? {}, name)).toBe(true);
+    expect((first?.text?.[name] ?? []).map((e: any) => e.text).join("")).toContain("Hello.");
+    const ui: any = h.game.module.ui;
+    ui.line({ text: { [name]: [{ text: "Hi." }] }, speaker: { name: "BUNNY", character: "bunny" } });
+    await ui.text.write(name, [{ text: "Hi." }], true);
+    expect(Object.hasOwn(ui._state.text, name)).toBe(true);
+    expect(Object.hasOwn(ui._state.lineText, name)).toBe(true);
+    expect(ui._state.lineText[name]).toEqual([{ speaker: "bunny", text: [{ text: "Hi." }] }]);
+    h.messages.length = 0;
+    await ui.text.restore(name);
+    await flushMicrotasks(10);
+    expect(
+      wire(h.messages)
+        .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === name)
+        .map((m: any) => m.params.instructions.map((i: any) => i.text).join("")),
+    ).toEqual(["Hi."]);
+  });
+});
+
 describe("#variant and #speaker on a text element limit the lines it takes (#2741)", () => {
   test("character_name #variant=left takes only left lines' names, and #speaker=bunny only Bunny's lines", async () => {
     const h = await start(`${CHARACTERS}\n${LAYOUT}\n${LINES}`);

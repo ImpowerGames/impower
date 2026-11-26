@@ -34,6 +34,7 @@ import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
 import { pageKey } from "../../../core/utils/pageKey";
+import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
   BOOLEAN_ATTRIBUTES,
   DISPLAY_TARGET_ATTRIBUTE,
@@ -1333,9 +1334,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected textFor(target: string, element: Element): TextState[] | undefined {
     if (!this.limited(element)) {
-      return this._state.text?.[target];
+      return ownEntry(this._state.text, target);
     }
-    const admitted = (this._state.lineText?.[target] ?? []).filter((written) =>
+    const admitted = (ownEntry(this._state.lineText, target) ?? []).filter((written) =>
       this.admits(element, written),
     );
     return admitted.length > 0 ? admitted.flatMap((written) => written.text) : undefined;
@@ -5965,7 +5966,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     };
     for (const target of this.getTransientTargets()) {
-      if (this._state.image?.[target]) {
+      if (ownEntry(this._state.image, target)) {
         continue;
       }
       for (const el of this.findElements(target, true)) {
@@ -6134,12 +6135,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected saveState(target: string, sequence: TextInstruction[] | null) {
         if (sequence) {
           $._state.text ??= {};
-          $._state.text[target] ??= [];
-          this.append($._state.text[target]!, sequence);
+          this.append(ownList($._state.text, target), sequence);
           const line = $._state.line;
           if (line) {
             $._state.lineText ??= {};
-            const written = ($._state.lineText[target] ??= []);
+            const written = ownList($._state.lineText, target);
             const last = written.at(-1);
             if (last && last.variant === line.variant && last.speaker === line.speaker) {
               this.append(last.text, sequence);
@@ -6156,7 +6156,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       async restore(target: string) {
-        const state = $._state.text?.[target];
+        const state = ownEntry($._state.text, target);
         if (!state) {
           return;
         }
