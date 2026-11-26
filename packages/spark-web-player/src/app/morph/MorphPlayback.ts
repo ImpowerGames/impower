@@ -2852,7 +2852,6 @@ export class MorphLayer {
     });
     const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
     const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes();
-    const frameLimit = Math.min(MAX_POSE_FRAMES, Math.floor(Math.max(0, room) / bytes));
     const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
     const cutOptions = plays.map((play, i) => (cut[i] ? cutOffsets(artifact, play.morph) : []));
     const cutLooks = plays.map((play, i) =>
@@ -2861,34 +2860,42 @@ export class MorphLayer {
     const counts = (grids: (number | undefined)[]) => {
       let combinations = 1;
       let looks = 1;
+      let cutOnly = 1;
       grids.forEach((grid, i) => {
-        const tween = grid === undefined ? 0 : grid > 0 ? grid + 1 : 0;
-        combinations *= grid === undefined ? cutOptions[i]!.length + 1 : tween + 1;
-        looks *= grid === undefined ? cutLooks[i]! : tween + 1;
-      });
-      return { combinations, frames: looks - 1 };
-    };
-    const fits = (grids: (number | undefined)[]) => {
-      const { combinations, frames } = counts(grids);
-      return combinations <= MAX_POSE_COMBINATIONS && frames <= frameLimit;
-    };
-    const most = Math.max(0, ...full.map((grid) => grid ?? 0));
-    const scaled = (share: number) => full.map((grid) => (grid === undefined ? undefined : Math.floor((grid * share) / most)));
-    let chosen = full;
-    if (most > 0 && !fits(full)) {
-      chosen = scaled(0);
-      let low = 1;
-      let high = most - 1;
-      while (low <= high) {
-        const mid = (low + high) >> 1;
-        if (fits(scaled(mid))) {
-          chosen = scaled(mid);
-          low = mid + 1;
-        } else {
-          high = mid - 1;
+        if (grid === undefined) {
+          combinations *= cutOptions[i]!.length + 1;
+          looks *= cutLooks[i]!;
+          cutOnly *= cutLooks[i]!;
+          return;
         }
+        const tween = grid > 0 ? grid + 1 : 0;
+        combinations *= tween + 1;
+        looks *= tween + 1;
+      });
+      return { combinations, frames: looks - 1, tweenFrames: looks - cutOnly };
+    };
+    const bounded = (grids: (number | undefined)[]) => {
+      const { combinations, frames } = counts(grids);
+      return combinations <= MAX_POSE_COMBINATIONS && frames <= MAX_POSE_FRAMES;
+    };
+    const fits = (grids: (number | undefined)[]) => bounded(grids) && counts(grids).tweenFrames * bytes <= room;
+    const most = Math.max(0, ...full.map((grid) => grid ?? 0));
+    const scaled = (share: number) => full.map((grid) => (grid === undefined ? undefined : most > 0 ? Math.floor((grid * share) / most) : 0));
+    if (fits(full)) return this.enumeratePoses(artifact, plays, cut, size, full, cutOptions, rest);
+    let low = 1;
+    let high = most - 1;
+    let best = 0;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (fits(scaled(mid))) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
       }
     }
+    const chosen = scaled(best);
+    for (let i = plays.length - 1; i >= 0 && !bounded(chosen); i--) if (chosen[i] === undefined) chosen[i] = 0;
     return this.enumeratePoses(artifact, plays, cut, size, chosen, cutOptions, rest);
   }
 

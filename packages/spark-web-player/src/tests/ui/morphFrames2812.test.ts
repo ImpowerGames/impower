@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createMorphHost } from "@impower/sparkdown/src/morph/hosts";
-import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
+import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/morph/motion";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
@@ -42,7 +42,7 @@ interface Drawn {
   text?: string;
 }
 
-const vector = (src: string): PictureBitmap => ({ image: { src } as never, ...NATURAL, vector: { text: ART, viewBox: true, src } as never });
+const vector = (src: string, art = ART): PictureBitmap => ({ image: { src } as never, ...NATURAL, vector: { text: art, viewBox: true, src } as never });
 
 const speech = (overrides: Partial<MorphTiming> = {}): MorphTiming =>
   ({ trigger: "speech", duration: 0.4, delay: 0, easing: "linear", iterations: 1, direction: "normal", ...overrides }) as MorphTiming;
@@ -92,7 +92,7 @@ async function until(check: () => boolean, what: string) {
   throw new Error(`Timed out waiting for ${what}`);
 }
 
-async function setup(recipes: Record<string, MorphRecipe>) {
+async function setup(recipes: Record<string, MorphRecipe>, art = ART) {
   const h = createDOMHarness(SOURCE, 0, { compose: true });
   await h.ready;
   await h.rerender(SOURCE, 0);
@@ -131,7 +131,7 @@ async function setup(recipes: Record<string, MorphRecipe>) {
     host: createMorphHost({
       service: new MorphBakeService(),
       channel: () => ({ recipes: Object.fromEntries(Object.entries(recipes).map(([name, recipe]) => [name, serializeMorphRecipe(recipe)])), variants: {} }),
-      readSource: async () => ({ text: ART }),
+      readSource: async () => ({ text: art }),
     }),
     pictureCanvas: (canvas) => {
       const context: PictureCanvasContext = {
@@ -147,7 +147,7 @@ async function setup(recipes: Record<string, MorphRecipe>) {
       };
       return context;
     },
-    loadPicture: async (src) => vector(src),
+    loadPicture: async (src) => vector(src, art),
     rasterizeSvgLayer: (source, _natural, w, h) => {
       const src = (source as unknown as { src?: string }).src;
       const image: Drawn = src ? { src } : { src: `pose ${rasterized.length}`, text: source.text };
@@ -445,6 +445,46 @@ describe("planning a picture's poses is bounded before any pose is listed (#2812
     expect(set.frames.size).toBe(0);
     expect(set.keys.size).toBe(1);
     expect(elapsed).toBeLessThan(100);
+    expect(t.reports).not.toHaveBeenCalled();
+  });
+
+  test("six independent switching morphs list at most 1024 combinations and draw at most 256 poses, the later ones holding the rest pose, even with no room", async () => {
+    const GROUPS = Array.from({ length: 6 }, (_, k) => `g${k + 1}`);
+    const STATES = ["a", "b", "c"];
+    const art = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120">
+<path data-name="face" d="M0,0H160V120H0Z" fill="#c96"/>
+${GROUPS.map((group, k) => STATES.map((state, j) => `<g data-name="${group}.${state}${j === 0 ? " default" : ""}"><path data-name="${group}-${state}" d="M${10 + k * 24},${20 + j * 30}h16v${8 + j * 4}h-16Z" fill="#123"/></g>`).join("\n")).join("\n")}
+</svg>`;
+    const recipes = Object.fromEntries(
+      GROUPS.map((group, k) => [
+        `m${k + 1}`,
+        buildMorphRecipe(`m${k + 1}`, { blend: "cut", keyframes: STATES.map((state, j) => ({ offset: j / 2, [group]: { state } })) } as never),
+      ]),
+    );
+    const t = await setup(recipes, art);
+    t.playback.frameBudget = () => 0;
+    const morphs = Object.keys(recipes);
+    const plays = morphs.map((morph) => ({ ...play("nova-six", morphs, morph, loop({ duration: 0.6 })), ref: { morphs, key: "nova-six", image: "nova", selection: "{}", groups: GROUPS } }));
+    t.beat([show(plays)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    const layer = t.layer();
+    const image = layer.images[0];
+    expect(image.slot.artifact.status).toBe("live");
+    const set = image.poses.sets[0];
+    expect(set.keys.size).toBeLessThanOrEqual(1024);
+    expect(set.grids).toEqual([undefined, undefined, undefined, 0, 0, 0]);
+    const poses = t.rasterized.filter((entry) => entry.text !== undefined);
+    expect(poses.length).toBe(26);
+    const started = performance.now();
+    const again = layer.planPoses(image, image.slot.artifact, { width: BOX.width, height: BOX.height });
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(again.frames.size).toBe(26);
+    const pixels = new Set(t.rasterized.map((entry) => entry.image));
+    for (let i = 0; i < 40; i++) {
+      t.playback.advance(1 / 60);
+      await flushMicrotasks(2);
+      expect(pixels.has(t.shown()!)).toBe(true);
+    }
     expect(t.reports).not.toHaveBeenCalled();
   });
 
