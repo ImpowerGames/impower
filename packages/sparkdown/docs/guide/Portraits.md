@@ -498,7 +498,7 @@ A `mask` element shows the outline of the picture written to its element, as a s
 
 ```
 layout main {
-  portrait {
+  portrait #clear {
     mask.shadow
     image
   }
