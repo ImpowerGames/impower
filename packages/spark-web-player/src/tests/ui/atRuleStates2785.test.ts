@@ -2,9 +2,9 @@ import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { getStyleContent } from "@impower/spark-dom/src/utils/getStyleContent";
 import {
+  GAME_WIDE_STATES,
   isAtRuleState,
   selectorStateArguments,
-  SHOWING_STATE,
   WRITTEN_SELECTOR_STATES,
   writeSparkleSelectorChecked,
 } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
@@ -48,7 +48,7 @@ const stateKeys = (name: string): string[] => {
 
 const STATES = [...WRITTEN_SELECTOR_STATES];
 
-const SELECTOR_ONLY = STATES.filter((name) => !isAtRuleState(name) && name !== SHOWING_STATE)
+const SELECTOR_ONLY = STATES.filter((name) => !isAtRuleState(name) && !GAME_WIDE_STATES.has(name))
   .flatMap(stateKeys)
   .flatMap((state) => [state, `card ${state}`, `icon > ${state}`, `>> ${state}`, `${state} @hovered`, `icon, ${state}`]);
 
