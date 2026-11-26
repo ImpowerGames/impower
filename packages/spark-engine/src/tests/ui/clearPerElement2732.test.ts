@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
-import { createHarness, flattenMessages, flushMicrotasks } from "./harness/uiTestHarness";
+import { compileUI, createHarness, flattenMessages, flushMicrotasks } from "./harness/uiTestHarness";
 
 const PREFIX = `define HERO as character with
   name = "HERO"
@@ -182,5 +182,121 @@ end
       .filter((m: any) => !isClear(m))
       .flatMap((m: any) => m.params.elements ?? all);
     expect([...new Set(written)].sort()).toEqual([...all].sort());
+  });
+});
+
+describe("each #clear declaration is its own element (I-2732)", () => {
+  const SCENE = `
+scene start
+  ^: Chapter One
+
+  First line.
+end
+`;
+
+  test.each([
+    ["the marked one first", "title #clear { text }\n    title { text }", 0],
+    ["the unmarked one first", "title { text }\n    title #clear { text }", 1],
+  ])("two sibling titles, %s: only the marked one empties at the next line", async (_, children, markedAt) => {
+    const { h, ui, beats } = await play(`
+layout textbox {
+  textbox {
+    action #clear { text }
+    ${children}
+  }
+}
+${SCENE}`);
+    const ids: string[] = ui.findIds("title");
+    expect(ids).toHaveLength(2);
+    const marked = ids[markedAt]!;
+    const kept = ids[1 - markedAt]!;
+    const atNextLine = emptied(ui, h.messages.slice(beats[1]), "ui/write-text", "title");
+    expect(atNextLine).toContain(marked);
+    expect(atNextLine).not.toContain(kept);
+    const onto = await restored(h, ui, "ui/write-text", "title");
+    expect(onto).toContain(kept);
+    expect(onto).not.toContain(marked);
+  });
+
+  test.each([
+    ["the marked one first", "portrait #clear { image }\n    portrait { image }", 0],
+    ["the unmarked one first", "portrait { image }\n    portrait #clear { image }", 1],
+  ])("two sibling portraits, %s: only the marked one empties at the next line", async (_, children, markedAt) => {
+    const { h, ui, beats } = await play(`
+layout main {
+  stage {
+    ${children}
+  }
+}
+
+scene start
+  [[show portrait SKY]]
+  A sky.
+
+  First line.
+end
+`);
+    const ids: string[] = ui.findIds("portrait");
+    expect(ids).toHaveLength(2);
+    const marked = ids[markedAt]!;
+    const kept = ids[1 - markedAt]!;
+    const atNextLine = emptied(ui, h.messages.slice(beats[1]), "ui/write-image", "portrait");
+    expect(atNextLine).toContain(marked);
+    expect(atNextLine).not.toContain(kept);
+  });
+
+  test("a #clear title written in a layout's call to a component empties at the next line", async () => {
+    const { h, ui, beats } = await play(`
+component banner {
+  frame { slot }
+}
+
+layout textbox {
+  textbox {
+    action #clear { text }
+    banner() { title #clear { text } }
+  }
+}
+${SCENE}`);
+    const ids: string[] = ui.findIds("title");
+    expect(ids).toHaveLength(1);
+    expect(emptied(ui, h.messages.slice(beats[1]), "ui/write-text", "title")).toContain(ids[0]);
+  });
+
+  test("every copy of a #clear element in a loop empties at the next line", async () => {
+    const { h, ui, beats } = await play(`
+store items = {1, 2}
+
+layout textbox {
+  textbox {
+    action #clear { text }
+    for n in items do
+      title #clear { text }
+    end
+  }
+}
+${SCENE}`);
+    const ids: string[] = ui.findIds("title");
+    expect(ids).toHaveLength(2);
+    expect(new Set(emptied(ui, h.messages.slice(beats[1]), "ui/write-text", "title"))).toEqual(new Set(ids));
+  });
+
+  test("an edited program's #clear marks replace the first program's", async () => {
+    const layout = (mark: string) => `
+layout textbox {
+  textbox {
+    action #clear { text }
+    title${mark} { text }
+  }
+}
+${SCENE}`;
+    const h = createHarness(PREFIX + layout(""));
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    expect(ui.getTransientTargets()).not.toContain("title");
+    const { program, errors } = compileUI(PREFIX + layout(" #clear"));
+    expect(errors).toEqual([]);
+    h.game.updateProgram(program as never);
+    expect(ui.getTransientTargets()).toContain("title");
   });
 });

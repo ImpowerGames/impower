@@ -725,7 +725,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _unmarkedKeys: Set<string> = new Set();
 
-  protected _pathRoots = new WeakMap<Element, string>();
+  protected _nodePaths = new WeakMap<object, string>();
+
+  protected _elementPaths = new WeakMap<Element, string>();
 
   protected _showingStyles?: unknown;
 
@@ -773,6 +775,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructor(game: Game) {
     super(game);
+    this.initLayouts();
+  }
+
+  override onProgramUpdate(): void {
+    this._clearOnContinue = new Set();
+    this._contentSlots = new Set();
+    this._clearPaths = new Map();
+    this._unmarkedKeys = new Set();
     this.initLayouts();
   }
 
@@ -3603,7 +3613,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    this._pathRoots.set(uiEl, `layout:${structName}`);
     for (const [k, value] of Object.entries(properties)) {
       const fullPath = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
       const marksClear = fullPath.at(-1) === "$clear";
@@ -3623,6 +3632,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 type: "div",
                 name,
               }),
+            );
+            this._elementPaths.set(
+              stack.at(-1)!,
+              `layout:${structName}/${path.slice(0, i + 1).join("/")}`,
             );
             const parent = stack.at(-1)!;
             const isLast = i === path.length - 1;
@@ -3728,7 +3741,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    this._pathRoots.set(element, `screen:${name}`);
     const scope = this.makeScope({});
     const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
     scope.slots = new Map([
@@ -3917,7 +3929,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       slot ? this.anchorFor(slot) : null,
     );
-    this._pathRoots.set(uiEl, `layout:${layout.name}`);
     slot?.content.push({ el: uiEl });
     const scope = this.makeScope({});
     this._mountedLayouts.set(layout.name, {
@@ -4115,6 +4126,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       before,
     );
+    const nodePath = this._nodePaths.get(node);
+    if (nodePath !== undefined) {
+      this._elementPaths.set(el, nodePath);
+    }
     this.limit(el, labels);
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
@@ -5396,6 +5411,61 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.initLayout(screen as Record<string, any>, `screen:${name}`);
       }
     }
+    const sparkle = this._game.program?.sparkle;
+    if (sparkle?.layouts) {
+      this._clearOnContinue = new Set();
+      this._clearPaths = new Map();
+      this._unmarkedKeys = new Set();
+      for (const [name, layout] of Object.entries(sparkle.layouts)) {
+        if (layout && !skipped.includes(name)) {
+          this.collectMarks(layout.children, `layout:${name}`);
+        }
+      }
+      for (const [name, screen] of Object.entries(sparkle.screens ?? {})) {
+        if (screen) {
+          this.collectMarks(screen.children, `screen:${name}`);
+        }
+      }
+    }
+  }
+
+  protected collectMarks(nodes: readonly BodyNode[] | undefined, path: string): void {
+    (nodes ?? []).forEach((node, index) => {
+      const here = `${path}/${index}`;
+      switch (node.kind) {
+        case "element": {
+          if (isStream(node)) {
+            return;
+          }
+          this._nodePaths.set(node, here);
+          const name = [node.tag, ...node.classes].join(" ");
+          const clear = node.props["clear"];
+          if (clear?.kind === "literal" && clear.value === true) {
+            this._clearOnContinue.add(name);
+            this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), here]);
+          } else {
+            this._unmarkedKeys.add(name);
+          }
+          this.collectMarks(node.children, here);
+          return;
+        }
+        case "if":
+          node.branches.forEach((branch, b) => this.collectMarks(branch.children, `${here}.${b}`));
+          this.collectMarks(node.else, `${here}.else`);
+          return;
+        case "match":
+          node.cases.forEach((c, b) => this.collectMarks(c.children, `${here}.${b}`));
+          this.collectMarks(node.else, `${here}.else`);
+          return;
+        case "for":
+          this.collectMarks(node.children, here);
+          this.collectMarks(node.else, `${here}.else`);
+          return;
+        case "fill":
+          this.collectMarks(node.children, here);
+          return;
+      }
+    });
   }
 
   initLayout(layout: Record<string, unknown>, path: string): void {
@@ -6440,15 +6510,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   elementPath(el: Element): string | undefined {
-    const names: string[] = [];
-    for (let node: Element | null = el; node; node = node.parent) {
-      const root = this._pathRoots.get(node);
-      if (root !== undefined) {
-        return [root, ...names].join("/");
-      }
-      names.unshift(node.name);
-    }
-    return undefined;
+    return this._elementPaths.get(el);
   }
 
   protected markedPaths(target: string): string[] {
