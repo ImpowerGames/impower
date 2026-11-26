@@ -703,3 +703,111 @@ end
     await settledAfter(r);
   });
 });
+
+const MENU = `define ui as config with
+  layouts_initial = { }
+end
+
+layout main {
+  action { text }
+}
+
+layout menu {
+  panel { text "Menu" }
+}
+
+scene start
+  [[open main]] [[open menu]] First.
+  [[close menu with fadeout]] [[open menu with fadein]] Second.
+  Third.
+end
+`;
+
+describe("what round 5 found, exercised (#2739)", () => {
+  test("a loaded save draws its line's with-clause layout animations settled", async () => {
+    const h = createHarness(MENU, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const answered = new Set<string>();
+    const drive = async () => {
+      for (let i = 0; i < 20; i += 1) {
+        await flushMicrotasks(10);
+        (h.game as any)._coordinator?.onUpdate({ deltaMS: 100 });
+        h.releasePresence();
+        h.releaseLayout();
+        for (const m of wire(h.messages)) {
+          if (m?.method === "ui/animate" && !answered.has(m.id)) {
+            answered.add(m.id);
+            h.game.connection.receive({
+              jsonrpc: "2.0",
+              id: m.id,
+              result: [0],
+            } as any);
+          }
+        }
+      }
+      await flushMicrotasks(30);
+    };
+    const text = () => (h.game.story.currentText ?? "").trim();
+    h.jumpToFlow("start");
+    h.game.start();
+    await drive();
+    for (let i = 0; i < 10 && !text().endsWith("Second."); i += 1) {
+      h.game.clickedToContinue();
+      await drive();
+    }
+    expect(text()).toContain("Second.");
+    const save = h.game.saveHere();
+    expect(save).not.toBeNull();
+    expect(wire(h.messages).some((m: any) => m.method === "ui/animate")).toBe(
+      true,
+    );
+    h.reset();
+    expect(h.game.loadToResume(save!.data)).toBe(true);
+    h.game.start();
+    await drive();
+    expect(text()).toContain("Second.");
+    expect(wire(h.messages).filter((m: any) => m.method === "ui/animate")).toEqual(
+      [],
+    );
+  });
+
+  test("a reset forgets an inline layout transition, so a later line with no motion asks for none", async () => {
+    const h = createHarness(MENU, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      holdLayout: true,
+      beforeConnect: playing,
+    });
+    await h.ready;
+    const ui = h.game.module.ui;
+    await ui.openLayout("main", undefined, true);
+    await ui.style.update("action", {
+      "transition-property": "layout",
+      "transition-duration": "0.5s",
+    });
+    await ui.style.update("action", {
+      "transition-property": null,
+      "transition-duration": null,
+    });
+    h.game.reset();
+    await ui.openLayout("main", undefined, true);
+    h.reset();
+    const c = new Coordinator(h.game, {
+      end: 1,
+      text: { action: typed("No motion.") },
+    } as any);
+    await tick(c);
+    expect(h.heldLayout()).toEqual([]);
+    expect(
+      wire(h.messages).some(
+        (m: any) =>
+          m.method === "ui/write-text" && !m.params.held && !m.params.instant,
+      ),
+    ).toBe(true);
+  });
+});

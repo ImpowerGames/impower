@@ -665,6 +665,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _motion = false;
 
+  protected _still = false;
+
   protected _contents = new WeakMap<Element, Set<ContentKind>>();
 
   protected _presence = new Map<Element, PresenceRecord>();
@@ -802,6 +804,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReset() {
     this.settleLine();
+    this._inlineLayout = false;
     this._events = {};
     this._mountedLayouts = new Map();
     this._mountedScreens = new Map();
@@ -2087,12 +2090,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return played;
   }
 
-  setMotion(motion: boolean): void {
+  setMotion(motion: boolean, still = false): void {
     if (!motion) {
       this.settleLine();
       this.settlePresence();
     }
     this._motion = motion;
+    this._still = still;
+  }
+
+  get still(): boolean {
+    return this._still;
   }
 
   beginLine(time: number): Promise<number | null> | undefined {

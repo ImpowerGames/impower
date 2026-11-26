@@ -395,7 +395,7 @@ export class Coordinator<G extends Game> {
     const instant = options?.instant;
     const previewing = options?.preview;
 
-    game.module.ui.setMotion(!instant && !this._still);
+    game.module.ui.setMotion(!instant && !this._still, this._still);
 
     openInitialLayouts(
       game,
