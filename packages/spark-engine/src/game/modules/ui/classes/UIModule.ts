@@ -1229,7 +1229,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.text.change("connect reset", transientTargets),
       this.text.change("unwritten slot", emptySlots),
       this.clearTransientPictures(transientTargets),
-      this.image.clearAll(emptySlots),
+      this.image.clearAll(emptySlots.filter((target) => !this._clearOnContinue.has(target))),
     ]);
   }
 

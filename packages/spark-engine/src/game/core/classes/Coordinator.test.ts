@@ -106,6 +106,7 @@ const createGame = (
         },
         image: {
           clearAll: () => {},
+          clearMarked: () => {},
           restoreCleared: () => {},
           write: () => {},
         },
