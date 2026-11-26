@@ -528,15 +528,18 @@ export class GamePlayerController {
 
   protected readonly _hosted: boolean;
 
+  protected readonly _placeholders: boolean;
+
   constructor(
     host: HTMLElement,
     refs: GamePlayerRefs,
-    options: { resizable?: boolean; hosted?: boolean } = {},
+    options: { resizable?: boolean; hosted?: boolean; placeholders?: boolean } = {},
   ) {
     this.host = host;
     this.refs = refs;
     this._resizable = options.resizable ?? true;
     this._hosted = options.hosted ?? false;
+    this._placeholders = options.placeholders ?? false;
   }
 
   setup(): void {
@@ -3550,6 +3553,7 @@ export class GamePlayerController {
   protected createApp(game: GameEndpoint, previewing: boolean): Application {
     return new Application(game, this.refs.gameView, this.refs.gameUI, {
       previewing,
+      placeholders: this._placeholders,
       audioContext: this._audioContext,
       assetCache: getSharedAssetCache(),
     });

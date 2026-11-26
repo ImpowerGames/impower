@@ -1014,7 +1014,7 @@ export class SparkdownPreviewGamePanelManager {
         </head>
         <body>
           <div class="loading" role="progressbar" aria-busy="true" aria-label="Loading Game Preview"></div>
-          <spark-web-player toolbar run-button replay-button></spark-web-player>
+          <spark-web-player toolbar run-button replay-button placeholders></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

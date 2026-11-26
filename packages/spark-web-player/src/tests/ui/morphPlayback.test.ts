@@ -225,8 +225,14 @@ describe("morph playback in the page", () => {
     expect(images[2]).toContain("url(");
   });
 
-  test("a live morph composed between a lower and an upper image keeps every image in paint order", async () => {
+  test("a live morph composed between a lower and an upper image keeps every image in paint order, the SVG images on canvases of their own (#2810)", async () => {
     const { h, playback, writes } = await previewed(SOURCE, COMPOSITION_FILES);
+    const context = { globalAlpha: 1, imageSmoothingEnabled: true, setTransform: () => {}, clearRect: () => {}, drawImage: () => {} };
+    playback.configure({
+      pictureCanvas: () => context,
+      loadPicture: async (src) => ({ image: { src } as never, width: 40, height: 30, vector: { text: "<svg/>", viewBox: true } }),
+      rasterizeSvgLayer: async () => ({ image: {} as never, release: () => {} }),
+    });
     await h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["base", "bunny", "hat"] } as any], true);
     await flushMicrotasks(10);
     const write = writes.filter((w) => w.params.target === "portrait" && w.params.instructions.length).pop();
@@ -242,15 +248,10 @@ describe("morph playback in the page", () => {
     expect(children[1]).toBe(view.box);
     expect(children[1]!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
     const computed = span.ownerDocument.defaultView!.getComputedStyle(span);
+    expect(computed).toBeDefined();
     for (const [index, fill] of [[0, "%232a6"], [2, "%23a2c"]] as const) {
-      const style = children[index]!.getAttribute("style")!;
-      expect(style).toContain(`background-image:${images[index]}`);
       expect(images[index]).toContain(fill);
-      expect(style.startsWith("position:absolute;inset:0;")).toBe(true);
-      for (const property of ["background-size", "background-position"]) {
-        const value = layerValue(computed.getPropertyValue(property), 2 - index);
-        if (value) expect(style).toContain(`${property}:${value}`);
-      }
+      expect(children[index]!.querySelector("canvas")).not.toBeNull();
       expect(children[index]!.querySelector("[data-morph]")).toBeNull();
     }
   });
@@ -288,7 +289,7 @@ describe("morph playback in the page", () => {
     expect(sent.slice(before)).toEqual([key]);
   });
 
-  test("a write without a morph is the write it always was", async () => {
+  test("a write without a morph carries no morph, and its SVG is a vector picture the player draws as a still (#2810)", async () => {
     const source = `
 
 scene start
@@ -310,7 +311,10 @@ end
     await flushMicrotasks(10);
     const write = writes.find((w) => w.params.instructions.length);
     expect(write.params.instructions[0].content.morph).toBeUndefined();
-    expect(portraitSpan(h.overlay)?.querySelector("span.morph")).toBeNull();
+    expect(write.params.instructions[0].content.pictures).toMatchObject([{ layer: 0, span: 1, name: "cat", vector: true }]);
+    expect(write.params.instructions[0].content.pictures[0].files).toHaveLength(1);
+    const layer = (portraitSpan(h.overlay) as HTMLElement & { __sdMorph?: { occurrenceKeys: string[] } }).__sdMorph;
+    expect(layer?.occurrenceKeys).toEqual([]);
   });
 
   test("the stopped preview animates on the playback's own frames, posed as the reference renderer draws", async () => {
@@ -650,19 +654,20 @@ layout main {
       const drawing = () => h.overlay.querySelector(".portrait > .image > .instance") as HTMLElement | null;
       const outlines = () => ["outline", "rim"].map((name) => h.overlay.querySelector(`.portrait > .mask.${name} > .instance`) as HTMLElement);
       const masked = () => outlines().map((el) => el.style.getPropertyValue("mask-image").includes("blob:rest"));
-      await until(() => decodes.length > 0 || !!drawing()?.querySelector("span.morph"), "the artifact");
+      const maskDecodes = () => decodes.filter(({ src }) => src === "blob:rest");
+      await until(() => maskDecodes().length > 0 || !!drawing()?.querySelector("span.morph"), "the artifact");
       await flushMicrotasks(10);
       expect(drawing()!.querySelector("span.morph")).toBeNull();
       expect(masked()).toEqual([false, false]);
-      expect(decodes.map(({ crossOrigin, src }) => ({ crossOrigin, src }))).toEqual([
+      expect(maskDecodes().map(({ crossOrigin, src }) => ({ crossOrigin, src }))).toEqual([
         { crossOrigin: "anonymous", src: "blob:rest" },
         { crossOrigin: "anonymous", src: "blob:rest" },
       ]);
-      decodes[0]!.done();
+      maskDecodes()[0]!.done();
       await flushMicrotasks(10);
       expect(drawing()!.querySelector("span.morph")).toBeNull();
       expect(masked()).toEqual([false, false]);
-      decodes[1]!.done();
+      maskDecodes()[1]!.done();
       await until(() => !!drawing()?.querySelector("span.morph"), "the drawing");
       expect(masked()).toEqual([true, true]);
     } finally {

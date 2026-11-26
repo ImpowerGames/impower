@@ -359,16 +359,28 @@ export function formatReport(report) {
   out.push(`game view ${env.gameView ?? "-"}, graphics ${env.graphics ?? "-"}, refresh ${env.refreshHz ?? "-"} Hz, CPU ${env.cpu ?? "-"}`);
   for (const [index, run] of (report.runs ?? []).entries()) {
     out.push(`run ${index + 1}: ${run.quiet?.verdict ?? "quietness unknown"}${run.failed?.length ? `; failed: ${run.failed.join("; ")}` : ""}`);
-    out.push("  line kind            click>fire  wait | 1st s: stalls longest total dropped fps graphics >=25ms | page ms >=50ms | mouth n ms/30ms | motion fps | picture layer paints");
+    out.push("  line kind            click>fire  wait | 1st s: stalls longest total dropped fps graphics >=25ms | page ms >=50ms | mouth n ms/30ms | motion fps | picture layer paints | canvas paints before/after fire");
     for (const l of run.lines ?? []) {
       const s = l.firstSecond ?? {};
       const groups = new Map();
       for (const layer of pictureLayers(l.layers)) groups.set(layer.image, [...(groups.get(layer.image) ?? []), layer.paints]);
       const layers = [...groups].map(([image, paints]) => `${image} ${paints.join(",")}`).join("; ");
+      const canvases = Object.entries(l.canvasPaints ?? {}).map(([image, counts]) => `${image || "?"} ${counts.beforeFire}/${counts.afterFire}`).join("; ");
       out.push(
-        `  ${cell(l.line, 4)} ${String(l.kind ?? "-").padEnd(15)} ${cell(l.waitMs, 9)} ${cell(l.beatWaitMs, 5)} | ${cell(s.stalls?.count, 13)} ${cell(s.stalls?.longestMs, 7)} ${cell(s.stalls?.totalMs, 5)} ${cell(s.droppedFrames, 7)} ${cell(s.framesPerSecond, 3)} ${cell(s.graphicsMs, 8)} ${cell(s.graphicsTasks?.length, 6)} | ${cell(l.pageThread?.fromClockMs, 7)} ${cell(l.pageThread?.longTasks?.length, 6)} | ${cell(l.mouth?.changes, 7)} ${cell(l.mouth?.meanMs, 7)} | ${cell(l.motionFramesPerSecond, 10)} | ${layers}${l.failure ? `  FAILED: ${l.failure}` : ""}`,
+        `  ${cell(l.line, 4)} ${String(l.kind ?? "-").padEnd(15)} ${cell(l.waitMs, 9)} ${cell(l.beatWaitMs, 5)} | ${cell(s.stalls?.count, 13)} ${cell(s.stalls?.longestMs, 7)} ${cell(s.stalls?.totalMs, 5)} ${cell(s.droppedFrames, 7)} ${cell(s.framesPerSecond, 3)} ${cell(s.graphicsMs, 8)} ${cell(s.graphicsTasks?.length, 6)} | ${cell(l.pageThread?.fromClockMs, 7)} ${cell(l.pageThread?.longTasks?.length, 6)} | ${cell(l.mouth?.changes, 7)} ${cell(l.mouth?.meanMs, 7)} | ${cell(l.motionFramesPerSecond, 10)} | ${layers} | ${canvases}${l.failure ? `  FAILED: ${l.failure}` : ""}`,
       );
     }
+  }
+  for (const [index, run] of (report.runs ?? []).entries()) {
+    const svg = run.svgFiles;
+    if (!svg) continue;
+    if (svg.error) {
+      out.push(`run ${index + 1}: SVG files not read: ${svg.error}`);
+      continue;
+    }
+    const refused = (svg.files ?? []).filter((file) => file.verdict !== "drawn");
+    out.push(`run ${index + 1}: SVG files ${Object.entries(svg.counts ?? {}).map(([verdict, n]) => `${verdict} ${n}`).join(", ") || "none"}`);
+    for (const file of refused) out.push(`  ${file.path}: ${file.verdict}${file.declaration !== undefined ? ` (${file.declaration})` : ""}${file.error ? ` ${file.error}` : ""}`);
   }
   if (report.repeatability) out.push(report.repeatability.verdict);
   return out.join("\n");

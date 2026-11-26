@@ -228,7 +228,7 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     expect(drawn()).toEqual(["/base.png", "raster 520x420", "/hair.png"]);
   });
 
-  test("a resize keeps drawing the old raster until the new one has decoded, starts one decode at a time for the latest size, and dispose releases the raster", async () => {
+  test("a resize stretches the drawn canvas until the resize settles, then decodes once at the settled size and keeps drawing the old raster until it lands, and dispose releases the raster", async () => {
     const pending: Deferred[] = [];
     const made: ReturnType<typeof raster>[] = [];
     const { playback, span, canvas, drawn, resize } = picture({ vector: { text: SVG, viewBox: true } }, (width, height) =>
@@ -246,24 +246,24 @@ describe("an SVG layer file without plays of its own is rasterized at the canvas
     answer(0);
     await flushMicrotasks(5);
     expect(drawn()).toEqual(["/base.png", "raster 520x420", "/hair.png"]);
+    const width = canvas()!.width;
     await resize(400, 300);
     await resize(300, 200);
     await resize(600, 500);
-    expect(pending.map(({ width, height }) => `${width}x${height}`)).toEqual(["520x420", "400x300"]);
+    expect(pending.map(({ width, height }) => `${width}x${height}`)).toEqual(["520x420"]);
     expect(drawn()).toEqual(["/base.png", "raster 520x420", "/hair.png"]);
+    expect(canvas()!.width).toBe(width);
+    await settle(() => pending.length >= 2);
+    expect(pending.map(({ width, height }) => `${width}x${height}`)).toEqual(["520x420", "600x500"]);
     expect(canvas()!.width).toBe(600);
+    expect(drawn()).toEqual(["/base.png", "raster 520x420", "/hair.png"]);
     answer(1);
     await flushMicrotasks(5);
-    expect(pending.map(({ width, height }) => `${width}x${height}`)).toEqual(["520x420", "400x300", "600x500"]);
     expect(made[0]!.release).toHaveBeenCalledTimes(1);
-    expect(drawn()).toEqual(["/base.png", "raster 400x300", "/hair.png"]);
-    answer(2);
-    await flushMicrotasks(5);
-    expect(made[1]!.release).toHaveBeenCalledTimes(1);
     expect(drawn()).toEqual(["/base.png", "raster 600x500", "/hair.png"]);
-    expect(made[2]!.release).not.toHaveBeenCalled();
+    expect(made[1]!.release).not.toHaveBeenCalled();
     playback.releaseWithin(span);
-    expect(made[2]!.release).toHaveBeenCalledTimes(1);
+    expect(made[1]!.release).toHaveBeenCalledTimes(1);
   });
 
   test.for([
