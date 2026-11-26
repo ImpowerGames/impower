@@ -67,6 +67,8 @@ const compartments = Object.fromEntries(
   OPTIONS.map((option) => [option, new Compartment()]),
 ) as Record<ScriptAppearanceOption, Compartment>;
 
+const lineNumbersMotion = new Compartment();
+
 const optionExtension = <K extends ScriptAppearanceOption>(
   appearance: ScriptAppearance,
   option: K,
@@ -102,15 +104,20 @@ export const scriptAppearance = (appearance: ScriptAppearance): Extension => [
   OPTIONS.map((option) =>
     compartments[option].of(optionExtension(appearance, option)),
   ),
+  lineNumbersMotion.of([]),
 ];
 
 const reconfigureScriptAppearance = (
   previous: ScriptAppearance,
   next: ScriptAppearance,
-): StateEffect<unknown>[] =>
-  OPTIONS.filter((option) => previous[option] !== next[option]).map((option) =>
-    compartments[option].reconfigure(optionExtension(next, option)),
-  );
+): StateEffect<unknown>[] => [
+  ...OPTIONS.filter((option) => previous[option] !== next[option]).map(
+    (option) => compartments[option].reconfigure(optionExtension(next, option)),
+  ),
+  ...(previous.lineNumbers !== next.lineNumbers
+    ? [lineNumbersMotion.reconfigure(editorClass("cm-line-numbers-motion"))]
+    : []),
+];
 
 export const setScriptAppearance = (
   view: EditorView,

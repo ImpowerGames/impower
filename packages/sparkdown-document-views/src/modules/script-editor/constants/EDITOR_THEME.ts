@@ -241,6 +241,8 @@ const THEME: {
     lineHeight: "calc(var(--script-leading, 1.5) / 0.72)",
     opacity: "0",
     transform: "translateX(-12px)",
+  },
+  "&:where(.cm-line-numbers-motion) .cm-lineNumbers .cm-gutterElement": {
     transition: "opacity .18s ease, transform .18s ease",
   },
   "&.cm-line-numbers .cm-lineNumbers .cm-gutterElement": {
