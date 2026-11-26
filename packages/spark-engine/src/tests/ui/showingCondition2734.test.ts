@@ -81,8 +81,8 @@ async function displayLive(h: UIHarness, beat: any) {
   await flushMicrotasks(30);
 }
 
-async function play(source: string) {
-  const h = createHarness(source, 0, { reactive: true, autoOpenAll: false, beforeConnect: live });
+async function play(source: string, opts?: { holdExits?: boolean }) {
+  const h = createHarness(source, 0, { reactive: true, autoOpenAll: false, beforeConnect: live, ...opts });
   await h.ready;
   await flushMicrotasks(10);
   h.jumpToFlow("start");
@@ -204,8 +204,8 @@ end
     expect(cleared?.params).toEqual({ changes: { hud: -1 }, retired: true });
   });
 
-  test("a picture hidden with an exit animation leaves the mark when its hide starts", async () => {
-    const { marks } = await play(`define SPRITE as image with
+  test("a picture hidden with an exit animation counts as showing until the renderer reports its exit ended (#2777)", async () => {
+    const { h, marks } = await play(`define SPRITE as image with
   src = "https://example.com/hero.png"
 end
 
@@ -227,8 +227,11 @@ scene start
   [[show portrait SPRITE]] Hello.
   [[hide portrait with fadeout over 0.5s]] Bye.
 end
-`);
-    expect(marks).toEqual([["portrait"], []]);
+`, { holdExits: true });
+    expect(marks).toEqual([["portrait"], ["portrait"]]);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
   });
 
   test("a line cleared through its @hide leaves the mark, with what it holds, when its hide starts", async () => {

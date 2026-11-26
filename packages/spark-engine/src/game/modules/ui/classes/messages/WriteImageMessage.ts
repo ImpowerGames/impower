@@ -91,6 +91,7 @@ export interface WriteImageParams {
   instant: boolean;
   time?: number;
   elements?: string[];
+  reportsExit?: boolean;
 }
 
 export class WriteImageMessage {

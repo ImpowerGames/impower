@@ -14,6 +14,10 @@ import { BatchElementsMessage } from "../../../spark-engine/src/game/modules/ui/
 import { BeatMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import { PresenceElementsMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
 import { LayoutMotionMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/LayoutMotionMessage";
+import {
+  WriteImageMessage,
+  type WriteImageParams,
+} from "../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { Manager } from "./Manager";
 
 function carriedRequests(message: Message): RequestMessage[] {
@@ -34,7 +38,9 @@ function carriedRequests(message: Message): RequestMessage[] {
       (op): op is RequestMessage =>
         AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
         PresenceElementsMessage.type.isRequest(op as RequestMessage) ||
-        LayoutMotionMessage.type.isRequest(op as RequestMessage),
+        LayoutMotionMessage.type.isRequest(op as RequestMessage) ||
+        (WriteImageMessage.type.isRequest(op as RequestMessage) &&
+          Boolean((op as RequestMessage<string, WriteImageParams>).params.reportsExit)),
     );
 }
 

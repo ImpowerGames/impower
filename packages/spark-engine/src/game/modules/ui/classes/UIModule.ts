@@ -213,6 +213,7 @@ import {
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
+  type WriteImageParams,
 } from "./messages/WriteImageMessage";
 import {
   WriteTextMessage,
@@ -287,6 +288,11 @@ interface Retirement {
   element: Element;
   epoch: number;
   pin?: string;
+}
+
+interface PictureExit {
+  elements: Element[];
+  epoch: number;
 }
 
 type ContentKind = "text" | "image";
@@ -663,6 +669,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   >();
 
   protected _retiring = new Set<Retirement>();
+
+  protected _exits = new Set<PictureExit>();
+
+  protected _exitReports = new WeakMap<IMessage, Promise<unknown>>();
 
   protected _motion = false;
 
@@ -1166,6 +1176,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._game.module.assets?.releaseRetiredLayout(r.pin);
       }
     }
+    this._exits.clear();
     const epoch = this._game.connection.epoch;
     const themeVariables = this.getThemeVariables();
     this.loadTheme(themeVariables);
@@ -1450,16 +1461,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected heldNames(root: Element): Set<string> {
     const held = new Set<string>();
     const written = new Set<Element>();
-    const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
-      for (const el of this.findElements(target, true)) {
-        written.add(el);
-        for (const leaf of leaves) {
-          for (const child of this.getContentElements(el, leaf)) {
-            written.add(child);
-          }
+    const writeElement = (el: Element, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      written.add(el);
+      for (const leaf of leaves) {
+        for (const child of this.getContentElements(el, leaf)) {
+          written.add(child);
         }
       }
     };
+    const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of this.findElements(target, true)) {
+        writeElement(el, leaves);
+      }
+    };
+    for (const exit of this._exits) {
+      for (const el of exit.elements) {
+        writeElement(el, ["image", "mask"]);
+      }
+    }
     for (const [target, state] of Object.entries(this._state.text ?? {})) {
       if (state?.length) {
         write(target, ["text", "stroke"]);
@@ -1871,6 +1890,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       WriteImageMessage.type.isRequest(msg as any)
     ) {
       this.captureInto(c, msg);
+      if (params.reportsExit) {
+        c.expected.push((msg as RequestMessage).id);
+        this._exitReports.set(msg, this._game.connection.expect(msg as RequestMessage));
+      }
       return { result: params.target };
     }
     if (
@@ -2247,12 +2270,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  protected dropHeld(line: LineWait): void {
+    for (const message of line.held) {
+      if ((message as { params?: WriteImageParams }).params?.reportsExit) {
+        this._game.connection.cancel((message as RequestMessage).id, {
+          code: SUPERSEDED,
+          message: "the line that held it was settled",
+        });
+      }
+    }
+  }
+
   protected async playOut(line: LineWait): Promise<void> {
     let anyMoved = false;
     const play = async (phase: MotionPhase) => {
       const due = this.startPhase(line, phase);
       const results = await Promise.all(due.map((m) => m.started));
       if (this._line !== line) {
+        this.dropHeld(line);
         return false;
       }
       anyMoved = anyMoved || results.some(moved);
@@ -5779,21 +5814,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.flushUIBatch();
       this._retiring.delete(r);
       this.destroyElement(r.element, true);
-      this.noteShowing(true);
-      const messages = this._uiBatch;
-      this._uiBatch = [];
-      if (messages.length > 0) {
-        const batch = BatchElementsMessage.type.notification({ messages });
-        if (this._lineRemovals) {
-          void this.emit(batch);
-        } else {
-          this._uiOps += 1;
-          void super.emit(batch);
-        }
-      }
+      this.sendRetired();
     }
     if (r.pin) {
       this._game.module.assets?.releaseRetiredLayout(r.pin);
+    }
+  }
+
+  protected endExit(exit: PictureExit): void {
+    if (!this._exits.has(exit)) {
+      return;
+    }
+    if (this.superseded(exit.epoch)) {
+      this._exits.delete(exit);
+      return;
+    }
+    this.flushUIBatch();
+    this._exits.delete(exit);
+    this.sendRetired();
+  }
+
+  protected sendRetired(): void {
+    this.noteShowing(true);
+    const messages = this._uiBatch;
+    this._uiBatch = [];
+    if (messages.length > 0) {
+      const batch = BatchElementsMessage.type.notification({ messages });
+      if (this._lineRemovals) {
+        void this.emit(batch);
+      } else {
+        this._uiOps += 1;
+        void super.emit(batch);
+      }
     }
   }
 
@@ -7207,6 +7259,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         view?: PictureView,
+        exits = false,
       ) {
         const targetEls = $.findElements(target, true);
         if (!sequence && $.knownEmpty("image", targetEls)) {
@@ -7263,26 +7316,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (arriving.length > 0) {
           void $.present(arriving, "show");
         }
-        await $.emitSettled(
-          $.onLine(
-            WriteImageMessage.type.request({
-              target,
-              instructions: sequence ? this.resolve(sequence, instant, view) : [],
-              instant,
-              ...(time != null ? { time } : {}),
-              ...(leaving.length > 0 || $.namesWriteElements(target, writing)
-                ? { elements: writing.map((el) => el.id) }
-                : {}),
-            }),
-            !instant &&
-              (writing.some((el) => !arriving.includes(el)) ||
-                Boolean(
-                  sequence?.some(
-                    (e) => e.control === "animate" || e.with || e.after || e.over,
-                  ),
-                )),
-          ),
+        const exit: PictureExit | undefined =
+          exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
+            ? { elements: writing, epoch: $._game.connection.epoch }
+            : undefined;
+        if (exit) {
+          $._exits.add(exit);
+        }
+        const request = $.onLine(
+          WriteImageMessage.type.request({
+            target,
+            instructions: sequence ? this.resolve(sequence, instant, view) : [],
+            instant,
+            ...(time != null ? { time } : {}),
+            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+              ? { elements: writing.map((el) => el.id) }
+              : {}),
+            ...(exit ? { reportsExit: true } : {}),
+          }),
+          !instant &&
+            (writing.some((el) => !arriving.includes(el)) ||
+              Boolean(
+                sequence?.some(
+                  (e) => e.control === "animate" || e.with || e.after || e.over,
+                ),
+              )),
         );
+        const written = $.emitSettled(request);
+        if (exit) {
+          const ended = () => $.endExit(exit);
+          void ($._exitReports.get(request) ?? written).then(ended, ended);
+        }
+        await written;
       }
 
       protected hide(
@@ -7343,9 +7408,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (sequence.length === 0 && events.length > 0) {
           return;
         }
+        const shown = $.pictureShown($._state.image?.[target]);
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, view);
+          await this.applyChanges(
+            target,
+            sequence,
+            instant,
+            time,
+            view,
+            shown && !$.pictureShown($._state.image?.[target]),
+          );
         }
       }
     }
