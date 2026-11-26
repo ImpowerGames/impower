@@ -1,10 +1,11 @@
 import { createMorphHost } from "@impower/sparkdown/src/morph/hosts";
-import { buildMorphMotion, morphMotionKeyframes, morphMotionStyleAt } from "@impower/sparkdown/src/morph/motion";
+import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/morph/motion";
 import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphArtifact } from "@impower/sparkdown/src/morph/types";
 import NOVA from "../../../../../../.agents/skills/drive-vscode-web/fixtures/pacing/project/assets/nova.svg";
+import { browserAnimator, movedMarkup } from "../../../app/morph/MorphPlayback";
 import { browserSvgLayerRasterizer } from "../../../app/morph/svgLayerFile";
 
 const NATURAL = { width: 1600, height: 1200 };
@@ -19,7 +20,14 @@ const TALK = [
 
 const BLINK = [
   { offset: 0, eyes: { state: "open" } },
-  { offset: 0.5, eyes: { state: "closed" }, brows: { translate: "0 -3%", rotate: "4deg" }, accessories: { opacity: 0.4, scale: "1.05" } },
+  {
+    offset: 0.5,
+    eyes: { state: "closed" },
+    brows: { translate: "0 -3%", rotate: "4deg" },
+    accessories: { opacity: 0.4, scale: "1.05" },
+    "hair-front": { transform: "translate(40px) scale(1.06)" },
+    neck: { transform: "matrix(0, 1, -1, 0, 0, 0)" },
+  },
   { offset: 1, eyes: { state: "open" } },
 ];
 
@@ -41,15 +49,9 @@ let artifact: MorphArtifact | undefined;
 const baked = async () =>
   (artifact ??= (await host.resolve({ morphs: ["talk", "blink"], key: "nova-poses", image: "nova", selection: "{}", groups: ["mouth", "eyes"] })).artifact);
 
-const moved = (markup: string, offset: number | undefined) => {
-  if (offset === undefined) return markup;
-  const parsed = new DOMParser().parseFromString(markup, "image/svg+xml");
-  for (const element of Array.from(parsed.querySelectorAll("[data-morph-motion]"))) {
-    const track = MOTION[element.getAttribute("data-morph-motion")!];
-    if (!track) continue;
-    element.setAttribute("style", `${element.getAttribute("style") ?? ""};${morphMotionStyleAt(track, offset)}`);
-  }
-  return new XMLSerializer().serializeToString(parsed);
+const moves = (offset: number | undefined) => (label: string) => {
+  const track = MOTION[label];
+  return track && offset !== undefined ? [{ track, offset }] : [];
 };
 
 const box = (id: string, width: number, height: number) => {
@@ -63,14 +65,15 @@ async function show(offsets: Record<string, number>, width: number, height: numb
   const art = await baked();
   if (art.status !== "live") throw new Error(`the fixture portrait baked ${art.status}`);
   const posed = renderMorphAt(art, offsets);
-  const markup = moved(posed, offsets["blink"]);
+  const offset = offsets["blink"];
+  const markup = movedMarkup(posed, document.body, NATURAL, moves(offset), browserAnimator);
+  if (!markup) throw new Error("the moved pose could not be made");
   const live = box("live", width, height);
   const svg = document.importNode(new DOMParser().parseFromString(posed, "image/svg+xml").documentElement, true);
   svg.setAttribute("width", "100%");
   svg.setAttribute("height", "100%");
   svg.setAttribute("style", "position:absolute;inset:0");
   live.appendChild(svg);
-  const offset = offsets["blink"];
   for (const element of offset === undefined ? [] : Array.from(svg.querySelectorAll("[data-morph-motion]"))) {
     const track = MOTION[element.getAttribute("data-morph-motion")!];
     if (!track) continue;

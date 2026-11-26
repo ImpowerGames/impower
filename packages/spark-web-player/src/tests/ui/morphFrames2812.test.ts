@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createMorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
-import { buildMorphMotion, morphMotionStyleAt } from "@impower/sparkdown/src/morph/motion";
+import { buildMorphMotion, morphMotionKeyframes } from "@impower/sparkdown/src/morph/motion";
 import { renderMorphAt } from "@impower/sparkdown/src/morph/render";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphArtifact, MorphRecipe, MorphTiming } from "@impower/sparkdown/src/morph/types";
@@ -378,7 +378,7 @@ describe("a tween that does not fit what `predict_cache_size` leaves (#2812)", (
 });
 
 describe("a morph that moves a labelled layer plays from drawn frames like any tween (#2812)", () => {
-  test("each frame draws the layer's movement at its offset, and the movement plays after the beat only from those frames", async () => {
+  test("each frame draws the layer as the browser's animation of its keyframes leaves it at that offset, and the movement plays after the beat only from those frames", async () => {
     const keyframes = [
       { offset: 0, eyes: { state: "open" } },
       { offset: 0.5, eyes: { state: "closed" }, nose: { translate: "0 -2px", rotate: "2deg", opacity: 0.5 } },
@@ -386,14 +386,27 @@ describe("a morph that moves a labelled layer plays from drawn frames like any t
     ];
     const motion = buildMorphMotion(keyframes)!;
     const t = await setup({ blink: blink({ clips: [], keyframes }) });
+    const animated: { keyframes: Keyframe[]; connected: boolean }[] = [];
+    t.playback.configure({
+      animate: (element, frames) => {
+        let at = 0;
+        animated.push({ keyframes: frames, connected: element.isConnected });
+        return {
+          sample: (offset) => {
+            at = offset;
+          },
+          commit: () => element.setAttribute("style", `${element.getAttribute("style") ?? ""};--sampled:${at}`),
+          cancel: () => {},
+        };
+      },
+    });
     t.beat([show([play("nova-motion", ["blink"], "blink", loop({ duration: 1, iteration_delay_min: 0, iteration_delay_max: 0 }), { motion })])]);
     await until(() => t.events.includes("applied"), "the beat");
-    const nose = (markup: string) => new DOMParser().parseFromString(markup, "image/svg+xml").querySelector('[data-morph-motion="nose"]')?.getAttribute("style") ?? "";
+    const sampled = (markup: string) => /--sampled:([0-9.e-]+)/.exec(new DOMParser().parseFromString(markup, "image/svg+xml").querySelector('[data-morph-motion="nose"]')?.getAttribute("style") ?? "")?.[1];
     const poses = t.rasterized.filter((entry) => entry.text !== undefined);
-    const styles = Array.from({ length: 25 }, (_, k) => morphMotionStyleAt(motion["nose"]!, k / 24));
     expect(poses.length).toBe(24);
-    for (const pose of poses) expect(styles.some((style) => nose(pose.text!).endsWith(style))).toBe(true);
-    expect(poses.some((pose) => nose(pose.text!).includes("rotate:calc("))).toBe(true);
+    expect(new Set(poses.map((pose) => Number(sampled(pose.text!))))).toEqual(new Set(Array.from({ length: 24 }, (_, k) => k / 24)));
+    expect(animated.every(({ keyframes: frames, connected }) => connected && JSON.stringify(frames) === JSON.stringify(morphMotionKeyframes(motion["nose"]!)))).toBe(true);
     const made = t.rasterized.length;
     for (let i = 0; i < 70; i++) {
       t.playback.advance(1 / 60);
@@ -404,8 +417,48 @@ describe("a morph that moves a labelled layer plays from drawn frames like any t
         expect(drawn.src).toBe(FILE);
         continue;
       }
-      expect(nose(drawn.text!).endsWith(morphMotionStyleAt(motion["nose"]!, Math.round(offset * 24) / 24))).toBe(true);
+      const frame = Math.round(offset * 24) / 24;
+      expect(Number(sampled(drawn.text!))).toBe(frame === 1 ? 0 : frame);
     }
     expect(t.rasterized).toHaveLength(made);
+  });
+});
+
+describe("planning a picture's poses is bounded before any pose is listed (#2812)", () => {
+  const LONG = { talk: talk({ clips: [] }), blink: blink({ clips: [] }) };
+  const longPlays = () => [
+    play("nova-long", ["talk", "blink"], "talk", loop({ duration: 5, iteration_delay_min: 0, iteration_delay_max: 0 })),
+    play("nova-long", ["talk", "blink"], "blink", loop({ duration: 5, iteration_delay_min: 0, iteration_delay_max: 0 })),
+  ];
+
+  test("two five-second smooth morphs with no room hold the rest pose, planned without listing their combinations", async () => {
+    const t = await setup(LONG);
+    t.playback.frameBudget = () => 0;
+    t.beat([show(longPlays())]);
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(t.rasterized.filter((entry) => entry.text !== undefined)).toEqual([]);
+    const layer = t.layer();
+    const image = layer.images[0];
+    const started = performance.now();
+    const set = layer.planPoses(image, image.slot.artifact, { width: BOX.width, height: BOX.height });
+    const elapsed = performance.now() - started;
+    expect(set.frames.size).toBe(0);
+    expect(set.keys.size).toBe(1);
+    expect(elapsed).toBeLessThan(100);
+    expect(t.reports).not.toHaveBeenCalled();
+  });
+
+  test("with unlimited room they are drawn with at most 256 frames, from at most 1024 listed combinations", async () => {
+    const t = await setup(LONG);
+    t.playback.frameBudget = () => Infinity;
+    t.beat([show(longPlays())]);
+    await until(() => t.events.includes("applied"), "the beat");
+    const poses = t.rasterized.filter((entry) => entry.text !== undefined);
+    expect(poses.length).toBeGreaterThan(24);
+    expect(poses.length).toBeLessThanOrEqual(256);
+    const layer = t.layer();
+    const set = layer.images[0].poses.sets[0];
+    expect(set.keys.size).toBeLessThanOrEqual(1024);
+    expect(set.grids.every((grid: number | undefined) => grid !== undefined && grid > 0 && grid < 120)).toBe(true);
   });
 });

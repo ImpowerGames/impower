@@ -6,7 +6,6 @@ import {
   morphMotionKeyframes,
   morphMotionLabels,
   morphMotionProblem,
-  morphMotionStyleAt,
   type MorphMotionProperty,
 } from "../../morph/motion";
 import { morphEasingJumps } from "../../morph/easing";
@@ -351,39 +350,7 @@ ${marks}
   });
 });
 
-describe("a moved layer's style at an offset, for a drawn frame (#2812)", () => {
-  const track = buildMorphMotion([
-    { offset: 0, eyes: { state: "open" } },
-    { offset: 0.5, nose: { translate: "0 -2px", rotate: "4deg", opacity: 0.5 } },
-    { offset: 1, eyes: { state: "open" }, nose: { scale: "120%", transform_origin: "top left" } },
-  ])!["nose"]!;
-
-  test("each property is mixed between the keyframes that set it, as the browser interpolates it", () => {
-    expect(morphMotionStyleAt(track, 0.25)).toBe(
-      "translate:0px calc(0px * 0.5 + -2px * 0.5);rotate:calc(0deg * 0.5 + 4deg * 0.5);scale:calc(1 * 0.75 + 1.2 * 0.25) calc(1 * 0.75 + 1.2 * 0.25);transform-origin:calc(50% * 0.75 + 0% * 0.25) calc(50% * 0.75 + 0% * 0.25);opacity:0.75",
-    );
-  });
-
-  test("a keyframe's own values hold at its offset, and the ends hold outside them", () => {
-    expect(morphMotionStyleAt(track, 0.5)).toBe("translate:0px -2px;rotate:4deg;scale:calc(1 * 0.5 + 1.2 * 0.5) calc(1 * 0.5 + 1.2 * 0.5);transform-origin:calc(50% * 0.5 + 0% * 0.5) calc(50% * 0.5 + 0% * 0.5);opacity:0.5");
-    expect(morphMotionStyleAt(track, 1)).toBe("translate:0px 0px;rotate:0deg;scale:1.2 1.2;transform-origin:0% 0%;opacity:1");
-    expect(morphMotionStyleAt(track, 0)).toBe(morphMotionStyleAt(track, -1));
-  });
-
-  test("transform lists of the same functions mix argument by argument; different lists switch halfway", () => {
-    const moved = buildMorphMotion([
-      { offset: 0, arm: { transform: "rotate(0deg) translate(4px)" } },
-      { offset: 1, arm: { transform: "rotate(10deg) translate(0, 8px)" } },
-    ])!["arm"]!;
-    expect(morphMotionStyleAt(moved, 0.5)).toBe("transform:rotate(calc(0deg * 0.5 + 10deg * 0.5)) translate(calc(4px * 0.5 + 0px * 0.5), calc(0px * 0.5 + 8px * 0.5))");
-    const swapped = buildMorphMotion([
-      { offset: 0, arm: { transform: "rotate(10deg)" } },
-      { offset: 1, arm: { transform: "scale(2)" } },
-    ])!["arm"]!;
-    expect(morphMotionStyleAt(swapped, 0.4)).toBe("transform:rotate(10deg)");
-    expect(morphMotionStyleAt(swapped, 0.6)).toBe("transform:scale(2, 2)");
-  });
-
+describe("a steps easing's frame count, for a drawn tween (#2812)", () => {
   test("a steps easing reports its count of jumps, and other easings none", () => {
     expect(morphEasingJumps("steps(4)")).toBe(4);
     expect(morphEasingJumps("steps(4, jump-none)")).toBe(3);

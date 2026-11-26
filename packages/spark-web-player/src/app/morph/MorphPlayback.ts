@@ -22,7 +22,7 @@ import {
 } from "../../../../sparkdown/src/morph/layered";
 import { morphEasingJumps, parseMorphEasing, type MorphEasing } from "../../../../sparkdown/src/morph/easing";
 import { hashText } from "../../../../sparkdown/src/morph/hash";
-import { morphMotionKeyframes, morphMotionStyleAt } from "../../../../sparkdown/src/morph/motion";
+import { morphMotionKeyframes, type MorphMotionFrame } from "../../../../sparkdown/src/morph/motion";
 import { own } from "../../../../sparkdown/src/morph/own";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
 import { MorphTimeline, morphRandom } from "../../../../sparkdown/src/morph/timeline";
@@ -406,13 +406,14 @@ interface LiveView {
 export interface MorphMotionEffect {
   sample(offset: number): void;
   cancel(): void;
+  commit?(): void;
 }
 
 export type MorphMotionAnimator = (element: Element, keyframes: Keyframe[]) => MorphMotionEffect | undefined;
 
 const MOTION_DURATION = 1000;
 
-const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
+export const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
   const view = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
   const Effect = view?.KeyframeEffect;
   const Player = view?.Animation;
@@ -428,6 +429,7 @@ const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
       animation.currentTime = offset * MOTION_DURATION;
     },
     cancel: () => animation.cancel(),
+    commit: () => animation.commitStyles(),
   };
 };
 
@@ -492,6 +494,10 @@ interface PoseFrames {
 const REST_POSE = "rest";
 
 const FRAME_BYTES_PER_PIXEL = 4;
+
+const MAX_POSE_FRAMES = 256;
+
+const MAX_POSE_COMBINATIONS = 1024;
 
 const restFrame = (): MorphFrameState => ({
   shown: new Set(),
@@ -2846,32 +2852,44 @@ export class MorphLayer {
     });
     const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
     const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes();
-    const fits = (set: PoseSet) => set.frames.size * bytes <= room;
-    const whole = this.enumeratePoses(artifact, plays, cut, size, full);
+    const frameLimit = Math.min(MAX_POSE_FRAMES, Math.floor(Math.max(0, room) / bytes));
+    const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
+    const cutOptions = plays.map((play, i) => (cut[i] ? cutOffsets(artifact, play.morph) : []));
+    const cutLooks = plays.map((play, i) =>
+      cut[i] ? new Set(cutOptions[i]!.map((at) => frameText(morphFrameState(artifact, morphPosesAt(artifact, { [play.morph]: at }))))).add(rest).size : 1,
+    );
+    const counts = (grids: (number | undefined)[]) => {
+      let combinations = 1;
+      let looks = 1;
+      grids.forEach((grid, i) => {
+        const tween = grid === undefined ? 0 : grid > 0 ? grid + 1 : 0;
+        combinations *= grid === undefined ? cutOptions[i]!.length + 1 : tween + 1;
+        looks *= grid === undefined ? cutLooks[i]! : tween + 1;
+      });
+      return { combinations, frames: looks - 1 };
+    };
+    const fits = (grids: (number | undefined)[]) => {
+      const { combinations, frames } = counts(grids);
+      return combinations <= MAX_POSE_COMBINATIONS && frames <= frameLimit;
+    };
     const most = Math.max(0, ...full.map((grid) => grid ?? 0));
-    if (most === 0 || fits(whole)) return whole;
-    const scaled = (share: number) =>
-      this.enumeratePoses(
-        artifact,
-        plays,
-        cut,
-        size,
-        full.map((grid) => (grid === undefined ? undefined : Math.floor((grid * share) / most))),
-      );
-    let best = scaled(0);
-    let low = 1;
-    let high = most - 1;
-    while (low <= high) {
-      const mid = (low + high) >> 1;
-      const candidate = scaled(mid);
-      if (fits(candidate)) {
-        best = candidate;
-        low = mid + 1;
-      } else {
-        high = mid - 1;
+    const scaled = (share: number) => full.map((grid) => (grid === undefined ? undefined : Math.floor((grid * share) / most)));
+    let chosen = full;
+    if (most > 0 && !fits(full)) {
+      chosen = scaled(0);
+      let low = 1;
+      let high = most - 1;
+      while (low <= high) {
+        const mid = (low + high) >> 1;
+        if (fits(scaled(mid))) {
+          chosen = scaled(mid);
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
       }
     }
-    return best;
+    return this.enumeratePoses(artifact, plays, cut, size, chosen, cutOptions, rest);
   }
 
   protected enumeratePoses(
@@ -2880,14 +2898,15 @@ export class MorphLayer {
     cut: boolean[],
     size: { width: number; height: number },
     grids: (number | undefined)[],
+    cutOptions: number[][],
+    rest: string,
   ): PoseSet {
     const cutGroups = new Set(plays.flatMap((play, i) => (cut[i] ? [...morphGroups(artifact, play.morph)] : [])));
-    const options = plays.map((play, i): PoseHead[] => {
+    const options = plays.map((_, i): PoseHead[] => {
       const grid = grids[i];
-      if (grid === undefined) return [REST_POSE, ...cutOffsets(artifact, play.morph)];
+      if (grid === undefined) return [REST_POSE, ...cutOptions[i]!];
       return [REST_POSE, ...Array.from({ length: grid > 0 ? grid + 1 : 0 }, (_, k) => k / grid)];
     });
-    const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
     const set: PoseSet = { width: size.width, height: size.height, grids: [...grids], cut: cutGroups, keys: new Map(), frames: new Map(), queue: [], running: false };
     const heads: PoseHead[] = plays.map(() => REST_POSE);
     const visit = (at: number) => {
@@ -2907,7 +2926,7 @@ export class MorphLayer {
       });
       const text = offsets ? frameText(morphFrameState(artifact, morphPosesAt(artifact, offsets))) : rest;
       const moved = motions
-        .map(({ play, offset }) => Object.entries(plays[play]!.motion ?? {}).map(([label, track]) => `|${label}:${morphMotionStyleAt(track, offset)}`).join(""))
+        .map(({ play, offset }) => Object.entries(plays[play]!.motion ?? {}).map(([label, track]) => `|${label}@${motionOffset(track, offset)}`).join(""))
         .join("");
       const id = motions.length === 0 && text === rest ? REST_POSE : hashText(`${text}${moved}`);
       set.keys.set(key, id);
@@ -2953,23 +2972,15 @@ export class MorphLayer {
 
   protected poseMarkup(image: ImageState, artifact: MorphArtifact, frame: PoseFrame): string | undefined {
     const markup = renderMorphAt(artifact, frame.offsets);
-    if (frame.motions.length === 0) return markup;
-    const view = this.span.ownerDocument.defaultView as (Window & typeof globalThis) | null;
-    if (!view?.DOMParser || !view.XMLSerializer) return undefined;
-    const parsed = new view.DOMParser().parseFromString(markup, "image/svg+xml");
-    for (const element of Array.from(parsed.querySelectorAll("[data-morph-motion]"))) {
-      const label = element.getAttribute("data-morph-motion")!;
-      const declarations = frame.motions.flatMap(({ play, offset }) => {
+    const files = image.poses?.still.files;
+    if (frame.motions.length === 0 || !files) return markup;
+    const moves = (label: string) =>
+      frame.motions.flatMap(({ play, offset }) => {
         const motion = image.plays[play]?.play.motion;
         const track = motion ? own(motion, label) : undefined;
-        const style = track ? morphMotionStyleAt(track, offset) : "";
-        return style ? [style] : [];
+        return track ? [{ track, offset }] : [];
       });
-      if (declarations.length === 0) continue;
-      const style = (element.getAttribute("style") ?? "").trim().replace(/;$/, "");
-      element.setAttribute("style", [style, ...declarations].filter(Boolean).join(";"));
-    }
-    return new view.XMLSerializer().serializeToString(parsed);
+    return movedMarkup(markup, this.playback.overlay, files, moves, this.playback.animate);
   }
 
   protected poseHeads(plays: { occurrence?: Occurrence }[], turned?: boolean): PoseHead[] {
@@ -3798,6 +3809,52 @@ function cutOffsets(artifact: MorphArtifact, morph: string): number[] {
     const next = sorted[i + 1];
     return next !== undefined && next > at ? [at, (at + next) / 2] : [at];
   });
+}
+
+export function movedMarkup(
+  markup: string,
+  host: Element,
+  natural: { width: number; height: number },
+  moves: (label: string) => { track: readonly MorphMotionFrame[]; offset: number }[],
+  animate: MorphMotionAnimator,
+): string | undefined {
+  const doc = host.ownerDocument;
+  const view = doc.defaultView as (Window & typeof globalThis) | null;
+  if (!view?.DOMParser || !view.XMLSerializer) return undefined;
+  const svg = doc.importNode(new view.DOMParser().parseFromString(markup, "image/svg+xml").documentElement, true);
+  const stage = doc.createElement("div");
+  stage.setAttribute("style", `position:absolute;left:0;top:0;width:${natural.width}px;height:${natural.height}px;overflow:hidden;visibility:hidden;pointer-events:none`);
+  stage.appendChild(svg);
+  host.appendChild(stage);
+  try {
+    for (const element of Array.from(svg.querySelectorAll("[data-morph-motion]"))) {
+      for (const { track, offset } of moves(element.getAttribute("data-morph-motion")!)) {
+        const effect = animate(element, morphMotionKeyframes(track) as Keyframe[]);
+        if (!effect?.commit) return undefined;
+        try {
+          effect.sample(offset);
+          effect.commit();
+        } finally {
+          effect.cancel();
+        }
+      }
+    }
+    return new view.XMLSerializer().serializeToString(svg);
+  } catch {
+    return undefined;
+  } finally {
+    stage.remove();
+  }
+}
+
+function motionOffset(track: readonly MorphMotionFrame[], offset: number): number {
+  if (offset < 1) return offset;
+  const keys = new Set(track.flatMap(({ values }) => Object.keys(values)));
+  const loops = [...keys].every((key) => {
+    const set = track.filter(({ values }) => (values as Record<string, string | undefined>)[key] !== undefined);
+    return (set[0]?.values as Record<string, string | undefined>)[key] === (set.at(-1)?.values as Record<string, string | undefined>)[key];
+  });
+  return loops ? 0 : offset;
 }
 
 function poseOffsets(plays: readonly MorphPlay[], heads: readonly PoseHead[]): Record<string, number> | undefined {
