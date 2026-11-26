@@ -12,3 +12,19 @@ export function outOfFlow(element: HTMLElement): () => void {
     }
   };
 }
+
+export function keptScroll(root: Element): () => void {
+  const scrolled = Array.from(root.querySelectorAll<HTMLElement>("*"))
+    .filter((el) => el.scrollTop !== 0 || el.scrollLeft !== 0)
+    .map((el) => ({ el, top: el.scrollTop, left: el.scrollLeft }));
+  return () => {
+    for (const { el, top, left } of scrolled) {
+      if (el.scrollTop !== top) {
+        el.scrollTop = top;
+      }
+      if (el.scrollLeft !== left) {
+        el.scrollLeft = left;
+      }
+    }
+  };
+}

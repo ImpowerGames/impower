@@ -66,7 +66,7 @@ import { Manager } from "../Manager";
 import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback, type MorphLayer } from "../morph/MorphPlayback";
 import { keyframeScale } from "../utils/keyframeScale";
-import { outOfFlow } from "../utils/outOfFlow";
+import { keptScroll, outOfFlow } from "../utils/outOfFlow";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
@@ -977,6 +977,11 @@ export default class UIManager extends Manager {
   protected applyBeatLayout(ops: IMessage[]): { restore: () => void; changed: HTMLElement[] } {
     const undo: (() => void)[] = [];
     const changed: HTMLElement[] = [];
+    const overlay = this.app.overlay;
+    const scroll =
+      overlay && ops.some((op) => DestroyElementMessage.type.isRequest(op as RequestMessage) || UpdateElementMessage.type.isRequest(op as RequestMessage))
+        ? keptScroll(overlay)
+        : undefined;
     const put = (el: HTMLElement, name: string, value: string | null) => {
       if (el.getAttribute(name) === value) {
         return;
@@ -1006,7 +1011,7 @@ export default class UIManager extends Manager {
       if (!el || !el.isConnected || (!style && !attributes)) {
         continue;
       }
-      const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked");
+      const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked" && name !== PRESENCE_ATTRIBUTE);
       const entry = { el, style: el.getAttribute("style"), attributes: names.map((name): [string, string | null] => [name, el.getAttribute(name)]) };
       undo.push(() => {
         put(el, "style", entry.style);
@@ -1028,6 +1033,7 @@ export default class UIManager extends Manager {
       for (const step of undo.reverse()) {
         step();
       }
+      scroll?.();
     };
     return { restore, changed };
   }

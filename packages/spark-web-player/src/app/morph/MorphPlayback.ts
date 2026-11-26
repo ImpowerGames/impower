@@ -3013,6 +3013,7 @@ export class MorphLayer {
       image.slot.dispose();
       image.loading = undefined;
       releaseFiles(image.files);
+      if (image.canvas) this.dropCanvasNext(image.canvas);
       image.view = undefined;
       image.canvas = undefined;
       for (const inner of image.inner) {

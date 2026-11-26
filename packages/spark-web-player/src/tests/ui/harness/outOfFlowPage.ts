@@ -1,4 +1,4 @@
-import { outOfFlow } from "../../../app/utils/outOfFlow";
+import { keptScroll, outOfFlow } from "../../../app/utils/outOfFlow";
 
 function detached(element: Element): () => void {
   const parent = element.parentNode!;
@@ -64,4 +64,26 @@ async function measure(kind: "out-of-flow" | "detached") {
   };
 }
 
-(window as unknown as { outOfFlowProbe: unknown }).outOfFlowProbe = { measure };
+const SIBLING = `
+<div id="pair" style="display:flex;width:400px">
+  <div id="wide" style="flex:none;width:300px;height:50px"></div>
+  <div id="panel" style="flex:1;height:50px;overflow:auto;font:16px/20px sans-serif">one two three four five six seven eight</div>
+</div>`;
+
+async function sibling(kept: boolean) {
+  document.body.innerHTML = SIBLING;
+  const wide = document.getElementById("wide") as HTMLElement;
+  const panel = document.getElementById("panel") as HTMLElement;
+  await frame();
+  panel.scrollTop = panel.scrollHeight;
+  const before = { scroll: panel.scrollTop, width: panel.offsetWidth };
+  const scroll = kept ? keptScroll(document.body) : undefined;
+  const take = outOfFlow(wide);
+  const during = { scroll: panel.scrollTop, width: panel.offsetWidth };
+  take();
+  scroll?.();
+  await frame();
+  return { before, during, after: { scroll: panel.scrollTop, width: panel.offsetWidth } };
+}
+
+(window as unknown as { outOfFlowProbe: unknown }).outOfFlowProbe = { measure, sibling };

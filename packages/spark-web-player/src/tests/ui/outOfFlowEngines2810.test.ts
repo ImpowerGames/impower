@@ -47,6 +47,15 @@ afterAll(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
+interface Sibling {
+  before: { scroll: number; width: number };
+  during: { scroll: number; width: number };
+  after: { scroll: number; width: number };
+}
+
+const sibling = (page: Page, kept: boolean) =>
+  page.evaluate((kept) => (window as unknown as { outOfFlowProbe: { sibling(kept: boolean): Promise<Sibling> } }).outOfFlowProbe.sibling(kept), kept);
+
 const measure = (page: Page, kind: "out-of-flow" | "detached") =>
   page.evaluate((kind) => (window as unknown as { outOfFlowProbe: { measure(kind: string): Promise<Measured> } }).outOfFlowProbe.measure(kind), kind);
 
@@ -87,6 +96,24 @@ describe.each(ENGINES)("in %s, an element a beat removes is taken out of flow, n
     expect(result.media).toEqual([]);
     expect(result.connected).toBe(true);
     expect(result.style).toBeNull();
+  });
+
+  test("a sibling scrolled to the end of its text, which the temporary layout widens, gets its scroll position back", async (context) => {
+    if (!browser) return context.skip();
+    const result = await sibling(page, true);
+    console.log(`${name}: sibling kept ${JSON.stringify(result)}`);
+    expect(result.before.scroll).toBeGreaterThan(0);
+    expect(result.during.width).toBe(400);
+    expect(result.during.scroll).toBe(0);
+    expect(result.after).toEqual(result.before);
+  });
+
+  test("without keeping scroll positions, that sibling is left at the start of its text", async (context) => {
+    if (!browser) return context.skip();
+    const result = await sibling(page, false);
+    console.log(`${name}: sibling not kept ${JSON.stringify(result)}`);
+    expect(result.after.width).toBe(result.before.width);
+    expect(result.after.scroll).toBe(0);
   });
 
   test("taking it out of the document instead disturbs it or its sibling", async (context) => {

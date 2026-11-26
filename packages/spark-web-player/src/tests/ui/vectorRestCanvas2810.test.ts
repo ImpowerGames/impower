@@ -709,6 +709,56 @@ describe("a vector picture in an element the beat reveals or creates (#2810)", (
 
 const KIT = ["base", "closed", "open"];
 
+async function showKit(t: Awaited<ReturnType<typeof setup>>, key: string) {
+  const recipe = serializeMorphRecipe(
+    buildMorphRecipe("m", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 1, mouth: { state: "open" } }] } as never),
+  );
+  const context = {
+    ...KIT_CONTEXT,
+    image: { ...KIT_CONTEXT.image, base: { $type: "image", $name: "base", src: "/src/base.svg", uri: "file:///base.svg" } },
+  };
+  t.playback.configure({
+    host: createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => ({ recipes: { m: recipe }, variants: {} }),
+      readSource: layeredMorphSource(() => context as never),
+    }),
+  });
+  const files = KIT.map((name) => (name === "base" ? { src: "/src/base.svg", name: "base.svg" } : { src: `/src/${name}.png`, name: `${name}.png` }));
+  t.beat([
+    {
+      target: "badge",
+      instant: false,
+      instructions: [
+        {
+          control: "show",
+          content: {
+            background: 'url("/src/closed.png"), url("/src/base.svg")',
+            imageNames: "kit",
+            srcs: files.map((file) => file.src),
+            morph: {
+              plays: [
+                {
+                  layer: 0,
+                  picture: { span: 2, files },
+                  ref: { morphs: ["m"], key, image: "kit", selection: "{}", groups: ["mouth"] },
+                  morph: "m",
+                  timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+                  definition: "d",
+                },
+              ],
+              epoch: 0,
+            },
+            pictures: [{ layer: 0, span: 2, name: "kit", vector: true, files: files.slice(0, 2) }],
+          },
+        },
+      ],
+    },
+  ]);
+  await until(() => t.events.includes("applied"), "the first beat");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+
 const KIT_CONTEXT = {
   image: Object.fromEntries(KIT.map((name) => [name, { $type: "image", $name: name, src: `/src/${name}.png`, uri: `file:///${name}.png` }])),
   layered_image: {
@@ -878,6 +928,27 @@ describe("a layered bitmap picture a morph plays on is drawn before its beat fir
     expect(t.shadowOf("badge")!.querySelector("[data-undrawn]")!.getAttribute("data-undrawn")).toBe("undrawn");
     expect(t.reports).toHaveBeenCalledTimes(1);
     expect(t.reports).toHaveBeenCalledWith({ image: "kit", file: "base.svg", reason: "undrawn", placeholder: true });
+  });
+
+  test("a shown layered picture's rasters prepared for a waiting beat are released when the layer is disposed", async () => {
+    const options = { holdRasters: false };
+    const t = await setup(options);
+    await showKit(t, "kit-disposed");
+    const asked = t.rasters.length;
+    options.holdRasters = true;
+    const badge = t.h.overlay.querySelector(".badge") as HTMLElement & { __sdId?: string };
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])], 124, [
+      { method: "ui/update", params: { element: badge.__sdId, attributes: { class: "badge wide" }, breakpoints: {} } },
+    ]);
+    await until(() => t.rasters.slice(asked).some((held) => held.src === "/src/base.svg"), "the wider SVG layer raster");
+    const prepared = t.rasters.slice(asked).find((held) => held.src === "/src/base.svg")!;
+    const made = raster(prepared.src, prepared.width, prepared.height);
+    prepared.resolve(made);
+    await flushMicrotasks(20);
+    expect(t.pending()).toBe(true);
+    expect(made.release).not.toHaveBeenCalled();
+    t.playback.releaseWithin(t.h.overlay);
+    expect(made.release).toHaveBeenCalledTimes(1);
   });
 
   test("a beat that widens a shown layered picture with an SVG layer, whose morph canvas is drawn, draws that canvas at the new size before it fires", async () => {
