@@ -13,6 +13,7 @@ import {
   random_synth_snap,
   random_synth_tap,
   random_synth_tweet,
+  random_synth_typewriter,
   random_synth_zap,
 } from "./constructors/random_synth";
 
@@ -33,5 +34,6 @@ export const audioRandomDefinitions = () => ({
     "$random:tap": random_synth_tap(),
     "$random:snap": random_synth_snap(),
     "$random:clack": random_synth_clack(),
+    "$random:typewriter": random_synth_typewriter(),
   } as Record<string, ReturnType<typeof random_synth>>,
 });

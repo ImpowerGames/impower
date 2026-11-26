@@ -4994,7 +4994,8 @@ define synth with
   shape = "triangle"
   phase = 0
   volume = 0.5
-  envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5 }
+  envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5, points = {} }
+  bandpass = { on = false, frequency = 1600, q = 1 }
   pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
   vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
   harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
@@ -5062,7 +5063,7 @@ define typewriter as synth with
   volume = 0.5
   envelope = { offset = 0, attack = 0.01, decay = 0.003, sustain = 0.04, release = 0.01, level = 0.15 }
   pitch = { frequency = 3465, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
-  highpass = { on = true, cutoff = 6600, cutoff_ramp = 0 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
   vibrato = { on = true, rate = 55, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
   arpeggio = { on = true, rate = 100, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0 }, levels = { 0.2, 1, 0.1, 0.05, 0.01, 1, 0 }, shapes = {}, phases = {} }
   harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
@@ -5074,7 +5075,7 @@ define typewriter as synth with
   bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
   delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
   reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
-  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+  lowpass = { on = true, cutoff = 6600, cutoff_ramp = 0, resonance = 0 }
 end
 
 define mixer with

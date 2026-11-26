@@ -1,0 +1,27 @@
+define story_key as synth with
+  shape = "whitenoise"
+  volume = 0.31
+  envelope = {
+    attack = 0.001,
+    decay = 0.016,
+    sustain = 0.027,
+    release = 0.029,
+    level = 0.68,
+    points = {
+      { time = 0, level = 1 },
+      { time = 0.011, level = 1 },
+      { time = 0.012, level = 0.36 },
+      { time = 0.023, level = 0.105 },
+      { time = 0.035, level = 0.035 },
+      { time = 0.045, level = 0.035 },
+      { time = 0.046, level = 0.91 },
+      { time = 0.055, level = 0.91 },
+      { time = 0.058, level = 0.17 },
+      { time = 0.069, level = 0 }
+    }
+  }
+  pitch = { frequency = 6250 }
+  bandpass = { on = true, frequency = 1600, q = 0.96 }
+  delay = { on = true, length = 0.000435, strength = 0.24, feedback = 0.65 }
+  lowpass = { on = true, cutoff = 7850, resonance = 0.04 }
+end

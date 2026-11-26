@@ -26,6 +26,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     sustain: [0.001, 0, 2],
     release: [0.001, 0, 1],
     level: [0.01, 0, 1],
+    points: [{ time: [0.000001, 0, 5], level: [0.01, 0, 1] }],
   },
   pitch: {
     frequency: [A[1], 0, A[9]],
@@ -109,7 +110,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     skip_ramp: [0.01, -1, 1],
   },
   delay: {
-    length: [0.001, 0, 0.5],
+    length: [0.000001, 0, 0.5],
     strength: [0.01, 0, 1],
     feedback: [0.01, 0, 1],
   },
@@ -122,6 +123,10 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     cutoff: [A[1], 0, A[9]],
     cutoff_ramp: [0.01, -1, 1],
     resonance: [0.01, 0, 1],
+  },
+  bandpass: {
+    frequency: [1, 0, 20000],
+    q: [0.01, 0.1, 30],
   },
   highpass: {
     cutoff: [A[2], 0, A[9]],

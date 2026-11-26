@@ -5,118 +5,12 @@
  * Released under the MIT license.
  */
 
-export type OscillatorType =
-  | "sine"
-  | "triangle"
-  | "sawtooth"
-  | "square"
-  | "tangent"
-  | "jitter"
-  | "brownnoise"
-  | "pinknoise"
-  | "whitenoise";
+import type { Synth as GameSynth } from "../types/Synth";
+import type { OscillatorType } from "../types/OscillatorType";
 
-export type Direction = "up" | "down" | "down-up" | "up-down";
-
-export interface Modulator {
-  on: boolean;
-  order?: number;
-  shape: OscillatorType;
-  rate: number;
-  rate_ramp: number;
-  strength: number;
-  strength_ramp: number;
-}
-
-export interface Synth {
-  shape: OscillatorType;
-  phase: number;
-  volume: number;
-  envelope: {
-    offset: number;
-    attack: number;
-    decay: number;
-    sustain: number;
-    release: number;
-    level: number;
-  };
-  pitch: {
-    frequency: number;
-    frequency_ramp: number;
-    frequency_torque: number;
-    frequency_jerk: number;
-  };
-  vibrato: Modulator;
-  harmonics: {
-    on: boolean;
-    count: number;
-    count_ramp: number;
-    falloff: number;
-    falloff_ramp: number;
-  };
-  fm: {
-    on: boolean;
-    ratio: number;
-    ratio_ramp: number;
-    strength: number;
-    strength_ramp: number;
-  };
-  arpeggio: {
-    on: boolean;
-    rate: number;
-    rate_ramp: number;
-    max_octaves: number;
-    max_notes: number;
-    glide: number;
-    direction: Direction;
-    tones: number[];
-    levels: number[];
-    shapes: OscillatorType[];
-    phases: number[];
-  };
-  tremolo: Modulator;
-  ring: Modulator;
-  wahwah: Modulator;
-  distortion: {
-    on: boolean;
-    grit: number;
-    grit_ramp: number;
-    edge: number;
-    edge_ramp: number;
-  };
-  bitcrush: {
-    on: boolean;
-    order?: number;
-    crush: number;
-    crush_ramp: number;
-    skip: number;
-    skip_ramp: number;
-  };
-  delay: {
-    on: boolean;
-    order?: number;
-    length: number;
-    strength: number;
-    feedback: number;
-  };
-  reverb: {
-    on: boolean;
-    room_size: number;
-    mix: number;
-    damping: number;
-  };
-  lowpass: {
-    on: boolean;
-    cutoff: number;
-    cutoff_ramp: number;
-    resonance: number;
-  };
-  highpass: {
-    on: boolean;
-    cutoff: number;
-    cutoff_ramp: number;
-  };
-}
+export type { Direction, Modulator } from "../types/Synth";
+export type { OscillatorType } from "../types/OscillatorType";
+export type Synth = Omit<GameSynth, "$type" | "$name">;
 
 export class OscillatorState {
   angle?: number;
@@ -547,7 +441,7 @@ class PassFilterState {
   input: [number, number] = [0, 0];
   output: [number, number, number] = [0, 0, 0];
 
-  constructor() {}
+  constructor(private readonly highpass = false) {}
 
   reset(): void {
     this.input[0] = 0;
@@ -563,17 +457,21 @@ class PassFilterState {
     cutoff: number,
     resonance: number,
   ): number {
-    if (cutoff <= 0) {
-      cutoff = Number.EPSILON;
+    if (cutoff <= sampleRate * Number.EPSILON) {
+      return this.highpass ? value : 0;
+    }
+    if (cutoff >= sampleRate / 2) {
+      return this.highpass ? 0 : value;
     }
     const min = Math.sqrt(2);
     const r = lerp(resonance, min, min * 2, true);
     const c = 1 / Math.tan((Math.PI * cutoff) / sampleRate);
-    const a1 = 1 / (1 + r * c + c * c);
-    const a2 = 2 * a1;
+    const norm = 1 / (1 + r * c + c * c);
+    const a1 = this.highpass ? c * c * norm : norm;
+    const a2 = this.highpass ? -2 * a1 : 2 * a1;
     const a3 = a1;
-    const b1 = 2 * (1 - c * c) * a1;
-    const b2 = (1 - r * c + c * c) * a1;
+    const b1 = 2 * (1 - c * c) * norm;
+    const b2 = (1 - r * c + c * c) * norm;
     const newOutput =
       a1 * value +
       a2 * this.input[0] +
@@ -596,6 +494,9 @@ class BandpassFilterState {
   y0 = 0;
   y1 = 0;
   y2 = 0;
+  private d0 = 0;
+  private d1 = 0;
+  private d2 = 0;
 
   reset(): void {
     this.x0 = 0;
@@ -604,6 +505,18 @@ class BandpassFilterState {
     this.y0 = 0;
     this.y1 = 0;
     this.y2 = 0;
+  }
+
+  tune(sampleRate: number, frequency: number, q: number): void {
+    const omega = PI2 * clamp(frequency / sampleRate, 0, 0.5);
+    const alpha = Math.sin(omega) / (2 * clamp(q, 0.1, 30));
+    this.setPoles(1 / (1 + alpha), Math.cos(omega));
+  }
+
+  private setPoles(e: number, cosine: number): void {
+    this.d0 = 1 - e;
+    this.d1 = 2 * e * cosine;
+    this.d2 = 2 * e - 1;
   }
 
   process(
@@ -618,16 +531,21 @@ class BandpassFilterState {
     const damp = strength / Math.sqrt(1.0 - strength * strength);
     const wo = (frequency * 2 * Math.PI) / sampleRate;
     const e = 1.0 / (1.0 + damp * Math.tan(wo / (bandwidth * 2.0)));
-    const p = Math.cos(wo);
-    const d0 = 1.0 - e;
-    const d1 = 2.0 * e * p;
-    const d2 = 2.0 * e - 1.0;
+    this.setPoles(e, Math.cos(wo));
+    return this.apply(input);
+  }
+
+  apply(input: number): number {
     this.x0 = this.x1;
     this.x1 = this.x2;
     this.x2 = input;
     this.y0 = this.y1;
     this.y1 = this.y2;
-    this.y2 = d0 * this.x2 - d0 * this.x0 + d1 * this.y1 - d2 * this.y0;
+    this.y2 =
+      this.d0 * this.x2 -
+      this.d0 * this.x0 +
+      this.d1 * this.y1 -
+      this.d2 * this.y0;
     return this.y2;
   }
 }
@@ -736,6 +654,7 @@ export class SynthesisState {
   ringState: ModulatorState;
   wahwahState: ModulatorState;
   wahwahBandpassState: BandpassFilterState;
+  bandpassState = new BandpassFilterState();
   reverbState: ReverbState;
   lowpassState: PassFilterState;
   highpassState: PassFilterState;
@@ -759,7 +678,7 @@ export class SynthesisState {
     this.wahwahState = new ModulatorState(rng, oscillators);
     this.wahwahBandpassState = new BandpassFilterState();
     this.lowpassState = new PassFilterState();
-    this.highpassState = new PassFilterState();
+    this.highpassState = new PassFilterState(true);
     this.delayState = new DelayState(sampleRate);
     this.reverbState = new ReverbState(sampleRate);
     this.fmState = new FMState();
@@ -774,6 +693,7 @@ export class SynthesisState {
     this.ringState.reset();
     this.wahwahState.reset();
     this.wahwahBandpassState.reset();
+    this.bandpassState.reset();
     this.lowpassState.reset();
     this.highpassState.reset();
     this.delayState.reset(sampleRate);
@@ -1071,6 +991,7 @@ export const fillSoundBuffer = (
   pitchRange?: [number, number],
   gain?: number | Float32Array,
   frequency?: number | Float32Array,
+  speed = 1,
 ): void => {
   const synth_shape = synth.shape;
   const synth_phase = synth.phase;
@@ -1092,6 +1013,22 @@ export const fillSoundBuffer = (
   const env_sustain_duration = synth.envelope.sustain;
   const env_release_duration = synth.envelope.release;
   const env_sustain_level = synth.envelope.level;
+  const authoredPoints = synth.envelope.points;
+  const points =
+    Array.isArray(authoredPoints) && authoredPoints.length
+      ? authoredPoints
+          .filter((p) => Number.isFinite(p?.time) && Number.isFinite(p?.level))
+          .map((p) => ({
+            sample: (Math.max(0, p.time) * sampleRate) / speed,
+            level: clamp(p.level, 0, 1),
+          }))
+          .sort((a, b) => a.sample - b.sample)
+      : undefined;
+  let pointIndex = 0;
+  const bandpass = synth.bandpass;
+  if (bandpass?.on) {
+    currentState.bandpassState.tune(sampleRate, bandpass.frequency, bandpass.q);
+  }
   const lowpass_on = synth.lowpass.on;
   const lowpass_cutoff = synth.lowpass.cutoff;
   const lowpass_resonance = synth.lowpass.resonance;
@@ -1499,7 +1436,7 @@ export const fillSoundBuffer = (
       volumeBuffer[i]! *= arpAmplitudeFactor;
     }
 
-    const envelopeVolume = getEnvelopeVolume(
+    let envelopeVolume = getEnvelopeVolume(
       i,
       startIndex,
       endIndex,
@@ -1514,6 +1451,25 @@ export const fillSoundBuffer = (
       limitSound,
     );
 
+    if (points?.length) {
+      while (
+        pointIndex + 1 < points.length &&
+        points[pointIndex + 1]!.sample <= localIndex
+      ) {
+        pointIndex++;
+      }
+      const point = points[pointIndex]!;
+      const next = points[pointIndex + 1];
+      envelopeVolume *=
+        next && localIndex > point.sample
+          ? lerp(
+              (localIndex - point.sample) / (next.sample - point.sample),
+              point.level,
+              next.level,
+              false,
+            )
+          : point.level;
+    }
     sampleValue *= Math.max(0, envelopeVolume);
     if (volumeBuffer) {
       volumeBuffer[i] = envelopeVolume;
@@ -1591,6 +1547,10 @@ export const fillSoundBuffer = (
           delay_feedback,
         );
       }
+    }
+
+    if (bandpass?.on) {
+      sampleValue = currentState.bandpassState.apply(sampleValue);
     }
 
     const activeCutoff = lowpassCutoff;
@@ -1711,6 +1671,7 @@ export const synthesizeSound = (
   gain?: number | Float32Array,
   frequency?: number | Float32Array,
   currentState?: SynthesisState,
+  speed = 1,
 ): void => {
   let state: SynthesisState;
   if (currentState) {
@@ -1738,6 +1699,7 @@ export const synthesizeSound = (
     pitchRange,
     gain,
     frequency,
+    speed,
   );
 
   const reverb_on = synth.reverb.on;
