@@ -27,6 +27,7 @@ import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { PresenceElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
+import { LayoutMotionMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/LayoutMotionMessage";
 import {
   type PlayCutsceneParams,
   PlayCutsceneMessage,
@@ -128,6 +129,8 @@ interface ImageEffect {
 }
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+const HELD_REVEAL_MS = 3_600_000;
 
 const UNENDED_SPEECH = 1e9;
 
@@ -545,7 +548,8 @@ export default class UIManager extends Manager {
       for (const op of pending.ops) {
         if (
           AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
-          PresenceElementsMessage.type.isRequest(op as RequestMessage)
+          PresenceElementsMessage.type.isRequest(op as RequestMessage) ||
+          LayoutMotionMessage.type.isRequest(op as RequestMessage)
         ) {
           this.app.answer(
             op as RequestMessage,
@@ -770,7 +774,11 @@ export default class UIManager extends Manager {
       }
       const decision = plan.get(op);
       const write = msg.params;
-      if (write.instructions.length === 0 || (decision !== "write" && decision !== "rebuild")) {
+      if (
+        write.held ||
+        write.instructions.length === 0 ||
+        (decision !== "write" && decision !== "rebuild")
+      ) {
         continue;
       }
       for (const instruction of write.instructions.slice(write.shown ?? 0)) {
@@ -838,7 +846,8 @@ export default class UIManager extends Manager {
       }
       if (
         AnimateElementsMessage.type.isRequest(request) ||
-        PresenceElementsMessage.type.isRequest(request)
+        PresenceElementsMessage.type.isRequest(request) ||
+        LayoutMotionMessage.type.isRequest(request)
       ) {
         this.app.answer(request, done);
       } else {
@@ -1496,6 +1505,7 @@ export default class UIManager extends Manager {
         params.shown,
         params.elements,
         decision,
+        params.held,
       );
       return WriteTextMessage.type.result(params.target);
     }
@@ -1521,7 +1531,9 @@ export default class UIManager extends Manager {
           const element = this.getElement(effect.element);
           const animations = effect.animations;
           if (element) {
-            played.push(...player.add({ element, animations }));
+            const added = player.add({ element, animations });
+            this._presence.follow(element, added);
+            played.push(...added);
             validEffects.push(i);
           }
         }
@@ -1531,6 +1543,24 @@ export default class UIManager extends Manager {
         this.dropSettledAnimation(animation);
       }
       return AnimateElementsMessage.type.result(validEffects);
+    }
+    if (LayoutMotionMessage.type.isRequest(msg)) {
+      if (msg.params.settle) {
+        this._layoutMotion.settle();
+        return LayoutMotionMessage.type.result([]);
+      }
+      await Promise.resolve();
+      const overlay = this.app.overlay;
+      const moving = overlay ? this._layoutMotion.moving(overlay) : [];
+      if (overlay && moving.length > 0) {
+        await this._layoutMotion.finished(overlay);
+      }
+      return LayoutMotionMessage.type.result(
+        moving.flatMap((el) => {
+          const id = (el as any).__sdId;
+          return typeof id === "string" ? [id] : [];
+        }),
+      );
     }
     if (PresenceElementsMessage.type.isRequest(msg)) {
       const played: string[] = [];
@@ -1914,6 +1944,7 @@ export default class UIManager extends Manager {
     shown = 0,
     elements?: string[],
     decision?: WriteDecision,
+    held = false,
   ) {
     const targetEls = this.writeTargets(target, elements);
     const stale = this._passBegun
@@ -1950,6 +1981,8 @@ export default class UIManager extends Manager {
           this.revealAtOnce(el);
           (el as any).__sdTxtAtOnce = true;
         }
+      } else if (!held) {
+        this.startHeldReveal(targetEls, startTime);
       }
       return;
     }
@@ -1990,7 +2023,7 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdWait?.cancel();
         delete (targetEl as any).__sdWait;
       }
-      if (!instant && !atOnce && instructions.length > 0 && empty) {
+      if (!instant && !atOnce && !held && instructions.length > 0 && empty) {
         waiting.push(targetEl);
       }
       if (instructions.length > 0) {
@@ -2041,9 +2074,29 @@ export default class UIManager extends Manager {
           animations: [getHiddenUntilAnimation(wait)],
         })[0];
       }
-      await player.play(startTime, settle);
+      for (const el of targetEls) {
+        if (held) {
+          (el as any).__sdHeldReveal = player;
+        } else {
+          delete (el as any).__sdHeldReveal;
+        }
+      }
+      await player.play(
+        held ? this.documentNow() + HELD_REVEAL_MS : startTime,
+        settle,
+      );
     }
     await showing;
+  }
+
+  protected startHeldReveal(targetEls: HTMLElement[], startTime?: number) {
+    for (const el of targetEls) {
+      const reveal: AnimationPlayer | undefined = (el as any).__sdHeldReveal;
+      if (reveal) {
+        delete (el as any).__sdHeldReveal;
+        reveal.retime(startTime ?? this.documentNow());
+      }
+    }
   }
 
   protected settleReveal(reveal: ReturnType<AnimationPlayer["add"]>[number]) {
@@ -2124,6 +2177,7 @@ export default class UIManager extends Manager {
   protected revealAtOnce(targetEl: HTMLElement) {
     (targetEl as any).__sdWait?.cancel();
     delete (targetEl as any).__sdWait;
+    delete (targetEl as any).__sdHeldReveal;
     for (const contentEl of [
       ...this.getContentElements(targetEl, "text"),
       ...this.getContentElements(targetEl, "stroke"),

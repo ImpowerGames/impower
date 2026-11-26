@@ -75,8 +75,8 @@ describe("the look an image write shows", () => {
     expect(drawn(content.background)).toContain("mouth.open default");
     expect(drawn(content.background)).not.toContain("data-name='mouth.closed'");
     expect(content.morph.still).toBeDefined();
-    expect(drawn(content.morph.still)).toContain("data-name='mouth.closed'");
-    expect(drawn(content.morph.still)).not.toContain("mouth.open default");
+    expect(drawn(content.morph.still[0].image)).toContain("data-name='mouth.closed'");
+    expect(drawn(content.morph.still[0].image)).not.toContain("mouth.open default");
   });
 
   test("a morph that never plays writes no still: it shows its rest", async () => {

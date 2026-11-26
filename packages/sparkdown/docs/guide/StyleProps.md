@@ -179,6 +179,10 @@ style badge {
 }
 ```
 
+A line waits for the motion it causes. The elements that leave because of the line play their `@hide` and are removed, then the elements whose place or size the line changes move there where their style names a `layout` transition, then the elements that arrive because of it play their arrival, and only then does the line's own timeline start: its typing, and the pictures, sounds and animations written on it. A line that makes nothing appear or leave and changes the shape of no box with a `layout` transition starts at once.
+
+Text that takes no time to type, such as a line at `<speed=0>` or under a typewriter with `letter_pause = 0`, is there from the moment its element appears; only typed text waits. One click during the wait or the typing finishes the motion and shows the whole line.
+
 Pausing the game holds a motion where it is. The editor preview on a line, a step back and a loaded save show the settled look with no motion, and so does a click that shows a whole line at once. Under the reader's reduced-motion setting, moves and size changes happen at once and fades still play.
 
 ---
