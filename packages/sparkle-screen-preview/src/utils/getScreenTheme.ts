@@ -16,11 +16,12 @@ export const getScreenTheme = (
   state: Record<string, any>,
   sharedCSS: Record<string, string>,
   breakpoints?: Record<string, number> | null,
+  eases?: Record<string, string> | null,
 ): ThemeVariables => {
   const shared = getThemeVariables(...Object.values(sharedCSS));
   const css = renderCssVDOM(
     parsed.filter((node) => node.type === "theme" || node.type === "animation"),
-    createScreenRenderContext(components, state, shared, breakpoints),
+    createScreenRenderContext(components, state, shared, breakpoints, eases),
   );
   return new Set([...shared, ...getThemeVariables(getText(css))]);
 };

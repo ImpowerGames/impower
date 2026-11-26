@@ -11,6 +11,7 @@ import { VElement, VNode } from "./vnode";
 export interface RendererOptions {
   breakpoints: Record<string, number>;
   theme: ThemeVariables;
+  eases?: Record<string, string>;
   attrAliases?: Record<string, string>;
   cssAliases?: Record<string, string>;
   interpolate?: (template: string, context: Record<string, any>) => string;
@@ -344,7 +345,10 @@ export function renderVNode(
           timing.fill = value;
         }
       }
-      const animationDeclaration = `${escapeCssIdentifier(getThemeVariableName("animation", name))}: ${getAnimationShorthand(name ?? "", timing)};`;
+      const animationDeclaration = `${escapeCssIdentifier(getThemeVariableName("animation", name))}: ${getAnimationShorthand(name ?? "", timing, (easing) => {
+        const eases = ctx.options.eases;
+        return !easing.startsWith("$") && eases && Object.hasOwn(eases, easing) ? eases[easing] : undefined;
+      })};`;
       return `:is(:root,:host) { ${animationDeclaration} }`;
     }
 

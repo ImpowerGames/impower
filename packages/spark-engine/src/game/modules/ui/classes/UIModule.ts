@@ -116,7 +116,7 @@ import {
   tokenOf,
   TokenType,
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
-import { getAnimationShorthand } from "../../../../../../sparkle-style-transformer/src/utils/animationShorthand";
+import { getAnimationShorthand, getTimingFunction } from "../../../../../../sparkle-style-transformer/src/utils/animationShorthand";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
@@ -2174,12 +2174,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getTimingFunction(ease: Ease) {
-    return `${ease.function}(${ease.parameters.join(",")})`;
+    return getTimingFunction(ease);
   }
 
   getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
     return getAnimationShorthand(name, timing, (easing) => {
-      const ease = easing.startsWith("$") ? undefined : this.context?.ease?.[easing];
+      const eases = this.context?.ease;
+      const ease = !easing.startsWith("$") && eases && Object.hasOwn(eases, easing) ? eases[easing] : undefined;
       return ease && this.getTimingFunction(ease);
     });
   }

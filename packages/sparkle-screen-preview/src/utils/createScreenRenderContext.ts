@@ -10,8 +10,13 @@ export const createScreenRenderContext = (
   state: Record<string, any>,
   theme: ThemeVariables,
   breakpoints?: Record<string, number> | null,
+  eases?: Record<string, string> | null,
 ): RenderContext => ({
   components,
   state,
-  options: { breakpoints: breakpoints ?? builtinBreakpoints, theme },
+  options: {
+    breakpoints: breakpoints ?? builtinBreakpoints,
+    theme,
+    ...(eases ? { eases } : {}),
+  },
 });

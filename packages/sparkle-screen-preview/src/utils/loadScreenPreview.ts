@@ -10,12 +10,14 @@ import { getScreenTheme } from "./getScreenTheme";
 export interface ScreenPreviewLoadParams {
   text: string;
   breakpoints?: Record<string, number> | null;
+  eases?: Record<string, string> | null;
   sharedCSS?: Record<string, string>;
 }
 
 export const loadScreenPreview = ({
   text,
   breakpoints,
+  eases,
   sharedCSS,
 }: ScreenPreviewLoadParams) => {
   const parsed = parseSparkle(text);
@@ -29,12 +31,14 @@ export const loadScreenPreview = ({
         state,
         sharedCSS ?? {},
         breakpoints,
+        eases,
       );
       const ctx = createScreenRenderContext(
         components,
         state,
         theme,
         breakpoints,
+        eases,
       );
       return {
         css: renderCssVDOM(parsed, ctx),

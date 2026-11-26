@@ -460,21 +460,32 @@ async function postLoad(
   },
 ) {
   const sequence = ++loadSequence;
-  const breakpoints = await SparkProgramManager.instance
-    .uiBreakpoints(uri)
-    .catch((error: unknown) => {
-      console.error(
-        `Screen Preview: sparkdown/uiBreakpoints failed for ${uri.toString()}; using the builtin breakpoints`,
-        error,
-      );
-      return undefined;
-    });
+  const [breakpoints, eases] = await Promise.all([
+    SparkProgramManager.instance
+      .uiBreakpoints(uri)
+      .catch((error: unknown) => {
+        console.error(
+          `Screen Preview: sparkdown/uiBreakpoints failed for ${uri.toString()}; using the builtin breakpoints`,
+          error,
+        );
+        return undefined;
+      }),
+    SparkProgramManager.instance
+      .uiEases(uri)
+      .catch((error: unknown) => {
+        console.error(
+          `Screen Preview: sparkdown/uiEases failed for ${uri.toString()}; writing easings as named`,
+          error,
+        );
+        return undefined;
+      }),
+  ]);
   if (sequence !== loadSequence) {
     return;
   }
   panel.webview.postMessage({
     method: "load",
-    params: { ...params, breakpoints },
+    params: { ...params, breakpoints, eases },
   });
 }
 

@@ -187,6 +187,18 @@ export class SparkProgramManager {
     return breakpoints ?? undefined;
   }
 
+  async uiEases(
+    uri: vscode.Uri,
+  ): Promise<Record<string, string> | undefined> {
+    const client = await this.languageClientReady;
+    const eases = await client.sendRequest<Record<string, string> | null>(
+      "sparkdown/uiEases",
+      { uri: uri.toString() },
+      CancellationToken.None,
+    );
+    return eases ?? undefined;
+  }
+
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
     const params: CompileProgramParams = {

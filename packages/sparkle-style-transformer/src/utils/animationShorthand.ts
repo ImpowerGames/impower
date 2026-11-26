@@ -18,6 +18,14 @@ export const DEFAULT_ANIMATION_TIMING = {
   direction: "normal",
 } as const;
 
+export interface TimingFunction {
+  function: string;
+  parameters: (string | number)[];
+}
+
+export const getTimingFunction = (ease: TimingFunction): string =>
+  `${ease.function}(${ease.parameters.join(",")})`;
+
 const time = (value: number | string | undefined): string =>
   typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
     ? `${value}s`

@@ -4,6 +4,9 @@ const state = vi.hoisted(() => ({
   uiBreakpoints: (() => Promise.resolve(undefined)) as (
     uri: unknown,
   ) => Promise<Record<string, number> | undefined>,
+  uiEases: (() => Promise.resolve(undefined)) as (
+    uri: unknown,
+  ) => Promise<Record<string, string> | undefined>,
   requested: [] as string[],
 }));
 
@@ -25,6 +28,7 @@ vi.mock("../src/managers/SparkProgramManager", () => ({
         state.requested.push(uri.toString());
         return state.uiBreakpoints(uri);
       },
+      uiEases: (uri: unknown) => state.uiEases(uri),
     },
   },
 }));
@@ -95,10 +99,35 @@ const restore = async () => {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-describe("the screen preview's load message carries the project's breakpoints", () => {
+describe("the screen preview's load message carries the project's breakpoints and eases", () => {
   beforeEach(() => {
     state.requested.length = 0;
     state.uiBreakpoints = () => Promise.resolve(undefined);
+    state.uiEases = () => Promise.resolve(undefined);
+  });
+
+  it("sends the eases the language server resolves for the document", async () => {
+    state.uiEases = () => Promise.resolve({ out_back: "cubic-bezier(0.34,1.56,0.64,1)" });
+    const preview = await restore();
+    await preview.send({ method: "initialized" });
+    await settle();
+    expect(preview.loads()).toHaveLength(1);
+    expect(preview.loads()[0].params.eases).toEqual({ out_back: "cubic-bezier(0.34,1.56,0.64,1)" });
+  });
+
+  it("still loads with the breakpoints when the eases request fails", async () => {
+    const failure = new Error("no eases");
+    state.uiBreakpoints = () => Promise.resolve({ sm: 400 });
+    state.uiEases = () => Promise.reject(failure);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const preview = await restore();
+    await preview.send({ method: "initialized" });
+    await settle();
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining(URI), failure);
+    logged.mockRestore();
+    expect(preview.loads()).toHaveLength(1);
+    expect(preview.loads()[0].params.eases).toBeUndefined();
+    expect(preview.loads()[0].params.breakpoints).toEqual({ sm: 400 });
   });
 
   it("sends the table the language server resolves for the document", async () => {

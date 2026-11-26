@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { getComponents, parseSparkle, renderCssVDOM, type VNode } from "../../../../sparkle-screen-renderer/src";
+import { compileUI } from "../../../../spark-engine/src/tests/ui/harness/uiTestHarness";
+import { getUiEases } from "../../../../sparkdown-language-server/src/utils/providers/getUiEases";
 import { createScreenRenderContext } from "../../../../sparkle-screen-preview/src/utils/createScreenRenderContext";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
@@ -8,9 +10,10 @@ const variable = (out: string, name: string): string | undefined =>
 
 const text = (node: VNode): string => (typeof node === "string" ? node : node.children.map(text).join("\n"));
 
-const screen = (src: string, name: string) => {
+const screen = (src: string, name: string, project: string) => {
   const parsed = parseSparkle(src);
-  return variable(text(renderCssVDOM(parsed, createScreenRenderContext(getComponents(parsed), {}, new Set()))), name);
+  const eases = getUiEases(compileUI(project).program);
+  return variable(text(renderCssVDOM(parsed, createScreenRenderContext(getComponents(parsed), {}, new Set(), null, eases))), name);
 };
 
 const player = async (src: string, name: string) => {
@@ -45,14 +48,26 @@ const CASES: { name: string; screen: string; player: string; expected: string }[
     player: `animation fade {\n  keyframes {\n    to { opacity = "1" }\n  }\n}\n`,
     expected: "0s ease 0s 1 normal both running fade",
   },
+  {
+    name: "rise",
+    screen: "animation rise\n  timing\n    duration = 0.6\n    easing = out_back\n",
+    player: `animation rise {\n  keyframes {\n    to { opacity = "1" }\n  }\n  timing {\n    duration = 0.6\n    easing = out_back\n  }\n}\n`,
+    expected: "0.6s cubic-bezier(0.34,1.56,0.64,1) 0s 1 normal both running rise",
+  },
+  {
+    name: "snap",
+    screen: "animation snap\n  timing\n    duration = 0.6\n    easing = snappy\n",
+    player: `define snappy as ease with\n  ["function"] = "cubic-bezier"\n  parameters = { 0.5, 0, 0.5, 1 }\nend\nanimation snap {\n  keyframes {\n    to { opacity = "1" }\n  }\n  timing {\n    duration = 0.6\n    easing = snappy\n  }\n}\n`,
+    expected: "0.6s cubic-bezier(0.5,0,0.5,1) 0s 1 normal both running snap",
+  },
 ];
 
 describe("the screen preview writes an animation's timing as the player's shorthand (#2822)", () => {
-  test.each(CASES)("writes $name as a full shorthand with its name last", ({ name, screen: src, expected }) => {
-    expect(screen(src, name)).toBe(expected);
+  test.each(CASES)("writes $name as a full shorthand with its name last", ({ name, screen: src, player: project, expected }) => {
+    expect(screen(src, name, project)).toBe(expected);
   });
 
   test.each(CASES)("writes $name as the player does", async ({ name, screen: src, player: playerSrc }) => {
-    expect(screen(src, name)).toBe(await player(playerSrc, name));
+    expect(screen(src, name, playerSrc)).toBe(await player(playerSrc, name));
   });
 });
