@@ -85,7 +85,7 @@ describe("every text write and clear names its reason (I-2732)", () => {
       const clearedBefore = ui.state.textCleared?.[notePath];
       const earlier = () => ui.state.textWritten.other;
       const [markedTag, unmarkedTag] = ui.textElements("tag").map((el: any) => el.id);
-      expect(ui.elementPath(ui.textElements("tag")[0])).toBe("layout:textbox/0/2");
+      expect(ui.elementPath(ui.textElements("tag")[0])).toMatch(/^layout:textbox@[0-9a-f]{8}\/0\/2$/);
       const reached = {
         marked: [markedTag],
         unmarked: [unmarkedTag],

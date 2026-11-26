@@ -252,6 +252,35 @@ function isImageFile(layer: ImageLayer): boolean {
   return layer.struct?.$type === "image" && !isVectorFile(layer);
 }
 
+function marksClear(node: ElementNode): boolean {
+  const clear = node.props["clear"];
+  return clear?.kind === "literal" && clear.value === true;
+}
+
+function nodeShape(node: BodyNode): unknown {
+  const shapes = (nodes: readonly BodyNode[] | undefined) => (nodes ?? []).map(nodeShape);
+  switch (node.kind) {
+    case "element":
+      return isStream(node)
+        ? [node.kind, node.tag, node.classes]
+        : [node.kind, node.tag, node.classes, marksClear(node), shapes(node.children)];
+    case "if":
+      return [node.kind, node.branches.map((b) => shapes(b.children)), shapes(node.else)];
+    case "match":
+      return [node.kind, node.cases.map((c) => shapes(c.children)), shapes(node.else)];
+    case "for":
+      return [node.kind, shapes(node.children), shapes(node.else)];
+    case "fill":
+      return [node.kind, node.name ?? null, shapes(node.children)];
+    default:
+      return [node.kind, node.name ?? null];
+  }
+}
+
+function bodyShape(nodes: readonly BodyNode[] | undefined): string {
+  return JSON.stringify((nodes ?? []).map(nodeShape));
+}
+
 function sameValue(a: unknown, b: unknown): boolean {
   if (a === b) {
     return true;
@@ -793,10 +822,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override onProgramUpdate(): void {
-    this._clearOnContinue = new Set();
-    this._contentSlots = new Set();
-    this._clearPaths = new Map();
-    this._unmarkedKeys = new Set();
     this.initLayouts();
   }
 
@@ -3700,10 +3725,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 name,
               }),
             );
-            this._elementPaths.set(
-              stack.at(-1)!,
-              `layout:${structName}/${path.slice(0, i + 1).join("/")}`,
-            );
             const parent = stack.at(-1)!;
             const isLast = i === path.length - 1;
             if (isLast) {
@@ -5464,34 +5485,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   initLayouts(): void {
     const skipped = skippedInitialLayouts(this._game, this);
+    this._contentSlots = new Set();
     for (const structName of Object.keys(this.context?.layout || {})) {
       if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
         const layout = this.context.layout?.[structName];
         if (layout) {
-          this.initLayout(layout, `layout:${structName}`);
+          this.initLayout(layout);
         }
       }
     }
     const screens = (this.context as Record<string, any>)?.["screen"] ?? {};
     for (const [name, screen] of Object.entries(screens)) {
       if (name && !name.startsWith("$") && screen) {
-        this.initLayout(screen as Record<string, any>, `screen:${name}`);
+        this.initLayout(screen as Record<string, any>);
       }
     }
+    this._clearOnContinue = new Set();
+    this._clearPaths = new Map();
+    this._unmarkedKeys = new Set();
     const sparkle = this._game.program?.sparkle;
-    if (sparkle?.layouts) {
-      this._clearOnContinue = new Set();
-      this._clearPaths = new Map();
-      this._unmarkedKeys = new Set();
-      for (const [name, layout] of Object.entries(sparkle.layouts)) {
-        if (layout && !skipped.includes(name)) {
-          this.collectMarks(layout.children, `layout:${name}`);
-        }
+    const root = (kind: string, name: string, nodes: readonly BodyNode[] | undefined) =>
+      `${kind}:${name}@${hashText(bodyShape(nodes)).slice(0, 8)}`;
+    for (const [name, layout] of Object.entries(sparkle?.layouts ?? {})) {
+      if (layout && !skipped.includes(name)) {
+        this.collectMarks(layout.children, root("layout", name, layout.children));
       }
-      for (const [name, screen] of Object.entries(sparkle.screens ?? {})) {
-        if (screen) {
-          this.collectMarks(screen.children, `screen:${name}`);
-        }
+    }
+    for (const [name, screen] of Object.entries(sparkle?.screens ?? {})) {
+      if (screen) {
+        this.collectMarks(screen.children, root("screen", name, screen.children));
       }
     }
   }
@@ -5506,8 +5528,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           this._nodePaths.set(node, here);
           const name = [node.tag, ...node.classes].join(" ");
-          const clear = node.props["clear"];
-          if (clear?.kind === "literal" && clear.value === true) {
+          if (marksClear(node)) {
             this._clearOnContinue.add(name);
             this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), here]);
           } else {
@@ -5535,17 +5556,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  initLayout(layout: Record<string, unknown>, path: string): void {
+  initLayout(layout: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(layout)) {
       if (key.startsWith("$") || !isStruct(value) || key.split(" ")[0] === "stream") {
         continue;
-      }
-      const here = `${path}/${key}`;
-      if (value["$clear"] === true) {
-        this._clearOnContinue.add(key);
-        this._clearPaths.set(key, [...(this._clearPaths.get(key) ?? []), here]);
-      } else {
-        this._unmarkedKeys.add(key);
       }
       if (
         Object.entries(value).some(
@@ -5558,7 +5572,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ) {
         this._contentSlots.add(key);
       }
-      this.initLayout(value, here);
+      this.initLayout(value);
     }
   }
 
