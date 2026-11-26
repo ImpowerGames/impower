@@ -66,6 +66,7 @@ import { Manager } from "../Manager";
 import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback, type MorphLayer } from "../morph/MorphPlayback";
 import { keyframeScale } from "../utils/keyframeScale";
+import { outOfFlow } from "../utils/outOfFlow";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
@@ -974,8 +975,7 @@ export default class UIManager extends Manager {
   }
 
   protected applyBeatLayout(ops: IMessage[]): { restore: () => void; changed: HTMLElement[] } {
-    const saved: { el: HTMLElement; style: string | null; attributes: [string, string | null][] }[] = [];
-    const removed: { el: Element; parent: Node; next: Node | null }[] = [];
+    const undo: (() => void)[] = [];
     const changed: HTMLElement[] = [];
     const put = (el: HTMLElement, name: string, value: string | null) => {
       if (el.getAttribute(name) === value) {
@@ -991,13 +991,10 @@ export default class UIManager extends Manager {
       const msg = op as RequestMessage;
       if (DestroyElementMessage.type.isRequest(msg)) {
         const el = this.getElement(msg.params.element);
-        const parent = el?.parentNode;
-        if (el && el !== this.app.overlay && parent) {
-          removed.push({ el, parent, next: el.nextSibling });
-          parent.removeChild(el);
-          if (parent instanceof HTMLElement) {
-            changed.push(parent);
-          }
+        const parent = el?.parentElement;
+        if (el && el !== this.app.overlay && el.isConnected && parent) {
+          undo.push(outOfFlow(el));
+          changed.push(parent);
         }
         continue;
       }
@@ -1011,7 +1008,12 @@ export default class UIManager extends Manager {
       }
       const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked");
       const entry = { el, style: el.getAttribute("style"), attributes: names.map((name): [string, string | null] => [name, el.getAttribute(name)]) };
-      saved.push(entry);
+      undo.push(() => {
+        put(el, "style", entry.style);
+        for (const [name, value] of entry.attributes) {
+          put(el, name, value);
+        }
+      });
       if (style) {
         this.applyStyle(el, style);
       }
@@ -1023,14 +1025,8 @@ export default class UIManager extends Manager {
       }
     }
     const restore = () => {
-      for (const { el, style, attributes } of saved.reverse()) {
-        put(el, "style", style);
-        for (const [name, value] of attributes) {
-          put(el, name, value);
-        }
-      }
-      for (const { el, parent, next } of removed.reverse()) {
-        parent.insertBefore(el, next && next.parentNode === parent ? next : null);
+      for (const step of undo.reverse()) {
+        step();
       }
     };
     return { restore, changed };

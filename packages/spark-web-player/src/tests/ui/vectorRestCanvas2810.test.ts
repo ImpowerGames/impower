@@ -144,7 +144,7 @@ async function setup(
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .backdrop[style*="position: absolute"] ~ .sigil .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -608,10 +608,12 @@ describe("a later beat's layout changes are measured on every shown picture befo
     expect(t.rasters).toHaveLength(2);
   });
 
-  test("a beat that removes a sibling, making a shown picture wider, draws it at the new size before it fires", async () => {
+  test("a beat that removes a sibling, making a shown picture wider, draws it at the new size before it fires, and leaves the sibling in place and untouched while it waits", async () => {
     const t = await setup({ holdRasters: true });
     const backdrop = t.h.overlay.querySelector(".backdrop") as HTMLElement & { __sdId?: string };
     const { first, canvas } = await shown(t, 114);
+    const style = backdrop.getAttribute("style");
+    const next = backdrop.nextElementSibling;
     t.beat([], 116, [{ method: "ui/destroy", params: { element: backdrop.__sdId } }]);
     await until(() => t.rasters.length === 2, "the wider raster");
     await flushMicrotasks(20);
@@ -619,6 +621,8 @@ describe("a later beat's layout changes are measured on every shown picture befo
     expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
     expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
     expect(backdrop.isConnected).toBe(true);
+    expect(backdrop.nextElementSibling).toBe(next);
+    expect(backdrop.getAttribute("style")).toBe(style);
     second.resolve(raster(second.src, second.width, second.height));
     await until(() => t.events.filter((event) => event === "applied").length === 2, "the beat");
     expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
