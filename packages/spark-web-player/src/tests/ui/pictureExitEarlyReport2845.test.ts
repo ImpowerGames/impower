@@ -28,7 +28,7 @@ const saved = {
 };
 
 interface HeldAnimation {
-  effect: { target: Element; timing: { duration?: number } };
+  effect: { target: HTMLElement; timing: { duration?: number } };
   end(): void;
 }
 
@@ -40,7 +40,7 @@ function holdAnimations() {
     iterationComposite = "replace";
     progress: number | null = 0.5;
     constructor(
-      public target: Element,
+      public target: HTMLElement,
       public keyframes: Keyframe[],
       public timing: { delay?: number; duration?: number; fill?: string } = {},
     ) {}
@@ -73,6 +73,10 @@ function holdAnimations() {
       all.push(this as unknown as HeldAnimation);
     }
     end() {
+      const final = this.effect.keyframes.filter((frame: Keyframe) => frame["opacity"] != null).at(-1);
+      if (final) {
+        this.effect.target.style.opacity = String(final["opacity"]);
+      }
       this.effect.progress = 1;
       this.playState = "finished";
       this.resolve();
@@ -112,7 +116,9 @@ const outcome = (answered: Promise<unknown>) =>
       (result) => ({ result }),
       (error) => ({ error }),
     ),
-    flushMicrotasks(20).then(() => "pending" as const),
+    flushMicrotasks(20)
+      .then(() => new Promise((resolve) => setTimeout(resolve, 100)))
+      .then(() => "pending" as const),
   ]);
 
 const hideTwice = async (second: ReturnType<typeof fadeout>) => {

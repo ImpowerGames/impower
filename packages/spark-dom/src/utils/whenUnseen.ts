@@ -52,7 +52,7 @@ const transparent = (el: Element): boolean => {
       pinned = false;
     }
   }
-  return pinned;
+  return pinned && Number(el.ownerDocument.defaultView?.getComputedStyle(el).opacity) === 0;
 };
 
 const lineage = (el: Element): Element[] => {
@@ -73,7 +73,7 @@ export const whenUnseen = (elements: Element[], until: Promise<unknown>): Promis
       watching = false;
     };
     until.then(stop, stop);
-    const watched = new Set<Animation>();
+    const view = elements[0]!.ownerDocument.defaultView;
     const check = () => {
       if (!watching) {
         return;
@@ -83,13 +83,10 @@ export const whenUnseen = (elements: Element[], until: Promise<unknown>): Promis
         resolve();
         return;
       }
-      for (const el of new Set(elements.flatMap(lineage))) {
-        for (const animation of el.getAnimations()) {
-          if (!watched.has(animation)) {
-            watched.add(animation);
-            animation.finished.then(check, check);
-          }
-        }
+      if (view?.requestAnimationFrame) {
+        view.requestAnimationFrame(check);
+      } else {
+        setTimeout(check, 16);
       }
     };
     check();

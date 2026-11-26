@@ -31,17 +31,17 @@ afterAll(async () => {
   await browser?.close();
 });
 
-const open = async (): Promise<Page> => {
+const open = async (css = ""): Promise<Page> => {
   const page = await browser.newPage();
   await page.setContent(
-    `<!doctype html><html><body><div id="portrait"><span id="image"><span id="picture">a</span></span></div></body></html>`,
+    `<!doctype html><html><head><style>${css}</style></head><body><div id="portrait"><span id="image"><span id="picture">a</span></span></div></body></html>`,
   );
   await page.addScriptTag({ content: script });
   return page;
 };
 
-const run = async (later: Keyframe[]): Promise<Run> => {
-  const page = await open();
+const run = async (later: Keyframe[], css = ""): Promise<Run> => {
+  const page = await open(css);
   try {
     return await page.evaluate(async (later) => {
       const w = window as any;
@@ -98,4 +98,48 @@ test("a picture faded back in above its fade out is never unseen (#2845)", async
   expect(result.early).toBe(false);
   expect(Number(result.opacity)).toBeGreaterThan(0);
   expect(result.settled).toBe(false);
+});
+
+test("a picture whose opacity an important style holds at full is seen whatever its fades say (#2845)", async () => {
+  const result = await run([{ opacity: "0" }], "#portrait { opacity: 1 !important; }");
+  expect(result).toEqual({ early: false, opacity: "1", later: "paused", settled: false });
+});
+
+const watchThen = async (change: string) => {
+  const page = await open();
+  try {
+    return await page.evaluate(async (change) => {
+      const w = window as any;
+      const portrait = document.getElementById("portrait")!;
+      const picture = document.getElementById("picture")!;
+      const fade = portrait.animate([{ opacity: "1" }, { opacity: "0" }], { duration: 6000, fill: "both" });
+      fade.pause();
+      fade.currentTime = 100;
+      let early = false;
+      w.whenUnseen([picture], new Promise(() => {})).then(() => {
+        early = true;
+      });
+      const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await frames();
+      const before = early;
+      new Function("portrait", "picture", change)(portrait, picture);
+      await frames();
+      await frames();
+      return { before, early, fade: fade.playState };
+    }, change);
+  } finally {
+    await page.close();
+  }
+};
+
+test("a picture a later write holds at zero is unseen while the earlier fade still plays (#2845)", async () => {
+  const result = await watchThen(
+    `portrait.animate([{ opacity: "0" }, { opacity: "0" }], { duration: 6000, fill: "both" }).pause();`,
+  );
+  expect(result).toEqual({ before: false, early: true, fade: "paused" });
+});
+
+test("a picture a later write removes is unseen while the earlier fade still plays (#2845)", async () => {
+  const result = await watchThen(`picture.remove();`);
+  expect(result).toEqual({ before: false, early: true, fade: "paused" });
 });
