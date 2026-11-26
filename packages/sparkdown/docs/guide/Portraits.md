@@ -443,7 +443,7 @@ A picture with layer files is still named `image.ava` in a define, so a named lo
 
 ## How layer files are drawn
 
-A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. So is a picture that is an SVG file, and a layered picture with an SVG layer file: its rest pose is drawn on a canvas inside its element, on a backdrop, a portrait or an element you lay out yourself. A single image file (PNG, WebP, JPEG, GIF) keeps its usual drawing, and so does a picture used as a `mask`, whose files count at their whole size.
+A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. So is a picture that is an SVG file, and a layered picture with an SVG layer file: its rest pose is drawn on a canvas inside its element, on a backdrop, a portrait or an element you lay out yourself. A single image file (PNG, WebP, JPEG, GIF) keeps its usual drawing. A picture used as a `mask` takes its outline from that drawing ([How a mask is drawn](#how-a-mask-is-drawn)).
 
 Export every layer at the size of the whole document, so the files line up. The empty part of a layer costs nothing: as the player loads a layer file it cuts it to the box of its painted pixels, plus a 2-pixel margin, and draws it back at its place. Only a pixel that is fully transparent counts as empty. A layer counts against the [loading budgets](./Loading.md#91-what-happens-on-its-own) at its cut size, so a prop that covers a tenth of the backdrop costs about a tenth of a whole file. The picture looks the same either way. `trim_layers = false` in `define assets as config` turns the cutting off.
 
@@ -476,6 +476,12 @@ A picture drawn on a canvas follows these rules:
 - A translucent background colour under a picture whose layers blend, where the picture has translucent pixels, is drawn in a different colour.
 - `background-clip: text` is ignored: the picture fills its box.
 - The canvas is drawn above the element's own content and its `::before` and `::after` decorations, unless they are positioned; positioned content is drawn above the canvas.
+
+### How a mask is drawn
+
+A `mask` element shows the outline of the picture written to its element, filled with the colour its style gives it, as a shadow behind a portrait does. When the element's `image` shows that picture on a canvas, the outline comes from the picture's own drawing: it is made once, from the rest pose at the size the picture is drawn, and every `mask` of the element shows it. The line waits for the outline as it waits for the picture. A morph playing on the picture does not move the outline: a shadow keeps the resting outline while the mouth moves. The `mask`'s colour, opacity, offset, blur and animations apply as written.
+
+A `mask` whose picture shows the placeholder shows nothing, and so does one whose outline is not ready when the wait runs out, until the outline is made. A `mask` keeps the CSS drawing of the picture's files, which count at their whole size, when the picture keeps the CSS drawing, when it is a single image file, and when no `image` of the element shows it.
 
 ## When something looks wrong
 

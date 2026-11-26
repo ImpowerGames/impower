@@ -78,6 +78,51 @@ export interface PictureCanvasContext {
 
 export type PictureCanvasFactory = (canvas: HTMLCanvasElement) => PictureCanvasContext | null | undefined;
 
+export type OutlineEncoder = (canvas: HTMLCanvasElement) => Promise<{ url: string; release(): void } | undefined>;
+
+export const browserOutlineEncoder: OutlineEncoder = (canvas) => {
+  const doc = canvas.ownerDocument;
+  const urls = doc.defaultView?.URL;
+  if (typeof canvas.toBlob !== "function" || typeof urls?.createObjectURL !== "function") return Promise.resolve(undefined);
+  return new Promise<Blob | null>((resolve) => {
+    try {
+      canvas.toBlob(resolve, "image/png");
+    } catch {
+      resolve(null);
+    }
+  }).then(async (blob) => {
+    if (!blob) return undefined;
+    const url = urls.createObjectURL(blob);
+    await decodeImage(doc, url);
+    return { url, release: () => urls.revokeObjectURL(url) };
+  });
+};
+
+interface Outline {
+  key: string;
+  width: number;
+  height: number;
+  users: number;
+  ready: Promise<string | undefined>;
+  url?: string;
+  release?: () => void;
+}
+
+type OutlineSource =
+  | { state: "waiting" | "none" | "css" }
+  | { state: "ready"; key: string; width: number; height: number; natural: { width: number; height: number }; draw: (context: PictureCanvasContext) => void };
+
+interface MaskOutline {
+  picture: LayeredPicture;
+  state: "waiting" | "none" | "css" | "shown";
+  shown?: Outline;
+  pending?: Outline;
+  natural?: { width: number; height: number };
+  late?: boolean;
+}
+
+const HIDDEN_MASK = "linear-gradient(transparent, transparent)";
+
 interface PictureFiles {
   bitmaps: Map<number, PictureBitmap>;
   width: number;
@@ -437,6 +482,7 @@ export interface MorphPlaybackOptions {
   pictureCanvas?: PictureCanvasFactory;
   readPose?: MorphPoseReader;
   rasterizeSvgLayer?: SvgLayerRasterizer;
+  encodeOutline?: OutlineEncoder;
 }
 
 export class MorphPlayback {
@@ -456,6 +502,7 @@ export class MorphPlayback {
   pictureCanvas: PictureCanvasFactory;
   readPose: MorphPoseReader;
   rasterizeSvgLayer: SvgLayerRasterizer;
+  encodeOutline: OutlineEncoder;
   reportStill?: (params: MorphStillParams) => void;
   reportChangeBake?: (ref: MorphRef, artifact: MorphArtifact) => void;
   keepWhole?: (srcs: string[]) => void;
@@ -490,7 +537,8 @@ export class MorphPlayback {
     this.pictureCanvas = options.pictureCanvas ?? browserCanvas;
     this.readPose = options.readPose ?? computedMotionPose;
     this.rasterizeSvgLayer = options.rasterizeSvgLayer ?? browserSvgLayerRasterizer;
-    const host = (view ?? window) as Window & typeof globalThis;
+    this.encodeOutline = options.encodeOutline ?? browserOutlineEncoder;
+    const host =(view ?? window) as Window & typeof globalThis;
     const frames = typeof host.requestAnimationFrame === "function";
     this.requestFrame =
       options.requestFrame ??
@@ -519,6 +567,63 @@ export class MorphPlayback {
     if (options.pictureCanvas) this.pictureCanvas = options.pictureCanvas;
     if (options.readPose) this.readPose = options.readPose;
     if (options.rasterizeSvgLayer) this.rasterizeSvgLayer = options.rasterizeSvgLayer;
+    if (options.encodeOutline) this.encodeOutline = options.encodeOutline;
+  }
+
+  protected outlines = new Map<string, Outline>();
+  protected static readonly IDLE_OUTLINES = 8;
+
+  outline(source: Extract<OutlineSource, { state: "ready" }>): Outline {
+    const known = this.outlines.get(source.key);
+    if (known) {
+      this.outlines.delete(source.key);
+      this.outlines.set(source.key, known);
+      known.users += 1;
+      return known;
+    }
+    const outline: Outline = { key: source.key, width: source.width, height: source.height, users: 1, ready: Promise.resolve(undefined) };
+    this.outlines.set(source.key, outline);
+    const canvas = this.overlay.ownerDocument.createElement("canvas");
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const context = this.pictureCanvas(canvas);
+    if (context) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.globalAlpha = 1;
+      context.clearRect(0, 0, source.width, source.height);
+      context.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in context) context.imageSmoothingQuality = "high";
+      source.draw(context);
+      outline.ready = this.encodeOutline(canvas)
+        .catch(() => undefined)
+        .then((encoded) => {
+          canvas.width = 0;
+          canvas.height = 0;
+          if (!encoded) return undefined;
+          if (this.outlines.get(source.key) !== outline) {
+            encoded.release();
+            return undefined;
+          }
+          outline.url = encoded.url;
+          outline.release = encoded.release;
+          return encoded.url;
+        });
+    }
+    this.trimOutlines();
+    return outline;
+  }
+
+  releaseOutline(outline: Outline) {
+    outline.users -= 1;
+    this.trimOutlines();
+  }
+
+  protected trimOutlines() {
+    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0);
+    for (const outline of idle.slice(0, Math.max(0, idle.length - MorphPlayback.IDLE_OUTLINES))) {
+      this.outlines.delete(outline.key);
+      outline.release?.();
+    }
   }
 
   pictureNow(src: string): PictureBitmap | undefined {
@@ -978,6 +1083,18 @@ export class MorphGroup {
     if (this.members.delete(layer)) void this.changed();
   }
 
+  outlineOf(picture: LayeredPicture): OutlineSource | undefined {
+    for (const member of this.members) {
+      const source = member.outlineSource(picture);
+      if (source) return source;
+    }
+    return undefined;
+  }
+
+  outlinesChanged() {
+    for (const member of [...this.members]) member.refreshOutlines();
+  }
+
   async changed() {
     const version = ++this.version;
     const members = [...this.members].filter((layer) => layer.active);
@@ -1149,6 +1266,7 @@ export class MorphLayer {
       });
     }
     const continued = this.images.map((image) => this.continuation(image));
+    if (this.kind === "mask") this.startOutlines();
     this.playback.track(this);
     this.images.forEach((image, index) => {
       const continuing = continued[index];
@@ -1547,7 +1665,8 @@ export class MorphLayer {
   protected drawnWaiters: (() => void)[] = [];
 
   get drawn(): boolean {
-    if (!this.active || this.kind !== "background") return true;
+    if (!this.active) return true;
+    if (this.kind === "mask") return this.outlines.every((entry) => entry.state !== "waiting");
     return this.stills.every((still) => this.stillDrawn(still)) && this.images.every((image) => this.canvasDrawn(image));
   }
 
@@ -1557,6 +1676,7 @@ export class MorphLayer {
   }
 
   protected checkDrawn() {
+    if (this.kind === "background") this.group.outlinesChanged();
     for (const still of this.stills) {
       if (still.late && this.stillDrawn(still, true)) {
         still.late = false;
@@ -1569,6 +1689,13 @@ export class MorphLayer {
 
   overdue() {
     if (!this.active) return;
+    if (this.outlines.some((entry) => entry.state === "waiting")) {
+      for (const entry of this.outlines) {
+        entry.late = true;
+        if (entry.state === "waiting") entry.state = "none";
+      }
+      this.paintMask();
+    }
     let changed = false;
     for (const still of this.stills) {
       if (this.stillDrawn(still) || still.canvases?.some((view) => view.painted !== undefined)) continue;
@@ -1777,12 +1904,158 @@ export class MorphLayer {
     return urls;
   }
 
+  protected rested = new Map<number, string>();
+
+  protected outlines: MaskOutline[] = [];
+
   protected applyMask() {
     const urls = this.maskUrls();
     if (!urls.size) return;
+    this.rested = urls;
+    this.paintMask();
+  }
+
+  protected paintMask() {
+    if (!this.rested.size && this.outlines.length === 0) return;
     const layers = [...this.layers];
-    for (const [layer, url] of urls) layers[layer] = `url("${url}")`;
-    this.span.style.setProperty("mask-image", [...layers].reverse().join(", "));
+    for (const [layer, url] of this.rested) layers[layer] = `url("${url}")`;
+    const sized: { cssIndex: number; natural: { width: number; height: number } }[] = [];
+    for (const entry of this.outlines) {
+      if (entry.state === "css") continue;
+      const { layer, span } = entry.picture;
+      for (let k = 0; k < span; k++) layers[layer + k] = "none";
+      layers[layer] = entry.shown?.url ? `url("${entry.shown.url}")` : HIDDEN_MASK;
+      if (entry.shown?.url && entry.natural) sized.push({ cssIndex: this.layers.length - 1 - layer, natural: entry.natural });
+    }
+    const value = [...layers].reverse().join(", ");
+    if (this.span.style.getPropertyValue("mask-image") === value) return;
+    this.span.style.setProperty("mask-image", value);
+    this.keepIntrinsicSize(sized);
+  }
+
+  protected keepIntrinsicSize(sized: { cssIndex: number; natural: { width: number; height: number } }[]) {
+    if (sized.length === 0) return;
+    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const list = computed?.getPropertyValue("mask-size") || computed?.getPropertyValue("-webkit-mask-size") || "";
+    const count = this.layers.length;
+    const sizes = Array.from({ length: count }, (_, cssIndex) => layerValue(list, cssIndex) || "auto");
+    let changed = false;
+    for (const { cssIndex, natural } of sized) {
+      const parts = sizes[cssIndex]!.split(/\s+/);
+      if (!parts.every((part) => part === "auto")) continue;
+      sizes[cssIndex] = `${natural.width}px ${natural.height}px`;
+      changed = true;
+    }
+    if (changed) this.span.style.setProperty("mask-size", sizes.join(", "));
+  }
+
+  protected startOutlines() {
+    for (const picture of this.pictures) {
+      if (picture.span < 1 || picture.files.length !== picture.span || picture.layer < 0 || picture.layer + picture.span > this.layers.length) continue;
+      this.outlines.push({ picture, state: "waiting" });
+    }
+    this.refreshOutlines();
+  }
+
+  outlineSource(picture: LayeredPicture): OutlineSource | undefined {
+    if (this.kind !== "background" || !this.active) return undefined;
+    const still = this.stills.find(
+      (entry) =>
+        entry.layer === picture.layer &&
+        entry.span === picture.span &&
+        entry.picture.files.length === picture.files.length &&
+        entry.picture.files.every((file, index) => file.src === picture.files[index]!.src),
+    );
+    if (!still) return undefined;
+    if (still.broken || this.arealess || (still.under && this.uncomposited(still.under) && still.under.inner.length > 0)) return { state: "css" };
+    if (still.undrawn) return { state: "none" };
+    const files = still.files;
+    const unready = { state: still.late ? "none" : "waiting" } as const;
+    if (still.loading || !files) return unready;
+    const indices = [...files.bitmaps.keys()].sort((a, b) => a - b);
+    const sources: PictureBitmap[] = [];
+    let width = 0;
+    let height = 0;
+    for (const index of indices) {
+      const bitmap = files.bitmaps.get(index)!;
+      if (!bitmap.vector) {
+        sources.push(bitmap);
+        continue;
+      }
+      const raster = still.rasters.get(index);
+      if (!raster?.image) return unready;
+      sources.push({ ...bitmap, image: raster.image, box: undefined });
+      width = Math.max(width, raster.width);
+      height = Math.max(height, raster.height);
+    }
+    if (!(width > 0 && height > 0)) {
+      const shrink = files.width * files.height > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / (files.width * files.height)) : 1;
+      width = Math.max(1, Math.round(files.width * shrink));
+      height = Math.max(1, Math.round(files.height * shrink));
+    }
+    return {
+      state: "ready",
+      key: `${picture.files.map((file) => file.src).join("\n")}|${width}x${height}`,
+      width,
+      height,
+      natural: { width: files.width, height: files.height },
+      draw: (context) => {
+        for (const source of sources) drawPicture(context, source, 0, 0, width, height);
+      },
+    };
+  }
+
+  refreshOutlines() {
+    if (this.kind !== "mask" || !this.active || this.outlines.length === 0) return;
+    for (const entry of this.outlines) {
+      const source = this.group.outlineOf(entry.picture);
+      const held = entry.shown ?? entry.pending;
+      if (!source) {
+        if (!held && entry.state === "waiting") entry.state = "css";
+        continue;
+      }
+      if (source.state === "ready") {
+        entry.natural = source.natural;
+        if (held && (held.key === source.key || (held.width >= source.width && held.height >= source.height))) continue;
+        if (entry.pending) this.playback.releaseOutline(entry.pending);
+        const outline = this.playback.outline(source);
+        entry.pending = outline;
+        if (!entry.shown) entry.state = entry.late ? "none" : "waiting";
+        void outline.ready.then((url) => this.landOutline(entry, outline, url));
+        continue;
+      }
+      if (source.state === "waiting") {
+        if (!held) entry.state = entry.late ? "none" : "waiting";
+        continue;
+      }
+      this.dropOutline(entry);
+      entry.state = source.state;
+    }
+    this.paintMask();
+    this.checkDrawn();
+  }
+
+  protected landOutline(entry: MaskOutline, outline: Outline, url: string | undefined) {
+    if (entry.pending !== outline) return;
+    entry.pending = undefined;
+    if (!this.active || !url) {
+      this.playback.releaseOutline(outline);
+      if (this.active && !entry.shown) entry.state = "css";
+    } else {
+      if (entry.shown) this.playback.releaseOutline(entry.shown);
+      entry.shown = outline;
+      entry.state = "shown";
+    }
+    if (!this.active) return;
+    this.paintMask();
+    this.checkDrawn();
+  }
+
+  protected dropOutline(entry: MaskOutline) {
+    if (entry.pending) this.playback.releaseOutline(entry.pending);
+    if (entry.shown) this.playback.releaseOutline(entry.shown);
+    entry.pending = undefined;
+    entry.shown = undefined;
   }
 
   protected build() {
@@ -3054,6 +3327,7 @@ export class MorphLayer {
       still.canvases = undefined;
       this.releaseStill(still);
     }
+    for (const entry of this.outlines) this.dropOutline(entry);
     if (this.settleTimer !== undefined) this.span.ownerDocument.defaultView?.clearTimeout(this.settleTimer);
     this.settleTimer = undefined;
     this.playback.forget(this);
