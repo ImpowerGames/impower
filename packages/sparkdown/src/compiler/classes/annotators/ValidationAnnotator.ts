@@ -1699,6 +1699,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    if (
+      nodeRef.name === "LuauStructBlockProperty" &&
+      getContextNames(nodeRef.node).includes("LuauStyle")
+    ) {
+      let next = nodeRef.node.nextSibling;
+      while (next?.name === "Whitespace") next = next.nextSibling;
+      if (next?.name === "LuauStructListBlock") {
+        const key = this.read(nodeRef.from, nodeRef.to).trim();
+        const attribute = key.replace(/\s*=\s*/, "=");
+        const message = `\`${key}\` is not a selector, so this block never applies\n> Write \`#${attribute}\` or \`[${attribute}]\` to match the attribute`;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
     if (nodeRef.name === "SelectorStateName") {
       const state = this.read(nodeRef.from, nodeRef.to);
       if (!isKnownSelectorState(state)) {
