@@ -8,7 +8,7 @@ description: "Verify the extension in a served workbench or desktop development 
 Commands run inside the worktree:
 `node .agents/skills/drive-vscode-web/driver.mjs <command>`.
 
-Select the surface before launching: served `up`/`verify` covers open-script text, diagnostics and hover, with `verify --debug` for the web debugger; `desktop --mode full` covers the fully built extension's language server, Game Preview and debugger; `desktop --mode f5` exercises the checkout's actual F5 task first. Read [desktop scenarios](references/desktop.md) for either desktop mode. A served pass never substitutes for a desktop result. Report unavailable surfaces explicitly.
+Select the surface before launching: served `up`/`verify` covers open-script text, diagnostics and hover, with `verify --debug` for the web debugger; `desktop --mode full` covers the fully built extension's language server, Game Preview and debugger; `desktop --mode f5` exercises the checkout's actual F5 task first. Read [desktop scenarios](references/desktop.md) for either desktop mode, and [frame pacing](references/pacing.md) before measuring stalls while lines play in the Game Preview. A served pass never substitutes for a desktop result. Report unavailable surfaces explicitly.
 
 ## 1. Build
 
