@@ -217,6 +217,21 @@ describe("a change morph's bake diagnostics", () => {
     expect(morphOn(asset)).toEqual([]);
   }, 60_000);
 
+  it("a report arriving after the artwork is saved and before its compile shows nothing", async () => {
+    const { workspace, compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report(played);
+    expect(morphOn(asset)).toHaveLength(1);
+    const fixed = SVG.replace(lips(30, 50, 70), lips(30, 50));
+    (workspace as any)._watchedFiles.set(asset, { uri: asset, text: fixed });
+    workspace.onChangedFile({ uri: asset, name: "mia", ext: "svg", type: "image", text: fixed });
+    report(played);
+    expect(morphOn(asset)).toEqual([]);
+    expect(workspace.getDiagnostics(program, asset).filter((d: any) => String(d.code).startsWith("morph-"))).toEqual([]);
+  }, 60_000);
+
   it("an entry with no source to check against the artwork is ignored", async () => {
     const { compiled, report, morphOn } = setup();
     const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);

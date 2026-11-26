@@ -614,9 +614,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   protected _fileChanges = 0;
 
+  protected _programFileChanges?: WeakMap<SparkProgram, number>;
+
+  protected get programFileChanges() {
+    return (this._programFileChanges ??= new WeakMap());
+  }
+
   protected runtimeMorphDiagnostics(params: RuntimeDiagnosticsParams | undefined) {
     const program = params ? this.compiledProgram(params.program.uri) : undefined;
-    if (!params?.morphBakes?.length || !program) {
+    if (!params?.morphBakes?.length || !program || this.programFileChanges.get(program) !== this._fileChanges) {
       return new Map<string, MorphEditorDiagnostic[]>();
     }
     return morphEditorDiagnostics(
@@ -629,13 +635,22 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
   }
 
+  protected runtimeMorphUris(params: RuntimeDiagnosticsParams | undefined): string[] {
+    const program = params ? this.compiledProgram(params.program.uri) : undefined;
+    if (!params?.morphBakes?.length || !program) return [];
+    return params.morphBakes.flatMap((bake) => {
+      const artwork = morphArtworkFiles(program.context, bake);
+      return artwork ? [artwork.uri, ...Object.values(artwork.files ?? {})].filter((uri): uri is string => !!uri) : [];
+    });
+  }
+
   reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
     const last = this._runtimeDiagnostics?.params;
     const uris = new Set([
       ...Object.keys(last?.diagnostics ?? {}),
       ...Object.keys(params.diagnostics ?? {}),
-      ...this.runtimeMorphDiagnostics(last).keys(),
-      ...this.runtimeMorphDiagnostics(params).keys(),
+      ...this.runtimeMorphUris(last),
+      ...this.runtimeMorphUris(params),
     ]);
     this._runtimeDiagnostics = { params, files: this._fileChanges };
     for (const uri of uris) {
@@ -775,6 +790,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (owner) {
       this._entryPrograms.set(owner, params.program);
     }
+    this.programFileChanges.set(params.program, this._fileChanges);
     const morphUris = this.morphRefs(params.program)
       .filter(({ ref, uri }) => uri && this.morphDiagnostics.get(ref.key)?.length)
       .map(({ uri }) => uri!);
