@@ -26,4 +26,7 @@ style card {
   @hovered @media (min-width: 1px), card :is(:not(.absent)) @focused {
     color = red
   }
+  @container style(--mode: dark), style(--label: ")@night") {
+    color = red
+  }
 }

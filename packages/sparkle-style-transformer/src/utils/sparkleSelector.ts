@@ -221,8 +221,14 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
-const SELECTOR_LIST_ITEM_AFTER =
-  /[^\S\n\r]*\.|(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^()\r\n]*\)|[^,"'()#\[:&>+~@\r\n])*(?:[#\[:&>+~]|@[_\p{L}])/uy;
+const LIST_ITEM_QUOTED = String.raw`"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'`;
+const LIST_ITEM_GROUP = String.raw`\((?:${LIST_ITEM_QUOTED}|[^()"'\r\n])*\)`;
+const LIST_ITEM_PLAIN = String.raw`[^,"'()#\[:&>+~@\r\n]`;
+const LIST_ITEM_MARK = String.raw`[#\[:&>+~]|@[_\p{L}]`;
+const SELECTOR_LIST_ITEM_AFTER = new RegExp(
+  String.raw`[^\S\n\r]*\.|(?:${LIST_ITEM_QUOTED}|${LIST_ITEM_GROUP}|${LIST_ITEM_PLAIN})*(?:${LIST_ITEM_MARK})`,
+  "uy",
+);
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 

@@ -75,6 +75,8 @@ const AT_RULE_ONLY = [
   '@container style(--mode: dark), style(--mode: "@night")',
   "@container style(--mode: dark), style(--mode: '@night')",
   "@container (min-width: 1px), style(--x: fn(@y))",
+  '@container style(--mode: dark), style(--label: ")@night")',
+  "@container style(--mode: dark), style(--label: ')@night')",
   "@layer base, theme.dark",
   "@media screen and (min-resolution: 1.5dppx), print",
 ];
