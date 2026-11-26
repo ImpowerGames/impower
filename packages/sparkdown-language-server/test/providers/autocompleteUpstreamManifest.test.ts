@@ -33,7 +33,7 @@ describe("autocomplete · upstream manifest", () => {
   test("names the commit the vendored Luau suite is pinned to", () => {
     const vendoring = readFileSync(
       new URL(
-        "../../../../sparkdown/test/luau-conformance/upstream/VENDORING.md",
+        "../../../sparkdown/test/luau-conformance/upstream/VENDORING.md",
         DIRECTORY,
       ),
       "utf8",
