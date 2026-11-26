@@ -93,6 +93,7 @@ style button {
 - `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
   `@disabled { … }` target interaction states.
 - `@showing(name) { … }` applies while a layout or an element named `name` is on screen (see [What is on screen](#what-is-on-screen)).
+- `@variant(name) { … }` and `@speaker(name) { … }` apply while the newest line showing has that variant or is spoken by that character, and `#variant=name { … }` and `#speaker=name { … }` select the elements written with that prop (see [Variants](./Variants.md)).
 - `@initial { … }` / `@show { … }` / `@hide { … }` say how an element appears and leaves (see [Appearing and leaving](#appearing-and-leaving)).
 - `@latest { … }` targets the newest entry of a [stream](./Streams.md).
 - A rule's properties are separated by a new line or a `;`, as the entries of

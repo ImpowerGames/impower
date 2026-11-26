@@ -36,7 +36,11 @@ import {
   type ShowingParams,
   ShowingMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
-import { SHOWING_ATTRIBUTE } from "../../../../spark-dom/src/utils/getStyleContent";
+import {
+  LINE_SPEAKER_ATTRIBUTE,
+  LINE_VARIANT_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
+} from "../../../../spark-dom/src/utils/getStyleContent";
 import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
@@ -715,6 +719,18 @@ export default class UIManager extends Manager {
       overlay.setAttribute(SHOWING_ATTRIBUTE, value);
     } else {
       overlay.removeAttribute(SHOWING_ATTRIBUTE);
+    }
+    if (params.line) {
+      for (const [attribute, mark] of [
+        [LINE_VARIANT_ATTRIBUTE, params.line.variant],
+        [LINE_SPEAKER_ATTRIBUTE, params.line.speaker],
+      ] as const) {
+        if (mark) {
+          overlay.setAttribute(attribute, mark);
+        } else {
+          overlay.removeAttribute(attribute);
+        }
+      }
     }
   }
 

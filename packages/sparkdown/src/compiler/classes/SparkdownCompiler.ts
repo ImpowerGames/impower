@@ -161,6 +161,11 @@ const UI_DECLARATION_NODES = nodeNameSet([
 ]);
 const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
 const UI_DEFINE_TYPES = new Set(["config", "color"]);
+const GAME_WIDE_EXAMPLES: Record<string, { name: string; otherwise: string }> = {
+  showing: { name: "action", otherwise: "the name is not showing" },
+  variant: { name: "shout", otherwise: "the newest line has another variant" },
+  speaker: { name: "bunny", otherwise: "someone else speaks the newest line" },
+};
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -199,8 +204,9 @@ import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
-import { SHOWING_STATE } from "../constants/selectorStates";
+import { GAME_WIDE_STATES, SHOWING_STATE } from "../constants/selectorStates";
 import { showingRefusalAt } from "../utils/showingRefusal";
+import { cueVariant } from "../utils/readCue";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -1724,6 +1730,7 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateWriteTargets(program);
       this.validateShowingNames(program);
+      this.validateCueVariants(program);
       this.validateClearTargets(program);
       this.validateLints(program);
       this.validateTypes(program);
@@ -5268,21 +5275,29 @@ export class SparkdownCompiler {
       if (!doc || !tree) continue;
       tree.iterate({
         enter: (node) => {
-          if (node.name !== "SelectorStateName" || doc.read(node.from, node.to) !== SHOWING_STATE) {
+          if (node.name !== "SelectorStateName") {
+            return undefined;
+          }
+          const state = doc.read(node.from, node.to);
+          if (!GAME_WIDE_STATES.has(state)) {
             return undefined;
           }
           const refusal = showingRefusalAt(node.node, (from, to) => doc.read(from, to));
           if (refusal) {
+            const example = GAME_WIDE_EXAMPLES[state]!;
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({
               range: doc.range(refusal.from, refusal.to),
               code: "showing-position",
               severity: DiagnosticSeverity.Warning,
               message: {
                 kind: "markdown",
-                value: `\`@showing\` cannot be written ${refusal.where}, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@showing(action) @hovered\`; the style's own properties are its look while the name is not showing`,
+                value: `\`@${state}\` cannot be written ${refusal.where}, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@${state}(${example.name}) @hovered\`; the style's own properties are its look while ${example.otherwise}`,
               },
               source: LANGUAGE_NAME,
             });
+            return false;
+          }
+          if (state !== SHOWING_STATE) {
             return false;
           }
           const parameters = /^\(([^()\r\n]*)\)/.exec(doc.read(node.to, node.to + 128));
@@ -5304,6 +5319,44 @@ export class SparkdownCompiler {
       });
     }
     profile("end", this._profilerId, "validateShowingNames", uri);
+  }
+
+  validateCueVariants(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateCueVariants", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "DialogueCharacterPosition") {
+            return undefined;
+          }
+          const bracket = doc.read(node.from, node.to);
+          const open = bracket.indexOf("[");
+          const close = bracket.lastIndexOf("]");
+          const inside = bracket.slice(open + 1, close);
+          if (!cueVariant(inside)) {
+            const word = inside.trim();
+            const from = word ? node.from + open + 1 + inside.indexOf(word) : node.from + open;
+            const to = word ? from + word.length : node.from + close + 1;
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(from, to),
+              code: "cue-variant",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: "A variant uses letters, digits and `_`.",
+              },
+              source: LANGUAGE_NAME,
+            });
+          }
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateCueVariants", uri);
   }
 
   validateClearTargets(program: SparkProgram) {

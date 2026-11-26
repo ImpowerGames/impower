@@ -1,0 +1,114 @@
+text.source.sparkdown [0..185]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..11]: "start"
+ ├─ Newline [11..12]: "\n"
+ ├─ string.display.dialogue.inline.sd [12..42]
+ │   ├─ punctuation.whitespace.optional.sd [12..14]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [14..21]
+ │   │   └─ markup.raw.text.sd [14..21]: "RAFFLES"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [21..25]
+ │   │   ├─ punctuation.whitespace.sd [21..22]: " "
+ │   │   ├─ punctuation.definition.position.sd [22..23]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [23..24]: "<"
+ │   │   └─ punctuation.definition.position.sd [24..25]: "]"
+ │   ├─ meta.template.expression.operator.colon.sd [25..26]: ":"
+ │   ├─ punctuation.whitespace.required.sd [26..27]: " "
+ │   └─ string.display.text.chunk.sd [27..42]
+ │       ├─ markup.raw.text.sd [27..31]: "Well"
+ │       ├─ markup.raw.punctuation.sd [31..32]: "-"
+ │       ├─ markup.raw.punctuation.sd [32..33]: "-"
+ │       ├─ markup.raw.space.sd [33..34]: " "
+ │       ├─ markup.raw.text.sd [34..35]: "I"
+ │       ├─ markup.raw.space.sd [35..36]: " "
+ │       ├─ markup.raw.text.sd [36..40]: "mean"
+ │       ├─ markup.raw.punctuation.sd [40..41]: "-"
+ │       └─ markup.raw.punctuation.sd [41..42]: "-"
+ ├─ Newline [42..43]: "\n"
+ ├─ string.display.dialogue.inline.sd [43..72]
+ │   ├─ punctuation.whitespace.optional.sd [43..45]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [45..50]
+ │   │   └─ markup.raw.text.sd [45..50]: "BUNNY"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [50..58]
+ │   │   ├─ punctuation.whitespace.sd [50..51]: " "
+ │   │   ├─ punctuation.definition.position.sd [51..52]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [52..57]: "right"
+ │   │   └─ punctuation.definition.position.sd [57..58]: "]"
+ │   ├─ meta.template.expression.operator.colon.sd [58..59]: ":"
+ │   ├─ punctuation.whitespace.required.sd [59..60]: " "
+ │   └─ string.display.text.chunk.sd [60..72]
+ │       ├─ markup.raw.text.sd [60..69]: "Seriously"
+ │       ├─ markup.raw.punctuation.sd [69..70]: "?"
+ │       ├─ markup.raw.punctuation.sd [70..71]: "?"
+ │       └─ markup.raw.punctuation.sd [71..72]: "?"
+ ├─ Newline [72..73]: "\n"
+ ├─ string.display.dialogue.block.sd [73..91]
+ │   ├─ punctuation.whitespace.optional.sd [73..75]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [75..80]
+ │   │   └─ markup.raw.text.sd [75..80]: "BUNNY"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [80..90]
+ │   │   ├─ punctuation.whitespace.sd [80..81]: " "
+ │   │   ├─ punctuation.definition.position.sd [81..82]: "["
+ │   │   ├─ punctuation.whitespace.extra.sd [82..83]: " "
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [83..88]: "shout"
+ │   │   ├─ punctuation.whitespace.extra.sd [88..89]: " "
+ │   │   └─ punctuation.definition.position.sd [89..90]: "]"
+ │   └─ meta.template.expression.operator.colon.sd [90..91]: ":"
+ ├─ Newline [91..92]: "\n"
+ ├─ string.display.dialogue.block.sd [92..105]
+ │   ├─ punctuation.whitespace.optional.sd [92..96]: "    "
+ │   └─ string.display.text.chunk.sd [96..105]
+ │       ├─ markup.raw.text.sd [96..97]: "I"
+ │       ├─ markup.raw.punctuation.sd [97..98]: "'"
+ │       ├─ markup.raw.text.sd [98..99]: "m"
+ │       ├─ markup.raw.space.sd [99..100]: " "
+ │       ├─ markup.raw.text.sd [100..104]: "busy"
+ │       └─ markup.raw.punctuation.sd [104..105]: "!"
+ ├─ Newline [105..106]: "\n"
+ ├─ string.display.dialogue.inline.sd [106..148]
+ │   ├─ punctuation.whitespace.optional.sd [106..108]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [108..115]
+ │   │   └─ markup.raw.text.sd [108..115]: "RAFFLES"
+ │   ├─ constant.character.escape.dialogue.character.parenthetical.sd [115..122]
+ │   │   ├─ punctuation.whitespace.sd [115..116]: " "
+ │   │   ├─ meta.brace.round.open.sd [116..117]: "("
+ │   │   ├─ markup.raw.text.sd [117..118]: "V"
+ │   │   ├─ markup.raw.punctuation.sd [118..119]: "."
+ │   │   ├─ markup.raw.text.sd [119..120]: "O"
+ │   │   ├─ markup.raw.punctuation.sd [120..121]: "."
+ │   │   └─ meta.brace.round.close.sd [121..122]: ")"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [122..132]
+ │   │   ├─ punctuation.whitespace.sd [122..123]: " "
+ │   │   ├─ punctuation.definition.position.sd [123..124]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [124..131]: "receive"
+ │   │   └─ punctuation.definition.position.sd [131..132]: "]"
+ │   ├─ meta.template.expression.operator.colon.sd [132..133]: ":"
+ │   ├─ punctuation.whitespace.required.sd [133..134]: " "
+ │   └─ string.display.text.chunk.sd [134..148]
+ │       ├─ markup.raw.text.sd [134..140]: "slight"
+ │       ├─ markup.raw.space.sd [140..141]: " "
+ │       └─ markup.raw.text.sd [141..148]: "problem"
+ ├─ Newline [148..149]: "\n"
+ ├─ string.display.dialogue.inline.sd [149..180]
+ │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [151..154]
+ │   │   ├─ markup.raw.punctuation.sd [151..152]: "?"
+ │   │   ├─ markup.raw.punctuation.sd [152..153]: "?"
+ │   │   └─ markup.raw.punctuation.sd [153..154]: "?"
+ │   ├─ punctuation.whitespace.sd [154..155]: " "
+ │   ├─ keyword.control.as.sd [155..157]: "as"
+ │   ├─ punctuation.whitespace.sd [157..158]: " "
+ │   ├─ variable.other.character.speaker.sd [158..163]: "bunny"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [163..175]
+ │   │   ├─ punctuation.whitespace.sd [163..164]: " "
+ │   │   ├─ punctuation.definition.position.sd [164..165]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [165..174]: "two words"
+ │   │   └─ punctuation.definition.position.sd [174..175]: "]"
+ │   ├─ meta.template.expression.operator.colon.sd [175..176]: ":"
+ │   ├─ punctuation.whitespace.required.sd [176..177]: " "
+ │   └─ string.display.text.chunk.sd [177..180]
+ │       ├─ markup.raw.text.sd [177..179]: "Hm"
+ │       └─ markup.raw.punctuation.sd [179..180]: "."
+ ├─ Newline [180..181]: "\n"
+ ├─ keyword.control.end.luau [181..184]: "end"
+ └─ Newline [184..185]: "\n"

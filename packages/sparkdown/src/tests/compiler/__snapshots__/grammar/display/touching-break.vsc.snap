@@ -304,11 +304,10 @@ text.source.sparkdown [0..1131]
  │   │   ├─ meta.brace.round.open.sd [381..382]: "("
  │   │   ├─ markup.raw.text.sd [382..390]: "cheerful"
  │   │   └─ meta.brace.round.close.sd [390..391]: ")"
- │   ├─ constant.character.escape.dialogue.character.position.sd [391..393]
+ │   ├─ constant.character.escape.dialogue.character.position.sd [391..395]
  │   │   ├─ punctuation.whitespace.sd [391..392]: " "
- │   │   └─ punctuation.definition.position.sd [392..393]: "["
- │   ├─ constant.character.escape.dialogue.character.position.sd [393..394]: ">"
- │   ├─ constant.character.escape.dialogue.character.position.sd [394..395]
+ │   │   ├─ punctuation.definition.position.sd [392..393]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [393..394]: ">"
  │   │   └─ punctuation.definition.position.sd [394..395]: "]"
  │   └─ meta.template.expression.operator.colon.sd [395..396]: ":"
  ├─ Newline [396..397]: "\n"

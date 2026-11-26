@@ -47,11 +47,10 @@ text.source.sparkdown [0..243]
  │   │   ├─ markup.raw.text.sd [77..78]: "S"
  │   │   ├─ markup.raw.punctuation.sd [78..79]: "."
  │   │   └─ meta.brace.round.close.sd [79..80]: ")"
- │   ├─ constant.character.escape.dialogue.character.position.sd [80..82]
+ │   ├─ constant.character.escape.dialogue.character.position.sd [80..84]
  │   │   ├─ punctuation.whitespace.sd [80..81]: " "
- │   │   └─ punctuation.definition.position.sd [81..82]: "["
- │   ├─ constant.character.escape.dialogue.character.position.sd [82..83]: "<"
- │   ├─ constant.character.escape.dialogue.character.position.sd [83..84]
+ │   │   ├─ punctuation.definition.position.sd [81..82]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [82..83]: "<"
  │   │   └─ punctuation.definition.position.sd [83..84]: "]"
  │   └─ meta.template.expression.operator.colon.sd [84..85]: ":"
  ├─ Newline [85..86]: "\n"
@@ -140,11 +139,10 @@ text.source.sparkdown [0..243]
  │   │   ├─ markup.raw.text.sd [219..220]: "O"
  │   │   ├─ markup.raw.punctuation.sd [220..221]: "."
  │   │   └─ meta.brace.round.close.sd [221..222]: ")"
- │   ├─ constant.character.escape.dialogue.character.position.sd [222..224]
+ │   ├─ constant.character.escape.dialogue.character.position.sd [222..226]
  │   │   ├─ punctuation.whitespace.sd [222..223]: " "
- │   │   └─ punctuation.definition.position.sd [223..224]: "["
- │   ├─ constant.character.escape.dialogue.character.position.sd [224..225]: ">"
- │   ├─ constant.character.escape.dialogue.character.position.sd [225..226]
+ │   │   ├─ punctuation.definition.position.sd [223..224]: "["
+ │   │   ├─ entity.name.label.dialogue.character.variant.sd [224..225]: ">"
  │   │   └─ punctuation.definition.position.sd [225..226]: "]"
  │   └─ meta.template.expression.operator.colon.sd [226..227]: ":"
  ├─ Newline [227..228]: "\n"
