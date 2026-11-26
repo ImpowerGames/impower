@@ -1,6 +1,6 @@
 import { Button } from "@impower/impower-ui/components";
 import type { Synth } from "@impower/spark-engine/src/game/modules/audio/types/Synth";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useId, useRef, useState } from "preact/hooks";
 import {
   rollTypewriter,
   SAMPLE_LINE,
@@ -14,7 +14,8 @@ export default function TypewriterSound({ filename }: { filename: string }) {
   const [status, setStatus] = useState("");
   const audio = useRef<AudioContext | null>(null);
   const playing = useRef<AudioBufferSourceNode | null>(null);
-  const field = useRef<HTMLTextAreaElement>(null);
+  const preview = useRef<HTMLPreElement>(null);
+  const previewLabel = useId();
   const definition = typewriterDefinition(patch);
 
   useEffect(() => {
@@ -88,9 +89,14 @@ export default function TypewriterSound({ filename }: { filename: string }) {
       await navigator.clipboard.writeText(definition);
       setStatus("Definition copied.");
     } catch {
-      field.current?.focus();
-      field.current?.select();
-      setStatus("Definition selected. Use your device’s Copy command.");
+      const selection = window.getSelection();
+      if (preview.current && selection) {
+        preview.current.focus();
+        selection.selectAllChildren(preview.current);
+        setStatus("Definition selected. Use your device’s Copy command.");
+      } else {
+        setStatus("Select the definition and use your device’s Copy command.");
+      }
     }
   };
 
@@ -105,17 +111,20 @@ export default function TypewriterSound({ filename }: { filename: string }) {
         </Button>
         <Button onClick={reroll}>Reroll</Button>
       </div>
-      <label class="grid gap-1 font-semibold">
-        Sparkdown definition
-        <textarea
-          ref={field}
-          readOnly
-          value={definition}
-          rows={6}
-          spellcheck={false}
-          class="w-full resize-y rounded border border-edge bg-transparent p-2 font-mono text-xs font-normal"
-        />
-      </label>
+      <div class="grid min-w-0 gap-1">
+        <span id={previewLabel} class="font-semibold">
+          Sparkdown definition
+        </span>
+        <pre
+          ref={preview}
+          role="region"
+          aria-labelledby={previewLabel}
+          tabIndex={0}
+          class="m-0 h-28 w-full min-w-0 resize-y select-text overflow-auto rounded border border-edge p-2 font-mono text-xs"
+        >
+          <code>{definition}</code>
+        </pre>
+      </div>
       <Button onClick={copy}>Copy definition</Button>
       <p class="m-0 text-muted">
         Paste above your scenes. Use your character’s name in place of{" "}
