@@ -108,9 +108,24 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     expect(accepted(body, item)).toBe(styled(expected));
   });
 
+  it("writes the block on the key's line when the next line opens a brace, which is not the key's body", () => {
+    const nextLine = (compile(styled("  #variant=left\n  {\n    opacity = 1\n  }")).context as any).style.text;
+    expect(nextLine["#variant=left"]).toBeUndefined();
+    expect(nextLine["0"]).toBe("#variant=left");
+    const sameLine = (compile(styled("  #variant=left {\n    opacity = 1\n  }")).context as any).style.text;
+    expect(sameLine["#variant=left"]).toEqual({ opacity: "1" });
+    const body = "  #var@1\n  {\n    opacity = 1\n  }";
+    const item = completeIn(body, "#").items.find((i) => i.label === "#variant")!;
+    expect(accepted(body, item)).toBe(styled("  #variant= {  }\n  {\n    opacity = 1\n  }"));
+  });
+
   it.each([
     ["  #var@1 { opacity = 1 }", "#", "#variant", "  #variant= { opacity = 1 }"],
     ["  #var@1 @hovered { opacity = 1 }", "#", "#variant", "  #variant= @hovered { opacity = 1 }"],
+    ["  #var@1, #variant=right { opacity = 1 }", "#", "#variant", "  #variant=, #variant=right { opacity = 1 }"],
+    ['  #var@1 [title="a -- b"] { opacity = 1 }', "#", "#variant", '  #variant= [title="a -- b"] { opacity = 1 }'],
+    ["  #var@1 [title='a // b'] { opacity = 1 }", "#", "#variant", "  #variant= [title='a // b'] { opacity = 1 }"],
+    ['  #var@1 [title="a;b"] { opacity = 1 }', "#", "#variant", '  #variant= [title="a;b"] { opacity = 1 }'],
     ["  #var@1iant=left { opacity = 1 }", "#", "#variant", "  #variant=left { opacity = 1 }"],
     ["  #sp@1=bunny { opacity = 1 }", "#", "#speaker", "  #speaker=bunny { opacity = 1 }"],
     ["  #dis@1 { opacity = 1 }", "#", "#disabled", "  #disabled { opacity = 1 }"],

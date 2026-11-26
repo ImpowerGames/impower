@@ -2482,7 +2482,10 @@ const completionsAt = (
       const rest = after.slice(nameRest.length);
       const closing =
         typedSelector[1] === "[" ? (/^\s*\]/.exec(rest)?.[0] ?? "") : "";
-      const entryRest = rest.slice(closing.length).split(/--|\/\/|[;,]/)[0]!;
+      const entryRest = rest
+        .slice(closing.length)
+        .replace(/"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/g, '""')
+        .split(/--|\/\/|;/)[0]!;
       const written = /^\s*[~|^$*]?=/.test(rest)
         ? "value"
         : entryRest.includes("{")
