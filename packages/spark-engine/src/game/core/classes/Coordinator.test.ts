@@ -71,6 +71,7 @@ const createGame = (
         setMotion: () => {},
         beginLine: () => undefined,
         closeLine: () => {},
+        line: () => {},
         beginPresentation: () => 0,
         layoutHolds: () => true,
         getTransientTargets: () => [],

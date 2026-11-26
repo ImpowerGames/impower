@@ -9,7 +9,7 @@ export interface CueReading {
   as?: CuePart;
   speaker?: CuePart;
   parenthetical?: CuePart;
-  position?: CuePart;
+  variant?: CuePart;
 }
 
 const WS = "[^\\S\\n\\r]";
@@ -32,7 +32,7 @@ const ONLY_CUE_TAIL = new RegExp(`^${CUE_TAIL}${WS}*$`);
 
 const PARENTHETICAL = new RegExp(`^(${WS})([(]${WS}*[^()\\r\\n]*?${WS}*[)])`);
 
-const POSITION = new RegExp(`^(${WS}\\[${WS}*)(.*?)${WS}*\\]`);
+const VARIANT = new RegExp(`^(${WS}\\[${WS}*)(.*?)${WS}*\\]`);
 
 const SPEAKER_BEING_WRITTEN = new RegExp(
   `^(.*[^\\s])${WS}+as${WS}+((?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]*)*)?)$`,
@@ -41,6 +41,15 @@ const SPEAKER_BEING_WRITTEN = new RegExp(
 const SPEAKER_REST = /^[a-zA-Z0-9_@]*/;
 
 const part = (text: string, from: number): CuePart => ({ text, from, to: from + text.length });
+
+const VARIANT_SHORTHANDS: ReadonlyMap<string, string> = new Map([["<", "left"], [">", "right"]]);
+
+const VARIANT_WORD = /^[\p{L}\p{N}_]+$/u;
+
+export function cueVariant(written: string): string | undefined {
+  const word = written.trim();
+  return VARIANT_SHORTHANDS.get(word) ?? (VARIANT_WORD.test(word) ? word : undefined);
+}
 
 export function readSpeakerBeingWritten(
   before: string,
@@ -72,9 +81,9 @@ export function readCue(cue: string): CueReading {
   if (parenthetical) {
     reading.parenthetical = part(parenthetical[2]!, starts[7]! + parenthetical[1]!.length);
   }
-  const position = POSITION.exec(groups[9]!);
-  if (position?.[2]) {
-    reading.position = part(position[2], starts[9]! + position[1]!.length);
+  const variant = VARIANT.exec(groups[9]!);
+  if (variant?.[2]) {
+    reading.variant = part(variant[2], starts[9]! + variant[1]!.length);
   }
   return reading;
 }

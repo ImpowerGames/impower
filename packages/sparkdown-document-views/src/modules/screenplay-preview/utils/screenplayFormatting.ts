@@ -4,6 +4,7 @@ import { Extension, Facet, Range, RangeSet, StateField } from "@codemirror/state
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { cueVariant } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { ScreenplayConfig } from "../../../../../sparkdown-screenplay/src/types/ScreenplayConfig";
 import type { ScreenplayTokenType } from "../../../../../sparkdown-screenplay/src/types/ScreenplayTokenType";
@@ -797,13 +798,9 @@ export const decorate = (
           });
         }
         const side = declarationName(nodeRef, "DialogueCharacterPositionContent");
-        inDualDialogue = side !== "";
-        dialoguePosition =
-          side === "<" || side === "left" || side === "l"
-            ? 1
-            : side === ">" || side === "right" || side === "r"
-              ? 2
-              : 0;
+        const variant = cueVariant(side);
+        dialoguePosition = variant === "left" ? 1 : variant === "right" ? 2 : 0;
+        inDualDialogue = dialoguePosition > 0;
       } else if (inDialogue && GLUED_ALTERNATOR_BLOCKS.has(name)) {
         const exported = exportedLinesFrom(from, to);
         const last = dialogueContent.at(-1);
