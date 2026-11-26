@@ -29,4 +29,7 @@ style card {
   @container style(--mode: dark), style(--label: ")@night") {
     color = red
   }
+  @hovered @media (foo: url(foo\(bar)), print {
+    color = red
+  }
 }

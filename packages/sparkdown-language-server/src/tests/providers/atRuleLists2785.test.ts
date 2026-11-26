@@ -109,6 +109,7 @@ describe("a raw at-rule that lists queries with a comma beside a selector or sta
     ['@hovered @container style(--mode: dark), style(--mode: "@night")', "container"],
     ["@showing(hud) @media (min-width: 1px), print", "media"],
     ["@media (min-width: 1px), print @theme(dark)", "media"],
+    ["@hovered @media (foo: url(foo\\(bar)), print", "media"],
   ])("%s", (selector, state) => {
     expect(warnings(selector, "at-rule-query-list")).toEqual([queryListWarning(selector, state)]);
   });
@@ -121,9 +122,24 @@ describe("a raw at-rule that lists queries with a comma beside a selector or sta
     '@container style(--mode: dark), style(--label: ")@night")',
     "@container card (min-width: 1px), sidebar (min-width: 2px)",
     "@layer base, theme",
+    "@media (min-width: 1px), (foo: url(x\\)\\)@hovered))",
   ])("does not warn on %s, which holds only the at-rule", (selector) => {
     expect(warnings(selector, "at-rule-query-list")).toEqual([]);
     expect(warnings(selector, "at-rule-list")).toEqual([]);
+  });
+
+  it.each([
+    "@media (min-width: 1px), (foo: url(x\\)\\)@hovered))",
+    "@hovered @media (foo: url(foo\\(bar)), print",
+  ])("reads the escaped parentheses in %s as text, not as a group", (selector) => {
+    const all = (compile(`${LAYOUTS}
+style frame {
+  ${selector} {
+    opacity = 1
+  }
+}
+`).diagnostics?.[MAIN] ?? []).map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
+    expect(all.filter((message: string) => message.includes("Missing ')'"))).toEqual([]);
   });
 });
 

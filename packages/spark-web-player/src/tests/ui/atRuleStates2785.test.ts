@@ -245,6 +245,9 @@ const RAW_QUERY_LISTS = [
   "@container (min-width: 1px), style(--x: fn(@y))",
   "@layer base, theme",
   "@layer base, theme.dark",
+  "@media (min-width: 1px), (foo: url(x\\)\\)@hovered))",
+  "@container (min-width: 1px), style(--x: url(a\\(b))",
+  "@media (min-width: 1px), print \\@hovered",
 ];
 
 const BEFORE_QUERY_LIST = [
@@ -296,6 +299,9 @@ const EARLIER_COUNTEREXAMPLES = [
   "@media (min-width: 1px), (b) @hovered",
   "@media (min-width: 600px), @busy @media (min-width: 600px)",
   "@hovered @media (min-width: 1px), @focused @media (min-width: 2px)",
+  "@media (min-width: 1px), (foo: url(foo\\(bar)) @hovered",
+  "@hovered @media (foo: url(foo\\(bar)), print",
+  "@hovered @media (foo: url(foo\\)bar)), print",
 ];
 
 const MIXED_QUERY_LISTS = [

@@ -7784,6 +7784,9 @@
     "SelectorCssText": {
       "patterns": [
         {
+          "include": "#SelectorCssEscape"
+        },
+        {
           "include": "#LuauStructBlockKeyString"
         },
         {
@@ -7805,6 +7808,9 @@
     },
     "SelectorAtRulePreludeText": {
       "patterns": [
+        {
+          "include": "#SelectorCssEscape"
+        },
         {
           "include": "#LuauStructBlockKeyString"
         },
@@ -7829,6 +7835,11 @@
       "tag": "operator",
       "name": "keyword.operator.css.sd",
       "match": "([^\\s(),@\\p{L}\\p{N}_-]|[@](?![_\\p{L}]))"
+    },
+    "SelectorCssEscape": {
+      "tag": "escape",
+      "name": "constant.character.escape.css.sd",
+      "match": "([\\\\][^\\r\\n])"
     },
     "SelectorCssWord": {
       "tag": "string",

@@ -4927,6 +4927,7 @@ repository:
 
   SelectorCssText:
     patterns:
+      - { include: "#SelectorCssEscape" }
       - { include: "#LuauStructBlockKeyString" }
       - { include: "#StringLiteral" }
       - { include: "#Separator" }
@@ -4936,6 +4937,7 @@ repository:
 
   SelectorAtRulePreludeText:
     patterns:
+      - { include: "#SelectorCssEscape" }
       - { include: "#LuauStructBlockKeyString" }
       - { include: "#StringLiteral" }
       - { include: "#Separator" }
@@ -4950,6 +4952,11 @@ repository:
     tag: operator
     name: keyword.operator.css.sd
     match: ([^\s(),@{{SELECTOR_WORD_CHAR}}]|[@](?![_\p{L}]))
+
+  SelectorCssEscape:
+    tag: escape
+    name: constant.character.escape.css.sd
+    match: ([\\][^\r\n])
 
   SelectorCssWord:
     tag: string

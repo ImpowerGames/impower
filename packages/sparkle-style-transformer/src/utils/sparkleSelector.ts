@@ -646,6 +646,12 @@ class SparkleSelectorWriter {
         space = false;
       }
       atStart = false;
+      if (char === "\\") {
+        const escaped = this.src.slice(this.i, this.i + 2);
+        this.i += escaped.length;
+        out += escaped;
+        continue;
+      }
       if (char === "(") {
         const scope = declarations.length === 1 && atRule === "@scope";
         const condition =
