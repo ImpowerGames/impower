@@ -59,7 +59,7 @@ const run = async (later: Keyframe[], css = ""): Promise<Run> => {
         removed = resolve;
       });
       let early = false;
-      const unseen = w.whenUnseen([picture], ended).then(() => {
+      const unseen = w.whenUnseen([{ element: picture, target: portrait }], ended).then(() => {
         early = true;
       });
       const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -117,7 +117,7 @@ const plateau = async (keyframes: Keyframe[], easing = "linear") => {
         fade.pause();
         fade.currentTime = 2000;
         let early = false;
-        w.whenUnseen([picture], new Promise(() => {})).then(() => {
+        w.whenUnseen([{ element: picture, target: portrait }], new Promise(() => {})).then(() => {
           early = true;
         });
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -171,7 +171,7 @@ const watchThen = async (change: string) => {
       fade.pause();
       fade.currentTime = 100;
       let early = false;
-      w.whenUnseen([picture], new Promise(() => {})).then(() => {
+      w.whenUnseen([{ element: picture, target: portrait }], new Promise(() => {})).then(() => {
         early = true;
       });
       const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -226,7 +226,7 @@ const scenario = async (setup: string, css = ""): Promise<Scenario> => {
         return opacity > 0 && getComputedStyle(picture).visibility === "visible" && picture.getClientRects().length > 0;
       };
       let answered = false;
-      w.whenUnseen([picture], new Promise(() => {})).then(() => {
+      w.whenUnseen([{ element: picture, target: portrait }], new Promise(() => {})).then(() => {
         answered = true;
       });
       const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -321,7 +321,7 @@ test("a picture whose finished fade has a later animation waiting to lift it is 
   expect(result).toEqual({ early: false, seen: false, settled: true, seenAtEnd: false });
 });
 
-test("a picture whose ancestor has faded to zero is unseen even while the picture itself fades in (#2845)", async () => {
+test("a picture whose ancestor above the write's target has faded to zero waits for its effects (#2845)", async () => {
   const result = await scenario(`
     stage.animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
     const rise = picture.animate([{ opacity: "0" }, { opacity: "1" }], { duration: 6000, fill: "both" });
@@ -329,12 +329,12 @@ test("a picture whose ancestor has faded to zero is unseen even while the pictur
     rise.currentTime = 2000;
     return [rise];
   `);
-  expect(result).toEqual({ early: true, seen: false, settled: true, seenAtEnd: false });
+  expect(result).toEqual({ early: false, seen: false, settled: false, seenAtEnd: false });
 });
 
-test("a picture whose ancestor is still fading is seen (#2845)", async () => {
+test("a picture whose ancestor above the write's target is fading waits for its effects (#2845)", async () => {
   const result = await scenario(held("stage", `[{ opacity: "0" }]`, `{ duration: 1000, fill: "forwards" }`, 500));
-  expect(result).toEqual({ early: false, seen: true, settled: true, seenAtEnd: false });
+  expect(result).toEqual({ early: false, seen: true, settled: false, seenAtEnd: false });
 });
 
 test("a picture hidden by something other than opacity waits for its effects to end (#2845)", async () => {
@@ -413,7 +413,7 @@ const shown = async (body: string, setup: string, css = "", gesture = false): Pr
         return opacity > 0 && style.visibility === "visible" && el.getClientRects().length > 0;
       };
       let answered = false;
-      w.whenUnseen(watched.watch, new Promise(() => {})).then(() => {
+      w.whenUnseen(watched.watch.map((element) => ({ element, target: element.ownerDocument.getElementById("portrait")! })), new Promise(() => {})).then(() => {
         answered = true;
       });
       watched.after?.();
@@ -581,7 +581,7 @@ test("a picture whose wrapper's popover is itself faded to zero is unseen (#2845
   expect(result).toEqual({ early: true, seen: false });
 });
 
-test("a picture whose held fade keeps its display constant is unseen (#2845)", async () => {
+test("a picture whose held fade names display, even as a constant, waits for its effects (#2845)", async () => {
   const result = await scenario(
     held(
       "portrait",
@@ -590,7 +590,7 @@ test("a picture whose held fade keeps its display constant is unseen (#2845)", a
       1000,
     ),
   );
-  expect(result).toEqual({ early: true, seen: false, settled: true, seenAtEnd: false });
+  expect(result).toEqual({ early: false, seen: false, settled: false, seenAtEnd: false });
 });
 
 test("a picture whose held fade sets display at one end only waits for its effects (#2845)", async () => {

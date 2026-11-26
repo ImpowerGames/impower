@@ -63,27 +63,11 @@ const holdOf = (animation: Animation): Hold => {
   return fills && animation.playbackRate > 0 && progress != null && bounded ? "pins" : "keeps";
 };
 
-const changesDisplay = (animation: Animation) => {
-  const effect = animation.effect as KeyframeEffect | null;
-  if (typeof effect?.getKeyframes !== "function") {
-    return false;
-  }
-  const frames = effect.getKeyframes().filter((frame) => frame["display"] != null);
-  if (frames.length === 0) {
-    return false;
-  }
-  const offsets = frames.map((frame) => frame.computedOffset);
-  return (
-    !offsets.includes(0) ||
-    !offsets.includes(1) ||
-    frames.some((frame) => String(frame["display"]).trim() === "contents")
-  );
-};
+const styleOf = (el: Element) => el.ownerDocument.defaultView?.getComputedStyle(el);
 
 const transparent = (el: Element): boolean => {
-  const animations = el.getAnimations();
   let pinned = false;
-  for (const animation of animations) {
+  for (const animation of el.getAnimations()) {
     const hold = holdOf(animation);
     if (hold === "pins") {
       pinned = true;
@@ -91,11 +75,28 @@ const transparent = (el: Element): boolean => {
       pinned = false;
     }
   }
-  if (!pinned || animations.some(changesDisplay)) {
-    return false;
+  return pinned && Number(styleOf(el)?.opacity) === 0;
+};
+
+const namesDisplay = (el: Element): boolean => {
+  const style = styleOf(el);
+  if (!style || style.display === "contents") {
+    return true;
   }
-  const style = el.ownerDocument.defaultView?.getComputedStyle(el);
-  return style?.display !== "contents" && Number(style?.opacity) === 0;
+  const transitioned = style.transitionProperty.split(",").map((property) => property.trim());
+  if (
+    transitioned.includes("display") ||
+    (transitioned.includes("all") && String(style.getPropertyValue("transition-behavior")).includes("allow-discrete"))
+  ) {
+    return true;
+  }
+  return el.getAnimations().some((animation) => {
+    const effect = animation.effect as KeyframeEffect | null;
+    return (
+      (animation as CSSTransition).transitionProperty === "display" ||
+      (typeof effect?.getKeyframes === "function" && effect.getKeyframes().some((frame) => frame["display"] != null))
+    );
+  });
 };
 
 const TOP_LAYER = [":popover-open", ":modal", ":fullscreen"];
@@ -109,12 +110,20 @@ const inTopLayer = (el: Element) =>
     }
   });
 
-const lineage = (el: Element): Element[] => {
+const chainTo = (el: Element, target: Element): Element[] | undefined => {
   const els: Element[] = [];
-  for (let at: Element | null = el; at; at = inTopLayer(at) ? null : at.parentElement) {
+  for (let at: Element | null = el; at; at = at.parentElement) {
     els.push(at);
+    if (at === target || inTopLayer(at)) {
+      return els;
+    }
   }
-  return els;
+  return undefined;
+};
+
+const hidden = (el: Element, target: Element): boolean => {
+  const chain = chainTo(el, target);
+  return chain != null && chain.some(transparent) && !chain.some(namesDisplay);
 };
 
 const topLayerWithin = (root: Element | ShadowRoot): Element[] => {
@@ -132,15 +141,20 @@ const topLayerWithin = (root: Element | ShadowRoot): Element[] => {
   return found;
 };
 
-const unseen = (el: Element): boolean =>
-  !el.isConnected ||
-  (lineage(el).some(transparent) &&
-    topLayerWithin(el).every((layer) => lineage(layer).some(transparent)) &&
-    (!el.shadowRoot || topLayerWithin(el.shadowRoot).every((layer) => lineage(layer).some(transparent))));
+export interface UnseenPicture {
+  element: Element;
+  target: Element;
+}
 
-export const whenUnseen = (elements: Element[], until: Promise<unknown>): Promise<void> =>
+const unseen = ({ element, target }: UnseenPicture): boolean =>
+  !element.isConnected ||
+  (hidden(element, target) &&
+    topLayerWithin(element).every((layer) => hidden(layer, target)) &&
+    (!element.shadowRoot || topLayerWithin(element.shadowRoot).every((layer) => hidden(layer, target))));
+
+export const whenUnseen = (pictures: UnseenPicture[], until: Promise<unknown>): Promise<void> =>
   new Promise((resolve) => {
-    if (elements.length === 0 || elements.some((el) => typeof el.getAnimations !== "function")) {
+    if (pictures.length === 0 || pictures.some(({ element }) => typeof element.getAnimations !== "function")) {
       return;
     }
     let watching = true;
@@ -148,12 +162,12 @@ export const whenUnseen = (elements: Element[], until: Promise<unknown>): Promis
       watching = false;
     };
     until.then(stop, stop);
-    const view = elements[0]!.ownerDocument.defaultView;
+    const view = pictures[0]!.element.ownerDocument.defaultView;
     const check = () => {
       if (!watching) {
         return;
       }
-      if (elements.every(unseen)) {
+      if (pictures.every(unseen)) {
         watching = false;
         resolve();
         return;

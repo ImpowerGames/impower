@@ -3114,7 +3114,10 @@ export default class UIManager extends Manager {
     }
     const shown = targetEls.flatMap((targetEl) =>
       [...this.getContentElements(targetEl, "image"), ...this.getContentElements(targetEl, "mask")].flatMap(
-        (contentEl) => (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared),
+        (contentEl) =>
+          (Array.from(contentEl.children) as HTMLElement[])
+            .filter((el) => !(el as any).__sdPrepared)
+            .map((element) => ({ element, target: targetEl })),
       ),
     );
     removed.catch((error) => {
