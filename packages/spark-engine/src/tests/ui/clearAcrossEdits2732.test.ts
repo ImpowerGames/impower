@@ -114,14 +114,24 @@ function shownOn(h: UIHarness, k: Kind, id: string): boolean {
   return shown;
 }
 
+const actionText = (h: UIHarness, from: number) =>
+  (flattenMessages(h.messages.slice(from)) as any[])
+    .filter((m) => m?.method === "ui/write-text" && m.params?.target === "action")
+    .map((m) => (m.params.instructions ?? []).map((e: any) => e.text ?? "").join(""))
+    .join("");
+
 const LOADS = [
-  ["a save resumed", (game: any, saved: { save: string; checkpoint: string }) => expect(game.loadToResume(saved.save)).toBe(true)],
-  ["a checkpoint previewed", (game: any, saved: { save: string; checkpoint: string }) => game.load(saved.checkpoint)],
+  [
+    "a save resumed",
+    (game: any, saved: { save: string; checkpoint: string }) => expect(game.loadToResume(saved.save)).toBe(true),
+    true,
+  ],
+  ["a checkpoint previewed", (game: any, saved: { save: string; checkpoint: string }) => game.load(saved.checkpoint), false],
 ] as const;
 
 describe("state written before a layout edit (I-2732)", () => {
   describe.each(Object.entries(KINDS))("%s", (_, k) => {
-    describe.each(LOADS)("%s", (__, load) => {
+    describe.each(LOADS)("%s", (__, load, resumes) => {
       test.each(EDITS)("%s: an old key names no other element, and the restore keeps only the unmarked element's content", async (edit, after, roles) => {
         const original = await playToSecondLine(PREFIX + BEFORE(k) + k.scene);
         const saved = { save: original.game.saveHere()!.data, checkpoint: original.game.save() };
@@ -146,6 +156,16 @@ describe("state written before a layout edit (I-2732)", () => {
         roles.forEach((role, i) => {
           expect(shownOn(h, k, ids[i]!), `${role} element ${i}`).toBe(role === "kept");
         });
+        if (resumes) {
+          const connected = h.messages.length;
+          h.game.context.system.previewing = undefined;
+          h.game.start();
+          await settle(h);
+          expect(actionText(h, connected)).toContain("First line.");
+          roles.forEach((role, i) => {
+            expect(shownOn(h, k, ids[i]!), `${role} element ${i} after the save resumes`).toBe(role === "kept");
+          });
+        }
       });
     });
   });

@@ -4154,16 +4154,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const name = [node.tag, ...node.classes].join(" ");
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
-      return this.mountInputWidget(parent, node, scope, name, widget, before);
+      return this.notePath(this.mountInputWidget(parent, node, scope, name, widget, before), node);
     }
     if (node.tag === "dropdown") {
-      return this.mountDropdown(parent, node, scope, name, before);
+      return this.notePath(this.mountDropdown(parent, node, scope, name, before), node);
     }
     if (node.tag === "textarea") {
-      return this.mountTextarea(parent, node, scope, name, before);
+      return this.notePath(this.mountTextarea(parent, node, scope, name, before), node);
     }
     if (node.tag === "option") {
-      return this.mountOption(parent, node, scope, name, before);
+      return this.notePath(this.mountOption(parent, node, scope, name, before), node);
     }
     const style: Record<string, string | null> = {};
     const attributes: Record<string, string | null> = {};
@@ -4214,10 +4214,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       before,
     );
-    const nodePath = this._nodePaths.get(node);
-    if (nodePath !== undefined) {
-      this._elementPaths.set(el, nodePath);
-    }
+    this.notePath(el, node);
     this.limit(el, labels);
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
@@ -5516,6 +5513,39 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.collectMarks(screen.children, root("screen", name, screen.children));
       }
     }
+    for (const component of Object.values(sparkle?.components ?? {})) {
+      if (component) {
+        this.collectUnmarked(component.children);
+      }
+    }
+  }
+
+  protected collectUnmarked(nodes: readonly BodyNode[] | undefined): void {
+    for (const node of nodes ?? []) {
+      switch (node.kind) {
+        case "element":
+          if (!isStream(node)) {
+            this._unmarkedKeys.add([node.tag, ...node.classes].join(" "));
+            this.collectUnmarked(node.children);
+          }
+          break;
+        case "if":
+          node.branches.forEach((branch) => this.collectUnmarked(branch.children));
+          this.collectUnmarked(node.else);
+          break;
+        case "match":
+          node.cases.forEach((c) => this.collectUnmarked(c.children));
+          this.collectUnmarked(node.else);
+          break;
+        case "for":
+          this.collectUnmarked(node.children);
+          this.collectUnmarked(node.else);
+          break;
+        case "fill":
+          this.collectUnmarked(node.children);
+          break;
+      }
+    }
   }
 
   protected collectMarks(nodes: readonly BodyNode[] | undefined, path: string): void {
@@ -6637,6 +6667,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   elementPath(el: Element): string | undefined {
     return this._elementPaths.get(el);
+  }
+
+  protected notePath(el: Element, node: ElementNode): Element {
+    const path = this._nodePaths.get(node);
+    if (path !== undefined) {
+      this._elementPaths.set(el, path);
+    }
+    return el;
   }
 
   protected markedPaths(target: string): string[] {

@@ -263,6 +263,62 @@ ${SCENE}`);
     expect(emptied(ui, h.messages.slice(beats[1]), "ui/write-text", "title")).toContain(ids[0]);
   });
 
+  test.each([
+    ["text", "title", "text", "^: Chapter One", "ui/write-text"],
+    ["picture", "portrait", "image", "[[show portrait SKY]]\n  A sky.", "ui/write-image"],
+  ])("a component's unmarked %s beside a #clear element of its name keeps its content through the next line and a reconnect", async (_, tag, leaf, line, method) => {
+    const { h, ui } = await play(`
+component banner {
+  frame { ${tag} { ${leaf} } }
+}
+
+layout textbox {
+  textbox {
+    ${tag} #clear { ${leaf} }
+    action #clear { text }
+    banner()
+    banner()
+  }
+}
+
+scene start
+  ${line}
+
+  First line.
+end
+`);
+    const copies = () => (ui.textElements(tag) as any[]).filter((el) => ui.elementPath(el) === undefined).map((el) => el.id);
+    expect(copies()).toHaveLength(2);
+    const from = h.messages.length;
+    await h.reconnect();
+    await flushMicrotasks(30);
+    const all: string[] = ui.findIds(tag);
+    const onto = writes(h.messages.slice(from), method, tag)
+      .filter((m: any) => !isClear(m))
+      .flatMap((m: any) => m.params.elements ?? all);
+    expect(copies()).toHaveLength(2);
+    for (const id of copies()) {
+      expect(onto).toContain(id);
+    }
+  });
+
+  test("a #clear on an input widget empties its text at the next line", async () => {
+    const { h, ui, beats } = await play(`
+layout textbox {
+  textbox {
+    checkbox.title #clear "Heading"
+    action #clear { text }
+  }
+}
+${SCENE}`);
+    const marked = (ui.textElements("title") as any[]).find((el) => el.name === "checkbox title");
+    expect(marked).toBeDefined();
+    const atNextLine = ["title", "checkbox title"].flatMap((target) =>
+      emptied(ui, h.messages.slice(beats[1]), "ui/write-text", target),
+    );
+    expect(atNextLine).toContain(marked.id);
+  });
+
   test("every copy of a #clear element in a loop empties at the next line", async () => {
     const { h, ui, beats } = await play(`
 store items = {1, 2}
