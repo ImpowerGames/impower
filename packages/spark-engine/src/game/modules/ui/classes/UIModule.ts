@@ -6772,9 +6772,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected async applyChanges(
         target: string,
         style: Record<string, string | null> | null,
+        waiting = false,
       ) {
         for (const targetEl of $.findElements(target)) {
-          if (targetEl) {
+          if (targetEl && (!waiting || $.streams.waits(targetEl))) {
             $.updateElement(targetEl, { style });
           }
         }
@@ -6785,8 +6786,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style: Record<string, string | null> | null,
       ) {
         this.saveState(target, style);
+        $.streams.saveEntryStyle(target, style, false);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, style);
+        }
+      }
+
+      async updateWaiting(
+        target: string,
+        style: Record<string, string | null> | null,
+      ) {
+        this.saveState(target, style);
+        $.streams.saveEntryStyle(target, style, true);
+        if (!$.context?.system?.simulating) {
+          await this.applyChanges(target, style, true);
         }
       }
     }
@@ -7288,6 +7301,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const absorbed = before.slice(keep);
         stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : [])];
         stream.current = keep;
+        for (const index of Object.keys(stream.styles ?? {})) {
+          if (Number(index) >= keep) {
+            delete stream.styles![Number(index)];
+          }
+        }
         if (absorbed.length > 0) {
           stream.absorbed = absorbed;
         } else {
@@ -7340,6 +7358,91 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       forget(): void {
         this._mounted.clear();
+      }
+
+      waits(el: Element): boolean {
+        if (!$.insideStream(el)) {
+          return true;
+        }
+        for (const mounts of this._mounted.values()) {
+          for (const mount of mounts) {
+            const view = this.waiting(mount);
+            if (
+              view &&
+              $.collectNodes(view.group).some((root) => {
+                for (let node: Element | null = el; node; node = node.parent) {
+                  if (node === root) {
+                    return true;
+                  }
+                }
+                return false;
+              })
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      protected waiting(mount: MountedStream): StreamEntryView | undefined {
+        const stream = $._state.streams?.[mount.key];
+        if (!stream || stream.entries.length <= stream.current) {
+          return undefined;
+        }
+        return mount.entries[stream.current];
+      }
+
+      saveEntryStyle(
+        target: string,
+        style: Record<string, string | null> | null,
+        waiting: boolean,
+      ): void {
+        for (const stream of Object.values($._state.streams ?? {})) {
+          const indices = waiting
+            ? stream.entries.length > stream.current
+              ? [stream.current]
+              : []
+            : Object.keys(stream.styles ?? {})
+                .map(Number)
+                .filter((index) => stream.styles?.[index]?.[target]);
+          for (const index of indices) {
+            stream.styles ??= {};
+            const styles = (stream.styles[index] ??= {});
+            if (!style) {
+              delete styles[target];
+              continue;
+            }
+            const state = (styles[target] ??= {});
+            for (const [k, v] of Object.entries(style)) {
+              state[k] = v ?? "";
+            }
+          }
+        }
+      }
+
+      protected applyStyles(
+        mount: MountedStream,
+        view: StreamEntryView,
+        index: number,
+      ): void {
+        const styles = $._state.streams?.[mount.key]?.styles?.[index];
+        if (!styles) {
+          return;
+        }
+        const roots = $.collectNodes(view.group);
+        for (const [target, saved] of Object.entries(styles)) {
+          const style = Object.fromEntries(
+            Object.entries(saved).map(([k, v]) => [k, v || null]),
+          );
+          for (const root of roots) {
+            for (const el of root.isMatch(target)
+              ? [root, ...$.searchForAll(root, target)]
+              : $.searchForAll(root, target)) {
+              $.updateElement(el, { style });
+            }
+          }
+        }
       }
 
       show(instant: boolean, time?: number): void {
@@ -7418,6 +7521,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (instant) {
           for (let i = rewriteFrom ?? current; i < kept; i += 1) {
             this.write(mount.entries[i]!, entries[i]!, true);
+            this.applyStyles(mount, mount.entries[i]!, i);
           }
           settled = Math.max(settled, kept);
         }
@@ -7426,6 +7530,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
+          this.applyStyles(mount, view, i);
           const atOnce = instant || i < current || i < settled;
           this.write(view, entry, atOnce, atOnce ? undefined : time);
           if (atOnce) {
