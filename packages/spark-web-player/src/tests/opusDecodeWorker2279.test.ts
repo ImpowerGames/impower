@@ -1,69 +1,90 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AudioClock } from "../app/AudioClock";
+import { serveOpusDecoding, type OpusServingScope } from "../app/utils/opusFallback";
+import { TONE } from "./oggOpusFixture";
 
-type WorkerMode = "real" | "silent" | "crash";
+type WorkerMode = "real" | "slow" | "silent" | "crash";
 
-const decoders = vi.hoisted(() => ({
-  mainThread: 0,
+const SLOW_DECODE_MS = 8_000;
+
+const counts = vi.hoisted(() => ({
+  thisThread: 0,
   workers: 0,
+  served: 0,
   terminated: 0,
   crash: [] as (() => void)[],
-  mode: (_preSkip: number): WorkerMode => "real",
+  mode: "real" as WorkerMode,
 }));
 
-vi.mock("opus-decoder", async (importOriginal) => {
-  const original = await importOriginal<typeof import("opus-decoder")>();
-  class CountedOpusDecoder extends original.OpusDecoder {
-    constructor(options?: Parameters<typeof Object.assign>[1]) {
-      super(options);
-      decoders.mainThread++;
-    }
-  }
-  function ControlledWorker(options: { preSkip: number }) {
-    decoders.workers++;
-    const mode = decoders.mode(options.preSkip);
-    if (mode === "real") {
-      const worker = new original.OpusDecoderWebWorker(options) as InstanceType<typeof original.OpusDecoderWebWorker> & {
-        terminate: () => void;
-      };
-      const terminate = worker.terminate.bind(worker);
-      worker.terminate = () => {
-        decoders.terminated++;
-        terminate();
-      };
-      return worker;
-    }
-    const never = () => new Promise<never>(() => undefined);
-    const worker = Object.assign(new EventTarget(), {
-      ready: never(),
-      reset: never,
-      decodeFrames: never,
-      terminate: () => {
-        decoders.terminated++;
-      },
-    });
-    if (mode === "crash") {
-      decoders.crash.push(() => {
-        const event = new Event("error");
-        Object.assign(event, { error: new Error("worker crashed") });
-        worker.dispatchEvent(event);
-      });
-    }
-    return worker;
-  }
-  return { ...original, OpusDecoder: CountedOpusDecoder, OpusDecoderWebWorker: ControlledWorker };
+vi.mock("../app/utils/opusFallback.worker", () => ({ default: "opus fallback worker" }));
+
+vi.mock("../app/utils/opusFallback", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../app/utils/opusFallback")>();
+  return {
+    ...original,
+    finishOggOpus: (bytes: Uint8Array) => {
+      counts.thisThread++;
+      return original.finishOggOpus(bytes);
+    },
+  };
 });
 
-const TONE = new Uint8Array(readFileSync(join(__dirname, "fixtures", "tone-opus.ogg")));
-const PRE_SKIP_OFFSET = 28 + 10;
+class InProcessWorker {
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  onmessageerror: (() => void) | null = null;
+  protected _page: MessagePort;
+  protected _worker: MessagePort;
+  constructor() {
+    counts.workers++;
+    const { port1, port2 } = new MessageChannel();
+    this._page = port1;
+    this._worker = port2;
+    const mode: WorkerMode = counts.mode;
+    if (mode === "real" || mode === "slow") {
+      let answered: Promise<unknown> = Promise.resolve();
+      const answer = (message: unknown, transfer: Transferable[]) => {
+        if (mode === "real") {
+          port2.postMessage(message, transfer as any);
+          return;
+        }
+        answered = answered
+          .then(() => new Promise((resolve) => setTimeout(resolve, SLOW_DECODE_MS)))
+          .then(() => port2.postMessage(message, transfer as any));
+      };
+      const scope = {
+        set onmessage(handler: OpusServingScope["onmessage"]) {
+          port2.onmessage = (event) => {
+            counts.served++;
+            handler?.(event as MessageEvent);
+          };
+        },
+        get onmessage() {
+          return null;
+        },
+        postMessage: answer,
+      };
+      serveOpusDecoding(scope as OpusServingScope);
+    } else {
+      port2.onmessage = () => undefined;
+    }
+    if (mode === "crash") {
+      counts.crash.push(() =>
+        this.onerror?.(Object.assign(new Event("error"), { error: new Error("worker crashed") }) as ErrorEvent),
+      );
+    }
+    port1.onmessage = (event) => this.onmessage?.(event as MessageEvent);
+  }
+  postMessage(message: unknown, transfer?: Transferable[]) {
+    this._page.postMessage(message, (transfer ?? []) as any);
+  }
+  terminate() {
+    counts.terminated++;
+    this._page.close();
+    this._worker.close();
+  }
+}
 
-const withPreSkip = (preSkip: number) => {
-  const bytes = TONE.slice();
-  new DataView(bytes.buffer).setUint16(PRE_SKIP_OFFSET, preSkip, true);
-  return bytes;
-};
 
 class StandInBuffer {
   channels: Float32Array[];
@@ -74,8 +95,8 @@ class StandInBuffer {
   ) {
     this.channels = Array.from({ length: channels }, () => new Float32Array(length));
   }
-  copyToChannel(source: Float32Array, channel: number) {
-    this.channels[channel]!.set(source);
+  copyToChannel(source: Float32Array, channel: number, start = 0) {
+    this.channels[channel]!.set(source, start);
   }
 }
 
@@ -110,20 +131,36 @@ const crossingsPerSecond = (samples: Float32Array) => {
   return crossings / (samples.length / 48000);
 };
 
-const expectTone = (buffer: StandInBuffer, length = 48000) => {
-  expect(buffer.length).toBe(length);
+const expectTone = (buffer: StandInBuffer) => {
+  expect(buffer.length).toBe(48000);
   expect(crossingsPerSecond(buffer.channels[0]!.subarray(4800, 43200))).toBeCloseTo(880, -1);
   expect(crossingsPerSecond(buffer.channels[1]!.subarray(4800, 43200))).toBeCloseTo(1320, -1);
 };
 
+const pageThreadSamples = async () => {
+  const { finishOggOpus } = await vi.importActual<typeof import("../app/utils/opusFallback")>(
+    "../app/utils/opusFallback",
+  );
+  return (await finishOggOpus(TONE.slice())).channels;
+};
+
 beforeEach(() => {
-  decoders.mainThread = 0;
-  decoders.workers = 0;
-  decoders.terminated = 0;
-  decoders.crash = [];
-  decoders.mode = () => "real";
+  counts.thisThread = 0;
+  counts.workers = 0;
+  counts.served = 0;
+  counts.terminated = 0;
+  counts.crash = [];
+  counts.mode = "real";
   clips.clear();
   vi.stubGlobal("fetch", async (src: string) => new Response(clips.get(src)!.slice()));
+  vi.stubGlobal("Worker", InProcessWorker);
+  vi.stubGlobal(
+    "URL",
+    Object.assign(class extends URL {}, {
+      createObjectURL: () => "blob:opus-fallback",
+      revokeObjectURL: () => undefined,
+    }),
+  );
 });
 
 afterEach(() => {
@@ -131,49 +168,76 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Opus clips the browser cannot decode (#2279)", () => {
-  test("decode off the main thread", async () => {
+describe("Opus clips the browser cannot decode (#2279, #2815)", () => {
+  test("decode and finish off the main thread", async () => {
     const decode = await freshAudio();
     expectTone(await decode(TONE));
     expectTone(await decode(TONE));
-    expect(decoders.mainThread).toBe(0);
+    expect(counts.served).toBe(2);
+    expect(counts.thisThread).toBe(0);
   });
 
-  test("share one worker when several clips with the same layout start together", async () => {
+  test("give the worker's buffer the same samples as decoding on the page", async () => {
+    const decode = await freshAudio();
+    const fromWorker = await decode(TONE);
+    expect(counts.thisThread).toBe(0);
+    const onPage = await pageThreadSamples();
+    fromWorker.channels.forEach((channel, i) => expect(channel).toEqual(onPage[i]));
+  });
+
+  test("share one worker when several clips start together", async () => {
     const decode = await freshAudio();
     const buffers = await Promise.all([decode(TONE), decode(TONE), decode(TONE), decode(TONE)]);
     buffers.forEach((buffer) => expectTone(buffer));
-    expect(decoders.workers).toBe(1);
-    expect(decoders.mainThread).toBe(0);
+    expect(counts.workers).toBe(1);
+    expect(counts.served).toBe(4);
+    expect(counts.thisThread).toBe(0);
   });
 
-  test("give every clip that reuses a worker the same samples as the first", async () => {
-    const decode = await freshAudio();
-    const first = await decode(TONE);
-    const later = [await decode(TONE), ...(await Promise.all([decode(TONE), decode(TONE)]))];
-    expect(decoders.workers).toBe(1);
-    for (const buffer of later) {
-      buffer.channels.forEach((channel, i) => expect(channel).toEqual(first.channels[i]));
-    }
-  });
-
-  test("retire a worker once its layout has been idle", async () => {
+  test("keep a busy worker when clips queue behind long decodes", async () => {
+    counts.mode = "slow";
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const decode = await freshAudio();
-    for (const preSkip of [312, 313, 314]) {
-      await decode(withPreSkip(preSkip));
+    const queued = [decode(TONE), decode(TONE)];
+    let done = 0;
+    queued.forEach((clip) => clip.then(() => done++));
+    while (done < queued.length) {
+      await new Promise((resolve) => setImmediate(resolve));
+      await vi.advanceTimersByTimeAsync(100);
     }
-    expect(decoders.workers).toBe(3);
-    expect(decoders.terminated).toBe(0);
-    await vi.advanceTimersByTimeAsync(31_000);
-    expect(decoders.terminated).toBe(3);
-    expectTone(await decode(TONE));
-    expect(decoders.workers).toBe(4);
-    expect(decoders.mainThread).toBe(0);
+    for (const clip of queued) {
+      expectTone(await clip);
+    }
+    expect(counts.served).toBe(2);
+    expect(counts.thisThread).toBe(0);
+    expect(counts.terminated).toBe(0);
   });
 
-  test("fall back to the main thread when a worker never answers", async () => {
-    decoders.mode = () => "silent";
+  test("retire the worker once it has been idle", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const decode = await freshAudio();
+    const settled = async (clip: Promise<StandInBuffer>) => {
+      let done = false;
+      clip.then(() => (done = true));
+      while (!done) {
+        await new Promise((resolve) => setImmediate(resolve));
+        await vi.advanceTimersByTimeAsync(0);
+      }
+      return clip;
+    };
+    expectTone(await settled(decode(TONE)));
+    expect(counts.terminated).toBe(0);
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(counts.terminated).toBe(0);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(counts.terminated).toBe(1);
+    expectTone(await settled(decode(TONE)));
+    expect(counts.workers).toBe(2);
+    expect(counts.thisThread).toBe(0);
+  });
+
+  test("fall back to the main thread when the worker never answers", async () => {
+    counts.mode = "silent";
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const decode = await freshAudio();
     const first = decode(TONE);
@@ -181,18 +245,21 @@ describe("Opus clips the browser cannot decode (#2279)", () => {
     await vi.advanceTimersByTimeAsync(16_000);
     expectTone(await first);
     expectTone(await second);
-    expect(decoders.terminated).toBe(1);
+    expect(counts.terminated).toBe(1);
+    expect(counts.thisThread).toBe(2);
   });
 
-  test("finish every pending clip when one layout's worker crashes", async () => {
-    decoders.mode = (preSkip) => (preSkip === 312 ? "crash" : "silent");
+  test("finish every pending clip when the worker crashes", async () => {
+    counts.mode = "crash";
     const decode = await freshAudio();
-    const crashed = decode(TONE);
-    const otherLayout = decode(withPreSkip(313));
-    await vi.waitFor(() => expect(decoders.workers).toBe(2));
-    decoders.crash.forEach((crash) => crash());
-    expectTone(await crashed);
-    expectTone(await otherLayout, 47999);
-    expect(decoders.terminated).toBe(2);
+    const first = decode(TONE);
+    const second = decode(TONE);
+    await vi.waitFor(() => expect(counts.workers).toBe(1));
+    await vi.waitFor(() => expect(counts.crash).toHaveLength(1));
+    counts.crash.forEach((crash) => crash());
+    expectTone(await first);
+    expectTone(await second);
+    expect(counts.terminated).toBe(1);
+    expect(counts.thisThread).toBe(2);
   });
 });

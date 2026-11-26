@@ -17,6 +17,7 @@ import type { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game
 import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
 import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 import { Manager } from "../Manager";
+import { markAudioStarted } from "../utils/AudioStartMarks";
 import { decodeAudioBytes } from "../utils/decodeAudioBytes";
 
 export interface LiveClip {
@@ -398,6 +399,11 @@ export default class AudioManager extends Manager {
       const instance = audioPlayer.start(when, over, gain, at);
       if (this._playersPaused && this.app.previewing) {
         audioPlayer.pause(currentTime);
+      } else if (channel && key && !this._synthKeys.has(key)) {
+        markAudioStarted(
+          `${channel}:${key}`,
+          (instance.startedAt - currentTime) * 1000,
+        );
       }
       this.clipStarted(channel, instance);
       if (channel && key) {
