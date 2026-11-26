@@ -366,7 +366,10 @@ export default class AudioManager extends Manager {
       if (this._playersPaused && this.app.previewing) {
         audioPlayer.pause(currentTime);
       } else if (channel && key && !this._synthKeys.has(key)) {
-        markAudioStarted(`${channel}:${key}`, (when - currentTime) * 1000);
+        markAudioStarted(
+          `${channel}:${key}`,
+          (instance.startedAt - currentTime) * 1000,
+        );
       }
       this.clipStarted(channel, instance);
       if (channel && key) {

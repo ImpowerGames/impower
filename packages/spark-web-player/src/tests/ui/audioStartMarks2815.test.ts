@@ -44,6 +44,7 @@ const makeAudio = async () => {
   for (const key of ["theme", "bell", "beep"]) {
     await audio.loadAudioPlayer({ key, channel: key === "theme" ? "music" : "sound" } as any);
   }
+  await audio.loadAudioPlayer({ key: "loop", channel: "music", loop: true } as any);
   (audio as any)._synthKeys.add("beep");
   const start = (channel: string, key: string, after = 0) =>
     audio.updateAudioPlayers({ channel, updates: [{ control: "start", key, after }] } as any);
@@ -93,6 +94,20 @@ describe("the time from Run to a sound's first sample (#2815)", () => {
 
     await audio.start("sound", "bell", 5);
     expect(entries("audio started sound:bell")[0]!.startTime).toBe(marks[0]!.startTime);
+  });
+
+  test("keeps a looping sound's scheduled first sample when a later start reuses its waiting instance", async () => {
+    const audio = await makeAudio();
+    markPlayStarted();
+    const before = performance.now();
+    await audio.start("music", "loop", 10);
+    const after = performance.now();
+    await audio.start("music", "loop", 0);
+
+    const marks = entries("audio started music:loop");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]!.startTime).toBeGreaterThanOrEqual(before + 10_000);
+    expect(marks[0]!.startTime).toBeLessThanOrEqual(after + 10_000);
   });
 
   test("records each sound once per play, skips voice beeps, and forgets the last play when the next starts", async () => {
