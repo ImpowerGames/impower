@@ -7,6 +7,11 @@ import {
   selectorStateArguments,
 } from "../../../../sparkdown/src/compiler/constants/selectorStates";
 
+const previewed = (source: string, breakpoints: Record<string, number>) => {
+  const written = sparkleSelectorToCssSelector(source, breakpoints);
+  return written && [...written.atRules, written.css].filter(Boolean).join(" ");
+};
+
 const PLAIN_STANDARD_STATES = [
   "active",
   "any-link",
@@ -172,7 +177,7 @@ describe("known selector states (#2154, #2502)", () => {
   it.each(APPLIED.filter(([name]) => name !== "theme"))(
     "writes %s in the screen preview as the player does",
     (_name, source, css) => {
-      expect(sparkleSelectorToCssSelector(source, { sm: 640 })?.css).toBe(css);
+      expect(previewed(source, { sm: 640 })).toBe(css);
     },
   );
 });

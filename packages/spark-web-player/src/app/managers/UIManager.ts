@@ -566,7 +566,9 @@ export default class UIManager extends Manager {
         if (
           AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
           PresenceElementsMessage.type.isRequest(op as RequestMessage) ||
-          LayoutMotionMessage.type.isRequest(op as RequestMessage)
+          LayoutMotionMessage.type.isRequest(op as RequestMessage) ||
+          (WriteImageMessage.type.isRequest(op as RequestMessage) &&
+            (op as ReturnType<typeof WriteImageMessage.type.request>).params.reportsExit)
         ) {
           this.app.answer(
             op as RequestMessage,
@@ -1420,7 +1422,8 @@ export default class UIManager extends Manager {
       if (
         AnimateElementsMessage.type.isRequest(request) ||
         PresenceElementsMessage.type.isRequest(request) ||
-        LayoutMotionMessage.type.isRequest(request)
+        LayoutMotionMessage.type.isRequest(request) ||
+        (WriteImageMessage.type.isRequest(request) && request.params.reportsExit)
       ) {
         this.app.answer(request, done);
       } else {

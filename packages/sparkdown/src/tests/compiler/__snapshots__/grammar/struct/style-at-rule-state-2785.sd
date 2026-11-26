@@ -1,0 +1,38 @@
+style card {
+  @media (min-width: 1px) @hovered {
+    color = red
+  }
+  @media (min-width: 1px) @showing(hud) {
+    color = red
+  }
+  @hovered @media (min-width: 1px), text @focused {
+    color = red
+  }
+  @hovered @media (min-width: 1px), #selected {
+    color = red
+  }
+  @media (min-width: 1px), print {
+    color = red
+  }
+  @supports (display: grid) @hovered {
+    color = red
+  }
+  @scope (card) @hovered {
+    color = red
+  }
+  @container style(--mode: dark), style(--mode: "@night") {
+    color = red
+  }
+  @hovered @media (min-width: 1px), card :is(:not(.absent)) @focused {
+    color = red
+  }
+  @container style(--mode: dark), style(--label: ")@night") {
+    color = red
+  }
+  @hovered @media (foo: url(foo\(bar)), print {
+    color = red
+  }
+  @media (min-width: 1px), (foo: url(x\)\)@hovered)) {
+    color = red
+  }
+}

@@ -7590,11 +7590,11 @@
           "include": "#RecursiveSelectorFunctionParameters"
         },
         {
-          "include": "#SelectorCssText"
+          "include": "#SelectorAtRulePreludeText"
         }
       ],
       "applyEndPatternLast": true,
-      "end": "(?=[)])|$"
+      "end": "(?=[)@])|$"
     },
     "SelectorSupportsAtRule": {
       "begin": "([@])(supports)(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
@@ -7622,11 +7622,11 @@
           "include": "#SelectorSupportsSelectorFunction"
         },
         {
-          "include": "#SelectorCssText"
+          "include": "#SelectorAtRulePreludeText"
         }
       ],
       "applyEndPatternLast": true,
-      "end": "(?=[)])|$"
+      "end": "(?=[)@])|$"
     },
     "SelectorSupportsAtRuleGroup": {
       "brackets": true,
@@ -7721,11 +7721,11 @@
           "include": "#SelectorAtRuleGroup"
         },
         {
-          "include": "#SelectorCssText"
+          "include": "#SelectorAtRulePreludeText"
         }
       ],
       "applyEndPatternLast": true,
-      "end": "(?=[)])|$"
+      "end": "(?=[)@])|$"
     },
     "SelectorAtRuleGroup": {
       "brackets": true,
@@ -7786,6 +7786,9 @@
     "SelectorCssText": {
       "patterns": [
         {
+          "include": "#SelectorCssEscape"
+        },
+        {
           "include": "#LuauStructBlockKeyString"
         },
         {
@@ -7804,6 +7807,41 @@
           "include": "#SelectorCssPunctuation"
         }
       ]
+    },
+    "SelectorAtRulePreludeText": {
+      "patterns": [
+        {
+          "include": "#SelectorCssEscape"
+        },
+        {
+          "include": "#LuauStructBlockKeyString"
+        },
+        {
+          "include": "#StringLiteral"
+        },
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#SelectorCssWord"
+        },
+        {
+          "include": "#SelectorAtRulePunctuation"
+        }
+      ]
+    },
+    "SelectorAtRulePunctuation": {
+      "tag": "operator",
+      "name": "keyword.operator.css.sd",
+      "match": "([^\\s(),@\\p{L}\\p{N}_-]|[@](?![_\\p{L}]))"
+    },
+    "SelectorCssEscape": {
+      "tag": "escape",
+      "name": "constant.character.escape.css.sd",
+      "match": "([\\\\][^\\s{};\"=\\[])"
     },
     "SelectorCssWord": {
       "tag": "string",

@@ -1,5 +1,6 @@
 import {
   GAME_WIDE_STATES,
+  isAtRuleState,
   PRESENCE_STATES,
   type Presence,
   selectorStateArguments,
@@ -15,6 +16,7 @@ export const isKnownSelectorState = (name: string): boolean => KNOWN_SELECTOR_ST
 
 export {
   GAME_WIDE_STATES,
+  isAtRuleState,
   PRESENCE_STATES,
   selectorStateArguments,
   SHOWING_STATE,
