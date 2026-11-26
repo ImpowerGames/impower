@@ -426,12 +426,21 @@ export class AudioModule extends Module<
     const sampleRate = this._sampleRate;
     const held = `${data.channel}/${data.key}`;
     const epoch = this._game.connection.epoch;
-    if (
-      data.synth &&
-      data.tones &&
-      sampleRate &&
-      this._pageHolds.get(held) !== epoch
-    ) {
+    if (data.synth && data.tones && sampleRate) {
+      if (this._pageHolds.get(held) === epoch) {
+        const answer = await this.emitSettled(
+          LoadAudioPlayerMessage.type.request({
+            ...data,
+            mixer,
+            mixerGain,
+            held: true,
+          }),
+        );
+        if (!answer?.needsSamples || this._game.connection.epoch !== epoch) {
+          return;
+        }
+        this._pageHolds.delete(held);
+      }
       const samples = new SynthBuffer(data.synth, data.tones, sampleRate)
         .soundBuffer;
       const loaded = await this.emitSettled(

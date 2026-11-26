@@ -51,6 +51,7 @@ describe("synthesised sounds the page already holds (#2814)", () => {
 
     expect(loads.map((p) => p.samples?.length ?? 0)).toEqual([96000, 0]);
     expect(audio.buffers).toHaveLength(1);
+    expect(audio.pageSyntheses).toBe(0);
     expect(page.playingKeys()).toEqual([KEY]);
   });
 
@@ -73,6 +74,40 @@ describe("synthesised sounds the page already holds (#2814)", () => {
     await worker.play([{ control: "start", assets: [KEY] }]);
 
     expect(loads.map((p) => p.samples?.length ?? 0)).toEqual([96000, 96000, 96000]);
+  });
+
+  it("gets samples from the worker when a restart crosses the page's release of the sound", async () => {
+    const loads: any[] = [];
+    const audio = createStandInAudio({ synthesises: true });
+    let worker!: WorkerAudio;
+    const inFlight: any[] = [];
+    const app: any = {
+      previewing: false,
+      emit: (m: any) => (m.method === "audio/released" ? inFlight.push(m) : worker.onReceiveNotification(m)),
+    };
+    const page = audio.attach(app, app.emit);
+    worker = workerFor(page, loads);
+    await page.onInit();
+
+    const first = await worker.play([{ control: "start", assets: [KEY] }]);
+    await page.updateAudioPlayers({ channel: "music", updates: first });
+    const player = (page as any).getAudioChannel("music").get(KEY);
+    (page as any).getAudioChannel("music").delete(KEY);
+    (page as any)._synthKeys.delete(KEY);
+    player.dispose();
+    app.emit(AudioReleasedMessage.type.notification({ channel: "music", key: KEY }));
+    const again = await worker.play([{ control: "start", assets: [KEY] }]);
+    await page.updateAudioPlayers({ channel: "music", updates: again });
+
+    expect(inFlight).toHaveLength(1);
+    expect(loads.map((p) => [p.held ?? false, p.samples?.length ?? 0])).toEqual([
+      [false, 96000],
+      [true, 0],
+      [false, 96000],
+    ]);
+    expect(audio.pageSyntheses).toBe(0);
+    expect(audio.buffers).toHaveLength(2);
+    expect(page.playingKeys()).toEqual([KEY]);
   });
 
   it("tells the game when it prunes a synthesised sound that finished", async () => {

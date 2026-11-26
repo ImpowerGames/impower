@@ -76,6 +76,7 @@ describe("voice beeps are synthesised off the page thread (#2814)", () => {
       const wrapped = audio.buffers.find((b) => b.key === load.params.key);
       expect(mismatches(wrapped?.samples, expected)).toBe(0);
     }
+    expect(audio.pageSyntheses).toBe(0);
     expect(audio.sources.some((s) => s.key.startsWith("synth."))).toBe(true);
   }, 120_000);
 
@@ -119,6 +120,7 @@ end
       const wrapped = audio.buffers.find((b) => b.key === load.params.key);
       expect(mismatches(wrapped?.samples, expected)).toBe(0);
     }
+    expect(audio.pageSyntheses).toBe(0);
   }, 120_000);
 
   it("transfers the samples to the stopped preview's page with no copy", async () => {

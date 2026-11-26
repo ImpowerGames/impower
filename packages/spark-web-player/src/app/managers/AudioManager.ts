@@ -302,6 +302,13 @@ export default class AudioManager extends Manager {
     });
   }
 
+  protected holds(params: LoadAudioPlayerParams): boolean {
+    return (
+      this.getAudioChannel(params.channel).has(params.key) ||
+      this._pendingPlayers.has(`${params.channel}/${params.key}`)
+    );
+  }
+
   protected async getAudioPlayer(
     params: LoadAudioPlayerParams,
   ): Promise<AudioPlayer | undefined> {
@@ -621,6 +628,12 @@ export default class AudioManager extends Manager {
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
       const { samples, ...loaded } = msg.params;
+      if (msg.params.held && !this.holds(msg.params)) {
+        return LoadAudioPlayerMessage.type.result({
+          ...loaded,
+          needsSamples: true,
+        });
+      }
       await this.onLoadAudioPlayer(msg.params);
       return LoadAudioPlayerMessage.type.result(loaded);
     }

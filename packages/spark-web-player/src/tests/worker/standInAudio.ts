@@ -104,6 +104,7 @@ class StandInMovieSource extends StandInNode {
 export interface StandInAudio {
   readonly sources: StandInSource[];
   readonly buffers: StandInBuffer[];
+  readonly pageSyntheses: number;
   holdSynth?: Promise<void>;
   readonly running: boolean;
   readonly currentTime: number;
@@ -124,6 +125,7 @@ export function createStandInAudio(
   let clockNow: (() => number) | undefined;
   const sources: StandInSource[] = [];
   const buffers: StandInBuffer[] = [];
+  let pageSyntheses = 0;
   const movies: StandInMovieSource[] = [];
   const destination = new StandInNode();
   const gainNode = () => {
@@ -173,6 +175,9 @@ export function createStandInAudio(
   const audio: StandInAudio = {
     sources,
     buffers,
+    get pageSyntheses() {
+      return pageSyntheses;
+    },
     get running() {
       return context.state === "running";
     },
@@ -214,6 +219,9 @@ export function createStandInAudio(
         ): Promise<AudioBuffer> {
           if (options.synthesises && params.synth && params.tones) {
             await audio.holdSynth;
+            if (!params.samples) {
+              pageSyntheses += 1;
+            }
             const buffer = await super.loadAudioBuffer(params);
             (buffer as unknown as StandInBuffer).key = params.key;
             return buffer;
