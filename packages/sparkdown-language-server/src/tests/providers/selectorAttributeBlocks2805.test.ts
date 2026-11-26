@@ -103,6 +103,8 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     ["  [data-sp@1] // keep this note", "[", "[data-speaker]", "  [data-speaker=] {  } // keep this note"],
     ["  #var@1 -- a { brace", "#", "#variant", "  #variant= {  } -- a { brace"],
     ["  #var@1; x = { 1 }", "#", "#variant", "  #variant= {  }; x = { 1 }"],
+    ["  @hovered { #dis@1 } @hide { opacity = 0 }", "#", "#disabled", "  @hovered { #disabled {  } } @hide { opacity = 0 }"],
+    ["  @hovered { [dis@1] } @hide { opacity = 0 }", "[", "[disabled]", "  @hovered { [disabled] {  } } @hide { opacity = 0 }"],
   ])("writes the whole block before the enclosing body's }, the next entry or a comment in %j", (body, trigger, label, expected) => {
     const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
     expect(accepted(body, item)).toBe(styled(expected));
@@ -126,6 +128,10 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     ['  #var@1 [title="a -- b"] { opacity = 1 }', "#", "#variant", '  #variant= [title="a -- b"] { opacity = 1 }'],
     ["  #var@1 [title='a // b'] { opacity = 1 }", "#", "#variant", "  #variant= [title='a // b'] { opacity = 1 }"],
     ['  #var@1 [title="a;b"] { opacity = 1 }', "#", "#variant", '  #variant= [title="a;b"] { opacity = 1 }'],
+    ["  #dis@1 .foo--bar { opacity = 1 }", "#", "#disabled", "  #disabled .foo--bar { opacity = 1 }"],
+    ["  [dis@1] .foo--bar { opacity = 1 }", "[", "[disabled]", "  [disabled] .foo--bar { opacity = 1 }"],
+    ["  #dis@1 .a//b { opacity = 1 }", "#", "#disabled", "  #disabled .a//b { opacity = 1 }"],
+    ["  #var@1 @has([title='}']) { opacity = 1 }", "#", "#variant", "  #variant= @has([title='}']) { opacity = 1 }"],
     ["  #var@1iant=left { opacity = 1 }", "#", "#variant", "  #variant=left { opacity = 1 }"],
     ["  #sp@1=bunny { opacity = 1 }", "#", "#speaker", "  #speaker=bunny { opacity = 1 }"],
     ["  #dis@1 { opacity = 1 }", "#", "#disabled", "  #disabled { opacity = 1 }"],

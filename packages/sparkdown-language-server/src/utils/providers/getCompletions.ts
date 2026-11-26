@@ -813,6 +813,39 @@ const addLineLabelCompletions = (
 
 const SELECTOR_ATTRIBUTE_BEFORE = /^\s*([#[])([\p{L}\p{N}_-]*)(?:([~|^$*]?=)[\p{L}\p{N}_@-]*)?$/u;
 
+const QUOTED_AHEAD = /"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/y;
+
+const opensBodyOnEntry = (text: string) => {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]!;
+    if (char === '"' || char === "'") {
+      QUOTED_AHEAD.lastIndex = i;
+      i += QUOTED_AHEAD.exec(text)![0].length - 1;
+    } else if (char === "\\") {
+      i++;
+    } else if (char === "(" || char === "[") {
+      depth++;
+    } else if (char === ")" || char === "]") {
+      depth = Math.max(0, depth - 1);
+    } else if (depth === 0) {
+      if (char === "{") {
+        return true;
+      }
+      if (char === "}" || char === ";") {
+        return false;
+      }
+      if (
+        (text.startsWith("--", i) || text.startsWith("//", i)) &&
+        (i === 0 || /\s/.test(text[i - 1]!))
+      ) {
+        return false;
+      }
+    }
+  }
+  return false;
+};
+
 const addSelectorAttributeCompletions = (
   completions: Map<string, CompletionItem>,
   typed: RegExpExecArray,
@@ -2482,13 +2515,9 @@ const completionsAt = (
       const rest = after.slice(nameRest.length);
       const closing =
         typedSelector[1] === "[" ? (/^\s*\]/.exec(rest)?.[0] ?? "") : "";
-      const entryRest = rest
-        .slice(closing.length)
-        .replace(/"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/g, '""')
-        .split(/--|\/\/|;/)[0]!;
       const written = /^\s*[~|^$*]?=/.test(rest)
         ? "value"
-        : entryRest.includes("{")
+        : opensBodyOnEntry(rest.slice(closing.length))
           ? "body"
           : "nothing";
       addSelectorAttributeCompletions(
