@@ -126,6 +126,7 @@ import {
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
+import { bodyChildLists } from "../utils/bodyChildren";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -257,28 +258,36 @@ function marksClear(node: ElementNode): boolean {
   return clear?.kind === "literal" && clear.value === true;
 }
 
-function nodeShape(node: BodyNode): unknown {
-  const shapes = (nodes: readonly BodyNode[] | undefined) => (nodes ?? []).map(nodeShape);
-  switch (node.kind) {
-    case "element":
-      return isStream(node)
-        ? [node.kind, node.tag, node.classes]
-        : [node.kind, node.tag, node.classes, marksClear(node), shapes(node.children)];
-    case "if":
-      return [node.kind, node.branches.map((b) => shapes(b.children)), shapes(node.else)];
-    case "match":
-      return [node.kind, node.cases.map((c) => shapes(c.children)), shapes(node.else)];
-    case "for":
-      return [node.kind, shapes(node.children), shapes(node.else)];
-    case "fill":
-      return [node.kind, node.name ?? null, shapes(node.children)];
-    default:
-      return [node.kind, node.name ?? null];
+function nodeShape(
+  node: BodyNode,
+  components: Readonly<Record<string, ComponentNode | undefined>>,
+  calls: readonly string[],
+): unknown {
+  if (node.kind === "element" && isStream(node)) {
+    return [node.kind, node.tag, node.classes];
   }
+  const head = node.kind === "element" ? [node.tag, node.classes, marksClear(node)] : ["name" in node ? (node.name ?? null) : null];
+  const lists = bodyChildLists(node).map(([suffix, children]) => [
+    suffix,
+    (children ?? []).map((child) => nodeShape(child, components, calls)),
+  ]);
+  const comp = node.kind === "element" ? components[node.tag] : undefined;
+  const body =
+    comp && !calls.includes(comp.name)
+      ? comp.children.map((child) => nodeShape(child, components, [...calls, comp.name]))
+      : null;
+  return [node.kind, ...head, lists, body];
 }
 
-function bodyShape(nodes: readonly BodyNode[] | undefined): string {
-  return JSON.stringify((nodes ?? []).map(nodeShape));
+function callBase(base: string, path: string, component: string): string {
+  return `${base}${path}>${component}`;
+}
+
+function bodyShape(
+  nodes: readonly BodyNode[] | undefined,
+  components: Readonly<Record<string, ComponentNode | undefined>>,
+): string {
+  return JSON.stringify((nodes ?? []).map((node) => nodeShape(node, components, [])));
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -533,6 +542,7 @@ interface ForRegion {
   elseScope?: ReactiveScope;
   elseContent?: ReactiveGroup;
   slots?: SlotMap;
+  base?: string;
   owner?: ReactiveRegion;
 }
 
@@ -592,6 +602,7 @@ interface ReactiveScope {
   sliderFills: ReactiveSliderFill[];
   streams: MountedStream[];
   slots?: SlotMap;
+  base?: string;
 }
 
 interface StreamEntryView {
@@ -611,7 +622,7 @@ interface MountedStream {
   latest?: StreamEntryView;
 }
 
-const INPUT_WIDGETS: Record<
+export const INPUT_WIDGETS: Record<
   string,
   { inputType: string; attributes?: Record<string, string> }
 > = {
@@ -771,6 +782,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _nodePaths = new WeakMap<object, string>();
 
   protected _elementPaths = new WeakMap<Element, string>();
+
+  protected _roots: Map<string, string> = new Map();
 
   protected _showingStyles?: unknown;
 
@@ -3829,7 +3842,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    const scope = this.makeScope({});
+    const scope = this.makeScope({}, undefined, this._roots.get(`screen:${screen.name}`));
     const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
     scope.slots = new Map([
       [
@@ -4018,7 +4031,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       slot ? this.anchorFor(slot) : null,
     );
     slot?.content.push({ el: uiEl });
-    const scope = this.makeScope({});
+    const scope = this.makeScope({}, undefined, this._roots.get(`layout:${layout.name}`));
     this._mountedLayouts.set(layout.name, {
       element: uiEl,
       scope,
@@ -4032,7 +4045,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  protected makeScope(env: ReactiveEnv, slots?: SlotMap): ReactiveScope {
+  protected makeScope(env: ReactiveEnv, slots: SlotMap | undefined, base: string | undefined): ReactiveScope {
     return {
       env,
       texts: [],
@@ -4042,6 +4055,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       sliderFills: [],
       streams: [],
       ...(slots ? { slots } : {}),
+      ...(base !== undefined ? { base } : {}),
     };
   }
 
@@ -4151,19 +4165,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     scope: ReactiveScope,
     before: Element | null,
   ): Element {
+    return this.notePath(this.createNodeElement(parent, node, scope, before), node, scope);
+  }
+
+  protected createNodeElement(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    before: Element | null,
+  ): Element {
     const name = [node.tag, ...node.classes].join(" ");
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
-      return this.notePath(this.mountInputWidget(parent, node, scope, name, widget, before), node);
+      return this.mountInputWidget(parent, node, scope, name, widget, before);
     }
     if (node.tag === "dropdown") {
-      return this.notePath(this.mountDropdown(parent, node, scope, name, before), node);
+      return this.mountDropdown(parent, node, scope, name, before);
     }
     if (node.tag === "textarea") {
-      return this.notePath(this.mountTextarea(parent, node, scope, name, before), node);
+      return this.mountTextarea(parent, node, scope, name, before);
     }
     if (node.tag === "option") {
-      return this.notePath(this.mountOption(parent, node, scope, name, before), node);
+      return this.mountOption(parent, node, scope, name, before);
     }
     const style: Record<string, string | null> = {};
     const attributes: Record<string, string | null> = {};
@@ -4214,7 +4237,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       before,
     );
-    this.notePath(el, node);
     this.limit(el, labels);
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
@@ -4783,7 +4805,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       parent,
       node,
       active: -2,
-      scope: this.makeScope(scope.env, scope.slots),
+      scope: this.makeScope(scope.env, scope.slots, scope.base),
       deps: { globals: new Set(), tables: new Set() },
       siblings: [],
       content: [],
@@ -4852,6 +4874,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       iterations: [],
       siblings: [],
       slots: scope.slots,
+      ...(scope.base !== undefined ? { base: scope.base } : {}),
     };
     scope.regions.push(region);
     this.populateFor(region, scope.env, before);
@@ -4884,7 +4907,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!elseChildren || elseChildren.length === 0) {
       return;
     }
-    region.elseScope = this.makeScope(parentEnv, region.slots);
+    region.elseScope = this.makeScope(parentEnv, region.slots, region.base);
     region.elseContent = this.mountChildren(
       region.parent,
       elseChildren,
@@ -4903,7 +4926,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): ForIteration {
     const env: ReactiveEnv = { ...parentEnv };
     this.bindLoopVars(region.node.bindings, env, entryKey, value);
-    const scope = this.makeScope(env, region.slots);
+    const scope = this.makeScope(env, region.slots, region.base);
     const content = this.mountChildren(
       region.parent,
       region.node.children,
@@ -4932,7 +4955,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const env: ReactiveEnv = {};
     this.applyComponentParams(comp, node, callerScope.env, env);
-    const scope = this.makeScope(env);
+    const call = this._nodePaths.get(node);
+    const scope = this.makeScope(
+      env,
+      undefined,
+      callerScope.base !== undefined && call !== undefined ? callBase(callerScope.base, call, comp.name) : undefined,
+    );
     scope.slots = this.buildSlotMap(node, callerScope);
     const region: ComponentRegion = {
       kind: "component",
@@ -5334,7 +5362,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       region.deps = vs.endReactiveRead();
       if (next !== region.active) {
         this.removeGroup(region.content);
-        region.scope = this.makeScope(region.scope.env, region.scope.slots);
+        region.scope = this.makeScope(region.scope.env, region.scope.slots, region.scope.base);
         region.active = next;
         region.content = this.mountChildren(
           region.parent,
@@ -5500,88 +5528,57 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearOnContinue = new Set();
     this._clearPaths = new Map();
     this._unmarkedKeys = new Set();
+    this._roots = new Map();
     const sparkle = this._game.program?.sparkle;
-    const root = (kind: string, name: string, nodes: readonly BodyNode[] | undefined) =>
-      `${kind}:${name}@${hashText(bodyShape(nodes)).slice(0, 8)}`;
+    const components = sparkle?.components ?? {};
+    const collect = (kind: string, name: string, nodes: readonly BodyNode[] | undefined) => {
+      const root = `${kind}:${name}@${hashText(bodyShape(nodes, components)).slice(0, 8)}`;
+      this._roots.set(`${kind}:${name}`, root);
+      this.collectMarks(nodes, root, "", []);
+    };
     for (const [name, layout] of Object.entries(sparkle?.layouts ?? {})) {
       if (layout && !skipped.includes(name)) {
-        this.collectMarks(layout.children, root("layout", name, layout.children));
+        collect("layout", name, layout.children);
       }
     }
     for (const [name, screen] of Object.entries(sparkle?.screens ?? {})) {
       if (screen) {
-        this.collectMarks(screen.children, root("screen", name, screen.children));
-      }
-    }
-    for (const component of Object.values(sparkle?.components ?? {})) {
-      if (component) {
-        this.collectUnmarked(component.children);
+        collect("screen", name, screen.children);
       }
     }
   }
 
-  protected collectUnmarked(nodes: readonly BodyNode[] | undefined): void {
-    for (const node of nodes ?? []) {
-      switch (node.kind) {
-        case "element":
-          if (!isStream(node)) {
-            this._unmarkedKeys.add([node.tag, ...node.classes].join(" "));
-            this.collectUnmarked(node.children);
-          }
-          break;
-        case "if":
-          node.branches.forEach((branch) => this.collectUnmarked(branch.children));
-          this.collectUnmarked(node.else);
-          break;
-        case "match":
-          node.cases.forEach((c) => this.collectUnmarked(c.children));
-          this.collectUnmarked(node.else);
-          break;
-        case "for":
-          this.collectUnmarked(node.children);
-          this.collectUnmarked(node.else);
-          break;
-        case "fill":
-          this.collectUnmarked(node.children);
-          break;
-      }
-    }
-  }
-
-  protected collectMarks(nodes: readonly BodyNode[] | undefined, path: string): void {
+  protected collectMarks(
+    nodes: readonly BodyNode[] | undefined,
+    base: string,
+    path: string,
+    calls: readonly string[],
+  ): void {
+    const components = this._game.program?.sparkle?.components ?? {};
     (nodes ?? []).forEach((node, index) => {
       const here = `${path}/${index}`;
-      switch (node.kind) {
-        case "element": {
-          if (isStream(node)) {
-            return;
+      if (node.kind === "element") {
+        if (isStream(node)) {
+          return;
+        }
+        this._nodePaths.set(node, here);
+        const comp = components[node.tag];
+        if (comp) {
+          if (!calls.includes(comp.name)) {
+            this.collectMarks(comp.children, callBase(base, here, comp.name), "", [...calls, comp.name]);
           }
-          this._nodePaths.set(node, here);
+        } else {
           const name = [node.tag, ...node.classes].join(" ");
           if (marksClear(node)) {
             this._clearOnContinue.add(name);
-            this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), here]);
+            this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
           } else {
             this._unmarkedKeys.add(name);
           }
-          this.collectMarks(node.children, here);
-          return;
         }
-        case "if":
-          node.branches.forEach((branch, b) => this.collectMarks(branch.children, `${here}.${b}`));
-          this.collectMarks(node.else, `${here}.else`);
-          return;
-        case "match":
-          node.cases.forEach((c, b) => this.collectMarks(c.children, `${here}.${b}`));
-          this.collectMarks(node.else, `${here}.else`);
-          return;
-        case "for":
-          this.collectMarks(node.children, here);
-          this.collectMarks(node.else, `${here}.else`);
-          return;
-        case "fill":
-          this.collectMarks(node.children, here);
-          return;
+      }
+      for (const [suffix, children] of bodyChildLists(node)) {
+        this.collectMarks(children, base, `${here}${suffix}`, calls);
       }
     });
   }
@@ -6669,10 +6666,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return this._elementPaths.get(el);
   }
 
-  protected notePath(el: Element, node: ElementNode): Element {
+  protected notePath(el: Element, node: ElementNode, scope: ReactiveScope): Element {
     const path = this._nodePaths.get(node);
-    if (path !== undefined) {
-      this._elementPaths.set(el, path);
+    if (path !== undefined && scope.base !== undefined) {
+      this._elementPaths.set(el, `${scope.base}${path}`);
     }
     return el;
   }
@@ -8703,7 +8700,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
-        const scope = $.makeScope(mount.scope.env, mount.scope.slots);
+        const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
         const template = mount.node.templates[entry.template];
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)

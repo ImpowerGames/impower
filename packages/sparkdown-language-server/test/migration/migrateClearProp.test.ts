@@ -158,6 +158,15 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(compared).toBe(migrated.migrated);
   });
 
+  test("leaves an element inside a component definition as written, since the unwritten rule never emptied one there", () => {
+    const source = readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8");
+    const component = source.slice(source.indexOf("component card"), source.indexOf("screen menu"));
+    expect(component).toContain("heading {\n    text\n  }");
+    expect(migrateClearProp(source).text).toContain(component);
+    const lone = `${component}\nlayout box {\n  card("A")\n}\n`;
+    expect(migrateClearProp(lone)).toMatchObject({ text: lone, migrated: 0 });
+  });
+
   test("leaves a stream's templates as written while marking the elements beside it", () => {
     const source = readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8");
     const chat = source.slice(source.indexOf("layout chat"), source.lastIndexOf("scene start"));

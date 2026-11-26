@@ -287,7 +287,7 @@ scene start
   First line.
 end
 `);
-    const copies = () => (ui.textElements(tag) as any[]).filter((el) => ui.elementPath(el) === undefined).map((el) => el.id);
+    const copies = () => (ui.textElements(tag) as any[]).filter((el) => ui.elementPath(el)?.includes(">banner/")).map((el) => el.id);
     expect(copies()).toHaveLength(2);
     const from = h.messages.length;
     await h.reconnect();
