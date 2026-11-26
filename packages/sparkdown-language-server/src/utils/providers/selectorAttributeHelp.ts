@@ -82,7 +82,7 @@ const unquote = (value: string) =>
 const PROP_SELECTOR = /^#([^\s~|^$*=]+)(?:([~|^$*]?=)(.*))?$/s;
 
 const ATTRIBUTE_SELECTOR =
-  /^\[\s*([^\s~|^$*=\]]+)\s*(?:([~|^$*]?=)\s*("[^"]*"|'[^']*'|[^\s\]]*)(?:\s+[iIsS])?)?\s*\]$/;
+  /^\[\s*([^\s~|^$*=\]]+)\s*(?:([~|^$*]?=)\s*("[^"]*"|'[^']*'|[^\s\]]*)(?:\s*([iIsS]))?)?\s*\]$/;
 
 const describeProp = (written: string): string | null => {
   const match = PROP_SELECTOR.exec(written);
@@ -105,23 +105,29 @@ const describeAttribute = (written: string): string | null => {
   if (!match) {
     return null;
   }
-  const [, attribute = "", operator, raw = ""] = match;
+  const [, attribute = "", operator, raw = "", flag = ""] = match;
   const value = unquote(raw);
+  const ignoresCase = flag.toLowerCase() === "i";
   const selects = !operator
     ? `\`${written} { … }\` selects the elements that have a \`${attribute}\` attribute.`
-    : `\`${written} { … }\` selects the elements whose \`${attribute}\` attribute ${OPERATOR_MATCHES[operator]} \`${value}\`.`;
+    : `\`${written} { … }\` selects the elements whose \`${attribute}\` attribute ${OPERATOR_MATCHES[operator]} \`${value}\`${ignoresCase ? ", ignoring case" : ""}.`;
   const shown = operator ? `${operator}${raw}` : "";
   const prop = propOfAttribute(attribute);
   const writtenBy =
     prop && prop !== attribute
-      ? `\`#${prop}${shown}\` writes this attribute, so \`#${prop}${shown} { … }\` selects the same elements.`
+      ? ignoresCase
+        ? `A \`#${prop}\` prop writes this attribute.`
+        : `\`#${prop}${shown}\` writes this attribute, so \`#${prop}${shown} { … }\` selects the same elements.`
       : undefined;
   const renamed = toDataAttributeName(attribute);
   const misnamed =
     renamed !== attribute
-      ? `\`#${attribute}${shown}\` writes \`${renamed}\`, not \`${attribute}\`, so this block selects no element written with it; \`#${attribute}${shown} { … }\` does.`
+      ? ignoresCase
+        ? `A \`#${attribute}\` prop writes \`${renamed}\`, not \`${attribute}\`, so this block selects no element written with it.`
+        : `\`#${attribute}${shown}\` writes \`${renamed}\`, not \`${attribute}\`, so this block selects no element written with it; \`#${attribute}${shown} { … }\` does.`
       : undefined;
-  const meaning = operator === "=" && value && prop ? PROP_MEANINGS.get(prop)?.(value) : undefined;
+  const meaning =
+    operator === "=" && value && prop && !ignoresCase ? PROP_MEANINGS.get(prop)?.(value) : undefined;
   return [
     selects,
     ...(writtenBy ? [writtenBy] : []),

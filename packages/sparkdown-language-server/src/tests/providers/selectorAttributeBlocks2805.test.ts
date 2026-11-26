@@ -125,7 +125,11 @@ describe("hovering an attribute selector block in a style (#2805)", () => {
   #tooltip=hint { opacity = 1 }
   [data-variant=right] { opacity = 1 }
   [variant=right] { opacity = 1 }
-  [type=submit] { opacity = 1 }`);
+  [type=submit] { opacity = 1 }
+  [data-variant=LEFT i] { opacity = 1 }
+  [data-speaker="Bunny"i] { opacity = 1 }
+  [variant=shout i] { opacity = 1 }
+  [data-variant=right s] { opacity = 1 }`);
 
   const hoverOn = async (word: string) => {
     const documents = new SparkdownDocumentRegistry(["references"]);
@@ -175,6 +179,25 @@ describe("hovering an attribute selector block in a style (#2805)", () => {
     const hover = await hoverOn("[variant=right]");
     expect(hover?.value).toContain("whose `variant` attribute is `right`");
     expect(hover?.value).toContain("`#variant=right` writes `data-variant`");
+  });
+
+  it.each([
+    ["[data-variant=LEFT i]", "whose `data-variant` attribute is `LEFT`, ignoring case", "A `#variant` prop writes this attribute."],
+    ['[data-speaker="Bunny"i]', "whose `data-speaker` attribute is `Bunny`, ignoring case", "A `#speaker` prop writes this attribute."],
+    ["[variant=shout i]", "whose `variant` attribute is `shout`, ignoring case", "A `#variant` prop writes `data-variant`, not `variant`"],
+  ])("claims no prop selects the same elements as the case-insensitive %s", async (key, selects, prop) => {
+    const hover = await hoverOn(key);
+    expect(hover?.marked).toBe(key);
+    expect(hover?.value).toContain(selects);
+    expect(hover?.value).toContain(prop);
+    expect(hover?.value).not.toContain("selects the same elements");
+    expect(hover?.value).not.toContain("{ … }` does");
+    expect(hover?.value).not.toContain("labelled");
+  });
+
+  it("keeps the prop equivalence for a case-sensitive flag", async () => {
+    const hover = await hoverOn("[data-variant=right s]");
+    expect(hover?.value).toContain("`#variant=right` writes this attribute, so `#variant=right { … }` selects the same elements");
   });
 
   it("describes a plain attribute selector", async () => {
