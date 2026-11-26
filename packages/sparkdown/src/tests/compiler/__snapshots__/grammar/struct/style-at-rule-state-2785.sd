@@ -32,4 +32,13 @@ style card {
   @hovered @media (foo: url(foo\(bar)), print {
     color = red
   }
+  @media (min-width: 1px), (foo: url(x\)\)@hovered)) {
+    color = red
+  }
+  @media (min-width: 1px), custom\"type {
+    color = red
+  }
+  @hovered @media (min-width: 1px), custom\"type {
+    color = red
+  }
 }

@@ -248,6 +248,7 @@ const RAW_QUERY_LISTS = [
   "@media (min-width: 1px), (foo: url(x\\)\\)@hovered))",
   "@container (min-width: 1px), style(--x: url(a\\(b))",
   "@media (min-width: 1px), print \\@hovered",
+  '@media (min-width: 1px), custom\\"type',
 ];
 
 const BEFORE_QUERY_LIST = [
@@ -302,6 +303,9 @@ const EARLIER_COUNTEREXAMPLES = [
   "@media (min-width: 1px), (foo: url(foo\\(bar)) @hovered",
   "@hovered @media (foo: url(foo\\(bar)), print",
   "@hovered @media (foo: url(foo\\)bar)), print",
+  "@media (min-width: 1px), print @variant(shout)",
+  "@media (min-width: 1px), print @speaker(bunny)",
+  '@hovered @media (min-width: 1px), custom\\"type',
 ];
 
 const MIXED_QUERY_LISTS = [

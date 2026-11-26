@@ -320,8 +320,9 @@ class SparkleSelectorWriter {
         });
       }
     }
+    const refusedLists = this.refusals.filter(({ kind }) => kind === "query-list");
     for (const { state, from, to } of gameWideOccurrences(this.src)) {
-      if (!this.seen.has(from)) {
+      if (!this.seen.has(from) && !refusedLists.some((list) => list.from <= from && from < list.to)) {
         this.refusals.push({ kind: "game-wide", state, where: this.positionAt(from), from, to });
       }
     }

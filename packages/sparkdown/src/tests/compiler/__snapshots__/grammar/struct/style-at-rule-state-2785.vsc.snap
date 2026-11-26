@@ -1,4 +1,4 @@
-text.source.sparkdown [0..756]
+text.source.sparkdown [0..964]
  ├─ meta.style.luau [0..12]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -408,7 +408,122 @@ text.source.sparkdown [0..756]
  │       ├─ punctuation.whitespace.sd [750..752]: "  "
  │       └─ punctuation.definition.template-expression.end.sd [752..753]: "}"
  ├─ Newline [753..754]: "\n"
- ├─ meta.style.luau [754..755]
- │   └─ meta.embedded.block.luau [754..755]
- │       └─ punctuation.definition.template-expression.end.sd [754..755]: "}"
- └─ Newline [755..756]: "\n"
+ ├─ meta.style.luau [754..808]
+ │   └─ meta.embedded.block.luau [754..808]
+ │       ├─ punctuation.whitespace.sd [754..756]: "  "
+ │       ├─ entity.name.function.attribute.name.view.sd [756..757]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [757..762]: "media"
+ │       ├─ markup.raw.whitespace.separator.sd [762..763]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [763..764]: "("
+ │       ├─ string.unquoted.css.sd [764..773]: "min-width"
+ │       ├─ keyword.operator.css.sd [773..774]: ":"
+ │       ├─ markup.raw.whitespace.separator.sd [774..775]: " "
+ │       ├─ string.unquoted.css.sd [775..778]: "1px"
+ │       ├─ punctuation.definition.template-expression.end.sd [778..779]: ")"
+ │       ├─ keyword.operator.comma.sd [779..780]: ","
+ │       ├─ markup.raw.whitespace.separator.sd [780..781]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [781..782]: "("
+ │       ├─ string.unquoted.css.sd [782..785]: "foo"
+ │       ├─ keyword.operator.css.sd [785..786]: ":"
+ │       ├─ markup.raw.whitespace.separator.sd [786..787]: " "
+ │       ├─ string.unquoted.css.sd [787..790]: "url"
+ │       ├─ punctuation.definition.template-expression.begin.sd [790..791]: "("
+ │       ├─ string.unquoted.css.sd [791..792]: "x"
+ │       ├─ constant.character.escape.css.sd [792..794]: "\\)"
+ │       ├─ constant.character.escape.css.sd [794..796]: "\\)"
+ │       ├─ keyword.operator.css.sd [796..797]: "@"
+ │       ├─ string.unquoted.css.sd [797..804]: "hovered"
+ │       ├─ punctuation.definition.template-expression.end.sd [804..805]: ")"
+ │       ├─ punctuation.definition.template-expression.end.sd [805..806]: ")"
+ │       ├─ punctuation.whitespace.sd [806..807]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [807..808]: "{"
+ ├─ Newline [808..809]: "\n"
+ ├─ meta.style.luau [809..824]
+ │   └─ meta.embedded.block.luau [809..824]
+ │       ├─ punctuation.whitespace.sd [809..813]: "    "
+ │       ├─ variable.other.property.define.sd [813..818]: "color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [818..819]: " "
+ │       ├─ keyword.operator.assignment.sd [819..820]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [820..821]: " "
+ │       └─ string.unquoted.identifier.sd [821..824]: "red"
+ ├─ Newline [824..825]: "\n"
+ ├─ meta.style.luau [825..828]
+ │   └─ meta.embedded.block.luau [825..828]
+ │       ├─ punctuation.whitespace.sd [825..827]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [827..828]: "}"
+ ├─ Newline [828..829]: "\n"
+ ├─ meta.style.luau [829..870]
+ │   └─ meta.embedded.block.luau [829..870]
+ │       ├─ punctuation.whitespace.sd [829..831]: "  "
+ │       ├─ entity.name.function.attribute.name.view.sd [831..832]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [832..837]: "media"
+ │       ├─ markup.raw.whitespace.separator.sd [837..838]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [838..839]: "("
+ │       ├─ string.unquoted.css.sd [839..848]: "min-width"
+ │       ├─ keyword.operator.css.sd [848..849]: ":"
+ │       ├─ markup.raw.whitespace.separator.sd [849..850]: " "
+ │       ├─ string.unquoted.css.sd [850..853]: "1px"
+ │       ├─ punctuation.definition.template-expression.end.sd [853..854]: ")"
+ │       ├─ keyword.operator.comma.sd [854..855]: ","
+ │       ├─ markup.raw.whitespace.separator.sd [855..856]: " "
+ │       ├─ string.unquoted.css.sd [856..862]: "custom"
+ │       ├─ constant.character.escape.css.sd [862..864]: "\\\""
+ │       ├─ string.unquoted.css.sd [864..868]: "type"
+ │       ├─ punctuation.whitespace.sd [868..869]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [869..870]: "{"
+ ├─ Newline [870..871]: "\n"
+ ├─ meta.style.luau [871..886]
+ │   └─ meta.embedded.block.luau [871..886]
+ │       ├─ punctuation.whitespace.sd [871..875]: "    "
+ │       ├─ variable.other.property.define.sd [875..880]: "color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [880..881]: " "
+ │       ├─ keyword.operator.assignment.sd [881..882]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [882..883]: " "
+ │       └─ string.unquoted.identifier.sd [883..886]: "red"
+ ├─ Newline [886..887]: "\n"
+ ├─ meta.style.luau [887..890]
+ │   └─ meta.embedded.block.luau [887..890]
+ │       ├─ punctuation.whitespace.sd [887..889]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [889..890]: "}"
+ ├─ Newline [890..891]: "\n"
+ ├─ meta.style.luau [891..941]
+ │   └─ meta.embedded.block.luau [891..941]
+ │       ├─ punctuation.whitespace.sd [891..893]: "  "
+ │       ├─ entity.name.function.attribute.name.view.sd [893..894]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [894..901]: "hovered"
+ │       ├─ punctuation.whitespace.required.sd [901..902]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [902..903]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [903..908]: "media"
+ │       ├─ markup.raw.whitespace.separator.sd [908..909]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [909..910]: "("
+ │       ├─ string.unquoted.css.sd [910..919]: "min-width"
+ │       ├─ keyword.operator.css.sd [919..920]: ":"
+ │       ├─ markup.raw.whitespace.separator.sd [920..921]: " "
+ │       ├─ string.unquoted.css.sd [921..924]: "1px"
+ │       ├─ punctuation.definition.template-expression.end.sd [924..925]: ")"
+ │       ├─ keyword.operator.comma.sd [925..926]: ","
+ │       ├─ markup.raw.whitespace.separator.sd [926..927]: " "
+ │       ├─ string.unquoted.css.sd [927..933]: "custom"
+ │       ├─ constant.character.escape.css.sd [933..935]: "\\\""
+ │       ├─ string.unquoted.css.sd [935..939]: "type"
+ │       ├─ punctuation.whitespace.sd [939..940]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [940..941]: "{"
+ ├─ Newline [941..942]: "\n"
+ ├─ meta.style.luau [942..957]
+ │   └─ meta.embedded.block.luau [942..957]
+ │       ├─ punctuation.whitespace.sd [942..946]: "    "
+ │       ├─ variable.other.property.define.sd [946..951]: "color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [951..952]: " "
+ │       ├─ keyword.operator.assignment.sd [952..953]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [953..954]: " "
+ │       └─ string.unquoted.identifier.sd [954..957]: "red"
+ ├─ Newline [957..958]: "\n"
+ ├─ meta.style.luau [958..961]
+ │   └─ meta.embedded.block.luau [958..961]
+ │       ├─ punctuation.whitespace.sd [958..960]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [960..961]: "}"
+ ├─ Newline [961..962]: "\n"
+ ├─ meta.style.luau [962..963]
+ │   └─ meta.embedded.block.luau [962..963]
+ │       └─ punctuation.definition.template-expression.end.sd [962..963]: "}"
+ └─ Newline [963..964]: "\n"

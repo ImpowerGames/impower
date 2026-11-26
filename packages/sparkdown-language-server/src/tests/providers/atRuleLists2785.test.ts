@@ -128,6 +128,47 @@ describe("a raw at-rule that lists queries with a comma beside a selector or sta
     expect(warnings(selector, "at-rule-list")).toEqual([]);
   });
 
+  const allDiagnostics = (selector: string) =>
+    (compile(`${LAYOUTS}
+style frame {
+  ${selector} {
+    opacity = 1
+  }
+}
+`).diagnostics?.[MAIN] ?? [])
+      .filter((d: any) => d.range.start.line === 7)
+      .map((d: any) => ({
+        code: d.code,
+        message: typeof d.message === "string" ? d.message : d.message.value,
+      }));
+
+  it.each([
+    "@media (min-width: 1px), print @variant(shout)",
+    "@media (min-width: 1px), print @speaker(bunny)",
+    "@media (min-width: 1px), print @showing(hud)",
+  ])("gives %s one warning, the query list's", (selector) => {
+    expect(allDiagnostics(selector).map(({ code }) => code)).toEqual(["at-rule-query-list"]);
+  });
+
+  it("warns on a query list ending in an escaped quote beside a state, and reads the block", () => {
+    expect(allDiagnostics('@hovered @media (min-width: 1px), custom\\"type').map(({ code }) => code)).toEqual([
+      "at-rule-query-list",
+    ]);
+  });
+
+  it("reads a query list ending in an escaped quote, with no state, as an at-rule and no warning", () => {
+    const messages = (compile(`${LAYOUTS}
+style frame {
+  @media (min-width: 1px), custom\\"type {
+    opacity = 1
+  }
+}
+`).diagnostics?.[MAIN] ?? [])
+      .map((d: any) => (typeof d.message === "string" ? d.message : d.message.value))
+      .filter((message: string) => !message.startsWith("no scene named start"));
+    expect(messages).toEqual([]);
+  });
+
   it.each([
     "@media (min-width: 1px), (foo: url(x\\)\\)@hovered))",
     "@hovered @media (foo: url(foo\\(bar)), print",
