@@ -1298,7 +1298,9 @@ export class MorphLayer {
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
     for (const still of this.stills) {
       const views = still.canvases;
-      if (!views?.length || !still.picture.vector || still.undrawn || still.broken || !views.some((view) => view.painted !== undefined)) continue;
+      if (!views?.length || !still.picture.vector || still.undrawn || still.broken || !views.some((view) => view.painted !== undefined && view.box.isConnected)) {
+        continue;
+      }
       const plans = this.stillPlans(still, computed);
       const area = this.layerBoxes(computed).padding;
       if (!plans || !(area.width > 0 && area.height > 0) || JSON.stringify(this.stillSegments(plans)) !== still.segments) continue;
