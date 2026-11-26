@@ -221,12 +221,13 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
+const NESTED_AT_RULES: ReadonlySet<string> = new Set(["@layer", "@scope"]);
 const LIST_ITEM_QUOTED = String.raw`"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'`;
 const LIST_ITEM_GROUP = String.raw`\((?:${LIST_ITEM_QUOTED}|[^()"'\r\n])*\)`;
-const LIST_ITEM_PLAIN = String.raw`[^,"'()#\[:&>+~@\r\n]`;
-const LIST_ITEM_MARK = String.raw`[#\[:&>+~]|@[_\p{L}]`;
+const LIST_ITEM_PLAIN = String.raw`[^,"'()#\[:.&>+~@\r\n]`;
+const LIST_ITEM_MARK = String.raw`[#\[:.&>+~]|@[_\p{L}]`;
 const SELECTOR_LIST_ITEM_AFTER = new RegExp(
-  String.raw`[^\S\n\r]*\.|(?:${LIST_ITEM_QUOTED}|${LIST_ITEM_GROUP}|${LIST_ITEM_PLAIN})*(?:${LIST_ITEM_MARK})`,
+  String.raw`(?:${LIST_ITEM_QUOTED}|${LIST_ITEM_GROUP}|${LIST_ITEM_PLAIN})*(?:${LIST_ITEM_MARK})`,
   "uy",
 );
 
@@ -247,7 +248,7 @@ class SparkleSelectorWriter {
 
   private preludes: { from: number; to: number; where: string }[] = [];
 
-  private itemAtRules: { text: string; from: number; to: number }[][] = [];
+  private itemAtRules: { rule: string; text: string; from: number; to: number }[][] = [];
 
   readonly roots: string[] = [];
 
@@ -269,9 +270,12 @@ class SparkleSelectorWriter {
         out += this.src[this.i++];
       }
     }
-    const sets = Array.from({ length: this.item + 1 }, (_, item) =>
-      [...new Set((this.itemAtRules[item] ?? []).map(({ text }) => text))].sort(),
-    );
+    const sets = Array.from({ length: this.item + 1 }, (_, item) => {
+      const rules = this.itemAtRules[item] ?? [];
+      const nested = rules.filter(({ rule }) => NESTED_AT_RULES.has(rule)).map(({ text }) => text);
+      const conditions = rules.filter(({ rule }) => !NESTED_AT_RULES.has(rule)).map(({ text }) => text);
+      return [...nested, ...[...new Set(conditions)].sort()];
+    });
     const [first = []] = sets;
     if (sets.every((set) => set.length === first.length && set.every((text, i) => text === first[i]))) {
       this.atRules = first;
@@ -424,7 +428,7 @@ class SparkleSelectorWriter {
           const text = written.text + this.within(where, () => this.prelude(written.atRule!, shorthand));
           this.preludes.push({ from, to: this.i, where });
           if (this.positions.length === 0) {
-            (this.itemAtRules[this.item] ??= []).push({ text, from: start, to: this.i });
+            (this.itemAtRules[this.item] ??= []).push({ rule: written.atRule, text, from: start, to: this.i });
           } else {
             out += text;
           }

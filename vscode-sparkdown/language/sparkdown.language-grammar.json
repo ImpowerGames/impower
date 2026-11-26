@@ -132,10 +132,10 @@
     "SELECTOR_LIST_ITEM_SINGLE_QUOTED": "'(?:[\\\\][^\\r\\n]|[^'\\\\\\r\\n])*'",
     "SELECTOR_LIST_ITEM_QUOTED": "(?:{{SELECTOR_LIST_ITEM_DOUBLE_QUOTED}}|{{SELECTOR_LIST_ITEM_SINGLE_QUOTED}})",
     "SELECTOR_LIST_ITEM_GROUP": "[(](?:{{SELECTOR_LIST_ITEM_QUOTED}}|[^()\"'\\r\\n])*[)]",
-    "SELECTOR_LIST_ITEM_MARK": "(?:[#\\[:&>+~]|[@][_\\p{L}])",
-    "SELECTOR_LIST_ITEM_PLAIN": "[^,\"'()#\\[:&>+~@\\r\\n]",
+    "SELECTOR_LIST_ITEM_MARK": "(?:[#\\[:.&>+~]|[@][_\\p{L}])",
+    "SELECTOR_LIST_ITEM_PLAIN": "[^,\"'()#\\[:.&>+~@\\r\\n]",
     "SELECTOR_LIST_ITEM_SKIP": "(?:{{SELECTOR_LIST_ITEM_QUOTED}}|{{SELECTOR_LIST_ITEM_GROUP}}|{{SELECTOR_LIST_ITEM_PLAIN}})",
-    "SELECTOR_LIST_ITEM_AFTER": "(?:{{WS}}*[.]|{{SELECTOR_LIST_ITEM_SKIP}}*{{SELECTOR_LIST_ITEM_MARK}})",
+    "SELECTOR_LIST_ITEM_AFTER": "{{SELECTOR_LIST_ITEM_SKIP}}*{{SELECTOR_LIST_ITEM_MARK}}",
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}-",
     "IDENTIFIER_START": "[{{IDENTIFIER_START_CHAR}}]",
@@ -7836,7 +7836,7 @@
     "SelectorAtRuleListComma": {
       "tag": "operator",
       "name": "keyword.operator.comma.sd",
-      "match": "([,])(?!(?:(?:[^\\S\\n\\r])*[.]|(?:(?:\"(?:[\\\\][^\\r\\n]|[^\"\\\\\\r\\n])*\"|'(?:[\\\\][^\\r\\n]|[^'\\\\\\r\\n])*')|[(](?:(?:\"(?:[\\\\][^\\r\\n]|[^\"\\\\\\r\\n])*\"|'(?:[\\\\][^\\r\\n]|[^'\\\\\\r\\n])*')|[^()\"'\\r\\n])*[)]|[^,\"'()#\\[:&>+~@\\r\\n])*(?:[#\\[:&>+~]|[@][_\\p{L}])))"
+      "match": "([,])(?!(?:(?:\"(?:[\\\\][^\\r\\n]|[^\"\\\\\\r\\n])*\"|'(?:[\\\\][^\\r\\n]|[^'\\\\\\r\\n])*')|[(](?:(?:\"(?:[\\\\][^\\r\\n]|[^\"\\\\\\r\\n])*\"|'(?:[\\\\][^\\r\\n]|[^'\\\\\\r\\n])*')|[^()\"'\\r\\n])*[)]|[^,\"'()#\\[:.&>+~@\\r\\n])*(?:[#\\[:.&>+~]|[@][_\\p{L}]))"
     },
     "SelectorAtRulePunctuation": {
       "tag": "operator",

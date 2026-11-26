@@ -77,7 +77,6 @@ const AT_RULE_ONLY = [
   "@container (min-width: 1px), style(--x: fn(@y))",
   '@container style(--mode: dark), style(--label: ")@night")',
   "@container style(--mode: dark), style(--label: ')@night')",
-  "@layer base, theme.dark",
   "@media screen and (min-resolution: 1.5dppx), print",
 ];
 
@@ -250,6 +249,8 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     ["@busy @media (min-width: 600px), .big", "@media"],
     ["@busy @media (min-width: 600px), card :is(:not(.absent)) @focused", "@media"],
     ["@busy @media (min-width: 600px), card :is(@focused)", "@media"],
+    ["@busy @media (min-width: 600px), text.headline", "@media"],
+    ["@busy @media (min-width: 600px), card .big", "@media"],
   ])("%s", (key, state) => {
     for (const colorScheme of ["attribute", "media"] as const) {
       const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });
@@ -275,6 +276,39 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     expect(playerCss({ [key]: { opacity: "0.5" } })).toContain("0.5");
     expect(previewCss([key, "  opacity = 0.5"])).not.toContain("0.5");
   });
+});
+
+describe("scopes keep the order they are written in (#2785)", () => {
+  const key = "item @busy @scope (.z) @scope (.a)";
+  const nested = { "@scope (.z)": { "@scope (.a)": { "item @busy": { opacity: "0.5" } } } };
+  const nestedLines = ["@scope (.z)", "  @scope (.a)", "    item @busy", "      opacity = 0.5"];
+  const opacityOfItem = async (css: string, outer: string, inner: string) => {
+    await page.setViewportSize({ width: 800, height: 400 });
+    await page.setContent(
+      `<style>${css}</style><div class="style card"><div class="${outer}"><div class="${inner}"><div class="item" aria-busy="true"></div></div></div></div>`,
+    );
+    return page.evaluate(() => getComputedStyle(document.querySelector(".item")!).opacity);
+  };
+
+  for (const renderer of ["player", "preview"] as const) {
+    test(`${renderer}: a key with two scopes matches the same elements as the scopes written as nested keys`, async () => {
+      const combined =
+        renderer === "player"
+          ? playerCss({ opacity: "1", [key]: { opacity: "0.5" } })
+          : previewCss(["opacity = 1", key, "  opacity = 0.5"]);
+      const reference =
+        renderer === "player" ? playerCss({ opacity: "1", ...nested }) : previewCss(["opacity = 1", ...nestedLines]);
+      expect(await opacityOfItem(reference, "z", "a")).toBe("0.5");
+      for (const [outer, inner] of [
+        ["z", "a"],
+        ["a", "z"],
+      ] as const) {
+        expect(await opacityOfItem(combined, outer, inner), `${combined}\n${outer} > ${inner}`).toBe(
+          await opacityOfItem(reference, outer, inner),
+        );
+      }
+    }, 30_000);
+  }
 });
 
 describe("a comma list whose selectors share their at-rule states writes one rule for all of them (#2785)", () => {

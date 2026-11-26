@@ -76,10 +76,10 @@ variables:
   SELECTOR_LIST_ITEM_SINGLE_QUOTED: '''(?:[\\][^\r\n]|[^''\\\r\n])*'''
   SELECTOR_LIST_ITEM_QUOTED: (?:{{SELECTOR_LIST_ITEM_DOUBLE_QUOTED}}|{{SELECTOR_LIST_ITEM_SINGLE_QUOTED}})
   SELECTOR_LIST_ITEM_GROUP: '[(](?:{{SELECTOR_LIST_ITEM_QUOTED}}|[^()"''\r\n])*[)]'
-  SELECTOR_LIST_ITEM_MARK: (?:[#\[:&>+~]|[@][_\p{L}])
-  SELECTOR_LIST_ITEM_PLAIN: '[^,"''()#\[:&>+~@\r\n]'
+  SELECTOR_LIST_ITEM_MARK: (?:[#\[:.&>+~]|[@][_\p{L}])
+  SELECTOR_LIST_ITEM_PLAIN: '[^,"''()#\[:.&>+~@\r\n]'
   SELECTOR_LIST_ITEM_SKIP: (?:{{SELECTOR_LIST_ITEM_QUOTED}}|{{SELECTOR_LIST_ITEM_GROUP}}|{{SELECTOR_LIST_ITEM_PLAIN}})
-  SELECTOR_LIST_ITEM_AFTER: (?:{{WS}}*[.]|{{SELECTOR_LIST_ITEM_SKIP}}*{{SELECTOR_LIST_ITEM_MARK}})
+  SELECTOR_LIST_ITEM_AFTER: '{{SELECTOR_LIST_ITEM_SKIP}}*{{SELECTOR_LIST_ITEM_MARK}}'
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
@@ -4955,8 +4955,8 @@ repository:
   SelectorAtRuleListComma:
     # lookaround: a comma at an at-rule prelude's top level separates the
     # query list (`@media (a), print`) unless the part after it is another
-    # selector: one that starts with a class, or holds a selector mark or a
-    # state before any group it opens, since a selector marks itself before
+    # selector: one that holds a selector mark (a class's `.` among them) or
+    # a state before any group it opens, since a selector marks itself before
     # its first parenthesis and a query keeps its marks inside one. Only
     # the text after the comma tells the two apart, and the writer's
     # `SELECTOR_LIST_ITEM_AFTER` reads the same text. Declined, the comma
