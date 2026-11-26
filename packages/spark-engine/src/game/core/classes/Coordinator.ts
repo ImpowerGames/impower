@@ -519,7 +519,8 @@ export class Coordinator<G extends Game> {
             ? deltaMS
             : Math.min(
                 deltaMS,
-                Math.max(0, game.context.system.now() - readyBetweenTicksAt),
+                Math.max(0, game.context.system.now() - readyBetweenTicksAt) *
+                  (game.clock?.speed ?? 1),
               );
         readyBetweenTicksAt = null;
         elapsedMS += sinceReady;

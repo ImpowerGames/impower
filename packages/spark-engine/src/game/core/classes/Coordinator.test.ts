@@ -473,6 +473,67 @@ describe("Coordinator", () => {
       expect(calls.textWrites).toHaveLength(writes);
       expect(calls.audioTriggerTimes).toEqual([]);
     });
+
+    const onScaledClock = (speed: number, end: number) => {
+      let now = NOW;
+      let nextFrame: (() => void) | undefined;
+      const { game, calls } = createGame({ now: () => now });
+      const audio = (game.module as any).audio;
+      let resident = false;
+      audio.schedule = () => 1;
+      audio.isReady = () => resident;
+      const coordinator = new ProbeCoordinator(game, {
+        audio: { voice: [] } as never,
+        end,
+      });
+      const clock = new Clock(
+        {
+          get currentTime() {
+            return now / 1000;
+          },
+        },
+        (callback) => {
+          nextFrame = callback as () => void;
+          return 1;
+        },
+      );
+      clock.speed = speed;
+      (game as any).clock = clock;
+      clock.add((time) => coordinator.onUpdate(time));
+      clock.start();
+      return {
+        coordinator,
+        calls,
+        clock,
+        advance(ms: number, frame = false) {
+          now += ms;
+          if (frame) nextFrame?.();
+        },
+        complete() {
+          resident = true;
+          coordinator.recheckReadiness();
+        },
+      };
+    };
+
+    it("counts the time since a between-tick readiness at the clock's speed, at half speed", () => {
+      const h = onScaledClock(0.5, 0.005);
+      h.advance(20);
+      h.complete();
+      h.advance(40, true);
+      expect(h.clock.deltaMS).toBeCloseTo(30);
+      expect(h.calls.audioTriggerTimes).toEqual([NOW + 20 + BEAT_LEAD_MS]);
+      expect(h.coordinator.finishedExecution).toBe(false);
+    });
+
+    it("counts the time since a between-tick readiness at the clock's speed, at double speed", () => {
+      const h = onScaledClock(2, 0.01);
+      h.advance(20);
+      h.complete();
+      h.advance(20, true);
+      expect(h.clock.deltaMS).toBeCloseTo(80);
+      expect(h.coordinator.finishedExecution).toBe(true);
+    });
   });
 
   describe("loading", () => {
