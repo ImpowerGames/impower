@@ -71,10 +71,16 @@ export interface MorphLayerPlay {
   definition: string;
 }
 
+export interface MorphPictureStill {
+  layer: number;
+  span: number;
+  image: string;
+}
+
 export interface MorphImageContent {
   plays: MorphLayerPlay[];
   epoch: number;
-  still?: string;
+  still?: MorphPictureStill[];
 }
 
 export type WriteImageMethod = typeof WriteImageMessage.method;

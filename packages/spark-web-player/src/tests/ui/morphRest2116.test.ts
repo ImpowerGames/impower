@@ -22,10 +22,11 @@ const timing: MorphTiming = { duration: 0.25, delay: 1, easing: "linear", iterat
 const ref: MorphRef = { morphs: ["shut"], key: "k-shut", image: "bunny", selection: "{}", groups: ["mouth"] };
 const BACKGROUND = 'url("rest.svg")';
 const STILL = 'url("still.svg")';
+const STACK_STILL = 'url("first-b.svg"), url("first-a.svg")';
 const content: MorphImageContent = {
   plays: [{ layer: 0, ref, morph: "shut", timing, definition: "d" }],
   epoch: 0,
-  still: STILL,
+  still: [{ layer: 0, span: 1, image: STILL }],
 };
 
 let restore: (() => void) | undefined;
@@ -146,19 +147,22 @@ describe("a morph's still, first frame and rest in the page", () => {
     const stack: MorphImageContent = {
       plays: ["a", "b"].map((key, layer) => ({ layer, ref: { ...ref, key, image: key }, morph: "shut", timing, definition: "d" })),
       epoch: 0,
-      still: 'url("first-b.svg"), url("first-a.svg")',
+      still: [
+        { layer: 0, span: 1, image: 'url("first-a.svg")' },
+        { layer: 1, span: 1, image: 'url("first-b.svg")' },
+      ],
     };
     playback.mount(span, stack, 'url("rest-b.svg"), url("rest-a.svg")', "background", "portrait:0");
     await flushMicrotasks(10);
-    expect(span.style.backgroundImage).toBe(stack.still);
+    expect(span.style.backgroundImage).toBe(STACK_STILL);
     releases.get("a")!();
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(span.querySelector(":scope > span.morph")).toBeNull();
-    expect(span.style.backgroundImage).toBe(stack.still);
+    expect(span.style.backgroundImage).toBe(STACK_STILL);
     playback.setEnabled(false);
     expect(span.style.backgroundImage).toBe('url("rest-b.svg"), url("rest-a.svg")');
     playback.setEnabled(true);
-    expect(span.style.backgroundImage).toBe(stack.still);
+    expect(span.style.backgroundImage).toBe(STACK_STILL);
     releases.get("b")!();
     await until(() => playback.stats.live === 1, "both artifacts");
     expect(span.style.backgroundImage).toBe("none, none");

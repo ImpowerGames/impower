@@ -86,7 +86,7 @@ describe("a `trigger = change` morph in the image write (#2737)", () => {
       ],
     });
     expect(decodeURIComponent(changed.background)).toContain("mouth.frown");
-    expect(decodeURIComponent(changed.morph.still)).toContain("mouth.smile");
+    expect(decodeURIComponent(changed.morph.still[0].image)).toContain("mouth.smile");
   });
 
   test("showing the same options again, or a different picture, plays nothing", async () => {
@@ -164,8 +164,27 @@ end
     const [, changed] = await beats(undefined, scene(lines, kit), 2);
     expect(changed.morph.plays.map((play: any) => play.morph)).toEqual(["bend"]);
     expect(changed.background).toContain("/hat.png");
-    expect(changed.morph.still).toContain("/base.png");
-    expect(changed.morph.still).not.toContain("/hat.png");
+    expect(changed.morph.still).toEqual([{ layer: 0, span: 2, image: expect.stringContaining("/base.png") }]);
+    expect(changed.morph.still[0].image).not.toContain("/hat.png");
+  });
+
+  test("hands the player each picture's still with the layers it stands for, when one write holds several pictures (#2782)", async () => {
+    const kit = `define kit as layered_image with
+  assets = {
+    ["base"] = base,
+    ["hat.on"] = hat,
+  }
+end
+`;
+    const lines = `  [[show portrait mia:mouth.smile + kit:hat.off]]
+  First.
+  [[show portrait mia:mouth.smile + kit:hat.on]]
+  Changed.`;
+    const [, changed] = await beats(undefined, scene(lines, kit), 2);
+    expect(changed.morph.plays.map((play: any) => [play.morph, play.layer])).toEqual([["bend", 1]]);
+    expect(changed.morph.still).toEqual([{ layer: 1, span: 2, image: expect.stringContaining("/base.png") }]);
+    expect(changed.morph.still[0].image).not.toContain("/hat.png");
+    expect(changed.morph.still[0].image).not.toContain("mia");
   });
 
   test("a beat displayed at once shows the new drawing with no play", async () => {
