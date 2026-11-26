@@ -143,7 +143,7 @@ async function setup(
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -409,6 +409,71 @@ describe("the beat's drawing barrier holds against what follows it, and sizes fr
   });
 });
 
+const plaque = (stage: string, style?: Record<string, string>) => [
+  { method: "ui/create", params: { parent: stage, element: "made-plaque", type: "div", name: "plaque", ...(style ? { style } : {}), breakpoints: {} } },
+  { method: "ui/create", params: { parent: "made-plaque", element: "made-plaque-image", type: "div", name: "image", breakpoints: {} } },
+];
+
+describe("a beat's created targets are made, measured and shown with the beat (#2810)", () => {
+  test("a write to an existing target and one the beat creates waits for both pictures", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])], 70, [
+      { method: "ui/create", params: { parent: stage.__sdId, element: "made-sigil", type: "div", name: "sigil", breakpoints: {} } },
+      { method: "ui/create", params: { parent: "made-sigil", element: "made-sigil-image", type: "div", name: "image", breakpoints: {} } },
+    ]);
+    await until(() => t.rasters.length === 2, "both rasters");
+    t.rasters[0]!.resolve(raster(t.rasters[0]!.src, t.rasters[0]!.width, t.rasters[0]!.height));
+    await flushMicrotasks(20);
+    expect(t.events.includes("applied")).toBe(false);
+    t.rasters[1]!.resolve(raster(t.rasters[1]!.src, t.rasters[1]!.width, t.rasters[1]!.height));
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(t.events.at(-1)).toBe("applied");
+  });
+
+  test("a target made for a beat that is torn down before it fires is shown again, not left hidden", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 72, plaque(stage.__sdId!));
+    await until(() => t.rasters.length === 1, "the raster");
+    const made = t.h.overlay.querySelector(".plaque") as HTMLElement;
+    expect(made.style.getPropertyValue("visibility")).toBe("hidden");
+    t.h.ui.onDispose();
+    expect(made.style.getPropertyValue("visibility")).toBe("");
+  });
+
+  test("a target the beat makes hidden in its own style stays hidden once the beat fires", async () => {
+    const t = await setup();
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 74, plaque(stage.__sdId!, { visibility: "hidden" }));
+    await until(() => t.events.includes("applied"), "the beat");
+    expect((t.h.overlay.querySelector(".plaque") as HTMLElement).style.getPropertyValue("visibility")).toBe("hidden");
+  });
+
+  test("a target the beat makes and then widens is drawn at its widened size", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 76, [
+      ...plaque(stage.__sdId!),
+      { method: "ui/update", params: { element: "made-plaque", attributes: { class: "plaque wide" }, breakpoints: {} } },
+    ]);
+    await until(() => t.rasters.length === 1, "the raster");
+    expect([t.rasters[0]!.width, t.rasters[0]!.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+  });
+
+  test("a target the beat makes and then scales up is drawn at its scaled size", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    const double = { ...grow, $name: "double", keyframes: [{ scale: "1" }, { scale: "2" }] } as unknown as Animation;
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 78, [
+      ...plaque(stage.__sdId!),
+      { method: "ui/animate", params: { effects: [{ element: "made-plaque", animations: [double] }] } },
+    ]);
+    await until(() => t.rasters.length === 1, "the raster");
+    expect([t.rasters[0]!.width, t.rasters[0]!.height]).toEqual([Math.round(BOX.width * DPR * STYLE_SCALE * 2), Math.round(BOX.height * DPR * STYLE_SCALE * 2)]);
+  });
+});
+
 describe("a vector picture in an element the beat reveals or creates (#2810)", () => {
   test("in an element the beat reveals, it is drawn before the beat at the size its span has once shown, the element stays hidden until the beat, and nothing is painted again once it shows", async () => {
     const t = await setup({ holdRasters: true });
@@ -600,6 +665,74 @@ describe("a picture that cannot be drawn shows a placeholder in the previews and
     expect(shadow?.querySelector("canvas") ?? null).toBeNull();
     expect(t.spanOf("backdrop")!.style.getPropertyValue("background-image")).toBe("none");
     expect(t.reports).toHaveBeenCalledTimes(1);
+  });
+
+  test("a picture whose file is still loading when the timeout runs out shows the late placeholder, and its drawing replaces it", async () => {
+    let finish: (() => void) | undefined;
+    const t = await setup({
+      placeholders: true,
+      load: (src) => new Promise((resolve) => (finish = () => resolve(vector(src)))),
+    });
+    t.h.ui.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0.05, restoreTimeout: 0.05 },
+    } as never);
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])]);
+    await until(() => t.events.includes("applied"), "the beat after its timeout");
+    expect(t.shadowOf("backdrop")?.querySelector("[data-undrawn]")?.getAttribute("data-undrawn")).toBe("late");
+    finish!();
+    await until(() => !!t.shadowOf("backdrop")?.querySelector("canvas"), "the drawing");
+    expect(t.shadowOf("backdrop")!.querySelector("[data-undrawn]")).toBeNull();
+    expect(t.reports).toHaveBeenCalledTimes(1);
+  });
+
+  test("a vector picture a morph plays on, neither of whose drawings is ready at the timeout, warns once", async () => {
+    const t = await setup({ holdRasters: true, placeholders: true });
+    t.h.ui.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0.05, restoreTimeout: 0.05 },
+    } as never);
+    t.playback.configure({ host: { resolve: () => new Promise(() => {}) } as never });
+    const files = [
+      { src: "/src/kit.svg", name: "kit.svg" },
+      { src: "/src/hat.png", name: "hat.png" },
+    ];
+    t.beat([
+      {
+        target: "badge",
+        instant: false,
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: 'url("/src/hat.png"), url("/src/kit.svg")',
+              imageNames: "kit",
+              srcs: files.map((file) => file.src),
+              morph: {
+                plays: [
+                  {
+                    layer: 0,
+                    picture: { span: 2, files },
+                    ref: { morphs: ["m"], key: "kit-vector-late", image: "kit", selection: "{}", groups: ["mouth"] },
+                    morph: "m",
+                    timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+                    definition: "d",
+                  },
+                ],
+                epoch: 0,
+              },
+              pictures: [{ layer: 0, span: 2, name: "kit", vector: true, files }],
+            },
+          },
+        ],
+      },
+    ]);
+    await until(() => t.events.includes("applied"), "the beat after its timeout");
+    await flushMicrotasks(20);
+    expect(t.reports).toHaveBeenCalledTimes(1);
+    expect(t.reports).toHaveBeenCalledWith({ image: "kit", file: "kit.svg", reason: "late", placeholder: true });
   });
 
   test("a picture not drawn when the timeout runs out and then refused keeps one warning, and its placeholder takes the refusal's reason", async () => {

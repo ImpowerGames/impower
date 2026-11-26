@@ -567,6 +567,7 @@ export default class UIManager extends Manager {
       }
     }
     this.liftVeil();
+    this.revealPrecreated();
     for (const waiting of this._waitingBeats.splice(0)) {
       this._beatMarks.dropped(waiting);
     }
@@ -756,10 +757,10 @@ export default class UIManager extends Manager {
     }
     const layers: MorphLayer[] = [];
     let unprepared = false;
+    this.precreateTargets(ops);
     const animated = this.beatAnimations(ops);
     const restore = this.applyBeatLayout(ops);
     try {
-      this.precreateTargets(ops);
     const nested = (el: Element) =>
       animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
     for (const op of ops) {
@@ -860,7 +861,20 @@ export default class UIManager extends Manager {
     return { layers, unprepared };
   }
 
-  protected _precreated: HTMLElement[] = [];
+  protected _precreated: { el: HTMLElement; value: string; priority: string }[] = [];
+
+  protected revealPrecreated() {
+    for (const { el, value, priority } of this._precreated.splice(0)) {
+      if (el.style.getPropertyValue("visibility") !== "hidden" || el.style.getPropertyPriority("visibility") !== "important") {
+        continue;
+      }
+      if (value) {
+        el.style.setProperty("visibility", value, priority);
+      } else {
+        el.style.removeProperty("visibility");
+      }
+    }
+  }
 
   protected precreateTargets(ops: IMessage[]) {
     const creates = ops.filter((op) => CreateElementMessage.type.isRequest(op as RequestMessage)) as (RequestMessage & {
@@ -876,13 +890,14 @@ export default class UIManager extends Manager {
         continue;
       }
       const { target, elements, instructions } = msg.params;
-      if (!instructions.some(drawsPicture) || this.writeTargets(target, elements).length > 0) {
+      if (!instructions.some(drawsPicture)) {
         continue;
       }
       const names = (target.split("#")[0] ?? "").split(" ").filter(Boolean);
       for (const create of creates) {
         const classes = (create.params.name || "").split(" ");
-        if (elements ? elements.includes(create.params.element) : names.length > 0 && names.every((name) => classes.includes(name))) {
+        const named = elements ? elements.includes(create.params.element) : names.length > 0 && names.every((name) => classes.includes(name));
+        if (named && !this.getElement(create.params.element)) {
           needed.add(create.params.element);
         }
       }
@@ -922,8 +937,8 @@ export default class UIManager extends Manager {
       }
       const el = this.getElement(id);
       if (el) {
+        this._precreated.push({ el, value: el.style.getPropertyValue("visibility"), priority: el.style.getPropertyPriority("visibility") });
         el.style.setProperty("visibility", "hidden", "important");
-        this._precreated.push(el);
       }
     }
   }
@@ -1305,9 +1320,7 @@ export default class UIManager extends Manager {
       }
     }
     this.discardAllPrepared();
-    for (const el of this._precreated.splice(0)) {
-      el.style.removeProperty("visibility");
-    }
+    this.revealPrecreated();
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
       this.sweepReconcile();

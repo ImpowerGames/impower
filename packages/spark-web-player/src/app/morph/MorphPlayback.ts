@@ -1386,7 +1386,7 @@ export class MorphLayer {
     }
     for (const image of this.images) {
       if (!image.picture || image.reported || this.canvasDrawn(image)) continue;
-      if (this.stills.some((still) => still.under === image && !still.late && this.stillDrawn(still))) continue;
+      if (this.stills.some((still) => still.under === image)) continue;
       image.reported = true;
       this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: image.picture.files[0]?.name ?? "", reason: "late" });
     }
@@ -1603,7 +1603,7 @@ export class MorphLayer {
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    const stills = this.stills.filter((still) => (still.files || still.undrawn) && !still.broken && (!still.under || (!this.still && !this.uncomposited(still.under))));
+    const stills = this.stills.filter((still) => (still.files || still.undrawn || still.late) && !still.broken && (!still.under || (!this.still && !this.uncomposited(still.under))));
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
     const alone = (i: number, picture: ImageState | undefined) => {
@@ -1672,6 +1672,7 @@ export class MorphLayer {
       if (picture) {
         const span = Math.min(picture.span, count - i);
         if (picture.undrawn || picture.late) {
+          if (picture.late && picture.files) this.stillCanvases(picture, computed, doc);
           if (this.playback.placeholders) root.appendChild(this.placeholder(picture, doc));
         } else if (this.stillCanvases(picture, computed, doc)) {
           for (const view of picture.canvases!) root.appendChild(view.box);
