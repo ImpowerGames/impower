@@ -10,7 +10,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: ["test/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["**/node_modules/**", "**/dist/**", "**/out/**"],
     server: {
       deps: {

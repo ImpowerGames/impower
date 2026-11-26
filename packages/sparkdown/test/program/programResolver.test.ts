@@ -1,0 +1,618 @@
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { buildBeatsFixture } from "../../../../scripts/bench/preview-fixture.mjs";
+import type { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import type { SparkProgram } from "../../src/compiler/types/SparkProgram";
+import { unsupportedConstructMessage } from "../../src/compiler/utils/unsupportedConstructMessage";
+import { ParsedObject } from "../../src/inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { Story } from "../../src/inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { parsedChildren, ProgramResolver } from "../../src/program/ProgramResolver";
+import { describeRoot, errorsOf, MAIN_URI, programCompiler } from "./programHarness";
+
+const CHARACTERS = "inmemory:///scripts/characters.sd";
+
+beforeAll(() => {
+  ProgramResolver.traceVisits = true;
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function posAt(text: string, offset: number) {
+  const before = text.slice(0, offset).split("\n");
+  return { line: before.length - 1, character: before.at(-1)!.length };
+}
+
+const quietly = <T>(run: () => T): T => {
+  const { warn, error } = console;
+  console.warn = console.error = () => {};
+  try {
+    return run();
+  } finally {
+    console.warn = warn;
+    console.error = error;
+  }
+};
+
+function session(texts: Record<string, string>, config = {}) {
+  const c = programCompiler(texts, { ...config });
+  let text = texts[MAIN_URI]!;
+  let version = 1;
+  let program = quietly(() => c.compile().program);
+  return {
+    compiler: c.compiler as SparkdownCompiler,
+    get program(): SparkProgram {
+      return program;
+    },
+    get text() {
+      return text;
+    },
+    get resolver(): ProgramResolver {
+      return (c.compiler as any).programResolver;
+    },
+    edit(find: string, replace: string, from = 0): SparkProgram {
+      const offset = text.indexOf(find, from);
+      expect(offset, `"${find}" is in the script`).toBeGreaterThanOrEqual(0);
+      version += 1;
+      c.compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version },
+        contentChanges: [
+          {
+            range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
+            text: replace,
+          },
+        ],
+      });
+      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      program = quietly(() => c.compile().program);
+      return program;
+    },
+  };
+}
+
+const cold = (texts: Record<string, string>, config = {}): SparkProgram =>
+  quietly(() => programCompiler(texts, { ...config }).compile().program);
+
+const diagnostics = (program: SparkProgram): string[] =>
+  Object.keys(program.diagnostics ?? {})
+    .sort()
+    .flatMap((uri) =>
+      (program.diagnostics![uri] ?? []).map((d: any) => {
+        const message = typeof d.message === "string" ? d.message : d.message?.value;
+        const r = d.range;
+        return `${uri} ${r.start.line}:${r.start.character}-${r.end.line}:${r.end.character} ${d.severity} ${message}`;
+      }),
+    );
+
+const flatScene = () => {
+  const { files } = buildBeatsFixture({ lines: 2000 });
+  const main = files.get("main.sd")!;
+  const end = main.lastIndexOf("\nend\n");
+  const clause = Array.from({ length: 40 }, (_, i) => `    The clause runs on, line ${i}.`);
+  return {
+    [MAIN_URI]:
+      main.slice(0, end) +
+      [
+        "",
+        "  choose",
+        "    + [Go on]",
+        "      You go on.",
+        "    + [Stay]",
+        "      You stay.",
+        "  then",
+        ...clause,
+        "  end",
+      ].join("\n") +
+      main.slice(end),
+    [CHARACTERS]: files.get("scripts/characters.sd")!,
+  };
+};
+
+const visitedUnits = (resolver: ProgramResolver): Set<object> => {
+  const units = new Set<object>();
+  for (const obj of resolver.visitedLastResolve) {
+    const unit = resolver.unitOf(obj);
+    expect(unit, `${obj.typeName} stands in a statement`).toBeDefined();
+    units.add(unit!);
+  }
+  return units;
+};
+
+const visitedOutsideUnits = (resolver: ProgramResolver): Set<object> => {
+  const units = new Set<object>();
+  for (const obj of resolver.visitedOutsideLastResolve ?? []) {
+    const unit = resolver.unitOf(obj);
+    if (unit) {
+      units.add(unit);
+    }
+  }
+  return units;
+};
+
+const visitedOnlyFresh = (resolver: ProgramResolver) => {
+  const keys = new Set(resolver.freshLastResolve().map((u) => u.key));
+  for (const unit of visitedUnits(resolver)) {
+    expect(keys.has(unit), "a visited object stands in a statement resolved anew").toBe(true);
+  }
+  for (const unit of visitedOutsideUnits(resolver)) {
+    expect(keys.has(unit), "an object visited outside any statement's resolution stands in a statement resolved anew").toBe(true);
+  }
+};
+
+const carriedSubtreeReads = (s: ReturnType<typeof session>, run: () => void): string[] => {
+  const resolver = s.resolver;
+  let armed = false;
+  const reads: { key: object; what: string }[] = [];
+  const seen = new Set<ParsedObject>();
+  const watch = (key: object, obj: ParsedObject) => {
+    if (seen.has(obj)) {
+      return;
+    }
+    seen.add(obj);
+    const children = parsedChildren(obj);
+    let content = obj.content;
+    Object.defineProperty(obj, "content", {
+      configurable: true,
+      get() {
+        if (armed) {
+          const calls = (new Error().stack ?? "")
+            .split("\n")
+            .slice(2, 7)
+            .map((line) => line.trim().replace(/^at /, "").replace(/ \(.*$/, ""))
+            .join(" < ");
+          reads.push({ key, what: `${obj.typeName}: ${calls}` });
+        }
+        return content;
+      },
+      set(value) {
+        content = value;
+      },
+    });
+    for (const child of children) {
+      watch(key, child);
+    }
+  };
+  for (const unit of (resolver as any)._order as { key: object; members: ParsedObject[] }[]) {
+    for (const member of unit.members) {
+      watch(unit.key, member);
+    }
+  }
+  const resolve = resolver.resolve;
+  const verify = ProgramResolver.verifyFacts;
+  resolver.resolve = (...args) => {
+    armed = true;
+    ProgramResolver.verifyFacts = false;
+    try {
+      return resolve.apply(resolver, args);
+    } finally {
+      armed = false;
+      ProgramResolver.verifyFacts = verify;
+    }
+  };
+  try {
+    run();
+  } finally {
+    resolver.resolve = resolve;
+  }
+  const fresh = new Set(resolver.freshLastResolve().map((u) => u.key));
+  return [...new Set(reads.filter((r) => !fresh.has(r.key)).map((r) => r.what))];
+};
+
+const resolvedOnlyLoweredAnew = (resolver: ProgramResolver, most: number) => {
+  const fresh = resolver.freshLastResolve();
+  expect(fresh.map((u) => u.reason)).toEqual(fresh.map(() => "new"));
+  expect(fresh.length).toBeGreaterThan(0);
+  expect(fresh.length).toBeLessThanOrEqual(most);
+  visitedOnlyFresh(resolver);
+  const passes = resolver.passesLastResolve;
+  expect(passes.cold).toBe(false);
+  expect(passes.invalidated).toBe(0);
+  expect(passes.changedNames).toBe(0);
+  expect(passes.replayed).toBe(passes.units - fresh.length);
+};
+
+describe("a compile with statement chunks on", () => {
+  it("has neither ExportRuntime nor ResolveReferences to call, a program it cannot compile included", () => {
+    expect("ExportRuntime" in Story.prototype).toBe(false);
+    expect("ResolveReferences" in ParsedObject.prototype).toBe(false);
+    const s = session(flatScene());
+    expect(s.program.chunks).toBeDefined();
+    s.edit("The clause runs on, line 27.", "The clause runs on, line 27, slowly.");
+    expect(s.program.chunks).toBeDefined();
+    const external = cold({ [MAIN_URI]: "external ext(a)\nscene start\n  ~ ext(1)\n  Line.\nend\n" });
+    expect(external.chunks).toBeUndefined();
+    expect(errorsOf(external)).toContainEqual([0, unsupportedConstructMessage("external")]);
+  });
+});
+
+describe("an edit inside one beat", () => {
+  it("of a flat 2,000-line scene resolves that statement and visits no object of another", () => {
+    const s = session(flatScene());
+    const lines = s.text.split("\n");
+    expect(s.resolver.passesLastResolve.cold).toBe(true);
+    const total = s.resolver.passesLastResolve.units;
+    expect(total).toBeGreaterThan(500);
+    const targets = [40, 700, 1500].map((at) =>
+      lines.findIndex((l, i) => i >= at && /^ {4}\S/.test(l)),
+    );
+    for (const target of targets) {
+      const line = s.text.split("\n")[target]!;
+      const from = s.text.split("\n").slice(0, target).join("\n").length;
+      expect(carriedSubtreeReads(s, () => s.edit(line, `${line} Still.`, from))).toEqual([]);
+      resolvedOnlyLoweredAnew(s.resolver, 3);
+      const passes = s.resolver.passesLastResolve;
+      expect(passes.generated + passes.resolved).toBeLessThan(60);
+      expect(diagnostics(s.program)).toEqual(
+        diagnostics(cold({ [MAIN_URI]: s.text, [CHARACTERS]: flatScene()[CHARACTERS]! })),
+      );
+    }
+  });
+
+  it("of the `then` clause at its bottom resolves that block alone", () => {
+    const s = session(flatScene());
+    s.edit("The clause runs on, line 27.", "The clause runs on, line 27, slowly.");
+    resolvedOnlyLoweredAnew(s.resolver, 2);
+    const passes = s.resolver.passesLastResolve;
+    expect(passes.generated + passes.resolved).toBeLessThan(passes.units);
+  });
+});
+
+describe("a statement the resolver kept resolved", () => {
+  it("keeps its divert's target when another compiler resolves between two compiles", () => {
+    const text = [
+      "store acc = { n = 0, add = function(self, n) return self end }",
+      "",
+      ...Array.from({ length: 10 }, (_, i) => [`scene S${i}`, `  Line one of S${i}.`, `  Line two of S${i}.`, "end", ""]).flat(),
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    cold({ [MAIN_URI]: "scene OTHER\n  Elsewhere.\nend\n" });
+    s.edit("Line two of S8.", "Line two of S8, still.");
+    const passes = s.resolver.passesLastResolve;
+    expect(passes.cold).toBe(false);
+    expect(passes.fresh, JSON.stringify(passes)).toBeLessThan(passes.units / 2);
+    expect(describeRoot(s.program.chunks!)).toEqual(
+      describeRoot(cold({ [MAIN_URI]: s.text }).chunks!),
+    );
+  });
+
+  it("keeps back a diagnostic of a source an earlier statement reported, as a cold compile does", () => {
+    const text = [
+      "store tally = 1",
+      "",
+      "function tally()",
+      "  return 1",
+      "end",
+      "",
+      "scene start",
+      "  Line.",
+      "end",
+      "",
+      ...Array.from({ length: 10 }, (_, i) => [`scene S${i}`, `  Line of S${i}.`, "end", ""]).flat(),
+      "function later()",
+      "  return tally() + 1",
+      "end",
+      "",
+      "store tally = 2",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const collisions = (program: SparkProgram) =>
+      diagnostics(program).filter((d) => d.includes("Duplicate identifier `tally`"));
+    expect(collisions(s.program)).toHaveLength(2);
+    s.edit("  return tally() + 1", "  return tally() + 2");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(s.resolver.passesLastResolve.replayed).toBeGreaterThan(0);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    expect(collisions(s.program)).toHaveLength(2);
+  });
+
+  it("reports where it stands now a line removed above it moves it", () => {
+    const text = [
+      "scene TOP",
+      "  Line one of TOP.",
+      "  Line two of TOP.",
+      "end",
+      "",
+      "scene start",
+      "  -> MISSING",
+      "end",
+      "",
+      ...Array.from({ length: 10 }, (_, i) => [`scene S${i}`, `  Line of S${i}.`, "end", ""]).flat(),
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const missing = (program: SparkProgram) =>
+      diagnostics(program).filter((d) => d.includes("MISSING"));
+    expect(missing(s.program)).toHaveLength(1);
+    s.edit("  Line two of TOP.\n", "");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(missing(s.program)).toEqual(missing(cold({ [MAIN_URI]: s.text })));
+    expect(missing(s.program)[0]).toContain(`${MAIN_URI} 5:`);
+  });
+});
+
+describe("a constant", () => {
+  const text = [
+    "const A = 1",
+    "",
+    ...Array.from({ length: 10 }, (_, i) => [
+      `scene S${i}`,
+      `  Line of S${i}.`,
+      `  Second line of S${i}.`,
+      `  Third line of S${i}.`,
+      "end",
+      "",
+    ]).flat(),
+    "const B = A + 1",
+    "",
+    "scene start",
+    "  Line {B}.",
+    "end",
+    "",
+    "const C = B * 2",
+    "store total = C + 1",
+    "",
+    "scene LAST",
+    "  Line {C} {total}.",
+    "end",
+    "",
+  ].join("\n");
+  const invalid = (program: SparkProgram) =>
+    diagnostics(program).filter((d) => d.includes("is not a valid const"));
+
+  it("that can no longer be registered is reported at the constants that read it, and no longer once it can", () => {
+    const s = session({ [MAIN_URI]: text });
+    expect(invalid(s.program)).toEqual([]);
+    s.edit("const A = 1", "const A = missing");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(invalid(s.program)).toHaveLength(2);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    s.edit("const A = missing", "const A = 1");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(invalid(s.program)).toEqual([]);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+  });
+
+  it("carried by an edit elsewhere is neither walked nor initialized again", () => {
+    const s = session({ [MAIN_URI]: text });
+    const reads = carriedSubtreeReads(s, () =>
+      s.edit("  Second line of S4.", "  Second line of S4, again."),
+    );
+    expect(reads).toEqual([]);
+    resolvedOnlyLoweredAnew(s.resolver, 3);
+    expect(s.resolver.passesLastResolve.initialized).toBe(0);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+  });
+});
+
+describe("a scene named `kind`", () => {
+  it("is no branch of itself", () => {
+    const text = "scene kind\n  Hello.\nend\n";
+    const collisions = diagnostics(cold({ [MAIN_URI]: text })).filter((d) =>
+      d.includes("Duplicate identifier"),
+    );
+    expect(collisions).toEqual([]);
+  });
+});
+
+describe("a statement resolved anew", () => {
+  const filler = Array.from({ length: 30 }, (_, i) => `  Filler line ${i}.`);
+
+  it("finds a library-named local before it from what each statement declares, and reads none of them", () => {
+    const text = [
+      "local table = { value = 1 }",
+      "",
+      "scene start",
+      "  local table = { value = 2 }",
+      ...filler,
+      "  Value {table.value}.",
+      "  do",
+      "    local string = { value = 3 }",
+      "  end",
+      ...filler,
+      "  Other {string.value}.",
+      "  branch INNER",
+      "    Inner {table.value}.",
+      "  end",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    for (const [find, replace] of [
+      ["  Value {table.value}.", "  Value {table.value} again."],
+      ["  Other {string.value}.", "  Other {string.value} again."],
+      ["    Inner {table.value}.", "    Inner {table.value} again."],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      visitedOnlyFresh(s.resolver);
+      expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    }
+  });
+
+  it("declares a library-named local otherwise when an edit closes or opens a block around it", () => {
+    const beats = (from: number) =>
+      Array.from({ length: 30 }, (_, i) => [`  Beat ${from + i}.`, ""]).flat();
+    const text = [
+      "scene start",
+      ...beats(0),
+      "  local table = { value = 1 }",
+      "",
+      ...beats(30),
+      "  Value {table.value}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const unresolved = () => diagnostics(s.program).filter((d) => d.includes("`table.value`"));
+    expect(unresolved()).toEqual([]);
+    s.edit("  local table = { value = 1 }", "  do local table = { value = 1 } end");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(s.resolver.changedNamesLastResolve).toContain("table");
+    expect(unresolved()).toHaveLength(1);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    s.edit("  do local table = { value = 1 } end", "  local table = { value = 1 }");
+    expect(s.resolver.passesLastResolve.cold).toBe(false);
+    expect(s.resolver.changedNamesLastResolve).toContain("table");
+    expect(unresolved()).toEqual([]);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+  });
+
+  it("finds the story's assignments for a divert to a builtin's global from what each statement holds, and reads none of them", () => {
+    const text = [
+      "scene start",
+      "  Line.",
+      ...filler,
+      "  -> game",
+      "end",
+      "",
+      "scene OTHER",
+      ...filler,
+      "end",
+      "",
+      "function rebind()",
+      "  game = 1",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const reports = () => diagnostics(s.program).filter((d) => d.includes("`game`"));
+    expect(reports()).toHaveLength(1);
+    const bound = reports()[0];
+    for (const [find, replace] of [
+      ["  -> game", "  -> game "],
+      ["  game = 1", "  other = 1"],
+      ["  -> game", "  -> game  "],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      visitedOnlyFresh(s.resolver);
+      expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    }
+    expect(reports()).toHaveLength(1);
+    expect(reports()[0]).not.toEqual(bound);
+  });
+
+  const rebound = [
+    "scene start",
+    "  Line.",
+    ...filler,
+    "  f is {f()}.",
+    "end",
+    "",
+    "scene OTHER",
+    ...filler,
+    "  & x = 1",
+    "end",
+    "",
+    "function f() return 7 end",
+    "",
+    "function rebind()",
+    "  local f = 1",
+    "  f = function() return 2 end",
+    "end",
+    "",
+  ].join("\n");
+
+  it("finds whether a call's function is rebound from what each statement holds, and reads none of them", () => {
+    const s = session({ [MAIN_URI]: rebound });
+    for (const [find, replace] of [
+      ["  Line.", "  Line. "],
+      ["  local f = 1\n", ""],
+      ["  f = function", "  g = function"],
+      ["  g = function", "  f = function"],
+      ["function rebind()\n", "function rebind()\n  local f = 1\n"],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      visitedOnlyFresh(s.resolver);
+      const fresh = cold({ [MAIN_URI]: s.text });
+      expect(diagnostics(s.program), find).toEqual(diagnostics(fresh));
+      expect(describeRoot(s.program.chunks!), find).toEqual(describeRoot(fresh.chunks!));
+    }
+  });
+
+  it("decides whether an assignment after carried scene statements writes a local from what each statement declares, and reads none of them", () => {
+    const text = [
+      "scene start",
+      "  local y = 0",
+      ...filler,
+      "  & x = 1",
+      "  Value {x} {y}.",
+      "end",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN_URI]: text });
+    const writes = (name: string): boolean[] => {
+      const found: boolean[] = [];
+      for (const unit of (s.resolver as any)._order as { members: ParsedObject[] }[]) {
+        for (const member of unit.members) {
+          for (const obj of new Set([member, ...member.FindAll<ParsedObject>(ParsedObject)()])) {
+            const assignment = obj as any;
+            if (assignment.variableName === name && assignment.isDeclaration === false) {
+              found.push(assignment.boundLocally);
+            }
+          }
+        }
+      }
+      return found;
+    };
+    expect(writes("x")).toEqual([false]);
+    for (const [find, replace, name, local] of [
+      ["  & x = 1", "  & y = 1", "y", true],
+      ["  & y = 1", "  & x = 1", "x", false],
+    ] as const) {
+      expect(carriedSubtreeReads(s, () => s.edit(find, replace)), find).toEqual([]);
+      expect(s.resolver.passesLastResolve.cold).toBe(false);
+      expect(writes(name), find).toEqual([local]);
+      const fresh = cold({ [MAIN_URI]: s.text });
+      expect(diagnostics(s.program), find).toEqual(diagnostics(fresh));
+      expect(describeRoot(s.program.chunks!), find).toEqual(describeRoot(fresh.chunks!));
+    }
+  });
+
+  it("does not resolve a call of a top-level function again when an unrelated name is declared otherwise", () => {
+    const s = session({ [MAIN_URI]: rebound });
+    s.edit("  & x = 1", "  & y = 1");
+    expect(s.resolver.changedNamesLastResolve).toEqual(expect.arrayContaining(["x", "y"]));
+    const reasons = s.resolver.freshLastResolve().map((unit) => unit.reason);
+    expect(reasons).not.toContain("name *");
+    expect(reasons).not.toContain("name f");
+    expect(reasons.filter((reason) => reason.startsWith("name"))).toEqual([]);
+  });
+});
+
+describe("a naming collision", () => {
+  const text = [
+    "scene start",
+    "  -> TARGET",
+    "end",
+    "",
+    ...Array.from({ length: 30 }, (_, i) => [`scene S${i}`, `  Line of S${i}.`, "end", ""]).flat(),
+    "scene TARGET",
+    "  Arrived.",
+    "end",
+    "",
+  ].join("\n");
+  const collisions = (program: SparkProgram) =>
+    diagnostics(program).filter((d) => d.includes("Duplicate identifier"));
+
+  it("is found through the symbol table, keeps both places, and clears when the declaration goes", () => {
+    const s = session({ [MAIN_URI]: text });
+    expect(collisions(s.program)).toEqual([]);
+    s.edit("scene start", "store TARGET = 1\nscene start");
+    const reported = collisions(s.program);
+    expect(reported).toHaveLength(1);
+    const sceneLine = s.text.split("\n").indexOf("scene TARGET");
+    expect(reported[0]).toContain(`${MAIN_URI} ${sceneLine}:`);
+    expect(reported[0]).toContain("line 1 of");
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    expect(s.resolver.passesLastResolve.fresh + s.resolver.passesLastResolve.invalidated).toBeLessThanOrEqual(4);
+    s.edit("store TARGET = 1", "// a comment\nstore TARGET = 1");
+    expect(collisions(s.program)).toHaveLength(1);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    s.edit("store TARGET = 1\n", "");
+    expect(collisions(s.program)).toEqual([]);
+    expect(diagnostics(s.program)).toEqual(diagnostics(cold({ [MAIN_URI]: s.text })));
+    expect(s.resolver.passesLastResolve.fresh + s.resolver.passesLastResolve.invalidated).toBeLessThanOrEqual(4);
+  });
+});

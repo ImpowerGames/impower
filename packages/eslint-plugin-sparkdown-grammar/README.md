@@ -90,7 +90,7 @@ is not an error, so concurrent fixes do not collide, but until the file
 is lowered the debt could come back unnoticed. Raise it only for debt a
 reviewer has accepted. The `no-unreferenced-*` entries name the same
 rules and variables as the known-exception lists in
-`packages/sparkdown/src/tests/compiler/grammarReachability.test.ts`, and
+`packages/sparkdown/test/compiler/grammarReachability.test.ts`, and
 `no-unreferenced-rule.test.ts` fails when the two disagree.
 
 ## Setup

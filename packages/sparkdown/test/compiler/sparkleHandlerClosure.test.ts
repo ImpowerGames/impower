@@ -1,0 +1,60 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+
+function diagnosticsFor(source: string): string[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({
+    textDocument: { uri: "inmemory:///main.sd" },
+  });
+  const out: string[] = [];
+  for (const docDiagnostics of Object.values(result.program.diagnostics ?? {})) {
+    for (const d of docDiagnostics) {
+      const raw = (d as any).message;
+      out.push(typeof raw === "string" ? raw : raw?.value ?? JSON.stringify(d));
+    }
+  }
+  return out;
+}
+
+const unterminated = (source: string): string[] =>
+  diagnosticsFor(source).filter((m) => m.includes("missing its closing `}`"));
+
+describe("inline handler closure termination", () => {
+  test("a single-line closure compiles cleanly (no diagnostic)", () => {
+    const src = `layout form {
+  field @input={ name = event.value }
+}
+`;
+    expect(unterminated(src)).toHaveLength(0);
+  });
+
+  test("a closure whose `}` is on a later line compiles cleanly", () => {
+    const src = `layout form {
+  button "x" @click={ score = 0
+    combo = 0 }
+}
+`;
+    expect(unterminated(src)).toHaveLength(0);
+  });
+
+  test("a closure with no `}` is flagged", () => {
+    const src = `layout form {
+  button "x" @click={ score = 0
+    combo = 0
+`;
+    expect(unterminated(src).filter((m) => m.startsWith("This handler"))).toHaveLength(1);
+  });
+});

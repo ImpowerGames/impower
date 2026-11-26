@@ -1,0 +1,254 @@
+import { describe, expect, test } from "vitest";
+import type { SyntaxNode } from "@lezer/common";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity } from "../../src/compiler/types/SparkDiagnostic";
+import { inPositionOrder, officialErrorList } from "./officialSyntax";
+import { compareEnginesFull, formatDivergences } from "./scopeEquality";
+import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
+import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
+
+const URI = "inmemory:///main.sd";
+const HEADER = "function run()\n  ";
+const FOOTER = "\nend\n";
+const STORY = "After {run()}.\n";
+
+function newCompiler(text: string): SparkdownCompiler {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  return compiler;
+}
+
+function errorsOf(compiler: SparkdownCompiler): string[] {
+  const program = compiler.compile({ textDocument: { uri: URI } } as never).program;
+  return inPositionOrder(
+    (program.diagnostics?.[URI] ?? [])
+      .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+      .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`),
+  );
+}
+
+function positionAt(text: string, offset: number) {
+  const lines = text.slice(0, offset).split("\n");
+  return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
+}
+
+const PADDING = "function padding()\n  local p = 0\nend\n";
+
+function expectIncrementalEqualsCold(text: string): void {
+  const padded = PADDING + text;
+  for (const [offset, removed, insert] of [
+    [padded.indexOf("0"), 1, "10000000000"],
+    [padded.indexOf("local p"), 0, "    "],
+  ] as const) {
+    const compiler = newCompiler(padded);
+    compiler.compile({ textDocument: { uri: URI } } as never);
+    compiler.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [{ range: { start: positionAt(padded, offset), end: positionAt(padded, offset + removed) }, text: insert }],
+    } as never);
+    const edited = padded.slice(0, offset) + insert + padded.slice(offset + removed);
+    expect(errorsOf(compiler), `after ${JSON.stringify(insert)}`).toEqual(errorsOf(newCompiler(edited)));
+  }
+}
+
+function topLevelAt(text: string, offset: number): SyntaxNode | null {
+  let node = parseSource(text).topNode.firstChild;
+  while (node && node.to <= offset) node = node.nextSibling;
+  return node;
+}
+
+const METHOD_NAME = (word: string) => `Expected identifier when parsing method name, got '${word}'`;
+
+const CASES: Record<string, [form: string, word: string | null, closesAt?: string][]> = {
+  "after a declaration's type annotation (I-1447)": [
+    ["local x: T:end", "end"],
+    ["local x: T:do", "do"],
+    ["local x: T:function", "function"],
+    ["local x: T:end\n  return 1", "end"],
+    ["local x: T :end", "end"],
+    ["local x: T: --[[c]] end", "end"],
+    ["local x: {number}:end", "end"],
+    ["local x: T | U:end", "end"],
+    ["local x, y: T:end", "end"],
+    ["local x: T: --[=========[c]=========] end", "end"],
+    ["local x: {a: number}:end", "end"],
+    ["local x: {a: number, b: string}:end", "end"],
+    ["local x: {a: {b: T}}:end", "end"],
+    ["local x: (a: number) -> T:end", "end"],
+    ["local x: Array<A, B>:end", "end"],
+    ["local x, y: {a: number}:end", "end"],
+    ["local x: {a: {b: {c: T}}}:end", "end"],
+    ["local x: T --[[c]] :end", "end"],
+    ["local x: T | --[[c]] U:end", "end"],
+    ["local x: typeof({a = {b = 1}}):end", "end"],
+    ["local x: {a: {b: {c: T}}}:function", "function"],
+    ["local x: T:nil", "nil"],
+    ["local x: {a: {b: {c: number}}}: --[=========[c]=========] end", "end"],
+    ["local x: {a: {b: {c: number}}}:do", "do"],
+    ["local x: T --[[c]] :do", "do"],
+    ["local x: T --[[c]] : --[=========[c]=========] end", "end"],
+    ["local x: T | --[[c]] U:do", "do"],
+    ["local function f(): T:end end", "end"],
+    ["local function f(): T:end\n  end", "end"],
+    ["local function f(): T | :end end", "end"],
+  ],
+  "after a value that follows a comma in a for header (I-1448)": [
+    ["local a, b = {}, {}\n  for k in a, b:end do end", "end"],
+    ["local a = {}\n  for k in a, a:end do end", "end"],
+    ["local a, b = {}, {}\n  for k in a, b:function do end", "function"],
+    ["local n = 1\n  for i = 1, n:end do end", "end"],
+    ["local n = 1\n  for i=1, n:end do end", "end"],
+    ["local a, b = {}, {}\n  for k, v in a, b:end do end", "end"],
+  ],
+  "after a type operator with no right operand (I-1450)": [
+    ["local t = {}\n  local b = t :: T | :end", "end"],
+    ["local t = {}\n  local b = t :: () -> :end", "end"],
+    ["local t = {}\n  local b = t :: T & :end", "end"],
+    ["local t = {}\n  local b = t :: T | : --[[c]] end", "end"],
+    ["local t = {}\n  local b = t :: T | :function", "function"],
+    ["type A = T:do", "do"],
+    ["type A = T: --[=========[c]=========] end", "end"],
+    ["local t = {}\n  while t :: T | : --[=========[c]=========] do end", null],
+    ["local t = {}\n  if t :: T | : --[=========[c]=========] then end", null],
+    ["local t = {}\n  while\n    t :: T | : --[=========[c]=========] do end", null],
+    ["local t = {}\n  if\n    t :: T | : --[=========[c]=========] then end", null],
+  ],
+  "after a block comment of level 9 or more (I-1459)": [
+    ["local t = {}\n  local b = (t): --[=========[c]=========] end", "end"],
+    ["local t = {}\n  local b = t: --[=========[c]=========] end", "end"],
+    ["local t = {}\n  local b = (t): --[============[c]============] end", "end"],
+    ["local t = {}\n  local b = (t): --[==[a]==] --[==========[b]==========] end", "end"],
+    ["local t = {}\n  local b = (t): --[========[c]========] end", "end"],
+    ["local t = {}\n  local b = t :: T: --[=========[c]=========] end", "end"],
+    ["local t = {}\n  while t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  while (t): --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  for k in t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  if t: --[=========[c]=========] then end", "then"],
+    ["local t = {}\n  if (t): --[=========[c]=========] then end", "then"],
+    ["local t = {}\n  local b = (t): --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = t: --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = t :: T: --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = (t): --[=========[c]=========] then", "then"],
+    ["local x: T: --[=========[c]=========] do", "do"],
+    ["local x: T: --[=========[while]=========] do", "do"],
+    ["local x: T: --[=========[if]=========] then", "then"],
+    ['local s = "while"\n  local x: T: --[=========[c]=========] do', "do"],
+    ["local t = {}\n  while not t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  while t + t: --[=========[c]=========] do end", "do"],
+    ["local t = {}\n  if not t: --[=========[c]=========] then end", "then"],
+    ["local t = {}\n  local b = not t: --[=========[c]=========] do", "do"],
+    ["local t = {}\n  local b = (t): --[=========[a]b]=========] end", "end"],
+    ["local t = {}\n  local b = t: --[=========[a]b]=========] end", "end"],
+    ["local x: T: --[=========[a]b]=========] end", "end"],
+    ["local t = {}\n  local b = (t): --[=========[a]==========]b]=========] end", "end"],
+    ["local b = 1: --[=========[c]=========] end", "end"],
+    ["local b = true: --[=========[c]=========] end", "end"],
+    ["local b = nil: --[=========[c]=========] end", "end"],
+    ["local t = {}\n  local b = t :: T: --[=========[c]=========] foo()", null],
+  ],
+  "well-formed code the same rules read": [
+    ["for a, b in pairs({}) do end", null],
+    ["for k: number, v: string in pairs({}) do end", null],
+    ["for k: {a: number}, v: number in pairs({}) do end", null],
+    ["for k --[[c]], v: nil in pairs({}) do end", null],
+    ["for k: number --[[c]], v: nil in pairs({}) do end", null],
+    ["for k: --[[c]] number, v: nil in pairs({}) do end", null],
+    ["for k: {a: {b: {c: {d: number}}}}, v: nil in pairs({}) do end", null],
+    ["for i, v: nil in pairs({}) do end", null],
+    ["for k --[=[c]=], v: nil in pairs({}) do end", null],
+    ["for k --[[in]], v: nil in pairs({}) do end", null],
+    ["for k --[[=]], v: nil in pairs({}) do end", null],
+    ['for k: "in", v: nil in pairs({}) do end', null],
+    ['for k: "=", v: nil in pairs({}) do end', null],
+    ['for k: {a: "="}, v: nil in pairs({}) do end', null],
+    ["for i: number = 1, 3 do end", null],
+    ["local t = {}\n  for k, v in pairs(t), t do end", null],
+    ["local t = {}\n  local b = (t)\n    :foo()", null],
+    ["local t = {}\n  local b = t\n    :foo()", null],
+    ["local x: T = 1", null],
+    ["local x: number, y: string = 1, 's'", null],
+    ["local t = {}\n  local b = (t): --[=========[c]=========] foo()", null],
+    ["local t = {}\n  local b = (t): --[=========[a]==========] end ]=========] foo()", null],
+    ["local x: nil", null],
+    ["local g = function(a: nil): nil return a end", null],
+    ["local x: --[=========[c]=========] number", null],
+    ["for k: --[=========[c]=========] number in pairs({}) do end", null],
+    ["local function f(a: --[=========[c]=========] number) end", null],
+  ],
+  "a long comment that closes on a later line": [
+    ["local t = {}\n  if t: --[=========[c\n  ]=========] end", null],
+    ["local t = {}\n  local b = (t): --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = (t): --[=========[c\n  ]=========] end"],
+    ["local t = {}\n  local b = t: --[=========[c\n  ]=========] end", null, "local t = {}\n  local b = t: --[=========[c\n  ]=========] end"],
+    ["local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = (t): --[=========[a\n  : --[[c ]=========] end"],
+    ["local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end", null, "local t = {}\n  local b = t: --[=========[a\n  : --[[c ]=========] end"],
+  ],
+  "a stray colon before a header's keyword": [
+    ["local t = {}\n  while t :: {a: T | :do end", null],
+    ["local t = {}\n  while t :: {a: T | : --[=========[c]=========] do end", null],
+    ["local t = {}\n  if t :: {a: T | :then end", null],
+    ["local t = {}\n  local x = if t then t :: T | :then else a", null],
+    ["local t = {}\n  while t :: {a: T:do end", null],
+    ["local t = {}\n  if\n    t :: {a: T | : --[=========[c]=========] end end", null, "local t = {}\n  if\n    t :: {a: T | : --[=========[c]=========] end end"],
+    ["local t = {}\n  if\n    {t :: T |: --[=========[c]=========] do end", null],
+    ["local t = {}\n  if\n    {t :: T |:do end", null],
+    ["local t = {}\n  local b = t + :do", "do"],
+    ["local t = {}\n  while t + :do end", null],
+  ],
+  "a type's colon": [
+    ["local x: end", null, "local x: end"],
+    ["local x:end", null, "local x:end"],
+    ["local x: --[=========[c]=========] end", null, "local x: --[=========[c]=========] end"],
+    ["local x\n  : end", null, "local x\n  : end"],
+    ["local a, b: end", null, "local a, b: end"],
+    ["local a: T, b: end", null, "local a: T, b: end"],
+    ["local a: {x: T, y: U}, b: end", null, "local a: {x: T, y: U}, b: end"],
+    ["local function f(a: {x: T}, b: end) end", null, "local function f(a: {x: T}, b: end) end"],
+    ["for k: in pairs({}) do end", null],
+    ["for k: {a: number}, v: in pairs({}) do end", null],
+    ["for k\n  : in pairs({}) do end", null],
+    ["local function f():end", null],
+  ],
+};
+
+describe("a reserved word read as a method's name (I-1467)", () => {
+  for (const [name, forms] of Object.entries(CASES)) {
+    describe(name, () => {
+      for (const [form, word, closesAt] of forms) {
+        const luau = `${HEADER}${form}${FOOTER}`;
+        const text = `${luau}${STORY}`;
+        const official = officialErrorList(luau);
+        test(`${JSON.stringify(form)}: the function ends where Luau ends it`, () => {
+          const tree = stripAnsi(dumpTree(text));
+          expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+          const fn = parseSource(text).topNode.firstChild!;
+          const end = closesAt === undefined ? luau.length - 1 : HEADER.length + closesAt.length;
+          expect([fn.name, fn.from, fn.to], tree).toEqual(["LuauFunctionDefinition", 0, end]);
+          if (closesAt !== undefined) return;
+          const story = topLevelAt(text, luau.length);
+          const control = topLevelAt(`${HEADER}x = 1${FOOTER}${STORY}`, `${HEADER}x = 1${FOOTER}`.length);
+          expect([story?.name, story?.from]).toEqual([control?.name, luau.length]);
+        });
+        test(`${JSON.stringify(form)}: Luau's errors at Luau's ranges`, () => {
+          if (word === null) {
+            if (name.startsWith("well-formed")) {
+              expect(official).toEqual([]);
+              expect(stripAnsi(dumpTree(text))).not.toContain("LuauKeywordMethodName");
+            }
+          } else {
+            expect(official.some((e) => e.endsWith(METHOD_NAME(word))), official.join("\n")).toBe(true);
+          }
+          expect(errorsOf(newCompiler(text)), stripAnsi(dumpTree(text))).toEqual(official);
+        });
+        test(`${JSON.stringify(form)}: engines agree`, async () => {
+          const result = await compareEnginesFull(text);
+          expect(result.divergences, formatDivergences(text, result.divergences)).toEqual([]);
+        });
+        test(`${JSON.stringify(form)}: an incremental compile reports what a cold one does`, () => {
+          expectIncrementalEqualsCold(text);
+        });
+      }
+    });
+  }
+});

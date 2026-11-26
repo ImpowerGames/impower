@@ -8,7 +8,7 @@ import { parseMorphAssetRequest, serveMorphAsset } from "../../../packages/spark
 import { serializeMorphRecipe } from "../../../packages/sparkdown/src/morph/recipe";
 import { MorphBakeService, type MorphCacheEvent } from "../../../packages/sparkdown/src/morph/service";
 import type { MorphArtifact } from "../../../packages/sparkdown/src/morph/types";
-import { blink, portrait } from "../../../packages/sparkdown/src/tests/morph/fixtures";
+import { blink, portrait } from "../../../packages/sparkdown/test/morph/fixtures";
 import { viteStaticallyRenderedPagesPlugin } from "../../vite.config";
 
 vi.mock("chokidar", () => {

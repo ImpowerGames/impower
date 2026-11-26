@@ -23,7 +23,7 @@ Use the paths returned by the [initial writer allocation](../SKILL.md#0-prefligh
 Look at what you are about to stage (`git status --short`). Stage deliberately, by path; `git add -A` will happily commit a screenshot, a scratch `.sd`, or a crash dump. Stage new files before running any index-based check or pushing: `git ls-files`, the check loops built on it, and CI see only what is tracked, so an unstaged new file passes locally and is absent from the pull request.
 
 ```bash
-git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts
+git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/test/compiler/FilterImageLayers.test.ts
 git status --short
 git commit -F "$COMMIT_MESSAGE"
 git push -u origin fix/302-filterimage-layers

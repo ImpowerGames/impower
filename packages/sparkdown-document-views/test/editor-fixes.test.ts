@@ -7,7 +7,7 @@ import type { EditorFix } from "@impower/spark-editor-protocol/src/protocols/edi
 import {
   STILL_EXPECTED_CASES,
   caseRange,
-} from "@impower/sparkdown/src/tests/compiler/stillExpectedCases";
+} from "@impower/sparkdown/test/compiler/stillExpectedCases";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   PROBLEM_POPOVER_DELAY,
