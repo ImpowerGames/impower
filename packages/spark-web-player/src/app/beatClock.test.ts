@@ -44,7 +44,10 @@ const makePage = (outputLatency: number) => {
   const player = {
     loop: false,
     instances: [],
-    start: vi.fn(),
+    start: vi.fn((when: number) => ({
+      startedAt: when,
+      ended: new Promise(() => undefined),
+    })),
     getNextCueTime: (t: number) => t,
   };
   (audio as any)._audioChannels.set("voice", new Map([["line", player]]));
