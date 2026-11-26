@@ -156,7 +156,7 @@ async function runOnce(options, plan, evidence, deps) {
           onGame: on,
           screenshot: (file) => page.screenshot({ path: file }),
         };
-        Object.assign(run, await playLines(surface, { ...options, out: evidence, fixture: plan.fixture, log: deps.log }));
+        Object.assign(run, await playLines(surface, { ...options, out: evidence, fixture: plan.fixture, project: plan.project, log: deps.log }));
         await cdp.detach().catch(() => {});
       },
       { headless: !options.headed, launch: privateLaunch(deps, path.join(scratch, "profile")) },

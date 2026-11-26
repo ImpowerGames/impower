@@ -1,6 +1,8 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { FIRST_SECOND_MS, MOUTH_WINDOW_MS, TRACE_CATEGORIES, analyzeLine, clockOffset, cpuLoad, layerPaints, parseTrace, quietness } from "./pacing-analysis.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,7 +11,19 @@ export const PACING_DEFAULTS = { restMs: 1500, settleMs: 300, quietSampleMs: 300
 
 export function pacingProbe(w) {
   if (w.__pacing) return "already";
-  const P = (w.__pacing = { clicks: 0, morph: [], roots: new Set() });
+  const P = (w.__pacing = { clicks: 0, morph: [], paints: [], roots: new Set() });
+  const canvas = w.CanvasRenderingContext2D?.prototype;
+  if (canvas && !canvas.__pacingPaints) {
+    const clear = canvas.clearRect;
+    canvas.clearRect = function (...args) {
+      const root = this.canvas?.getRootNode?.();
+      const host = root && root !== this.canvas ? root.host : null;
+      const span = host?.classList?.contains("morph") ? host.parentElement : null;
+      if (span) w.__pacing?.paints.push({ t: w.performance.now(), image: span.getAttribute("image") ?? "" });
+      return clear.apply(this, args);
+    };
+    canvas.__pacingPaints = true;
+  }
   w.addEventListener(
     "pointerdown",
     (event) => {
@@ -108,6 +122,14 @@ export function pacingRead(w, { firedName, sinceClicks }) {
   const from = click?.startTime ?? received?.startTime ?? 0;
   const morph = w.__pacing.morph.filter((m) => m.t >= from);
   w.__pacing.morph = w.__pacing.morph.filter((m) => m.t >= w.performance.now() - 100);
+  const firedAt = fired?.startTime ?? Infinity;
+  const canvasPaints = {};
+  for (const paint of w.__pacing.paints.filter((p) => p.t >= from)) {
+    const counts = (canvasPaints[paint.image] ??= { beforeFire: 0, afterFire: 0 });
+    if (paint.t < firedAt) counts.beforeFire += 1;
+    else counts.afterFire += 1;
+  }
+  w.__pacing.paints = w.__pacing.paints.filter((p) => p.t >= w.performance.now() - 100);
   for (const m of clicks.slice(0, -1)) w.performance.clearMarks(m.name);
   const lineText = [...w.document.querySelectorAll("#game .text_letter")].map((el) => el.textContent).join("").slice(0, 80);
   return {
@@ -119,8 +141,67 @@ export function pacingRead(w, { firedName, sinceClicks }) {
     firedAt: fired?.startTime ?? null,
     beatWaitMs: wait?.duration ?? null,
     morph,
+    canvasPaints,
     text: lineText,
   };
+}
+
+const SVG_LAYER_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../packages/spark-web-player/src/app/morph/svgLayerFile.ts");
+
+export function svgFilesOf(project) {
+  const found = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.svg$/i.test(entry.name)) found.push({ path: path.relative(project, full).split(path.sep).join("/"), text: fs.readFileSync(full, "utf8") });
+    }
+  };
+  if (project && fs.existsSync(project)) walk(project);
+  return found.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
+export async function svgVerdictProbe() {
+  const require = createRequire(import.meta.url);
+  const esbuild = require("esbuild");
+  const built = await esbuild.build({ entryPoints: [SVG_LAYER_FILE], bundle: true, format: "iife", globalName: "svgLayer", platform: "browser", write: false, logLevel: "silent" });
+  const body = `${built.outputFiles[0].text}
+return (async () => {
+  const results = [];
+  for (const file of files) {
+    try {
+      const img = new w.Image();
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(file.text);
+      try { await img.decode(); } catch {}
+      const natural = { width: img.naturalWidth, height: img.naturalHeight };
+      const read = svgLayer.readSvgLayer(file.text, new w.DOMParser(), { view: w, natural });
+      if ("reason" in read) {
+        results.push({ path: file.path, verdict: read.reason, ...(read.declaration !== undefined ? { declaration: read.declaration } : {}) });
+        continue;
+      }
+      const scale = Math.min(1, 2048 / Math.max(1, natural.width, natural.height));
+      const width = Math.max(1, Math.round((natural.width || 512) * scale));
+      const height = Math.max(1, Math.round((natural.height || 512) * scale));
+      const raster = await svgLayer.browserSvgLayerRasterizer(read.source, natural, width, height, w.document);
+      results.push({ path: file.path, verdict: raster ? "drawn" : "undrawn" });
+      raster?.release();
+    } catch (error) {
+      results.push({ path: file.path, verdict: "error", error: String(error) });
+    }
+  }
+  return results;
+})();`;
+  return new Function("w", "files", body);
+}
+
+export async function svgVerdicts(surface, project) {
+  const files = svgFilesOf(project);
+  if (files.length === 0) return { files: [], counts: {} };
+  const results = await surface.inGame(await svgVerdictProbe(), files);
+  const counts = {};
+  for (const result of results) counts[result.verdict] = (counts[result.verdict] ?? 0) + 1;
+  return { counts, files: results };
 }
 
 export function pacingEnvironment(w) {
@@ -216,9 +297,17 @@ export function planFor(fixture, line) {
 }
 
 export async function playLines(surface, options) {
-  const { out, fixture, beats, restMs, settleMs, quietSampleMs, fireTimeoutMs, keepTrace, quietLimit, log = () => {} } = { ...PACING_DEFAULTS, ...options };
+  const { out, fixture, project, beats, restMs, settleMs, quietSampleMs, fireTimeoutMs, keepTrace, quietLimit, log = () => {} } = { ...PACING_DEFAULTS, ...options };
   const run = { lines: [], failed: [] };
   await surface.inGame(pacingProbe);
+  if (project) {
+    try {
+      run.svgFiles = await svgVerdicts(surface, project);
+      log(`pacing: SVG files ${Object.entries(run.svgFiles.counts).map(([verdict, n]) => `${verdict} ${n}`).join(", ") || "none"}`);
+    } catch (error) {
+      run.svgFiles = { error: String(error?.message ?? error) };
+    }
+  }
   run.environment = await surface.inGame(pacingEnvironment);
   run.cpuLoadPercent = await sampleCpu(quietSampleMs);
   run.quiet = quietness(run.cpuLoadPercent, quietLimit);
@@ -280,6 +369,7 @@ export async function playLines(surface, options) {
       line.listed = plan?.line ?? null;
       line.page = { clickAt: read.clickAt, receivedAt: read.receivedAt, firedAt: read.firedAt, typingEnd: typing.end, motionWindow: motion, mouthChanges: record.mouthChanges, clockOffset: clock?.offset ?? null };
       line.morphChanges = { swaps: record.mouthChanges.length, other: read.morph.length - record.mouthChanges.length };
+      line.canvasPaints = read.canvasPaints;
       line.traceMB = Math.round(fs.statSync(file).size / 1e5) / 10;
       if (!keepTrace) fs.rmSync(file, { force: true });
       run.lines.push(line);
