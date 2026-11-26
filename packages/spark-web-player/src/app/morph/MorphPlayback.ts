@@ -1548,7 +1548,7 @@ export class MorphLayer {
                 : undefined;
       return reason ? [{ index, reason }] : [];
     });
-    const rest = this.stills.some((still) => still.under === image && !still.broken);
+    const rest = image.inner.length === 0 && this.stills.some((still) => still.under === image && !still.broken);
     for (const { index, reason } of unfaithful) {
       if (rest && (reason === "unread" || reason === "unsized" || reason === "styled")) continue;
       const declaration = reason === "styled" ? bitmaps.get(index)?.styled : undefined;
@@ -1664,7 +1664,8 @@ export class MorphLayer {
       (still) =>
         (still.files || still.undrawn || still.late) &&
         !still.broken &&
-        (!still.under || (still.undrawn ? this.uncomposited(still.under) : !this.still && !this.uncomposited(still.under))),
+        (!still.under ||
+          (still.undrawn ? this.uncomposited(still.under) && still.under.inner.length === 0 : !this.still && !this.uncomposited(still.under))),
     );
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
