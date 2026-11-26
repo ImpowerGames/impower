@@ -3,6 +3,7 @@ import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import AudioProbe from "./AudioProbe";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { AudioSampleRateMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioSampleRateMessage";
 import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
 import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
@@ -47,6 +48,14 @@ export default class AudioManager extends Manager {
 
   override async onInit(): Promise<void> {
     this.exposeAudioProbe();
+    this.reportSampleRate();
+  }
+
+  protected reportSampleRate() {
+    const sampleRate = this.app.audioContext?.sampleRate;
+    if (sampleRate) {
+      this.app.emit(AudioSampleRateMessage.type.notification({ sampleRate }));
+    }
   }
 
   protected _exposedProbe?: () => unknown;
@@ -445,6 +454,7 @@ export default class AudioManager extends Manager {
   }
 
   onAudioContextRunning() {
+    this.reportSampleRate();
     const audioContext = this.app.audioContext;
     if (audioContext) {
       const pending = [...this._pendingPlayers.values()];

@@ -14,6 +14,7 @@ import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
 import { SynthBuffer } from "./helpers/SynthBuffer";
 import { AudioClockMessage } from "./messages/AudioClockMessage";
+import { AudioSampleRateMessage } from "./messages/AudioSampleRateMessage";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
@@ -67,14 +68,14 @@ export class AudioModule extends Module<
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AudioClockMessage.type.isNotification(msg)) {
       this._outputLatency = msg.params.outputLatency;
-      if (msg.params.sampleRate) {
-        this._sampleRate = msg.params.sampleRate;
-      }
       const hears = msg.params.contextTime != null;
       if (hears && !this._pageHears && this.context.system.previewing) {
         this.forgetHeard();
       }
       this._pageHears = hears;
+    }
+    if (AudioSampleRateMessage.type.isNotification(msg)) {
+      this._sampleRate = msg.params.sampleRate;
     }
   }
 

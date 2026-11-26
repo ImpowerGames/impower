@@ -79,6 +79,48 @@ describe("voice beeps are synthesised off the page thread (#2814)", () => {
     expect(audio.sources.some((s) => s.key.startsWith("synth."))).toBe(true);
   }, 120_000);
 
+  it("hands the page the samples of a looping synth that PLAY restores when it starts at a later line", async () => {
+    const source = `define blip as synth with
+end
+
+scene start
+  ((play music blip~d1 loop))
+  First line.
+  Second line.
+end
+`;
+    const line = source.split("\n").findIndex((text) => text.includes("Second line."));
+    const audio = createStandInAudio({ synthesises: true });
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: source }],
+      startFrom: { file: MAIN_URI, line },
+      manualClock: true,
+      audio,
+    });
+    harness = h;
+    const win = h.overlay.ownerDocument.defaultView as any;
+    win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+    await h.compile();
+    await h.select(line);
+    await settle(40);
+    const before = h.toPage.length;
+    expect(await h.controller.startGameAndApp()).toBe(true);
+    await settle(40);
+
+    const restored = h.toPage
+      .slice(before)
+      .filter((m) => m.method === "audio/load" && m.params?.channel === "music" && m.params?.synth);
+    expect(restored.length).toBeGreaterThan(0);
+    for (const load of restored) {
+      expect(load.params.tones.length).toBeGreaterThan(0);
+      expect(load.params.sampleRate).toBe(48000);
+      const expected = new SynthBuffer(load.params.synth, load.params.tones, 48000).soundBuffer;
+      expect(mismatches(load.params.samples, expected)).toBe(0);
+      const wrapped = audio.buffers.find((b) => b.key === load.params.key);
+      expect(mismatches(wrapped?.samples, expected)).toBe(0);
+    }
+  }, 120_000);
+
   it("transfers the samples to the stopped preview's page with no copy", async () => {
     const audio = createStandInAudio({ synthesises: true });
     const h = await createPlayerHarness({
