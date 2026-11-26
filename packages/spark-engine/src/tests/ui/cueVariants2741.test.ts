@@ -137,6 +137,49 @@ end
     const beat = h.nextBeat();
     expect(beat?.speaker?.character).toBe(name);
     expect((beat?.text?.["dialogue"] ?? []).map((e: any) => e.text).join("")).toBe("Hello.");
+    const sounds = JSON.stringify(beat?.audio ?? {});
+    expect(sounds).toContain('"character~');
+    expect(sounds).not.toContain(`"${name}~`);
+  });
+
+  test.each(["constructor", "toString"])("a synth defined as %s voices the character of that name", async (name) => {
+    const h = await start(`define ${name} as character with
+  name = "BUNNY"
+end
+
+define ${name} as synth with
+end
+
+scene start
+  BUNNY: Hello.
+end
+`);
+    const sounds = JSON.stringify(h.nextBeat()?.audio ?? {});
+    expect(sounds).toContain(`"${name}~`);
+    expect(sounds).not.toContain('"character~');
+  });
+
+  test.each(["constructor", "toString", "__proto__"])("a [%s] line with no typewriter of that name types as dialogue", async (name) => {
+    const h = await start(`${CHARACTERS}\nscene start\n  BUNNY [${name}]: Seriously now.\n  BUNNY: Seriously now.\nend\n`);
+    const labelled = h.nextBeat();
+    const plain = h.nextBeat();
+    const timing = (beat: any) => (beat?.text?.["dialogue"] ?? []).map((e: any) => e.after ?? 0);
+    expect(labelled?.variant).toBe(name);
+    expect(timing(labelled)).toEqual(timing(plain));
+    expect(timing(plain).at(-1)).toBeGreaterThan(0);
+  });
+
+  test.each(["constructor", "toString", "__proto__"])("merging beats keeps a %s target in every list", async (name) => {
+    const h = await start(`${CHARACTERS}\nscene start\n  BUNNY: Hi.\nend\n`);
+    const interpreter: any = (h.game.module as any).interpreter;
+    const entry = (text: string) => ({ [name]: [{ control: "show", text }] });
+    const a: any = { end: 0 };
+    interpreter.merge(a, { text: entry("1"), image: entry("1"), audio: entry("1"), layout: entry("1"), end: 0 });
+    interpreter.merge(a, { text: entry("2"), image: entry("2"), audio: entry("2"), layout: entry("2"), end: 0 });
+    for (const kind of ["text", "image", "audio", "layout"]) {
+      expect(Object.hasOwn(a[kind], name)).toBe(true);
+      expect(a[kind][name].map((e: any) => e.text)).toEqual(["1", "2"]);
+    }
   });
 });
 
