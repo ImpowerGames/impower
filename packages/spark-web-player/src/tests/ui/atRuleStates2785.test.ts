@@ -74,6 +74,9 @@ const AT_RULE_ONLY = [
   "@container card (min-width: 1px), sidebar (min-width: 2px)",
   '@container style(--mode: dark), style(--mode: "@night")',
   "@container style(--mode: dark), style(--mode: '@night')",
+  "@container (min-width: 1px), style(--x: fn(@y))",
+  "@layer base, theme.dark",
+  "@media screen and (min-resolution: 1.5dppx), print",
 ];
 
 const THEMED = SELECTOR_ONLY.flatMap((key) => [`@theme(dark) ${key}`, `${key} @theme(light)`, `@theme(dark), ${key}`]);
@@ -168,6 +171,7 @@ const COMBINED: [keys: string[], conditions: Condition[]][] = [
   [["@media (min-width: 600px) @showing(x) @busy"], [SHOWING, BUSY, WIDE]],
   [["@busy @supports (display: grid) @media (min-width: 600px)"], [BUSY, WIDE]],
   [["@busy @media (min-width: 600px), @focused @media (min-width: 600px)"], [BUSY, WIDE]],
+  [["@busy @media (min-width: 600px), card :is(:not(.absent)) @focused @media (min-width: 600px)"], [BUSY, WIDE]],
   [["@media (min-width: 600px)", "@busy @container-size(sm)"], [BUSY, WIDE, NARROW_CONTAINER]],
   [["@busy", "@media (min-width: 600px) @theme(dark)"], [BUSY, WIDE, DARK]],
 ];
@@ -241,6 +245,9 @@ describe("a comma list whose selectors hold different at-rule states writes no r
     ["@busy @media (min-width: 600px), #selected", "@media"],
     ["@busy @media (min-width: 600px), :focus", "@media"],
     ["@busy @media (min-width: 600px), [selected]", "@media"],
+    ["@busy @media (min-width: 600px), .big", "@media"],
+    ["@busy @media (min-width: 600px), card :is(:not(.absent)) @focused", "@media"],
+    ["@busy @media (min-width: 600px), card :is(@focused)", "@media"],
   ])("%s", (key, state) => {
     for (const colorScheme of ["attribute", "media"] as const) {
       const { refusals } = writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme });
