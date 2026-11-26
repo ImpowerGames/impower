@@ -192,8 +192,8 @@ const generator = async () => {
 
 describe("the player's route list and Saves views", () => {
   test("have no stylesheets of their own", () => {
-    for (const sheet of ["../route/route-list.css", "../saves/saves.css", "../route/routeListStylesheet.ts"]) {
-      expect(existsSync(resolve(__dirname, "../src", sheet.replace(/^\.\.\//, ""))), sheet).toBe(false);
+    for (const sheet of ["route/route-list.css", "saves/saves.css", "route/routeListStylesheet.ts"]) {
+      expect(existsSync(resolve(__dirname, "../src", sheet)), sheet).toBe(false);
     }
   });
 
