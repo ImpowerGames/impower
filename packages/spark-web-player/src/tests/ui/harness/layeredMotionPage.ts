@@ -416,6 +416,13 @@ async function svgLayer(outer: Record<string, string>, inner: Record<string, str
     await nextFrame();
     playback.advance(1);
     await nextFrame();
+    if (width !== 200 || height !== 200) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await until(() => [...(shadow()?.querySelectorAll("canvas") ?? [])].every((canvas) => Math.abs(canvas.width / canvas.height - width / height) < 0.02));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      playback.advance(1);
+      await nextFrame();
+    }
   }
   const reference = holder.appendChild(document.createElementNS(SVG_NS, "svg"));
   reference.id = "reference";
