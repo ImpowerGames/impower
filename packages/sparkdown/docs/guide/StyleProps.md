@@ -92,12 +92,90 @@ style button {
 - `@screen-size(xs|sm|md|lg|xl) { … }` is a responsive breakpoint.
 - `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
   `@disabled { … }` target interaction states.
+- `@showing(name) { … }` applies while a layout or an element named `name` is on screen (see [What is on screen](#what-is-on-screen)).
+- `@initial { … }` / `@show { … }` / `@hide { … }` say how an element appears and leaves (see [Appearing and leaving](#appearing-and-leaving)).
+- `@latest { … }` targets the newest entry of a [stream](./Streams.md).
 - A rule's properties are separated by a new line or a `;`, as the entries of
   any block are (see [Blocks](./Structure.md#blocks)).
+
+#### What is on screen
+
+`@showing(name)` applies while a layout or an element named `name` is on screen. A layout is on screen while it is open, and while it plays the animation it leaves with. An element is on screen while it, or an element inside it, has content: text written in its layout, the text of the line it shows, or a picture. A style that hides an element does not change what is on screen.
+
+The condition holds across the whole game, so a style can react to what another layout shows. This frame changes colour while an action line is on screen, wherever the frame is:
+
+```sparkdown
+style frame {
+  @showing(action) { background-color = neutral_95 }
+}
+```
+
+Write `@showing(name)` as a state of the style's own selector, alone or beside other states such as `@hovered` or `@theme(dark)`, or as its own nested block, read together with the blocks it sits in; anywhere else, inside another function's parentheses, an at-rule or after a combinator (`> icon { @showing(hud) { … } }` included), it gets a warning and its block never applies. For the look while a name is not showing, write it as the style's own properties, and the `@showing` block as the look while it is.
+
+A name that is no layout and no element gets a warning, because the block would never apply.
 
 > **Inline vs block:** inline props take a `#` and can be dynamic (`#child-gap={n}`);
 > `style`-block properties use `key = value` and are evaluated once. For a value
 > that changes per frame, use an inline `#prop={expr}` or toggle a class.
+
+### Appearing and leaving
+
+Three blocks in a style say how an element appears and leaves:
+
+- `@initial { … }` is the look at the instant the element appears.
+- `@show { … }` applies only while the element is arriving. The settled look is the style's own properties, so an arrival can have its own time and ease.
+- `@hide { … }` is the look the element moves to when it leaves. The element stays in place until that motion ends, and is then removed.
+
+```sparkdown
+style frame {
+  opacity = 1
+  transition-duration = 80ms
+  @initial { opacity = 0 }
+  @show { transition-duration = 280ms }
+  @hide { opacity = 0; transition-duration = 0s }
+}
+```
+
+The frame fades in over 280ms, takes 80ms for any later change of look, and goes at once when it leaves.
+
+An element appears when it gains its content, when its layout opens with no `with` clause, and when the `if`, `for` or `match` branch that holds it is added. It leaves when it loses its content, when its layout closes with no `with` clause, and when its branch is removed. A `with` clause on `open` or `close` plays its own animation in place of the blocks for that change. An element whose styles hold no `@hide` is removed at once.
+
+The blocks apply to the element that appears or leaves and to everything inside it, so a child can change only while its parent arrives. An arrival lasts as long as the longest transition or finite animation it starts, on the element or inside it. Here the typing dots show while the bubble fades in, and are gone once it has arrived:
+
+```sparkdown
+style dots {
+  display = none
+}
+
+style bubble {
+  opacity = 1
+  transition-duration = 0.6s
+  @initial { opacity = 0 }
+  @show {
+    > dots { display = flex }
+  }
+}
+```
+
+An `animation` may be set inside any of the three blocks. It plays with the timing its declaration gives:
+
+```sparkdown
+animation pop {
+  keyframes {
+    from { opacity = "0" }
+    to { opacity = "1" }
+  }
+  timing { duration = 0.26 }
+}
+
+style badge {
+  @show {
+    animation = pop
+  }
+}
+```
+
+Pausing the game holds a motion where it is. The editor preview on a line, a step back and a loaded save show the settled look with no motion, and so does a click that shows a whole line at once. Under the reader's reduced-motion setting, moves and size changes happen at once and fades still play.
 
 ---
 
@@ -405,7 +483,7 @@ For full keyframed motion sequences, see [Animation](#animation) below.
 | `transition-delay`    | How long to wait before starting a transition.        | `<time>`                                                                                                    |
 | `transition-duration` | How long the transition takes once it begins.         | `<time>`                                                                                                    |
 | `transition-easing`   | Controls the speed curve of the transition over time. | `ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`, `cubic-bezier(<number>,<number>,<number>,<number>)` |
-| `transition-property` | Sets which properties will animate on change.         | `<property-name>`                                                                                           |
+| `transition-property` | Sets which properties will animate on change.         | `<property-name>`, `layout`                                                                                 |
 
 > The following properties will be transitioned by default `opacity`, `translate`, `rotate`, `scale`, `filter`, `backdrop-filter`, `mix-blend-mode`, `box-shadow`, `color`, `background-color`, `border-color`, `text-decoration-color`.
 >
@@ -415,7 +493,30 @@ For full keyframed motion sequences, see [Animation](#animation) below.
 >
 > - For example, if `transition-property` is set to `background-color, opacity` and `transition-duration` is set to `0.5s, 1s`, the background-color will fade over 0.5 seconds while the opacity fades over 1 second.
 
-> Transitions only work for numeric or color-based properties — they won't animate layout changes like display or visibility.
+> Transitions only work for numeric or color-based properties — they won't animate `display` or `visibility`.
+
+### Animating place and size with `layout`
+
+Name `layout` in an element's transition to animate any change in its place or size, whatever caused it: its text grew, a sibling was added, removed or moved above it, or a style changed its size. `layout` takes its own duration, easing and delay, wherever a transition names a property.
+
+```sparkdown
+style frame {
+  transition = layout 0.2s cubic-bezier(0.3, 1.6, 0.55, 1)
+}
+
+style line {
+  transition-property = opacity, layout
+  transition-duration = 0.4s
+}
+```
+
+A box that fits its text grows to each new line's height, and lines in a column slide to make room for a new one instead of jumping.
+
+- The element's real size changes during the motion, so its text, borders and corners keep their shape. A change of place is drawn with `translate`.
+- A size that changes because its padding, border or `box-sizing` changed animates the same way, starting from the box's old size on screen.
+- An element inside a rotated, skewed, mirrored or 3D-transformed element takes its new place and size at once. A `scale` or `transform` on the element itself, mirrored or not, and a positive scale on the elements around it still animate.
+- The motion runs on the game's clock: pausing, stepping and scrubbing hold it.
+- The editor preview on a line, a step back, a loaded save and skipping show the new place and size at once, and so does the reader's reduced-motion setting.
 
 ---
 
@@ -426,7 +527,7 @@ Animations are full motion sequences, defined by an
 
 | Prop Name              | What it does                                                           | Supported Values                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `animation`            | Plays a named animation with default timing.                           | `none`, `<animation-name>`                                                                                  |
+| `animation`            | Plays a named animation with its declaration's timing.                 | `none`, `<animation-name>`                                                                                  |
 | `animation-state`      | Controls whether the animation is running or paused.                   | `running`, `paused`                                                                                         |
 | `animation-delay`      | Overrides how long to wait before the animation begins.       | `<time>`                                                                                                    |
 | `animation-duration`   | Overrides how long each cycle of the animation takes.                  | `<time>`                                                                                                    |
@@ -437,7 +538,7 @@ Animations are full motion sequences, defined by an
 
 > `animation-delay`, `animation-duration`, `animation-easing`, `animation-iterations`, `animation-direction`, and `animation-fill` will override equivalent timing settings defined in an [animation declaration](./AnimationTheme.md#82-defining-your-own-animation) as long as they are set **after** the `animation` property is set.
 
-- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration
+- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration, and the animation loops, as `bounce` declares
 - `animation-duration=3s animation=bounce` — the animation plays with its default duration **(not 3s)**
 
 > Set `animation-iterations` to `infinite` for looping effects.

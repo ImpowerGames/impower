@@ -6,6 +6,7 @@ import {
   insertedText,
   insideBraces,
 } from "./braceCompletionHarness";
+import { compileProject } from "./completionHarness";
 
 const program = {
   context: {
@@ -137,15 +138,9 @@ describe("provider · animation property completion in brace bodies", () => {
 });
 
 describe("provider · element completion in layout and component brace blocks", () => {
-  const elements = { text: { content: "" }, row: { gap: 0 } };
-  const elementProgram = {
-    context: {
-      layout: { $default: { $type: "layout", $name: "$default", ...elements } },
-      component: {
-        $default: { $type: "component", $name: "$default", ...elements },
-      },
-    },
-  } as any;
+  const elementProgram = compileProject(
+    `layout parts {\n  row { text "x" }\n}\n\nscene start\nend\n`,
+  );
   const labelsIn = (source: string) =>
     completeAt(source, elementProgram).map((i) => String(i.label));
 

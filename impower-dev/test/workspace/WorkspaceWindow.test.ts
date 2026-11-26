@@ -121,6 +121,7 @@ vi.mock("@impower/impower-ui/components", async () => {
   return {
     cn,
     Button: element("button"),
+    usePreviewStripFull: () => false,
     SplitPane: ({ start, end }: { start: unknown; end: unknown }) =>
       h("div", {}, start as never, end as never),
     Popover: ({ children }: { children?: unknown }) => h("div", {}, children as never),
@@ -767,6 +768,31 @@ describe("WorkspaceWindow store transitions", () => {
       expect(workspace.current.shell?.railCompactWidth).toBeUndefined();
     });
 
+    it("switches the page in the same call, through no view transition, for a link and for a hash change", () => {
+      const doc = document as { startViewTransition?: unknown };
+      const had = { matchMedia: window.matchMedia, startViewTransition: doc.startViewTransition };
+      const start = vi.fn((update: () => unknown) => {
+        void update();
+        const done = Promise.resolve();
+        return { ready: done, updateCallbackDone: done, finished: done };
+      });
+      window.matchMedia = ((query: string) => ({ matches: false, media: query })) as unknown as typeof window.matchMedia;
+      doc.startViewTransition = start;
+      try {
+        win.navigateTo("story");
+        win.navigateTo("assets");
+        expect(window.location.hash).toBe("#assets");
+        expect(workspace.current.pane).toBe("assets");
+        window.history.pushState(window.history.state, "", "#share");
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+        expect(workspace.current.pane).toBe("share");
+        expect(start).not.toHaveBeenCalled();
+      } finally {
+        window.matchMedia = had.matchMedia;
+        doc.startViewTransition = had.startViewTransition;
+      }
+    });
+
     it("writes the current route into the location hash", () => {
       win.openView("logic", "list");
       win.openPanel("logic", "main");
@@ -823,7 +849,7 @@ describe("WorkspaceWindow store transitions", () => {
         );
         await writing;
         expect(workspace.scriptMode.value).toBe("editing");
-        expect(commands).toEqual([{ textDocument: { uri }, command: "focus" }]);
+        expect(commands).toEqual([{ textDocument: { uri }, command: "focusOnScreen" }]);
       } finally {
         window.removeEventListener(MessageProtocol.event, hear);
         workspace.scriptMode.value = "reading";
@@ -918,7 +944,7 @@ describe("WorkspaceWindow store transitions", () => {
 
       win.startEditing("main.sd");
       expect(workspace.scriptMode.value).toBe("editing");
-      expect(commands).toHaveBeenCalledWith("main.sd", "focus");
+      expect(commands).toHaveBeenCalledWith("main.sd", "focusOnScreen");
 
       win.finishEditing();
       expect(workspace.scriptMode.value).toBe("reading");

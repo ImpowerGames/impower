@@ -6,6 +6,8 @@ import {
 } from "../../../../spark-engine/src/game/modules/assets/types/AssetItem";
 import { type AssetsProgressParams } from "../../../../spark-engine/src/game/modules/assets/types/AssetsProgressParams";
 import { type LoadAssetsResult } from "../../../../spark-engine/src/game/modules/assets/types/LoadAssetsResult";
+import { type PaintedBox, type TrimmedLayer } from "../morph/layerTrim";
+import { type PictureFileTraits } from "../morph/pictureFileTraits";
 
 export interface ImageTarget {
   src: string;
@@ -14,6 +16,17 @@ export interface ImageTarget {
   naturalWidth?: number;
   naturalHeight?: number;
   decode?: () => Promise<void>;
+}
+
+export interface ResidentPicture extends PictureFileTraits {
+  image: ImageTarget | TrimmedLayer["image"];
+  width: number;
+  height: number;
+  box?: PaintedBox;
+}
+
+export interface LayerFile extends PictureFileTraits {
+  trimmed?: TrimmedLayer;
 }
 
 export interface FontFaceLike {
@@ -38,6 +51,7 @@ export interface AssetCacheDeps {
   warmImage?: (src: string) => WarmHandle | undefined;
   decodeAudio?: (params: LoadAudioPlayerParams) => Promise<AudioBuffer | null>;
   fetchBytes?: (src: string) => Promise<{ bytes: ArrayBuffer; type: string }>;
+  inspectImage?: (src: string, trim: boolean) => Promise<LayerFile | undefined>;
   createFontFace?: (
     family: string,
     source: ArrayBuffer,
@@ -54,6 +68,7 @@ export interface AssetCacheOptions {
   expressSlots?: number;
   predictBytes?: number;
   loadBytes?: number;
+  trimLayers?: boolean;
   decodeTimeoutMs?: number;
   loadTimeoutMs?: number;
 }
@@ -95,6 +110,9 @@ interface Entry {
   audio?: AudioBuffer;
   videoUrl?: string;
   waiters: Array<() => void>;
+  traits?: PictureFileTraits;
+  trimmed?: TrimmedLayer;
+  inspecting?: Promise<void>;
 }
 
 interface Tracked {
@@ -141,6 +159,10 @@ export class AssetCache {
 
   protected _loadBytes: number;
 
+  protected _trimLayers: boolean;
+
+  protected _whole = new Set<string>();
+
   protected _decodeTimeoutMs: number;
 
   protected _loadTimeoutMs: number;
@@ -165,6 +187,7 @@ export class AssetCache {
     );
     this._predictBytes = Math.max(0, options.predictBytes ?? 0);
     this._loadBytes = Math.max(0, options.loadBytes ?? 0);
+    this._trimLayers = options.trimLayers ?? true;
     this._decodeTimeoutMs = Math.max(
       0,
       options.decodeTimeoutMs ?? DEFAULT_DECODE_TIMEOUT_MS,
@@ -181,6 +204,10 @@ export class AssetCache {
 
   get loadBytes() {
     return this._loadBytes;
+  }
+
+  get trimLayers() {
+    return this._trimLayers;
   }
 
   protected now(): number {
@@ -219,7 +246,15 @@ export class AssetCache {
     return n;
   }
 
-  configure(options: { predictBytes?: number; loadBytes?: number }): void {
+  configure(options: { predictBytes?: number; loadBytes?: number; trimLayers?: boolean }): void {
+    if (options.trimLayers != null && options.trimLayers !== this._trimLayers) {
+      this._trimLayers = options.trimLayers;
+      if (!this._trimLayers) {
+        for (const entry of this._entries.values()) {
+          this.untrim(entry);
+        }
+      }
+    }
     if (options.loadBytes != null && Number.isFinite(options.loadBytes)) {
       this._loadBytes = Math.max(0, options.loadBytes);
     }
@@ -258,6 +293,21 @@ export class AssetCache {
     return () => {
       this._progressListeners.delete(listener);
     };
+  }
+
+  picture(src: string): ResidentPicture | undefined {
+    const e = this._entries.get(src);
+    const image = e?.state === "resident" ? e.image : undefined;
+    const width = image?.naturalWidth ?? 0;
+    const height = image?.naturalHeight ?? 0;
+    if (!image || !e?.traits || !(width > 0 && height > 0)) {
+      return undefined;
+    }
+    const trimmed = e.trimmed;
+    if (trimmed && trimmed.width === width && trimmed.height === height) {
+      return { ...e.traits, image: trimmed.image, width, height, box: trimmed.box };
+    }
+    return { ...e.traits, image, width, height };
   }
 
   isResident(key: string): boolean {
@@ -366,19 +416,32 @@ export class AssetCache {
     const pending = entries.filter(
       (e) => e.state !== "resident" && e.state !== "failed",
     );
-    if (pending.length === 0) {
+    const inspecting = entries.flatMap((e) =>
+      e.state === "resident" && e.inspecting ? [this.bounded(e.inspecting)] : [],
+    );
+    if (pending.length === 0 && inspecting.length === 0) {
       return Promise.resolve(settle());
     }
     return new Promise((resolve) => {
-      let remaining = pending.length;
+      let remaining = pending.length + inspecting.length;
+      const done = () => {
+        remaining--;
+        this.emitProgress(pin);
+        if (remaining === 0) {
+          resolve(settle());
+        }
+      };
       for (const e of pending) {
         e.waiters.push(() => {
-          remaining--;
-          this.emitProgress(pin);
-          if (remaining === 0) {
-            resolve(settle());
+          if (e.inspecting) {
+            void this.bounded(e.inspecting).then(done);
+          } else {
+            done();
           }
         });
+      }
+      for (const inspection of inspecting) {
+        void inspection.then(done);
       }
       this.pump();
     });
@@ -472,12 +535,16 @@ export class AssetCache {
       return;
     }
     const file = src.split("?")[0];
+    const shown = new Set(this._derivedPins());
     for (const e of [...this._entries.values()]) {
       if (e.file !== file) {
         continue;
       }
       if (e.state === "queued") {
         this.dequeue(e);
+      }
+      if (shown.has(e.key)) {
+        e.trimmed = undefined;
       }
       this.remove(e);
       for (const w of e.waiters.splice(0)) {
@@ -558,6 +625,12 @@ export class AssetCache {
     }
     if (entry) {
       entry.lastUsed = this._tick;
+      if (item.kind === "image" && item.layer && entry.item.kind === "image" && !entry.item.layer) {
+        entry.item = item;
+      }
+      if (entry.state === "resident") {
+        this.promote(entry);
+      }
       if (entry.state === "queued" && priority < entry.priority) {
         this.dequeue(entry);
         entry.priority = priority;
@@ -637,7 +710,9 @@ export class AssetCache {
       } catch {
       }
     }
+    this.closeTrimmed(entry);
     entry.image = undefined;
+    entry.traits = undefined;
     entry.warm = undefined;
     entry.font = undefined;
     entry.audio = undefined;
@@ -813,10 +888,14 @@ export class AssetCache {
         return;
       }
       if (ok) {
+        if (entry.item.kind === "image" && entry.item.layer && !isSvg(entry.item)) {
+          bytes = this.imageBytes(entry);
+        }
         entry.state = "resident";
         entry.bytes = bytes;
         entry.lastUsed = this._tick;
         this._bytes += bytes;
+        this.promote(entry);
         for (const w of entry.waiters.splice(0)) {
           w();
         }
@@ -892,9 +971,18 @@ export class AssetCache {
           if (isSvg(entry.item)) {
             return SVG_BYTES;
           }
-          const w = target.naturalWidth ?? 0;
-          const h = target.naturalHeight ?? 0;
-          return Math.max(MIN_IMAGE_BYTES, w * h * 4);
+          return this.imageBytes(entry);
+        };
+        const settle = () => {
+          const item = entry.item;
+          if (item.kind !== "image" || !item.layer || !this._deps.inspectImage) {
+            resolve(estimate());
+            return;
+          }
+          void this.inspect(entry).then((file) => {
+            this.adopt(entry, file);
+            resolve(estimate());
+          });
         };
         let decode: Promise<void> | undefined;
         try {
@@ -911,18 +999,124 @@ export class AssetCache {
               if (timer !== undefined) {
                 clearTimeout(timer);
               }
-              resolve(estimate());
+              settle();
             }
           };
           decode.then(done, done);
           timer = setTimeout(done, this._decodeTimeoutMs);
         } else {
-          resolve(estimate());
+          settle();
         }
       };
       target.onerror = () => resolve(null);
       target.src = src;
     });
+  }
+
+  protected bounded(inspection: Promise<void>): Promise<void> {
+    if (!(this._loadTimeoutMs > 0)) {
+      return inspection;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, this._loadTimeoutMs);
+      void inspection.then(() => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
+  protected promote(entry: Entry): void {
+    const item = entry.item;
+    if (item.kind !== "image" || !item.layer || entry.traits || entry.inspecting || !entry.image || !this._deps.inspectImage) {
+      return;
+    }
+    entry.inspecting = this.inspect(entry).then((file) => {
+      if (this._entries.get(entry.key) === entry && entry.image) {
+        this.adopt(entry, file);
+        this.recount(entry);
+      } else {
+        file.trimmed?.image.close?.();
+      }
+      entry.inspecting = undefined;
+    });
+  }
+
+  protected inspect(entry: Entry): Promise<LayerFile> {
+    const inspect = this._deps.inspectImage;
+    const item = entry.item;
+    const unread: LayerFile = { animated: false, profile: false, unread: true };
+    if (!inspect || item.kind !== "image") {
+      return Promise.resolve(unread);
+    }
+    return inspect(item.src, this._trimLayers && !this._whole.has(entry.key)).then(
+      (file) => file ?? unread,
+      () => unread,
+    );
+  }
+
+  protected adopt(entry: Entry, file: LayerFile): void {
+    const { trimmed, ...traits } = file;
+    entry.traits = traits;
+    this.closeTrimmed(entry);
+    const width = entry.image?.naturalWidth ?? 0;
+    const height = entry.image?.naturalHeight ?? 0;
+    if (!trimmed) {
+      return;
+    }
+    if (!this._trimLayers || this._whole.has(entry.key) || this._entries.get(entry.key) !== entry || trimmed.width !== width || trimmed.height !== height) {
+      trimmed.image.close?.();
+      return;
+    }
+    entry.trimmed = trimmed;
+  }
+
+  keepWhole(srcs: Iterable<string>): void {
+    let changed = false;
+    for (const src of srcs) {
+      this._whole.add(src);
+      const entry = this._entries.get(src);
+      if (entry?.trimmed) {
+        this.untrim(entry);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.maybeEvict();
+    }
+  }
+
+  protected untrim(entry: Entry): void {
+    if (!entry.trimmed) {
+      return;
+    }
+    entry.trimmed = undefined;
+    this.recount(entry);
+  }
+
+  protected closeTrimmed(entry: Entry): void {
+    const trimmed = entry.trimmed;
+    entry.trimmed = undefined;
+    trimmed?.image.close?.();
+  }
+
+  protected imageBytes(entry: Entry): number {
+    const box = entry.trimmed?.box;
+    if (box) {
+      return Math.max(MIN_IMAGE_BYTES, box.width * box.height * 4);
+    }
+    const w = entry.image?.naturalWidth ?? 0;
+    const h = entry.image?.naturalHeight ?? 0;
+    return Math.max(MIN_IMAGE_BYTES, w * h * 4);
+  }
+
+  protected recount(entry: Entry): void {
+    if (entry.state !== "resident" || isSvg(entry.item)) {
+      return;
+    }
+    const bytes = this.imageBytes(entry);
+    this._bytes += bytes - entry.bytes;
+    entry.bytes = bytes;
   }
 
   protected async loadFont(

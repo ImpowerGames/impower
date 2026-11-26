@@ -1,4 +1,4 @@
-import { cn, SplitPane } from "@impower/impower-ui/components";
+import { cn, SplitPane, usePreviewStripFull } from "@impower/impower-ui/components";
 import { useLayout } from "@impower/impower-ui/layout";
 import { useEffect, useRef, useState } from "preact/hooks";
 import problems, {
@@ -23,8 +23,8 @@ export const propDefaults = {};
 export type PreviewProps = Partial<typeof propDefaults>;
 
 const PANEL_MIN_HEIGHT = 144;
-const BAR_ONLY = { panel: "end", size: "var(--preview-bar-height)" } as const;
 const STAGE_MIN_HEIGHT = 160;
+const COMPACT_BAR_HEIGHT = 52;
 
 const playerClass = (mode: PreviewMode, choosing: boolean) => {
   if (playsGame(mode)) {
@@ -62,11 +62,13 @@ export default function Preview(_props: PreviewProps) {
   const panelHeight = workspaceSettings.projectSettings.value.previewPanelHeight;
   const panelShows = problems.panelShows.value;
   const panelOpen = panelHeight > PANEL_BAR_HEIGHT;
+  const barHeight = stripped ? COMPACT_BAR_HEIGHT : PANEL_BAR_HEIGHT;
   const { ref, fullscreen, toggle } = useFullscreen();
 
   const game = workspace.state.value.preview?.modes?.game;
   const choosing = !!game?.running && !!game?.choosing;
-  const inStrip = stripped && !workspace.state.value.preview?.revealed;
+  const full = usePreviewStripFull();
+  const inStrip = stripped && !full && !workspace.state.value.preview?.revealed;
   const framed = !fullscreen && !inStrip;
   const stageMode = inStrip && !playsGame(mode) ? "game" : mode;
 
@@ -148,26 +150,21 @@ export default function Preview(_props: PreviewProps) {
           line="grip"
           overflowPanel="start"
           solo={inStrip}
-          fixed={stripped ? BAR_ONLY : undefined}
-          pinned={
-            stripped
-              ? undefined
-              : {
-                  panel: "end",
-                  size: panelOpen ? panelHeight : PANEL_BAR_HEIGHT,
-                  defaultSize: PANEL_BAR_HEIGHT,
-                  minSize: PANEL_MIN_HEIGHT,
-                  collapsedSize: PANEL_BAR_HEIGHT,
-                  reserve: STAGE_MIN_HEIGHT,
-                  onSizeChange: onPanelHeightChange,
-                }
-          }
+          pinned={{
+            panel: "end",
+            size: panelOpen ? panelHeight : barHeight,
+            defaultSize: barHeight,
+            minSize: PANEL_MIN_HEIGHT,
+            collapsedSize: barHeight,
+            reserve: STAGE_MIN_HEIGHT,
+            onSizeChange: onPanelHeightChange,
+          }}
           start={<div class="flex h-full flex-col">{card}</div>}
           end={
             <div class="flex h-full flex-col">
               {bar}
               <div data-preview-panel class="min-h-0 flex-1">
-                {!panelOpen || stripped ? null : panelShows === "route" ? (
+                {!panelOpen || inStrip ? null : panelShows === "route" ? (
                   <RoutePanel />
                 ) : (
                   <ProblemsPanel />

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { systemTemp, useWorktreeTemp } from "../drive-web-editor/worktree-temp.mjs";
 import { desktop } from "./desktop.mjs";
+import { pacing } from "./pacing.mjs";
 import { debugWorkbench } from "./web-debug.mjs";
 import {
   consoleLine,
@@ -1158,6 +1159,10 @@ switch (cmd) {
     process.exitCode = await desktop(rest);
     break;
   }
+  case "pacing": {
+    process.exitCode = await pacing(rest);
+    break;
+  }
   case "verify": {
     const { exitCode } = await verify(rest);
     process.exitCode = exitCode;
@@ -1173,6 +1178,7 @@ switch (cmd) {
         "  down               stop the server",
         "  verify [options]   open a file in the served workbench, read diagnostics and a hover, screenshot; JSON report",
         "  desktop --code <executable> --mode full|f5 [--project <folder>] [--scenario <json>] [--out <directory>] [--timeout <seconds>]",
+        "  pacing --code <executable> [--project <folder> --line <n>] [--runs <n>] [--out <directory>]  play lines in the Game Preview and report frame pacing; see references/pacing.md",
         "",
         "up options (one of --sd or --project):",
         "  --sd <file.sd>       serve a one-file project holding this script as main.sd",

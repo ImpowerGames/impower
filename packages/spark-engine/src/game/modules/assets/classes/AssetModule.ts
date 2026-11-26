@@ -99,6 +99,7 @@ export class AssetModule extends Module<
       predict_distance: count("predict_distance"),
       predict_cache_size: count("predict_cache_size"),
       load_cache_size: count("load_cache_size"),
+      trim_layers: values["trim_layers"] !== false,
       load_distance: count("load_distance"),
       beat_timeout: seconds("beat_timeout"),
       restore_timeout: seconds("restore_timeout"),
@@ -146,15 +147,19 @@ export class AssetModule extends Module<
       }
       const srcs = ui.getImageSrcsByName(name);
       if (srcs) {
+        const layer = ui.layeredImageFiles(name) !== undefined;
         for (const src of srcs) {
-          if (
-            typeof src === "string" &&
-            src &&
-            !src.startsWith("data:") &&
-            !seen.has(src)
-          ) {
+          if (typeof src !== "string" || !src || src.startsWith("data:")) {
+            continue;
+          }
+          if (!seen.has(src)) {
             seen.add(src);
-            items.push({ kind: "image", src });
+            items.push(layer ? { kind: "image", src, layer } : { kind: "image", src });
+          } else if (layer) {
+            const index = items.findIndex((item) => item.kind === "image" && item.src === src);
+            if (index >= 0) {
+              items[index] = { kind: "image", src, layer };
+            }
           }
         }
         continue;
@@ -737,6 +742,7 @@ export class AssetModule extends Module<
       ConfigureAssetsMessage.type.notification({
         predictBytes: Math.max(0, this.config.predict_cache_size) * MEGABYTE,
         loadBytes: Math.max(0, this.config.load_cache_size) * MEGABYTE,
+        trimLayers: this.config.trim_layers,
       }),
     );
     await this.gateRestore(this._game.module.ui.restoredPictureNames());

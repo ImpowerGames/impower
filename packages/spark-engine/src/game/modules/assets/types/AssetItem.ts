@@ -5,6 +5,7 @@ export type AssetPriority = 0 | 1 | 2 | 3;
 export interface ImageAssetItem {
   kind: "image";
   src: string;
+  layer?: true;
 }
 
 export interface FontAssetItem {

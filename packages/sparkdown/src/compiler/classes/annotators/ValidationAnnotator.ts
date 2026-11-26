@@ -276,7 +276,6 @@ const IF_CLAUSE_TRIVIA = new Set([
   "Newline",
 ]);
 const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
-  "LuauPropAttribute",
   "LuauSparklePropAttribute",
   "LuauSparklePropClosureAttribute",
   "LuauSparklePropParenAttribute",
@@ -630,15 +629,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           control.from,
           control.to,
           "warning",
-        );
-      }
-    } else if (control && kind === "layout" && control.text === LayoutVerb.clear) {
-      if (target?.text !== "textstream") {
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message: "Only textstream has a page to clear.",
-            severity: "warning",
-          }).range(target ? target.from : control.from, target ? target.to : control.to),
         );
       }
     } else if (control && kind === "cutscene") {
@@ -1667,7 +1657,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
       const context = getContextNames(nodeRef.node);
       const inPropValue =
-        context.includes("LuauPropAttribute") ||
         context.includes("LuauSparklePropAttribute") ||
         context.includes("LuauSparklePropClosureAttribute") ||
         context.includes("LuauSparklePropParenAttribute");
@@ -1682,7 +1671,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "StyleAttributeName") {
+    if (
+      nodeRef.name === "StyleAttributeName" &&
+      !getContextNames(nodeRef.node).includes("StyleAttribute")
+    ) {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^#/, "");
       const isPassThrough =

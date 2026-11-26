@@ -180,6 +180,8 @@ import type { SparkProgram } from "../types/SparkProgram";
 import type { SparkSelector } from "../types/SparkSelector";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
+import { layoutStreams } from "../utils/layoutStreams";
+import { LayoutVerb } from "../../../language/sparkdown.layout-verbs";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { DefineScopeRecord, type DefineScopeStats } from "../utils/DefineScopeRecord";
 import { formatList } from "../utils/formatList";
@@ -196,6 +198,9 @@ import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
+import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
+import { SHOWING_STATE } from "../constants/selectorStates";
+import { showingRefusalAt } from "../utils/showingRefusal";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -641,8 +646,6 @@ const nextCompilerOrdinal = (): number => {
   registry[CONTEXT_REVISION_ORDINAL] = next;
   return next;
 };
-
-const WRITE_CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "image", "stroke", "mask"]);
 
 export class SparkdownCompiler {
   protected _profilerId?: string;
@@ -1720,6 +1723,8 @@ export class SparkdownCompiler {
       this.validateImageAttributes(program);
       this.validateMorphs(program);
       this.validateWriteTargets(program);
+      this.validateShowingNames(program);
+      this.validateClearTargets(program);
       this.validateLints(program);
       this.validateTypes(program);
       this.validateStores(program);
@@ -5214,45 +5219,7 @@ export class SparkdownCompiler {
   validateWriteTargets(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateWriteTargets", uri);
-    const named = new Set<string>();
-    const classed = new Map<string, string>();
-    const visit = (value: unknown): void => {
-      if (Array.isArray(value)) {
-        value.forEach(visit);
-        return;
-      }
-      if (!value || typeof value !== "object") return;
-      const node = value as Record<string, unknown>;
-      if (node["kind"] === "element") {
-        for (const key of ["tag", "name"]) {
-          const name = node[key];
-          if (typeof name === "string" && !WRITE_CONTENT_TAGS.has(name)) named.add(name);
-        }
-        const classes = node["classes"];
-        if (Array.isArray(classes)) {
-          for (const c of classes) {
-            if (typeof c === "string" && !classed.has(c)) classed.set(c, `${node["tag"]}.${classes.join(".")}`);
-          }
-        }
-      }
-      for (const v of Object.values(node)) {
-        if (v !== null && typeof v === "object") visit(v);
-      }
-    };
-    for (const kind of ["layouts", "screens", "components"] as const) {
-      visit(Object.values(program.sparkle?.[kind] ?? {}));
-    }
-    for (const struct of Object.values(program.context?.["layout"] ?? {})) {
-      const walk = (value: unknown) => {
-        if (!value || typeof value !== "object") return;
-        for (const [key, v] of Object.entries(value)) {
-          const [name] = key.split(" ");
-          if (name && !WRITE_CONTENT_TAGS.has(name)) named.add(name);
-          walk(v);
-        }
-      };
-      walk(struct);
-    }
+    const { named, classed } = layoutElementNames(program);
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = doc ? this.documents.tree(scriptUri) : undefined;
@@ -5289,6 +5256,84 @@ export class SparkdownCompiler {
       });
     }
     profile("end", this._profilerId, "validateWriteTargets", uri);
+  }
+
+  validateShowingNames(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateShowingNames", uri);
+    const known = showingNames(program);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "SelectorStateName" || doc.read(node.from, node.to) !== SHOWING_STATE) {
+            return undefined;
+          }
+          const refusal = showingRefusalAt(node.node, (from, to) => doc.read(from, to));
+          if (refusal) {
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(refusal.from, refusal.to),
+              code: "showing-position",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: `\`@showing\` cannot be written ${refusal.where}, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@showing(action) @hovered\`; the style's own properties are its look while the name is not showing`,
+              },
+              source: LANGUAGE_NAME,
+            });
+            return false;
+          }
+          const parameters = /^\(([^()\r\n]*)\)/.exec(doc.read(node.to, node.to + 128));
+          const name = parameters?.[1]?.trim();
+          if (!parameters || !name || known.has(name)) return false;
+          const start = node.to + 1 + parameters[1]!.indexOf(name);
+          ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+            range: doc.range(start, start + name.length),
+            code: "showing-name",
+            severity: DiagnosticSeverity.Warning,
+            message: {
+              kind: "markdown",
+              value: `No layout or element is named \`${name}\`.`,
+            },
+            source: LANGUAGE_NAME,
+          });
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateShowingNames", uri);
+  }
+
+  validateClearTargets(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateClearTargets", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      for (const directive of readSourceDirectives(tree, (from, to) => doc.read(from, to))) {
+        const { control, target } = directive;
+        if (directive.kind !== "layout" || control?.text !== LayoutVerb.clear) continue;
+        const name = target?.text;
+        if (name === "textstream" || (name && !program.sparkle?.layouts?.[name])) continue;
+        if (name && layoutStreams(program.sparkle, name).length > 0) continue;
+        const at = target ?? control;
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(at.from, at.to),
+          severity: DiagnosticSeverity.Warning,
+          message: {
+            kind: "markdown",
+            value: name
+              ? `\`${name}\` has no stream to clear.`
+              : "Incomplete `clear`: name the layout to clear\n> e.g. `[[clear textstream]]`",
+          },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
+    profile("end", this._profilerId, "validateClearTargets", uri);
   }
 
   validateLints(program: SparkProgram) {

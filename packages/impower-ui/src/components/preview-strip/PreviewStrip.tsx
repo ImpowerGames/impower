@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ComponentChildren, JSX } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { createContext, type ComponentChildren, type JSX } from "preact";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 import { useToastLayer } from "../../utils/toastLayer";
 import { FileIcon, PencilIcon } from "../icon/icons.generated";
@@ -18,6 +18,14 @@ export const previewStripVariants = cva(
     defaultVariants: { size: "phone" },
   },
 );
+
+const FullContext = createContext(false);
+
+export const usePreviewStripFull = () => useContext(FullContext);
+
+const CLOSING_LIMIT_MS = 1000;
+
+const EXIT_ANIMATION = "fade-out";
 
 const PICTURE_HEIGHT = { phone: "h-[72px]", tablet: "h-[83px]" } as const;
 
@@ -71,6 +79,7 @@ export type PreviewStripProps = {
   pictureLabel?: string;
   expanded?: boolean;
   onCollapse?: () => void;
+  onCollapsed?: () => void;
   onOpen?: () => void;
   onPlay?: () => void;
   playDisabled?: boolean;
@@ -93,6 +102,7 @@ export default function PreviewStrip({
   pictureLabel = "Game preview",
   expanded = false,
   onCollapse,
+  onCollapsed,
   onOpen,
   onPlay,
   playDisabled = false,
@@ -105,6 +115,29 @@ export default function PreviewStrip({
   const playRef = useRef<HTMLButtonElement | null>(null);
   const focusPlayRef = useRef(false);
   const open = expanded && !docked;
+  const [, setSettled] = useState(0);
+  const closingRef = useRef(false);
+  const closedRef = useRef(false);
+  const wasOpenRef = useRef(open);
+  if (open) {
+    closingRef.current = false;
+    closedRef.current = false;
+  } else if (wasOpenRef.current) {
+    closingRef.current = true;
+  }
+  wasOpenRef.current = open;
+  const closing = closingRef.current;
+  const full = open || closing;
+  const collapsedRef = useRef(onCollapsed);
+  collapsedRef.current = onCollapsed;
+  const finishClosing = useRef(() => {
+    if (!closingRef.current) {
+      return;
+    }
+    closingRef.current = false;
+    closedRef.current = true;
+    setSettled((n) => n + 1);
+  }).current;
   const collapseRef = useRef(onCollapse);
   collapseRef.current = onCollapse;
   const expandedRef = useRef(open);
@@ -135,12 +168,61 @@ export default function PreviewStrip({
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    if (!closing || !dialog) {
+      return;
+    }
+    const onEnd = (event: AnimationEvent) => {
+      if (
+        event.target === dialog &&
+        !event.pseudoElement &&
+        event.animationName === EXIT_ANIMATION
+      ) {
+        finishClosing();
+      }
+    };
+    dialog.addEventListener("animationend", onEnd);
+    dialog.addEventListener("animationcancel", onEnd);
+    const frame = requestAnimationFrame(() => {
+      const exiting = dialog
+        .getAnimations?.()
+        .some(
+          (animation) =>
+            animation.playState === "running" &&
+            (animation as CSSAnimation).animationName === EXIT_ANIMATION &&
+            !(animation.effect as KeyframeEffect | null)?.pseudoElement,
+        );
+      if (!exiting) {
+        finishClosing();
+      }
+    });
+    const fallback = setTimeout(finishClosing, CLOSING_LIMIT_MS);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(fallback);
+      dialog.removeEventListener("animationend", onEnd);
+      dialog.removeEventListener("animationcancel", onEnd);
+    };
+  }, [closing]);
+
+  useEffect(
+    () => () => {
+      if (closingRef.current || closedRef.current) {
+        closingRef.current = false;
+        closedRef.current = false;
+        collapsedRef.current?.();
+      }
+    },
+    [],
+  );
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
     if (!dialog) {
       return;
     }
-    if (open && !dialog.open) {
+    if (full && !dialog.open) {
       dialog.showModal();
-    } else if (!open && dialog.open) {
+    } else if (!full && dialog.open) {
       const active = document.activeElement;
       const hadFocus = !active || active === document.body || dialog.contains(active);
       dialog.close();
@@ -150,10 +232,14 @@ export default function PreviewStrip({
       dialog.style.removeProperty("display");
       focusPlayRef.current = hadFocus;
     }
-  }, [open]);
+    if (!full && closedRef.current) {
+      closedRef.current = false;
+      collapsedRef.current?.();
+    }
+  }, [full]);
 
   useEffect(() => {
-    if (open) {
+    if (full) {
       focusPlayRef.current = false;
       return;
     }
@@ -174,7 +260,7 @@ export default function PreviewStrip({
       document.removeEventListener("pointerdown", cancel, true);
       document.removeEventListener("keydown", cancel, true);
     };
-  }, [open, playDisabled]);
+  }, [full, playDisabled]);
 
   const shown = statuses.slice(0, 2);
 
@@ -220,12 +306,17 @@ export default function PreviewStrip({
               "m-0 block max-h-none max-w-none overflow-hidden border-0 p-0 text-ink backdrop:bg-stage",
               docked
                 ? "relative h-full w-full bg-transparent"
-                : open
-                  ? "fixed inset-0 h-full w-full bg-preview-mat"
+                : full
+                  ? cn(
+                      "fixed inset-0 h-full w-full bg-preview-mat",
+                      open
+                        ? "motion-safe:anim-scrim-in motion-safe:backdrop:anim-scrim-in"
+                        : "motion-safe:anim-scrim-out motion-safe:backdrop:anim-scrim-out motion-reduce:invisible motion-reduce:backdrop:invisible",
+                    )
                   : "pointer-events-none absolute top-0 left-0 h-[600%] w-[600%] origin-top-left scale-[0.1666667] bg-stage",
             )}
           >
-            {picture}
+            <FullContext.Provider value={full}>{picture}</FullContext.Provider>
             <div ref={toastLayer} data-toast-layer class="contents" />
           </dialog>
           {symbol && !docked ? (

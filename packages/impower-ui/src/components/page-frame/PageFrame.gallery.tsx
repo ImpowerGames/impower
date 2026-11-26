@@ -17,8 +17,8 @@ function PageFrameDemo() {
           <div class="h-[320px] max-w-[760px] overflow-hidden rounded border border-solid border-edge">
             <PageFrame
               size={size}
-              title="Share your story"
-              line="Export a shareable game or screenplay. Collaborate with others. Publish it online."
+              title="Settings"
+              line="Customize the look and behavior of the editor and adjust your project settings."
               onBack={() => setBacks((count) => count + 1)}
             >
               <p class="m-0 text-body text-muted">Page content</p>
@@ -26,6 +26,13 @@ function PageFrameDemo() {
           </div>
         </GalleryRow>
       ))}
+      <GalleryRow label="No intro: the title names the section for assistive technology only">
+        <div class="h-[160px] max-w-[760px] overflow-hidden rounded border border-solid border-edge">
+          <PageFrame title="Share" intro={false}>
+            <p class="m-0 text-body text-muted">Page content starts at the top</p>
+          </PageFrame>
+        </div>
+      </GalleryRow>
     </div>
   );
 }

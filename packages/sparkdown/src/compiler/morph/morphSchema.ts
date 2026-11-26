@@ -95,12 +95,25 @@ export function parseMorphSpan(value: unknown): number | undefined {
   return percent <= 100 ? percent / 100 : undefined;
 }
 
-export const MORPH_TRIGGERS = ["appear", "speech"] as const;
+export const MORPH_TRIGGERS = ["appear", "speech", "change"] as const;
 
 export const MORPH_SPEECH_EXCLUDED_TIMING = {
   delay: "speech decides when its plays start",
   iterations: "speech decides how many plays there are",
 } as const;
+
+export const MORPH_CHANGE_EXCLUDED_TIMING = {
+  iterations: "it plays once each time the options change",
+  direction: "it always plays from the old drawing to the new one",
+  iteration_delay_min: "it plays once each time the options change",
+  iteration_delay_max: "it plays once each time the options change",
+} as const;
+
+export const MORPH_CHANGE_UNUSED_KEYFRAMES =
+  "`keyframes` is not used by a change morph: it plays from the drawing on screen to the drawing the new options choose. Remove it, or use `trigger = appear`.";
+
+export const MORPH_CHANGE_UNUSED_REPLAY =
+  "`replay` does not apply to a change morph: it plays once, from the old drawing to the new one. Remove it, or use `trigger = appear`.";
 
 export const MORPH_SYNCS = ["none", "beep"] as const;
 
@@ -245,7 +258,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",
   trigger:
-    "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest. A speech morph takes no `delay` or `iterations`.",
+    "What starts the morph: `appear` (default) plays it on its own schedule from the moment its portrait appears; `speech` marks it as a speech morph, which never plays on its own schedule: in the preview, in play and in its still it shows its rest; `change` plays it once when the options chosen for a portrait already on screen change, from the drawing on screen to the drawing the new options choose. A speech morph takes no `delay` or `iterations`. A change morph has no keyframes of its own and takes no `iterations`, `direction`, `iteration_delay_min`, `iteration_delay_max` or `replay`.",
   sync:
     "When a speech morph's plays start: `none` (default) plays it again and again while its character speaks; `beep` starts a play on each of its character's voice beeps that finds no play in progress, so a beep that arrives during a play is skipped. A line spoken by a clip on the `voice` channel has no beeps, and its plays follow one another. Only a `trigger = speech` morph takes it. A morph with `sync = beep` takes no `iteration_delay_min` or `iteration_delay_max`.",
   duration: `Seconds one play lasts, at least ${MORPH_MIN_DURATION} (one millisecond). Default 0.25.`,

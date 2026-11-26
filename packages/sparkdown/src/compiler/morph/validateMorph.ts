@@ -22,6 +22,9 @@ import {
   MORPH_ROOT_FIELDS,
   MORPH_TIMING_DEFAULTS,
   MORPH_SPEECH_EXCLUDED_TIMING,
+  MORPH_CHANGE_EXCLUDED_TIMING,
+  MORPH_CHANGE_UNUSED_KEYFRAMES,
+  MORPH_CHANGE_UNUSED_REPLAY,
   MORPH_SPREAD_PROBLEM,
   MORPH_SYNCS,
   MORPH_TIMING_FIELDS,
@@ -713,7 +716,15 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const poseCount = Array.isArray(effectiveKeyframes)
     ? effectiveKeyframes.length
     : 0;
-  if (poseCount < 2) {
+  const effectiveTrigger = isRecord(effective["timing"]) ? effective["timing"]["trigger"] : undefined;
+  if (effectiveTrigger === "change") {
+    if (poseCount > 0) {
+      push(keySpan(own, "keyframes") ?? decl.parent ?? decl.name, "keyframes" in own ? MORPH_CHANGE_UNUSED_KEYFRAMES : `\`keyframes\`, inherited: ${MORPH_CHANGE_UNUSED_KEYFRAMES}`, "warning");
+    }
+    if (effective["replay"] !== undefined) {
+      push(replaySpan ?? decl.parent ?? decl.name, "replay" in own ? MORPH_CHANGE_UNUSED_REPLAY : `\`replay\`, inherited: ${MORPH_CHANGE_UNUSED_REPLAY}`);
+    }
+  } else if (poseCount < 2) {
     const tooFew = "A morph needs at least two keyframes to move between.";
     const fromParent = decl.parent && !("keyframes" in own) && poseCount > 0;
     push(keySpan(own, "keyframes") ?? (fromParent ? decl.parent : decl.name), fromParent ? `\`keyframes\`, inherited: ${tooFew}` : tooFew);
@@ -852,7 +863,10 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (effectiveTiming["trigger"] === "speech") {
       exclude(MORPH_SPEECH_EXCLUDED_TIMING, "a speech morph", "trigger = appear");
       if (effectiveTiming["sync"] === "beep") exclude(MORPH_BEEP_EXCLUDED_TIMING, "a morph with `sync = beep`", "sync = none");
-    } else if (decl.timingWritten.has("sync")) {
+    } else if (effectiveTiming["trigger"] === "change") {
+      exclude(MORPH_CHANGE_EXCLUDED_TIMING, "a change morph", "trigger = appear");
+    }
+    if (effectiveTiming["trigger"] !== "speech" && decl.timingWritten.has("sync")) {
       const at = spanOf("sync");
       push(
         at,

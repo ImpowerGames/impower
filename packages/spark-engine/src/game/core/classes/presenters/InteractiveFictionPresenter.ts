@@ -10,7 +10,7 @@ import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
 import { clearStage, writeStage } from "./stage";
 
-const SPEAKER_TARGETS = ["character_name", "character_parenthetical"];
+export const SPEAKER_TARGETS = ["character_name", "character_parenthetical"];
 
 const LINE_KINDS: Record<string, PageEntry["kind"]> = {
   action: "action",
@@ -63,6 +63,7 @@ export class InteractiveFictionPresenter implements Presenter {
       ui.beginPresentation();
     }
     const composed = ui.beginCompose();
+    ui.composeSource(this._instructions.source);
     ui.page.onChoose(this._options.choose);
     if (this._options.stage) {
       clearStage(game, this._instructions, ui.getTransientTargets());

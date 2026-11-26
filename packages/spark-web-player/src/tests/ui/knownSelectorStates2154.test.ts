@@ -45,6 +45,7 @@ const PLAIN_STANDARD_STATES = [
 
 const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["theme", "@theme(dark)", ':where([data-color-scheme="dark"]) &'],
+  ["showing", "@showing(action)", ':where([data-showing~="action"]) &'],
   ["hovered", "@hovered", ":hover"],
   ["focused", "@focused", ":focus"],
   ["pressed", "@pressed", ":active"],
@@ -89,11 +90,14 @@ const APPLIED: readonly [name: string, source: string, css: string][] = [
   ["swatch_wrapper", "@swatch_wrapper", "::-webkit-color-swatch-wrapper"],
   ["swatch-wrapper", "@swatch-wrapper", "::-webkit-color-swatch-wrapper"],
   ["busy", "@busy", '[aria-busy="true"]'],
+  ["latest", "@latest", "[data-latest]"],
   ["container-size", "@container-size(sm)", "@container(max-width:640px)"],
   ["container_size", "@container_size(sm)", "@container(max-width:640px)"],
   ["screen-size", "@screen-size(sm)", "@container screen (max-width:640px)"],
   ["screen_size", "@screen_size(sm)", "@container screen (max-width:640px)"],
-  ["initial", "@initial", "@starting-style"],
+  ["initial", "@initial", ':is([data-presence="initial"],[data-presence="initial"] *)'],
+  ["show", "@show", ':is([data-presence="show"],[data-presence="show"] *)'],
+  ["hide", "@hide", ':is([data-presence="hide"],[data-presence="hide"] *)'],
   ["container", "@container (min-width: 1px)", "@container(min-width:1px)"],
   ["layer", "@layer", "@layer"],
   ["media", "@media (min-width: 1px)", "@media(min-width:1px)"],
@@ -166,7 +170,7 @@ describe("known selector states (#2154, #2502)", () => {
   it.each(APPLIED.filter(([name]) => name !== "theme"))(
     "writes %s in the screen preview as the player does",
     (_name, source, css) => {
-      expect(sparkleSelectorToCssSelector(source, { sm: 640 })).toBe(css);
+      expect(sparkleSelectorToCssSelector(source, { sm: 640 })?.css).toBe(css);
     },
   );
 });

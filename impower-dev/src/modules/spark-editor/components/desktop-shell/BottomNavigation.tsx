@@ -6,7 +6,6 @@ import {
   Tab,
   Tabs,
 } from "@impower/impower-ui/components";
-import { useSheetOpen } from "@impower/impower-ui/layout";
 import type { PaneType } from "@impower/spark-editor-protocol/src/types";
 import { useComputed } from "@preact/signals";
 import { routeOfPane, routeOfState } from "../../workspace/routes";
@@ -18,7 +17,6 @@ import { withWindow } from "./workspaceWindow";
 
 export default function BottomNavigation() {
   const naming = useNaming() !== null;
-  const sheetOpen = useSheetOpen();
   const editing = useScriptMode() === "editing";
   const panelOpen = useComputed(
     () => workspace.keyboardPanels.value.length > 0,
@@ -40,7 +38,7 @@ export default function BottomNavigation() {
     <nav
       aria-label="Project"
       data-bottom-navigation
-      hidden={naming || sheetOpen || editing || panelOpen}
+      hidden={naming || editing || panelOpen}
       class="min-h-[var(--bottom-navigation-height)] flex-none border-t border-edge bg-bg pb-[env(safe-area-inset-bottom)] [.keyboard-open_&]:hidden"
     >
       {typeof window !== "undefined" && (

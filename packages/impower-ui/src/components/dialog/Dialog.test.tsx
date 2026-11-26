@@ -21,7 +21,6 @@ import {
   DropdownRoot,
   DropdownTrigger,
 } from "../dropdown/Dropdown";
-import { useSheetOpen } from "../../hooks/useSheetOpen";
 
 let phone = false;
 const mediaListeners = new Set<() => void>();
@@ -517,78 +516,6 @@ describe("Lightbox under preact/compat", () => {
   it("gates its fade behind prefers-reduced-motion", async () => {
     await open();
     expect(dialog()!.className.split(" ")).toContain("motion-safe:transition-opacity");
-  });
-});
-
-describe("useSheetOpen", () => {
-  let reported: boolean[] = [];
-
-  function Reporter() {
-    reported.push(useSheetOpen());
-    return null;
-  }
-
-  const mountReporter = async () => {
-    reported = [];
-    const reporter = document.body.appendChild(document.createElement("div"));
-    await act(async () => render(<Reporter />, reporter));
-    return async () => {
-      await act(async () => render(null, reporter));
-      reporter.remove();
-    };
-  };
-
-  const close = async () => {
-    await pressEscape();
-    await settle(DIALOG_TRANSITION_MS + 50);
-  };
-
-  it("reports a Sheet from opening until it starts to close", async () => {
-    const unmount = await mountReporter();
-    expect(reported.at(-1)).toBe(false);
-    await mount({ sheet: true });
-    expect(reported.at(-1)).toBe(true);
-    await close();
-    expect(reported.at(-1)).toBe(false);
-    await unmount();
-  });
-
-  it("reports a responsive Dialog only while the phone layout makes it a Sheet", async () => {
-    const unmount = await mountReporter();
-    await mount({ responsive: true });
-    expect(reported.at(-1)).toBe(false);
-    await setPhone(true);
-    await settle(50);
-    expect(reported.at(-1)).toBe(true);
-    await close();
-    expect(reported.at(-1)).toBe(false);
-    await unmount();
-  });
-
-  it("reports the sheet menu a finger opens at the phone width", async () => {
-    const unmount = await mountReporter();
-    host = document.body.appendChild(document.createElement("div"));
-    await act(async () =>
-      render(
-        <DropdownRoot>
-          <DropdownTrigger asChild>
-            <button type="button">Menu</button>
-          </DropdownTrigger>
-          <DropdownContent>
-            <DropdownItem>Settings</DropdownItem>
-          </DropdownContent>
-        </DropdownRoot>,
-        host!,
-      ),
-    );
-    expect(reported.at(-1)).toBe(false);
-    await setPhone(true);
-    await tap(host!.querySelector("button")!);
-    await settle(50);
-    expect(reported.at(-1)).toBe(true);
-    await close();
-    expect(reported.at(-1)).toBe(false);
-    await unmount();
   });
 });
 

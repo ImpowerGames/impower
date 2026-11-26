@@ -67,7 +67,7 @@ variables:
 
   SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where", "host", "host-context"]
   NTH_SELECTOR_FUNCTION_NAMES: ["nth-child", "nth-last-child"]
-  SELECTOR_AT_RULE_NAMES: ["container", "layer", "media", "starting-style", "starting_style", "initial"]
+  SELECTOR_AT_RULE_NAMES: ["container", "layer", "media", "starting-style", "starting_style"]
   SELECTOR_WORD_CHAR: '\p{L}\p{N}_-'
   SELECTOR_WORD_PART_START: '[@][\p{L}\p{N}_]'
   SELECTOR_WORD: (?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)

@@ -18,6 +18,7 @@ const calls = vi.hoisted(() => ({
   finds: 0,
   played: 0,
   collapsed: 0,
+  collapseFinished: 0,
 }));
 
 vi.mock("../../src/modules/spark-editor/components/preview/Preview", () => ({
@@ -114,6 +115,9 @@ vi.mock("../../src/modules/spark-editor/workspace/Workspace", async () => {
             preview: { ...store.current.preview, revealed: false },
           };
         },
+        finishPreviewCollapse: () => {
+          calls.collapseFinished += 1;
+        },
       }),
     },
   };
@@ -177,6 +181,7 @@ beforeEach(() => {
   calls.finds = 0;
   calls.played = 0;
   calls.collapsed = 0;
+  calls.collapseFinished = 0;
   workspace.previewLine.value = null;
   workspace.editorHistory.value = {};
   workspace.scriptMode.value = "reading";
@@ -537,6 +542,7 @@ describe("the phone's preview strip", () => {
     await act(async () => {
       dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     });
+    await vi.waitFor(() => expect(calls.collapseFinished).toBe(1));
     await settle();
     expect(dialog.open).toBe(false);
     expect(players()[0]).toBe(player);
@@ -898,13 +904,14 @@ describe("naming the project on a phone", () => {
 });
 
 describe("the app menu on a phone", () => {
-  it("opens as a sheet when a finger opens it from the title bar, and hides the navigation while it is open", async () => {
+  it("opens as a sheet when a finger opens it from the title bar, and leaves the navigation in the layout from the tap until the sheet has gone", async () => {
     await mount();
     await act(async () => {
       const trigger = button("App menu")!;
       trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "touch", button: 0 }));
       trigger.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }));
     });
+    expect(navigation().hidden).toBe(false);
     await settle(250);
     const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
     expect(sheet.className).toContain("rounded-t-sheet");
@@ -912,9 +919,10 @@ describe("the app menu on a phone", () => {
     expect(sheet.textContent).not.toContain("Settings");
     expect(sheet.textContent).not.toContain("No account needed");
     expect(button("Close app menu")).not.toBeNull();
-    expect(navigation().hidden).toBe(true);
+    expect(navigation().hidden).toBe(false);
 
     await act(async () => button("Close app menu")!.click());
+    expect(navigation().hidden).toBe(false);
     await settle(250);
     expect(navigation().hidden).toBe(false);
   });

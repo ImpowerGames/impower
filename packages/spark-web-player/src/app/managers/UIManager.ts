@@ -3,6 +3,8 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
+import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
+import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
@@ -14,6 +16,7 @@ import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenVal
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
 import { getHiddenUntilAnimation } from "../../../../spark-dom/src/utils/getHiddenUntilAnimation";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
+import { BeatMarks } from "../utils/BeatMarks";
 import type { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
@@ -23,11 +26,17 @@ import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
+import { PresenceElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
 import {
   type PlayCutsceneParams,
   PlayCutsceneMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import {
+  type ShowingParams,
+  ShowingMessage,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
+import { SHOWING_ATTRIBUTE } from "../../../../spark-dom/src/utils/getStyleContent";
 import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
@@ -47,6 +56,7 @@ import {
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SpeechMessage";
 import type { ThemeVariables } from "../../../../sparkle-style-transformer/src/types/themeVariables";
 import { escapeCssIdentifier } from "../../../../sparkle-style-transformer/src/utils/themeVariableName";
+import { PRESENCE_ATTRIBUTE } from "../../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/utils/getCssPropertyNames";
 import type { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
@@ -96,6 +106,8 @@ interface PendingBeat {
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+type OverlayWithShowing = HTMLElement & { __sdShowing?: Map<string, number> };
 
 interface Cutscene {
   element: HTMLElement;
@@ -266,9 +278,20 @@ export default class UIManager extends Manager {
 
   protected _hold = new AnimationHold();
 
+  protected _layoutMotion = new LayoutMotion(this._hold);
+  protected _presence = new PresencePlayer(
+    this._hold,
+    () =>
+      this.app.overlay?.ownerDocument.defaultView?.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches ?? false,
+  );
+
   protected _heldAt?: number;
 
   protected _lag = 0;
+
+  protected _beatMarks = new BeatMarks();
 
   protected _themeKey = getThemeKey([]);
 
@@ -295,6 +318,11 @@ export default class UIManager extends Manager {
     if (morphs) {
       morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
       morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
+      morphs.keepWhole = (srcs) => (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(srcs);
+      morphs.residentPicture = (src) => {
+        const picture = (this.app.assets?.cache ?? this.app.assetCache)?.picture(src);
+        return picture ? { ...picture, image: picture.image as unknown as CanvasImageSource } : undefined;
+      };
     }
     this.beginReconcilePass();
     this.endCutscene(true);
@@ -418,6 +446,7 @@ export default class UIManager extends Manager {
       this.releaseMovies(el);
       this.morphs?.releaseWithin(el);
       endTravelsWithin(el);
+      this._presence.endWithin(el);
       el.remove();
     }
     this._staleIds.delete(id);
@@ -483,6 +512,8 @@ export default class UIManager extends Manager {
 
   override onDispose() {
     this.endSpeech();
+    this._layoutMotion.settle();
+    this._presence.endAll();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
       this.removeListeners(id);
@@ -506,8 +537,12 @@ export default class UIManager extends Manager {
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      this._beatMarks.dropped(pending.params);
       for (const op of pending.ops) {
-        if (AnimateElementsMessage.type.isRequest(op as RequestMessage)) {
+        if (
+          AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
+          PresenceElementsMessage.type.isRequest(op as RequestMessage)
+        ) {
           this.app.answer(
             op as RequestMessage,
             Promise.reject(new Error("the beat was called off")),
@@ -515,6 +550,7 @@ export default class UIManager extends Manager {
         }
       }
     }
+    this._beatMarks.clear();
   }
 
   protected followEnd(el: HTMLElement) {
@@ -526,10 +562,7 @@ export default class UIManager extends Manager {
     const atEnd = () =>
       el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_END_SLACK_PX;
     const toEnd = () => {
-      const reduce =
-        el.ownerDocument.defaultView?.matchMedia?.(
-          "(prefers-reduced-motion: reduce)",
-        ).matches ?? false;
+      const reduce = this.reducesMotion();
       follow.moving = true;
       if (typeof el.scrollTo === "function") {
         el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
@@ -592,6 +625,7 @@ export default class UIManager extends Manager {
 
   protected receiveBeat(params: BeatParams) {
     this.flushPendingBeat();
+    this._beatMarks.received(params);
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
@@ -599,6 +633,7 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
+    this._beatMarks.ready(params);
     if (!overlay || wait <= 0) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
       this.applyBeat(params, ops, plan);
@@ -656,6 +691,33 @@ export default class UIManager extends Manager {
     this.applyBeat(pending.params, pending.ops, pending.plan);
   }
 
+  protected applyShowing(params: ShowingParams) {
+    const overlay = this.app.overlay as OverlayWithShowing | undefined;
+    if (!overlay) {
+      return;
+    }
+    const counts = params.reset || !overlay.__sdShowing ? new Map<string, number>() : overlay.__sdShowing;
+    overlay.__sdShowing = counts;
+    for (const [name, change] of Object.entries(params.changes)) {
+      const count = (counts.get(name) ?? 0) + change;
+      if (count === 0) {
+        counts.delete(name);
+      } else {
+        counts.set(name, count);
+      }
+    }
+    const value = [...counts]
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .sort()
+      .join(" ");
+    if (value) {
+      overlay.setAttribute(SHOWING_ATTRIBUTE, value);
+    } else {
+      overlay.removeAttribute(SHOWING_ATTRIBUTE);
+    }
+  }
+
   protected shiftBeat(params: BeatParams, ops: IMessage[], shift: number) {
     if (shift === 0 || !Number.isFinite(shift)) {
       return;
@@ -707,11 +769,34 @@ export default class UIManager extends Manager {
     return wait >= 1 ? wait : 0;
   }
 
+  protected reducesMotion(): boolean {
+    return (
+      this.app.overlay?.ownerDocument.defaultView?.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches ?? false
+    );
+  }
+
+  protected measureLayouts(params: BeatParams, ops: IMessage[]) {
+    const overlay = this.app.overlay;
+    if (!overlay || params.time == null || this.reducesMotion()) {
+      this._layoutMotion.settle();
+      return undefined;
+    }
+    return this._layoutMotion.measure(overlay, () =>
+      ops.some((op) =>
+        namesLayoutTransition(JSON.stringify((op as { params?: unknown }).params ?? null)),
+      ),
+    );
+  }
+
   protected applyBeat(
     params: BeatParams,
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
   ) {
+    this._beatMarks.fired(params);
+    const layouts = this.measureLayouts(params, ops);
     for (const op of ops) {
       const decision = plan.get(op);
       if (decision !== "skip") {
@@ -722,6 +807,7 @@ export default class UIManager extends Manager {
       this._passBegun = false;
       this.sweepReconcile();
     }
+    this._layoutMotion.play(layouts);
   }
 
   protected applyBeatMessage(message: IMessage, decision?: WriteDecision) {
@@ -734,7 +820,10 @@ export default class UIManager extends Manager {
       } finally {
         this._decision = undefined;
       }
-      if (AnimateElementsMessage.type.isRequest(request)) {
+      if (
+        AnimateElementsMessage.type.isRequest(request) ||
+        PresenceElementsMessage.type.isRequest(request)
+      ) {
         this.app.answer(request, done);
       } else {
         done.catch((error) => {
@@ -1209,6 +1298,14 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
+      if (
+        reused &&
+        el.hasAttribute(PRESENCE_ATTRIBUTE) &&
+        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes)
+      ) {
+        this._presence.settle(el);
+        el.removeAttribute(PRESENCE_ATTRIBUTE);
+      }
       const sig = createSignature(this._themeKey, params);
       const changed = !reused || (el as any).__sdCreate !== sig;
       if (changed) {
@@ -1314,6 +1411,13 @@ export default class UIManager extends Manager {
       this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       if (element) {
+        const settled =
+          params.attributes && PRESENCE_ATTRIBUTE in params.attributes
+            ? this._presence.change(
+                element,
+                params.attributes[PRESENCE_ATTRIBUTE] ?? null,
+              )
+            : undefined;
         if (params.content != undefined) {
           this.morphs?.releaseWithin(element);
           endTravelsWithin(element);
@@ -1362,6 +1466,7 @@ export default class UIManager extends Manager {
             element.style.cssText = "";
           }
         }
+        settled?.();
       }
       return UpdateElementMessage.type.result(params.element);
     }
@@ -1411,6 +1516,24 @@ export default class UIManager extends Manager {
       }
       return AnimateElementsMessage.type.result(validEffects);
     }
+    if (PresenceElementsMessage.type.isRequest(msg)) {
+      const played: string[] = [];
+      const motions: Promise<void>[] = [];
+      for (const effect of msg.params.effects) {
+        const element = effect.element ? this.getElement(effect.element) : undefined;
+        if (element?.isConnected) {
+          played.push(effect.element);
+          const presence = this._presence.play(element, effect.presence);
+          motions.push(
+            effect.presence === "hide"
+              ? presence.then(() => this._layoutMotion.finished(element))
+              : presence,
+          );
+        }
+      }
+      await Promise.all(motions);
+      return PresenceElementsMessage.type.result(played);
+    }
     if (PlayCutsceneMessage.type.isRequest(msg)) {
       await this.playCutscene(msg.params, (msg as StreamMessage).epoch);
       return PlayCutsceneMessage.type.result(null);
@@ -1442,6 +1565,10 @@ export default class UIManager extends Manager {
     }
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat();
+    }
+    if (ShowingMessage.type.isNotification(msg)) {
+      this.applyShowing(msg.params);
+      return;
     }
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass(msg.params?.content === true);
@@ -2122,7 +2249,11 @@ export default class UIManager extends Manager {
             for (const pictureEl of pictureEls) {
               placePicture(pictureEl, instruction.framing);
             }
-          } else if (instruction.control === "hide") {
+          }
+          if (travel || instruction.control === "show") {
+            this.morphs?.requestRelayout();
+          }
+          if (instruction.control === "hide") {
             for (const pictureEl of pictureEls) {
               hiding.push({ pictureEl, exits: targetAnimations });
             }
@@ -2182,14 +2313,19 @@ export default class UIManager extends Manager {
               content.video && !video
                 ? content.srcs.filter((src) => src !== content.video?.src)
                 : content.srcs;
-            if (content.morph && instruction.control !== "hide") {
+            const morph = instruction.control !== "hide" ? content.morph : undefined;
+            const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
+            const composited = new Set(pictures.flatMap((picture) => picture.files.map((file) => file.src)));
+            (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs.filter((src) => !composited.has(src)));
+            if (morph || pictures.length > 0) {
               this.morphs?.mount(
                 newSpanEl,
-                content.morph,
+                morph ?? { plays: [], epoch: 0 },
                 content.background,
                 property === "mask_image" ? "mask" : "background",
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
                 morphGroup,
+                pictures,
               );
             }
             if (instruction.control === "show") {

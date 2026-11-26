@@ -122,8 +122,7 @@
       "layer",
       "media",
       "starting-style",
-      "starting_style",
-      "initial"
+      "starting_style"
     ],
     "SELECTOR_WORD_CHAR": "\\p{L}\\p{N}_-",
     "SELECTOR_WORD_PART_START": "[@][\\p{L}\\p{N}_]",
@@ -7698,7 +7697,7 @@
       "end": "(?=$|.)"
     },
     "SelectorAtRule": {
-      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style|initial)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
+      "begin": "([@])((?<![0-9_\\p{L}]|[0-9_\\p{L}][@])(?:container|layer|media|starting-style|starting_style)(?![0-9_\\p{L}]|[@][0-9_\\p{L}]))(?!(?:[\\p{L}\\p{N}_-]|[@][\\p{L}\\p{N}_]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -11197,25 +11196,6 @@
       "name": "constant.other.keyframe-selector.sd",
       "match": "(?<![\\w.%@-])(?:from|to|[-+]?(?:\\d*[.])?\\d+%)(?![\\w.%@-])"
     },
-    "LuauElementAttribute": {
-      "patterns": [
-        {
-          "include": "#RequiredWhitespace"
-        },
-        {
-          "include": "#LuauComment"
-        },
-        {
-          "include": "#SparkdownLineComment"
-        },
-        {
-          "include": "#LuauEventAttribute"
-        },
-        {
-          "include": "#LuauPropAttribute"
-        }
-      ]
-    },
     "LuauSparkleEventHandlerName": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
@@ -11292,50 +11272,6 @@
           ]
         }
       }
-    },
-    "LuauPropAttribute": {
-      "begin": "([#])((?:[-]{2})?(?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_])))(?:[-](?:[a-zA-Z_][a-zA-Z0-9_]*(?:@[a-zA-Z0-9_]+)*(?![a-zA-Z0-9_]|(?:@[a-zA-Z0-9_]))))*)((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StyleAttributeOperator"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#StyleAttributeName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#EqualOperator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#LuauFunctionCallShorthand"
-        },
-        {
-          "include": "#LuauInterpolatedStringExpression"
-        },
-        {
-          "include": "#LuauElementContentStringInterpolated"
-        },
-        {
-          "include": "#InlinePropQuotedValue"
-        },
-        {
-          "include": "#InlinePropLiteralValue"
-        }
-      ],
-      "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
     },
     "LuauElementContentStringInterpolated": {
       "tag": "string",
@@ -11507,7 +11443,16 @@
               "include": "#LuauStructBlockKeyString"
             },
             {
-              "include": "#LuauElementAttribute"
+              "include": "#RequiredWhitespace"
+            },
+            {
+              "include": "#LuauComment"
+            },
+            {
+              "include": "#SparkdownLineComment"
+            },
+            {
+              "include": "#LuauEventAttribute"
             },
             {
               "include": "#LuauKeyframeSelector"
@@ -13616,10 +13561,10 @@
           "include": "#LuauScreenNameHeader"
         },
         {
-          "include": "#LuauStructWithBody"
+          "include": "#LuauSparkleWithBody"
         },
         {
-          "include": "#LuauStructBraceBody"
+          "include": "#LuauSparkleBraceBody"
         },
         {
           "include": "#ExtraWhitespace"

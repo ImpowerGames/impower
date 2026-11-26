@@ -525,6 +525,7 @@
   --script-header-height: 68px;
   --preview-top-bar-height: 52px;
   --preview-bar-height: 62px;
+  --writer-bar-height: 62px;
   --preview-strip-height: 91px;
   --preview-strip-tablet-height: 104px;
   --bottom-navigation-height: 65px;
@@ -543,6 +544,7 @@
 [data-layout="compact"],
 [data-layout="phone"] {
   --preview-bar-height: 52px;
+  --writer-bar-height: 52px;
 }
 
 :root[data-layout="compact"] {

@@ -27,6 +27,7 @@ export interface RenderContext {
   state: Record<string, any>;
   scope?: Record<string, any>;
   options: RendererOptions;
+  afterCombinator?: boolean;
 }
 
 export function renderCssVDOM(
@@ -271,10 +272,15 @@ export function renderVNode(
     if (type === "property" && args?.["key"]) {
       return sparklePropertyToCssProperty(args?.["key"], args?.["value"], ctx.options.theme, cssAliases);
     }
-    const selfTargetedSelector = anchorSelfTargeted(sparkleSelectorToCssSelector(type, breakpoints));
+    const selector = sparkleSelectorToCssSelector(type, breakpoints, ctx.afterCombinator);
+    if (selector === undefined) {
+      return "";
+    }
+    const selfTargetedSelector = anchorSelfTargeted(selector.css);
+    const blockCtx = selector.afterCombinator ? { ...ctx, afterCombinator: true } : ctx;
     const blockContent = (children ?? [])
       .map((c, i) => {
-        return renderVNode(c, ctx, el, i) as string;
+        return renderVNode(c, blockCtx, el, i) as string;
       })
       .join(" ");
     return `${selfTargetedSelector} { ${blockContent} }`;

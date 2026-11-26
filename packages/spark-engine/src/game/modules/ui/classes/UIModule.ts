@@ -8,11 +8,11 @@ import {
   LayoutVerb,
   isLayoutVerb,
 } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveImageLayers";
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
-import type { LayeredMorphFile } from "@impower/sparkdown/src/morph/layered";
 import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
@@ -32,6 +32,8 @@ import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
+import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
+import { pageKey } from "../../../core/utils/pageKey";
 import {
   BOOLEAN_ATTRIBUTES,
   DISPLAY_TARGET_ATTRIBUTE,
@@ -39,6 +41,7 @@ import {
   HANDLER_ATTRIBUTE,
   isAttributeProp,
   isReservedAttribute,
+  PRESENCE_ATTRIBUTE,
   toDataAttributeName,
   WIDGET_CONTROL_ATTRIBUTE,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
@@ -55,7 +58,13 @@ import type {
   PropValue,
   SlotNode,
   LayoutNode,
+  ScreenNode,
+  StreamNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
+import {
+  isStream,
+  layoutStreams,
+} from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import {
   AbstractValue,
   BoolValue,
@@ -66,6 +75,7 @@ import {
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import type { BeatSpeech, Instructions } from "../../../core/types/Instructions";
+import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
@@ -82,6 +92,7 @@ import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { Animation } from "../types/Animation";
+import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
 import type { ElementState } from "../types/ElementState";
@@ -93,6 +104,7 @@ import {
   type PageRecord,
   type PageState,
 } from "../types/PageState";
+import type { StreamEntry, StreamState } from "../types/StreamState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
@@ -146,6 +158,11 @@ import {
   type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
+  PresenceElementsMessage,
+  type PresenceElementsMessageMap,
+  type PresenceMotion,
+} from "./messages/PresenceElementsMessage";
+import {
   PlayCutsceneMessage,
   type PlayCutsceneMessageMap,
   type PlayCutsceneParams,
@@ -158,6 +175,10 @@ import {
   COLOR_SCHEME_SETTINGS,
   type ColorSchemeSetting,
 } from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
+import {
+  ShowingMessage,
+  type ShowingMessageMap,
+} from "./messages/ShowingMessage";
 import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
@@ -178,6 +199,7 @@ import {
   type MorphImageContent,
   type MorphLayerPlay,
   type MorphPicture,
+  type LayeredPicture,
   type MorphPlay,
   type PictureFraming,
   type PictureTravel,
@@ -191,14 +213,24 @@ import {
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
-function pictureFileName(file: LayeredMorphFile): string {
+function pictureFileName(file: { src: string; uri?: string; name?: string }): string {
   const path = file.uri ?? file.src;
   const leaf = path.slice(path.lastIndexOf("/") + 1).split(/[?#]/)[0] ?? "";
+  const name = file.name ?? "";
   try {
-    return decodeURIComponent(leaf) || file.name;
+    return decodeURIComponent(leaf) || name;
   } catch {
-    return leaf || file.name;
+    return leaf || name;
   }
+}
+
+function isImageFile(layer: ImageLayer): boolean {
+  const struct = layer.struct;
+  if (struct?.$type !== "image") {
+    return false;
+  }
+  const ext = typeof struct.ext === "string" ? struct.ext.toLowerCase() : "";
+  return ext !== "svg" && !/^data:image\/svg\+xml/i.test(layer.src) && !/\.svg(?:[?#]|$)/i.test(layer.uri ?? "");
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -233,13 +265,59 @@ interface PictureView {
   framing?: PictureFraming;
   picture: boolean;
   travelStart?: number;
+  show?: ImageInstruction;
+}
+
+interface ShownPicture {
+  asset: string;
+  pick?: ImagePick;
 }
 
 interface Retirement {
+  name?: string;
+  held: Set<string>;
   element: Element;
   epoch: number;
   pin?: string;
 }
+
+type ContentKind = "text" | "image";
+
+type LeaveHide = (keepShown: boolean) => void;
+
+interface Leave {
+  kind: ContentKind;
+  hide: LeaveHide;
+  moves: boolean;
+}
+
+interface PresenceRecord {
+  presence: PresenceMotion;
+  leave?: Leave;
+  retiring?: Retirement;
+}
+
+const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
+  show: /@(?:initial|show)(?![\p{L}\p{N}_-])/u,
+  hide: /@hide(?![\p{L}\p{N}_-])/u,
+};
+
+const presenceAttributes = (mark: Record<string, string | null>) =>
+  Object.keys(mark).length > 0 ? { attributes: mark } : {};
+
+const pictureHide = (
+  sequence: ImageInstruction[],
+): "plain" | "timed" | undefined => {
+  let hide: "plain" | "timed" | undefined;
+  for (const e of sequence) {
+    if (e.control === "show" && e.assets?.length) {
+      hide = undefined;
+    } else if (e.control === "hide" && !e.assets?.length) {
+      hide = e.with || e.after || e.over ? "timed" : "plain";
+    }
+  }
+  return hide;
+};
 
 interface Composition {
   kind: "display" | "beat";
@@ -250,6 +328,7 @@ interface Composition {
   ending?: boolean;
   time?: number;
   sweep?: boolean;
+  source?: ScriptLocation;
   standing?: StandingScreen;
   empty?: { text: Set<Element>; image: Set<Element> };
 }
@@ -279,11 +358,14 @@ export interface UIState {
   layout?: { name: string; screen?: string }[];
   displayMode?: StartingDisplayMode;
   page?: PageState;
+  streams?: Record<string, StreamState>;
 }
 
 const PAGE_COLUMN = "textstream_column";
 
 const PAGE_SCROLLER = "textstream";
+
+const streamKey = (layout: string, index: number) => `${layout}/${index}`;
 
 type ReactiveEnv = Record<string, unknown>;
 
@@ -376,7 +458,21 @@ interface SlotRegion {
 
 type ReactiveRegion = CondRegion | ForRegion | ComponentRegion | SlotRegion;
 
-type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
+type SlotMap = Map<
+  string,
+  {
+    children: BodyNode[];
+    scope: ReactiveScope;
+    host?: (region: SlotRegion) => void;
+  }
+>;
+
+interface ScreenFrame {
+  element: Element;
+  scope: ReactiveScope;
+  hosts: WeakSet<SlotRegion>;
+  fallback?: SlotRegion;
+}
 
 interface ReactiveScope {
   env: ReactiveEnv;
@@ -385,7 +481,25 @@ interface ReactiveScope {
   attrs: ReactiveAttr[];
   styles: ReactiveStyle[];
   sliderFills: ReactiveSliderFill[];
+  streams: MountedStream[];
   slots?: SlotMap;
+}
+
+interface StreamEntryView {
+  group: ReactiveGroup;
+  scope: ReactiveScope;
+  written: Record<string, string>;
+  typed: boolean;
+}
+
+interface MountedStream {
+  key: string;
+  element: Element;
+  node: StreamNode;
+  scope: ReactiveScope;
+  entries: StreamEntryView[];
+  rendered: string[];
+  latest?: StreamEntryView;
 }
 
 const INPUT_WIDGETS: Record<
@@ -454,6 +568,9 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 const CUTSCENE_MUSIC_FADE = 0.5;
 
+const SHOWING_CONDITION =
+  /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)\s*\)/gu;
+
 export const UNKNOWN_COLOR_SCHEME_MESSAGE =
   "ui.color_scheme must be system, light or dark. Using system.";
 
@@ -466,7 +583,9 @@ export type UIMessageMap = AnimateElementsMessageMap &
   MoveElementMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
+  PresenceElementsMessageMap &
   SetThemeMessageMap &
+  ShowingMessageMap &
   SkipCutsceneMessageMap &
   SpeechMessageMap &
   SweepReconcileMessageMap &
@@ -492,6 +611,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _retiring = new Set<Retirement>();
 
+  protected _motion = false;
+
+  protected _contents = new WeakMap<Element, Set<ContentKind>>();
+
+  protected _presence = new Map<Element, PresenceRecord>();
+
+  protected _leaving = new Map<Element, Leave>();
+
+  protected _leavingScheduled = false;
+
+  protected _presenceStyles?: {
+    styles: unknown;
+    blocks: Record<PresenceMotion, boolean>;
+  };
+
   protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
 
   protected _events: Partial<
@@ -499,6 +633,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  protected _showingStyles?: unknown;
+
+  protected _showingWatched: ReadonlySet<string> = new Set();
+
+  protected _showingSent?: Map<string, number>;
+
+  protected _showingHidden = new WeakSet<Element>();
+
+  protected _showingContent = new WeakSet<Element>();
 
   protected _reactive = false;
 
@@ -536,6 +680,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onStart(): void {
     this._refreshAll = true;
     this.page.started();
+    this.streams.started();
   }
 
   protected evalBinding(binding: Binding, env?: ReactiveEnv): unknown {
@@ -590,6 +735,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onReset() {
     this._events = {};
     this._mountedLayouts = new Map();
+    this._mountedScreens = new Map();
     this._morphEpoch += 1;
     this._clearedPictures = undefined;
   }
@@ -598,6 +744,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphEpoch += 1;
     this._clearedPictures = undefined;
     this.page.loaded();
+    this.streams.loaded();
   }
 
   override onPreview() {
@@ -778,6 +925,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   async onRedisplay() {
     const standing = this._standing;
     this.discardCompose();
+    this.setMotion(false);
     this._presentation += 1;
     this._standing = undefined;
     this._building = undefined;
@@ -917,6 +1065,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphWritten.clear();
     this._morphBaking = new Set();
     this.discardCompose();
+    this._showingSent = undefined;
+    this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
     this._tree = undefined;
@@ -947,6 +1097,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.loadTheme(themeVariables);
     this._root = undefined;
     this.page.forget();
+    this.streams.forget();
     this._root = this.getOrCreateRootElement();
     this._events = {};
     this._reactive = true;
@@ -1030,6 +1181,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     this.page.restore();
+    this.streams.restore();
     await Promise.all(tasks);
   }
 
@@ -1060,12 +1212,161 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
     this.markDisplayTargets();
+    this.noteShowing();
     if (this._uiBatch.length === 0) {
       return;
     }
     const messages = this._uiBatch;
     this._uiBatch = [];
     this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
+  protected showingWatched(): ReadonlySet<string> {
+    const styles = this.context?.style;
+    if (styles !== this._showingStyles) {
+      this._showingStyles = styles;
+      const watched = new Set<string>();
+      const scan = (value: unknown) => {
+        if (!value || typeof value !== "object") {
+          return;
+        }
+        for (const [key, inner] of Object.entries(value)) {
+          for (const match of key.matchAll(SHOWING_CONDITION)) {
+            watched.add(match[1]!);
+          }
+          scan(inner);
+        }
+      };
+      scan(styles);
+      this._showingWatched = watched;
+    }
+    return this._showingWatched;
+  }
+
+  protected pictureShown(events: ImageState[] | undefined): boolean {
+    const picture = events?.findLast((e) => e.assets?.length);
+    const layer = events?.findLast(
+      (e) => !e.assets?.length && e.control !== "animate",
+    );
+    return picture?.control === "show" && layer?.control !== "hide";
+  }
+
+  showingNames(): string[] {
+    return [...this.showingClaims().keys()].sort();
+  }
+
+  protected showingClaims(): Map<string, number> {
+    const watched = this.showingWatched();
+    const claims = new Map<string, number>();
+    const claim = (names: Iterable<string>) => {
+      for (const name of new Set(names)) {
+        if (watched.has(name)) {
+          claims.set(name, (claims.get(name) ?? 0) + 1);
+        }
+      }
+    };
+    claim([
+      ...this._mountedLayouts.keys(),
+      ...(this._root ? this.heldNames(this._root) : []),
+    ]);
+    for (const retiring of this._retiring) {
+      claim(retiring.name ? [retiring.name, ...retiring.held] : [...retiring.held]);
+    }
+    return claims;
+  }
+
+  protected heldNames(root: Element): Set<string> {
+    const held = new Set<string>();
+    const written = new Set<Element>();
+    const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of this.findElements(target, true)) {
+        written.add(el);
+        for (const leaf of leaves) {
+          for (const child of this.getContentElements(el, leaf)) {
+            written.add(child);
+          }
+        }
+      }
+    };
+    for (const [target, state] of Object.entries(this._state.text ?? {})) {
+      if (state?.length) {
+        write(target, ["text", "stroke"]);
+      }
+    }
+    for (const [target, events] of Object.entries(this._state.image ?? {})) {
+      if (this.pictureShown(events)) {
+        write(target, ["image", "mask"]);
+      }
+    }
+    const visit = (el: Element): boolean => {
+      if (this._showingHidden.has(el)) {
+        return false;
+      }
+      let holds = this._showingContent.has(el) || written.has(el);
+      for (const child of el.children) {
+        if (visit(child)) {
+          holds = true;
+        }
+      }
+      const tag = el.name.split(" ")[0];
+      if (holds && tag) {
+        held.add(tag);
+      }
+      return holds;
+    };
+    visit(root);
+    return held;
+  }
+
+  protected noteHidden(element: Element, hidden: boolean): void {
+    if (hidden) {
+      this._showingHidden.add(element);
+    } else {
+      this._showingHidden.delete(element);
+    }
+  }
+
+  protected noteElementShowing(
+    element: Element,
+    state: ElementState | undefined,
+  ): void {
+    const content = state?.content;
+    if (content && "text" in content) {
+      if (content.text) {
+        this._showingContent.add(element);
+      } else {
+        this._showingContent.delete(element);
+      }
+    }
+  }
+
+  protected noteShowing(retired = false): void {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return;
+    }
+    const sent = this._showingSent;
+    if (this.showingWatched().size === 0 && !sent?.size) {
+      return;
+    }
+    const claims = this.showingClaims();
+    const changes: Record<string, number> = {};
+    for (const name of [...new Set([...claims.keys(), ...(sent?.keys() ?? [])])].sort()) {
+      const change = (claims.get(name) ?? 0) - (sent?.get(name) ?? 0);
+      if (change !== 0) {
+        changes[name] = change;
+      }
+    }
+    if (sent && Object.keys(changes).length === 0) {
+      return;
+    }
+    this._showingSent = claims;
+    this._uiBatch.push(
+      ShowingMessage.type.notification({
+        changes,
+        ...(sent ? {} : { reset: true }),
+        ...(retired ? { retired } : {}),
+      }),
+    );
   }
 
   protected displayTargetElements(root: Element, target: string): Element[] {
@@ -1191,6 +1492,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  composeSource(source: ScriptLocation | undefined): void {
+    if (this._compose && source) {
+      this._compose.source = source;
+    }
+  }
+
   async endCompose(options: { time?: number; sweep?: boolean } = {}) {
     const c = this._compose;
     if (!c || c.ending) {
@@ -1216,6 +1523,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         messages: c.messages,
         ...(c.time != null ? { time: c.time } : {}),
         ...(c.sweep ? { sweep: true } : {}),
+        ...(c.source
+          ? { source: this._game.getDocumentLocation(c.source) }
+          : {}),
       }),
     );
     if (c.standing) {
@@ -1230,6 +1540,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (c) {
       this._compose = undefined;
       this._uiBatch = [];
+      this._showingSent = undefined;
       for (const id of c.expected.splice(0)) {
         this._game.connection.cancel(id, {
           code: SUPERSEDED,
@@ -1346,7 +1657,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       c.messages.push(structuredClone(msg));
       return { result: params.target };
     }
-    if (AnimateElementsMessage.type.isRequest(msg as any)) {
+    if (
+      AnimateElementsMessage.type.isRequest(msg as any) ||
+      PresenceElementsMessage.type.isRequest(msg as any)
+    ) {
       c.messages.push(structuredClone(msg));
       c.expected.push((msg as RequestMessage).id);
       return {
@@ -1369,6 +1683,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
+    this.noteElementShowing(el, state);
     this._screenEdits += 1;
     if (this.carriesDisplayTarget(el)) {
       this._displayTargetsChanged = true;
@@ -1412,6 +1727,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ...state,
       style: { ...(state?.style || {}), [property]: background },
     });
+    if (background) {
+      this._showingContent.add(el);
+    }
     if (src) {
       this.createElement(el, {
         name: "object",
@@ -1508,6 +1826,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       empty.text.delete(element);
       empty.image.delete(element);
     }
+    this.noteElementShowing(element, state);
     this.enqueueUI(
       UpdateElementMessage.type.request({
         element: element.id,
@@ -1537,6 +1856,257 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  setMotion(motion: boolean): void {
+    if (!motion) {
+      this.settlePresence();
+    }
+    this._motion = motion;
+  }
+
+  protected moving(): boolean {
+    return (
+      this._motion &&
+      this._reactive &&
+      !this._game.replaying &&
+      !this.context?.system?.simulating &&
+      this.context?.system?.transitions !== false &&
+      this._compose?.kind !== "display"
+    );
+  }
+
+  protected styled(presence: PresenceMotion): boolean {
+    const styles = this.context?.style;
+    let cached = this._presenceStyles;
+    if (!cached || cached.styles !== styles) {
+      const blocks: Record<PresenceMotion, boolean> = {
+        show: false,
+        hide: false,
+      };
+      const visit = (value: unknown) => {
+        if (value == null || typeof value !== "object") {
+          return;
+        }
+        for (const [key, inner] of Object.entries(value)) {
+          if (inner == null || typeof inner !== "object") {
+            continue;
+          }
+          for (const motion of ["show", "hide"] as const) {
+            if (PRESENCE_BLOCKS[motion].test(key)) {
+              blocks[motion] = true;
+            }
+          }
+          visit(inner);
+        }
+      };
+      for (const [name, style] of Object.entries(styles ?? {})) {
+        if (!name.startsWith("$")) {
+          visit(style);
+        }
+      }
+      cached = { styles, blocks };
+      this._presenceStyles = cached;
+    }
+    return cached.blocks[presence];
+  }
+
+  protected attached(element: Element): boolean {
+    let node = element;
+    while (node.parent) {
+      if (!node.parent.children.includes(node)) {
+        return false;
+      }
+      node = node.parent;
+    }
+    return node === this._root;
+  }
+
+  protected contentsOf(element: Element): Set<ContentKind> {
+    let contents = this._contents.get(element);
+    if (!contents) {
+      contents = new Set();
+      this._contents.set(element, contents);
+    }
+    return contents;
+  }
+
+  protected arrives(element: Element, kind: ContentKind, moving: boolean): boolean {
+    const contents = this.contentsOf(element);
+    const pending = this._leaving.get(element);
+    this._leaving.delete(element);
+    const outgoing = pending ?? this._presence.get(element)?.leave;
+    if (outgoing && outgoing.kind !== kind) {
+      outgoing.hide(true);
+    }
+    const shown = Boolean(pending) || contents.size > 0;
+    contents.add(kind);
+    return !shown && moving && this.styled("show");
+  }
+
+  protected leaves(element: Element, kind: ContentKind, hide: LeaveHide): boolean {
+    const departing =
+      this._leaving.get(element) ?? this._presence.get(element)?.leave;
+    if (this.moving() && departing) {
+      if (this.contentsOf(element).delete(kind) && departing.kind !== kind) {
+        const first = departing.hide;
+        departing.hide = (keepShown) => {
+          hide(true);
+          first(keepShown);
+        };
+      }
+      return true;
+    }
+    const contents = this.contentsOf(element);
+    if (!contents.delete(kind) || contents.size > 0 || !this.moving()) {
+      return false;
+    }
+    const moves = this.styled("hide");
+    if (!moves && !this.styled("show")) {
+      return false;
+    }
+    this._leaving.set(element, { kind, hide, moves });
+    if (!this._leavingScheduled) {
+      this._leavingScheduled = true;
+      queueMicrotask(() => this.startLeaving());
+    }
+    return true;
+  }
+
+  protected startLeaving(): void {
+    this._leavingScheduled = false;
+    const leaving = new Map<Element, Leave>();
+    for (const [element, leave] of this._leaving) {
+      if (leave.moves) {
+        leaving.set(element, leave);
+      } else if (this.attached(element)) {
+        this._presence.delete(element);
+        leave.hide(false);
+      }
+    }
+    this._leaving.clear();
+    if (leaving.size === 0) {
+      return;
+    }
+    void this.present([...leaving.keys()], "hide", (element) => ({
+      leave: leaving.get(element),
+    })).then((ended) => {
+      for (const [element, leave] of leaving) {
+        if (ended.has(element) && this.attached(element)) {
+          leave.hide(false);
+        }
+      }
+    });
+  }
+
+  protected settlePresence(): void {
+    const leaving = [...this._leaving];
+    this._leaving.clear();
+    const motions = [...this._presence];
+    this._presence.clear();
+    for (const [element, leave] of leaving) {
+      if (this.attached(element)) {
+        leave.hide(false);
+      }
+    }
+    for (const [element, motion] of motions) {
+      if (motion.retiring) {
+        this.retire(motion.retiring);
+      } else if (!this.attached(element)) {
+        continue;
+      } else if (motion.leave) {
+        motion.leave.hide(false);
+      } else {
+        this.updateElement(element, {
+          attributes: { [PRESENCE_ATTRIBUTE]: null },
+        });
+      }
+    }
+  }
+
+  protected presenceMark(
+    element: Element,
+    arrives: boolean,
+  ): Record<string, string | null> {
+    this._leaving.delete(element);
+    if (arrives) {
+      this._presence.delete(element);
+      return { [PRESENCE_ATTRIBUTE]: "initial" };
+    }
+    if (this._presence.get(element)?.presence === "hide") {
+      this._presence.delete(element);
+      return { [PRESENCE_ATTRIBUTE]: null };
+    }
+    return {};
+  }
+
+  protected settleMark(element: Element): Record<string, string | null> {
+    this._leaving.delete(element);
+    return this._presence.delete(element) ? { [PRESENCE_ATTRIBUTE]: null } : {};
+  }
+
+  protected present(
+    elements: Element[],
+    presence: PresenceMotion,
+    record?: (element: Element) => Omit<PresenceRecord, "presence">,
+  ): Promise<Set<Element>> {
+    const motions = new Map<Element, PresenceRecord>();
+    for (const element of elements) {
+      const motion = { presence, ...record?.(element) };
+      motions.set(element, motion);
+      this._presence.set(element, motion);
+    }
+    this.flushUIBatch();
+    return this.emitSettled(
+      PresenceElementsMessage.type.request({
+        effects: elements.map((element) => ({
+          element: element.id,
+          presence,
+        })),
+      }),
+    ).then(() => {
+      const ended = new Set<Element>();
+      for (const [element, motion] of motions) {
+        if (this._presence.get(element) === motion) {
+          this._presence.delete(element);
+          ended.add(element);
+        }
+      }
+      return ended;
+    });
+  }
+
+  protected arrive(elements: Element[]): void {
+    if (elements.length === 0) {
+      return;
+    }
+    for (const element of elements) {
+      this.updateElement(element, {
+        attributes: this.presenceMark(element, true),
+      });
+    }
+    void this.present(elements, "show");
+  }
+
+  protected retireElement(element: Element, name?: string, pin?: string): void {
+    const retiring: Retirement = {
+      ...(name ? { name } : {}),
+      held: this.heldNames(element),
+      element,
+      epoch: this._game.connection.epoch,
+      ...(pin ? { pin } : {}),
+    };
+    element.remove();
+    this._retiring.add(retiring);
+    void this.present([element], "hide", () => ({ retiring })).then(() =>
+      this.retire(retiring),
+    );
+  }
+
+  protected forgetPresence(): void {
+    this._motion = false;
+    this._presence.clear();
+    this._leaving.clear();
+  }
+
   protected conceal() {
     const target = this.context.config?.ui?.layouts_element_name;
     if (target) {
@@ -1559,6 +2129,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   show(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, false);
       this.updateElement(targetEl, { style: { display: "flex" } });
     }
   }
@@ -1571,6 +2142,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   hide(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, true);
       this.updateElement(targetEl, {
         style: { display: "none" },
       });
@@ -1604,9 +2176,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick): Image[] {
+  getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
+    const time = (value: number | string | undefined) =>
+      typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
+        ? `${value}s`
+        : value || "0s";
+    const easing = timing?.easing;
+    const ease = easing ? this.context?.ease?.[easing] : undefined;
+    const iterations = timing?.iterations;
+    const fill = timing?.fill;
+    return [
+      time(timing?.duration),
+      (ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing) || "ease",
+      time(timing?.delay),
+      iterations === Infinity ? "infinite" : (iterations?.toString() ?? "1"),
+      timing?.direction || "normal",
+      !fill || fill === "auto" ? "none" : fill,
+      "running",
+      escapeCssIdentifier(name),
+    ].join(" ");
+  }
+
+  getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {
     const imageName = sortFilteredName(name);
-    const look = this.pictureLook(type, name, pick);
+    const look = this.pictureLook(type, name, pick, from);
     const layers = !look
       ? []
       : !poseOf || poseOf === morphRestPose
@@ -1665,9 +2258,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return id;
   }
 
-  pictureLook(type: string, name: string, pick?: ImagePick): PictureLook | undefined {
+  pictureLook(type: string, name: string, pick?: ImagePick, from?: ShownPicture): PictureLook | undefined {
     const imageName = sortFilteredName(name);
-    const key = JSON.stringify([type, imageName, this.pickKey(pick)]);
+    const key = JSON.stringify([type, imageName, this.pickKey(pick), from === undefined ? null : [sortFilteredName(from.asset), this.pickKey(from.pick)]]);
     const cached = this._pictureLooks?.get(key);
     if (cached) {
       return cached;
@@ -1676,9 +2269,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!image) {
       return undefined;
     }
+    const before = from === undefined ? undefined : resolveImageReference(this.context, { $type: "", $name: sortFilteredName(from.asset) });
     const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
       ...(pick === undefined ? {} : { pick }),
       startPose: this.morphStartPose,
+      ...(before ? { from: { struct: before, ...(from!.pick === undefined ? {} : { pick: from!.pick }) } } : {}),
     });
     this._pictureLooks?.set(key, look);
     return look;
@@ -1709,7 +2304,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const layout = this._game.program?.sparkle?.layouts?.[layoutName];
     const components = this._game.program?.sparkle?.components ?? {};
-    const classes = new Set<string>(["layouts", "main", layoutName]);
+    const classes = new Set<string>([
+      "layouts",
+      "main",
+      layoutName,
+      this.layoutRootName(layoutName),
+    ]);
     const propValues: [string, string][] = [];
     const expanded = new Set<string>();
     const visit = (nodes: unknown[] | undefined) => {
@@ -1741,6 +2341,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         visit(n["children"]);
+        visit(n["templates"]);
         visit(n["else"]);
         for (const branch of n["branches"] ?? []) {
           visit(branch?.children);
@@ -1751,6 +2352,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     visit(layout?.children);
+    const screen = layout?.screen
+      ? this._game.program?.sparkle?.screens?.[layout.screen]
+      : undefined;
+    if (screen?.children?.length) {
+      classes.add(this.screenRootName(screen));
+      visit(screen.children);
+    }
     const byFamily = new Map<string, string[]>();
     for (const fontName of fontNames) {
       const family = fonts[fontName]?.font_family;
@@ -1836,6 +2444,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _morphEpoch = 0;
 
+  protected _morphChanges = 0;
+
   protected _colorSchemeReported = false;
 
   protected _morphConflicts = new Set<string>();
@@ -1911,24 +2521,49 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return picks.every((pick) => pick === picks[0]) ? picks[0] : decide;
   }
 
-  getMorphContent(assets: string[], pickOf: (asset: string) => ImagePick | undefined): MorphImageContent | undefined {
+  protected pictureRoot(asset: string): unknown {
+    if (asset.at(0) === '"' && asset.at(-1) === '"') {
+      return undefined;
+    }
+    const image = resolveImageReference(this.context, { $type: "", $name: sortFilteredName(asset) });
+    return image ? resolveImageAttributes(this.context, image, { visibility: false }).image : undefined;
+  }
+
+  getMorphContent(
+    assets: string[],
+    pickOf: (asset: string) => ImagePick | undefined,
+    shown: readonly ShownPicture[] = [],
+  ): MorphImageContent | undefined {
     const channel = this._game.program?.morphs;
     if (!channel || !this.context) {
       return undefined;
     }
+    const unpaired = channel.change ? shown.map((before) => ({ before, root: this.pictureRoot(before.asset) })) : [];
+    if (unpaired.length > 0) {
+      this._morphChanges += 1;
+    }
+    const froms = assets.map((asset) => {
+      const root = unpaired.length > 0 ? this.pictureRoot(asset) : undefined;
+      const at = root === undefined ? -1 : unpaired.findIndex((old) => old.root === root);
+      return at < 0 ? undefined : unpaired.splice(at, 1)[0]!.before;
+    });
     const plays: MorphLayerPlay[] = [];
     const playsOf = (ref: MorphRef, owner: string | undefined): MorphPlay[] => {
       this.deliverMorphArtifact(ref);
       return ref.morphs.map((morph) => {
         const timing = this.morphTiming(morph);
-        const motion = buildMorphMotion(this.context.morph?.[morph]?.keyframes);
+        const changed = ref.recipes?.[morph];
+        const motion = changed === undefined ? buildMorphMotion(this.context.morph?.[morph]?.keyframes) : undefined;
+        const recipe = changed ?? channel.recipes[morph] ?? "";
         return {
           ref,
           morph,
           timing,
           ...(motion ? { motion } : {}),
           ...(owner ? { owner } : {}),
-          definition: hashText(`${channel.recipes[morph] ?? ""}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}`),
+          definition: hashText(
+            `${recipe}\n${JSON.stringify(timing)}${motion ? `\n${JSON.stringify(motion)}` : ""}${changed === undefined ? "" : `\n${this._morphChanges}`}`,
+          ),
         };
       });
     };
@@ -1936,7 +2571,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       for (const each of playsOf(ref, owner)) plays.push({ layer, ...(picture ? { picture } : {}), ...each });
     };
     let next = 0;
-    for (const asset of assets) {
+    for (const [index, asset] of assets.entries()) {
       const first = next;
       const pick = pickOf(asset);
       const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
@@ -1945,7 +2580,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const imageName = sortFilteredName(asset);
-      const look = this.pictureLook("", asset, pick);
+      const look = this.pictureLook("", asset, pick, froms[index]);
       if (!look) {
         continue;
       }
@@ -1988,8 +2623,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
     const still = assets
       .map((asset, index) => {
-        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset));
-        return cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
+        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
+        return froms[index] !== undefined || cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
       })
       .reverse()
       .join(", ");
@@ -1999,10 +2634,42 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return content;
   }
 
+  layeredImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
+    const layers = this.pictureLook("", name, pick)?.rest ?? [];
+    return layers.length > 1 && layers.every(isImageFile) ? layers : undefined;
+  }
+
+  getLayeredPictures(assets: string[], pickOf: (asset: string) => ImagePick | undefined): LayeredPicture[] {
+    const pictures: LayeredPicture[] = [];
+    let next = 0;
+    for (const asset of assets) {
+      const first = next;
+      const pick = pickOf(asset);
+      const count = cssList(this.getBackgroundImageFromString(asset, undefined, pick)).length;
+      next += count;
+      if (asset.at(0) === '"' && asset.at(-1) === '"') {
+        continue;
+      }
+      const layers = this.layeredImageFiles(asset, pick);
+      if (!layers || layers.length !== count) {
+        continue;
+      }
+      pictures.push({
+        layer: first,
+        span: count,
+        files: layers.map((layer) => ({
+          src: layer.src,
+          name: pictureFileName({ src: layer.src, ...(layer.uri ? { uri: layer.uri } : {}), name: layer.struct?.$name }),
+        })),
+      });
+    }
+    return pictures;
+  }
+
   protected _morphStills = new Set<string>();
 
   reportMorphStill(params: MorphStillParams) {
-    const key = JSON.stringify([params.image, params.file, params.reason]);
+    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? ""]);
     if (this._morphStills.has(key)) {
       return;
     }
@@ -2012,7 +2679,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ? "is animated, so its layers cannot be drawn together faithfully"
         : params.reason === "profile"
           ? "carries a colour profile wider than sRGB, so its layers cannot be drawn together faithfully"
-          : "could not be read to check that it is a still sRGB image";
+          : params.reason === "unsized"
+            ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
+            : params.reason === "undrawn"
+              ? "is an SVG the browser would not draw at the picture's size"
+              : params.reason === "styled"
+                ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
+                : "could not be read to check that it is a still sRGB image";
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 
@@ -2063,10 +2736,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this._morphConflicts.add(key);
-    const recipes = names.flatMap((name) => {
-      const recipe = parseMorphRecipe(this._game.program?.morphs?.recipes[name] ?? "");
-      return recipe ? [recipe] : [];
-    });
+    const recipes = refs
+      .flatMap((ref) =>
+        ref.morphs.flatMap((name) => {
+          const recipe = parseMorphRecipe(ref.recipes?.[name] ?? this._game.program?.morphs?.recipes[name] ?? "");
+          return recipe ? [recipe] : [];
+        }),
+      )
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     const quote = (list: string[]) => list.map((n) => `\`${n}\``).join(", ");
     const shares = morphOverlaps(recipes).map(({ morphs, groups, moved, clips }) => {
       const what = [
@@ -2135,13 +2812,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick) {
+  getBackgroundImageFromString(value: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
       return this.getBackgroundImageFromLiteral(literalStringValue);
     }
-    const named = this.pictureLook("", value, pick) !== undefined;
-    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick).map((asset) => asset.src) : undefined;
+    const named = this.pictureLook("", value, pick, from) !== undefined;
+    const posed = named && (poseOf || pick !== undefined) ? this.getImageAssets("", value, poseOf, pick, from).map((asset) => asset.src) : undefined;
     const srcs = posed ?? this.getImageSrcsByName(value);
     if (srcs?.length) {
       return srcs
@@ -2224,7 +2901,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected layoutRootName(layoutName: string): string {
-    return this.layoutHolds(layoutName, [layoutName])
+    return this._clearOnContinue.has(layoutName) ||
+      this.layoutHolds(layoutName, [layoutName])
       ? `layout_${layoutName}`
       : layoutName;
   }
@@ -2274,6 +2952,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (varValue) {
             variablesStyle[varName] = varValue;
           }
+        }
+      }
+    }
+    const animations = this.context?.animation;
+    if (animations) {
+      for (const [name, animation] of Object.entries(animations)) {
+        if (!name.startsWith("$")) {
+          variablesStyle[getVarName("animation", name)] =
+            this.getAnimationShorthand(name, animation.timing);
         }
       }
     }
@@ -2420,13 +3107,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _mountedLayouts: Map<
     string,
-    { element: Element; scope: ReactiveScope; screen?: string }
+    {
+      element: Element;
+      scope: ReactiveScope;
+      screen?: string;
+      slot?: SlotRegion;
+    }
   > = new Map();
+
+  protected _mountedScreens: Map<string, ScreenFrame> = new Map();
+
+  protected _screenHolds: Map<string, number> = new Map();
 
   static readonly MANAGED_LAYOUTS = new Set(["main", "loading", "ending"]);
 
   constructLayoutsFromAst(...structNames: string[]): void {
     this._mountedLayouts = new Map();
+    this._mountedScreens = new Map();
     const layouts = this._game.program?.sparkle?.layouts;
     if (!layouts) {
       return;
@@ -2454,11 +3151,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected constructLayoutFromAst(layout: LayoutNode): Element {
-    const parent = this.getOrCreateRootLayoutElement();
-    const uiEl = this.createElement(parent, {
+  protected mountScreenFrame(name: string): ScreenFrame | undefined {
+    const mounted = this._mountedScreens.get(name);
+    if (mounted) {
+      return mounted;
+    }
+    const screen = this._game.program?.sparkle?.screens?.[name];
+    if (!screen?.children?.length) {
+      return undefined;
+    }
+    const element = this.createElement(this.getOrCreateRootLayoutElement(), {
       type: "div",
-      name: this.layoutRootName(layout.name),
+      name: this.screenRootName(screen),
       style: {
         position: "absolute",
         inset: "0",
@@ -2467,10 +3171,200 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
     });
     const scope = this.makeScope({});
+    const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
+    scope.slots = new Map([
+      [
+        "",
+        {
+          children: [],
+          scope,
+          host: (region) => {
+            frame.hosts.add(region);
+          },
+        },
+      ],
+    ]);
+    this._mountedScreens.set(name, frame);
+    const group = this.mountChildren(element, screen.children, scope, null);
+    const fallback: SlotRegion = {
+      kind: "slot",
+      parent: element,
+      content: [],
+      siblings: group,
+    };
+    group.push({ region: fallback });
+    scope.regions.push(fallback);
+    frame.hosts.add(fallback);
+    frame.fallback = fallback;
+    this.hideUnwrittenTargets(element);
+    return frame;
+  }
+
+  protected screenRootName(screen: ScreenNode): string {
+    return this._clearOnContinue.has(screen.name) ||
+      this.treeHolds(screen.children, new Set([screen.name]))
+      ? `screen_${screen.name}`
+      : screen.name;
+  }
+
+  protected screenHeld(screen: string, except?: string): boolean {
+    if ((this._screenHolds.get(screen) ?? 0) > 0) {
+      return true;
+    }
+    for (const [name, entry] of this._mountedLayouts) {
+      if (name !== except && entry.screen === screen) {
+        return true;
+      }
+    }
+    const layouts = this._game.program?.sparkle?.layouts;
+    for (const [name, opens] of this._pendingOpens) {
+      if (
+        name !== except &&
+        opens.size > 0 &&
+        layouts?.[name]?.screen === screen
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected releaseIdleScreen(screen: string): void {
+    const frame = this._mountedScreens.get(screen);
+    if (frame && !this.screenHeld(screen)) {
+      this._mountedScreens.delete(screen);
+      this.destroyElement(frame.element);
+    }
+  }
+
+  protected screenSlot(frame: ScreenFrame): SlotRegion | undefined {
+    const find = (scope: ReactiveScope): SlotRegion | undefined => {
+      for (const region of scope.regions) {
+        let found: SlotRegion | undefined;
+        if (region.kind === "slot") {
+          found =
+            frame.hosts.has(region) && this.regionLive(region, frame.element)
+              ? region
+              : undefined;
+        } else if (region.kind === "for") {
+          for (const iteration of region.iterations) {
+            found ??= find(iteration.scope);
+          }
+          if (region.elseScope) {
+            found ??= find(region.elseScope);
+          }
+        } else {
+          found = find(region.scope);
+        }
+        if (found) {
+          return found;
+        }
+      }
+      return undefined;
+    };
+    return find(frame.scope);
+  }
+
+  protected regionLive(region: ReactiveRegion, root: Element): boolean {
+    for (
+      let current: ReactiveRegion | undefined = region;
+      current;
+      current = current.owner
+    ) {
+      if (!this.isWithin(current.parent, root)) {
+        return false;
+      }
+      const owner = current.owner;
+      if (owner) {
+        const groups =
+          owner.kind === "for"
+            ? [
+                ...owner.iterations.map((it) => it.content),
+                owner.elseContent ?? [],
+              ]
+            : [owner.content];
+        const held = groups.some((group) =>
+          group.some((it) => "region" in it && it.region === current),
+        );
+        if (!held) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  protected isWithin(element: Element, ancestor: Element): boolean {
+    for (let node = element; node !== ancestor; ) {
+      const parent = node.parent;
+      if (!parent || !parent.children.includes(node)) {
+        return false;
+      }
+      node = parent;
+    }
+    return true;
+  }
+
+  protected rehostScreenLayouts(screen: string, frame: ScreenFrame): void {
+    const layouts = this._game.program?.sparkle?.layouts;
+    const slot = this.screenSlot(frame);
+    for (const [name, entry] of [...this._mountedLayouts]) {
+      if (entry.screen !== screen) {
+        continue;
+      }
+      const placed = this.isWithin(entry.element, frame.element);
+      if (placed && entry.slot === slot) {
+        continue;
+      }
+      if (placed) {
+        this.destroyElement(entry.element);
+      }
+      if (entry.slot) {
+        entry.slot.content = entry.slot.content.filter(
+          (it) => !("el" in it && it.el === entry.element),
+        );
+      }
+      const layout = layouts?.[name];
+      if (layout) {
+        this.hideUnwrittenTargets(this.constructLayoutFromAst(layout));
+      } else {
+        this._mountedLayouts.delete(name);
+      }
+    }
+  }
+
+  protected constructLayoutFromAst(layout: LayoutNode): Element {
+    const frame = layout.screen
+      ? this.mountScreenFrame(layout.screen)
+      : undefined;
+    const slot = frame ? this.screenSlot(frame) : undefined;
+    const parent =
+      slot?.parent ?? frame?.element ?? this.getOrCreateRootLayoutElement();
+    const uiEl = this.createElement(
+      parent,
+      {
+        type: "div",
+        name: this.layoutRootName(layout.name),
+        style: frame
+          ? slot === frame.fallback
+            ? { display: "flex", flex_direction: "column", flex_grow: "1" }
+            : { display: "flex", flex_direction: "column" }
+          : {
+              position: "absolute",
+              inset: "0",
+              display: "flex",
+              flex_direction: "column",
+            },
+      },
+      slot ? this.anchorFor(slot) : null,
+    );
+    slot?.content.push({ el: uiEl });
+    const scope = this.makeScope({});
     this._mountedLayouts.set(layout.name, {
       element: uiEl,
       scope,
       ...(layout.screen ? { screen: layout.screen } : {}),
+      ...(slot ? { slot } : {}),
     });
     this.mountChildren(uiEl, layout.children, scope, null);
     if (this.searchForAll(uiEl, PAGE_COLUMN).length > 0) {
@@ -2487,6 +3381,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       attrs: [],
       styles: [],
       sliderFills: [],
+      streams: [],
       ...(slots ? { slots } : {}),
     };
   }
@@ -2498,6 +3393,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     before: Element | null,
   ): Element | ReactiveRegion | undefined {
     if (node.kind === "element") {
+      if (isStream(node)) {
+        return this.mountStream(parent, node, scope, before);
+      }
       if (this._game.program?.sparkle?.components?.[node.tag]) {
         return this.mountComponent(parent, node, scope, before);
       }
@@ -2513,6 +3411,58 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return this.mountSlot(parent, node, scope, before);
     }
     return undefined;
+  }
+
+  protected _streamElements = new WeakSet<Element>();
+
+  protected mountStream(
+    parent: Element,
+    node: StreamNode,
+    scope: ReactiveScope,
+    before: Element | null,
+  ): Element {
+    const follow = { "data-follow": "end" };
+    const el = this.mountElement(parent, node, scope, before);
+    this.updateElement(el, { attributes: follow });
+    this._streamElements.add(el);
+    if (parent.parent) {
+      this.updateElement(parent, { attributes: follow });
+    }
+    const key = this.streamKeyOf(parent, node);
+    if (key) {
+      const mounted: MountedStream = {
+        key,
+        element: el,
+        node,
+        scope,
+        entries: [],
+        rendered: [],
+      };
+      scope.streams.push(mounted);
+      this.streams.mounted(mounted);
+    }
+    return el;
+  }
+
+  protected streamKeyOf(parent: Element, node: StreamNode): string | undefined {
+    for (const [name, { element }] of this._mountedLayouts) {
+      for (let el: Element | null = parent; el; el = el.parent) {
+        if (el === element) {
+          const index = layoutStreams(this._game.program?.sparkle, name).indexOf(node);
+          return index >= 0 ? streamKey(name, index) : undefined;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  protected insideStream(el: Element): boolean {
+    for (let node = el.parent; node; node = node.parent) {
+      if (this._streamElements.has(node)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   protected mountChildren(
@@ -3385,6 +4335,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     scope.regions.push(region);
     const slot = scope.slots?.get(node.name ?? "");
+    slot?.host?.(region);
     if (slot) {
       region.content = this.mountChildren(
         parent,
@@ -3597,6 +4548,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const changes = this._game.story.variablesState.takeReactiveChanges();
     this._refreshing = true;
     try {
+      for (const [screen, frame] of this._mountedScreens) {
+        this.refreshScope(frame.scope, changes);
+        this.rehostScreenLayouts(screen, frame);
+      }
       for (const { scope } of this._mountedLayouts.values()) {
         this.refreshScope(scope, changes);
       }
@@ -3671,6 +4626,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    for (const stream of scope.streams) {
+      for (const entry of stream.entries) {
+        const edits = this._screenEdits;
+        this.refreshScope(entry.scope, changes);
+        if (this._screenEdits !== edits) {
+          this.streams.rewrite(stream, entry);
+        }
+      }
+    }
     for (const region of scope.regions) {
       if (region.kind === "for") {
         this.refreshForRegion(region, scope.env, changes);
@@ -3703,9 +4667,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const next = this.selectBranch(region.node, region.scope.env);
       region.deps = vs.endReactiveRead();
       if (next !== region.active) {
-        for (const el of this.collectNodes(region.content)) {
-          this.destroyElement(el);
-        }
+        this.removeGroup(region.content);
         region.scope = this.makeScope(region.scope.env, region.scope.slots);
         region.active = next;
         region.content = this.mountChildren(
@@ -3715,6 +4677,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.anchorFor(region),
           region,
         );
+        this.arriveGroup(region.content);
         return;
       }
     }
@@ -3737,14 +4700,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.refreshScope(region.elseScope, changes);
       } else {
         this.mountForElse(region, parentEnv, this.anchorFor(region));
+        this.arriveGroup(region.elseContent ?? []);
       }
       return;
     }
 
     if (region.elseScope && region.elseContent) {
-      for (const el of this.collectNodes(region.elseContent)) {
-        this.destroyElement(el);
-      }
+      this.removeGroup(region.elseContent);
       region.elseScope = undefined;
       region.elseContent = undefined;
     }
@@ -3777,15 +4739,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.refreshScope(reused.scope, changes);
         next.push(reused);
       } else {
-        next.push(
-          this.mountIteration(
-            region,
-            parentEnv,
-            entryKey,
-            value,
-            this.anchorFor(region),
-          ),
+        const iteration = this.mountIteration(
+          region,
+          parentEnv,
+          entryKey,
+          value,
+          this.anchorFor(region),
         );
+        this.arriveGroup(iteration.content);
+        next.push(iteration);
       }
     }
 
@@ -3832,8 +4794,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected destroyIteration(it: ForIteration): void {
-    for (const el of this.collectNodes(it.content)) {
-      this.destroyElement(el);
+    this.removeGroup(it.content);
+  }
+
+  protected removeGroup(group: ReactiveGroup): void {
+    const retiring = this.moving() && this.styled("hide");
+    for (const el of this.collectNodes(group)) {
+      if (retiring) {
+        this.retireElement(el);
+      } else {
+        this.destroyElement(el);
+      }
+    }
+  }
+
+  protected arriveGroup(group: ReactiveGroup): void {
+    if (this.moving() && this.styled("show")) {
+      this.arrive(this.collectNodes(group));
     }
   }
 
@@ -3845,6 +4822,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (layout) {
           this.initLayout(layout);
         }
+      }
+    }
+    const screens = (this.context as Record<string, any>)?.["screen"] ?? {};
+    for (const [name, screen] of Object.entries(screens)) {
+      if (name && !name.startsWith("$") && screen) {
+        this.initLayout(screen as Record<string, any>);
       }
     }
   }
@@ -3960,6 +4943,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
+    const components = this._game.program?.sparkle?.components ?? {};
+    const expanded = new Set<string>();
+    const visit = (value: unknown): boolean => {
+      if (Array.isArray(value)) {
+        return value.some(visit);
+      }
+      if (!value || typeof value !== "object") {
+        return false;
+      }
+      const node = value as Record<string, any>;
+      if (node["kind"] === "element") {
+        const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
+        if (names.some((n) => typeof n === "string" && wanted.has(n))) {
+          return true;
+        }
+        const tag = node["tag"];
+        const body = typeof tag === "string" ? components[tag] : undefined;
+        if (body && !expanded.has(tag)) {
+          expanded.add(tag);
+          if (visit(body.children)) {
+            return true;
+          }
+        }
+      }
+      return Object.values(node).some(
+        (v) => v !== null && typeof v === "object" && visit(v),
+      );
+    };
+    return visit(children);
+  }
+
   layoutHolds(layoutName: string, elements: readonly string[]): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
@@ -3968,35 +4983,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (!layout) {
         return false;
       }
-      const components = sparkle.components ?? {};
-      const expanded = new Set<string>();
-      const visit = (value: unknown): boolean => {
-        if (Array.isArray(value)) {
-          return value.some(visit);
-        }
-        if (!value || typeof value !== "object") {
-          return false;
-        }
-        const node = value as Record<string, any>;
-        if (node["kind"] === "element") {
-          const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
-          if (names.some((n) => typeof n === "string" && wanted.has(n))) {
-            return true;
-          }
-          const tag = node["tag"];
-          const body = typeof tag === "string" ? components[tag] : undefined;
-          if (body && !expanded.has(tag)) {
-            expanded.add(tag);
-            if (visit(body.children)) {
-              return true;
-            }
-          }
-        }
-        return Object.values(node).some(
-          (v) => v !== null && typeof v === "object" && visit(v),
-        );
-      };
-      return visit(layout.children);
+      const screen = layout.screen
+        ? sparkle.screens?.[layout.screen]
+        : undefined;
+      return (
+        this.treeHolds(layout.children, wanted) ||
+        this.treeHolds(screen?.children, wanted)
+      );
     }
     const layout = this.context.layout?.[layoutName];
     if (!layout) {
@@ -4107,10 +5100,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ) {
           this._game.module.assets?.releaseLayout(name);
         }
+        if (layout.screen) {
+          this.releaseIdleScreen(layout.screen);
+        }
         return;
       }
     }
     let element: Element;
+    const framed = layout.screen
+      ? this._mountedScreens.get(layout.screen)
+      : undefined;
     try {
       const vs = this._game.story.variablesState;
       const pending = vs.takeReactiveChanges();
@@ -4122,6 +5121,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.reveal();
     } finally {
       mounted?.();
+    }
+    if (!clauses?.with && !instant && this.moving() && this.styled("show")) {
+      const frame = layout.screen
+        ? this._mountedScreens.get(layout.screen)
+        : undefined;
+      this.arrive([frame && frame !== framed ? frame.element : element]);
+      return;
     }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
@@ -4152,36 +5158,72 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!entry) {
       return;
     }
+    const frame = entry.screen
+      ? this._mountedScreens.get(entry.screen)
+      : undefined;
+    const leaving =
+      frame && !this.screenHeld(entry.screen!, name) ? frame : undefined;
+    if (leaving) {
+      this._mountedScreens.delete(entry.screen!);
+    } else if (entry.slot) {
+      entry.slot.content = entry.slot.content.filter(
+        (it) => !("el" in it && it.el === entry.element),
+      );
+    }
+    const element = leaving?.element ?? entry.element;
+    if (
+      !clauses?.with &&
+      !instant &&
+      this.moving() &&
+      this.styled("hide")
+    ) {
+      this._mountedLayouts.delete(name);
+      this.retireElement(
+        element,
+        name,
+        this._game.module.assets?.retireLayout(name),
+      );
+      return;
+    }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
-        element: entry.element,
+        name,
+        held: this.heldNames(element),
+        element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),
       };
       this._mountedLayouts.delete(name);
-      entry.element.remove();
+      element.remove();
       this._retiring.add(retiring);
-      void this.animateElements([
-        { element: entry.element, animations: [exit] },
-      ]).then(() => this.retire(retiring));
+      void this.animateElements([{ element, animations: [exit] }]).then(() =>
+        this.retire(retiring),
+      );
       return;
     }
     if (exit && !instant) {
-      await this.animateElements([{ element: entry.element, animations: [exit] }]);
+      await this.animateElements([{ element, animations: [exit] }]);
     }
-    this.destroyElement(entry.element);
+    this.destroyElement(element);
     this._mountedLayouts.delete(name);
     this._game.module.assets?.releaseLayout(name);
+    if (frame && !leaving) {
+      this.releaseIdleScreen(entry.screen!);
+    }
   }
 
   protected retire(r: Retirement): void {
-    if (!this._retiring.delete(r)) {
+    if (!this._retiring.has(r)) {
       return;
     }
-    if (!this.superseded(r.epoch)) {
+    if (this.superseded(r.epoch)) {
+      this._retiring.delete(r);
+    } else {
       this.flushUIBatch();
+      this._retiring.delete(r);
       this.destroyElement(r.element, true);
+      this.noteShowing(true);
       const messages = this._uiBatch;
       this._uiBatch = [];
       if (messages.length > 0) {
@@ -4450,12 +5492,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         !toClose.includes(n) &&
         (screen ? layouts?.[n]?.screen === screen : true),
     );
-    await Promise.all([
-      ...[...toClose, ...pending].map((n) =>
-        this.closeLayout(n, clauses, instant),
-      ),
-      this.openLayout(name, clauses, instant),
-    ]);
+    const held = layouts?.[name]?.screen;
+    if (held) {
+      this._screenHolds.set(held, (this._screenHolds.get(held) ?? 0) + 1);
+    }
+    try {
+      await Promise.all([
+        ...[...toClose, ...pending].map((n) =>
+          this.closeLayout(n, clauses, instant),
+        ),
+        this.openLayout(name, clauses, instant),
+      ]);
+    } finally {
+      if (held) {
+        const holds = (this._screenHolds.get(held) ?? 1) - 1;
+        if (holds > 0) {
+          this._screenHolds.set(held, holds);
+        } else {
+          this._screenHolds.delete(held);
+        }
+        this.releaseIdleScreen(held);
+      }
+    }
   }
 
   protected nextLayoutState(
@@ -4647,21 +5705,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const [name, instance] = target.split("#");
     const found: Element[] = [];
     if (this._root && name) {
-      const matches = this.searchForAll(this._root, name, found);
-      const named = matches.filter((el) => el.name === name);
-      const elements =
-        named.length > 0
-          ? named
-          : writes
-            ? matches.filter(
-                (el) =>
-                  !el.name
-                    .split(" ")
-                    .some((c) =>
-                      ["text", "image", "stroke", "mask"].includes(c),
-                    ),
-              )
-            : matches;
+      const elements = this.writeTargets(
+        this.searchForAll(this._root, name, found).filter(
+          (el) => !writes || !this.insideStream(el),
+        ),
+        name,
+        writes,
+      );
       if (instance) {
         const instanceIndex = Number(instance);
         if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
@@ -4675,6 +5725,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return elements;
     }
     return found;
+  }
+
+  protected writeTargets(
+    matches: Element[],
+    name: string,
+    writes: boolean,
+  ): Element[] {
+    const named = matches.filter((el) => el.name === name);
+    if (named.length > 0) {
+      return named;
+    }
+    return writes
+      ? matches.filter(
+          (el) =>
+            !el.name
+              .split(" ")
+              .some((c) => ["text", "image", "stroke", "mask"].includes(c)),
+        )
+      : matches;
   }
 
   protected searchForAll(
@@ -4751,7 +5820,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected namesWriteElements(target: string, elements: Element[]): boolean {
     const name = target.split("#")[0];
     return (
-      Boolean(this._compose) || elements.some((el) => el.name !== name)
+      Boolean(this._compose) ||
+      this.streams.active ||
+      elements.some((el) => el.name !== name)
     );
   }
 
@@ -4774,6 +5845,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       for (const el of this.findElements(target, true)) {
         if (inLayout(el)) {
+          this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
       }
@@ -4976,33 +6048,60 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!sequence && $.knownEmpty("text", targetEls)) {
           return;
         }
-        for (const targetEl of targetEls) {
-          if (targetEl) {
-            if (sequence) {
-              $.updateElement(targetEl, {
-                style: { display: null },
-                attributes: {
-                  text: sequence?.map((t) => t.text).join("") ?? null,
-                },
-              });
-            } else {
-              $.updateElement(targetEl, {
-                style: { display: "none" },
-                attributes: {
-                  text: null,
-                },
-              });
+        const moving = !instant && $.moving();
+        const arriving: Element[] = [];
+        const leaving = targetEls.filter(
+          (targetEl) =>
+            !sequence &&
+            $.leaves(targetEl, "text", (keepShown) =>
+              this.hide(target, targetEl, keepShown),
+            ),
+        );
+        for (const targetEl of leaving) {
+          $.noteHidden(targetEl, true);
+        }
+        const writing = targetEls.filter((el) => !leaving.includes(el));
+        for (const targetEl of writing) {
+          if (sequence) {
+            $.noteHidden(targetEl, false);
+            const arrives = $.arrives(targetEl, "text", moving);
+            if (arrives) {
+              arriving.push(targetEl);
             }
+            $.updateElement(targetEl, {
+              style: { display: null },
+              attributes: {
+                text: sequence?.map((t) => t.text).join("") ?? null,
+                ...$.presenceMark(targetEl, arrives),
+              },
+            });
+          } else if ($.contentsOf(targetEl).size > 0) {
+            $.updateElement(targetEl, { attributes: { text: null } });
+          } else {
+            $.noteHidden(targetEl, true);
+            $.updateElement(targetEl, {
+              style: { display: "none" },
+              attributes: {
+                text: null,
+                ...$.settleMark(targetEl),
+              },
+            });
           }
         }
-        $.noteContent("text", targetEls, !sequence);
+        $.noteContent("text", writing, !sequence);
         if (targetEls.length === 0) {
           if (sequence) {
             $.warnUndeclaredWriteTarget(target);
           }
           return;
         }
+        if (writing.length === 0) {
+          return;
+        }
         $.flushUIBatch();
+        if (arriving.length > 0) {
+          void $.present(arriving, "show");
+        }
         await $.emitSettled(
           WriteTextMessage.type.request({
             target,
@@ -5010,9 +6109,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             ...(time != null ? { time } : {}),
             ...(shown > 0 ? { shown } : {}),
-            ...($.namesWriteElements(target, targetEls)
-              ? { elements: targetEls.map((el) => el.id) }
+            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+              ? { elements: writing.map((el) => el.id) }
               : {}),
+          }),
+        );
+      }
+
+      protected hide(target: string, targetEl: Element, keepShown: boolean) {
+        $.updateElement(
+          targetEl,
+          keepShown
+            ? { attributes: { text: null } }
+            : {
+                style: { display: "none" },
+                attributes: { text: null, [PRESENCE_ATTRIBUTE]: null },
+              },
+        );
+        $.noteContent("text", [targetEl], true);
+        $.flushUIBatch();
+        void $.emitSettled(
+          WriteTextMessage.type.request({
+            target,
+            instructions: [],
+            instant: true,
+            elements: [targetEl.id],
           }),
         );
       }
@@ -5147,7 +6268,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected nextView(e: ImageInstruction, view: PictureView): PictureView {
         if (e.assets?.length) {
-          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true } : view;
+          return e.control === "show" ? { framing: $.getFraming(e.at), picture: true, show: e } : view;
         }
         if (e.control === "hide") {
           return { picture: view.picture };
@@ -5155,7 +6276,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (e.control === "animate" && e.to && view.picture) {
           const start = e.after ?? 0;
           return start >= (view.travelStart ?? -Infinity)
-            ? { picture: true, framing: $.getFraming(e.to), travelStart: start }
+            ? { picture: true, framing: $.getFraming(e.to), travelStart: start, ...(view.show ? { show: view.show } : {}) }
             : view;
         }
         return view;
@@ -5176,6 +6297,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ): WriteImageInstruction[] {
         const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
+          const before = instant || e.control !== "show" ? undefined : view.show;
+          const shown = before?.assets?.map((asset) => ({ asset, pick: $.imagePick(before, asset) }));
           view = this.nextView(e, view);
           const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
@@ -5350,9 +6473,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   ...($.showsMovieStill() ? { preview: true } : {}),
                 };
               }
-              const morph = $.getMorphContent(imageAssets, pickOf);
+              const morph = $.getMorphContent(imageAssets, pickOf, shown);
               if (morph) {
                 content.morph = morph;
+              }
+              const pictures = $.getLayeredPictures(imageAssets, pickOf);
+              if (pictures.length > 0) {
+                content.pictures = pictures;
               }
               return content;
             });
@@ -5482,33 +6609,91 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
         }
-        for (const targetEl of targetEls) {
-          if (targetEl) {
-            if (sequence) {
-              $.updateElement(targetEl, {
-                style: { display: null },
-              });
-            } else {
-              $.updateElement(targetEl, {
-                style: { display: "none" },
-              });
+        const moving = !instant && $.moving();
+        const arriving: Element[] = [];
+        const hides = sequence ? pictureHide(sequence) : undefined;
+        const leaving = targetEls.filter(
+          (targetEl) =>
+            (!sequence || hides === "plain") &&
+            $.leaves(targetEl, "image", (keepShown) =>
+              this.hide(target, targetEl, keepShown, sequence, view),
+            ),
+        );
+        for (const targetEl of leaving) {
+          $.noteHidden(targetEl, !sequence);
+        }
+        const writing = targetEls.filter((el) => !leaving.includes(el));
+        for (const targetEl of writing) {
+          if (hides) {
+            $.noteHidden(targetEl, false);
+            const contents = $.contentsOf(targetEl);
+            contents.delete("image");
+            $.updateElement(targetEl, {
+              style: { display: null },
+              ...presenceAttributes(
+                contents.size === 0 ? $.settleMark(targetEl) : {},
+              ),
+            });
+          } else if (sequence) {
+            $.noteHidden(targetEl, false);
+            const arrives = $.arrives(targetEl, "image", moving);
+            if (arrives) {
+              arriving.push(targetEl);
             }
+            $.updateElement(targetEl, {
+              style: { display: null },
+              ...presenceAttributes($.presenceMark(targetEl, arrives)),
+            });
+          } else if ($.contentsOf(targetEl).size === 0) {
+            $.noteHidden(targetEl, true);
+            $.updateElement(targetEl, {
+              style: { display: "none" },
+              ...presenceAttributes($.settleMark(targetEl)),
+            });
           }
         }
-        $.noteContent("image", targetEls, !sequence);
-        if (targetEls.length === 0) {
+        $.noteContent("image", writing, !sequence);
+        if (writing.length === 0) {
           return;
         }
         $.flushUIBatch();
+        if (arriving.length > 0) {
+          void $.present(arriving, "show");
+        }
         await $.emitSettled(
           WriteImageMessage.type.request({
             target,
             instructions: sequence ? this.resolve(sequence, instant, view) : [],
             instant,
             ...(time != null ? { time } : {}),
-            ...($.namesWriteElements(target, targetEls)
-              ? { elements: targetEls.map((el) => el.id) }
+            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+              ? { elements: writing.map((el) => el.id) }
               : {}),
+          }),
+        );
+      }
+
+      protected hide(
+        target: string,
+        targetEl: Element,
+        keepShown: boolean,
+        sequence: ImageInstruction[] | null,
+        view?: PictureView,
+      ) {
+        if (!keepShown) {
+          $.updateElement(targetEl, {
+            style: { display: "none" },
+            attributes: { [PRESENCE_ATTRIBUTE]: null },
+          });
+        }
+        $.noteContent("image", [targetEl], true);
+        $.flushUIBatch();
+        void $.emitSettled(
+          WriteImageMessage.type.request({
+            target,
+            instructions: sequence ? this.resolve(sequence, true, view) : [],
+            instant: true,
+            elements: [targetEl.id],
           }),
         );
       }
@@ -6000,9 +7185,378 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Page;
   })(this);
 
+  Streams = (($) => {
+    class Streams {
+      protected _mounted = new Map<string, MountedStream[]>();
+
+      protected _settled = new Map<string, number>();
+
+      get active(): boolean {
+        return this._mounted.size > 0;
+      }
+
+      protected _presented?: { instant: boolean; time?: number };
+
+      protected _loaded = false;
+
+      protected _resumed = false;
+
+      entries(layout: string, index = 0): readonly StreamEntry[] {
+        return $._state.streams?.[streamKey(layout, index)]?.entries ?? [];
+      }
+
+      loaded(): void {
+        this._loaded = true;
+      }
+
+      started(): void {
+        this._resumed = this._loaded;
+        this._loaded = false;
+      }
+
+      shown(key: string): void {
+        const resumed = this._resumed;
+        this._resumed = false;
+        if (!resumed) {
+          return;
+        }
+        const beat = $.page.state.shown ?? 0;
+        for (const stream of Object.values($._state.streams ?? {})) {
+          if (stream.key === key && stream.beat === beat - 1) {
+            stream.beat = beat;
+          }
+        }
+      }
+
+      record(instructions: Instructions): void {
+        this._presented = undefined;
+        const sparkle = $._game.program?.sparkle;
+        const events = Object.values(instructions.layout ?? {}).flat();
+        const beat = $.page.state.shown ?? 0;
+        const key = pageKey(instructions);
+        const states = $._state.streams ?? {};
+        const live: Record<string, StreamState> = {};
+        for (const layout of $.openedLayoutsAfter(events)) {
+          const restarted = events.some(
+            (event) =>
+              event.name === layout &&
+              (event.control === LayoutVerb.clear ||
+                event.control === LayoutVerb.close),
+          );
+          layoutStreams(sparkle, layout).forEach((node, index) => {
+            const id = streamKey(layout, index);
+            const stream = states[id] ?? { entries: [], current: 0 };
+            const repeat = stream.beat === beat || Boolean(instructions.hold);
+            this.recordStream(stream, node, instructions, { repeat, restarted });
+            if (!repeat) {
+              this._settled.set(id, stream.current);
+            }
+            stream.beat = beat;
+            stream.key = key;
+            live[id] = stream;
+          });
+        }
+        if (Object.keys(live).length > 0) {
+          $._state.streams = live;
+        } else {
+          delete $._state.streams;
+        }
+      }
+
+      protected recordStream(
+        stream: StreamState,
+        node: StreamNode,
+        instructions: Instructions,
+        options: { repeat: boolean; restarted: boolean },
+      ): void {
+        const before = options.repeat
+          ? [...stream.entries.slice(0, stream.current), ...(stream.absorbed ?? [])]
+          : stream.entries;
+        const entry = this.entryFor(node, instructions);
+        if (options.restarted && !options.repeat) {
+          stream.cleared = (stream.cleared ?? 0) + 1;
+        }
+        let keep = options.restarted ? 0 : before.length;
+        const last = before[keep - 1];
+        if (
+          entry?.shown &&
+          last?.template === entry.template &&
+          Object.keys(entry.shown).every((target) => last.text[target])
+        ) {
+          keep -= 1;
+        }
+        const absorbed = before.slice(keep);
+        stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : [])];
+        stream.current = keep;
+        if (absorbed.length > 0) {
+          stream.absorbed = absorbed;
+        } else {
+          delete stream.absorbed;
+        }
+      }
+
+      protected entryFor(
+        node: StreamNode,
+        instructions: Instructions,
+      ): StreamEntry | undefined {
+        const text = Object.fromEntries(
+          Object.entries(instructions.text ?? {}).filter(
+            ([target]) => !target.startsWith("choice "),
+          ),
+        );
+        const lines = Object.keys(text).filter(
+          (target) => !SPEAKER_TARGETS.includes(target),
+        );
+        const template = node.templates.findIndex((child) =>
+          [child.tag, child.name, ...child.classes].some(
+            (name) => name !== undefined && lines.includes(name),
+          ),
+        );
+        if (template < 0) {
+          return undefined;
+        }
+        const entry: StreamEntry = { template, text };
+        const shown = Object.fromEntries(
+          Object.entries(instructions.extended ?? {}).filter(
+            ([target, count]) => count > 0 && text[target],
+          ),
+        );
+        if (Object.keys(shown).length > 0) {
+          entry.shown = shown;
+        }
+        return entry;
+      }
+
+      mounted(stream: MountedStream): void {
+        const mounts = (this._mounted.get(stream.key) ?? []).filter((m) =>
+          $.attached(m.element),
+        );
+        mounts.push(stream);
+        this._mounted.set(stream.key, mounts);
+        if (!$.context?.system?.simulating) {
+          this.render(stream, this._presented, 0);
+        }
+      }
+
+      forget(): void {
+        this._mounted.clear();
+      }
+
+      show(instant: boolean, time?: number): void {
+        this._presented = { instant, time };
+        this.sync(this._presented, undefined, !instant);
+      }
+
+      restore(): void {
+        this._presented = { instant: true };
+        this.sync(this._presented, 0);
+      }
+
+      protected sync(
+        presented: { instant: boolean; time?: number },
+        rewriteFrom?: number,
+        arriving = false,
+      ): void {
+        if ($.context?.system?.simulating) {
+          return;
+        }
+        for (const [key, mounts] of [...this._mounted]) {
+          const live = mounts.filter((m) => $.attached(m.element));
+          if (live.length === 0) {
+            this._mounted.delete(key);
+            continue;
+          }
+          this._mounted.set(key, live);
+          for (const mount of live) {
+            this.render(mount, presented, rewriteFrom, arriving);
+          }
+        }
+      }
+
+      protected render(
+        mount: MountedStream,
+        presented?: { instant: boolean; time?: number },
+        rewriteFrom?: number,
+        arriving = false,
+      ): void {
+        const stream = $._state.streams?.[mount.key];
+        const current = stream?.current ?? 0;
+        const entries = (stream?.entries ?? []).slice(
+          0,
+          presented ? undefined : current,
+        );
+        const instant = presented?.instant ?? true;
+        const time = presented?.time;
+        const signatures = entries.map(
+          (entry) => `${stream?.cleared ?? 0}:${JSON.stringify(entry)}`,
+        );
+        let kept = 0;
+        while (
+          kept < entries.length &&
+          kept < mount.rendered.length &&
+          mount.rendered[kept] === signatures[kept]
+        ) {
+          kept += 1;
+        }
+        const restarted = mount.rendered.some(
+          (signature) => !signature.startsWith(`${stream?.cleared ?? 0}:`),
+        );
+        const shown = restarted ? 0 : mount.entries.length;
+        for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
+          const group = mount.entries[i]!.group;
+          if (restarted) {
+            $.removeGroup(group);
+          } else {
+            for (const root of $.collectNodes(group)) {
+              $.destroyElement(root);
+            }
+          }
+        }
+        mount.entries.length = kept;
+        mount.rendered.length = kept;
+        let settled = this._settled.get(mount.key) ?? current;
+        if (instant) {
+          for (let i = rewriteFrom ?? current; i < kept; i += 1) {
+            this.write(mount.entries[i]!, entries[i]!, true);
+          }
+          settled = Math.max(settled, kept);
+        }
+        for (let i = kept; i < entries.length; i += 1) {
+          const entry = entries[i]!;
+          const view = this.build(mount, entry);
+          mount.entries.push(view);
+          mount.rendered.push(signatures[i]!);
+          const atOnce = instant || i < current || i < settled;
+          this.write(view, entry, atOnce, atOnce ? undefined : time);
+          if (atOnce) {
+            settled = Math.max(settled, i + 1);
+          } else if (
+            arriving &&
+            i >= shown &&
+            $.moving() &&
+            $.styled("show")
+          ) {
+            $.arrive($.collectNodes(view.group));
+          }
+        }
+        this._settled.set(mount.key, settled);
+        const latest = mount.entries.at(-1);
+        if (latest !== mount.latest) {
+          if (mount.latest && mount.entries.includes(mount.latest)) {
+            this.mark(mount.latest, null);
+          }
+          if (latest) {
+            this.mark(latest, "");
+          }
+          mount.latest = latest;
+        }
+      }
+
+      rewrite(mount: MountedStream, view: StreamEntryView): void {
+        const index = mount.entries.indexOf(view);
+        const stream = $._state.streams?.[mount.key];
+        const entry = stream?.entries[index];
+        if (entry) {
+          const presented = this._presented;
+          const typing =
+            view.typed &&
+            index >= (stream?.current ?? 0) &&
+            presented !== undefined &&
+            !presented.instant;
+          this.write(
+            view,
+            entry,
+            !typing,
+            typing ? presented?.time : undefined,
+            true,
+          );
+          if (view === mount.latest) {
+            this.mark(view, "");
+          }
+        }
+      }
+
+      protected mark(view: StreamEntryView, latest: string | null): void {
+        for (const root of $.collectNodes(view.group)) {
+          $.updateElement(root, { attributes: { "data-latest": latest } });
+        }
+      }
+
+      protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
+        const scope = $.makeScope(mount.scope.env, mount.scope.slots);
+        const template = mount.node.templates[entry.template];
+        const group = template
+          ? $.mountChildren(mount.element, [template], scope, null)
+          : [];
+        return { group, scope, written: {}, typed: false };
+      }
+
+      protected write(
+        view: StreamEntryView,
+        entry: StreamEntry,
+        instant: boolean,
+        time?: number,
+        remounted = false,
+      ): void {
+        const roots = $.collectNodes(view.group);
+        if (!remounted) {
+          view.typed = !instant;
+        }
+        for (const [target, events] of Object.entries(entry.text)) {
+          const elements = $.writeTargets(
+            roots.flatMap((root) =>
+              root.isMatch(target)
+                ? [root, ...$.searchForAll(root, target)]
+                : $.searchForAll(root, target),
+            ),
+            target,
+            true,
+          );
+          const first = elements[0];
+          if (!first) {
+            continue;
+          }
+          const written = elements
+            .flatMap((el) => [
+              el.id,
+              ...el.children
+                .filter((child) =>
+                  child.name
+                    .split(" ")
+                    .some((c) => c === "text" || c === "stroke"),
+                )
+                .map((child) => child.id),
+            ])
+            .join(" ");
+          if (remounted && view.written[target] === written) {
+            continue;
+          }
+          view.written[target] = written;
+          if (remounted) {
+            void $.text.writeElements(first.id, elements, null, true);
+          }
+          for (const el of elements) {
+            $.contentsOf(el).add("text");
+          }
+          void $.text.writeElements(
+            first.id,
+            elements,
+            events,
+            instant,
+            time,
+            instant ? 0 : (entry.shown?.[target] ?? 0),
+          );
+        }
+      }
+    }
+    return Streams;
+  })(this);
+
   text = new this.Text();
 
   page = new this.Page();
+
+  streams = new this.Streams();
 
   image = new this.Image();
 

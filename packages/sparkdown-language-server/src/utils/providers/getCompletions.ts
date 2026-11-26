@@ -16,6 +16,7 @@ import {
   structKeyToken,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
+import { layoutNames, showingNames } from "@impower/sparkdown/src/compiler/utils/layoutElementNames";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import {
   luauFileName,
@@ -28,6 +29,7 @@ import {
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { MORPH_CLAUSE_DOC } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { ASSET_TYPES } from "@impower/sparkdown/src/compiler/constants/assetTypes";
+import { PRESENCE_STATES } from "@impower/sparkdown/src/compiler/constants/selectorStates";
 import { resolveImageReference, typedImageTypes } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
@@ -69,6 +71,9 @@ import {
 } from "./alternatorKeywordHelp";
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { getStyleValueDescription } from "./styleValueDescriptions";
+import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
+import { presenceBlockDocumentation } from "./presenceBlockHelp";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -737,6 +742,30 @@ const addStructReferenceCompletions = (
   }
 };
 
+const SHOWING_ARGUMENT_BEFORE = /@showing\([ \t]*[\p{L}\p{N}_@-]*$/u;
+
+const addShowingNameCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+) => {
+  const layouts = layoutNames(program);
+  const elements = [...showingNames(program)].filter((name) => !layouts.has(name));
+  for (const [names, description] of [
+    [[...layouts], "layout"],
+    [elements, "element"],
+  ] as const) {
+    for (const name of [...names].sort()) {
+      if (!completions.has(name)) {
+        completions.set(name, {
+          label: name,
+          labelDetails: { description },
+          kind: CompletionItemKind.Constructor,
+        });
+      }
+    }
+  }
+};
+
 const addScreenElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -745,9 +774,11 @@ const addScreenElementReferenceCompletions = (
   insertTextSuffix = "",
 ) => {
   for (const contentType of contentTypes) {
-    const structs = program?.context?.["layout"];
-    if (structs) {
-      for (const v of Object.values(structs)) {
+    for (const structs of [
+      program?.context?.["layout"],
+      program?.context?.["screen"],
+    ]) {
+      for (const v of Object.values(structs ?? {})) {
         traverse(v, (fieldPath) => {
           if (fieldPath.endsWith(`.${contentType}`)) {
             const layer = fieldPath.split(".").at(-2);
@@ -973,6 +1004,61 @@ const addStructPropertyNameContextCompletions = (
   }
 };
 
+const SPARKLE_BODY_TYPES = new Set(["screen", "layout", "component"]);
+
+const addSparkleBodyCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string,
+) => {
+  if (type === "screen") {
+    completions.set("slot", {
+      label: "slot",
+      kind: CompletionItemKind.Keyword,
+      labelDetails: { description: "where the open layout goes" },
+    });
+  } else {
+    completions.set(STREAM_ELEMENT, streamElementCompletion());
+  }
+  const components = program?.sparkle?.components ?? {};
+  for (const name of Object.keys(components)) {
+    if (!completions.has(name)) {
+      completions.set(name, {
+        label: name,
+        kind: CompletionItemKind.Class,
+        labelDetails: { description: "component" },
+      });
+    }
+  }
+  const tags = new Set<string>();
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") {
+      return;
+    }
+    const node = value as { kind?: unknown; tag?: unknown };
+    if (node.kind === "element" && typeof node.tag === "string") {
+      tags.add(node.tag);
+    }
+    Object.values(value).forEach(visit);
+  };
+  visit(program?.sparkle?.layouts);
+  visit(program?.sparkle?.screens);
+  visit(program?.sparkle?.components);
+  for (const tag of tags) {
+    if (!completions.has(tag)) {
+      completions.set(tag, {
+        label: tag,
+        kind: CompletionItemKind.Property,
+        labelDetails: { description: "element" },
+      });
+    }
+  }
+};
+
 const addStructPropertyNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -1032,6 +1118,16 @@ const addStructPropertyValueSchemaCompletions = (
         : relativePath;
       if (lookupPath) {
         const value = getProperty(schemaStruct, lookupPath);
+        const property = lookupPath.split(".").at(-1) ?? "";
+        const describeStyleValue = (completion: CompletionItem, option: string) => {
+          const documentation =
+            schemaStruct.$type === "style"
+              ? getStyleValueDescription(property, option)
+              : undefined;
+          if (documentation) {
+            completion.documentation = documentation;
+          }
+        };
         if (Array.isArray(value)) {
           for (const option of value) {
             const kind = getTypeKind(option);
@@ -1059,6 +1155,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1078,6 +1175,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1098,6 +1196,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1516,6 +1615,16 @@ const completionsAt = (
       sortText: c.sortText ?? String(index).padStart(10, "0"),
     }));
   };
+
+  const showingTyped = leftStack.some((node) => node.name === "SimpleSelectorFunction")
+    ? SHOWING_ARGUMENT_BEFORE.exec(
+        read(document.offsetAt({ line: position.line, character: 0 }), documentCursorOffset),
+      )
+    : null;
+  if (showingTyped) {
+    addShowingNameCompletions(completions, program);
+    return buildCompletions();
+  }
 
   const morphNode = leftStack.find((node) => node.name === "LuauMorph");
   if (morphNode) {
@@ -2233,6 +2342,41 @@ const completionsAt = (
     const keying =
       !entryInsideValue(entryBefore) &&
       !insideElementValue(tree, documentCursorOffset);
+    const typedState = /@[\w-]*$/.exec(entryBefore);
+    if (
+      keying &&
+      braceDefine.type === "style" &&
+      typedState &&
+      /^\s*@[\w-]*$/.test(entryBefore)
+    ) {
+      const range = document.range(
+        documentCursorOffset - typedState[0].length,
+        documentCursorOffset,
+      );
+      for (const presence of PRESENCE_STATES) {
+        completions.set(`@${presence}`, {
+          label: `@${presence}`,
+          filterText: `@${presence}`,
+          textEdit: { range, newText: `@${presence} { $0 }` },
+          insertTextFormat: InsertTextFormat.Snippet,
+          labelDetails: { description: "appearing and leaving" },
+          kind: CompletionItemKind.Keyword,
+          documentation: {
+            kind: MarkupKind.Markdown,
+            value: presenceBlockDocumentation(presence),
+          },
+        });
+      }
+      return buildCompletions();
+    }
+    if (
+      keying &&
+      SPARKLE_BODY_TYPES.has(braceDefine.type) &&
+      /^\s*(?:[A-Za-z_][\w-]*)?$/.test(entryBefore)
+    ) {
+      addSparkleBodyCompletions(completions, program, braceDefine.type);
+      return buildCompletions();
+    }
     if (
       keying &&
       (!braceStructPath || !braceBlock) &&

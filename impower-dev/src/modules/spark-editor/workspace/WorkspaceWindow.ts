@@ -193,7 +193,6 @@ import {
   routeOfState,
   sectionOfHash,
   stateForRoute,
-  transitionRoute,
   type Route,
 } from "./routes";
 import type { PreviewSave } from "@impower/spark-editor-protocol/src/protocols/preview/ListSavesMessage";
@@ -216,6 +215,8 @@ import problems from "./problems/ProblemsStore";
 import { ENTRY_SCRIPT, playRefusalTarget } from "./playRefusal";
 
 export const LAUNCH_LIMIT_MS = 15_000;
+
+export const COLLAPSED_STOP_LIMIT_MS = 1_000;
 
 export const LAUNCH_LIMIT_MESSAGE =
   "The game player didn't respond. Try Play again.";
@@ -296,7 +297,7 @@ export default class WorkspaceWindow {
         return;
       }
       if (route !== routeOfState(this.store)) {
-        transitionRoute(() => this.openRoute(route));
+        this.openRoute(route);
       } else {
         this.syncRouteHash();
       }
@@ -353,10 +354,10 @@ export default class WorkspaceWindow {
     this.update(stateForRoute(this.store, route));
   }
 
-  navigateTo(route: Route, section?: string): Promise<void> {
+  navigateTo(route: Route, section?: string) {
     if (typeof window === "undefined") {
       this.openRoute(route);
-      return Promise.resolve();
+      return;
     }
     const hash = hashOfRoute(route, section);
     if (window.location.hash !== hash) {
@@ -365,7 +366,7 @@ export default class WorkspaceWindow {
         window.dispatchEvent(new HashChangeEvent("hashchange"));
       }
     }
-    return transitionRoute(() => this.openRoute(route));
+    this.openRoute(route);
   }
 
   setListState(lists: Partial<ListsState>) {
@@ -666,7 +667,7 @@ export default class WorkspaceWindow {
 
   startEditing(filename: string) {
     workspace.scriptMode.value = "editing";
-    this.executeEditorCommand(filename, "focus");
+    this.executeEditorCommand(filename, "focusOnScreen");
   }
 
   finishEditing() {
@@ -929,6 +930,8 @@ export default class WorkspaceWindow {
     this._disposers = [];
     clearTimeout(this._launchLimit);
     this._launchLimit = undefined;
+    clearTimeout(this._stopWhenCollapsed);
+    this._stopWhenCollapsed = undefined;
     this.debug.end();
     this.cacheProjectWorkspace.flush();
   }
@@ -1005,6 +1008,8 @@ export default class WorkspaceWindow {
   protected _launchLimit?: ReturnType<typeof setTimeout>;
 
   protected _playedFromScript = false;
+
+  protected _stopWhenCollapsed?: ReturnType<typeof setTimeout>;
 
   protected launch(event: LaunchEvent) {
     const game = this.store.preview.modes.game;
@@ -2071,7 +2076,11 @@ export default class WorkspaceWindow {
   collapsePreviewPane() {
     this._playedFromScript = false;
     if (this.coversScript()) {
-      this.stopGame();
+      clearTimeout(this._stopWhenCollapsed);
+      this._stopWhenCollapsed = setTimeout(
+        () => this.finishPreviewCollapse(),
+        COLLAPSED_STOP_LIMIT_MS,
+      );
     }
     this.update({
       ...this.store,
@@ -2081,6 +2090,17 @@ export default class WorkspaceWindow {
       },
     });
     sendProtocolMessage(DidCollapsePreviewPaneMessage.type.notification({}));
+  }
+
+  finishPreviewCollapse() {
+    if (this._stopWhenCollapsed === undefined) {
+      return;
+    }
+    clearTimeout(this._stopWhenCollapsed);
+    this._stopWhenCollapsed = undefined;
+    if (!this.store.preview.revealed) {
+      this.stopGame();
+    }
   }
 
   setPreviewMode(mode: PreviewMode) {
