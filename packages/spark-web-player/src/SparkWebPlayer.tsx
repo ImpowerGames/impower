@@ -19,6 +19,7 @@ export const propDefaults = {
   skipButtons: false,
   stepButtons: false,
   hostDisplay: false,
+  placeholders: false,
 };
 
 export type SparkWebPlayerProps = Partial<typeof propDefaults>;
@@ -35,6 +36,7 @@ export default function SparkWebPlayer({
   skipButtons,
   stepButtons,
   hostDisplay,
+  placeholders,
 }: SparkWebPlayerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<HTMLDivElement>(null);
@@ -92,7 +94,7 @@ export default function SparkWebPlayer({
           savesMenu: savesMenuRef.current,
           saveNote: saveNoteRef.current,
         },
-        { resizable: !flag(hostDisplay), hosted: flag(hostDisplay) },
+        { resizable: !flag(hostDisplay), hosted: flag(hostDisplay), placeholders: flag(placeholders) },
       );
       unsubscribe = controller.subscribeBar((state, view) =>
         setBar({ state, view }),
@@ -111,6 +113,7 @@ export default function SparkWebPlayer({
     flag(toolbar),
     flag(fullscreenButton),
     flag(hostDisplay),
+    flag(placeholders),
   ]);
 
   return (

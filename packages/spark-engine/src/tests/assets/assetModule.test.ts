@@ -87,6 +87,8 @@ describe("AssetModule", () => {
       predictBytes: 300 * 1024 * 1024,
       loadBytes: 0,
       trimLayers: true,
+      beatTimeout: 8,
+      restoreTimeout: 2,
     });
 
     const small = createHarness(
@@ -99,6 +101,8 @@ describe("AssetModule", () => {
       predictBytes: 1024 * 1024,
       loadBytes: 2 * 1024 * 1024,
       trimLayers: false,
+      beatTimeout: 8,
+      restoreTimeout: 2,
     });
     expect((small.game as any).program?.context?.config?.assets?.trim_layers).toBe(false);
     expect((h.game as any).program?.context?.config?.assets?.trim_layers).toBe(true);

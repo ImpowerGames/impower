@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { createHarness, flushMicrotasks, type UIHarness } from "./harness/uiTestHarness";
@@ -81,8 +81,8 @@ async function displayLive(h: UIHarness, beat: any) {
   await flushMicrotasks(30);
 }
 
-async function play(source: string) {
-  const h = createHarness(source, 0, { reactive: true, autoOpenAll: false, beforeConnect: live });
+async function play(source: string, opts?: { holdExits?: boolean }) {
+  const h = createHarness(source, 0, { reactive: true, autoOpenAll: false, beforeConnect: live, ...opts });
   await h.ready;
   await flushMicrotasks(10);
   h.jumpToFlow("start");
@@ -204,8 +204,7 @@ end
     expect(cleared?.params).toEqual({ changes: { hud: -1 }, retired: true });
   });
 
-  test("a picture hidden with an exit animation leaves the mark when its hide starts", async () => {
-    const { marks } = await play(`define SPRITE as image with
+  const portraitScene = (lines: string) => `define SPRITE as image with
   src = "https://example.com/hero.png"
 end
 
@@ -224,11 +223,75 @@ style frame {
 }
 
 scene start
-  [[show portrait SPRITE]] Hello.
-  [[hide portrait with fadeout over 0.5s]] Bye.
+${lines}
 end
-`);
-    expect(marks).toEqual([["portrait"], []]);
+`;
+
+  const removals = (h: UIHarness, name: string) =>
+    showings(h).filter((m: any) => (m.params.changes[name] ?? 0) < 0);
+
+  test("a picture hidden with an exit animation counts as showing until the renderer reports its exit ended (#2777)", async () => {
+    const { h, marks } = await play(
+      portraitScene(`  [[show portrait SPRITE]] Hello.
+  [[hide portrait with fadeout over 0.5s]] Bye.`),
+      { holdExits: true },
+    );
+    expect(marks).toEqual([["portrait"], ["portrait"]]);
+    expect(removals(h, "portrait")).toEqual([]);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
+  });
+
+  test("a picture whose exit report comes back as an error leaves the mark and the error is reported (#2777)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { h, marks } = await play(
+        portraitScene(`  [[show portrait SPRITE]] Hello.
+  [[hide portrait with fadeout over 0.5s]] Bye.`),
+        { holdExits: true },
+      );
+      expect(marks).toEqual([["portrait"], ["portrait"]]);
+      const [held] = h.heldExits();
+      h.game.connection.receive({
+        jsonrpc: "2.0",
+        id: held.id,
+        method: held.method,
+        error: { code: -32603, message: "the exit could not play" },
+      } as any);
+      await flushMicrotasks(10);
+      expect(marked(h)).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("the exit could not play"));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("a picture hidden again while its exit plays counts as showing until the last exit is reported ended (#2777)", async () => {
+    const { h, marks } = await play(
+      portraitScene(`  [[show portrait SPRITE]] Hello.
+  [[hide portrait with fadeout over 0.5s]] Going.
+  [[hide portrait with fadeout over 2s]] Gone.`),
+      { holdExits: true },
+    );
+    expect(marks).toEqual([["portrait"], ["portrait"], ["portrait"]]);
+    expect(h.releaseExits(1)).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual(["portrait"]);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
+  });
+
+  test("a picture shown and hidden with an exit animation in one line counts as showing until its exit is reported ended (#2777)", async () => {
+    const { h, marks } = await play(
+      portraitScene(`  [[show portrait SPRITE]] Hello [[hide portrait with fadeout over 0.5s]] there.`),
+      { holdExits: true },
+    );
+    expect(marks).toEqual([["portrait"]]);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
   });
 
   test("a line cleared through its @hide leaves the mark, with what it holds, when its hide starts", async () => {

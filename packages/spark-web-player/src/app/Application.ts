@@ -73,6 +73,8 @@ export class Application implements IApplication {
 
   protected _previewing: boolean;
 
+  protected _placeholders: boolean;
+
   protected _clock = new Clock(
     {
       get currentTime() {
@@ -167,6 +169,10 @@ export class Application implements IApplication {
     return this._previewing;
   }
 
+  get placeholders() {
+    return this._placeholders;
+  }
+
   get audio() {
     return this._manager.audio;
   }
@@ -220,12 +226,14 @@ export class Application implements IApplication {
     overlay: HTMLElement,
     options: {
       previewing: boolean;
+      placeholders?: boolean;
       audioContext?: AudioContext;
       assetCache?: AssetCache;
     },
   ) {
     this._game = game;
     this._previewing = options.previewing;
+    this._placeholders = options.placeholders ?? false;
     const audioContext = options.audioContext;
     this._assetCache = options.assetCache;
 

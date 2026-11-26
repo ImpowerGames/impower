@@ -5,8 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, layerPaints, mergePresentations, parseTrace, quietness, repeatability, stallsIn } from "./pacing-analysis.mjs";
-import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, layerTracker, planFor, playLines } from "./pacing-run.mjs";
+import { MERGE_MS, analyzeLine, clockOffset, cpuLoad, formatReport, layerPaints, mergePresentations, parseTrace, quietness, repeatability, stallsIn } from "./pacing-analysis.mjs";
+import { pacingBeats, pacingEnvironment, pacingFired, pacingMotion, pacingProbe, pacingRead, pacingTypingEnd, layerTracker, planFor, playLines, svgFilesOf } from "./pacing-run.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const firstSecondOnly = (doc) => ({ ...doc, record: { ...doc.record, typingEnd: undefined, mouthChanges: doc.record.mouthChanges.filter((t) => t < doc.record.firedAt + 1000 - 30) } });
@@ -352,6 +352,93 @@ await check("a real project's line keeps tracing through its first second at no 
     assert.equal(run.lines[0].motion.target, "span.instance[image=hall]");
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+await check("the probe counts each picture canvas's paints before and after its line fires, by the image its element names, and nothing else's", () => {
+  let now = 0;
+  const entries = [];
+  const element = (attributes = {}, classes = []) => ({ getAttribute: (name) => attributes[name] ?? null, classList: { contains: (name) => classes.includes(name) } });
+  const pictureCanvas = (image) => {
+    const span = element({ image }, ["instance"]);
+    const host = { ...element({}, ["morph"]), parentElement: span };
+    const canvas = { getRootNode: () => ({ host }) };
+    return canvas;
+  };
+  const detached = { getRootNode() { return detached; } };
+  class Context {
+    constructor(canvas) {
+      this.canvas = canvas;
+    }
+    clearRect() {}
+  }
+  const w = {
+    performance: {
+      now: () => now,
+      mark: (name, options) => entries.push({ name, entryType: "mark", startTime: options?.startTime ?? now }),
+      getEntriesByType: (type) => entries.filter((e) => e.entryType === type),
+      getEntriesByName: (name, type) => entries.filter((e) => e.name === name && (!type || e.entryType === type)),
+      clearMarks: () => {},
+    },
+    addEventListener: () => {},
+    MutationObserver: class {
+      observe() {}
+    },
+    setInterval: () => 1,
+    document: { querySelectorAll: () => [] },
+    CanvasRenderingContext2D: Context,
+  };
+  assert.equal(pacingProbe(w), "installed");
+  const dusk = new Context(pictureCanvas("dusk"));
+  const hall = new Context(pictureCanvas("hall"));
+  now = 5;
+  w.performance.mark("beat received main.sd:185 #4");
+  now = 10;
+  dusk.clearRect(0, 0, 1, 1);
+  new Context(detached).clearRect(0, 0, 1, 1);
+  now = 20;
+  w.performance.mark("beat fired main.sd:185 #4");
+  now = 30;
+  hall.clearRect(0, 0, 1, 1);
+  const read = pacingRead(w, { firedName: "beat fired main.sd:185 #4", sinceClicks: 0 });
+  assert.deepEqual(read.canvasPaints, { dusk: { beforeFire: 1, afterFire: 0 }, hall: { beforeFire: 0, afterFire: 1 } });
+});
+
+await check("the report prints each line's canvas paints and each run's SVG verdicts, naming every file the player would not draw", () => {
+  const printed = formatReport({
+    surface: "web editor preview",
+    project: "fixture",
+    environment: {},
+    runs: [
+      {
+        quiet: { verdict: "quiet" },
+        lines: [{ line: 185, kind: "vector-backdrop", firstSecond: {}, canvasPaints: { dusk: { beforeFire: 1, afterFire: 0 } } }],
+        svgFiles: { counts: { drawn: 2, styled: 1 }, files: [{ path: "assets/dusk.svg", verdict: "drawn" }, { path: "assets/odd.svg", verdict: "styled", declaration: "filter" }] },
+      },
+    ],
+  });
+  assert.match(printed, /canvas paints before\/after fire/);
+  assert.match(printed, /\| dusk 1\/0$/m);
+  assert.match(printed, /run 1: SVG files drawn 2, styled 1/);
+  assert.match(printed, /assets\/odd\.svg: styled \(filter\)/);
+  assert.doesNotMatch(printed, /assets\/dusk\.svg:/);
+});
+
+await check("the SVG files of a project are every .svg under it, by their path from the project, outside dot folders and node_modules", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pacing-svg-"));
+  try {
+    fs.mkdirSync(path.join(dir, "assets", "kit"), { recursive: true });
+    fs.mkdirSync(path.join(dir, ".trash"));
+    fs.mkdirSync(path.join(dir, "node_modules"));
+    fs.writeFileSync(path.join(dir, "assets", "dusk.svg"), "<svg/>");
+    fs.writeFileSync(path.join(dir, "assets", "kit", "10 mark.SVG"), "<svg/>");
+    fs.writeFileSync(path.join(dir, "assets", "sky.png"), "");
+    fs.writeFileSync(path.join(dir, ".trash", "old.svg"), "<svg/>");
+    fs.writeFileSync(path.join(dir, "node_modules", "icon.svg"), "<svg/>");
+    assert.deepEqual(svgFilesOf(dir).map((f) => f.path), ["assets/dusk.svg", "assets/kit/10 mark.SVG"]);
+    assert.deepEqual(svgFilesOf(path.join(dir, "missing")), []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 

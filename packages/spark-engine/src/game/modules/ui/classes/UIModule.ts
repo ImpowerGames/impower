@@ -219,6 +219,7 @@ import {
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
+  type WriteImageParams,
 } from "./messages/WriteImageMessage";
 import {
   WriteTextMessage,
@@ -238,13 +239,17 @@ function pictureFileName(file: { src: string; uri?: string; name?: string }): st
   }
 }
 
+function isVectorFile(layer: ImageLayer): boolean {
+  const ext = typeof layer.struct?.ext === "string" ? layer.struct.ext.toLowerCase() : "";
+  return ext === "svg" || /^data:image\/svg\+xml/i.test(layer.src) || [layer.uri ?? "", layer.src].some((path) => /\.svg(?:[?#]|$)/i.test(path));
+}
+
+function isPictureFile(layer: ImageLayer): boolean {
+  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && isVectorFile(layer));
+}
+
 function isImageFile(layer: ImageLayer): boolean {
-  const struct = layer.struct;
-  if (struct?.$type !== "image") {
-    return false;
-  }
-  const ext = typeof struct.ext === "string" ? struct.ext.toLowerCase() : "";
-  return ext !== "svg" && !/^data:image\/svg\+xml/i.test(layer.src) && !/\.svg(?:[?#]|$)/i.test(layer.uri ?? "");
+  return layer.struct?.$type === "image" && !isVectorFile(layer);
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -293,6 +298,11 @@ interface Retirement {
   element: Element;
   epoch: number;
   pin?: string;
+}
+
+interface PictureExit {
+  elements: Element[];
+  epoch: number;
 }
 
 type ContentKind = "text" | "image";
@@ -684,6 +694,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _retiring = new Set<Retirement>();
 
+  protected _exits = new Set<PictureExit>();
+
+  protected _exitReports = new WeakMap<IMessage, Promise<unknown>>();
+
   protected _motion = false;
 
   protected _still = false;
@@ -843,6 +857,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReset() {
     this.settleLine();
+    this._exits.clear();
     this._inlineLayout = false;
     this._events = {};
     this._mountedLayouts = new Map();
@@ -1207,6 +1222,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._game.module.assets?.releaseRetiredLayout(r.pin);
       }
     }
+    this._exits.clear();
     const epoch = this._game.connection.epoch;
     const themeVariables = this.getThemeVariables();
     this.loadTheme(themeVariables);
@@ -1492,16 +1508,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected heldNames(root: Element): Set<string> {
     const held = new Set<string>();
     const written = new Set<Element>();
-    const write = (elements: Element[], leaves: ("text" | "stroke" | "image" | "mask")[]) => {
-      for (const el of elements) {
-        written.add(el);
-        for (const leaf of leaves) {
-          for (const child of this.getContentElements(el, leaf)) {
-            written.add(child);
-          }
+    const writeElement = (el: Element, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      written.add(el);
+      for (const leaf of leaves) {
+        for (const child of this.getContentElements(el, leaf)) {
+          written.add(child);
         }
       }
     };
+    const write = (elements: Element[], leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of elements) {
+        writeElement(el, leaves);
+      }
+    };
+    for (const exit of this._exits) {
+      if (this.superseded(exit.epoch)) {
+        this._exits.delete(exit);
+        continue;
+      }
+      for (const el of exit.elements) {
+        writeElement(el, ["image", "mask"]);
+      }
+    }
     for (const [target, elements] of this.textRestorePlan()) {
       if (ownEntry(this._state.text, target)?.length) {
         write(elements, ["text", "stroke"]);
@@ -1917,6 +1945,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       WriteImageMessage.type.isRequest(msg as any)
     ) {
       this.captureInto(c, msg);
+      if (params.reportsExit) {
+        c.expected.push((msg as RequestMessage).id);
+        this._exitReports.set(msg, this._game.connection.expect(msg as RequestMessage));
+      }
       return { result: params.target };
     }
     if (
@@ -2026,8 +2058,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._root = undefined;
     }
     const subtree: string[] = [];
+    const destroyed = new Set<Element>();
     const collect = (el: Element) => {
       subtree.push(el.id);
+      destroyed.add(el);
       if (this.carriesDisplayTarget(el)) {
         this._displayTargetsChanged = true;
       }
@@ -2036,6 +2070,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     collect(element);
+    if (this._exits.size > 0) {
+      this.dropExits((el) => destroyed.has(el));
+    }
     for (const [event, byId] of Object.entries(this._events)) {
       if (!byId) {
         continue;
@@ -2293,12 +2330,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  protected dropHeld(line: LineWait): void {
+    for (const message of line.held) {
+      if ((message as { params?: WriteImageParams }).params?.reportsExit) {
+        this._game.connection.cancel((message as RequestMessage).id, {
+          code: SUPERSEDED,
+          message: "the line that held it was settled",
+        });
+      }
+    }
+  }
+
   protected async playOut(line: LineWait): Promise<void> {
     let anyMoved = false;
     const play = async (phase: MotionPhase) => {
       const due = this.startPhase(line, phase);
       const results = await Promise.all(due.map((m) => m.started));
       if (this._line !== line) {
+        this.dropHeld(line);
         return false;
       }
       anyMoved = anyMoved || results.some(moved);
@@ -3200,6 +3249,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return layers.length > 1 && layers.every(isImageFile) ? layers : undefined;
   }
 
+  vectorImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
+    const layers = this.pictureLook("", name, pick)?.rest ?? [];
+    return layers.length > 0 && layers.every(isPictureFile) && layers.some(isVectorFile) ? layers : undefined;
+  }
+
   getLayeredPictures(assets: string[], pickOf: (asset: string) => ImagePick | undefined): LayeredPicture[] {
     const pictures: LayeredPicture[] = [];
     let next = 0;
@@ -3211,17 +3265,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (asset.at(0) === '"' && asset.at(-1) === '"') {
         continue;
       }
-      const layers = this.layeredImageFiles(asset, pick);
+      const vector = this.vectorImageFiles(asset, pick);
+      const layers = vector ?? this.layeredImageFiles(asset, pick);
       if (!layers || layers.length !== count) {
         continue;
       }
       pictures.push({
         layer: first,
         span: count,
+        name: sortFilteredName(asset),
         files: layers.map((layer) => ({
           src: layer.src,
           name: pictureFileName({ src: layer.src, ...(layer.uri ? { uri: layer.uri } : {}), name: layer.struct?.$name }),
         })),
+        ...(vector ? { vector: true as const } : {}),
       });
     }
     return pictures;
@@ -3230,7 +3287,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _morphStills = new Set<string>();
 
   reportMorphStill(params: MorphStillParams) {
-    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? ""]);
+    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? "", params.placeholder ?? false]);
     if (this._morphStills.has(key)) {
       return;
     }
@@ -3244,9 +3301,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
             : params.reason === "undrawn"
               ? "is an SVG the browser would not draw at the picture's size"
-              : params.reason === "styled"
-                ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
-                : "could not be read to check that it is a still sRGB image";
+              : params.reason === "late"
+                ? "was not drawn before the line's wait for it ran out"
+                : params.reason === "styled"
+                  ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
+                  : "could not be read to check that it is a still sRGB image";
+    if (params.placeholder) {
+      this._game.log(`\`${params.image}\` is not drawn: its file \`${params.file}\` ${why}. The previews show a placeholder in its place, and an exported game shows nothing there.`, "warning");
+      return;
+    }
+    if (params.reason === "late") {
+      this._game.log(`\`${params.image}\` was drawn late: its morph's drawing was not ready before the line's wait for it ran out, so the line showed its still picture until it was.`, "warning");
+      return;
+    }
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 
@@ -5892,21 +5959,66 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.flushUIBatch();
       this._retiring.delete(r);
       this.destroyElement(r.element, true);
-      this.noteShowing(true);
-      const messages = this._uiBatch;
-      this._uiBatch = [];
-      if (messages.length > 0) {
-        const batch = BatchElementsMessage.type.notification({ messages });
-        if (this._lineRemovals) {
-          void this.emit(batch);
-        } else {
-          this._uiOps += 1;
-          void super.emit(batch);
-        }
-      }
+      this.sendRetired();
     }
     if (r.pin) {
       this._game.module.assets?.releaseRetiredLayout(r.pin);
+    }
+  }
+
+  protected exiting(target: string): boolean {
+    if (this._exits.size === 0) {
+      return false;
+    }
+    const elements = new Set(this.findElements(target, true));
+    return [...this._exits].some((exit) => exit.elements.some((el) => elements.has(el)));
+  }
+
+  protected dropExits(drops: (element: Element) => boolean): void {
+    let dropped = false;
+    for (const exit of this._exits) {
+      const kept = exit.elements.filter((el) => !drops(el));
+      if (kept.length === exit.elements.length) {
+        continue;
+      }
+      dropped = true;
+      if (kept.length === 0) {
+        this._exits.delete(exit);
+      } else {
+        exit.elements = kept;
+      }
+    }
+    if (dropped && !this._uiBatchScheduled) {
+      this._uiBatchScheduled = true;
+      queueMicrotask(() => this.flushUIBatch());
+    }
+  }
+
+  protected endExit(exit: PictureExit): void {
+    if (!this._exits.has(exit)) {
+      return;
+    }
+    if (this.superseded(exit.epoch)) {
+      this._exits.delete(exit);
+      return;
+    }
+    this.flushUIBatch();
+    this._exits.delete(exit);
+    this.sendRetired();
+  }
+
+  protected sendRetired(): void {
+    this.noteShowing(true);
+    const messages = this._uiBatch;
+    this._uiBatch = [];
+    if (messages.length > 0) {
+      const batch = BatchElementsMessage.type.notification({ messages });
+      if (this._lineRemovals) {
+        void this.emit(batch);
+      } else {
+        this._uiOps += 1;
+        void super.emit(batch);
+      }
     }
   }
 
@@ -7125,6 +7237,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             true,
             undefined,
             undefined,
+            false,
             $.textElements(target).filter((el) => !emptied.has($.elementPath(el) ?? "")),
           );
         }
@@ -7145,7 +7258,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
             if (!$.context?.system?.simulating) {
-              await this.applyChanges(target, null, true, undefined, undefined, elements);
+              await this.applyChanges(target, null, true, undefined, undefined, false, elements);
             }
           }),
         );
@@ -7508,9 +7621,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         view?: PictureView,
+        exits = false,
         elements?: Element[],
       ) {
         const targetEls = elements ?? $.textElements(target);
+        if (instant) {
+          $.dropExits((el) => targetEls.includes(el));
+        }
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
         }
@@ -7561,30 +7678,44 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (writing.length === 0) {
           return;
         }
+        const exit: PictureExit | undefined =
+          exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
+            ? { elements: writing, epoch: $._game.connection.epoch }
+            : undefined;
+        if (exit) {
+          $._exits.add(exit);
+        }
         $.flushUIBatch();
         if (arriving.length > 0) {
           void $.present(arriving, "show");
         }
-        await $.emitSettled(
-          $.onLine(
-            WriteImageMessage.type.request({
-              target,
-              instructions: sequence ? this.resolve(sequence, instant, view) : [],
-              instant,
-              ...(time != null ? { time } : {}),
-              ...(leaving.length > 0 || $.namesWriteElements(target, writing)
-                ? { elements: writing.map((el) => el.id) }
-                : {}),
-            }),
-            !instant &&
-              (writing.some((el) => !arriving.includes(el)) ||
-                Boolean(
-                  sequence?.some(
-                    (e) => e.control === "animate" || e.with || e.after || e.over,
-                  ),
-                )),
-          ),
+        const request = $.onLine(
+          WriteImageMessage.type.request({
+            target,
+            instructions: sequence ? this.resolve(sequence, instant, view) : [],
+            instant,
+            ...(time != null ? { time } : {}),
+            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+              ? { elements: writing.map((el) => el.id) }
+              : {}),
+            ...(exit ? { reportsExit: true } : {}),
+          }),
+          !instant &&
+            (writing.some((el) => !arriving.includes(el)) ||
+              Boolean(
+                sequence?.some(
+                  (e) => e.control === "animate" || e.with || e.after || e.over,
+                ),
+              )),
         );
+        const written = $.emitSettled(request);
+        if (exit) {
+          const report = $._exitReports.get(request);
+          void (report ? $.settled(request.method, report) : written).then(() =>
+            $.endExit(exit),
+          );
+        }
+        await written;
       }
 
       protected hide(
@@ -7645,6 +7776,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (sequence.length === 0 && events.length > 0) {
           return;
         }
+        const onScreen =
+          $.pictureShown($._state.image?.[target]) ||
+          $.exiting(target) ||
+          sequence.some((e) => e.control === "show" && e.assets?.length);
         this.saveState(target, sequence);
         if ($._state.pictureCleared) {
           const refilled = new Set($.markedPaths(target));
@@ -7654,7 +7789,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, view);
+          await this.applyChanges(
+            target,
+            sequence,
+            instant,
+            time,
+            view,
+            onScreen && !$.pictureShown($._state.image?.[target]),
+          );
         }
       }
     }

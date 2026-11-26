@@ -40,6 +40,8 @@ export interface UIHarness {
   heldLayout(): any[];
   releaseLayout(moved?: string[]): number;
   releaseAnimations(): number;
+  heldExits(): any[];
+  releaseExits(count?: number): number;
 }
 
 export function compileUI(
@@ -130,6 +132,7 @@ export function createHarness(
     holdPresence?: boolean;
     holdLayout?: boolean;
     holdAnimations?: boolean;
+    holdExits?: boolean;
     assets?: File[];
     scripts?: Record<string, string>;
   },
@@ -173,6 +176,7 @@ export function createHarness(
   const heldPresence: any[] = [];
   const heldLayout: any[] = [];
   const heldAnimations: any[] = [];
+  const heldExits: any[] = [];
   const holdsLayout = (msg: any) =>
     opts?.holdLayout === true &&
     msg?.method === "ui/layout" &&
@@ -211,6 +215,13 @@ export function createHarness(
             reply(inner);
           }
         }
+        if (inner?.method === "ui/write-image" && "id" in inner && inner.params?.reportsExit) {
+          if (opts?.holdExits) {
+            heldExits.push(inner);
+          } else {
+            reply(inner);
+          }
+        }
       }
     }
     if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
@@ -228,6 +239,10 @@ export function createHarness(
       }
       if (opts?.holdAnimations && msg.method === "ui/animate") {
         heldAnimations.push(msg);
+        return;
+      }
+      if (opts?.holdExits && msg.method === "ui/write-image" && msg.params?.reportsExit) {
+        heldExits.push(msg);
         return;
       }
       reply(msg);
@@ -415,6 +430,16 @@ export function createHarness(
     },
     releasePresence() {
       const held = heldPresence.splice(0, heldPresence.length);
+      for (const msg of held) {
+        reply(msg);
+      }
+      return held.length;
+    },
+    heldExits() {
+      return heldExits.slice();
+    },
+    releaseExits(count = heldExits.length) {
+      const held = heldExits.splice(0, count);
       for (const msg of held) {
         reply(msg);
       }

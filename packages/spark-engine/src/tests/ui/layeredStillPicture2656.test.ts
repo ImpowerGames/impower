@@ -61,6 +61,7 @@ describe("an image write of a layered picture made of image files (#2656)", () =
       {
         layer: 0,
         span: 2,
+        name: "ava",
         files: [
           { src: "/src/ava.png", name: "ava.png" },
           { src: "/src/ava mouth.closed default.png", name: "ava mouth.closed default.png" },
@@ -88,6 +89,7 @@ describe("an image write of a layered picture made of image files (#2656)", () =
       {
         layer: 0,
         span: 2,
+        name: "ava",
         files: [
           { src: "/src/ava.png", name: "ava.png" },
           { src: "/src/ava mouth.closed default.png", name: "ava mouth.closed default.png" },
@@ -99,18 +101,6 @@ describe("an image write of a layered picture made of image files (#2656)", () =
   test("does not mark a single image", async () => {
     const [content] = await written("backdrop sky");
     expect(content.background).toBe('url("/src/sky.png")');
-    expect(content.pictures).toBeUndefined();
-  });
-
-  test("does not mark an SVG", async () => {
-    const [content] = await written("backdrop logo");
-    expect(content.pictures).toBeUndefined();
-  });
-
-  test("does not mark a layered picture with an SVG layer", async () => {
-    const prelude = `define kit as layered_image with\n  assets = {\n    ["base"] = sky,\n    ["mark"] = logo,\n  }\nend\n`;
-    const [content] = await written("backdrop kit", prelude);
-    expect(content.background.split(", ")).toHaveLength(2);
     expect(content.pictures).toBeUndefined();
   });
 

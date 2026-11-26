@@ -58,6 +58,8 @@ export interface MorphPicture {
 
 export interface LayeredPicture extends MorphPicture {
   layer: number;
+  name?: string;
+  vector?: true;
 }
 
 export interface MorphLayerPlay {
@@ -91,6 +93,7 @@ export interface WriteImageParams {
   instant: boolean;
   time?: number;
   elements?: string[];
+  reportsExit?: boolean;
 }
 
 export class WriteImageMessage {
