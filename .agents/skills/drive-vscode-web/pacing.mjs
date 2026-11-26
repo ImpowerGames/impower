@@ -199,7 +199,7 @@ async function runOnce(options, plan, evidence) {
         if (box) await page.screenshot({ path: file, clip: box });
       },
     };
-    Object.assign(run, await playLines(surface, { ...options, out: evidence, fixture: plan.fixture, log: (line) => console.log(line) }));
+    Object.assign(run, await playLines(surface, { ...options, out: evidence, fixture: plan.fixture, project: plan.project, log: (line) => console.log(line) }));
   } catch (error) {
     run.failed.push(String(error?.stack ?? error));
   } finally {

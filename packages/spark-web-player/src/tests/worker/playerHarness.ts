@@ -169,7 +169,7 @@ export const writtenText = (sent: any[]): string => {
 };
 
 export interface PlayerHarnessOptions {
-  files: { uri: string; text: string }[];
+  files: { uri: string; text?: string; type?: string; name?: string; ext?: string; data?: string }[];
   startFrom: { file: string; line: number };
   holdImage?: (src: string) => Promise<void> | undefined;
   recordMessages?: boolean;
@@ -230,15 +230,19 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
 
   const configure = (page: LoopbackConnection) =>
     page.sendRequest(ConfigureCompilerMessage.type, {
-      files: options.files.map((f) => ({
-        uri: f.uri,
-        type: "script",
-        name: f.uri.split("/").at(-1)!.split(".")[0]!,
-        ext: "sd",
-        text: f.text,
-        version: 1,
-        languageId: "sparkdown",
-      })),
+      files: options.files.map((f) =>
+        f.type && f.type !== "script"
+          ? { uri: f.uri, type: f.type, name: f.name ?? f.uri.split("/").at(-1)!.split(".")[0]!, ext: f.ext ?? f.uri.split(".").at(-1)!, ...(f.data === undefined ? {} : { data: f.data }), ...(f.text === undefined ? {} : { text: f.text }) }
+          : {
+              uri: f.uri,
+              type: "script",
+              name: f.uri.split("/").at(-1)!.split(".")[0]!,
+              ext: "sd",
+              text: f.text,
+              version: 1,
+              languageId: "sparkdown",
+            },
+      ),
       definitions: {
         optionals: DEFAULT_OPTIONAL_DEFINITIONS,
         schemas: DEFAULT_SCHEMA_DEFINITIONS,

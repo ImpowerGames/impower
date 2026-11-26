@@ -37,6 +37,9 @@ export interface UIHarness {
   heldAssetLoadCount(): number;
   heldPresence(): any[];
   releasePresence(): number;
+  heldLayout(): any[];
+  releaseLayout(moved?: string[]): number;
+  releaseAnimations(): number;
 }
 
 export function compileUI(
@@ -98,6 +101,8 @@ function resultForMethod(method: string, params?: any): unknown {
   switch (method) {
     case "ui/animate":
       return [];
+    case "ui/layout":
+      return [];
     case "audio/load":
       return params;
     case "audio/update":
@@ -123,6 +128,8 @@ export function createHarness(
     connect?: boolean;
     holdAssets?: boolean;
     holdPresence?: boolean;
+    holdLayout?: boolean;
+    holdAnimations?: boolean;
     assets?: File[];
     scripts?: Record<string, string>;
   },
@@ -164,6 +171,12 @@ export function createHarness(
 
   const heldAssetLoads: any[] = [];
   const heldPresence: any[] = [];
+  const heldLayout: any[] = [];
+  const heldAnimations: any[] = [];
+  const holdsLayout = (msg: any) =>
+    opts?.holdLayout === true &&
+    msg?.method === "ui/layout" &&
+    !msg.params?.settle;
 
   const reply = (msg: any) => {
     const result = resultForMethod(msg.method, msg.params);
@@ -191,6 +204,13 @@ export function createHarness(
             reply(inner);
           }
         }
+        if (inner?.method === "ui/layout" && "id" in inner) {
+          if (holdsLayout(inner)) {
+            heldLayout.push(inner);
+          } else {
+            reply(inner);
+          }
+        }
       }
     }
     if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
@@ -200,6 +220,14 @@ export function createHarness(
       }
       if (opts?.holdPresence && msg.method === "ui/presence") {
         heldPresence.push(msg);
+        return;
+      }
+      if (holdsLayout(msg)) {
+        heldLayout.push(msg);
+        return;
+      }
+      if (opts?.holdAnimations && msg.method === "ui/animate") {
+        heldAnimations.push(msg);
         return;
       }
       reply(msg);
@@ -359,6 +387,31 @@ export function createHarness(
     },
     heldPresence() {
       return heldPresence.slice();
+    },
+    heldLayout() {
+      return heldLayout.slice();
+    },
+    releaseAnimations() {
+      const held = heldAnimations.splice(0, heldAnimations.length);
+      for (const msg of held) {
+        queueMicrotask(() => {
+          game.connection.receive(
+            cloneMessage({ jsonrpc: "2.0", id: msg.id, method: msg.method, result: [0] }),
+          );
+        });
+      }
+      return held.length;
+    },
+    releaseLayout(moved: string[] = []) {
+      const held = heldLayout.splice(0, heldLayout.length);
+      for (const msg of held) {
+        queueMicrotask(() => {
+          game.connection.receive(
+            cloneMessage({ jsonrpc: "2.0", id: msg.id, method: msg.method, result: moved }),
+          );
+        });
+      }
+      return held.length;
     },
     releasePresence() {
       const held = heldPresence.splice(0, heldPresence.length);

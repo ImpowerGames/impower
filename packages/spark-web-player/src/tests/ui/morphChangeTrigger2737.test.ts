@@ -155,7 +155,7 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
       env.overlay.appendChild(span);
       const timing = { trigger: "change" as const, duration: 0.5, delay: 0, easing: "linear", iterations: 1, direction: "normal" as const };
       const ref = { morphs: ["bend"], key: "k-kit", image: "kit", selection: "{}", groups: ["hat"] };
-      playback.mount(span, { plays: [{ layer: 0, ref, morph: "bend", timing, definition: "d" }], epoch: 0, still: 'url("base.png")' }, background, "background", "portrait:0");
+      playback.mount(span, { plays: [{ layer: 0, ref, morph: "bend", timing, definition: "d" }], epoch: 0, still: [{ layer: 0, span: 2, image: 'url("base.png")' }] }, background, "background", "portrait:0");
       await flushMicrotasks(10);
       expect(span.style.backgroundImage).toBe('url("base.png")');
       playback.setEnabled(false);
@@ -383,7 +383,7 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
       const { span, shadow, written } = await played(count);
       await flushMicrotasks(20);
       expect(span()).not.toBeNull();
-      expect(shadow()).toBeNull();
+      expect(shadow()?.querySelector("[data-morph]") ?? null).toBeNull();
       expect(written().morph).toBeUndefined();
       expect(decodeURIComponent(written().background)).toContain("mouth.frown");
     }
@@ -393,7 +393,7 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     const { span, shadow, written } = await played(2, (index) => index === 1);
     await flushMicrotasks(20);
     expect(span()).not.toBeNull();
-    expect(shadow()).toBeNull();
+    expect(shadow()?.querySelector("[data-morph]") ?? null).toBeNull();
     expect(written().morph).toBeUndefined();
     expect(decodeURIComponent(written().background)).toContain("mouth.frown");
   });

@@ -47,6 +47,7 @@ export interface MorphRef {
   src?: string;
   layered?: true;
   recipes?: Record<string, string>;
+  source?: string;
 }
 
 export interface MorphTiming {

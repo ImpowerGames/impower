@@ -12,9 +12,28 @@ const COLOR_SCHEME_STATE = "theme";
 
 export const SHOWING_STATE = "showing";
 
+export const VARIANT_STATE = "variant";
+
+export const SPEAKER_STATE = "speaker";
+
+export const LINE_VARIANT_ATTRIBUTE = "data-line-variant";
+
+export const LINE_SPEAKER_ATTRIBUTE = "data-line-speaker";
+
+export const LINE_LABEL = /^[\p{L}\p{N}_]+$/u;
+
+const DEFINE_NAME = /^[_\p{L}][\p{L}\p{N}_]*(?:@[\p{L}\p{N}_]+)*$/u;
+
 const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
 
+export const GAME_WIDE_STATES: ReadonlyMap<string, { name: RegExp; root: (name: string) => string }> = new Map([
+  [SHOWING_STATE, { name: SHOWING_NAME, root: (name: string) => `[${SHOWING_ATTRIBUTE}~="${name}"]` }],
+  [VARIANT_STATE, { name: LINE_LABEL, root: (name: string) => `[${LINE_VARIANT_ATTRIBUTE}="${name}"]` }],
+  [SPEAKER_STATE, { name: DEFINE_NAME, root: (name: string) => `[${LINE_SPEAKER_ATTRIBUTE}="${name}"]` }],
+]);
+
 export interface ShowingRefusal {
+  state: string;
   where: string;
   from: number;
   to: number;
@@ -154,7 +173,7 @@ const STANDARD_PSEUDO_CLASSES: ReadonlySet<string> = new Set([
 
 export const WRITTEN_SELECTOR_STATES: ReadonlySet<string> = new Set([
   COLOR_SCHEME_STATE,
-  SHOWING_STATE,
+  ...GAME_WIDE_STATES.keys(),
   ...SELECTOR_STATE_ALIASES.keys(),
   ...ARGUMENT_STATE_ALIASES.keys(),
   ...AT_RULE_STATES.keys(),
@@ -184,7 +203,7 @@ export type SelectorStateArguments = "required" | "optional" | "none";
 export const selectorStateArguments = (name: string): SelectorStateArguments | undefined => {
   if (
     name === COLOR_SCHEME_STATE ||
-    name === SHOWING_STATE ||
+    GAME_WIDE_STATES.has(name) ||
     SIZE_STATES.has(name) ||
     ARGUMENT_STATE_ALIASES.has(name)
   ) {
@@ -218,6 +237,8 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 
+const LEADING_DIGIT = /^-?[0-9][\p{L}\p{N}_-]*$/u;
+
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
 class SparkleSelectorWriter {
@@ -233,7 +254,7 @@ class SparkleSelectorWriter {
 
   private atRule = false;
 
-  private accepted: { from: number; to: number }[] = [];
+  private accepted: { state: string; from: number; to: number }[] = [];
 
   private seen = new Set<number>();
 
@@ -258,13 +279,13 @@ class SparkleSelectorWriter {
       }
     }
     if (this.atRule) {
-      for (const { from, to } of this.accepted.splice(0)) {
-        this.refusals.push({ where: "in a style key that also holds an at-rule state", from, to });
+      for (const { state, from, to } of this.accepted.splice(0)) {
+        this.refusals.push({ state, where: "in a style key that also holds an at-rule state", from, to });
       }
     }
-    for (const { from, to } of showingOccurrences(this.src)) {
+    for (const { state, from, to } of gameWideOccurrences(this.src)) {
       if (!this.seen.has(from)) {
-        this.refusals.push({ where: this.positionAt(from), from, to });
+        this.refusals.push({ state, where: this.positionAt(from), from, to });
       }
     }
     return out.trim();
@@ -300,23 +321,24 @@ class SparkleSelectorWriter {
     return prelude?.where ?? "inside an argument";
   }
 
-  private showing(): string {
-    const from = this.i - SHOWING_STATE.length - 1;
+  private gameWide(state: string): string {
+    const rule = GAME_WIDE_STATES.get(state)!;
+    const from = this.i - state.length - 1;
     this.seen.add(from);
     const { text, close } = this.argument(() => this.value());
-    const written = `@${SHOWING_STATE}(${text}${close}`;
+    const written = `@${state}(${text}${close}`;
     const where =
       this.positions.at(-1) ?? (this.compound > 0 ? "in a compound after a combinator" : undefined);
     if (where) {
-      this.refusals.push({ where, from, to: this.i });
+      this.refusals.push({ state, where, from, to: this.i });
       return written;
     }
     const name = text.trim();
-    if (!close || !SHOWING_NAME.test(name)) {
+    if (!close || !rule.name.test(name)) {
       return written;
     }
-    this.accepted.push({ from, to: this.i });
-    this.roots[this.item] = (this.roots[this.item] ?? "") + `[${SHOWING_ATTRIBUTE}~="${name}"]`;
+    this.accepted.push({ state, from, to: this.i });
+    this.roots[this.item] = (this.roots[this.item] ?? "") + rule.root(name);
     return "";
   }
 
@@ -391,8 +413,8 @@ class SparkleSelectorWriter {
         const state = this.match(STATE);
         if (state) {
           const name = state[1]!;
-          if (name === SHOWING_STATE && this.src[this.i] === "(") {
-            out += this.showing();
+          if (GAME_WIDE_STATES.has(name) && this.src[this.i] === "(") {
+            out += this.gameWide(name);
             continue;
           }
           const written = this.state(name);
@@ -512,7 +534,8 @@ class SparkleSelectorWriter {
   private attribute(): string {
     const [, name = "", operator = "", value = ""] = this.match(ATTRIBUTE)!;
     const attribute = name ? (this.options.attributeName?.(name) ?? name) : "";
-    const written = value.startsWith('"') || value.startsWith("'") ? value : escapeAts(value);
+    const quoted = value.startsWith('"') || value.startsWith("'");
+    const written = quoted ? value : LEADING_DIGIT.test(value) ? JSON.stringify(value) : escapeAts(value);
     return `[${attribute}${operator}${written}]`;
   }
 
@@ -692,15 +715,15 @@ const liftColorScheme = (selector: string): string => {
     .join(", ");
 };
 
-const SHOWING_CALL = /@showing[(][^()]*[)]?/g;
+const GAME_WIDE_CALL = new RegExp(`@(${[...GAME_WIDE_STATES.keys()].join("|")})[(][^()]*[)]?`, "g");
 
-const showingOccurrences = (selector: string): { from: number; to: number }[] => {
-  const found: { from: number; to: number }[] = [];
+const gameWideOccurrences = (selector: string): { state: string; from: number; to: number }[] => {
+  const found: { state: string; from: number; to: number }[] = [];
   let offset = 0;
   selector.split(QUOTED_PART).forEach((piece, i) => {
     if (!(i & 1)) {
-      for (const match of piece.matchAll(SHOWING_CALL)) {
-        found.push({ from: offset + match.index, to: offset + match.index + match[0].length });
+      for (const match of piece.matchAll(GAME_WIDE_CALL)) {
+        found.push({ state: match[1]!, from: offset + match.index, to: offset + match.index + match[0].length });
       }
     }
     offset += piece.length;

@@ -109,6 +109,7 @@ import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { MorphArtifact, MorphRef } from "@impower/sparkdown/src/morph/types";
 import {
   CompilerRestartedError,
   SparkdownWorkspace,
@@ -396,12 +397,29 @@ export class GamePlayerController {
     position?: string,
   ) {
     const run = new RuntimeDiagnosticsRun(program, owner);
+    const previous = this._runtimeRun;
+    if (previous && previous.program === program) {
+      run.keepChangeBakes(previous);
+    }
     for (const error of errors) {
       run.add(error);
     }
     this._runtimeRun = run;
     this._runtimeRunPosition = position;
+    const morphs = this.morphs;
+    if (morphs) {
+      morphs.reportChangeBake = (ref, artifact) => this.recordChangeBake(run, ref, artifact);
+    }
     this.reportRuntimeDiagnostics();
+  }
+
+  protected recordChangeBake(run: RuntimeDiagnosticsRun, ref: MorphRef, artifact: MorphArtifact) {
+    if (this._runtimeRun !== run || this.displayingSpeculative) {
+      return;
+    }
+    if (run.addChangeBake(ref, artifact)) {
+      this.reportRuntimeDiagnostics();
+    }
   }
 
   protected beginPreviewRuntimeRun(
@@ -510,15 +528,18 @@ export class GamePlayerController {
 
   protected readonly _hosted: boolean;
 
+  protected readonly _placeholders: boolean;
+
   constructor(
     host: HTMLElement,
     refs: GamePlayerRefs,
-    options: { resizable?: boolean; hosted?: boolean } = {},
+    options: { resizable?: boolean; hosted?: boolean; placeholders?: boolean } = {},
   ) {
     this.host = host;
     this.refs = refs;
     this._resizable = options.resizable ?? true;
     this._hosted = options.hosted ?? false;
+    this._placeholders = options.placeholders ?? false;
   }
 
   setup(): void {
@@ -3532,6 +3553,7 @@ export class GamePlayerController {
   protected createApp(game: GameEndpoint, previewing: boolean): Application {
     return new Application(game, this.refs.gameView, this.refs.gameUI, {
       previewing,
+      placeholders: this._placeholders,
       audioContext: this._audioContext,
       assetCache: getSharedAssetCache(),
     });

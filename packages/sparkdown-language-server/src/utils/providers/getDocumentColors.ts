@@ -53,8 +53,9 @@ const getColor = (
   if (text.startsWith("color.") || IDENTIFIER_REGEX.test(text)) {
     const [pathPart1, pathPart2] = text.split(".");
     const name = pathPart2 ? pathPart2 : pathPart1;
-    if (name) {
-      const colorStruct = program?.context?.["color"]?.[name];
+    const colorTable = program?.context?.["color"];
+    if (name && colorTable && Object.hasOwn(colorTable, name)) {
+      const colorStruct = colorTable[name];
       if (colorStruct) {
         const value = colorStruct.value;
         const rgb = colord(value).toRgb();

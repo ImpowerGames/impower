@@ -13,6 +13,7 @@ import { AnimateElementsMessage } from "../../../spark-engine/src/game/modules/u
 import { BatchElementsMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
 import { BeatMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/BeatMessage";
 import { PresenceElementsMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
+import { LayoutMotionMessage } from "../../../spark-engine/src/game/modules/ui/classes/messages/LayoutMotionMessage";
 import type { Manager } from "./Manager";
 
 function carriedRequests(message: Message): RequestMessage[] {
@@ -32,7 +33,8 @@ function carriedRequests(message: Message): RequestMessage[] {
     .filter(
       (op): op is RequestMessage =>
         AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
-        PresenceElementsMessage.type.isRequest(op as RequestMessage),
+        PresenceElementsMessage.type.isRequest(op as RequestMessage) ||
+        LayoutMotionMessage.type.isRequest(op as RequestMessage),
     );
 }
 

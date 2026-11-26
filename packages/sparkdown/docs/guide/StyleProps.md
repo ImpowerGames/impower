@@ -93,6 +93,7 @@ style button {
 - `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
   `@disabled { … }` target interaction states.
 - `@showing(name) { … }` applies while a layout or an element named `name` is on screen (see [What is on screen](#what-is-on-screen)).
+- `@variant(name) { … }` and `@speaker(name) { … }` apply while the newest line showing has that variant or is spoken by that character, and `#variant=name { … }` and `#speaker=name { … }` select the elements written with that prop (see [Variants](./Variants.md)).
 - `@initial { … }` / `@show { … }` / `@hide { … }` say how an element appears and leaves (see [Appearing and leaving](#appearing-and-leaving)).
 - `@latest { … }` targets the newest entry of a [stream](./Streams.md).
 - A rule's properties are separated by a new line or a `;`, as the entries of
@@ -174,6 +175,10 @@ style badge {
   }
 }
 ```
+
+A line waits for the motion it causes. The elements that leave because of the line play their `@hide` and are removed, then the elements whose place or size the line changes move there where their style names a `layout` transition, then the elements that arrive because of it play their arrival, and only then does the line's own timeline start: its typing, and the pictures, sounds and animations written on it. A line that makes nothing appear or leave and changes the shape of no box with a `layout` transition starts at once.
+
+Text that takes no time to type, such as a line at `<speed=0>` or under a typewriter with `letter_pause = 0`, is there from the moment its element appears; only typed text waits. One click during the wait or the typing finishes the motion and shows the whole line.
 
 Pausing the game holds a motion where it is. The editor preview on a line, a step back and a loaded save show the settled look with no motion, and so does a click that shows a whole line at once. Under the reader's reduced-motion setting, moves and size changes happen at once and fades still play.
 

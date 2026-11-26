@@ -79,6 +79,12 @@ export class Coordinator<G extends Game> {
 
   protected _recheckReadiness?: () => void;
 
+  protected _startLine?: () => void;
+
+  protected _still = false;
+
+  protected _lineStartedMS: number | null = 0;
+
   protected _presenters: Presenter[] = [];
 
   protected _displayed = false;
@@ -102,9 +108,11 @@ export class Coordinator<G extends Game> {
       settled?: "restored" | "presented";
       played?: () => void;
       held?: boolean;
+      still?: boolean;
     },
   ) {
     this._game = game;
+    this._still = Boolean(options?.still);
     this._instructions = instructions;
     this._reportsShown =
       !game.context.system.previewing &&
@@ -318,6 +326,13 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (this._lineStartedMS == null) {
+      if (!this._interacted || waitingForChoice) {
+        return 0;
+      }
+      this._interacted = false;
+      this.showWhole();
+    }
     if (instructions.hold) {
       return this.continueOnInteraction(waitingForChoice);
     }
@@ -329,7 +344,7 @@ export class Coordinator<G extends Game> {
     }
     if (!instructions.text && !waitingForChoice && !instructions.audio) {
       const totalDurationMS = (instructions.end ?? 0) * 1000;
-      if (this._elapsedMS >= totalDurationMS) {
+      if (this._elapsedMS - (this._lineStartedMS ?? 0) >= totalDurationMS) {
         return 1;
       }
       return 0;
@@ -357,11 +372,16 @@ export class Coordinator<G extends Game> {
         return 2;
       }
       if (this._startedExecution && !waitingForChoice) {
-        this.display({ instant: true });
-        this.finishExecution();
+        this.showWhole();
       }
     }
     return 0;
+  }
+
+  protected showWhole(): void {
+    this._startLine?.();
+    this.display({ instant: true });
+    this.finishExecution();
   }
 
   protected finishExecution(): void {
@@ -384,7 +404,7 @@ export class Coordinator<G extends Game> {
     const instant = options?.instant;
     const previewing = options?.preview;
 
-    game.module.ui.setMotion(!instant);
+    game.module.ui.setMotion(!instant && !this._still, this._still);
 
     openInitialLayouts(
       game,
@@ -408,6 +428,7 @@ export class Coordinator<G extends Game> {
     game.module.ui.streams.record(instructions);
     const presenter = {
       present: (time?: number) => {
+        game.module.ui.line(instructions);
         for (const p of presenters) {
           p.present(time);
         }
@@ -469,9 +490,24 @@ export class Coordinator<G extends Game> {
 
     let elapsedMS = 0;
     let ready = false;
+    let started = false;
     let readyBetweenTicksAt: number | null = null;
     let finished = false;
+    let beatTime: number | undefined;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
+    const start = (time?: number, sound = true) => {
+      if (started) {
+        return;
+      }
+      started = true;
+      this._lineStartedMS = time === beatTime ? 0 : this._elapsedMS;
+      const now = game.context.system.now();
+      const at = time ?? now + BEAT_LEAD_MS;
+      if (sound) {
+        game.module.audio.triggerAll(audioTriggerIds, at);
+      }
+      elapsedMS = -(at - now + game.module.audio.outputLatency * 1000);
+    };
     const becomeReady = (): boolean => {
       if (pendingLoad) {
         loadTriggerId = assets.runLoad(pendingLoad);
@@ -489,7 +525,8 @@ export class Coordinator<G extends Game> {
       ready = true;
       this._startedExecution = true;
       const time = game.context.system.now() + BEAT_LEAD_MS;
-      game.module.audio.triggerAll(audioTriggerIds, time);
+      beatTime = time;
+      const line = game.module.ui.beginLine(time);
       if (assetTriggerId != null) {
         assets.trigger(assetTriggerId);
       }
@@ -501,19 +538,28 @@ export class Coordinator<G extends Game> {
         this._cutscenePlaying = true;
       }
       presenter.present(time);
-      elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
+      game.module.ui.closeLine();
+      if (line) {
+        this._lineStartedMS = null;
+        this._startLine = () => start();
+        void line.then((at) =>
+          at === null ? start(undefined, false) : start(at),
+        );
+      } else {
+        start(time);
+      }
       game.module.ui.afterCompose(() => assets.onBeatDisplayed());
       return true;
     };
     this._recheckReadiness = () => {
-      if (!ready && becomeReady()) {
+      if (!ready && becomeReady() && started) {
         readyBetweenTicksAt = game.context.system.now();
       }
     };
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
         becomeReady();
-      } else if (!finished) {
+      } else if (started && !finished) {
         const sinceReady =
           readyBetweenTicksAt == null
             ? deltaMS
@@ -534,7 +580,11 @@ export class Coordinator<G extends Game> {
           cutsceneTriggerId = null;
           this._cutscenePlaying = false;
         }
-        if (elapsedMS >= totalDurationMS && cutsceneTriggerId == null) {
+        if (
+          started &&
+          elapsedMS >= totalDurationMS &&
+          cutsceneTriggerId == null
+        ) {
           finished = true;
           handleFinished();
         }

@@ -32,8 +32,8 @@ end
 | `load_distance` | Beats of a scene a `load` waits for. `0` means the whole scene. |
 | `load_cache_size` | Megabytes `load` may keep pinned across the loaded scenes still on the callstack. A scene beyond it keeps what fits, in flow order, and streams the rest as it is reached. `0` means no cap: a `load` keeps its whole scene. |
 | `trim_layers` | Whether each layer file of a layered picture is cut to the box of its painted pixels as it loads, and counted at that size against `predict_cache_size` and `load_cache_size`. Pictures look the same either way; `false` only stops the cutting. Single images, SVG files and masks are never cut. |
-| `beat_timeout` | Seconds a line may wait for its assets before displaying anyway. `0` means never time out. |
-| `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. `0` means never time out. |
+| `beat_timeout` | Seconds a line may wait for its assets, and for its [pictures to be drawn](./Portraits.md#how-pictures-are-drawn-before-a-line-shows), before displaying anyway. `0` means never time out. |
+| `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. In the stopped preview, the seconds a line may wait for its pictures to be drawn. `0` means never time out. |
 | `load_timeout` | Seconds a `load` may wait before giving up and continuing. `0` means never give up. |
 | `loading_min` | Seconds the `loading` layout stays up once a `load` opened it. |
 | `loading_transition` | Transition used to open and close `loading` when `load` has no `with` clause. |

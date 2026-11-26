@@ -299,7 +299,7 @@ describe("the Game Preview's Replay beat control and command", () => {
     const player = preview.panel.webview.html.match(
       /<spark-web-player\b[^>]*>/,
     )?.[0];
-    expect(player).toBe("<spark-web-player toolbar run-button replay-button>");
+    expect(player).toBe("<spark-web-player toolbar run-button replay-button placeholders>");
   });
 
   it("plays the shown beat from its command", async () => {
