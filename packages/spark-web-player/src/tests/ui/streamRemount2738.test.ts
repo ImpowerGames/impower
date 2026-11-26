@@ -109,6 +109,31 @@ describe("a stream is named like any element (#2738)", () => {
 });
 
 describe("stream entries across remounts (#2738)", () => {
+  test("a stream rebuilt by its screen's slot writes each entry once", async () => {
+    const messages: any[] = [];
+    const h = createDOMHarness(source("text", undefined, true), 0, {
+      reactive: true,
+      autoOpenAll: false,
+      afterEachMessage: (m) => messages.push(m),
+    });
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    await next(h);
+    const flatten = (ms: any[]): any[] =>
+      ms.flatMap((m) => (m?.params?.messages ? flatten(m.params.messages) : [m]));
+    messages.length = 0;
+    await toggle(h);
+    expect(texts(h)).toEqual(["first message", "second message"]);
+    const writes = flatten(messages).filter(
+      (m) => m?.method === "ui/write-text" && m.params.instructions.length > 0,
+    );
+    expect(writes.map((m) => m.params.instructions.map((e: any) => e.text).join(""))).toEqual([
+      "first message",
+      "second message",
+    ]);
+  });
+
   test("a layout moved by its screen's slot keeps its entries and the latest", async () => {
     const h = createDOMHarness(source("text", undefined, true), 0, {
       reactive: true,

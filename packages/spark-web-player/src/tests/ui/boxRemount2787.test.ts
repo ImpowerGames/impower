@@ -213,6 +213,37 @@ describe("a box's text across a remount of its content (#2787)", () => {
     expect(texts(h)).toEqual(["first=ABAB"]);
   });
 
+  test.each([false, true])(
+    "a line paused and resumed while typing keeps its reveal across a remount (beats composed: %s)",
+    async (composed) => {
+      const h = createDOMHarness(source(BOX), 0, { reactive: true, autoOpenAll: false });
+      await h.ready;
+      h.jumpTo("start");
+      timed(h);
+      (h.game.context.system as any).composeBeats = composed;
+      await next(h);
+      await at(100);
+      const before = visible(h);
+      expect(before).toBeGreaterThan(0);
+      expect(before).toBeLessThan(letters(h).length);
+      h.ui.onPause();
+      await at(1100);
+      h.ui.onUnpause();
+      expect(visible(h)).toBe(before);
+      if (composed) {
+        expect(h.game.module.ui.beginCompose()).toBe(true);
+      }
+      h.game.story.EvaluateFunction("toggle", []);
+      h.game.module.ui.refreshLayouts();
+      if (composed) {
+        void h.game.module.ui.endCompose({});
+      }
+      await flushMicrotasks(40);
+      expect(texts(h)).toEqual(["second=slight problem"]);
+      expect(visible(h)).toBe(before);
+    },
+  );
+
   test("a line finished by a click stays finished across a remount", async () => {
     const h = createDOMHarness(source(BOX), 0, { reactive: true, autoOpenAll: false });
     await h.ready;

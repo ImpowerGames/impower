@@ -7310,6 +7310,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       remounted(replaced: (el: Element) => boolean): void {
         for (const mounts of this._mounted.values()) {
           for (const mount of mounts) {
+            if (replaced(mount.element)) {
+              continue;
+            }
             const entries = $._state.streams?.[mount.key]?.entries ?? [];
             mount.entries.forEach((view, index) => {
               const entry = entries[index];

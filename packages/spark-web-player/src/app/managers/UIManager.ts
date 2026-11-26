@@ -1870,6 +1870,19 @@ export default class UIManager extends Manager {
       }
       return;
     }
+    const carried = targetEls[0] as any;
+    if (
+      !instant &&
+      carried &&
+      targetEls.every(
+        (el) =>
+          (el as any).__sdTxt === sig &&
+          (el as any).__sdTxtStart != null &&
+          !kept(el),
+      )
+    ) {
+      startTime = carried.__sdTxtStart + (this.lag() - carried.__sdTxtLag);
+    }
     for (const el of targetEls) {
       if (
         instructions.length > 0 &&
@@ -1883,6 +1896,8 @@ export default class UIManager extends Manager {
       }
       (el as any).__sdTxt = sig;
       (el as any).__sdLeaves = leavesOf(el);
+      (el as any).__sdTxtStart = instant ? undefined : startTime;
+      (el as any).__sdTxtLag = this.lag();
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
       (el as any).__sdTxtAtOnce = instant;
     }
