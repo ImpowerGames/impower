@@ -479,7 +479,26 @@ A picture drawn on a canvas follows these rules:
 
 ### How a mask is drawn
 
-A `mask` element shows the outline of the picture written to its element, filled with the colour its style gives it, as a shadow behind a portrait does. When the element's `image` shows that picture on a canvas, the outline comes from the picture's own drawing: it is made once, from the rest pose at the size the picture is drawn, and every `mask` of the element shows it. The line waits for the outline as it waits for the picture. A morph playing on the picture does not move the outline: a shadow keeps the resting outline while the mouth moves. The `mask`'s colour, opacity, offset, blur and animations apply as written.
+A `mask` element shows the outline of the picture written to its element, as a shadow behind a portrait does. The outline is cut from the `mask` element's child, so the fill goes on `> *`, while the opacity and offset go on the `mask` element itself. A fill set on the `mask` element itself shows as a full rectangle:
+
+```
+layout main {
+  portrait {
+    mask.shadow
+    image
+  }
+}
+
+style shadow {
+  opacity = 0.3
+  translate = 10px -10px
+  > * {
+    background_color = black
+  }
+}
+```
+
+When the element's `image` shows that picture on a canvas, the outline comes from the picture's own drawing: it is made once, from the rest pose at the size the picture is drawn, and every `mask` of the element shows it. The line waits for the outline as it waits for the picture. A morph playing on the picture does not move the outline: a shadow keeps the resting outline while the mouth moves. The `mask`'s colour, opacity, offset, blur and animations apply as written.
 
 A `mask` whose picture shows the placeholder shows nothing, and so does one whose outline is not ready when the wait runs out, until the outline is made. A `mask` keeps the CSS drawing of the picture's files, which count at their whole size, when the picture keeps the CSS drawing, when it is a single image file, and when no `image` of the element shows it.
 
