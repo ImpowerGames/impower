@@ -131,7 +131,7 @@ describe("a name inside an authored value is read with the grammar of its proper
       ),
     );
     const value = css.slice(css.indexOf(":", css.indexOf("--theme-animation")) + 1, css.lastIndexOf(";"));
-    expect(identValues(value)).toEqual([name]);
+    expect(identValues(value)).toEqual(["ease", "normal", "both", "running", name]);
     expect(identValues(preludeOf(screenKeyframes(name)).replace("@keyframes", ""))).toEqual([name]);
   });
 });

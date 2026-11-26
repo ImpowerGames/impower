@@ -1,3 +1,4 @@
+import { DEFAULT_ANIMATION_TIMING } from "../../../../../../sparkle-style-transformer/src/utils/animationShorthand";
 import type { Create } from "../../../core/types/Create";
 import type { Animation } from "../types/Animation";
 
@@ -8,12 +9,7 @@ export const default_animation: Create<Animation> = (obj) => ({
   target: { $type: "layer", $name: "self", ...(obj?.target ?? {}) },
   keyframes: obj?.keyframes ?? [],
   timing: {
-    delay: 0,
-    duration: 0,
-    easing: "ease",
-    iterations: 1,
-    fill: "both",
-    direction: "normal",
+    ...DEFAULT_ANIMATION_TIMING,
     ...(obj?.timing || {}),
   },
 });

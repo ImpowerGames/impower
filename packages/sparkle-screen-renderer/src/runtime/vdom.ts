@@ -1,4 +1,5 @@
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
+import { getAnimationShorthand, type AnimationShorthandTiming } from "../../../sparkle-style-transformer/src/utils/animationShorthand";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { anchorSelfTargeted } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier, getThemeVariableName } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
@@ -318,14 +319,7 @@ export function renderVNode(
     }
     if (type === "timing" && children?.length) {
       const name = parent?.args?.["name"];
-      const timing: {
-        duration?: string;
-        delay?: string;
-        easing?: string;
-        iterations?: string;
-        direction?: string;
-        fill?: string;
-      } = {};
+      const timing: AnimationShorthandTiming = {};
       for (const c of children) {
         const key = c.args?.["key"];
         const value = c.args?.["value"];
@@ -348,18 +342,7 @@ export function renderVNode(
           timing.fill = value;
         }
       }
-      const shorthand = [
-        timing.duration,
-        timing.easing,
-        timing.delay,
-        timing.iterations,
-        timing.direction,
-        timing.fill,
-        name && escapeCssIdentifier(name),
-      ]
-        .filter(Boolean)
-        .join(" ");
-      const animationDeclaration = `${escapeCssIdentifier(getThemeVariableName("animation", name))}: ${shorthand};`;
+      const animationDeclaration = `${escapeCssIdentifier(getThemeVariableName("animation", name))}: ${getAnimationShorthand(name ?? "", timing)};`;
       return `:is(:root,:host) { ${animationDeclaration} }`;
     }
 

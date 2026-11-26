@@ -116,6 +116,7 @@ import {
   tokenOf,
   TokenType,
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
+import { getAnimationShorthand } from "../../../../../../sparkle-style-transformer/src/utils/animationShorthand";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
 import { getVarName } from "../utils/getVarName";
@@ -2177,24 +2178,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
-    const time = (value: number | string | undefined) =>
-      typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
-        ? `${value}s`
-        : value || "0s";
-    const easing = timing?.easing;
-    const ease = easing ? this.context?.ease?.[easing] : undefined;
-    const iterations = timing?.iterations;
-    const fill = timing?.fill;
-    return [
-      time(timing?.duration),
-      (ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing) || "ease",
-      time(timing?.delay),
-      iterations === Infinity ? "infinite" : (iterations?.toString() ?? "1"),
-      timing?.direction || "normal",
-      !fill || fill === "auto" ? "none" : fill,
-      "running",
-      escapeCssIdentifier(name),
-    ].join(" ");
+    return getAnimationShorthand(name, timing, (easing) => {
+      const ease = easing.startsWith("$") ? undefined : this.context?.ease?.[easing];
+      return ease && this.getTimingFunction(ease);
+    });
   }
 
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {
