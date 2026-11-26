@@ -194,7 +194,7 @@ export interface ListsState {
   assetsLayouts?: Record<string, string>;
 }
 
-export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color" | "typewriter";
+export type WritingToolsView = "menu" | "guide" | "shortcuts" | "color";
 
 export interface WritingToolsState {
   view: WritingToolsView;

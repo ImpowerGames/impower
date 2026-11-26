@@ -1,5 +1,4 @@
 import { type Random } from "../types/Random";
-import { type RecursivePartial } from "../types/RecursivePartial";
 import { type Schema } from "../types/Schema";
 import { clampedRandom } from "./clampedRandom";
 import { cull } from "./cull";
@@ -29,7 +28,7 @@ const roundForSchema = <T>(
 };
 
 export const randomizeProperties = <T>(
-  obj: T | RecursivePartial<T>,
+  obj: T,
   validation: Schema<T>,
   randomization: Random<T>,
   cullProp?: string,

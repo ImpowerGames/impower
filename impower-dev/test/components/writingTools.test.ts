@@ -166,7 +166,6 @@ describe("Writing tools menu", () => {
     expect(panel()?.querySelector("h2")?.textContent).toBe("Writing tools");
     expect(rows().map((b) => b.textContent)).toEqual([
       "Sparkdown guide",
-      "Typewriter sound",
       "Keyboard shortcuts",
       "Find and replace",
     ]);
@@ -217,7 +216,6 @@ describe("Writing tools menu", () => {
     await open();
     expect(rows().map((b) => b.textContent)).toEqual([
       "Sparkdown guide",
-      "Typewriter sound",
       "Keyboard shortcuts",
       "Find and replace",
     ]);

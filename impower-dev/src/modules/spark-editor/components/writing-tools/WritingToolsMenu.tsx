@@ -14,7 +14,6 @@ import {
   TextLinesIcon,
   UndoIcon,
   UpIcon,
-  VolumeIcon,
 } from "@impower/impower-ui/components";
 import type { EditorCommand } from "@impower/spark-editor-protocol/src/protocols/editor/ExecuteEditorCommandMessage";
 import type { WritingToolsView } from "@impower/spark-editor-protocol/src/types";
@@ -140,12 +139,6 @@ export default function WritingToolsMenu({
         label="Sparkdown guide"
         view="guide"
         onClick={() => onView("guide")}
-      />
-      <Row
-        icon={<VolumeIcon />}
-        label="Typewriter sound"
-        view="typewriter"
-        onClick={() => onView("typewriter")}
       />
       <Row
         icon={<KeyboardIcon />}

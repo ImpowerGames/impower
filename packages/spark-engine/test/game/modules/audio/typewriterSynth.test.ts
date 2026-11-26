@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { randomizeProperties } from "../../../../src/game/core/utils/randomizeProperties";
 import { randomizer } from "../../../../src/game/core/utils/randomizer";
@@ -6,6 +7,7 @@ import { SynthBuffer } from "../../../../src/game/modules/audio/classes/helpers/
 import { schema_synth } from "../../../../src/game/modules/audio/constructors/schema_synth";
 import type { Synth } from "../../../../src/game/modules/audio/types/Synth";
 import { preludeContext } from "../../../harness/compilePrelude";
+import { createHarness } from "../../../ui/harness/uiTestHarness";
 
 const voices = preludeContext()["synth"] as Record<string, Synth>;
 const defaults = voices["$default"]!;
@@ -174,6 +176,43 @@ it("rerolls distinct playable keys with a quiet gap, a return and constant sylla
     rolls.add(synth.delay.length);
   }
   expect(rolls.size).toBeGreaterThan(12);
+});
+
+it("plays a handwritten typewriter definition as a character’s syllable sound", async () => {
+  const definition = readFileSync(
+    new URL("./fixtures/story_key.sd", import.meta.url),
+    "utf8",
+  );
+  const harness = createHarness(`${definition}
+define reader as character with
+  name = "READER"
+end
+define reader as story_key with
+  volume = 0.22
+end
+scene start
+  READER:
+    Wait.   Someone is at the door.
+end`);
+  await harness.ready;
+  expect(harness.errors).toEqual([]);
+  harness.jumpToFlow("start");
+  const beat = harness.nextBeat();
+  expect(beat?.speech?.beeps?.map((time) => Math.round(time * 1000))).toEqual(
+    [0, 75, 400, 475, 550, 625, 700, 775, 850, 925],
+  );
+  const voice = harness.game.context["synth"]["reader"]!;
+  expect(voice).toMatchObject({
+    shape: "whitenoise",
+    volume: 0.22,
+    bandpass: { on: true, frequency: 1600, q: 0.96 },
+    delay: { on: true, length: 0.000435 },
+  });
+  const tap = new SynthBuffer(voice, [{}], 48000);
+  expect(tap.length).toBe(3504);
+  expect(rms(tap.soundBuffer, 46 * 48, 55 * 48)).toBeGreaterThan(
+    5 * rms(tap.soundBuffer, 36 * 48, 40 * 48),
+  );
 });
 
 it("lets authors edit a rolled envelope without changing the preset or another roll", () => {
