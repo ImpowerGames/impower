@@ -819,6 +819,7 @@ const addSelectorAttributeCompletions = (
   range: Range,
   scripts: Map<string, AnnotatedScript>,
   program: SparkProgram | undefined,
+  written: "nothing" | "body" | "value",
 ) => {
   const [, opener, name = "", operator] = typed;
   if (operator) {
@@ -830,14 +831,16 @@ const addSelectorAttributeCompletions = (
   }
   for (const prop of SELECTABLE_PROPS) {
     const attribute = opener === "#" ? prop : toDataAttributeName(prop);
-    const assigned = isValuelessAttribute(prop) ? "" : "=$1";
+    const assigned = written === "value" || isValuelessAttribute(prop) ? "" : "=$1";
+    const key = opener === "#" ? `#${prop}${assigned}` : `[${attribute}${assigned}`;
+    const closed = opener === "#" || written === "value" ? key : `${key}]`;
     const label = opener === "#" ? `#${prop}` : `[${attribute}]`;
     completions.set(label, {
       label,
       filterText: `${opener}${attribute}`,
       textEdit: {
         range,
-        newText: opener === "#" ? `#${prop}${assigned} { $0 }` : `[${attribute}${assigned}] { $0 }`,
+        newText: written === "nothing" ? `${closed} { $0 }` : closed,
       },
       insertTextFormat: InsertTextFormat.Snippet,
       sortText: `${DATA_ATTRIBUTE_PROPS.has(prop) ? 0 : 1}${prop}`,
@@ -2472,18 +2475,29 @@ const completionsAt = (
       !insideElementValue(tree, documentCursorOffset)
     ) {
       const typedLength = typedSelector[0].trimStart().length;
-      const closes =
-        typedSelector[1] === "[" &&
-        read(documentCursorOffset, documentCursorOffset + 1) === "]";
+      const after = lineText
+        .slice(position.character)
+        .replace(/[\r\n]+$/, "");
+      const nameRest = /^[\p{L}\p{N}_-]*/u.exec(after)![0];
+      const rest = after.slice(nameRest.length);
+      const closes = typedSelector[1] === "[" && rest.startsWith("]");
+      const written = /^[~|^$*]?=/.test(rest)
+        ? "value"
+        : (closes ? rest.slice(1) : rest).trim()
+          ? "body"
+          : "nothing";
       addSelectorAttributeCompletions(
         completions,
         typedSelector,
         document.range(
           documentCursorOffset - typedLength,
-          documentCursorOffset + (closes ? 1 : 0),
+          documentCursorOffset +
+            nameRest.length +
+            (closes && written !== "value" ? 1 : 0),
         ),
         scripts,
         program,
+        written,
       );
       return buildCompletions();
     }

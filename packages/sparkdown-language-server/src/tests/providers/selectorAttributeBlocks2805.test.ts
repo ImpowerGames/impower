@@ -47,14 +47,15 @@ ${SCENE}`;
 const completeIn = (body: string, trigger?: string) => complete(styled(body), { program, trigger });
 
 const accepted = (body: string, item: CompletionItem) => {
-  const source = styled(body);
-  const offset = source.indexOf("@1");
-  const text = source.replace("@1", "");
-  const edit = item.textEdit as { range: { start: { line: number; character: number } }; newText: string };
+  const text = styled(body).replace("@1", "");
+  const edit = item.textEdit as {
+    range: { start: { line: number; character: number }; end: { line: number; character: number } };
+    newText: string;
+  };
   const lines = text.split("\n");
   const at = (p: { line: number; character: number }) =>
     lines.slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.character;
-  return text.slice(0, at(edit.range.start)) + edit.newText.replace(/\$\d/g, "") + text.slice(offset);
+  return text.slice(0, at(edit.range.start)) + edit.newText.replace(/\$\d/g, "") + text.slice(at(edit.range.end));
 };
 
 describe("completing attribute selector blocks in a style (#2805)", () => {
@@ -90,15 +91,20 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
   it("writes over the ] the editor closed the [ with", () => {
     const body = "  [data-sp@1]";
     const item = completeIn(body, "[").items.find((i) => i.label === "[data-speaker]")!;
-    const source = styled(body);
-    const text = source.replace("@1", "");
-    const edit = item.textEdit as { range: { start: { line: number; character: number }; end: { line: number; character: number } }; newText: string };
-    const lines = text.split("\n");
-    const at = (p: { line: number; character: number }) =>
-      lines.slice(0, p.line).reduce((n, l) => n + l.length + 1, 0) + p.character;
-    expect(text.slice(0, at(edit.range.start)) + edit.newText.replace(/\$\d/g, "") + text.slice(at(edit.range.end))).toBe(
-      styled("  [data-speaker=] {  }"),
-    );
+    expect(accepted(body, item)).toBe(styled("  [data-speaker=] {  }"));
+  });
+
+  it.each([
+    ["  #var@1 { opacity = 1 }", "#", "#variant", "  #variant= { opacity = 1 }"],
+    ["  #var@1iant=left { opacity = 1 }", "#", "#variant", "  #variant=left { opacity = 1 }"],
+    ["  #sp@1=bunny { opacity = 1 }", "#", "#speaker", "  #speaker=bunny { opacity = 1 }"],
+    ["  #dis@1 { opacity = 1 }", "#", "#disabled", "  #disabled { opacity = 1 }"],
+    ["  [data-sp@1] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=] { opacity = 1 }"],
+    ["  [data-sp@1eaker=bunny] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=bunny] { opacity = 1 }"],
+    ["  [dis@1] { opacity = 1 }", "[", "[disabled]", "  [disabled] { opacity = 1 }"],
+  ])("completes the key of an existing block in %j without writing another block", (body, trigger, label, expected) => {
+    const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
+    expect(accepted(body, item)).toBe(styled(expected));
   });
 
   it.each(["  #variant=@1", "  #variant=sh@1", "  [data-variant=@1", "  [data-variant=@1]"])("offers the script's variants in %j", (body) => {
@@ -129,7 +135,10 @@ describe("hovering an attribute selector block in a style (#2805)", () => {
   [data-variant=LEFT i] { opacity = 1 }
   [data-speaker="Bunny"i] { opacity = 1 }
   [variant=shout i] { opacity = 1 }
-  [data-variant=right s] { opacity = 1 }`);
+  [data-variant=right s] { opacity = 1 }
+  [data-tooltip="Say \\"hi\\""] { opacity = 1 }
+  [data-tooltip='it\\'s' i] { opacity = 1 }
+  #tooltip="Say \\"so\\"" { opacity = 1 }`);
 
   const hoverOn = async (word: string) => {
     const documents = new SparkdownDocumentRegistry(["references"]);
@@ -198,6 +207,17 @@ describe("hovering an attribute selector block in a style (#2805)", () => {
   it("keeps the prop equivalence for a case-sensitive flag", async () => {
     const hover = await hoverOn("[data-variant=right s]");
     expect(hover?.value).toContain("`#variant=right` writes this attribute, so `#variant=right { … }` selects the same elements");
+  });
+
+  it("describes a quoted value holding an escaped quote", async () => {
+    const quoted = await hoverOn('[data-tooltip="Say \\"hi\\""]');
+    expect(quoted?.marked).toBe('[data-tooltip="Say \\"hi\\""]');
+    expect(quoted?.value).toContain('whose `data-tooltip` attribute is `Say \\"hi\\"`');
+    const flagged = await hoverOn("[data-tooltip='it\\'s' i]");
+    expect(flagged?.value).toContain("whose `data-tooltip` attribute is `it\\'s`, ignoring case");
+    const prop = await hoverOn('#tooltip="Say \\"so\\""');
+    expect(prop?.marked).toBe('#tooltip="Say \\"so\\""');
+    expect(prop?.value).toContain('selects the elements written with `#tooltip="Say \\"so\\""`');
   });
 
   it("describes a plain attribute selector", async () => {

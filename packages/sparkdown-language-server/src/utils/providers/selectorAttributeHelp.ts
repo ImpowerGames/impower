@@ -82,7 +82,7 @@ const unquote = (value: string) =>
 const PROP_SELECTOR = /^#([^\s~|^$*=]+)(?:([~|^$*]?=)(.*))?$/s;
 
 const ATTRIBUTE_SELECTOR =
-  /^\[\s*([^\s~|^$*=\]]+)\s*(?:([~|^$*]?=)\s*("[^"]*"|'[^']*'|[^\s\]]*)(?:\s*([iIsS]))?)?\s*\]$/;
+  /^\[\s*([^\s~|^$*=\]]+)\s*(?:([~|^$*]?=)\s*("(?:\\[^]|[^"\\])*"|'(?:\\[^]|[^'\\])*'|(?:\\[^]|[^\s\]\\])*)(?:\s*([iIsS]))?)?\s*\]$/;
 
 const describeProp = (written: string): string | null => {
   const match = PROP_SELECTOR.exec(written);
@@ -94,7 +94,7 @@ const describeProp = (written: string): string | null => {
   const selects = !operator
     ? `\`${written} { … }\` selects the elements written with a \`#${prop}\` prop.`
     : operator === "="
-      ? `\`${written} { … }\` selects the elements written with \`#${prop}=${value}\`.`
+      ? `\`${written} { … }\` selects the elements written with \`#${prop}=${raw}\`.`
       : `\`${written} { … }\` selects the elements written with a \`#${prop}\` prop whose value ${OPERATOR_MATCHES[operator]} \`${value}\`.`;
   const meaning = operator === "=" && value ? PROP_MEANINGS.get(prop)?.(value) : undefined;
   return [selects, ...(meaning ? [meaning] : []), ...guideLink(prop)].join("\n\n");
