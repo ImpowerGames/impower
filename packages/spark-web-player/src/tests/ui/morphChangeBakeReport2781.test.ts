@@ -1,9 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 import { createMorphHost, inlineMorphSource } from "@impower/sparkdown/src/morph/hosts";
+import type { MorphArtifact, MorphRef } from "@impower/sparkdown/src/morph/types";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { MorphPlayback } from "../../app/morph/MorphPlayback";
 import { RuntimeDiagnosticsRun } from "../../utils/RuntimeDiagnosticsRun";
-import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
+import { createDOMHarness, flushMicrotasks, installJSDOM } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -86,7 +87,7 @@ describe("a played change pair's bake diagnostics (#2781)", () => {
     const { run } = await play(2, false);
     await until(() => !!run.params().morphBakes);
     expect(run.params()).toMatchObject({ diagnostics: {} });
-    expect(run.params().morphBakes).toEqual([{ image: "mia", variant: "mia:mouth.frown", diagnostics: [PAIRING] }]);
+    expect(run.params().morphBakes).toEqual([{ image: "mia", source: expect.any(String), variant: "mia:mouth.frown", diagnostics: [PAIRING] }]);
   });
 
   test("the same pair played again replaces its entry", async () => {
@@ -94,8 +95,8 @@ describe("a played change pair's bake diagnostics (#2781)", () => {
     await until(() => reported.length >= 3);
     expect(new Set(reported).size).toBe(2);
     expect(run.params().morphBakes).toEqual([
-      { image: "mia", variant: "mia:mouth.frown", diagnostics: [PAIRING] },
-      { image: "mia", variant: "mia:mouth.smile", diagnostics: [PAIRING] },
+      { image: "mia", source: expect.any(String), variant: "mia:mouth.frown", diagnostics: [PAIRING] },
+      { image: "mia", source: expect.any(String), variant: "mia:mouth.smile", diagnostics: [PAIRING] },
     ]);
   });
 
@@ -104,5 +105,51 @@ describe("a played change pair's bake diagnostics (#2781)", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(reported).toEqual([]);
     expect(run.params().morphBakes).toBeUndefined();
+  });
+});
+
+describe("a change pair's report belongs to the bake it came from (#2781)", () => {
+  const ref = (image: string): MorphRef => ({
+    morphs: ["bend"],
+    key: "same-art",
+    image,
+    selection: '{"mouth":"frown"}',
+    groups: ["mouth"],
+    recipes: { bend: "recipe" },
+    source: "data:same",
+  });
+  const artifact = { diagnostics: [{ ...PAIRING, code: "pairing-count" as const, severity: "warning" as const }] } as unknown as MorphArtifact;
+
+  test("two images with the same art keep one entry each", () => {
+    const run = new RuntimeDiagnosticsRun({ uri: "inmemory:///main.sd", scripts: {} }, null);
+    run.addChangeBake(ref("mia"), artifact);
+    run.addChangeBake(ref("tom"), artifact);
+    expect(run.params().morphBakes?.map((bake) => bake.image)).toEqual(["mia", "tom"]);
+  });
+
+  test("a bake still resolving when the next run begins reports to the run it started in, and a cancelled one reports nothing", async () => {
+    const env = installJSDOM();
+    try {
+      const pending: ((handle: any) => void)[] = [];
+      const playback = new MorphPlayback(env.overlay, {
+        host: { resolve: () => new Promise((resolve) => pending.push(resolve)) },
+        requestFrame: () => 0,
+        cancelFrame: () => {},
+      });
+      const first: string[] = [];
+      const second: string[] = [];
+      playback.reportChangeBake = (r) => first.push(r.image);
+      const started = playback.resolver.resolve(ref("mia"));
+      const cancel = new AbortController();
+      const cancelled = playback.resolver.resolve(ref("tom"), { signal: cancel.signal });
+      playback.reportChangeBake = (r) => second.push(r.image);
+      cancel.abort();
+      for (const resolve of pending) resolve({ key: "same-art", artifact, release: () => {} });
+      await Promise.all([started, cancelled]);
+      expect(first).toEqual(["mia"]);
+      expect(second).toEqual([]);
+    } finally {
+      env.restore();
+    }
   });
 });

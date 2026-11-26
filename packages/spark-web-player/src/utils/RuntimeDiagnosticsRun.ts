@@ -50,6 +50,7 @@ export class RuntimeDiagnosticsRun {
     const bake: RuntimeMorphBake = {
       image: ref.image,
       ...(ref.layered ? { layered: true as const } : {}),
+      ...(ref.source === undefined ? {} : { source: ref.source }),
       variant: changeLookName(ref),
       diagnostics: artifact.diagnostics.map(({ code, severity, message, morphs, layer, path }) => ({
         code,
@@ -60,14 +61,15 @@ export class RuntimeDiagnosticsRun {
         ...(path === undefined ? {} : { path }),
       })),
     };
-    const previous = this._changeBakes.get(ref.key);
+    const key = JSON.stringify([ref.image, ref.key]);
+    const previous = this._changeBakes.get(key);
     if (previous && JSON.stringify(previous) === JSON.stringify(bake)) {
       return false;
     }
     if (!previous && bake.diagnostics.length === 0) {
       return false;
     }
-    this._changeBakes.set(ref.key, bake);
+    this._changeBakes.set(key, bake);
     return true;
   }
 

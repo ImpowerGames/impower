@@ -507,11 +507,13 @@ export class MorphPlayback {
   }
 
   protected reporting: MorphHost = {
-    resolve: (ref, options) =>
-      this.host.resolve(ref, options).then((handle) => {
-        if (ref.recipes) this.reportChangeBake?.(ref, handle.artifact);
+    resolve: (ref, options) => {
+      const report = ref.recipes ? this.reportChangeBake : undefined;
+      return this.host.resolve(ref, options).then((handle) => {
+        if (report && !options?.signal?.aborted) report(ref, handle.artifact);
         return handle;
-      }),
+      });
+    },
   };
 
   get resolver(): MorphHost {

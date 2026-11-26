@@ -72,7 +72,7 @@ describe("a change pair the player bakes (#2781)", () => {
       handle.release();
       await settle(20);
       const reported = [
-        { image: "mia", variant: "mia:mouth.frown", diagnostics: [expect.objectContaining({ code: "pairing-count", severity: "warning", morphs: ["bend"], layer: "lip" })] },
+        { image: "mia", source: expect.any(String), variant: "mia:mouth.frown", diagnostics: [expect.objectContaining({ code: "pairing-count", severity: "warning", morphs: ["bend"], layer: "lip" })] },
       ];
       expect(bakesReported(h.toEditor).at(-1)).toEqual(reported);
       const before = bakesReported(h.toEditor).length;

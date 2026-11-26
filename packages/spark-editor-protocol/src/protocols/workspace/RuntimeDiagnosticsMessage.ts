@@ -16,6 +16,7 @@ export interface RuntimeMorphBakeDiagnostic {
 export interface RuntimeMorphBake {
   image: string;
   layered?: true;
+  source?: string;
   variant: string;
   diagnostics: RuntimeMorphBakeDiagnostic[];
 }

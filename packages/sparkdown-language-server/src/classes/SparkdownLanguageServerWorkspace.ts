@@ -25,7 +25,7 @@ import {
   findRunPath,
 } from "@impower/sparkdown/src/compiler/utils/runOperand";
 import { decodeSVGSource } from "@impower/sparkdown/src/attributes";
-import { channelRefs, morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { channelRefs, morphRefsForStruct, morphSourceToken } from "@impower/sparkdown/src/morph/channel";
 import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
@@ -621,6 +621,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
     return morphEditorDiagnostics(
       params.morphBakes.flatMap((bake) => {
+        const image = getContextEntry(program.context, bake.layered ? "layered_image" : "image", bake.image);
+        if (bake.source === undefined || bake.source !== morphSourceToken(program.context, image)) return [];
         const artwork = morphArtworkFiles(program.context, bake);
         return artwork ? [{ variant: bake.variant, ...artwork, diagnostics: bake.diagnostics }] : [];
       }),

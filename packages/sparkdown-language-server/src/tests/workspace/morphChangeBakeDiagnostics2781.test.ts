@@ -26,12 +26,12 @@ const MIA = `define mia as character with\n  name = "Mia"\nend\n`;
 
 const shows = (...looks: string[]) => `\nscene start\n${looks.map((look) => `  [[show portrait ${look}]]\n  Mia speaks.\n`).join("")}end\n`;
 
-function compile(script: string, version = 1): any {
+function compile(script: string, version = 1, art = SVG): any {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       { uri: main, type: "script", name: "main", ext: "sd", text: script, version, languageId: "sparkdown" },
-      { uri: asset, type: "image", name: "mia", ext: "svg", data: SVG },
+      { uri: asset, type: "image", name: "mia", ext: "svg", data: art },
       { uri: other, type: "image", name: "tom", ext: "svg", data: SVG },
     ],
   } as any);
@@ -110,7 +110,7 @@ async function playedChange(program: any, fromLook: string, toLook: string) {
   return {
     program: { uri: main, scripts: { ...program.scripts } },
     diagnostics: {},
-    morphBakes: [{ image: ref!.image, variant: changeLookName(ref!), diagnostics }],
+    morphBakes: [{ image: ref!.image, source: ref!.source, variant: changeLookName(ref!), diagnostics }],
   };
 }
 
@@ -189,6 +189,7 @@ describe("a change morph's bake diagnostics", () => {
         {
           image: ref!.image,
           layered: true,
+          source: ref!.source,
           variant: changeLookName(ref!),
           diagnostics: [problem("/0/1", "on the smile"), problem("/0/2", "on the frown"), problem(undefined, "on the picture")],
         },
@@ -198,6 +199,31 @@ describe("a change morph's bake diagnostics", () => {
     expect(messages("file:///project/smile.svg")).toEqual(["Morph `bend` on `pip:mouth.frown`: on the smile"]);
     expect(messages("file:///project/frown.svg")).toEqual(["Morph `bend` on `pip:mouth.frown`: on the frown"]);
     expect(messages("file:///project/head.svg")).toEqual(["Morph `bend` on `pip:mouth.frown`: on the picture"]);
+  }, 60_000);
+
+  it("a report of a bake from artwork since changed is ignored, however late it arrives", async () => {
+    const { workspace, compiled, report, morphOn } = setup();
+    const script = `${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`;
+    const program = compile(script);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report(played);
+    expect(morphOn(asset)).toHaveLength(1);
+    const fixed = SVG.replace(lips(30, 50, 70), lips(30, 50));
+    workspace.onChangedFile({ uri: asset, name: "mia", ext: "svg", type: "image", text: fixed });
+    compiled(compile(script, 1, fixed));
+    expect(morphOn(asset)).toEqual([]);
+    report(played);
+    expect(morphOn(asset)).toEqual([]);
+  }, 60_000);
+
+  it("an entry with no source to check against the artwork is ignored", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report({ ...played, morphBakes: played.morphBakes.map(({ source: _source, ...bake }) => bake) });
+    expect(morphOn(asset)).toEqual([]);
   }, 60_000);
 
   it("an entry whose image the compiled program does not hold is ignored", async () => {

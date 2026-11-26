@@ -56,6 +56,9 @@ interface MorphMember {
   change?: true;
 }
 
+export const morphSourceToken = (context: Context | undefined, image: any): string | undefined =>
+  image?.$type === "layered_image" ? layeredToken(context, image) : sourceToken(image);
+
 function makeRef(
   context: Context | undefined,
   members: readonly MorphMember[],
@@ -63,7 +66,7 @@ function makeRef(
   image: any,
   selection: Record<string, string>,
 ): MorphRef | undefined {
-  const token = image?.$type === "layered_image" ? layeredToken(context, image) : sourceToken(image);
+  const token = morphSourceToken(context, image);
   if (!token) return undefined;
   const canonical = canonicalSelection(selection);
   const texts = members.map((member) => member.text);
@@ -81,6 +84,7 @@ function makeRef(
   const changes = members.filter((member) => member.change);
   if (changes.length > 0) {
     ref.recipes = Object.fromEntries(changes.map((member) => [member.recipe.name, member.text]));
+    ref.source = token;
   }
   if (image?.$type === "image" && !image.data) {
     const filtered = buildFilteredSrc(image, selection);
