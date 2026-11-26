@@ -95,7 +95,18 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
   });
 
   it.each([
+    ["  #var@1 }", "#", "#variant", "  #variant= {  } }"],
+    ["  [data-sp@1] }", "[", "[data-speaker]", "  [data-speaker=] {  } }"],
+    ["  #dis@1; opacity = 1", "#", "#disabled", "  #disabled {  }; opacity = 1"],
+    ["  #var@1, opacity = 1", "#", "#variant", "  #variant= {  }, opacity = 1"],
+  ])("writes the whole block before the enclosing body's } or the next entry in %j", (body, trigger, label, expected) => {
+    const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
+    expect(accepted(body, item)).toBe(styled(expected));
+  });
+
+  it.each([
     ["  #var@1 { opacity = 1 }", "#", "#variant", "  #variant= { opacity = 1 }"],
+    ["  #var@1 @hovered { opacity = 1 }", "#", "#variant", "  #variant= @hovered { opacity = 1 }"],
     ["  #var@1iant=left { opacity = 1 }", "#", "#variant", "  #variant=left { opacity = 1 }"],
     ["  #sp@1=bunny { opacity = 1 }", "#", "#speaker", "  #speaker=bunny { opacity = 1 }"],
     ["  #dis@1 { opacity = 1 }", "#", "#disabled", "  #disabled { opacity = 1 }"],

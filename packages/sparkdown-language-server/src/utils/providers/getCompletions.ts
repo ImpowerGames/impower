@@ -2484,9 +2484,9 @@ const completionsAt = (
         typedSelector[1] === "[" ? (/^\s*\]/.exec(rest)?.[0] ?? "") : "";
       const written = /^\s*[~|^$*]?=/.test(rest)
         ? "value"
-        : rest.slice(closing.length).trim()
-          ? "body"
-          : "nothing";
+        : /^\s*(?:$|[};,])/.test(rest.slice(closing.length))
+          ? "nothing"
+          : "body";
       addSelectorAttributeCompletions(
         completions,
         typedSelector,
