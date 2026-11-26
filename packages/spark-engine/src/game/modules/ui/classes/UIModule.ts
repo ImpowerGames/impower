@@ -158,6 +158,10 @@ import {
   type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
+  LayoutMotionMessage,
+  type LayoutMotionMessageMap,
+} from "./messages/LayoutMotionMessage";
+import {
   PresenceElementsMessage,
   type PresenceElementsMessageMap,
   type PresenceMotion,
@@ -320,17 +324,32 @@ const pictureHide = (
   return hide;
 };
 
+type MotionPhase = "leave" | "move" | "arrive";
+
+interface OwnedMotion {
+  phase: MotionPhase;
+  removes?: boolean;
+  started?: Promise<unknown>;
+  start: () => Promise<unknown>;
+  finish: () => void;
+  settle: () => void;
+}
+
 interface LineWait {
   time: number;
   presenting: boolean;
   composition?: Composition;
   held: IMessage[];
-  motions: Promise<unknown>[];
-  arrivals: ((play: boolean) => Promise<unknown>)[];
-  animated: Element[];
-  retirements: Retirement[];
+  motions: OwnedMotion[];
   resolve: (time: number | null) => void;
 }
+
+const moved = (result: unknown): boolean =>
+  result instanceof Set
+    ? result.size > 0
+    : Array.isArray(result)
+      ? result.length > 0
+      : false;
 
 interface Composition {
   kind: "display" | "beat";
@@ -597,6 +616,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
   PresenceElementsMessageMap &
+  LayoutMotionMessageMap &
   SetThemeMessageMap &
   ShowingMessageMap &
   SkipCutsceneMessageMap &
@@ -635,6 +655,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _leavingScheduled = false;
 
   protected _line?: LineWait;
+
+  protected _layoutStyles?: { styles: unknown; layout: boolean };
 
   protected _lineTimed = new WeakSet<IMessage>();
 
@@ -750,6 +772,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override onReset() {
+    this.settleLine();
     this._events = {};
     this._mountedLayouts = new Map();
     this._mountedScreens = new Map();
@@ -1532,8 +1555,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const line = this.lineOf(c);
-    if (line && line.motions.length === 0) {
-      line.motions.push(...this.playArrivals(line));
+    if (line) {
+      if (this.transitionsLayout()) {
+        this.ownLayoutMotion(line, "leave");
+      }
+      if (!line.motions.some((m) => m.phase === "leave")) {
+        this.startPhase(line, "arrive");
+      }
     }
     this.sendCompose(c);
   }
@@ -1544,8 +1572,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._compose = undefined;
     }
     const line = this.lineOf(c);
-    const waits =
-      line != null && (line.motions.length > 0 || line.arrivals.length > 0);
+    const waits = line != null && line.motions.length > 0;
     void super.emit(
       BeatMessage.type.notification({
         messages: waits
@@ -1567,7 +1594,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.runAfterSent(c);
     if (waits) {
-      void this.startLineAfterMotion(line);
+      void this.playOut(line);
     } else if (line) {
       this.endLine(line, line.time);
     }
@@ -1583,7 +1610,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const c = this._compose;
     if (c) {
       if (c.line) {
-        this.cancelLine(c.line);
+        this.settleLine(c.line);
       }
       this._compose = undefined;
       this._uiBatch = [];
@@ -1706,7 +1733,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     if (
       AnimateElementsMessage.type.isRequest(msg as any) ||
-      PresenceElementsMessage.type.isRequest(msg as any)
+      PresenceElementsMessage.type.isRequest(msg as any) ||
+      LayoutMotionMessage.type.isRequest(msg as any)
     ) {
       c.messages.push(structuredClone(msg));
       c.expected.push((msg as RequestMessage).id);
@@ -1916,23 +1944,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         })),
       }),
     );
-    this.composingLine()?.motions.push(played);
-    this._line?.animated.push(...effects.map((e) => e.element));
     return played;
   }
 
   setMotion(motion: boolean): void {
     if (!motion) {
-      this.cancelLine();
+      this.settleLine();
       this.settlePresence();
     }
     this._motion = motion;
   }
 
   beginLine(time: number): Promise<number | null> | undefined {
-    if (this._line) {
-      this.endLine(this._line, null);
-    }
+    this.abandonLine();
     if (!this.context?.system?.composeBeats || !this.moving()) {
       return undefined;
     }
@@ -1942,9 +1966,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         presenting: true,
         held: [],
         motions: [],
-        arrivals: [],
-        animated: [],
-        retirements: [],
         resolve,
       };
     });
@@ -1973,42 +1994,136 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._line === line) {
       this._line = undefined;
     }
-    for (const arrival of line.arrivals.splice(0)) {
-      arrival(false);
-    }
     line.resolve(time);
   }
 
-  protected cancelLine(line = this._line): void {
-    if (line) {
+  protected own(line: LineWait, motion: OwnedMotion): void {
+    line.motions.push(motion);
+    if (motion.phase === "leave") {
+      motion.started = motion.start();
+    }
+  }
+
+  protected ownLayoutMotion(line: LineWait, phase: MotionPhase): void {
+    this.own(line, {
+      phase,
+      start: () => {
+        this.flushUIBatch();
+        return this.emitSettled(LayoutMotionMessage.type.request({}));
+      },
+      finish: () => {},
+      settle: () => {
+        this.flushUIBatch();
+        void this.emitSettled(
+          LayoutMotionMessage.type.request({ settle: true }),
+        );
+      },
+    });
+  }
+
+  protected transitionsLayout(): boolean {
+    const styles = this.context?.style;
+    let cached = this._layoutStyles;
+    if (!cached || cached.styles !== styles) {
+      let layout = false;
+      const visit = (value: unknown, key: string) => {
+        if (layout) {
+          return;
+        }
+        if (typeof value === "string") {
+          layout =
+            key.includes("transition") &&
+            /(^|[\s,])layout([\s,]|$)/.test(value);
+          return;
+        }
+        if (value != null && typeof value === "object") {
+          for (const [inner, child] of Object.entries(value)) {
+            visit(child, inner);
+          }
+        }
+      };
+      visit(styles, "");
+      cached = { styles, layout };
+      this._layoutStyles = cached;
+    }
+    return cached.layout;
+  }
+
+  protected startPhase(line: LineWait, phase: MotionPhase): OwnedMotion[] {
+    const due = line.motions.filter((m) => m.phase === phase);
+    for (const motion of due) {
+      motion.started ??= motion.start();
+    }
+    return due;
+  }
+
+  protected settleLine(line = this._line): void {
+    if (line && this._line === line) {
       this.endLine(line, null);
-      for (const retiring of line.retirements.splice(0)) {
-        this.retire(retiring);
+      for (const motion of line.motions) {
+        motion.settle();
       }
-      for (const element of line.animated.splice(0)) {
-        if (this.attached(element)) {
-          this.updateElement(element, {
-            attributes: { [PRESENCE_ATTRIBUTE]: null },
-          });
+    }
+  }
+
+  protected abandonLine(line = this._line): void {
+    if (line && this._line === line) {
+      this.endLine(line, null);
+      for (const motion of line.motions) {
+        if (motion.started) {
+          void motion.started.then(() => motion.finish());
+        } else {
+          motion.settle();
         }
       }
     }
   }
 
-  protected playArrivals(line: LineWait): Promise<unknown>[] {
-    return line.arrivals.splice(0).map((arrival) => arrival(true));
-  }
-
-  protected async startLineAfterMotion(line: LineWait): Promise<void> {
-    await Promise.all(line.motions);
-    if (this._line !== line) {
+  protected async playOut(line: LineWait): Promise<void> {
+    let anyMoved = false;
+    const play = async (phase: MotionPhase) => {
+      const due = this.startPhase(line, phase);
+      const results = await Promise.all(due.map((m) => m.started));
+      if (this._line !== line) {
+        return false;
+      }
+      anyMoved = anyMoved || results.some(moved);
+      if (phase !== "leave") {
+        for (const motion of due) {
+          motion.finish();
+        }
+      }
+      return true;
+    };
+    if (!(await play("leave"))) {
       return;
     }
-    await Promise.all(this.playArrivals(line));
-    if (this._line !== line) {
+    if (line.motions.some((m) => m.removes)) {
+      const composed = this.beginCompose();
+      for (const motion of line.motions) {
+        if (motion.phase === "leave") {
+          motion.finish();
+        }
+      }
+      if (this.transitionsLayout()) {
+        this.ownLayoutMotion(line, "move");
+        this.startPhase(line, "move");
+      }
+      if (composed) {
+        void this.endCompose({
+          time: this.context.system.now() + BEAT_LEAD_MS,
+        });
+      }
+      if (!(await play("move"))) {
+        return;
+      }
+    }
+    if (!(await play("arrive"))) {
       return;
     }
-    const time = this.context.system.now() + BEAT_LEAD_MS;
+    const time = anyMoved
+      ? this.context.system.now() + BEAT_LEAD_MS
+      : line.time;
     const shift = time - line.time;
     for (const message of line.held) {
       const params = (message as { params?: { time?: unknown } }).params;
@@ -2169,17 +2284,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     for (const [element, motion] of motions) {
-      if (motion.retiring) {
-        this.retire(motion.retiring);
-      } else if (!this.attached(element)) {
-        continue;
-      } else if (motion.leave) {
-        motion.leave.hide(false);
-      } else {
-        this.updateElement(element, {
-          attributes: { [PRESENCE_ATTRIBUTE]: null },
-        });
-      }
+      this.settleElement(element, motion);
+    }
+  }
+
+  protected settleElement(element: Element, motion: PresenceRecord): void {
+    if (this._presence.get(element) === motion) {
+      this._presence.delete(element);
+    }
+    if (motion.retiring) {
+      this.retire(motion.retiring);
+    } else if (!this.attached(element)) {
+      return;
+    } else if (motion.leave) {
+      motion.leave.hide(false);
+    } else {
+      this.updateElement(element, {
+        attributes: { [PRESENCE_ATTRIBUTE]: null },
+      });
     }
   }
 
@@ -2216,30 +2338,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._presence.set(element, motion);
     }
     const line = this.composingLine();
-    if (line && presence === "show") {
+    if (!line) {
+      return this.emitPresence(elements, presence, motions);
+    }
+    let done = false;
+    const end = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      for (const [element, motion] of motions) {
+        if (this._presence.get(element) === motion) {
+          this.settleElement(element, motion);
+        }
+      }
+    };
+    if (presence === "show") {
       return new Promise((resolve) => {
-        line.arrivals.push((play) => {
-          if (!play) {
-            for (const [element, motion] of motions) {
-              if (this._presence.get(element) === motion) {
-                this._presence.delete(element);
-                this.updateElement(element, {
-                  attributes: { [PRESENCE_ATTRIBUTE]: null },
-                });
-              }
-            }
-          }
-          const ended = play
-            ? this.emitPresence(elements, presence, motions)
-            : Promise.resolve(new Set<Element>());
-          resolve(ended);
-          return ended;
+        this.own(line, {
+          phase: "arrive",
+          start: () => this.emitPresence(elements, presence, motions),
+          finish: () => {
+            done = true;
+            resolve(new Set(elements));
+          },
+          settle: () => {
+            end();
+            resolve(new Set());
+          },
         });
       });
     }
-    const ended = this.emitPresence(elements, presence, motions);
-    line?.motions.push(ended);
-    return ended;
+    this.own(line, {
+      phase: "leave",
+      removes: true,
+      start: () =>
+        this.emitPresence(elements, presence, motions).then((ended) => {
+          for (const element of ended) {
+            this._presence.set(element, motions.get(element)!);
+          }
+          return ended;
+        }),
+      finish: end,
+      settle: end,
+    });
+    return Promise.resolve(new Set());
   }
 
   protected emitPresence(
@@ -2289,13 +2432,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     element.remove();
     this._retiring.add(retiring);
-    void this.present([element], "hide", () => ({ retiring })).then(() =>
-      this.retire(retiring),
-    );
+    const owned = this.composingLine() != null;
+    const ended = this.present([element], "hide", () => ({ retiring }));
+    if (!owned) {
+      void ended.then(() => this.retire(retiring));
+    }
   }
 
   protected forgetPresence(): void {
-    this.cancelLine();
+    this.settleLine();
     this._motion = false;
     this._presence.clear();
     this._leaving.clear();
@@ -5331,11 +5476,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const line = this.composingLine();
       if (line) {
         this.updateElement(element, { style: { visibility: "hidden" } });
-        line.arrivals.push((play) => {
-          this.updateElement(element, { style: { visibility: null } });
-          return play
-            ? this.animateElements([{ element, animations: [enter] }])
-            : Promise.resolve();
+        let started = false;
+        this.own(line, {
+          phase: "arrive",
+          start: () => {
+            started = true;
+            this.updateElement(element, { style: { visibility: null } });
+            return this.animateElements([{ element, animations: [enter] }]);
+          },
+          finish: () => {},
+          settle: () => {
+            this.updateElement(element, {
+              style: { visibility: null },
+              ...(started ? { attributes: { [PRESENCE_ATTRIBUTE]: null } } : {}),
+            });
+          },
         });
         return;
       }
@@ -5405,7 +5560,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._mountedLayouts.delete(name);
       element.remove();
       this._retiring.add(retiring);
-      this._line?.retirements.push(retiring);
+      const line = this.composingLine();
+      if (line) {
+        this.own(line, {
+          phase: "leave",
+          removes: true,
+          start: () => this.animateElements([{ element, animations: [exit] }]),
+          finish: () => this.retire(retiring),
+          settle: () => this.retire(retiring),
+        });
+        return;
+      }
       void this.animateElements([{ element, animations: [exit] }]).then(() =>
         this.retire(retiring),
       );

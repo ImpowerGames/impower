@@ -26,6 +26,7 @@ import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { PresenceElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
+import { LayoutMotionMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/LayoutMotionMessage";
 import {
   type PlayCutsceneParams,
   PlayCutsceneMessage,
@@ -539,7 +540,8 @@ export default class UIManager extends Manager {
       for (const op of pending.ops) {
         if (
           AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
-          PresenceElementsMessage.type.isRequest(op as RequestMessage)
+          PresenceElementsMessage.type.isRequest(op as RequestMessage) ||
+          LayoutMotionMessage.type.isRequest(op as RequestMessage)
         ) {
           this.app.answer(
             op as RequestMessage,
@@ -820,7 +822,8 @@ export default class UIManager extends Manager {
       }
       if (
         AnimateElementsMessage.type.isRequest(request) ||
-        PresenceElementsMessage.type.isRequest(request)
+        PresenceElementsMessage.type.isRequest(request) ||
+        LayoutMotionMessage.type.isRequest(request)
       ) {
         this.app.answer(request, done);
       } else {
@@ -1516,6 +1519,24 @@ export default class UIManager extends Manager {
         this.dropSettledAnimation(animation);
       }
       return AnimateElementsMessage.type.result(validEffects);
+    }
+    if (LayoutMotionMessage.type.isRequest(msg)) {
+      if (msg.params.settle) {
+        this._layoutMotion.settle();
+        return LayoutMotionMessage.type.result([]);
+      }
+      await Promise.resolve();
+      const overlay = this.app.overlay;
+      const moving = overlay ? this._layoutMotion.moving(overlay) : [];
+      if (overlay && moving.length > 0) {
+        await this._layoutMotion.finished(overlay);
+      }
+      return LayoutMotionMessage.type.result(
+        moving.flatMap((el) => {
+          const id = (el as any).__sdId;
+          return typeof id === "string" ? [id] : [];
+        }),
+      );
     }
     if (PresenceElementsMessage.type.isRequest(msg)) {
       const played: string[] = [];

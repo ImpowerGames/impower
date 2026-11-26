@@ -392,6 +392,15 @@ export default class LayoutMotion {
     this.release();
   }
 
+  moving(root: Element): HTMLElement[] {
+    return Array.from(this._motions)
+      .filter(
+        ([el, motion]) =>
+          motion.changed && (el === root || root.contains(el)) && !this.ended(motion),
+      )
+      .map(([el]) => el);
+  }
+
   finished(root: Element): Promise<void> {
     const pending = new Map(
       Array.from(this._motions).filter(
