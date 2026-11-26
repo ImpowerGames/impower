@@ -1128,11 +1128,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.constructLayouts();
     }
     const transientTargets = this.getTransientTargets();
+    const holding = new Set(
+      [...Object.keys(this._state.text ?? {}), ...Object.keys(this._state.image ?? {})].flatMap(
+        (target) => this.findElements(target, true),
+      ),
+    );
     const emptySlots = [...this._contentSlots].filter(
       (target) =>
         !this._clearOnContinue.has(target) &&
-        !this._state.text?.[target] &&
-        !this._state.image?.[target],
+        !this.findElements(target, true).some((el) => holding.has(el)),
     );
     this.beginTextLine();
     await Promise.all([

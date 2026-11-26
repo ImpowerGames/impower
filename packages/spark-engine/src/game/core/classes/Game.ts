@@ -2812,7 +2812,7 @@ export class Game<T extends M = {}> {
     this._errorEnding = null;
     this._coordinator = null;
     ui.setMotion(false);
-    this.clearChoices();
+    this.clearChoices(true);
     this._run.moveTo(target);
     this._executingLocation =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
@@ -3962,11 +3962,15 @@ export class Game<T extends M = {}> {
     this.continue();
   }
 
-  clearChoices() {
+  clearChoices(keepSavedText = false) {
     const targets = this._shownChoices;
     this._shownChoices = [];
     for (const target of targets) {
-      this.module.ui.text.clearRendered(target);
+      if (keepSavedText) {
+        this.module.ui.text.clearRendered(target);
+      } else {
+        this.module.ui.text.clear(target);
+      }
       this.module.ui.image.clear(target);
       this.module.ui.unobserve("click", target);
       this.module.ui.hide(target);

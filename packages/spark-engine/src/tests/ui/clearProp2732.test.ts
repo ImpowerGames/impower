@@ -427,6 +427,92 @@ end
     expect(stampsNow()).toEqual(saved);
   });
 
+  test("previewing a line past a choice menu leaves no choice to put back on a restore", async () => {
+    const source = `${CHOICE_SOURCE}
+scene elsewhere
+  Elsewhere.
+end
+`;
+    const lineOf = (text: string) => source.split("\n").findIndex((l) => l.includes(text));
+    const writes = (from: number) =>
+      flattenMessages(h.messages.slice(from))
+        .filter((m: any) => m?.method === "ui/write-text")
+        .map((m: any) => (m.params?.instructions ?? []).map((e: any) => e.text ?? "").join(""))
+        .filter(Boolean);
+    const h = createHarness(source);
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    await h.preview(lineOf("  choose"));
+    await flushMicrotasks(30);
+    expect(writes(0)).toContain("Pay.");
+    await h.preview(lineOf("Elsewhere."));
+    await flushMicrotasks(30);
+    const offset = h.messages.length;
+    await h.game.module.ui.onRestore();
+    await flushMicrotasks(30);
+    expect(writes(offset).filter((t) => t === "Pay." || t === "Climb.")).toEqual([]);
+  });
+
+  test.each([
+    ["with its line stamps", false],
+    ["without line stamps", true],
+  ])(
+    "a save %s keeps an earlier line on an element without #clear that another name wrote when the game resumes",
+    async (_, unstamped) => {
+      const source = `${SHARED_PREFIX}
+layout textbox {
+  textbox {
+    title.action { text }
+    dialogue #clear { text }
+  }
+}
+
+scene start
+  Keep this action.
+
+  HERO: Current dialogue.
+
+  HERO: Later dialogue.
+end
+`;
+      const settle = async (h: ReturnType<typeof createHarness>) => {
+        for (let i = 0; i < 5; i += 1) {
+          h.game.update({ deltaMS: 10000 } as any);
+          await flushMicrotasks(30);
+        }
+      };
+      const original = createHarness(source);
+      await original.ready;
+      expect(original.errors).toEqual([]);
+      original.game.context.system.previewing = undefined;
+      original.game.start();
+      await settle(original);
+      original.game.clickedToContinue();
+      await settle(original);
+      const save = JSON.parse(original.game.saveHere()!.data);
+      expect(save.modules.ui.text.action.map((s: any) => s.text).join("")).toBe("Keep this action.");
+      expect(save.modules.ui.text.dialogue.map((s: any) => s.text).join("")).toBe("Current dialogue.");
+      if (unstamped) {
+        delete save.modules.ui.textLine;
+        delete save.modules.ui.textWritten;
+        delete save.modules.ui.textCleared;
+      }
+      const h = createHarness(source, 0, {
+        beforeConnect: (game) => {
+          expect(game.loadToResume(JSON.stringify(save))).toBe(true);
+        },
+      });
+      await h.ready;
+      h.game.context.system.previewing = undefined;
+      h.game.start();
+      await settle(h);
+      const actionWrites = flattenMessages(h.messages)
+        .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "action")
+        .map((m: any) => m.params.instructions.map((e: any) => e.text ?? "").join(""));
+      expect(actionWrites).toContain("Keep this action.");
+    },
+  );
+
   test("a stream's templates leave an element of the same name outside the stream on screen", async () => {
     const h = createHarness(`${SHARED_PREFIX}
 layout main {
