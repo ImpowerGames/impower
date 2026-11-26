@@ -2598,7 +2598,7 @@ export class Game<T extends M = {}> {
     } else if (this._simulation === "fail") {
       this.module.interpreter.clearQueuedBeats();
       this.rewindStory();
-      this.clearChoices();
+      this.clearChoices("leave choices");
       if (this._startAddress != null) {
         this.jumpTo(this._startAddress, true);
       }
@@ -2812,7 +2812,7 @@ export class Game<T extends M = {}> {
     this._errorEnding = null;
     this._coordinator = null;
     ui.setMotion(false);
-    this.clearChoices(true);
+    this.clearChoices("rollback cleanup");
     this._run.moveTo(target);
     this._executingLocation =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
@@ -2870,12 +2870,16 @@ export class Game<T extends M = {}> {
   protected clearStageBeyond(stage: Stage): Promise<void>[] {
     const ui = this.module.ui;
     const now = ui.state;
-    const cleared: Promise<void>[] = [];
-    for (const target of stage.text) {
-      if (!now.text?.[target]) {
-        cleared.push(ui.text.clearRendered(target));
-      }
-    }
+    const saved = ui.heldTextElements();
+    const cleared: Promise<void>[] = [
+      ui.text.change(
+        "rollback cleanup",
+        stage.text.filter((target) => {
+          const elements = ui.textElements(target);
+          return elements.length === 0 || !elements.every((el) => saved.has(el));
+        }),
+      ),
+    ];
     for (const target of stage.image) {
       if (!now.image?.[target]) {
         cleared.push(ui.image.clear(target));
@@ -3962,15 +3966,11 @@ export class Game<T extends M = {}> {
     this.continue();
   }
 
-  clearChoices(keepSavedText = false) {
+  clearChoices(reason: "leave choices" | "rollback cleanup") {
     const targets = this._shownChoices;
     this._shownChoices = [];
+    void this.module.ui.text.change(reason, targets);
     for (const target of targets) {
-      if (keepSavedText) {
-        this.module.ui.text.clearRendered(target);
-      } else {
-        this.module.ui.text.clear(target);
-      }
       this.module.ui.image.clear(target);
       this.module.ui.unobserve("click", target);
       this.module.ui.hide(target);
@@ -5277,7 +5277,7 @@ export class Game<T extends M = {}> {
     const gate = this.module.assets.gatePreviewBeat(
       held?.instructions ?? null,
     );
-    this.clearChoices();
+    this.clearChoices("leave choices");
     if (!held) {
       this.module.audio.settlePreview();
       this.finishPreview(previewAddress, executed);

@@ -1229,7 +1229,7 @@ end
       ),
     ).toEqual(["click", "click"]);
     h.reset();
-    h.game.clearChoices();
+    h.game.clearChoices("leave choices");
     await flushMicrotasks(20);
     expect(countMethods(screenOps(h.messages))).toEqual(clearOpsFor(2));
 
@@ -1245,7 +1245,7 @@ end
     await flushMicrotasks(20);
     expect(byMethod(g.messages, "game/chosePathToContinue")).toHaveLength(1);
     g.reset();
-    g.game.clearChoices();
+    g.game.clearChoices("leave choices");
     await flushMicrotasks(20);
     expect(screenOps(g.messages)).toEqual([]);
   });

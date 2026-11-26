@@ -270,12 +270,12 @@ style frame {
     const ui: any = h.game.module.ui;
     const [action] = ui.findIds("action");
     ui.setMotion(true);
-    await ui.text.write("action", [{ text: "The door opens." }], false);
+    await ui.text.change("line write", "action", [{ text: "The door opens." }], false);
     h.releasePresence();
     await flushMicrotasks(30);
     expect(ui.showingNames()).toEqual(expect.arrayContaining(["action", "badge"]));
     h.reset();
-    void ui.text.clear("action");
+    void ui.text.change("line replace", ["action"]);
     await flushMicrotasks(10);
     const hides = wire(h.messages)
       .filter((m: any) => m?.method === "ui/presence")
@@ -319,7 +319,7 @@ end
     await ui.openLayout("overlay");
     await flushMicrotasks(10);
     expect(ui.showingNames()).toEqual(["overlay"]);
-    await ui.text.write("badge", [{ text: "Status" }], true);
+    await ui.text.change("line write", "badge", [{ text: "Status" }], true);
     await flushMicrotasks(10);
     expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
     expect(ui.beginCompose()).toBe(true);
@@ -327,7 +327,7 @@ end
     await flushMicrotasks(10);
     expect(ui._retiring.size).toBe(1);
     expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
-    await ui.text.clear("badge");
+    await ui.text.change("line replace", ["badge"]);
     await flushMicrotasks(10);
     expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
     const [retiring] = [...ui._retiring];

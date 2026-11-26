@@ -486,10 +486,10 @@ end
   test("a clear under one selector removes a write under another that reached the same element", async () => {
     const h = await playing(SOURCE);
     await composeBeat(h, (ui) => {
-      void ui.text.clear("dialogue");
-      void ui.text.write("dialogue#0", [{ text: "A" }], true);
-      void ui.text.clear("dialogue");
-      void ui.text.write("dialogue", [{ text: "B" }], true);
+      void ui.text.change("line replace", ["dialogue"]);
+      void ui.text.change("line write", "dialogue#0", [{ text: "A" }], true);
+      void ui.text.change("line replace", ["dialogue"]);
+      void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     });
 
     expect(texts(h, ".dialogue > .text")).toEqual(["B"]);
@@ -515,7 +515,7 @@ end
 `);
     await composeBeat(h, (ui) => {
       const [first] = ui.findElements("dialogue");
-      void ui.text.write("dialogue#0", [{ text: "A" }], true);
+      void ui.text.change("line write", "dialogue#0", [{ text: "A" }], true);
       ui.moveElement(first, null);
     });
 
@@ -526,15 +526,15 @@ end
     const h = await playing(SOURCE);
     await playNext(h);
     await composeBeat(h, (ui) => {
-      void ui.text.write("dialogue", [{ text: "B" }], true);
+      void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     });
     const before = texts(h, ".dialogue > .text")[0];
     expect(before?.endsWith("B")).toBe(true);
     expect(before).not.toBe("B");
 
     await composeBeat(h, (ui) => {
-      void ui.text.clear("dialogue");
-      void ui.text.write("dialogue", [{ text: "B" }], true);
+      void ui.text.change("line replace", ["dialogue"]);
+      void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     });
 
     expect(texts(h, ".dialogue > .text")).toEqual(["B"]);

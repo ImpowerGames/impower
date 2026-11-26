@@ -344,9 +344,8 @@ end
       seen.push(ui.state.textLine);
     }
     expect(ui.state.textWritten).toEqual({ title: 1, action: 2 });
-    expect(ui.state.textCleared).toMatchObject({ title: 1, action: 2 });
     expect(Object.values(ui.state.textCleared).every((v) => v === 1 || v === 2)).toBe(true);
-    expect(seen).toEqual([2, 2, 2, 2]);
+    expect(seen).toEqual([1, 2, 2, 2]);
   });
 
   const CHOICE_SOURCE = `
@@ -371,7 +370,7 @@ scene start
 end
 `;
 
-  test("choosing a choice drops every choice's saved text and stamps its clear at the menu's line", async () => {
+  test("choosing a choice drops every choice's saved text and its write stamp", async () => {
     const h = createHarness(CHOICE_SOURCE);
     await h.ready;
     expect(h.errors).toEqual([]);
@@ -395,7 +394,6 @@ end
     for (const target of ["choice 0", "choice 1"]) {
       expect(ui.state.text?.[target], target).toBeUndefined();
       expect(ui.state.textWritten?.[target], target).toBeUndefined();
-      expect(ui.state.textCleared?.[target], target).toBe(line);
     }
   });
 

@@ -276,6 +276,7 @@ layout main {
 - With `#clear`, its content lasts as long as the line that put it there is on screen. A line is on screen until the next line shows, and a beat that carries on in the same box after a `>` break is still the same line. Here a portrait shown for one line is gone on the next line that shows no portrait.
 - If the next line writes to the same element, the content is replaced, not emptied.
 - An element with no content is not on screen.
+- `#clear` belongs to the element it is written on: another element with the same name and no `#clear` keeps its content, while a line that writes to the name still writes to both.
 
 A text part that a line can leave out, such as the speaker's name or a parenthetical, needs `#clear`, or it keeps showing the last one. The built-in text box marks each of its parts `#clear`. Leaving it off gives a heading or a caption that stays until the next one.
 

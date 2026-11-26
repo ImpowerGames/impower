@@ -79,6 +79,12 @@ import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
 import type { Event } from "../../../core/types/Event";
+import {
+  TEXT_REASONS,
+  type TextClearReason,
+  type TextReason,
+  type TextWriteReason,
+} from "../types/TextReason";
 import type { EventMap } from "../../../core/types/EventMap";
 import type {
 CutsceneInstruction,
@@ -352,6 +358,7 @@ export interface UIState {
   textLine?: number;
   textWritten?: Record<string, number>;
   textCleared?: Record<string, number>;
+  pictureCleared?: string[];
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
@@ -646,6 +653,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _contentSlots: Set<string> = new Set();
 
+  protected _clearPaths: Map<string, string[]> = new Map();
+
+  protected _unmarkedKeys: Set<string> = new Set();
+
+  protected _pathRoots = new WeakMap<Element, string>();
+
   protected _showingStyles?: unknown;
 
   protected _showingWatched: ReadonlySet<string> = new Set();
@@ -806,7 +819,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     this._clearedPictures = cleared;
-    return this.image.clearAll(targets);
+    return this.image.clearMarked(targets);
   }
 
   override onRestart() {
@@ -949,26 +962,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const transient = this.getTransientTargets();
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
+    const heldText = this.savedElements({ text: holding.text, image: [] });
     if (c && standing) {
-      const elementsOf = (targets: string[]) =>
-        targets.flatMap((target) => this.findElements(target, true));
-      const held = new Set([
-        ...elementsOf(holding.text),
-        ...elementsOf(holding.image),
-      ]);
-      const emptyOf = (holds: string[]) =>
+      const held = this.savedElements(holding);
+      const emptyOf = (holds: (target: string) => boolean) =>
         new Set(
-          elementsOf(transient.filter((t) => !holds.includes(t))).filter(
-            (el) => !held.has(el),
-          ),
+          transient
+            .filter((t) => !holds(t))
+            .flatMap((t) => this.textElements(t))
+            .filter((el) => !held.has(el)),
         );
-      c.empty = { text: emptyOf(holding.text), image: emptyOf(holding.image) };
+      c.empty = {
+        text: emptyOf((t) => this.holdsSaved(t, heldText)),
+        image: emptyOf((t) => holding.image.includes(t)),
+      };
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({ content: true }));
     this._game.story.variablesState.takeReactiveChanges();
     await Promise.all([
-      this.text.clearAll(transient.filter((t) => holding.text.includes(t))),
+      this.text.change(
+        "redisplay",
+        transient.filter((t) => this.holdsSaved(t, heldText)),
+      ),
       this.clearTransientPictures(
         transient.filter((t) => holding.image.includes(t)),
       ),
@@ -1128,19 +1144,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.constructLayouts();
     }
     const transientTargets = this.getTransientTargets();
-    const holding = new Set(
-      [...Object.keys(this._state.text ?? {}), ...Object.keys(this._state.image ?? {})].flatMap(
-        (target) => this.findElements(target, true),
-      ),
-    );
+    const saved = this.savedElements();
     const emptySlots = [...this._contentSlots].filter(
-      (target) =>
-        !this._clearOnContinue.has(target) &&
-        !this.findElements(target, true).some((el) => holding.has(el)),
+      (target) => !this.holdsSaved(target, saved),
     );
-    this.beginTextLine();
     await Promise.all([
-      this.text.clearAll([...transientTargets, ...emptySlots]),
+      this.text.change("connect reset", transientTargets),
+      this.text.change("unwritten slot", emptySlots),
       this.clearTransientPictures(transientTargets),
       this.image.clearAll(emptySlots),
     ]);
@@ -3029,6 +3039,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
+    this._pathRoots.set(uiEl, `layout:${structName}`);
     for (const [k, value] of Object.entries(properties)) {
       const fullPath = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
       const marksClear = fullPath.at(-1) === "$clear";
@@ -3153,6 +3164,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
+    this._pathRoots.set(element, `screen:${name}`);
     const scope = this.makeScope({});
     const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
     scope.slots = new Map([
@@ -3341,6 +3353,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       slot ? this.anchorFor(slot) : null,
     );
+    this._pathRoots.set(uiEl, `layout:${layout.name}`);
     slot?.content.push({ el: uiEl });
     const scope = this.makeScope({});
     this._mountedLayouts.set(layout.name, {
@@ -4803,25 +4816,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
         const layout = this.context.layout?.[structName];
         if (layout) {
-          this.initLayout(layout);
+          this.initLayout(layout, `layout:${structName}`);
         }
       }
     }
     const screens = (this.context as Record<string, any>)?.["screen"] ?? {};
     for (const [name, screen] of Object.entries(screens)) {
       if (name && !name.startsWith("$") && screen) {
-        this.initLayout(screen as Record<string, any>);
+        this.initLayout(screen as Record<string, any>, `screen:${name}`);
       }
     }
   }
 
-  initLayout(layout: Record<string, unknown>): void {
+  initLayout(layout: Record<string, unknown>, path: string): void {
     for (const [key, value] of Object.entries(layout)) {
       if (key.startsWith("$") || !isStruct(value) || key.split(" ")[0] === "stream") {
         continue;
       }
+      const here = `${path}/${key}`;
       if (value["$clear"] === true) {
         this._clearOnContinue.add(key);
+        this._clearPaths.set(key, [...(this._clearPaths.get(key) ?? []), here]);
+      } else {
+        this._unmarkedKeys.add(key);
       }
       if (
         Object.entries(value).some(
@@ -4834,7 +4851,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ) {
         this._contentSlots.add(key);
       }
-      this.initLayout(value);
+      this.initLayout(value, here);
     }
   }
 
@@ -5802,7 +5819,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return (
       Boolean(this._compose) ||
       this.streams.active ||
-      elements.some((el) => el.name !== name)
+      elements.some((el) => el.name !== name) ||
+      elements.length !== this.textElements(target).length
     );
   }
 
@@ -5810,57 +5828,95 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Array.from(this._clearOnContinue.values());
   }
 
-  beginTextLine(): void {
-    this._state.textLine = Math.max(0, ...this.textLineStamps()) + 1;
+  textElements(target: string): Element[] {
+    return this.findElements(target, true);
   }
 
-  protected textLineStamps(): number[] {
-    return [
-      ...Object.values(this._state.textWritten ?? {}),
-      ...Object.values(this._state.textCleared ?? {}),
-    ];
-  }
-
-  protected markTextLine(kind: "textWritten" | "textCleared", target: string): void {
-    const line = this._state.textLine ?? 0;
-    (this._state[kind] ??= {})[target] = line;
-    const rank = new Map(
-      [...new Set(this.textLineStamps())]
-        .filter((v) => v > 0)
-        .sort((a, b) => a - b)
-        .map((v, i) => [v, i + 1]),
-    );
-    for (const stamps of [this._state.textWritten, this._state.textCleared]) {
-      for (const key of Object.keys(stamps ?? {})) {
-        stamps![key] = rank.get(stamps![key]!) ?? stamps![key]!;
+  elementPath(el: Element): string | undefined {
+    const names: string[] = [];
+    for (let node: Element | null = el; node; node = node.parent) {
+      const root = this._pathRoots.get(node);
+      if (root !== undefined) {
+        return [root, ...names].join("/");
       }
+      names.unshift(node.name);
     }
-    this._state.textLine = rank.get(line) ?? line;
+    return undefined;
   }
 
-  protected restoreTexts(): Promise<void>[] {
+  protected markedPaths(target: string): string[] {
+    const words = target.split(" ");
+    return [...this._clearPaths].flatMap(([key, paths]) =>
+      key === target || words.every((w) => key.split(" ").includes(w)) ? paths : [],
+    );
+  }
+
+  protected fullyMarked(target: string): boolean {
+    const words = target.split(" ");
+    return ![...this._unmarkedKeys].some(
+      (key) => key === target || words.every((w) => key.split(" ").includes(w)),
+    );
+  }
+
+  protected clearReach(target: string, reach: "marked" | "unmarked" | "name"): Element[] {
+    const elements = this.textElements(target);
+    if (reach === "name") {
+      return elements;
+    }
+    const marked = new Set([...this._clearPaths.values()].flat());
+    return elements.filter((el) => marked.has(this.elementPath(el) ?? "") === (reach === "marked"));
+  }
+
+  protected textRestorePlan(): Map<string, Element[]> {
     const saved = Object.keys(this._state.text ?? {});
     const written = this._state.textWritten ?? {};
-    const elementsOf = new Map(saved.map((target) => [target, this.findElements(target, true)]));
+    const cleared = this._state.textCleared ?? {};
+    const elementsOf = new Map(saved.map((target) => [target, this.textElements(target)]));
     const newest = new Map<Element, number>();
     for (const target of saved) {
       for (const el of elementsOf.get(target)!) {
         newest.set(el, Math.max(newest.get(el) ?? -Infinity, written[target] ?? 0));
       }
     }
-    const emptied = new Map<Element, number>();
-    for (const [name, line] of Object.entries(this._state.textCleared ?? {})) {
-      for (const el of this.findElements(name, true)) {
-        emptied.set(el, Math.max(emptied.get(el) ?? -Infinity, line));
-      }
-    }
-    return saved.map((target) => {
-      const line = written[target] ?? 0;
-      const elements = elementsOf
-        .get(target)!
-        .filter((el) => line === newest.get(el) && line >= (emptied.get(el) ?? -Infinity));
-      return elements.length > 0 ? this.text.restoreOnto(target, elements) : Promise.resolve();
-    });
+    const emptiedAt = (el: Element) => cleared[this.elementPath(el) ?? ""] ?? -Infinity;
+    return new Map(
+      saved.map((target) => {
+        const line = written[target] ?? 0;
+        return [
+          target,
+          elementsOf
+            .get(target)!
+            .filter((el) => line === newest.get(el) && line >= emptiedAt(el)),
+        ];
+      }),
+    );
+  }
+
+  heldTextElements(): Set<Element> {
+    return new Set([...this.textRestorePlan().values()].flat());
+  }
+
+  protected savedElements(
+    names: { text: readonly string[]; image: readonly string[] } = {
+      text: Object.keys(this._state.text ?? {}),
+      image: Object.keys(this._state.image ?? {}),
+    },
+  ): Set<Element> {
+    const plan = this.textRestorePlan();
+    return new Set([
+      ...names.text.flatMap((target) => plan.get(target) ?? []),
+      ...names.image.flatMap((target) => this.textElements(target)),
+    ]);
+  }
+
+  protected holdsSaved(target: string, saved: ReadonlySet<Element>): boolean {
+    return this.textElements(target).some((el) => saved.has(el));
+  }
+
+  protected restoreTexts(): Promise<void>[] {
+    return [...this.textRestorePlan()].map(([target, elements]) =>
+      elements.length > 0 ? this.text.restoreOnto(target, elements) : Promise.resolve(),
+    );
   }
 
   protected hideUnwrittenTargets(layout: Element): void {
@@ -5872,11 +5928,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return false;
     };
+    const saved = this.savedElements();
     for (const target of this._contentSlots) {
-      if (this._state.text?.[target] || this._state.image?.[target]) {
+      if (this.holdsSaved(target, saved)) {
         continue;
       }
-      for (const el of this.findElements(target, true)) {
+      for (const el of this.textElements(target)) {
         if (inLayout(el)) {
           this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
@@ -6021,32 +6078,108 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   Text = (($) => {
     class Text {
-      protected saveState(target: string, sequence: TextInstruction[] | null) {
-        if (sequence) {
-          $._state.text ??= {};
-          $._state.text[target] ??= [];
-          const state = $._state.text[target]!;
-          for (const e of sequence) {
-            const prev = state.at(-1);
-            if (
-              prev &&
-              JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
-            ) {
-              prev.text = (prev.text ?? "") + e.text;
-            } else {
-              const s: TextState = { text: e.text };
-              if (e.style) {
-                s.style = e.style;
-              }
-              state.push(s);
-            }
-          }
-          $.markTextLine("textWritten", target);
-        } else {
-          delete $._state.text?.[target];
-          delete $._state.textWritten?.[target];
-          $.markTextLine("textCleared", target);
+      change(
+        reason: TextWriteReason,
+        target: string,
+        sequence: TextInstruction[],
+        instant?: boolean,
+        time?: number,
+        shown?: number,
+      ): Promise<void>;
+      change(reason: TextClearReason, targets: readonly string[]): Promise<void>;
+      async change(
+        reason: TextReason,
+        targets: string | readonly string[],
+        sequence?: TextInstruction[],
+        instant = false,
+        time?: number,
+        shown = 0,
+      ): Promise<void> {
+        const rule = TEXT_REASONS[reason];
+        if (rule.opensLine) {
+          this.#openLine();
         }
+        const rendering = !$.context?.system?.simulating;
+        if (typeof targets === "string") {
+          if (rule.deletesSavedText) {
+            delete $._state.text?.[targets];
+            delete $._state.textWritten?.[targets];
+          }
+          this.#save(targets, sequence!);
+          if (rule.recordsStamp) {
+            this.#mark("textWritten", targets);
+          }
+          if (rendering) {
+            await this.applyChanges(targets, sequence!, instant, time, shown);
+          }
+          return;
+        }
+        await Promise.all(
+          targets.map(async (target) => {
+            const elements = $.clearReach(target, rule.reach);
+            if (rule.deletesSavedText && (rule.reach === "name" || $.fullyMarked(target))) {
+              delete $._state.text?.[target];
+              delete $._state.textWritten?.[target];
+            }
+            if (rule.recordsStamp) {
+              for (const path of $.markedPaths(target)) {
+                this.#mark("textCleared", path);
+              }
+            }
+            if (rendering) {
+              await this.writeElements(target, elements, null, true);
+            }
+          }),
+        );
+      }
+
+      #save(target: string, sequence: TextInstruction[]) {
+        $._state.text ??= {};
+        $._state.text[target] ??= [];
+        const state = $._state.text[target]!;
+        for (const e of sequence) {
+          const prev = state.at(-1);
+          if (
+            prev &&
+            JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
+          ) {
+            prev.text = (prev.text ?? "") + e.text;
+          } else {
+            const s: TextState = { text: e.text };
+            if (e.style) {
+              s.style = e.style;
+            }
+            state.push(s);
+          }
+        }
+      }
+
+      #stamps(): number[] {
+        return [
+          ...Object.values($._state.textWritten ?? {}),
+          ...Object.values($._state.textCleared ?? {}),
+        ];
+      }
+
+      #openLine() {
+        $._state.textLine = Math.max(0, ...this.#stamps()) + 1;
+      }
+
+      #mark(kind: "textWritten" | "textCleared", target: string) {
+        const line = $._state.textLine ?? 0;
+        ($._state[kind] ??= {})[target] = line;
+        const rank = new Map(
+          [...new Set(this.#stamps())]
+            .filter((v) => v > 0)
+            .sort((a, b) => a - b)
+            .map((v, i) => [v, i + 1]),
+        );
+        for (const stamps of [$._state.textWritten, $._state.textCleared]) {
+          for (const key of Object.keys(stamps ?? {})) {
+            stamps![key] = rank.get(stamps![key]!) ?? stamps![key]!;
+          }
+        }
+        $._state.textLine = rank.get(line) ?? line;
       }
 
       async restore(target: string) {
@@ -6072,7 +6205,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ) {
         await this.writeElements(
           target,
-          $.findElements(target, true),
+          $.textElements(target),
           sequence,
           instant,
           time,
@@ -6181,35 +6314,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
-      async clear(target: string) {
-        this.saveState(target, null);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, null, true);
-        }
-      }
-
-      async clearAll(targets: string[]) {
-        await Promise.all(targets.map((target) => this.clear(target)));
-      }
-
-      async clearRendered(target: string) {
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, null, true);
-        }
-      }
-
-      async write(
-        target: string,
-        sequence: TextInstruction[],
-        instant = false,
-        time?: number,
-        shown = 0,
-      ) {
-        this.saveState(target, sequence);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, shown);
-        }
-      }
     }
     return Text;
   })(this);
@@ -6292,8 +6396,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async restore(target: string) {
         const state = $._state.image?.[target];
         if (state) {
-          await this.applyChanges(target, state, true);
+          const emptied = new Set($._state.pictureCleared ?? []);
+          await this.applyChanges(
+            target,
+            state,
+            true,
+            undefined,
+            undefined,
+            $.textElements(target).filter((el) => !emptied.has($.elementPath(el) ?? "")),
+          );
         }
+      }
+
+      async clearMarked(targets: readonly string[]) {
+        await Promise.all(
+          targets.map(async (target) => {
+            const elements = $.clearReach(target, "marked");
+            if ($.fullyMarked(target)) {
+              delete $._state.image?.[target];
+            } else {
+              const paths = $.markedPaths(target);
+              if (paths.length > 0) {
+                $._state.pictureCleared = [
+                  ...new Set([...($._state.pictureCleared ?? []), ...paths]),
+                ];
+              }
+            }
+            if (!$.context?.system?.simulating) {
+              await this.applyChanges(target, null, true, undefined, undefined, elements);
+            }
+          }),
+        );
       }
 
       async restoreCleared(beat: Pick<Instructions, "image" | "extended">) {
@@ -6653,8 +6786,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         view?: PictureView,
+        elements?: Element[],
       ) {
-        const targetEls = $.findElements(target, true);
+        const targetEls = elements ?? $.textElements(target);
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
         }
@@ -6781,6 +6915,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         this.saveState(target, sequence);
+        if ($._state.pictureCleared) {
+          const refilled = new Set($.markedPaths(target));
+          $._state.pictureCleared = $._state.pictureCleared.filter((path) => !refilled.has(path));
+          if ($._state.pictureCleared.length === 0) {
+            delete $._state.pictureCleared;
+          }
+        }
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant, time, view);
         }

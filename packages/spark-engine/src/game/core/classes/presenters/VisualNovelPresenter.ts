@@ -11,7 +11,8 @@ export function writeBeatText(
   time?: number,
 ): Promise<void>[] {
   return Object.entries(instructions.text ?? {}).map(([target, events]) =>
-    ui.text.write(
+    ui.text.change(
+      "line write",
       target,
       events,
       instant,
@@ -73,10 +74,12 @@ export class VisualNovelPresenter implements Presenter {
     }
 
     if (!extended || instructions.text) {
-      game.module.ui.beginTextLine();
-      game.module.ui.text.clearAll([
-        ...new Set([...transientLayers, ...Object.keys(instructions.text ?? {})]),
-      ]);
+      const written = Object.keys(instructions.text ?? {});
+      game.module.ui.text.change(
+        "line clear",
+        transientLayers.filter((target) => !written.includes(target)),
+      );
+      game.module.ui.text.change("line replace", written);
     }
     if (stage) {
       clearStage(game, instructions, transientLayers);
@@ -100,7 +103,7 @@ export class VisualNovelPresenter implements Presenter {
     if (!choiceTargets || !target) {
       return;
     }
-    ui.text.clearAll(choiceTargets);
+    ui.text.change("choose", choiceTargets);
     ui.image.clearAll(choiceTargets);
     ui.unobserve("click", target);
     ui.hideAll(choiceTargets);
