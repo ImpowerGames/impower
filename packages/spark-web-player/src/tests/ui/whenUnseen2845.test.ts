@@ -511,8 +511,98 @@ test("a picture whose ancestor fades back in through a transition under a held f
     return { watch: [document.getElementById("picture")] };`,
     "#portrait { transition: opacity 5s linear; }",
   );
-  expect(result.seen).toBe(false);
-  expect(result.early && result.seen).toBe(false);
+  expect(result).toEqual({ early: true, seen: false });
+});
+
+const WRAPPED = (inner: string) =>
+  `<div id="portrait"><span id="image"><span id="wrapper">${inner}</span></span></div><button id="go" onclick="document.getElementById('inner').requestFullscreen()">go</button>`;
+
+test("a picture whose wrapper holds a popover in the top layer is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    WRAPPED(`<span id="inner" popover="manual">a</span>`),
+    `document.getElementById("inner").showPopover(); ${FADED}
+    return { watch: [document.getElementById("wrapper")] };`,
+  );
+  expect(result.early).toBe(false);
+});
+
+test("a picture whose wrapper holds a modal dialog is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    WRAPPED(`<dialog id="inner">a</dialog>`),
+    `document.getElementById("inner").showModal(); ${FADED}
+    return { watch: [document.getElementById("wrapper")] };`,
+  );
+  expect(result.early).toBe(false);
+});
+
+test("a picture whose wrapper holds the fullscreen element is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    WRAPPED(`<span id="inner">a</span>`),
+    `return new Promise((resolve) => {
+      const wait = () => {
+        if (document.fullscreenElement) {
+          ${FADED}
+          resolve({ watch: [document.getElementById("wrapper")] });
+        } else {
+          requestAnimationFrame(wait);
+        }
+      };
+      wait();
+    });`,
+    "",
+    true,
+  );
+  expect(result.early).toBe(false);
+});
+
+test("a picture whose wrapper holds a popover inside its shadow root is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    WRAPPED(""),
+    `const root = document.getElementById("wrapper").attachShadow({ mode: "open" });
+    const inner = document.createElement("span");
+    inner.textContent = "a";
+    inner.setAttribute("popover", "manual");
+    root.append(inner);
+    inner.showPopover();
+    ${FADED}
+    return { watch: [document.getElementById("wrapper")] };`,
+  );
+  expect(result.early).toBe(false);
+});
+
+test("a picture whose wrapper's popover is itself faded to zero is unseen (#2845)", async () => {
+  const result = await shown(
+    WRAPPED(`<span id="inner" popover="manual">a</span>`),
+    `document.getElementById("inner").showPopover();
+    ${FADED}
+    document.getElementById("inner").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+    return { watch: [document.getElementById("wrapper")] };`,
+  );
+  expect(result).toEqual({ early: true, seen: false });
+});
+
+test("a picture whose held fade keeps its display constant is unseen (#2845)", async () => {
+  const result = await scenario(
+    held(
+      "portrait",
+      `[{ opacity: "0", display: "block" }, { opacity: "0", display: "block" }]`,
+      `{ duration: 6000, fill: "both" }`,
+      1000,
+    ),
+  );
+  expect(result).toEqual({ early: true, seen: false, settled: true, seenAtEnd: false });
+});
+
+test("a picture whose held fade sets display at one end only waits for its effects (#2845)", async () => {
+  const result = await scenario(
+    held(
+      "portrait",
+      `[{ opacity: "0" }, { opacity: "0", display: "block" }]`,
+      `{ duration: 6000, fill: "both" }`,
+      1000,
+    ),
+  );
+  expect(result).toEqual({ early: false, seen: false, settled: false, seenAtEnd: false });
 });
 
 test("a picture whose frame outside the game's document fades is never answered for that fade (#2845)", async () => {

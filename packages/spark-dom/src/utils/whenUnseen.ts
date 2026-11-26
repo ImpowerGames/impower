@@ -65,9 +65,18 @@ const holdOf = (animation: Animation): Hold => {
 
 const changesDisplay = (animation: Animation) => {
   const effect = animation.effect as KeyframeEffect | null;
+  if (typeof effect?.getKeyframes !== "function") {
+    return false;
+  }
+  const frames = effect.getKeyframes().filter((frame) => frame["display"] != null);
+  if (frames.length === 0) {
+    return false;
+  }
+  const offsets = frames.map((frame) => frame.computedOffset);
   return (
-    typeof effect?.getKeyframes === "function" &&
-    effect.getKeyframes().some((frame) => frame["display"] != null)
+    !offsets.includes(0) ||
+    !offsets.includes(1) ||
+    frames.some((frame) => String(frame["display"]).trim() === "contents")
   );
 };
 
@@ -108,6 +117,27 @@ const lineage = (el: Element): Element[] => {
   return els;
 };
 
+const topLayerWithin = (root: Element | ShadowRoot): Element[] => {
+  const found: Element[] = [];
+  for (const selector of TOP_LAYER) {
+    try {
+      found.push(...Array.from(root.querySelectorAll(selector)));
+    } catch {}
+  }
+  for (const el of Array.from(root.querySelectorAll("*"))) {
+    if (el.shadowRoot) {
+      found.push(...topLayerWithin(el.shadowRoot));
+    }
+  }
+  return found;
+};
+
+const unseen = (el: Element): boolean =>
+  !el.isConnected ||
+  (lineage(el).some(transparent) &&
+    topLayerWithin(el).every((layer) => lineage(layer).some(transparent)) &&
+    (!el.shadowRoot || topLayerWithin(el.shadowRoot).every((layer) => lineage(layer).some(transparent))));
+
 export const whenUnseen = (elements: Element[], until: Promise<unknown>): Promise<void> =>
   new Promise((resolve) => {
     if (elements.length === 0 || elements.some((el) => typeof el.getAnimations !== "function")) {
@@ -123,7 +153,7 @@ export const whenUnseen = (elements: Element[], until: Promise<unknown>): Promis
       if (!watching) {
         return;
       }
-      if (elements.every((el) => !el.isConnected || lineage(el).some(transparent))) {
+      if (elements.every(unseen)) {
         watching = false;
         resolve();
         return;
