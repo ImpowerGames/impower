@@ -11478,6 +11478,9 @@
         "1": {
           "patterns": [
             {
+              "include": "#LuauStructBlockKeyEscape"
+            },
+            {
               "include": "#LuauStructBlockKeyBracket"
             },
             {
@@ -11516,6 +11519,11 @@
           ]
         }
       }
+    },
+    "LuauStructBlockKeyEscape": {
+      "tag": "escape",
+      "name": "constant.character.escape.struct-block-key.sd",
+      "match": "((?:[\\\\][^\\s]))"
     },
     "LuauStructBlockKeyChar": {
       "match": "(.)"

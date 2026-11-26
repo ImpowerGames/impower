@@ -1,0 +1,73 @@
+text.source.sparkdown [0..87]
+ ├─ meta.screen.luau [0..12]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   └─ meta.embedded.block.luau [7..12]
+ │       ├─ entity.name.type.define.luau [7..10]: "hud"
+ │       ├─ punctuation.whitespace.sd [10..11]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [11..12]: "{"
+ ├─ Newline [12..13]: "\n"
+ ├─ meta.screen.luau [13..36]
+ │   └─ meta.embedded.block.luau [13..36]
+ │       ├─ punctuation.whitespace.sd [13..15]: "  "
+ │       ├─ entity.name.type.class.view.sd [15..16]: "C"
+ │       ├─ invalid.illegal.sparkle-block-entry.sd [16..34]: ":\\Users\\name\\notes"
+ │       ├─ punctuation.whitespace.sd [34..35]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [35..36]: "{"
+ ├─ Newline [36..37]: "\n"
+ ├─ meta.screen.luau [37..46]
+ │   └─ meta.embedded.block.luau [37..46]
+ │       ├─ punctuation.whitespace.sd [37..41]: "    "
+ │       ├─ variable.other.property.define.sd [41..42]: "x"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [42..43]: " "
+ │       ├─ keyword.operator.assignment.sd [43..44]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [44..45]: " "
+ │       └─ constant.numeric.sd [45..46]
+ │           └─ constant.numeric.sd [45..46]: "5"
+ ├─ Newline [46..47]: "\n"
+ ├─ meta.screen.luau [47..50]
+ │   └─ meta.embedded.block.luau [47..50]
+ │       ├─ punctuation.whitespace.sd [47..49]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [49..50]: "}"
+ ├─ Newline [50..51]: "\n"
+ ├─ meta.screen.luau [51..70]
+ │   └─ meta.embedded.block.luau [51..70]
+ │       ├─ punctuation.whitespace.optional.sd [51..53]: "  "
+ │       ├─ string.quoted.double.sd [53..68]
+ │       │   ├─ punctuation.definition.string.begin.sd [53..54]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [54..55]: "q"
+ │       │   ├─ markup.raw.whitespace.sd [55..56]: "u"
+ │       │   ├─ markup.raw.whitespace.sd [56..57]: "o"
+ │       │   ├─ markup.raw.whitespace.sd [57..58]: "t"
+ │       │   ├─ markup.raw.whitespace.sd [58..59]: "e"
+ │       │   ├─ markup.raw.whitespace.sd [59..60]: "d"
+ │       │   ├─ markup.raw.whitespace.sd [60..61]: " "
+ │       │   ├─ constant.character.escape.sd [61..62]: "\\"
+ │       │   ├─ markup.raw.whitespace.sd [62..63]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [63..64]: " "
+ │       │   ├─ markup.raw.whitespace.sd [64..65]: "k"
+ │       │   ├─ markup.raw.whitespace.sd [65..66]: "e"
+ │       │   ├─ markup.raw.whitespace.sd [66..67]: "y"
+ │       │   └─ punctuation.definition.string.end.sd [67..68]: "\""
+ │       ├─ punctuation.whitespace.sd [68..69]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [69..70]: "{"
+ ├─ Newline [70..71]: "\n"
+ ├─ meta.screen.luau [71..80]
+ │   └─ meta.embedded.block.luau [71..80]
+ │       ├─ punctuation.whitespace.sd [71..75]: "    "
+ │       ├─ variable.other.property.define.sd [75..76]: "x"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [76..77]: " "
+ │       ├─ keyword.operator.assignment.sd [77..78]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [78..79]: " "
+ │       └─ constant.numeric.sd [79..80]
+ │           └─ constant.numeric.sd [79..80]: "6"
+ ├─ Newline [80..81]: "\n"
+ ├─ meta.screen.luau [81..84]
+ │   └─ meta.embedded.block.luau [81..84]
+ │       ├─ punctuation.whitespace.sd [81..83]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [83..84]: "}"
+ ├─ Newline [84..85]: "\n"
+ ├─ meta.screen.luau [85..86]
+ │   └─ meta.embedded.block.luau [85..86]
+ │       └─ punctuation.definition.template-expression.end.sd [85..86]: "}"
+ └─ Newline [86..87]: "\n"

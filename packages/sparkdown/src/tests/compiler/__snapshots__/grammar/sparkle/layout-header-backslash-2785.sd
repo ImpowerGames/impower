@@ -1,0 +1,8 @@
+layout hud {
+  C:\Users\name\notes {
+    text "5"
+  }
+  "quoted \" key" {
+    text "6"
+  }
+}
