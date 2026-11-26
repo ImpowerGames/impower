@@ -31,11 +31,11 @@ afterAll(async () => {
   await browser?.close();
 });
 
-const open = async (css = ""): Promise<Page> => {
+const PORTRAIT = `<div id="stage"><div id="portrait"><span id="image"><span id="picture">a</span></span></div></div>`;
+
+const open = async (css = "", body = PORTRAIT): Promise<Page> => {
   const page = await browser.newPage();
-  await page.setContent(
-    `<!doctype html><html><head><style>${css}</style></head><body><div id="stage"><div id="portrait"><span id="image"><span id="picture">a</span></span></div></div></body></html>`,
-  );
+  await page.setContent(`<!doctype html><html><head><style>${css}</style></head><body>${body}</body></html>`);
   await page.addScriptTag({ content: script });
   return page;
 };
@@ -371,4 +371,221 @@ test("a picture displayed as none waits for its effects to end (#2845)", async (
     "#image { display: none; }",
   );
   expect(result).toEqual({ early: false, seen: false, settled: false, seenAtEnd: false });
+});
+
+interface Shown {
+  early: boolean;
+  seen: boolean;
+}
+
+const shown = async (body: string, setup: string, css = "", gesture = false): Promise<Shown> => {
+  const page = await open(css, body);
+  try {
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    if (gesture) {
+      await page.click("#go");
+    }
+    return await page.evaluate(async (setup) => {
+      const w = window as any;
+      const watched = (await new Function("document", setup)(document)) as { watch: Element[]; after?: () => void };
+      const inTopLayer = (el: Element) =>
+        [":popover-open", ":modal", ":fullscreen"].some((selector) => {
+          try {
+            return el.matches(selector);
+          } catch {
+            return false;
+          }
+        });
+      const seen = (el: Element) => {
+        let opacity = 1;
+        let at: Element | null = el;
+        while (at) {
+          const style = at.ownerDocument.defaultView!.getComputedStyle(at);
+          if (style.display !== "contents") {
+            opacity *= Number(style.opacity);
+          }
+          if (inTopLayer(at)) {
+            break;
+          }
+          at = at.parentElement ?? (at.ownerDocument.defaultView!.frameElement as Element | null);
+        }
+        const style = el.ownerDocument.defaultView!.getComputedStyle(el);
+        return opacity > 0 && style.visibility === "visible" && el.getClientRects().length > 0;
+      };
+      let answered = false;
+      w.whenUnseen(watched.watch, new Promise(() => {})).then(() => {
+        answered = true;
+      });
+      watched.after?.();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return { early: answered, seen: watched.watch.some(seen) };
+    }, setup);
+  } finally {
+    await page.close();
+  }
+};
+
+const FADED = `document.getElementById("portrait").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();`;
+
+const TOP_LAYER = (picture: string) =>
+  `<div id="portrait"><span id="image">${picture}</span></div><button id="go" onclick="document.getElementById('picture').requestFullscreen()">go</button>`;
+
+test("a picture shown in the top layer as a popover is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    TOP_LAYER(`<span id="picture" popover="manual">a</span>`),
+    `document.getElementById("picture").showPopover(); ${FADED} return { watch: [document.getElementById("picture")] };`,
+  );
+  expect(result).toEqual({ early: false, seen: true });
+});
+
+test("a picture shown in the top layer as a modal dialog is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    TOP_LAYER(`<dialog id="picture">a</dialog>`),
+    `document.getElementById("picture").showModal(); ${FADED} return { watch: [document.getElementById("picture")] };`,
+  );
+  expect(result).toEqual({ early: false, seen: true });
+});
+
+test("a picture shown in the top layer as the fullscreen element is seen through its faded ancestor (#2845)", async () => {
+  const result = await shown(
+    TOP_LAYER(`<span id="picture">a</span>`),
+    `return new Promise((resolve) => {
+      const wait = () => {
+        if (document.fullscreenElement) {
+          ${FADED}
+          resolve({ watch: [document.getElementById("picture")] });
+        } else {
+          requestAnimationFrame(wait);
+        }
+      };
+      wait();
+    });`,
+    "",
+    true,
+  );
+  expect(result).toEqual({ early: false, seen: true });
+});
+
+test("a picture whose faded ancestor is overridden in the same frame is seen (#2845)", async () => {
+  const result = await shown(
+    PORTRAIT,
+    `const fade = document.getElementById("portrait").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" });
+    fade.pause();
+    return {
+      watch: [document.getElementById("picture")],
+      after: () => {
+        fade.finish();
+        document.getElementById("portrait").style.setProperty("opacity", "1", "important");
+      },
+    };`,
+  );
+  expect(result).toEqual({ early: false, seen: true });
+});
+
+test("a picture whose faded ancestor a later stylesheet rule overrides is seen (#2845)", async () => {
+  const result = await shown(
+    PORTRAIT,
+    `const fade = document.getElementById("portrait").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" });
+    fade.pause();
+    return {
+      watch: [document.getElementById("picture")],
+      after: () => {
+        fade.finish();
+        const rule = document.createElement("style");
+        rule.textContent = "#portrait { opacity: 1 !important; }";
+        document.head.append(rule);
+      },
+    };`,
+  );
+  expect(result).toEqual({ early: false, seen: true });
+});
+
+test("a picture whose ancestor fades back in through a transition under a held fade stays unseen (#2845)", async () => {
+  const result = await shown(
+    PORTRAIT,
+    `const portrait = document.getElementById("portrait");
+    portrait.style.opacity = "0";
+    portrait.getBoundingClientRect();
+    portrait.style.opacity = "1";
+    ${FADED}
+    return { watch: [document.getElementById("picture")] };`,
+    "#portrait { transition: opacity 5s linear; }",
+  );
+  expect(result.seen).toBe(false);
+  expect(result.early && result.seen).toBe(false);
+});
+
+test("a picture whose frame outside the game's document fades is never answered for that fade (#2845)", async () => {
+  const result = await shown(
+    `<iframe id="frame" srcdoc="${PORTRAIT.replace(/"/g, "&quot;")}"></iframe>`,
+    `const frame = document.getElementById("frame");
+    return new Promise((resolve) => {
+      const ready = () => {
+        const picture = frame.contentDocument && frame.contentDocument.getElementById("picture");
+        if (!picture) {
+          requestAnimationFrame(ready);
+          return;
+        }
+        frame.animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+        resolve({ watch: [picture] });
+      };
+      ready();
+    });`,
+  );
+  expect(result).toEqual({ early: false, seen: false });
+});
+
+const SVG = (group: string) =>
+  `<div id="portrait"><svg width="100" height="100"><g id="group" ${group}><rect id="picture" width="50" height="50" fill="red"/></g></svg></div>`;
+
+test("an SVG picture whose group is hidden only by the opacity attribute waits for its effects (#2845)", async () => {
+  const result = await shown(SVG(`opacity="0"`), `return { watch: [document.getElementById("picture")] };`);
+  expect(result).toEqual({ early: false, seen: false });
+});
+
+test("an SVG picture whose group is held at zero over its opacity attribute is unseen (#2845)", async () => {
+  const result = await shown(
+    SVG(`opacity="1"`),
+    `document.getElementById("group").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+    return { watch: [document.getElementById("picture")] };`,
+  );
+  expect(result).toEqual({ early: true, seen: false });
+});
+
+test("an SVG picture whose held group an important style shows is seen (#2845)", async () => {
+  const result = await shown(
+    SVG(`opacity="1"`),
+    `document.getElementById("group").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+    return { watch: [document.getElementById("picture")] };`,
+    "#group { opacity: 1 !important; }",
+  );
+  expect(result).toEqual({ early: false, seen: true });
+});
+
+const CANVASES = `<div id="portrait"><span id="image"><span id="picture"></span><span id="other"></span></span></div>`;
+
+const DRAWN = `const draw = (host) => {
+    const root = host.attachShadow({ mode: "open" });
+    const canvas = document.createElement("canvas");
+    canvas.width = 50;
+    canvas.height = 50;
+    canvas.getContext("2d").fillRect(0, 0, 50, 50);
+    root.append(canvas);
+  };
+  draw(document.getElementById("picture"));
+  draw(document.getElementById("other"));`;
+
+test("a picture drawn on a canvas inside an element held at zero is unseen (#2845)", async () => {
+  const result = await shown(CANVASES, `${DRAWN} ${FADED} return { watch: [document.getElementById("picture")] };`);
+  expect(result).toEqual({ early: true, seen: false });
+});
+
+test("a picture drawn on a held canvas while another element of the picture still shows it is seen (#2845)", async () => {
+  const result = await shown(
+    CANVASES,
+    `${DRAWN}
+    document.getElementById("picture").animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+    return { watch: [document.getElementById("picture"), document.getElementById("other")] };`,
+  );
+  expect(result).toEqual({ early: false, seen: true });
 });

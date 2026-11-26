@@ -89,9 +89,20 @@ const transparent = (el: Element): boolean => {
   return style?.display !== "contents" && Number(style?.opacity) === 0;
 };
 
+const TOP_LAYER = [":popover-open", ":modal", ":fullscreen"];
+
+const inTopLayer = (el: Element) =>
+  TOP_LAYER.some((selector) => {
+    try {
+      return el.matches(selector);
+    } catch {
+      return false;
+    }
+  });
+
 const lineage = (el: Element): Element[] => {
   const els: Element[] = [];
-  for (let at: Element | null = el; at; at = at.parentElement) {
+  for (let at: Element | null = el; at; at = inTopLayer(at) ? null : at.parentElement) {
     els.push(at);
   }
   return els;
