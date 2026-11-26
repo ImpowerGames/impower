@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AudioClock } from "../app/AudioClock";
 import { serveOpusDecoding, type OpusServingScope } from "../app/utils/opusFallback";
+import { TONE } from "./oggOpusFixture";
 
 type WorkerMode = "real" | "slow" | "silent" | "crash";
 
@@ -86,7 +85,6 @@ class InProcessWorker {
   }
 }
 
-const TONE = new Uint8Array(readFileSync(join(__dirname, "fixtures", "tone-opus.ogg")));
 
 class StandInBuffer {
   channels: Float32Array[];
