@@ -8,6 +8,8 @@ import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils
 import {
   anchorSelfTargeted,
   COLOR_SCHEME_ATTRIBUTE,
+  LINE_SPEAKER_ATTRIBUTE,
+  LINE_VARIANT_ATTRIBUTE,
   SHOWING_ATTRIBUTE,
   sparkleBlockPreludes,
   writeSparkleSelector,
@@ -16,7 +18,13 @@ import {
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
-export { anchorSelfTargeted, COLOR_SCHEME_ATTRIBUTE, SHOWING_ATTRIBUTE };
+export {
+  anchorSelfTargeted,
+  COLOR_SCHEME_ATTRIBUTE,
+  LINE_SPEAKER_ATTRIBUTE,
+  LINE_VARIANT_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
+};
 
 const attributeName = (name: string): string =>
   ARIA_ATTRIBUTE_ALIASES.get(name) ?? (DATA_ATTRIBUTE_PROPS.has(name) ? `data-${name}` : name);

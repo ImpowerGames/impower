@@ -42,7 +42,7 @@ describe("the script editor theme under reduced motion", () => {
     });
     const moving = Object.entries(EDITOR_THEME as unknown as Spec)
       .filter(([key, style]) => !key.startsWith("@") && typeof style["transition"] === "string" && style["transition"] !== "none")
-      .flatMap(([key]) => key.split(",").map((s) => s.trim().replace(/^&\s*/, "")));
+      .flatMap(([key]) => key.split(",").map((s) => s.trim().replace(/^&(:where\([^)]*\))?\s*/, "")));
     expect(moving.length).toBeGreaterThan(0);
     const reduced = reducedMotionRules();
     const css = installedCss();

@@ -5063,7 +5063,7 @@
       }
     },
     "DialogueCharacterPosition": {
-      "tag": "definition(escape)",
+      "tag": "meta",
       "name": "constant.character.escape.dialogue.character.position.sd",
       "match": "((?:[^\\S\\n\\r]))(\\[)((?:[^\\S\\n\\r])*)(.*?)((?:[^\\S\\n\\r])*)(\\])",
       "captures": {
@@ -5106,6 +5106,8 @@
       }
     },
     "DialogueCharacterPositionContent": {
+      "tag": "labelName",
+      "name": "entity.name.label.dialogue.character.variant.sd",
       "match": "(.+$)"
     },
     "Action": {

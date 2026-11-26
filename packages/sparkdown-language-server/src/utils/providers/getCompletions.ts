@@ -36,7 +36,7 @@ import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
-import { readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { cueVariant, readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { directiveOwnLookPick } from "@impower/sparkdown/src/compiler/utils/directiveOwnLook";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
@@ -762,6 +762,42 @@ const addShowingNameCompletions = (
           kind: CompletionItemKind.Constructor,
         });
       }
+    }
+  }
+};
+
+const LINE_ARGUMENT_BEFORE = /@(variant|speaker)\([ \t]*[\p{L}\p{N}_@]*$/u;
+
+const addLineLabelCompletions = (
+  completions: Map<string, CompletionItem>,
+  state: string,
+  scripts: Map<string, AnnotatedScript>,
+  program: SparkProgram | undefined,
+) => {
+  const labels = new Set<string>();
+  if (state === "speaker") {
+    for (const name of Object.keys(program?.context?.["character"] ?? {})) {
+      if (!name.startsWith("$")) labels.add(name);
+    }
+  } else {
+    for (const script of scripts.values()) {
+      script.tree?.iterate({
+        enter: (node) => {
+          if (node.name !== "DialogueCharacterPositionContent") return undefined;
+          const variant = cueVariant(script.read(node.from, node.to));
+          if (variant) labels.add(variant);
+          return false;
+        },
+      });
+    }
+  }
+  for (const label of [...labels].sort()) {
+    if (!completions.has(label)) {
+      completions.set(label, {
+        label,
+        labelDetails: { description: state === "speaker" ? "character" : "variant" },
+        kind: state === "speaker" ? CompletionItemKind.Constant : CompletionItemKind.EnumMember,
+      });
     }
   }
 };
@@ -1623,6 +1659,15 @@ const completionsAt = (
     : null;
   if (showingTyped) {
     addShowingNameCompletions(completions, program);
+    return buildCompletions();
+  }
+  const lineTyped = leftStack.some((node) => node.name === "SimpleSelectorFunction")
+    ? LINE_ARGUMENT_BEFORE.exec(
+        read(document.offsetAt({ line: position.line, character: 0 }), documentCursorOffset),
+      )
+    : null;
+  if (lineTyped) {
+    addLineLabelCompletions(completions, lineTyped[1]!, scripts, program);
     return buildCompletions();
   }
 

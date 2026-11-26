@@ -13,4 +13,5 @@ export interface StreamState {
   key?: string;
   beat?: number;
   absorbed?: StreamEntry[];
+  styles?: Record<number, Record<string, Record<string, string>>>;
 }

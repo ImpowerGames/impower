@@ -6,6 +6,7 @@ export interface ShowingParams {
   changes: Record<string, number>;
   reset?: boolean;
   retired?: boolean;
+  line?: { variant?: string; speaker?: string };
 }
 
 export class ShowingMessage {

@@ -78,7 +78,7 @@ const measure = async (markup: string, page: (typeof PAGES)[number], theme: "cha
       probe.remove();
       const list = document.querySelector('[role="list"]')!;
       const scroller = list.parentElement!;
-      const search = document.querySelector('input[aria-label="Search this script"]')!.parentElement!;
+      const search = document.querySelector('input[aria-label="Search this script"]')!.closest("label")!;
       const rows = [...list.querySelectorAll('[role="listitem"]')].map((item) => {
         const r = item.firstElementChild!.getBoundingClientRect();
         return { left: r.left, right: r.right };

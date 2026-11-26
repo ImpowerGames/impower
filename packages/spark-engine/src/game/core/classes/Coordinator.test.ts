@@ -69,6 +69,7 @@ const createGame = (
         findIds: () => [],
         whenLayoutsSettled: () => null,
         setMotion: () => {},
+        line: () => {},
         beginPresentation: () => 0,
         layoutHolds: () => true,
         getTransientTargets: () => [],
@@ -103,7 +104,7 @@ const createGame = (
           restoreCleared: () => {},
           write: () => {},
         },
-        style: { update: () => {} },
+        style: { update: () => {}, updateWaiting: () => {} },
         cutsceneEnded: false,
         runCutscene(cutscene: { name: string }) {
           calls.cutscenes.push(cutscene.name);

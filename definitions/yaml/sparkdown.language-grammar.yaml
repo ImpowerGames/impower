@@ -3479,7 +3479,7 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   DialogueCharacterPosition:
-    tag: definition(escape)
+    tag: meta
     name: constant.character.escape.dialogue.character.position.sd
     match: ({{WS}})(\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
@@ -3503,6 +3503,8 @@ repository:
         name: punctuation.definition.position.sd
 
   DialogueCharacterPositionContent:
+    tag: labelName
+    name: entity.name.label.dialogue.character.variant.sd
     match: (.+$)
 
   Action:

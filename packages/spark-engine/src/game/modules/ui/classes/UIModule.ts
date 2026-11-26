@@ -34,6 +34,7 @@ import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
 import { pageKey } from "../../../core/utils/pageKey";
+import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
   BOOLEAN_ATTRIBUTES,
   DISPLAY_TARGET_ATTRIBUTE,
@@ -350,8 +351,19 @@ export interface StandingScreen {
   holding: { text: string[]; image: string[] };
 }
 
+export interface LineLabels {
+  variant?: string;
+  speaker?: string;
+}
+
+export interface LineText extends LineLabels {
+  text: TextState[];
+}
+
 export interface UIState {
   text?: Record<string, TextState[]>;
+  lineText?: Record<string, LineText[]>;
+  line?: LineLabels;
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
@@ -571,6 +583,8 @@ const CUTSCENE_MUSIC_FADE = 0.5;
 const SHOWING_CONDITION =
   /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)\s*\)/gu;
 
+const LINE_CONDITION = /@(variant|speaker)\(/gu;
+
 export const UNKNOWN_COLOR_SCHEME_MESSAGE =
   "ui.color_scheme must be system, light or dark. Using system.";
 
@@ -643,6 +657,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _showingHidden = new WeakSet<Element>();
 
   protected _showingContent = new WeakSet<Element>();
+
+  protected _lineWatched: ReadonlySet<string> = new Set();
+
+  protected _lineSent?: string;
+
+  protected _limits = new WeakMap<Element, LineLabels>();
 
   protected _reactive = false;
 
@@ -1066,6 +1086,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphBaking = new Set();
     this.discardCompose();
     this._showingSent = undefined;
+    this._lineSent = undefined;
     this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
@@ -1213,6 +1234,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._uiBatchScheduled = false;
     this.markDisplayTargets();
     this.noteShowing();
+    this.noteLine();
     if (this._uiBatch.length === 0) {
       return;
     }
@@ -1226,6 +1248,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (styles !== this._showingStyles) {
       this._showingStyles = styles;
       const watched = new Set<string>();
+      const lineWatched = new Set<string>();
       const scan = (value: unknown) => {
         if (!value || typeof value !== "object") {
           return;
@@ -1234,13 +1257,109 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           for (const match of key.matchAll(SHOWING_CONDITION)) {
             watched.add(match[1]!);
           }
+          for (const match of key.matchAll(LINE_CONDITION)) {
+            lineWatched.add(match[1]!);
+          }
           scan(inner);
         }
       };
       scan(styles);
       this._showingWatched = watched;
+      this._lineWatched = lineWatched;
     }
     return this._showingWatched;
+  }
+
+  protected lineWatched(): ReadonlySet<string> {
+    this.showingWatched();
+    return this._lineWatched;
+  }
+
+  line(instructions: Instructions): void {
+    const targets = Object.keys(instructions.text ?? {});
+    if (!targets.some((target) => !instructions.choices?.includes(target))) {
+      return;
+    }
+    const line: LineLabels = {};
+    if (instructions.variant) line.variant = instructions.variant;
+    if (instructions.speaker?.character) line.speaker = instructions.speaker.character;
+    if (line.variant || line.speaker) {
+      this._state.line = line;
+    } else {
+      delete this._state.line;
+    }
+  }
+
+  protected limit(element: Element, props: Record<string, unknown>): void {
+    const labels: LineLabels = {};
+    for (const key of ["variant", "speaker"] as const) {
+      const value = props[key];
+      if (value != null && value !== "") labels[key] = String(value);
+    }
+    if (labels.variant || labels.speaker) {
+      this._limits.set(element, labels);
+    }
+  }
+
+  protected relimit(element: Element, attribute: string, value: string | null): void {
+    for (const key of ["variant", "speaker"] as const) {
+      if (attribute === toDataAttributeName(key)) {
+        const labels: LineLabels = { ...this._limits.get(element) };
+        if (value) {
+          labels[key] = value;
+        } else {
+          delete labels[key];
+        }
+        if (labels.variant || labels.speaker) {
+          this._limits.set(element, labels);
+        } else {
+          this._limits.delete(element);
+        }
+      }
+    }
+  }
+
+  protected admits(element: Element, line: LineLabels | undefined): boolean {
+    const limit = this._limits.get(element);
+    return (
+      !limit ||
+      ((!limit.variant || limit.variant === line?.variant) &&
+        (!limit.speaker || limit.speaker === line?.speaker))
+    );
+  }
+
+  protected limited(element: Element): boolean {
+    return this._limits.has(element);
+  }
+
+  protected textFor(target: string, element: Element): TextState[] | undefined {
+    if (!this.limited(element)) {
+      return ownEntry(this._state.text, target);
+    }
+    const admitted = (ownEntry(this._state.lineText, target) ?? []).filter((written) =>
+      this.admits(element, written),
+    );
+    return admitted.length > 0 ? admitted.flatMap((written) => written.text) : undefined;
+  }
+
+  protected noteLine(): void {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return;
+    }
+    const watched = this.lineWatched();
+    if (watched.size === 0 && this._lineSent === undefined) {
+      return;
+    }
+    const line = this._state.line;
+    const marks: LineLabels = {};
+    if (watched.has("variant") && line?.variant) marks.variant = line.variant;
+    if (watched.has("speaker") && line?.speaker) marks.speaker = line.speaker;
+    const key = JSON.stringify(marks);
+    if (key === this._lineSent) {
+      return;
+    }
+    this._lineSent = key;
+    this._uiBatch.push(ShowingMessage.type.notification({ changes: {}, line: marks }));
   }
 
   protected pictureShown(events: ImageState[] | undefined): boolean {
@@ -1541,6 +1660,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._compose = undefined;
       this._uiBatch = [];
       this._showingSent = undefined;
+      this._lineSent = undefined;
       for (const id of c.expected.splice(0)) {
         this._game.connection.cancel(id, {
           code: SUPERSEDED,
@@ -3510,6 +3630,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactiveAttrs: Omit<ReactiveAttr, "element">[] = [];
+    const labels: Record<string, unknown> = {};
     const propEntries = Object.entries(node.props);
     if (propEntries.length > 0) {
       const vs = this._game.story.variablesState;
@@ -3517,6 +3638,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         vs.beginReactiveRead();
         const resolved = this.resolveProp(propValue, scope.env);
         const deps = vs.endReactiveRead();
+        if (prop === "variant" || prop === "speaker") {
+          labels[prop] = resolved;
+        }
         if (isAttributeProp(prop)) {
           const boolean = BOOLEAN_ATTRIBUTES.has(prop);
           const attrVal = this.propToAttr(resolved, boolean);
@@ -3551,6 +3675,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       before,
     );
+    this.limit(el, labels);
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
     }
@@ -4586,6 +4711,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const next = this.propToAttr(resolved, entry.boolean);
         if (this._refreshAll || next !== entry.last) {
           entry.last = next;
+          this.relimit(entry.element, entry.prop, next);
           this.updateElement(entry.element, {
             attributes: { [entry.prop]: next },
           });
@@ -5840,11 +5966,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     };
     for (const target of this.getTransientTargets()) {
-      if (this._state.text?.[target] || this._state.image?.[target]) {
+      if (ownEntry(this._state.image, target)) {
         continue;
       }
       for (const el of this.findElements(target, true)) {
-        if (inLayout(el)) {
+        if (inLayout(el) && !this.textFor(target, el)) {
           this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
@@ -5988,36 +6114,65 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   Text = (($) => {
     class Text {
+      protected append(state: TextState[], sequence: TextInstruction[]) {
+        for (const e of sequence) {
+          const prev = state.at(-1);
+          if (
+            prev &&
+            JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
+          ) {
+            prev.text = (prev.text ?? "") + e.text;
+          } else {
+            const s: TextState = { text: e.text };
+            if (e.style) {
+              s.style = e.style;
+            }
+            state.push(s);
+          }
+        }
+      }
+
       protected saveState(target: string, sequence: TextInstruction[] | null) {
         if (sequence) {
           $._state.text ??= {};
-          $._state.text[target] ??= [];
-          const state = $._state.text[target]!;
-          for (const e of sequence) {
-            const prev = state.at(-1);
-            if (
-              prev &&
-              JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
-            ) {
-              prev.text = (prev.text ?? "") + e.text;
+          this.append(ownList($._state.text, target), sequence);
+          const line = $._state.line;
+          if (line) {
+            $._state.lineText ??= {};
+            const written = ownList($._state.lineText, target);
+            const last = written.at(-1);
+            if (last && last.variant === line.variant && last.speaker === line.speaker) {
+              this.append(last.text, sequence);
             } else {
-              const s: TextState = { text: e.text };
-              if (e.style) {
-                s.style = e.style;
-              }
-              state.push(s);
+              const entry: LineText = { ...line, text: [] };
+              this.append(entry.text, sequence);
+              written.push(entry);
             }
           }
         } else {
           delete $._state.text?.[target];
+          delete $._state.lineText?.[target];
         }
       }
 
       async restore(target: string) {
-        const state = $._state.text?.[target];
-        if (state) {
-          await this.applyChanges(target, state, true);
+        const state = ownEntry($._state.text, target);
+        if (!state) {
+          return;
         }
+        const elements = $.findElements(target, true);
+        const open = elements.filter((el) => !$.limited(el));
+        const limited = elements.filter((el) => $.limited(el));
+        if (limited.length === 0) {
+          await this.writeElements(target, elements, state, true);
+          return;
+        }
+        await Promise.all([
+          ...(open.length > 0 ? [this.writeElements(target, open, state, true, undefined, 0, true)] : []),
+          ...limited.map((el) =>
+            this.writeElements(target, [el], $.textFor(target, el) ?? null, true, undefined, 0, true),
+          ),
+        ]);
       }
 
       protected async applyChanges(
@@ -6027,13 +6182,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
+        const elements = $.findElements(target, true);
+        const admitted = sequence
+          ? elements.filter((el) => $.admits(el, $._state.line))
+          : elements;
+        if (admitted.length === 0 && elements.length > 0) {
+          return;
+        }
         await this.writeElements(
           target,
-          $.findElements(target, true),
+          admitted,
           sequence,
           instant,
           time,
           shown,
+          admitted.length < elements.length,
         );
       }
 
@@ -6044,6 +6207,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         shown = 0,
+        subset = false,
       ) {
         if (!sequence && $.knownEmpty("text", targetEls)) {
           return;
@@ -6109,7 +6273,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             ...(time != null ? { time } : {}),
             ...(shown > 0 ? { shown } : {}),
-            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
+            ...(subset || leaving.length > 0 || $.namesWriteElements(target, writing)
               ? { elements: writing.map((el) => el.id) }
               : {}),
           }),
@@ -6772,9 +6936,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected async applyChanges(
         target: string,
         style: Record<string, string | null> | null,
+        waiting = false,
       ) {
         for (const targetEl of $.findElements(target)) {
-          if (targetEl) {
+          if (targetEl && (!waiting || $.streams.waits(targetEl))) {
             $.updateElement(targetEl, { style });
           }
         }
@@ -6785,8 +6950,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style: Record<string, string | null> | null,
       ) {
         this.saveState(target, style);
+        $.streams.saveEntryStyle(target, style, false);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, style);
+        }
+      }
+
+      async updateWaiting(
+        target: string,
+        style: Record<string, string | null> | null,
+      ) {
+        this.saveState(target, style);
+        $.streams.saveEntryStyle(target, style, true);
+        if (!$.context?.system?.simulating) {
+          await this.applyChanges(target, style, true);
         }
       }
     }
@@ -7288,6 +7465,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const absorbed = before.slice(keep);
         stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : [])];
         stream.current = keep;
+        for (const index of Object.keys(stream.styles ?? {})) {
+          if (Number(index) >= keep) {
+            delete stream.styles![Number(index)];
+          }
+        }
         if (absorbed.length > 0) {
           stream.absorbed = absorbed;
         } else {
@@ -7340,6 +7522,91 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       forget(): void {
         this._mounted.clear();
+      }
+
+      waits(el: Element): boolean {
+        if (!$.insideStream(el)) {
+          return true;
+        }
+        for (const mounts of this._mounted.values()) {
+          for (const mount of mounts) {
+            const view = this.waiting(mount);
+            if (
+              view &&
+              $.collectNodes(view.group).some((root) => {
+                for (let node: Element | null = el; node; node = node.parent) {
+                  if (node === root) {
+                    return true;
+                  }
+                }
+                return false;
+              })
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      protected waiting(mount: MountedStream): StreamEntryView | undefined {
+        const stream = $._state.streams?.[mount.key];
+        if (!stream || stream.entries.length <= stream.current) {
+          return undefined;
+        }
+        return mount.entries[stream.current];
+      }
+
+      saveEntryStyle(
+        target: string,
+        style: Record<string, string | null> | null,
+        waiting: boolean,
+      ): void {
+        for (const stream of Object.values($._state.streams ?? {})) {
+          const indices = waiting
+            ? stream.entries.length > stream.current
+              ? [stream.current]
+              : []
+            : Object.keys(stream.styles ?? {})
+                .map(Number)
+                .filter((index) => stream.styles?.[index]?.[target]);
+          for (const index of indices) {
+            stream.styles ??= {};
+            const styles = (stream.styles[index] ??= {});
+            if (!style) {
+              delete styles[target];
+              continue;
+            }
+            const state = (styles[target] ??= {});
+            for (const [k, v] of Object.entries(style)) {
+              state[k] = v ?? "";
+            }
+          }
+        }
+      }
+
+      protected applyStyles(
+        mount: MountedStream,
+        view: StreamEntryView,
+        index: number,
+      ): void {
+        const styles = $._state.streams?.[mount.key]?.styles?.[index];
+        if (!styles) {
+          return;
+        }
+        const roots = $.collectNodes(view.group);
+        for (const [target, saved] of Object.entries(styles)) {
+          const style = Object.fromEntries(
+            Object.entries(saved).map(([k, v]) => [k, v || null]),
+          );
+          for (const root of roots) {
+            for (const el of root.isMatch(target)
+              ? [root, ...$.searchForAll(root, target)]
+              : $.searchForAll(root, target)) {
+              $.updateElement(el, { style });
+            }
+          }
+        }
       }
 
       show(instant: boolean, time?: number): void {
@@ -7418,6 +7685,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (instant) {
           for (let i = rewriteFrom ?? current; i < kept; i += 1) {
             this.write(mount.entries[i]!, entries[i]!, true);
+            this.applyStyles(mount, mount.entries[i]!, i);
           }
           settled = Math.max(settled, kept);
         }
@@ -7426,6 +7694,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
+          this.applyStyles(mount, view, i);
           const atOnce = instant || i < current || i < settled;
           this.write(view, entry, atOnce, atOnce ? undefined : time);
           if (atOnce) {

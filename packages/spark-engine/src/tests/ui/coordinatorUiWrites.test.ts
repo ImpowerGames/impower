@@ -134,7 +134,7 @@ const recordUiWrites = (game: Game): unknown[] => {
     ["restoreCleared"],
     restoreClearedReads,
   );
-  recordCalls(log, ui["style"], "ui.style.", ["update"]);
+  recordCalls(log, ui["style"], "ui.style.", ["update", "updateWaiting"]);
   const choose = game.chosePathToContinue.bind(game);
   game.chosePathToContinue = (index: number) => {
     log.push(["game.chosePathToContinue", index]);
