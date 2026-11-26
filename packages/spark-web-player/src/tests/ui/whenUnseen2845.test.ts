@@ -105,6 +105,61 @@ test("a picture whose opacity an important style holds at full is seen whatever 
   expect(result).toEqual({ early: false, opacity: "1", later: "paused", settled: false });
 });
 
+const plateau = async (keyframes: Keyframe[], easing = "linear") => {
+  const page = await open();
+  try {
+    return await page.evaluate(
+      async ({ keyframes, easing }) => {
+        const w = window as any;
+        const portrait = document.getElementById("portrait")!;
+        const picture = document.getElementById("picture")!;
+        const fade = portrait.animate(keyframes, { duration: 6000, fill: "both", easing });
+        fade.pause();
+        fade.currentTime = 2000;
+        let early = false;
+        w.whenUnseen([picture], new Promise(() => {})).then(() => {
+          early = true;
+        });
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return { early, opacity: getComputedStyle(portrait).opacity, fade: fade.playState };
+      },
+      { keyframes, easing },
+    );
+  } finally {
+    await page.close();
+  }
+};
+
+test("a picture whose fade has reached a zero it holds to the end is unseen before the fade ends (#2845)", async () => {
+  const result = await plateau([
+    { opacity: "1", offset: 0 },
+    { opacity: "0", offset: 0.25 },
+    { opacity: "0", offset: 1 },
+  ]);
+  expect(result).toEqual({ early: true, opacity: "0", fade: "paused" });
+});
+
+test("a picture whose fade comes back from zero later is seen (#2845)", async () => {
+  const result = await plateau([
+    { opacity: "1", offset: 0 },
+    { opacity: "0", offset: 0.25 },
+    { opacity: "1", offset: 1 },
+  ]);
+  expect(result.early).toBe(false);
+});
+
+test("a picture whose fade eases back across its zero is seen (#2845)", async () => {
+  const result = await plateau(
+    [
+      { opacity: "1", offset: 0 },
+      { opacity: "0", offset: 0.25 },
+      { opacity: "0", offset: 1 },
+    ],
+    "cubic-bezier(0.5, 1.5, 0.5, -1.5)",
+  );
+  expect(result.early).toBe(false);
+});
+
 const watchThen = async (change: string) => {
   const page = await open();
   try {

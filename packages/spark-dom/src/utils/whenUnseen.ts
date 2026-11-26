@@ -2,7 +2,21 @@ type Hold = "pins" | "keeps" | "lifts" | "none";
 
 const FILLS_FORWARDS = new Set(["forwards", "both"]);
 
+const MONOTONIC_EASING = /^(linear|ease|ease-in|ease-out|ease-in-out|step-start|step-end|steps\([^)]*\))$/;
+
 const isZero = (frame: ComputedKeyframe) => Number.parseFloat(String(frame["opacity"])) === 0;
+
+const isMonotonic = (easing: string) => {
+  if (MONOTONIC_EASING.test(easing)) {
+    return true;
+  }
+  const bezier = /^cubic-bezier\(([^)]*)\)$/.exec(easing);
+  if (!bezier) {
+    return false;
+  }
+  const [, y1, , y2] = bezier[1]!.split(",").map(Number);
+  return [y1, y2].every((y) => y != null && y >= 0 && y <= 1);
+};
 
 const holdOf = (animation: Animation): Hold => {
   const effect = animation.effect as KeyframeEffect | null;
@@ -27,19 +41,26 @@ const holdOf = (animation: Animation): Hold => {
     return "lifts";
   }
   const progress = timing.progress;
-  if (fills && animation.playbackRate > 0 && progress != null) {
-    const at = (offset: number) => frames.filter((frame) => frame.computedOffset === offset).at(-1);
-    const start = at(0);
-    const end = at(1);
-    if (frames.every(isZero) && start && end) {
-      return "pins";
-    }
-    const settled = ended && progress === 1 ? end : ended && progress === 0 ? start : undefined;
-    if (settled && isZero(settled)) {
-      return "pins";
-    }
+  const settings = effect.getTiming();
+  const offsets = frames.map((frame) => frame.computedOffset);
+  const forward =
+    fills &&
+    animation.playbackRate > 0 &&
+    progress != null &&
+    (ended ||
+      ((settings.direction ?? "normal") === "normal" &&
+        Number(settings.iterations ?? 1) === 1 &&
+        Number(settings.iterationStart ?? 0) === 0 &&
+        isMonotonic(String(settings.easing ?? "linear"))));
+  const from = forward ? Math.max(...offsets.filter((offset) => offset <= progress)) : -Infinity;
+  const to = forward && ended ? Math.min(...offsets.filter((offset) => offset >= progress)) : Infinity;
+  const ahead = frames.filter((frame) => frame.computedOffset >= from && frame.computedOffset <= to);
+  if (!ahead.every(isZero)) {
+    return "lifts";
   }
-  return frames.every(isZero) ? "keeps" : "lifts";
+  const bounded =
+    (Number.isFinite(from) || offsets.includes(0)) && (Number.isFinite(to) || offsets.includes(1));
+  return fills && animation.playbackRate > 0 && progress != null && bounded ? "pins" : "keeps";
 };
 
 const transparent = (el: Element): boolean => {

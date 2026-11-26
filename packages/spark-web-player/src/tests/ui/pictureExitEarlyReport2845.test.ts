@@ -91,7 +91,7 @@ function holdAnimations() {
   (Element.prototype as any).getAnimations = function (this: Element) {
     return all.filter((animation) => animation.effect.target === this);
   };
-  return {
+  held = {
     lasting(duration: number) {
       return all.filter((animation) => animation.effect.timing.duration === duration);
     },
@@ -101,9 +101,15 @@ function holdAnimations() {
       }
     },
   };
+  return held;
 }
 
-afterEach(() => {
+let held: { lasting(duration: number): HeldAnimation[]; endAll(): void } | undefined;
+
+afterEach(async () => {
+  held?.endAll();
+  held = undefined;
+  await flushMicrotasks(20);
   const g = globalThis as any;
   g.Animation = saved.Animation;
   g.KeyframeEffect = saved.KeyframeEffect;
