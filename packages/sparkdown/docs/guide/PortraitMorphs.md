@@ -624,6 +624,7 @@ On the second directive the mouth bends from `open` to `closed` over 0.08 second
 - A group that another morph playing on the new look drives stays with that morph, and the change morph moves the other changed groups. Two change morphs that could both play on one change share its groups, so neither plays and the portrait cuts, with a warning that names them.
 - A change that comes while another change is still playing on the portrait, and goes back to the drawing that change started from, turns back from the frame on screen. It picks up the new play at the point that draws that frame, holds the frame while its `delay` runs, and needs no new pair of drawings, so a quick back-and-forth stays continuous however many times the options flip. This needs the change morph to be the only morph playing on the portrait: with another morph on it, such as a blink, and for a change to any other drawing, the change starts from the drawing the interrupted change ends on, and plays to the drawing the new options choose.
 - Previewing a line, stepping back, loading a save and the click that finishes a line show the new drawing at once.
+- A pair of drawings is checked when it plays. Once a change plays in the game, the editor reports any problem with its pair, such as two drawings the method cannot pair, on the artwork, as it does for the other triggers. The report stays until the script or the artwork changes.
 
 ### Replaying part of a play
 
