@@ -44,7 +44,7 @@ const makePage = (outputLatency: number) => {
   const player = {
     loop: false,
     instances: [],
-    start: vi.fn((when: number) => ({
+    start: vi.fn((when: number, _over?: number, _gain?: number, _at?: number) => ({
       startedAt: when,
       ended: new Promise(() => undefined),
     })),
