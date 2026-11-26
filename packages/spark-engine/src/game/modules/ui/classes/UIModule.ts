@@ -6482,13 +6482,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const newest = new Map<Element, number>();
     for (const target of saved) {
       for (const el of elementsOf.get(target)!) {
-        newest.set(el, Math.max(newest.get(el) ?? -Infinity, written[target] ?? 0));
+        newest.set(el, Math.max(newest.get(el) ?? -Infinity, ownEntry(written, target) ?? 0));
       }
     }
-    const emptiedAt = (el: Element) => cleared[this.elementPath(el) ?? ""] ?? -Infinity;
+    const emptiedAt = (el: Element) => ownEntry(cleared, this.elementPath(el) ?? "") ?? -Infinity;
     return new Map(
       saved.map((target) => {
-        const line = written[target] ?? 0;
+        const line = ownEntry(written, target) ?? 0;
         return [
           target,
           elementsOf
@@ -6796,7 +6796,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       #mark(kind: "textWritten" | "textCleared", target: string) {
         const line = $._state.textLine ?? 0;
-        ($._state[kind] ??= {})[target] = line;
+        Object.defineProperty(($._state[kind] ??= {}), target, {
+          value: line,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
         const rank = new Map(
           [...new Set(this.#stamps())]
             .filter((v) => v > 0)

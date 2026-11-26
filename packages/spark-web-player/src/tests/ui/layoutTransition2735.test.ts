@@ -255,7 +255,7 @@ style line {
 
 layout main {
   frame {
-    line { text }
+    line #clear { text }
   }
 }
 

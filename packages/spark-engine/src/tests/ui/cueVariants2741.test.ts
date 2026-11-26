@@ -29,10 +29,10 @@ end
 
 layout main {
   box {
-    character_name #variant=left { text }
-    character_name #variant=right { text }
-    dialogue #speaker=bunny { text }
-    action { text }
+    character_name #variant=left #clear { text }
+    character_name #variant=right #clear { text }
+    dialogue #speaker=bunny #clear { text }
+    action #clear { text }
   }
 }
 `;
@@ -192,7 +192,7 @@ end
 
 layout main {
   box {
-    note.${name} #speaker=bunny { text }
+    note #clear.${name} #speaker=bunny { text }
   }
 }
 
@@ -206,7 +206,7 @@ end
     expect((first?.text?.[name] ?? []).map((e: any) => e.text).join("")).toContain("Hello.");
     const ui: any = h.game.module.ui;
     ui.line({ text: { [name]: [{ text: "Hi." }] }, speaker: { name: "BUNNY", character: "bunny" } });
-    await ui.text.write(name, [{ text: "Hi." }], true);
+    await ui.text.change("line write", name, [{ text: "Hi." }], true);
     expect(Object.hasOwn(ui._state.text, name)).toBe(true);
     expect(Object.hasOwn(ui._state.lineText, name)).toBe(true);
     expect(ui._state.lineText[name]).toEqual([{ speaker: "bunny", text: [{ text: "Hi." }] }]);
@@ -264,7 +264,7 @@ define ui as config with
 end
 
 layout main {
-  dialogue #${prop}={selected} { text }
+  dialogue #${prop}={selected} #clear { text }
 }
 
 scene start

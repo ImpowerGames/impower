@@ -125,8 +125,8 @@ const recordUiWrites = (game: Game): unknown[] => {
   const log: unknown[] = [];
   const ui = game.module.ui as unknown as Record<string, any>;
   recordCalls(log, ui, "ui.", UI_WRITES);
-  recordCalls(log, ui["text"], "ui.text.", ["clearAll", "write"]);
-  recordCalls(log, ui["image"], "ui.image.", ["clearAll", "write"]);
+  recordCalls(log, ui["text"], "ui.text.", ["change"]);
+  recordCalls(log, ui["image"], "ui.image.", ["clearAll", "clearMarked", "write"]);
   recordCalls(
     log,
     ui["image"],

@@ -31,13 +31,13 @@ style action {
 }
 
 layout main {
-  portrait {
+  portrait #clear {
     image
   }
-  dialogue {
+  dialogue #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
 }
@@ -333,10 +333,10 @@ style action {
 }
 
 layout main {
-  portrait {
+  portrait #clear {
     image
   }
-  action {
+  action #clear {
     text
   }
 }
