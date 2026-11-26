@@ -225,7 +225,7 @@ describe("morph playback in the page", () => {
     expect(images[2]).toContain("url(");
   });
 
-  test("a live morph composed between a lower and an upper image keeps every image in paint order, the SVG images on canvases of their own (#2810)", async () => {
+  test("a live morph composed between a lower and an upper image keeps every image in paint order, each SVG image on a canvas of its own, the morph's from its drawn poses (#2810, #2812)", async () => {
     const { h, playback, writes } = await previewed(SOURCE, COMPOSITION_FILES);
     const context = { globalAlpha: 1, imageSmoothingEnabled: true, setTransform: () => {}, clearRect: () => {}, drawImage: () => {} };
     playback.configure({
@@ -242,17 +242,18 @@ describe("morph playback in the page", () => {
     await until(() => playback.stats.live === 1, "the composed artifact");
     const span = portraitSpan(h.overlay)!;
     expect(span.style.backgroundImage).toBe("none, none, none");
-    const view = (playback as any).layers.values().next().value.images[0].view;
+    const layer = (playback as any).layers.values().next().value;
+    expect(layer.images[0].view).toBeUndefined();
+    expect(layer.images[0].poses).toBeDefined();
     const children = Array.from(shadowOf(span)!.children) as HTMLElement[];
     expect(children).toHaveLength(3);
-    expect(children[1]).toBe(view.box);
-    expect(children[1]!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+    expect(children[1]).toBe(layer.images[0].poses.still.canvases[0].box);
     const computed = span.ownerDocument.defaultView!.getComputedStyle(span);
     expect(computed).toBeDefined();
-    for (const [index, fill] of [[0, "%232a6"], [2, "%23a2c"]] as const) {
-      expect(images[index]).toContain(fill);
-      expect(children[index]!.querySelector("canvas")).not.toBeNull();
-      expect(children[index]!.querySelector("[data-morph]")).toBeNull();
+    for (const [index, fill] of [[0, "%232a6"], [2, "%23a2c"]] as const) expect(images[index]).toContain(fill);
+    for (const child of children) {
+      expect(child.querySelector("canvas")).not.toBeNull();
+      expect(child.querySelector("[data-morph]")).toBeNull();
     }
   });
 

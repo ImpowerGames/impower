@@ -369,3 +369,145 @@ export function morphMotionKeyframes(track: readonly MorphMotionFrame[]): Record
     return keyframe;
   });
 }
+
+type MotionKind = "length" | "angle" | "number";
+
+const MOTION_ZERO: Record<MotionKind, string> = { length: "0px", angle: "0deg", number: "0" };
+
+const TRANSFORM_KINDS: Record<string, MotionKind> = {
+  translate: "length",
+  translatex: "length",
+  translatey: "length",
+  rotate: "angle",
+  skew: "angle",
+  skewx: "angle",
+  skewy: "angle",
+  scale: "number",
+  scalex: "number",
+  scaley: "number",
+  matrix: "number",
+};
+
+const ORIGIN_KEYWORDS: Record<string, string> = { left: "0%", center: "50%", right: "100%", top: "0%", bottom: "100%" };
+
+const zeroed = (text: string, kind: MotionKind): string => {
+  const value = text.trim();
+  return kind !== "number" && /^[-+]?(?:0+\.?0*|\.0+)$/.test(value) ? MOTION_ZERO[kind] : value;
+};
+
+const blendCss = (a: string, b: string, w: number): string => {
+  if (a === b || w <= 0) return a;
+  if (w >= 1) return b;
+  return `calc(${a} * ${1 - w} + ${b} * ${w})`;
+};
+
+const scaleFactor = (text: string): string => {
+  const percent = /^([-+]?(?:\d+(?:\.\d*)?|\.\d+))%$/.exec(text.trim());
+  return percent ? String(Number(percent[1]) / 100) : text.trim();
+};
+
+function motionPair(property: MorphMotionProperty, text: string): [string, string] {
+  const value = text.trim();
+  const parts = value.toLowerCase() === "none" ? [] : (words(value) ?? []);
+  if (property === "scale") {
+    const [x = "1", y = x] = parts.map(scaleFactor);
+    return [x, y];
+  }
+  if (property === "transform_origin") {
+    const named = parts.map((part) => ORIGIN_KEYWORDS[part.toLowerCase()] ?? zeroed(part, "length"));
+    const vertical = (part: string | undefined) => part !== undefined && ORIGIN_Y.has(part.toLowerCase());
+    const horizontal = (part: string | undefined) => part !== undefined && ORIGIN_X.has(part.toLowerCase());
+    if (parts.length === 1) return vertical(parts[0]) ? ["50%", named[0]!] : [named[0]!, "50%"];
+    if (vertical(parts[0]) || horizontal(parts[1])) return [named[1] ?? "50%", named[0] ?? "50%"];
+    return [named[0] ?? "50%", named[1] ?? "50%"];
+  }
+  const [x = "0px", y = "0px"] = parts.map((part) => zeroed(part, "length"));
+  return [x, y];
+}
+
+interface MotionFunction {
+  name: string;
+  args: string[];
+}
+
+function motionFunctions(text: string): MotionFunction[] | undefined {
+  const value = text.trim();
+  if (value === "" || value.toLowerCase() === "none") return [];
+  const found: MotionFunction[] = [];
+  let rest = value;
+  while (rest) {
+    const call = /^([a-z][a-z0-9]*)\(/i.exec(rest);
+    if (!call) return undefined;
+    let depth = 0;
+    let end = -1;
+    for (let i = call[1]!.length; i < rest.length; i++) {
+      if (rest[i] === "(") depth += 1;
+      if (rest[i] === ")" && --depth === 0) {
+        end = i;
+        break;
+      }
+    }
+    if (end < 0) return undefined;
+    const name = call[1]!.toLowerCase();
+    const kind = TRANSFORM_KINDS[name];
+    const args = splitTop(rest.slice(call[1]!.length + 1, end), (ch) => ch === ",");
+    if (!kind || !args) return undefined;
+    const zeros = args.map((arg) => zeroed(arg, kind));
+    if (name === "translate" || name === "skew") found.push({ name, args: [zeros[0]!, zeros[1] ?? MOTION_ZERO[kind]] });
+    else if (name === "scale") found.push({ name, args: [zeros[0]!, zeros[1] ?? zeros[0]!] });
+    else found.push({ name, args: zeros });
+    rest = rest.slice(end + 1).trim();
+  }
+  return found;
+}
+
+const identityFunction = ({ name }: MotionFunction): MotionFunction => {
+  if (name === "matrix") return { name, args: ["1", "0", "0", "1", "0", "0"] };
+  const kind = TRANSFORM_KINDS[name]!;
+  const unit = kind === "number" ? "1" : MOTION_ZERO[kind];
+  return { name, args: name === "translate" || name === "skew" || name === "scale" ? [unit, unit] : [unit] };
+};
+
+function blendTransform(a: string, b: string, w: number): string {
+  const from = motionFunctions(a);
+  const to = motionFunctions(b);
+  const write = (list: MotionFunction[]) => (list.length ? list.map(({ name, args }) => `${name}(${args.join(", ")})`).join(" ") : "none");
+  if (!from || !to) return w < 0.5 ? a : b;
+  const start = from.length ? from : to.map(identityFunction);
+  const end = to.length ? to : from.map(identityFunction);
+  if (start.length !== end.length || start.some((step, i) => step.name !== end[i]!.name || step.args.length !== end[i]!.args.length)) {
+    return w < 0.5 ? write(from) : write(to);
+  }
+  return write(start.map((step, i) => ({ name: step.name, args: step.args.map((arg, k) => blendCss(arg, end[i]!.args[k]!, w)) })));
+}
+
+function blendMotion(property: MorphMotionProperty, a: string, b: string, w: number): string {
+  if (property === "opacity") return String(Number(a) + (Number(b) - Number(a)) * w);
+  if (property === "rotate") {
+    const angle = (text: string) => (text.trim().toLowerCase() === "none" ? MOTION_ZERO.angle : zeroed(text, "angle"));
+    return blendCss(angle(a), angle(b), w);
+  }
+  if (property === "transform") return blendTransform(a, b, w);
+  const [ax, ay] = motionPair(property, a);
+  const [bx, by] = motionPair(property, b);
+  return `${blendCss(ax, bx, w)} ${blendCss(ay, by, w)}`;
+}
+
+export function morphMotionStyleAt(track: readonly MorphMotionFrame[], offset: number): string {
+  const at = Math.max(0, Math.min(1, Number.isFinite(offset) ? offset : 0));
+  const declarations: string[] = [];
+  for (const property of MORPH_LAYER_PROPERTIES) {
+    const frames = track.filter((frame) => frame.values[property] !== undefined);
+    if (frames.length === 0) continue;
+    let index = -1;
+    frames.forEach((frame, i) => {
+      if (frame.offset <= at) index = i;
+    });
+    const from = frames[Math.max(0, index)]!;
+    const to = index >= 0 && index + 1 < frames.length ? frames[index + 1]! : from;
+    const span = to.offset - from.offset;
+    const w = to === from || !(span > 0) ? 0 : (at - from.offset) / span;
+    declarations.push(`${MORPH_MOTION_CSS[property]}:${blendMotion(property, from.values[property]!, to.values[property]!, w)}`);
+  }
+  return declarations.join(";");
+}

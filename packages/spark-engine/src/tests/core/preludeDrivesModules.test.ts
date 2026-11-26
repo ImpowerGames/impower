@@ -42,6 +42,11 @@ describe("the compiled prelude is the only source of the builtin values the modu
     expect(game.module.assets.config.restore_timeout).toBe(2);
   });
 
+  test("the assets config's `morph_frame_rate` reaches the asset module, and a removed one reads as 0 (#2812)", () => {
+    expect(gameWithPrelude((prelude) => replaceOnce(prelude, "morph_frame_rate = 24", "morph_frame_rate = 30")).module.assets.config.morph_frame_rate).toBe(30);
+    expect(gameWithPrelude((prelude) => replaceOnce(prelude, /^\s*morph_frame_rate = 24\s*$/m, "")).module.assets.config.morph_frame_rate).toBe(0);
+  });
+
   test("a removed interpreter fallback is not restored by the engine", () => {
     const game = gameWithPrelude((prelude) =>
       replaceOnce(

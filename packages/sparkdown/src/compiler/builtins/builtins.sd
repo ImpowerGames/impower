@@ -113,6 +113,10 @@ define assets as config with
   loading_min = 0.5
   -- Transition used to open and close `loading` when `load` has no `with`.
   loading_transition = "fade"
+  -- Frames a second a drawn portrait's smooth morph is drawn at before its
+  -- line shows. A morph whose easing is `steps` keeps its own count. 0 means
+  -- a smooth morph holds the rest pose.
+  morph_frame_rate = 24
 end
 
 define game with

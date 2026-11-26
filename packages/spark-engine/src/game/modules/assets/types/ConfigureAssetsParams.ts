@@ -4,4 +4,5 @@ export interface ConfigureAssetsParams {
   trimLayers: boolean;
   beatTimeout: number;
   restoreTimeout: number;
+  morphFrameRate: number;
 }
