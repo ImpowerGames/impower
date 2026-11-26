@@ -2653,6 +2653,12 @@ export class Game<T extends M = {}> {
     }
   }
 
+  recheckReadiness() {
+    if (!this._destroyed && !this.paused) {
+      this._coordinator?.recheckReadiness();
+    }
+  }
+
   update(time: Clock) {
     if (!this._destroyed && !this.paused) {
       for (const k of this._moduleNames) {

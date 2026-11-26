@@ -77,6 +77,8 @@ export class Coordinator<G extends Game> {
 
   protected _onTick?: (deltaMS: number) => void;
 
+  protected _recheckReadiness?: () => void;
+
   protected _presenters: Presenter[] = [];
 
   protected _displayed = false;
@@ -166,6 +168,12 @@ export class Coordinator<G extends Game> {
   onExecute() {
     this._onTick = this.display();
     this._onTick?.(0);
+  }
+
+  recheckReadiness() {
+    if (this._onTick) {
+      this._recheckReadiness?.();
+    }
   }
 
   onUpdate(time: Clock) {
@@ -369,6 +377,7 @@ export class Coordinator<G extends Game> {
     preview?: boolean;
     presented?: boolean;
   }): ((deltaMS: number) => void) | undefined {
+    this._recheckReadiness = undefined;
     const game = this._game;
     const instructions = this._instructions;
 
@@ -460,41 +469,60 @@ export class Coordinator<G extends Game> {
 
     let elapsedMS = 0;
     let ready = false;
+    let readyBetweenTicksAt: number | null = null;
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
-    const handleTick = (deltaMS: number): void => {
+    const becomeReady = (): boolean => {
       if (pendingLoad) {
         loadTriggerId = assets.runLoad(pendingLoad);
         pendingLoad = null;
       }
+      const audioReady = audioTriggerIds.every((n) =>
+        game.module.audio.isReady(n),
+      );
+      const assetsReady =
+        assetTriggerId == null || assets.isReady(assetTriggerId);
+      const loadReady = loadTriggerId == null || assets.isReady(loadTriggerId);
+      if (!audioReady || !assetsReady || !loadReady) {
+        return false;
+      }
+      ready = true;
+      this._startedExecution = true;
+      const time = game.context.system.now() + BEAT_LEAD_MS;
+      game.module.audio.triggerAll(audioTriggerIds, time);
+      if (assetTriggerId != null) {
+        assets.trigger(assetTriggerId);
+      }
+      if (loadTriggerId != null) {
+        assets.trigger(loadTriggerId);
+      }
+      if (cutscene) {
+        cutsceneTriggerId = game.module.ui.runCutscene(cutscene);
+        this._cutscenePlaying = true;
+      }
+      presenter.present(time);
+      elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
+      game.module.ui.afterCompose(() => assets.onBeatDisplayed());
+      return true;
+    };
+    this._recheckReadiness = () => {
+      if (!ready && becomeReady()) {
+        readyBetweenTicksAt = game.context.system.now();
+      }
+    };
+    const handleTick = (deltaMS: number): void => {
       if (!ready) {
-        const audioReady = audioTriggerIds.every((n) =>
-          game.module.audio.isReady(n),
-        );
-        const assetsReady =
-          assetTriggerId == null || assets.isReady(assetTriggerId);
-        const loadReady = loadTriggerId == null || assets.isReady(loadTriggerId);
-        if (audioReady && assetsReady && loadReady) {
-          ready = true;
-          this._startedExecution = true;
-          const time = game.context.system.now() + BEAT_LEAD_MS;
-          game.module.audio.triggerAll(audioTriggerIds, time);
-          if (assetTriggerId != null) {
-            assets.trigger(assetTriggerId);
-          }
-          if (loadTriggerId != null) {
-            assets.trigger(loadTriggerId);
-          }
-          if (cutscene) {
-            cutsceneTriggerId = game.module.ui.runCutscene(cutscene);
-            this._cutscenePlaying = true;
-          }
-          presenter.present(time);
-          elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
-          game.module.ui.afterCompose(() => assets.onBeatDisplayed());
-        }
+        becomeReady();
       } else if (!finished) {
-        elapsedMS += deltaMS;
+        const sinceReady =
+          readyBetweenTicksAt == null
+            ? deltaMS
+            : Math.min(
+                deltaMS,
+                Math.max(0, game.context.system.now() - readyBetweenTicksAt),
+              );
+        readyBetweenTicksAt = null;
+        elapsedMS += sinceReady;
       }
       if (ready && !finished) {
         if (
