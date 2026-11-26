@@ -8,7 +8,7 @@ import {
 const SOURCE = `store hp = 100
 layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -114,7 +114,7 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     const h = createHarness(
       `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -151,7 +151,7 @@ end
     const h = createHarness(
       `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -199,7 +199,7 @@ end
 const NAV_SOURCE = `store hp = 100
 layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -291,7 +291,7 @@ describe("screen navigation ([[navigate <container> to <screen>]])", () => {
     const h = createHarness(
       `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

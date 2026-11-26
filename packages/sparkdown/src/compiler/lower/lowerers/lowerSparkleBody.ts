@@ -444,6 +444,7 @@ const PROP_ATTR = nodeNameSet([
 const PROP_CLOSURE = nodeNameSet(["LuauSparklePropClosure"]);
 const PROP_OVERFLOW = nodeNameSet(["LuauSparklePropParenOverflow", "LuauSparklePropRunOverflow"]);
 const PROP_NAME = nodeNameSet(["StyleAttributeName"]);
+const PROP_ASSIGN = nodeNameSet(["EqualOperator"]);
 const PROP_INTERP = nodeNameSet([
   "LuauInterpolatedStringExpression",
   "LuauFunctionCallShorthand",
@@ -520,6 +521,10 @@ function readProps(
             ? ctx.read(literal.from, to) === "true"
             : ctx.read(literal.from, to),
       };
+      continue;
+    }
+    if (attr.name === "LuauSparklePropAttribute" && !firstDescendant(attr, PROP_ASSIGN)) {
+      props[name] = { kind: "literal", value: true };
     }
   }
   return props;

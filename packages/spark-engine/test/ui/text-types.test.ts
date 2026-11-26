@@ -2,16 +2,16 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SCREEN = `layout main {
-  title {
+  title #clear {
     text
   }
-  heading {
+  heading #clear {
     text
   }
-  transitional {
+  transitional #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
 }

@@ -1,0 +1,75 @@
+text.source.sparkdown [0..128]
+ ├─ meta.layout.luau [0..13]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   └─ meta.embedded.block.luau [7..13]
+ │       ├─ entity.name.type.define.luau [7..11]: "main"
+ │       ├─ punctuation.whitespace.sd [11..12]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [12..13]: "{"
+ ├─ Newline [13..14]: "\n"
+ ├─ meta.layout.luau [14..23]
+ │   └─ meta.embedded.block.luau [14..23]
+ │       ├─ punctuation.whitespace.sd [14..16]: "  "
+ │       ├─ entity.name.type.class.view.sd [16..21]: "stage"
+ │       ├─ punctuation.whitespace.sd [21..22]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [22..23]: "{"
+ ├─ Newline [23..24]: "\n"
+ ├─ meta.layout.luau [24..46]
+ │   └─ meta.embedded.block.luau [24..46]
+ │       ├─ punctuation.whitespace.sd [24..28]: "    "
+ │       ├─ entity.name.type.class.view.sd [28..36]: "backdrop"
+ │       ├─ punctuation.whitespace.sd [36..37]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [37..38]: "{"
+ │       ├─ punctuation.whitespace.sd [38..39]: " "
+ │       ├─ keyword.other.component.builtin.name.sd [39..44]: "image"
+ │       ├─ punctuation.whitespace.sd [44..45]: " "
+ │       └─ punctuation.definition.template-expression.end.sd [45..46]: "}"
+ ├─ Newline [46..47]: "\n"
+ ├─ meta.layout.luau [47..76]
+ │   └─ meta.embedded.block.luau [47..76]
+ │       ├─ punctuation.whitespace.sd [47..51]: "    "
+ │       ├─ entity.name.type.class.view.sd [51..59]: "portrait"
+ │       ├─ punctuation.whitespace.required.sd [59..60]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [60..61]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [61..66]: "clear"
+ │       ├─ punctuation.whitespace.sd [66..67]: " "
+ │       ├─ punctuation.definition.template-expression.begin.sd [67..68]: "{"
+ │       ├─ punctuation.whitespace.sd [68..69]: " "
+ │       ├─ keyword.other.component.builtin.name.sd [69..74]: "image"
+ │       ├─ punctuation.whitespace.sd [74..75]: " "
+ │       └─ punctuation.definition.template-expression.end.sd [75..76]: "}"
+ ├─ Newline [76..77]: "\n"
+ ├─ meta.layout.luau [77..104]
+ │   └─ meta.embedded.block.luau [77..104]
+ │       ├─ punctuation.whitespace.sd [77..81]: "    "
+ │       ├─ keyword.other.component.builtin.name.sd [81..88]: "caption"
+ │       ├─ punctuation.whitespace.required.sd [88..89]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [89..90]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [90..95]: "clear"
+ │       ├─ punctuation.whitespace.required.sd [95..96]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [96..97]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [97..100]: "gap"
+ │       ├─ keyword.operator.assignment.sd [100..101]: "="
+ │       ├─ constant.numeric.sd [101..102]: "4"
+ │       ├─ punctuation.whitespace.sd [102..103]: " "
+ │       └─ punctuation.definition.template-expression.begin.sd [103..104]: "{"
+ ├─ Newline [104..105]: "\n"
+ ├─ meta.layout.luau [105..115]
+ │   └─ meta.embedded.block.luau [105..115]
+ │       ├─ punctuation.whitespace.sd [105..111]: "      "
+ │       └─ keyword.other.component.builtin.name.sd [111..115]: "text"
+ ├─ Newline [115..116]: "\n"
+ ├─ meta.layout.luau [116..121]
+ │   └─ meta.embedded.block.luau [116..121]
+ │       ├─ punctuation.whitespace.sd [116..120]: "    "
+ │       └─ punctuation.definition.template-expression.end.sd [120..121]: "}"
+ ├─ Newline [121..122]: "\n"
+ ├─ meta.layout.luau [122..125]
+ │   └─ meta.embedded.block.luau [122..125]
+ │       ├─ punctuation.whitespace.sd [122..124]: "  "
+ │       └─ punctuation.definition.template-expression.end.sd [124..125]: "}"
+ ├─ Newline [125..126]: "\n"
+ ├─ meta.layout.luau [126..127]
+ │   └─ meta.embedded.block.luau [126..127]
+ │       └─ punctuation.definition.template-expression.end.sd [126..127]: "}"
+ └─ Newline [127..128]: "\n"

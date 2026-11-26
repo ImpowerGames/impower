@@ -7,10 +7,10 @@ layout main {
   badge {
     text "{stamp}"
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  dialogue {
+  dialogue #clear {
     text
   }
 }

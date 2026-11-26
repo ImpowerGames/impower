@@ -33,6 +33,18 @@ end
 
 An initial layout with a dialogue box (a `textbox` or `dialogue` element) is skipped when `main` already holds text elements, so a project whose own `layout main` shows dialogue keeps one dialogue box. Any other layout in the list always opens. An explicit `[[open textbox]]` still opens the built-in layout.
 
+Each part of the built-in box is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so it shows only what the current line puts in it. A box of your own needs the same marks on every part a line can leave out, or the last speaker's name stays up through a line of action:
+
+```sparkdown
+layout main {
+  textbox {
+    character_name #clear { text }
+    dialogue #clear { text }
+    action #clear { text }
+  }
+}
+```
+
 To hide the dialogue box, use the ordinary directives, and checkpoints and saves remember the result:
 
 ```sparkdown
@@ -223,7 +235,7 @@ Layouts join the screen with `in <screen>`, and referencing a screen you never d
 
 ### The screen's own elements and `slot`
 
-A screen's body holds elements that its layouts share. They stay on screen while any of the screen's layouts is open: they appear when the first one opens, stay the same elements while `navigate` swaps one layout for another, and leave when none is open. A frame, a heading or a backdrop written here keeps its place across the swap instead of being rebuilt with every page.
+A screen's body holds elements that its layouts share. They stay on screen while any of the screen's layouts is open: they appear when the first one opens, stay the same elements while `navigate` swaps one layout for another, and leave when none is open. A frame, a heading or a backdrop written here keeps its place across the swap instead of being rebuilt with every page. A text or picture part here follows [`#clear`](./Structure.md#clear-content-that-lasts-one-line) as a layout's does.
 
 The open layout is placed where the body writes `slot`, the same word a component uses for its caller's content, so a shared frame can wrap the layout and fit it:
 

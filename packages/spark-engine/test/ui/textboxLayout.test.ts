@@ -24,11 +24,11 @@ end
 layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -317,19 +317,19 @@ end
 end
 
 layout main {
-  action {
+  action #clear {
     text
   }
-  portrait {
+  portrait #clear {
     image
   }
 }
 
 layout panel {
-  action {
+  action #clear {
     text
   }
-  portrait {
+  portrait #clear {
     image
   }
 }
@@ -411,7 +411,7 @@ end
   ])("%s delivers the beat's line to the mounted element", async (_name, first, layout) => {
     const h = createHarness(
       `layout panel {
-  action {
+  action #clear {
     text
   }
 }
@@ -450,7 +450,7 @@ end
   test("replacing one of two elements with a target's name delivers the line to the replacement", async () => {
     const h = createHarness(
       `layout main {
-  action {
+  action #clear {
     text
   }
 }
@@ -504,7 +504,7 @@ end
     const h = createHarness(
       `${FANCY_TEXTBOX}
 layout panel {
-  action {
+  action #clear {
     text
   }
 }
@@ -659,7 +659,7 @@ end
 }
 
 layout textbox in menu {
-  action {
+  action #clear {
     text
   }
 }

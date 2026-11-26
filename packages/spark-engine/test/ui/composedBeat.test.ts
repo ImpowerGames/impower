@@ -16,11 +16,11 @@ end
 layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -52,7 +52,7 @@ const hudStory = (directives: string) => `style hud {
 }
 
 layout hud {
-  stats {
+  stats #clear {
     text
   }
 }
@@ -154,10 +154,10 @@ describe("a composed display (#1820)", () => {
     const h = createHarness(STORY, 0, { beforeConnect: composing });
     await h.ready;
     const ui = h.game.module.ui;
-    void ui.text.clear("dialogue");
-    void ui.text.write("dialogue", [{ text: "B" } as any], true);
-    void ui.text.clear("dialogue");
-    void ui.text.write("dialogue", [{ text: "A" } as any], true);
+    void ui.text.change("line replace", ["dialogue"]);
+    void ui.text.change("line write", "dialogue", [{ text: "B" } as any], true);
+    void ui.text.change("line replace", ["dialogue"]);
+    void ui.text.change("line write", "dialogue", [{ text: "A" } as any], true);
     ui.sweepReconcile();
     await flushMicrotasks(10);
 
@@ -173,7 +173,7 @@ describe("a composed display (#1820)", () => {
   test("a display a newer connect takes over never reaches the page, PLAY's included", async () => {
     const h = createHarness(STORY, 0, { beforeConnect: composing });
     await h.ready;
-    void h.game.module.ui.text.write("dialogue", [{ text: "ABANDONED" } as any], true);
+    void h.game.module.ui.text.change("line write", "dialogue", [{ text: "ABANDONED" } as any], true);
     await flushMicrotasks(10);
 
     h.game.context.system.previewing = undefined;
@@ -344,14 +344,14 @@ describe("composition, round 1 of PR #1865", () => {
       finish = resolve;
     });
     expect(ui.beginCompose()).toBe(true);
-    void ui.text.write("dialogue", [{ text: "First" }], true);
+    void ui.text.change("line write", "dialogue", [{ text: "First" }], true);
     ui.composeWait(unfinished);
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
     expect(beats(h.messages)).toEqual([]);
 
     expect(ui.beginCompose()).toBe(true);
-    void ui.text.write("dialogue", [{ text: "Second" }], true);
+    void ui.text.change("line write", "dialogue", [{ text: "Second" }], true);
     void ui.endCompose({ time: 200 });
     await flushMicrotasks(20);
     expect(beats(h.messages).map((b: any) => b.time)).toEqual([100]);
@@ -420,7 +420,7 @@ describe("composition, round 2 of PR #1865", () => {
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
     expect(ui.beginCompose()).toBe(true);
-    void ui.text.write("dialogue", [{ text: "Second" }], true);
+    void ui.text.change("line write", "dialogue", [{ text: "Second" }], true);
     void ui.endCompose({ time: 200 });
     await flushMicrotasks(20);
     expect(beats(h.messages).map((b: any) => b.time)).toEqual([100]);
@@ -476,7 +476,7 @@ describe("composition, round 2 of PR #1865", () => {
     expect(ui.beginCompose()).toBe(true);
     ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
     expect(ui._mountedLayouts.has("hud")).toBe(false);
-    void ui.text.write("dialogue", [{ text: "Next" }], true);
+    void ui.text.change("line write", "dialogue", [{ text: "Next" }], true);
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
 
@@ -709,7 +709,7 @@ describe("round 5 of PR #1865", () => {
       .find((m: any) => m.method === "ui/animate" && m.params.effects[0]?.element === hudId);
     expect(exit).toBeTruthy();
     expect(ui.beginCompose()).toBe(true);
-    void ui.text.write("dialogue", [{ text: "B" }], true);
+    void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     ui.composeWait(new Promise(() => {}));
     void ui.endCompose({ time: 200 });
     await flushMicrotasks(20);

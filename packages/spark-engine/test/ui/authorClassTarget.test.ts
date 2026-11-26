@@ -292,7 +292,7 @@ end
   test("reaches the layer with its classes and not a label with them, and the write names it", async () => {
     const { h, hidden, writes, idsNamed, created } = await run(
       `layout hud {
-  box.avatar { image }
+  box.avatar #clear { image }
   text.avatar "Label"
 }
 

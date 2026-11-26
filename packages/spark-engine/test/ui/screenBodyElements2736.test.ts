@@ -4,7 +4,7 @@ import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SOURCE = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -329,7 +329,7 @@ layout home in menu {
 describe("a screen's elements count as its layouts' own", () => {
   test("a layout whose screen holds the dialogue box presents the text", async () => {
     const h = await bare(`screen conversation {
-  textbox { dialogue { text } }
+  textbox { dialogue #clear { text } }
   slot
 }
 
@@ -341,15 +341,15 @@ layout loose { marker }
     expect(holdsPresentedText(h.game, "loose")).toBe(false);
   });
 
-  test("an empty text target a screen's body holds clears with each line like a layout's", async () => {
+  test("a #clear text target a screen's body holds clears with each line like a layout's", async () => {
     const h = await bare(`screen menu {
-  caption { text }
+  caption #clear { text }
   slot
 }
 
 layout home in menu { home_page }
 
-layout notes { note { text } }
+layout notes { note #clear { text } }
 `);
     const transient = ui(h).getTransientTargets();
     expect(transient).toContain("caption");

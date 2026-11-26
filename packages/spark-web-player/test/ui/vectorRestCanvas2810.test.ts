@@ -14,21 +14,21 @@ vi.setConfig({ testTimeout: 60_000 });
 
 const SOURCE = `layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
-    sigil {
+    sigil #clear {
       image
     }
-    badge {
+    badge #clear {
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
-    action {
+    action #clear {
       text
     }
   }

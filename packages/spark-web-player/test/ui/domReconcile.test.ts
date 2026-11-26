@@ -3,15 +3,15 @@ import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 const V1 = `layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
-    portrait {
+    portrait #clear {
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -20,12 +20,12 @@ const V1 = `layout main {
 
 const V2 = `layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

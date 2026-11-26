@@ -407,8 +407,8 @@ describe("a layout removed while a later beat waits to show (#2734)", () => {
       expect(retiring).toBeDefined();
       timeline.currentTime = 1000;
       expect(ui.beginCompose()).toBe(true);
-      await ui.text.clear("dialogue");
-      await ui.text.write("action", [{ text: "New action.", after: 0.1 }], false, 1100);
+      await ui.text.change("line replace", ["dialogue"]);
+      await ui.text.change("line write", "action", [{ text: "New action.", after: 0.1 }], false, 1100);
       await ui.endCompose({ time: 1100 });
       await flushMicrotasks(30);
       expect((h.overlay as any).__sdBeat).toBeDefined();
@@ -435,8 +435,8 @@ describe("a layout removed while a later beat waits to show (#2734)", () => {
       timeline.currentTime = 1000;
       expect(ui.beginCompose()).toBe(true);
       await ui.openLayout("notice");
-      await ui.text.clear("dialogue");
-      await ui.text.write("action", [{ text: "New action.", after: 0.1 }], false, 1100);
+      await ui.text.change("line replace", ["dialogue"]);
+      await ui.text.change("line write", "action", [{ text: "New action.", after: 0.1 }], false, 1100);
       await ui.endCompose({ time: 1100 });
       await flushMicrotasks(30);
       expect((h.overlay as any).__sdBeat).toBeDefined();
@@ -456,8 +456,8 @@ describe("a layout removed while a later beat waits to show (#2734)", () => {
       expect(ui.beginCompose()).toBe(true);
       await ui.openLayout("banner");
       await ui.closeLayout("banner", { with: "fadeout", over: 0.5 });
-      await ui.text.clear("dialogue");
-      await ui.text.write("action", [{ text: "New action.", after: 0.1 }], false, 1100);
+      await ui.text.change("line replace", ["dialogue"]);
+      await ui.text.change("line write", "action", [{ text: "New action.", after: 0.1 }], false, 1100);
       await ui.endCompose({ time: 1100 });
       await flushMicrotasks(30);
       expect((h.overlay as any).__sdBeat).toBeDefined();

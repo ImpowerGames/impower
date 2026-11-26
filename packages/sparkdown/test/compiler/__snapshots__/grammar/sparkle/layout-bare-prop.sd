@@ -1,0 +1,9 @@
+layout main {
+  stage {
+    backdrop { image }
+    portrait #clear { image }
+    caption #clear #gap=4 {
+      text
+    }
+  }
+}
