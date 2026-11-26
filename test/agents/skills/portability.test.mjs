@@ -1,0 +1,109 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { reviewTemplate } from "../../../scripts/build-review-prompt.mjs";
+import { checkReviewRound } from "../../../scripts/agent-handoff.mjs";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean);
+const skills = files.filter((f) => /^\.agents\/skills\/[^/]+\/SKILL.md$/.test(f));
+const forbidden = /\b(?:opus|sonnet|haiku|fable)\b|claude-|gpt-\d|Skill tool|Agent tool|subagent_type|Write\/Edit|set_session_title|scratchpad|CLAUDE\.md/ig;
+export const violations = (text) => [...text.matchAll(forbidden)].map((m) => m[0]);
+assert.ok(skills.length >= 9, "shared skill discovery is incomplete");
+const runnerDocs = new Set([
+  ".agents/skills/RUNNERS.md",
+  ".agents/skills/references/runner-review.md",
+  ".agents/skills/references/runner-continuation.md",
+  ".agents/skills/references/runner-maintenance.md",
+  ".agents/skills/references/runner-recovery.md",
+  ".agents/skills/references/runner-reviewer-defaults.md",
+  ".agents/skills/references/runner-filing.md",
+  ".agents/skills/references/runner-writing.md",
+]);
+const vendoredAllowances = new Map([
+  [".agents/skills/modern-web-guidance/SKILL.md", ["CLAUDE.md"]],
+  [".agents/skills/modern-web-guidance/guides/built-in-ai/language-model.md", ["haiku"]],
+  [".agents/skills/modern-web-guidance/guides/built-in-ai/prompt-api.md", ["haiku"]],
+  [".agents/skills/modern-web-guidance/guides/webmcp/agentic-javascript-tools.md", ["agent tool"]],
+]);
+export const unexpectedViolations = (file, text) => {
+  const found = violations(text);
+  const allowed = vendoredAllowances.get(file);
+  if (!allowed || JSON.stringify(found) === JSON.stringify(allowed)) return allowed ? [] : found;
+  return found.length ? found : ["stale allowance: " + allowed.join(", ")];
+};
+const isScanned = (f) => f.startsWith(".agents/") && f.endsWith(".md") && !runnerDocs.has(f);
+export const scanFindings = (fileList, read) => fileList
+  .filter(isScanned)
+  .map((file) => [file, unexpectedViolations(file, read(file))])
+  .filter(([, found]) => found.length);
+for (const skill of skills) assert.ok(isScanned(skill), "the scan covers " + skill);
+for (const [file, found] of scanFindings(files, (f) => fs.readFileSync(path.join(root, f), "utf8"))) assert.deepEqual(found, [], file);
+for (const token of ["opus", "sonnet", "haiku", "fable", "claude-x", "gpt-6-test", "Skill tool", "Agent tool", "subagent_type", "Write/Edit", "set_session_title", "scratchpad", "CLAUDE.md"]) assert.ok(violations("instruction " + token).length, token);
+assert.deepEqual(violations("Read the repository's agent instructions; use an editor capability and a private directory."), []);
+for (const file of vendoredAllowances.keys()) assert.ok(files.includes(file), "allowance names a tracked file: " + file);
+const vendoredFile = ".agents/skills/modern-web-guidance/SKILL.md";
+assert.deepEqual(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md"), []);
+assert.ok(unexpectedViolations(vendoredFile, "a policy in CLAUDE.md; call set_session_title").length, "an added token in an allowed file fails");
+assert.ok(unexpectedViolations(vendoredFile, "no runner names").length, "a stale allowance fails");
+assert.ok(unexpectedViolations(".agents/skills/file-task/SKILL.md", "a policy in CLAUDE.md").length, "CLAUDE.md in another skill fails");
+const probeFiles = {
+  [vendoredFile]: "a policy in CLAUDE.md; call set_session_title",
+  ".agents/skills/modern-web-guidance/guides/new.md": "use the Skill tool",
+  ".agents/skills/file-task/SKILL.md": "a policy in CLAUDE.md",
+  ".agents/skills/references/runner-writing.md": "CLAUDE.md",
+};
+assert.deepEqual(scanFindings(Object.keys(probeFiles), (f) => probeFiles[f]).map(([f]) => f), [vendoredFile, ".agents/skills/modern-web-guidance/guides/new.md", ".agents/skills/file-task/SKILL.md"], "the scan reports added tokens in vendored files and in other skills, and skips only runner docs");
+assert.equal(files.filter((f) => f.startsWith(".claude/skills/")).length, 0);
+const reviewFiles = ["SKILL.md", "references/launch.md", "references/reviewer-prompt.md", "references/adjudication.md", "references/later-rounds.md", "HANDOFF.md"];
+const prompt = reviewFiles.map((file) => fs.readFileSync(path.join(root, ".agents/skills/review-pr", file), "utf8")).join("\n");
+const template = fs.readFileSync(path.join(root, ".agents/skills/review-pr/references/reviewer-prompt.md"), "utf8");
+assert.doesNotMatch(prompt, /runtime identity|runtime introspection|self-report|reviewer route mismatch|identity check validates/i);
+assert.doesNotThrow(() => checkReviewRound(3, 2, false));
+assert.throws(() => checkReviewRound(4, 3, false), /1..3/);
+assert.doesNotThrow(() => checkReviewRound(4, 3, false, 4));
+for (const field of ["reviewRoundLimit", "extendedReviewAuthorization"]) assert.ok(prompt.includes(field), field);
+for (const file of ["policy.mjs", "typed-issue-hook.mjs", "shared-stash-hook.mjs"]) {
+  const source = fs.readFileSync(path.join(root, ".agents/hooks", file), "utf8");
+  assert.doesNotMatch(source, /\b(?:claude|codex|opus|sonnet|haiku)\b|gpt-\d/i, file);
+}
+assert.ok(!/\$\d/.test(prompt), "skill positional substitution must not corrupt reviewer prompts");
+const quotedPrompt = reviewTemplate(template);
+assert.equal((quotedPrompt.match(/\bWRITER\b/g) ?? []).length, 1, "writer substitution must occur only at its value, not inside the missing-value guard");
+assert.equal((quotedPrompt.match(/\bREVIEWER\b/g) ?? []).length, 1, "reviewer substitution must occur only at its value");
+const generation = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
+assert.equal(generation.status, 0, generation.stdout + generation.stderr);
+const orphan = path.join(root, ".claude/agents/reviewer-portability-probe.md");
+fs.writeFileSync(orphan, fs.readFileSync(path.join(root, ".claude/agents/reviewer-opus-5-5.md"), "utf8"));
+try {
+  const orphaned = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
+  assert.notEqual(orphaned.status, 0, "an orphan reviewer definition must fail --check");
+  assert.match(orphaned.stderr, /Unexpected reviewer definition/);
+} finally {
+  fs.rmSync(orphan, { force: true });
+}
+const cleanAgain = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
+assert.equal(cleanAgain.status, 0, cleanAgain.stdout + cleanAgain.stderr);
+const handoff = fs.readFileSync(path.join(root, ".agents/skills/review-pr/HANDOFF.md"), "utf8");
+for (const rule of ["await the existing launcher invocation", "Do not add periodic reviewer-status probes or narrate unchanged waits", "After the launcher exits, read every full report"]) {
+  assert.ok(handoff.includes(rule), rule);
+}
+const reviewerModels = JSON.parse(fs.readFileSync(path.join(root, ".claude/reviewer-models.json"), "utf8"));
+for (const { name } of reviewerModels) {
+  const generatedReviewer = fs.readFileSync(path.join(root, ".claude/agents", name + ".md"), "utf8");
+  assert.doesNotMatch(generatedReviewer, /runtime model identity|runtime identity|reviewer route mismatch|identity check/i, name);
+  assert.match(generatedReviewer, /configured reviewer route/i, name);
+}
+const instructions = fs.readFileSync(path.join(root, "AGENTS.md"), "utf8");
+for (const rule of ["Never use the shared Git stash", "type in the creation call", "editor capability", "paginated API", "one writer per file", "1024 MB", "scratch repository"]) assert.ok(instructions.includes(rule), rule);
+for (const skill of ["review-feature-engineering", "review-feature-experience"]) assert.ok(fs.readFileSync(path.join(root, ".agents/skills", skill, "SKILL.md"), "utf8").includes("(../references/feature-review.md)"), skill + " links the shared reference");
+const filedBy = "Filed by <model> at reasoning effort <effort>";
+for (const file of [".agents/skills/file-feature/references/publishing.md", ".agents/skills/references/feature-review.md"]) assert.ok(fs.readFileSync(path.join(root, file), "utf8").includes(filedBy), file + " names the filing-model marker");
+const { REQUIRED_ITEMS, REQUIRED_TASKS, COLUMNS } = await import("../../../.agents/skills/review-feature-experience/interface-exercise.mjs");
+const experienceSkill = fs.readFileSync(path.join(root, ".agents/skills/review-feature-experience/SKILL.md"), "utf8").toLowerCase();
+for (const phrase of [...REQUIRED_ITEMS, ...REQUIRED_TASKS, ...COLUMNS]) assert.ok(experienceSkill.includes(phrase.toLowerCase()), "review-feature-experience/SKILL.md restates: " + phrase);
+const publishingExample = fs.readFileSync(path.join(root, ".agents/skills/file-feature/references/publishing.md"), "utf8");
+for (const item of REQUIRED_ITEMS) assert.ok(new RegExp(`^(?:[-*+] )?(?:\\*\\*)?${item}(?:\\*\\*)?: `, "m").test(publishingExample), "file-feature publishing example states the item on its own line, as a bullet or a bare line: " + item);
+console.log(`PASS: ${skills.length} shared skills, forbidden-reference mutation controls, review contracts and generated runner configuration`);

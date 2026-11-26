@@ -1,0 +1,127 @@
+import { describe, it, expect } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
+
+const URI = "inmemory:///main.sd";
+
+const stable = (v: any): string => {
+  const seen = new WeakSet();
+  const walk = (x: any): any => {
+    if (x && typeof x === "object") {
+      if (seen.has(x)) return "[C]";
+      seen.add(x);
+      if (Array.isArray(x)) return x.map(walk);
+      const o: any = {};
+      for (const k of Object.keys(x).sort()) o[k] = walk(x[k]);
+      return o;
+    }
+    return x;
+  };
+  return JSON.stringify(walk(v));
+};
+
+function posAt(t: string, off: number) {
+  let line = 0;
+  let ls = 0;
+  for (let i = 0; i < off; i++)
+    if (t[i] === "\n") {
+      line++;
+      ls = i + 1;
+    }
+  return { line, character: off - ls };
+}
+
+function conf(text: string) {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as never);
+  return c;
+}
+
+function base() {
+  const L: string[] = [];
+  for (let s = 0; s < 6; s++) {
+    L.push(`scene scene_${s}`);
+    L.push(":");
+    L.push(`  Room ${s} line one.`);
+    L.push(`  Room ${s} line two.`);
+    L.push(`-> scene_${(s + 1) % 6}`);
+    L.push("end");
+    L.push("");
+  }
+  return L.join("\n");
+}
+
+describe("canonicalization with appended content", () => {
+  it("adding an anonymous fn into an existing scene body stays == cold", () => {
+    const w = console.warn;
+    const e = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    const log: string[] = [];
+    try {
+      let text = base();
+      const incr = conf(text);
+      incr.compile({ textDocument: { uri: URI } } as never);
+      let version = 1;
+      const steps = [
+        { find: "Room 5 line one.", replace: "Room 5 line ONE." },
+        {
+          find: "  Room 2 line two.",
+          replace: "  Room 2 line two.\n& local f = function(x) return x + 1 end",
+        },
+        {
+          find: "  Room 1 line two.",
+          replace: "  Room 1 line two.\n& local g = function(y) return y + 2 end",
+        },
+      ];
+      for (const [i, s] of steps.entries()) {
+        const off = text.indexOf(s.find);
+        expect(off, `find ${s.find}`).toBeGreaterThanOrEqual(0);
+        version++;
+        incr.updateDocument({
+          textDocument: { uri: URI, version },
+          contentChanges: [
+            {
+              range: {
+                start: posAt(text, off),
+                end: posAt(text, off + s.find.length),
+              },
+              text: s.replace,
+            },
+          ],
+        } as never);
+        text = text.slice(0, off) + s.replace + text.slice(off + s.find.length);
+        const a = stable(
+          programContent(
+            (incr.compile({ textDocument: { uri: URI } } as never) as any).program
+              .chunks,
+          ),
+        );
+        const b = stable(
+          programContent(
+            (conf(text).compile({ textDocument: { uri: URI } } as never) as any)
+              .program.chunks,
+          ),
+        );
+        log.push(`step${i + 1} ${a === b ? "ok" : "DIVERGED"}`);
+      }
+    } finally {
+      console.warn = w;
+      console.error = e;
+      (console as any).warn("\n" + log.join("\n") + "\n");
+    }
+    expect(log.filter((l) => l.includes("DIVERGED"))).toEqual([]);
+  });
+});

@@ -33,7 +33,7 @@
   "platforms": ["chromium", "firefox", "safari", "webkit", "node", "windows", "macos", "linux", "android", "ios", "powershell", "bash", "typescript", "git", "github", "vscode"],
   "exempt": [
     "packages/sparkdown/src/inkjs/",
-    "packages/sparkdown/src/tests/luau-conformance/upstream/",
+    "packages/sparkdown/test/luau-conformance/upstream/",
     "packages/sparkdown/src/txml/",
     "packages/sparkdown/vendor/",
     "packages/codemirror-vscode-language/src/vendor/",

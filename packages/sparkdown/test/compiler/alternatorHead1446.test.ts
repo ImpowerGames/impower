@@ -1,0 +1,122 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../../src/compiler/types/SparkDiagnostic";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+
+const URI = "inmemory:///main.sd";
+
+function messageOf(d: SparkDiagnostic): string {
+  return typeof d.message === "string" ? d.message : (d.message as { value: string }).value;
+}
+
+function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
+  return diagnostics
+    .filter((d) => d.severity === DiagnosticSeverity.Error)
+    .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
+    .sort();
+}
+
+function newCompiler(text: string): SparkdownCompiler {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  return compiler;
+}
+
+function compileErrors(compiler: SparkdownCompiler): string[] {
+  return errorsOf(compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? []);
+}
+
+function coldErrors(text: string): string[] {
+  return compileErrors(newCompiler(text));
+}
+
+function positionAt(text: string, offset: number) {
+  const lines = text.slice(0, offset).split("\n");
+  return { line: lines.length - 1, character: lines[lines.length - 1]!.length };
+}
+
+const PADDING = "function padding()\n  local p = 0\nend\n";
+
+function expectIncrementalEqualsCold(text: string): void {
+  const padded = PADDING + text;
+  const offset = padded.indexOf("0");
+  const compiler = newCompiler(padded);
+  compiler.compile({ textDocument: { uri: URI } } as never);
+  compiler.updateDocument({
+    textDocument: { uri: URI, version: 2 },
+    contentChanges: [{ range: { start: positionAt(padded, offset), end: positionAt(padded, offset + 1) }, text: "10000" }],
+  } as never);
+  const edited = padded.slice(0, offset) + "10000" + padded.slice(offset + 1);
+  expect(compileErrors(compiler)).toEqual(coldErrors(edited));
+}
+
+function output(text: string): string {
+  return makeRuntimeStoryFromSource(text).story.ContinueMaximally();
+}
+
+function headError(text: string, head: string, keywords = "cycle"): string {
+  const at = positionAt(text, text.indexOf(head));
+  return `${at.line}:${at.character}-${at.line}:${at.character + head.length} A \`${keywords}\` takes no value before its first \`|\`; write its arms as \`| ...\``;
+}
+
+const FORMS: [string, string, string, string, string][] = [
+  ["story braces, a name", "scene start\n  Hello {cycle undefinedName | 'a' | 'b' end}.\nend\n", "undefinedName", "cycle", "scene start\n  Hello {cycle | 'a' | 'b' end}.\nend\n"],
+  ["story braces, a call", "scene start\n  Hello {cycle error('boom') | 'a' | 'b' end}.\nend\n", "error('boom')", "cycle", "scene start\n  Hello {cycle | 'a' | 'b' end}.\nend\n"],
+  ["story braces, two keywords", "scene start\n  Hello {shuffle queue 1 | 'a' end}.\nend\n", "1", "shuffle queue", "scene start\n  Hello {shuffle queue | 'a' end}.\nend\n"],
+  ["story braces, a keyed first arm", "scene start\n  Hello {queue x | k = 'a' | 'b' end}.\nend\n", "x", "queue", "scene start\n  Hello {queue | k = 'a' | 'b' end}.\nend\n"],
+  ["a story block", "scene start\n  chain x\n  | A\n  | B\n  end\nend\n", "x", "chain", "scene start\n  chain\n  | A\n  | B\n  end\nend\n"],
+  ["a story block, a line under its word", "scene start\n  cycle\n  Not an arm.\n  | A\n  | B\n  end\nend\n", "Not an arm.", "cycle", "scene start\n  cycle\n  | A\n  | B\n  end\nend\n"],
+  ["a store's value", "store s = cycle 1 | 'a' | 'b' end\n\nscene start\n  Value {s}.\nend\n", "1", "cycle", "store s = cycle | 'a' | 'b' end\n\nscene start\n  Value {s}.\nend\n"],
+  [
+    "a function body",
+    "function f()\n  return cycle x | 'a' | 'b' end\nend\n\nscene start\n  Value {f()}.\nend\n",
+    "x",
+    "cycle",
+    "function f()\n  return cycle | 'a' | 'b' end\nend\n\nscene start\n  Value {f()}.\nend\n",
+  ],
+  ["nested in an arm", "scene start\n  Value {cycle | (queue x | 'a' end) | 'b' end}.\nend\n", "x", "queue", "scene start\n  Value {cycle | (queue | 'a' end) | 'b' end}.\nend\n"],
+  [
+    "compact, an unkeyed first arm",
+    'scene start\n  Value {cycle match("x") | x = "a" end| "b" end}.\nend\n',
+    'match("x") | x = "a" end',
+    "cycle",
+    'scene start\n  Value {cycle | "b" end}.\nend\n',
+  ],
+  [
+    "compact, no space after the bar",
+    'scene start\n  Value {cycle match("x") | x = "a" end|"b" end}.\nend\n',
+    'match("x") | x = "a" end',
+    "cycle",
+    'scene start\n  Value {cycle |"b" end}.\nend\n',
+  ],
+  [
+    "spaced, after an end",
+    'scene start\n  Value {cycle match("x") | x = "a" end | "b" end}.\nend\n',
+    'match("x") | x = "a" end',
+    "cycle",
+    'scene start\n  Value {cycle | "b" end}.\nend\n',
+  ],
+];
+
+describe("a sequential alternator's head is an error (I-1446)", () => {
+  test.each(FORMS)("%s", (_, text, head, keywords, headless) => {
+    expect(coldErrors(headless)).toEqual([]);
+    expect(coldErrors(text)).toEqual([headError(text, head, keywords)]);
+    expect(output(text)).toBe(output(headless));
+    expectIncrementalEqualsCold(text);
+  });
+
+  test("a head's backtick string reports its own error once, beside the head's", () => {
+    const text = "scene start\n  Hello {cycle `a {} b` | 'a' end}.\nend\n";
+    const errors = coldErrors(text);
+    expect(errors).toContain(headError(text, "`a {} b`"));
+    expect(errors.filter((e) => !e.endsWith("`| ...`"))).toHaveLength(1);
+    expectIncrementalEqualsCold(text);
+  });
+
+  test("a match's head is its condition, not an error", () => {
+    expect(coldErrors('store x = "a"\n\nscene start\n  Value {match x | a = 1 | b = 2 end}.\nend\n')).toEqual([]);
+  });
+});

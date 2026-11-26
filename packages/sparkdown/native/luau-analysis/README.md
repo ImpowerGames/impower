@@ -49,6 +49,6 @@ Timing totals and deadlines begin when the serialized operation starts; queue wa
 Run focused production tests with:
 
 ```
-node scripts/test-suite.mjs run packages/sparkdown src/tests/analysis-backend/cache-lifecycle.test.ts src/tests/analysis-backend/missing-modules.test.ts src/tests/analysis-backend/analysis-backend.test.ts --wait 600
+node scripts/test-suite.mjs run packages/sparkdown test/analysis-backend/cache-lifecycle.test.ts test/analysis-backend/missing-modules.test.ts test/analysis-backend/analysis-backend.test.ts --wait 600
 node scripts/typecheck.mjs packages/sparkdown/
 ```

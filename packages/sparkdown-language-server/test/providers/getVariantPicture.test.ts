@@ -1,0 +1,167 @@
+// @vitest-environment node
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { getVariantPicture, type ImageVariant } from "../../src/utils/providers/getVariantPicture";
+
+const ROOT = "file:///project";
+const MAIN = `${ROOT}/main.sd`;
+const P = "Assets/Images/Portraits";
+
+const compile = (paths: readonly string[], text = "") => {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: MAIN, name: "main", type: "script", ext: "sd", text, languageId: "sparkdown", version: 1 },
+      ...paths.map((path) => {
+        const leaf = path.split("/").at(-1)!;
+        return {
+          uri: `${ROOT}/${path}`,
+          type: "image",
+          name: leaf.split(".")[0]!,
+          ext: leaf.split(".").at(-1)!,
+          src: `/src/${path}`,
+          version: 1,
+        };
+      }),
+    ] as never,
+  });
+  return compiler.compile({ textDocument: { uri: MAIN } }).program!.context!;
+};
+
+let drawn: string[] = [];
+
+const stubComposition = () => {
+  drawn = [];
+  vi.stubGlobal("fetch", async (url: string) => ({
+    ok: true,
+    blob: async () => new Blob([url]),
+    headers: { get: () => null },
+  }));
+  vi.stubGlobal("createImageBitmap", async (blob: Blob) => ({ width: 100, height: 200, close() {}, tag: await blob.text() }));
+  vi.stubGlobal(
+    "OffscreenCanvas",
+    class {
+      constructor(
+        public width: number,
+        public height: number,
+      ) {}
+      getContext() {
+        return { drawImage: (bitmap: { tag: string }) => drawn.push(bitmap.tag) };
+      }
+      async convertToBlob() {
+        return new Blob([new Uint8Array(16)], { type: "image/webp" });
+      }
+    },
+  );
+};
+
+afterEach(() => vi.unstubAllGlobals());
+
+const MIA = [`${P}/mia/90 body.png`, `${P}/mia/30 face.neutral default.png`, `${P}/mia/30 face.happy.png`, `${P}/mia/10 hat.on.png`];
+
+const picture = (paths: readonly string[], variant: ImageVariant, text = "") =>
+  getVariantPicture(compile(paths, text), variant);
+
+describe("the tester's picture", () => {
+  it("draws a folder stack's combination as the engine stacks it, bottom first", async () => {
+    stubComposition();
+    const answer = await picture(MIA, { image: "mia", attributes: ["happy", "hat"] });
+    expect(answer!.src).toMatch(/^data:image\/webp;base64,/);
+    expect(drawn).toEqual([`/src/${P}/mia/90 body.png`, `/src/${P}/mia/30 face.happy.png`, `/src/${P}/mia/10 hat.on.png`]);
+    expect(answer!.layers).toEqual([`${ROOT}/${P}/mia/90 body.png`, `${ROOT}/${P}/mia/30 face.happy.png`, `${ROOT}/${P}/mia/10 hat.on.png`]);
+  });
+
+  it("draws the resting combination with the default layer", async () => {
+    stubComposition();
+    await picture(MIA, { image: "mia", attributes: [] });
+    expect(drawn).toEqual([`/src/${P}/mia/90 body.png`, `/src/${P}/mia/30 face.neutral default.png`]);
+  });
+
+  it("follows the program: a script that redefines the picture changes what the tester draws", async () => {
+    stubComposition();
+    const paths = [...MIA, `${P}/still.png`];
+    const redefined = `define mia as layered_image with\n  assets = { still }\nend\n`;
+    expect(await picture(paths, { image: "mia", attributes: ["happy"] }, redefined)).toEqual({
+      src: `/src/${P}/still.png`,
+      layers: [`${ROOT}/${P}/still.png`],
+    });
+  });
+
+  it("draws a picture with layer files beside it as the engine composes it, its own file at the bottom (#2201)", async () => {
+    stubComposition();
+    const paths = [`${P}/imani.png`, `${P}/imani 20 face.happy.png`, `${P}/imani 20 face.sad.png`, `${P}/imani 10 hat.on.png`, `${P}/imani 30 scarf.png`];
+    expect((await picture(paths, { image: "imani", attributes: ["happy"] }))!.src).toMatch(/^data:image\/webp;base64,/);
+    expect(drawn).toEqual([`/src/${P}/imani.png`, `/src/${P}/imani 30 scarf.png`, `/src/${P}/imani 20 face.happy.png`]);
+  });
+
+  it("draws an alternate with its own layer files, not its base's (#2201)", async () => {
+    stubComposition();
+    const paths = [`${P}/imani.png`, `${P}/imani face.happy.png`, `${P}/imani@night.png`, `${P}/imani@night face.happy.png`];
+    await picture(paths, { image: "imani@night", attributes: ["happy"] });
+    expect(drawn).toEqual([`/src/${P}/imani@night.png`, `/src/${P}/imani@night face.happy.png`]);
+  });
+
+  it("draws an alternate's own file", async () => {
+    stubComposition();
+    const paths = [`${P}/imani.png`, `${P}/imani@night.png`];
+    expect(await picture(paths, { image: "imani@night", attributes: [] })).toEqual({
+      src: `/src/${P}/imani@night.png`,
+      layers: [`${ROOT}/${P}/imani@night.png`],
+    });
+  });
+
+  it("answers an empty picture, not a failure, for a combination that shows no layer", async () => {
+    stubComposition();
+    const switches = [`${P}/mia/90 hat.on.png`, `${P}/mia/30 glasses.on.png`];
+    expect(await picture(switches, { image: "mia", attributes: [] })).toEqual({ src: "", layers: [] });
+    expect(drawn).toEqual([]);
+  });
+
+  it("draws at the size the tester asks for, up to the art's own size, while the hover keeps 360", async () => {
+    const canvases: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => ({ ok: true, blob: async () => new Blob([url]), headers: { get: () => null } }));
+    vi.stubGlobal("createImageBitmap", async (_blob: Blob, opts?: ImageBitmapOptions) => {
+      const width = opts?.resizeWidth ?? 300;
+      return { width, height: opts?.resizeHeight ?? Math.round((width * 4) / 3), close() {} };
+    });
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        constructor(width: number, height: number) {
+          canvases.push(`${width}x${height}`);
+        }
+        getContext() {
+          return { drawImage: () => {} };
+        }
+        async convertToBlob() {
+          return new Blob([new Uint8Array(16)], { type: "image/webp" });
+        }
+      },
+    );
+    const context = compile(MIA);
+    const variant = { image: "mia", attributes: ["hat"] };
+    await getVariantPicture(context, variant, { size: 1280 });
+    await getVariantPicture(context, variant, { size: 240 });
+    await getVariantPicture(context, variant);
+    expect(canvases).toEqual(["300x400", "180x240", "270x360"]);
+  });
+
+  it("answers only the file a fallback picture shows when composing fails", async () => {
+    stubComposition();
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return null;
+        }
+      },
+    );
+    const answer = await getVariantPicture(compile(MIA), { image: "mia", attributes: ["happy", "hat"] }, { size: 500 });
+    expect(answer!.src).toBe(`/src/${P}/mia/90 body.png`);
+    expect(answer!.layers).toEqual([`${ROOT}/${P}/mia/90 body.png`]);
+  });
+
+  it("draws nothing without a program", async () => {
+    expect(await getVariantPicture(undefined, { image: "mia", attributes: [] })).toBeNull();
+  });
+});

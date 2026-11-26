@@ -597,9 +597,9 @@ strikethrough.
 ### After adding the entry
 
 1. Update this file's status table.
-2. Add a runtime test (`src/tests/luau-conformance/Stdlib.test.ts` or
+2. Add a runtime test (`test/luau-conformance/Stdlib.test.ts` or
    the relevant feature test). For deprecated entries, also add a
-   case in `src/tests/luau-conformance/DeprecatedStdLib.test.ts`.
+   case in `test/luau-conformance/DeprecatedStdLib.test.ts`.
 
 No grammar, lowerer, or runtime-engine changes needed for entries
 that fit the registry shape. Categories in the _Special cases_

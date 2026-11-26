@@ -1,0 +1,214 @@
+import { describe, expect, it } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { flowListings, pushesString } from "../programListing";
+import { describeRoot } from "../program/describeRoot";
+
+const URI = "inmemory:///main.sd";
+
+const LESS = `function less(a, b)\n  return a < b\nend\n`;
+const LOCAL_LESS = `local ${LESS}`;
+
+const FILLER = [1, 2, 3, 4, 5]
+  .map((n) => `scene filler_${n}\nF${n}\n-> DONE\nend\n\n`)
+  .join("");
+
+function pick(p: any) {
+  return {
+    chunks: p.chunks ? describeRoot(p.chunks) : null,
+    functionLocations: p.functionLocations,
+    sceneLocations: p.sceneLocations,
+    diagnostics: p.diagnostics,
+  };
+}
+
+function stable(value: unknown): string {
+  const seen = new WeakSet();
+  const walk = (v: any): any => {
+    if (v && typeof v === "object") {
+      if (seen.has(v)) return "[Circular]";
+      seen.add(v);
+      if (Array.isArray(v)) return v.map(walk);
+      const out: Record<string, any> = {};
+      for (const k of Object.keys(v).sort()) out[k] = walk(v[k]);
+      return out;
+    }
+    return v;
+  };
+  return JSON.stringify(walk(value));
+}
+
+function configured(text: string) {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  return c;
+}
+
+function coldCompile(text: string) {
+  return pick(configured(text).compile({ textDocument: { uri: URI } }).program);
+}
+
+function posAt(text: string, offset: number) {
+  const before = text.slice(0, offset);
+  const line = before.split("\n").length - 1;
+  return { line, character: offset - (before.lastIndexOf("\n") + 1) };
+}
+
+interface Edit {
+  name: string;
+  find: string;
+  replace: string;
+  after?: string;
+  places?: { text: string; in: string }[];
+}
+
+function flowsHolding(program: any, text: string): string[] {
+  expect(program.chunks, "the compile built statement chunks").toBeDefined();
+  return [...flowListings(program.chunks)]
+    .filter(([, listing]) => pushesString(listing, text))
+    .map(([name]) => name || "root");
+}
+
+function expectIncrementalMatchesCold(base: string, edits: Edit[]) {
+  const realWarn = console.warn;
+  const realError = console.error;
+  console.warn = () => {};
+  console.error = () => {};
+  try {
+    let text = base;
+    const incr = configured(text);
+    incr.compile({ textDocument: { uri: URI } });
+    let version = 1;
+    for (const edit of edits) {
+      const from = edit.after ? text.indexOf(edit.after) : 0;
+      const offset = text.indexOf(edit.find, from);
+      expect(from, `"${edit.after}" present`).toBeGreaterThanOrEqual(0);
+      expect(offset, `"${edit.find}" present`).toBeGreaterThanOrEqual(0);
+      const start = posAt(text, offset);
+      const end = posAt(text, offset + edit.find.length);
+      version += 1;
+      incr.updateDocument({
+        textDocument: { uri: URI, version },
+        contentChanges: [{ range: { start, end }, text: edit.replace }],
+      });
+      text =
+        text.slice(0, offset) +
+        edit.replace +
+        text.slice(offset + edit.find.length);
+      const program = incr.compile({ textDocument: { uri: URI } }).program;
+      for (const place of edit.places ?? []) {
+        expect(
+          flowsHolding(program, place.text),
+          `${place.text} after edit "${edit.name}"`,
+        ).toEqual([place.in]);
+      }
+      expect(stable(pick(program)), `after edit "${edit.name}"`).toBe(
+        stable(coldCompile(text)),
+      );
+    }
+  } finally {
+    console.warn = realWarn;
+    console.error = realError;
+  }
+}
+
+const editLast = (find: string, replace: string): Edit => ({
+  name: `edit the last scene (${replace})`,
+  find,
+  replace,
+  after: "scene last",
+});
+
+describe("incremental compile with story lines after a function declaration", () => {
+  it("a line added after a function that ends a scene joins the scene", () => {
+    const base = `scene start\nA\n${LOCAL_LESS}\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+    expectIncrementalMatchesCold(base, [
+      editLast("L\n", "L1\n"),
+      editLast("L1\n", "L2\n"),
+      {
+        name: "add a line after the function",
+        find: "end\n\n",
+        replace: "end\nA2\n\n",
+        after: "return",
+        places: [{ text: "A2", in: "start" }],
+      },
+      editLast("L2\n", "L3\n"),
+      {
+        name: "edit the line after the function",
+        find: "A2\n",
+        replace: "A3\n",
+        places: [{ text: "A3", in: "start" }],
+      },
+      editLast("L3\n", "L4\n"),
+      { name: "remove the line after the function", find: "A3\n", replace: "" },
+      editLast("L4\n", "L5\n"),
+    ]);
+  });
+
+  it("a function added inside a scene leaves the lines after it in the scene", () => {
+    const base = `scene start\nA\nC\n-> DONE\nend\n\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+    expectIncrementalMatchesCold(base, [
+      editLast("L\n", "L1\n"),
+      {
+        name: "add a function between two lines",
+        find: "A\nC\n",
+        replace: `A\n${LOCAL_LESS}C\n`,
+        places: [{ text: "C", in: "start" }],
+      },
+      editLast("L1\n", "L2\n"),
+      {
+        name: "edit the line after the function",
+        find: "C\n",
+        replace: "Cee\n",
+        after: "return",
+        places: [{ text: "Cee", in: "start" }],
+      },
+      editLast("L2\n", "L3\n"),
+      { name: "remove the function", find: LOCAL_LESS, replace: "" },
+      editLast("L3\n", "L4\n"),
+    ]);
+  });
+
+  it("lines of a scene that follows a function declared first stay in the scene across edits", () => {
+    const base = `${LESS}\nscene start\nA\nB\nend\n\n${FILLER}scene last\nL\n-> DONE\nend\n`;
+    expectIncrementalMatchesCold(base, [
+      editLast("L\n", "L1\n"),
+      {
+        name: "edit a scene line",
+        find: "A\n",
+        replace: "Aye\n",
+        after: "return",
+        places: [
+          { text: "Aye", in: "start" },
+          { text: "B", in: "start" },
+        ],
+      },
+      { name: "edit the function body", find: "a < b", replace: "a <= b" },
+      editLast("L1\n", "L2\n"),
+      {
+        name: "add a second function",
+        find: "scene start\n",
+        replace: `function more(a, b)\n  return a > b\nend\nscene start\n`,
+        places: [{ text: "Aye", in: "start" }],
+      },
+      {
+        name: "add a scene line after the second function",
+        find: "Aye\n",
+        replace: "Aye\nZ\n",
+        places: [{ text: "Z", in: "start" }],
+      },
+      editLast("L2\n", "L3\n"),
+    ]);
+  });
+});

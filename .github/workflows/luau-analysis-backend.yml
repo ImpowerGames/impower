@@ -5,7 +5,7 @@ on:
       - packages/sparkdown/native/luau-analysis/**
       - packages/sparkdown/vendor/luau-analysis/**
       - packages/sparkdown/src/analysis-backend/**
-      - packages/sparkdown/src/tests/analysis-backend/**
+      - packages/sparkdown/test/analysis-backend/**
       - .github/workflows/luau-analysis-backend.yml
   workflow_dispatch:
 permissions:

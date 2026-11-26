@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { createScreenRenderContext } from "../../sparkle-screen-preview/src/utils/createScreenRenderContext";
-import { BREAKPOINTS, SHARED_CASES } from "../../spark-web-player/src/tests/ui/selectorWriterCases2502";
+import { BREAKPOINTS, SHARED_CASES } from "../../spark-web-player/test/ui/selectorWriterCases2502";
 import { getComponents, parseSparkle, renderCssVDOM } from "../src";
 import { sparkleSelectorToCssSelector } from "../src/runtime/css";
 

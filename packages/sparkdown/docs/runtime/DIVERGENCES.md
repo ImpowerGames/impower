@@ -617,7 +617,7 @@ convenient quotes.
 
 Malformed interpolations follow Luau, and are checked against Luau's own
 parser tests (ported to
-[`InterpolatedStringErrors.test.ts`](src/tests/luau-conformance/InterpolatedStringErrors.test.ts)):
+[`InterpolatedStringErrors.test.ts`](test/luau-conformance/InterpolatedStringErrors.test.ts)):
 
 | source | diagnostic |
 | --- | --- |
@@ -639,7 +639,7 @@ nested backtick strings inside an interpolation are legal Luau
 `stringinterp.luau`), so the content patterns must get first refusal before
 the boundary is consulted.
 
-An unfinished backtick string is reported as unfinished, but its scope does not end at its line the way Luau's `BrokenString` does: it runs to the end of the enclosing block, so a `}` on a later line belongs to the string rather than to an enclosing table. Luau's lexer tests for this and for `{{` (sparkdown's function-call shorthand, #223, so never a broken token) are ported to [`LexerConformance.test.ts`](src/tests/luau-conformance/LexerConformance.test.ts) and kept as skipped cases there.
+An unfinished backtick string is reported as unfinished, but its scope does not end at its line the way Luau's `BrokenString` does: it runs to the end of the enclosing block, so a `}` on a later line belongs to the string rather than to an enclosing table. Luau's lexer tests for this and for `{{` (sparkdown's function-call shorthand, #223, so never a broken token) are ported to [`LexerConformance.test.ts`](test/luau-conformance/LexerConformance.test.ts) and kept as skipped cases there.
 
 Both diagnostics apply to `"..."` exactly as they do to `` `...` ``: a
 double-quoted string is not a weaker dialect of a backtick one. A string that
@@ -649,7 +649,7 @@ genuinely holds braces — a Lua pattern like `%b{}`, or JSON — uses `'...'` o
 That has a cost worth stating: because Luau never interpolates `"..."`,
 upstream fixtures write brace-containing values with double quotes, and those
 lines now need rewriting to the literal form. They are patched at read time in
-[`upstreamPatches.ts`](src/tests/luau-conformance/upstreamPatches.ts) rather
+[`upstreamPatches.ts`](test/luau-conformance/upstreamPatches.ts) rather
 than edited in place, because re-vendoring is an `rm -rf` + fresh copy
 (see `upstream/VENDORING.md`) that would silently discard an in-place edit.
 If that patch list grows beyond a handful of lines, treat it as evidence to
@@ -699,11 +699,11 @@ not fixed. The runtime conformance harness also skips these two files
 because they require Luau's native integer implementation. The decision in
 #1309 and this section remain their tracking references after issue closure.
 Active diagnostic coverage lives in
-[`UnsupportedIntegerLiterals1309.test.ts`](../../src/tests/luau-conformance/UnsupportedIntegerLiterals1309.test.ts).
+[`UnsupportedIntegerLiterals1309.test.ts`](../../test/luau-conformance/UnsupportedIntegerLiterals1309.test.ts).
 
 ### Malformed literals and statements are diagnosed in Luau's words
 
-Luau's parser tests for malformed input are ported under [`src/tests/luau-conformance/`](src/tests/luau-conformance/) (`*Errors.test.ts`), one file per area, with every upstream snippet and message quoted verbatim. A case sparkdown does not match is a `describe.skip` whose name states the reason, so the gap is visible in the test report rather than silently absent.
+Luau's parser tests for malformed input are ported under [`test/luau-conformance/`](test/luau-conformance/) (`*Errors.test.ts`), one file per area, with every upstream snippet and message quoted verbatim. A case sparkdown does not match is a `describe.skip` whose name states the reason, so the gap is visible in the test report rather than silently absent.
 
 Literal-level diagnostics match Luau's wording exactly:
 

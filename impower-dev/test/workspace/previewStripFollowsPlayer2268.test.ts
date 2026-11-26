@@ -4,7 +4,7 @@ import {
   MAIN_URI,
   settle,
   writtenText,
-} from "@impower/spark-web-player/src/tests/worker/playerHarness";
+} from "@impower/spark-web-player/test/worker/playerHarness";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { signal } from "@preact/signals";
 import { describe, expect, test } from "vitest";

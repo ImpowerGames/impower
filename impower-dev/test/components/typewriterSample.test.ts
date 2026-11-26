@@ -1,5 +1,5 @@
-import { createHarness } from "@impower/spark-engine/src/tests/ui/harness/uiTestHarness";
 import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { createHarness } from "@impower/spark-engine/test/ui/harness/uiTestHarness";
 import { describe, expect, it } from "vitest";
 import {
   rollTypewriter,

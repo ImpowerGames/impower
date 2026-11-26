@@ -1,0 +1,1974 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { processIdentity } from "../../../../scripts/reviewer-slots.mjs";
+import { reserveFreeze, worktreePaths } from "../../../../scripts/review-job-store.mjs";
+import { writerRoutes } from "../../../../scripts/writer-route-preflight.mjs";
+import { readRepos } from "../../../../.agents/repos.mjs";
+import * as run from "../../../../.agents/skills/orchestrate-issues/issue-run.mjs";
+
+const here = fileURLToPath(new URL("../../../../.agents/skills/orchestrate-issues", import.meta.url));
+const script = path.join(here, "issue-run.mjs");
+const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "issue-run-")));
+console.log(`scratch: ${tmp}`);
+process.env.IMPOWER_MAINTAINER_REQUEST_INDEX = path.join(tmp, "request-index");
+const defaults = run.readWriterDefaults();
+const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).trim();
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const waitFor = (test, what, ms = 30000) => { const end = Date.now() + ms; while (!test()) { if (Date.now() > end) throw new Error(`Timed out waiting for ${what}`); sleep(200); } };
+const readJsonFile = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+const write = (name, value) => { const file = path.join(tmp, name); fs.writeFileSync(file, typeof value === "string" ? value : JSON.stringify(value)); return file; };
+const started = [];
+const requestOf = (over = {}) => ({ number: 9001, url: "https://github.com/acme/widgets/issues/9001", title: "Should branches stack? (#101)", kind: "decision", question: "Should branches stack?", owner: "orchestrate-issues #100", tickets: [101], state: "answered", answered: true, recorded: true, recommended: { letter: "A", name: "No stacking" }, wentAhead: null, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9001#issuecomment-1", at: "2026-11-13T16:09:00Z", body: "No stacked branches." }], ...over });
+const waitingRequest = (over = {}) => requestOf({ state: "waiting", answered: false, recorded: false, closed: null, words: [], ...over });
+
+function writerAccountingChecks() {
+  const checkout = path.join(tmp, "accounting-checkout");
+  fs.mkdirSync(checkout);
+  git(checkout, "init", "-q", "-b", "main");
+  git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+  const GB = 2 ** 30;
+  const ids = { coordinator: "local_00000000-0000-4000-8000-000000000001", shared: "00000000-0000-4000-8000-000000000002", other: "00000000-0000-4000-8000-000000000003", assignment: "00000000-0000-4000-8000-000000000004", otherAssignment: "00000000-0000-4000-8000-000000000005", parent: "00000000-0000-4000-8000-000000000006" };
+  const record = run.initRecord({ record: path.join(tmp, "accounting-run.json"), checkout, repository: "acme/widgets", issue: 100, coordinator: ids.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-accounting", invocation: "Use orchestrate-issues for #100." }, { defaults, freeBytes: 100 * GB, totalMemory: 7.9 * GB }).record;
+  const ticket = (number) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [] });
+  const owner = (id, extra = {}) => ({ route: "codex-app", model: "gpt-6.1-sol", effort: "medium", handle: { kind: "session", id, host: os.hostname() }, since: record.coordinator.since, ...extra });
+  const held = (writer) => ({ owner: writer, pending: null, history: [], results: [] });
+  const observations = { sessions: { [ids.shared]: { state: "running" }, [ids.other]: { state: "running" } } };
+  const plan = (tickets, more = {}) => run.planDispatch({ record: { ...record, tickets }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, tickets: [ticket(101), ticket(102), ticket(103)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [101, 102, 103].map((number) => ({ ticket: number, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, census: () => [], observations, ...more });
+  {
+    const redSha = "9842ba8b7".padEnd(40, "0");
+    const red = { verdict: "red", head: redSha, run: 41810405236, conclusion: "failure", url: "https://github.com/acme/widgets/actions/runs/41810405236", failedJobs: ["packages (impower-dev)", "test-suite"] };
+    const withMain = (mainCi, operations = []) => run.planDispatch({ record: { ...record, tickets: {}, operations }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, mainCi, tickets: [ticket(101)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [{ ticket: 101, effort: "medium", verdict: "available" }] }], freeBytes: 100 * GB, defaults, census: () => [], observations });
+    const ownMerge = { id: "op-1", kind: "merge", ticket: 102, pr: 2411, state: "confirmed", mergeCommit: redSha, evidence: `PR #2411 reads back merged as ${redSha}` };
+    const owned = withMain(red, [ownMerge]);
+    assert.deepEqual([owned.main?.action, owned.main?.owned, owned.main?.run, owned.main?.failedJobs], ["repair-main", true, 41810405236, ["packages (impower-dev)", "test-suite"]], "a red main on the run's own merge is the run's action");
+    assert.match(owned.remaining[0], /^main is red at 9842ba8b7, this run's merge of PR #2411 for #102 \(Test Suite push run 41810405236 on 9842ba8b7[0-9]* \(https:[^)]*\), failing jobs: packages \(impower-dev\), test-suite\); before any ticket action, find or dispatch the fix/, "the owned red leads the remaining work and names the run and its failing jobs");
+    assert.deepEqual(owned.main.fix, [], "no open PR yet");
+    assert.match(owned.remaining[0], /no open PR in this run passes every failing job yet$/);
+    const repairPr = (number, impowerDev) => ({ number, state: "OPEN", isDraft: false, branch: `fix/101-repair-${number}`, head: `h${number}`, checks: [{ name: "packages (impower-dev)", state: impowerDev }, { name: "test-suite", state: "SUCCESS" }] });
+    const withRepair = run.planDispatch({ record: { ...record, tickets: {}, operations: [ownMerge] }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, mainCi: red, tickets: [{ ...ticket(101), prs: [repairPr(2417, "SUCCESS"), repairPr(2418, "SKIPPED")] }] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [{ ticket: 101, effort: "medium", verdict: "available" }] }], freeBytes: 100 * GB, defaults, census: () => [], observations });
+    assert.deepEqual(withRepair.main.fix, [{ ticket: 101, pr: 2417, head: "h2417" }], "the plan names the open PR whose checks pass every failing job, and not one that skipped a job");
+    assert.match(withRepair.remaining[0], /to confirm with the gate: #2417 for #101$/);
+    const other = withMain(red, [{ ...ownMerge, mergeCommit: "a".repeat(40), evidence: "PR #2400 reads back merged" }]);
+    assert.deepEqual([other.main?.action, other.main?.owned], ["hold-merges", false], "a red main on another run's merge is no action for this run, which holds its merges");
+    assert.match(other.main.reason, /do not wait on the maintainer/);
+    assert.ok(!other.remaining.some((line) => /main is red/.test(line)), "another run's red adds no remaining work");
+    assert.equal(withMain({ verdict: "none", reason: "no completed, uncancelled push run of Test Suite on main" }, [ownMerge]).main, undefined, "a pending run on newer main is no action");
+    assert.equal(withMain({ verdict: "green", head: redSha, run: 2 }, [ownMerge]).main, undefined, "a green main is no action");
+    assert.equal(withMain(undefined, [ownMerge]).main, undefined, "a snapshot without main's runs is no action");
+    assert.deepEqual(run.mainVerdict([{ id: 1, headSha: redSha, status: "completed", conclusion: "failure", createdAt: "2026-11-04T10:00:00Z" }, { id: 2, headSha: "b".repeat(40), status: "in_progress", conclusion: "", createdAt: "2026-11-04T11:00:00Z" }]).verdict, "red", "a pending newer run leaves the last completed verdict in force");
+    const jobsClient = { mainRuns: () => [{ id: 7, headSha: redSha, status: "completed", conclusion: "failure", createdAt: "2026-11-04T10:00:00Z" }], mainRunJobs: () => [{ name: "packages (impower-dev)", conclusion: "failure" }, { name: "hook-tests", conclusion: "success" }] };
+    assert.deepEqual(run.mainState(jobsClient).failedJobs, ["packages (impower-dev)"], "the snapshot names only the red run's failed jobs");
+    assert.match(run.mainState({ ...jobsClient, mainRunJobs: () => { throw new Error("HTTP 502"); } }).failedJobs, /the jobs of run 7 could not be read: HTTP 502/);
+    assert.deepEqual(run.mainState({ mainRuns: () => { throw new Error("HTTP 403"); } }).verdict, "none", "unreadable runs are no verdict");
+  }
+  const shared = owner(ids.shared, { adopted: { pr: 500, rounds: 1 } });
+  const aliases = plan({ 101: held(shared), 102: held(structuredClone(shared)) });
+  assert.equal(aliases.concurrency.active, 1, "two ticket references to one observed writer consume one place");
+  assert.equal(aliases.tickets.find((entry) => entry.number === 103).action, "dispatch");
+  assert.equal(plan({ 101: held(shared), 102: held(owner(ids.other, { adopted: { pr: 500, rounds: 1 } })) }).concurrency.active, 2, "distinct writers retain distinct places even when their PR is shared");
+  const pending = { operation: "dispatch", launchId: ids.assignment, route: "codex-app", host: os.hostname(), artifactParent: tmp, worktree: path.join(tmp, "pending-tree") };
+  assert.equal(plan({ 101: { pending }, 102: { pending: structuredClone(pending) } }).concurrency.active, 1, "duplicate references to one pending assignment consume one place");
+  assert.equal(plan({ 101: { pending }, 102: { pending: { ...pending, launchId: ids.otherAssignment } } }).concurrency.active, 2, "different partial starts remain reserved until reconciled");
+  const sameTask = owner("/root/writer", { handle: { kind: "task", id: "/root/writer", host: os.hostname() } });
+  assert.equal(plan({ 101: held(sameTask), 102: held({ ...sameTask, launchId: ids.otherAssignment }) }).concurrency.active, 2, "an unscoped task name alone does not prove that two assignments share a writer");
+  assert.equal(plan({ 101: held(shared), 102: { history: [{ released: "observed exit" }] } }).concurrency.active, 1, "normal release removes the finished assignment without erasing another writer");
+  assert.equal(record.concurrency.limit, 3, "a 7.9 GiB host has three writer places at 2 GiB per writer");
+  const largeBound = run.defaultConcurrency({ totalMemory: 31.1 * GB });
+  assert.equal(largeBound.limit, 15, "a 31.1 GiB host has fifteen writer places at 2 GiB per writer");
+  assert.match(largeBound.basis, /15 writer places by total memory at 2 GiB per writer/);
+  assert.match(largeBound.basis, /machine-wide/, "the basis says every run on the host shares the same places");
+  assert.match(largeBound.basis, /8 machine-wide reviewer slots/);
+  assert.match(largeBound.basis, /3 test-suite reservation slots, at most 2 of them for writers/);
+
+  const resources = { sampledAt: new Date().toISOString(), totalBytes: 7.9 * GB, physicalAvailableBytes: 3.5 * GB, commitHeadroomBytes: 27 * GB, source: "fixture: direct memory counters" };
+  const foreign = (tickets, extra = {}) => ({ ...structuredClone(record), runId: "00000000-0000-4000-8000-000000000007", issue: 200, coordinator: { ...record.coordinator, session: ids.parent }, tickets, ...extra });
+  const machine = (other, more = {}) => ({ host: os.hostname(), scope: { gitCommonDirectory: git(checkout, "rev-parse", "--path-format=absolute", "--git-common-dir") }, records: [{ recordPath: path.join(tmp, "foreign-run.json"), record: other }], diagnostics: [], resources, ...more });
+  const machinePlan = (other, more = {}) => plan({}, { machine: machine(other), ...more });
+  const native = owner("/root/writer", { launchId: ids.assignment, handle: { kind: "task", id: "/root/writer", host: os.hostname() }, brief: { coordinator: ids.parent } });
+  assert.equal(plan({ 101: held(native), 102: held(structuredClone(native)) }, { observations: { tasks: { "/root/writer": { state: "running" } } } }).concurrency.active, 1, "an immutable native assignment deduplicates its ticket aliases");
+  const scoped = (other, state) => ({ ...observations, runs: { [other.runId]: { tasks: { "/root/writer": { state } } } } });
+  const other = foreign({ 201: held(native), 202: { pending: { ...pending, launchId: ids.otherAssignment } } });
+  const occupied = machinePlan(other, { observations: scoped(other, "running") });
+  assert.equal(occupied.concurrency.machine.executing, 1);
+  assert.equal(occupied.concurrency.machine.unknown, 1);
+  assert.equal(occupied.concurrency.capacityNow, 2, "a running writer consumes a shared place and unobserved foreign intent stays visible");
+  const pendingDir = run.launchDirOf(other.tickets[202].pending, 202);
+  const inFlight = machinePlan(other, { observations: scoped(other, "running"), census: () => [{ pid: 424241, name: "node", cmd: `node worker.mjs "${pendingDir}"` }] });
+  assert.equal(inFlight.concurrency.machine.executing, 1, "a process mentioning a foreign pending launch directory is insufficient execution evidence");
+  assert.equal(inFlight.concurrency.machine.unknown, 1);
+  const abandoned = foreign(Object.fromEntries([201, 202, 203].map((number) => [number, { pending: { ...pending, launchId: `00000000-0000-4000-8000-000000000${number}` } }])));
+  const abandonedBefore = structuredClone(abandoned);
+  const abandonedPlan = machinePlan(abandoned);
+  assert.equal(abandonedPlan.concurrency.machine.unknown, 3);
+  assert.equal(abandonedPlan.concurrency.capacityNow, 3, "unobserved foreign intents do not permanently hold machine admission");
+  assert.deepEqual(abandoned, abandonedBefore, "unknown intent remains owned for explicit reconciliation");
+  const aliasesAcrossRuns = plan({ 101: held(shared) }, { machine: machine(foreign({ 201: held(structuredClone(shared)) })), observations: { ...observations, runs: { [other.runId]: observations } } });
+  assert.equal(aliasesAcrossRuns.concurrency.machine.executing, 1, "the same host/session identity is one writer across records");
+  const desktopId = `local_${ids.shared}`;
+  const desktop = { ...owner(desktopId), route: "claude-desktop" };
+  const desktopObserved = { sessions: { [desktopId]: { state: "running" }, ...observations.sessions } };
+  const desktopRun = foreign({ 201: held(desktop), 202: held(shared), 203: held({ ...desktop, handle: { ...desktop.handle, host: "another-machine" } }) });
+  const desktopPlan = plan({ 101: held(desktop), 102: held(structuredClone(desktop)) }, { machine: machine(desktopRun), observations: { ...desktopObserved, runs: { [desktopRun.runId]: desktopObserved } } });
+  assert.equal(desktopPlan.concurrency.active, 1, "adopted desktop session aliases share a local place");
+  assert.equal(desktopPlan.concurrency.machine.executing, 2, "cross-run desktop aliases deduplicate without merging a bare session namespace");
+  assert.equal(desktopPlan.concurrency.machine.foreign, 1);
+  const [sharedWriter] = aliasesAcrossRuns.concurrency.machine.writers;
+  assert.equal(sharedWriter.state, "executing");
+  assert.deepEqual(sharedWriter.references.map(({ runId, ticket }) => [runId, ticket]).sort(), [[record.runId, 101], [other.runId, 201]].sort(), "one writer retains both run and ticket references");
+  const starting = { ...record, tickets: { 101: { pending }, 102: { pending: structuredClone(pending) } } };
+  const occupiedRun = foreign({ 201: held(shared), 202: held(owner(ids.other)) });
+  const startOptions = { starting: 101, observations: { runs: { [occupiedRun.runId]: observations } }, census: () => [] };
+  const startLoad = run.checkMachineStart(starting, machine(occupiedRun), startOptions);
+  assert.equal(startLoad.executing, 2);
+  assert.equal(startLoad.pending, 0, "all pending aliases of the proposed start share its exemption");
+  starting.tickets[103] = { pending: { ...pending, launchId: ids.otherAssignment } };
+  assert.throws(() => run.checkMachineStart(starting, machine(occupiedRun), startOptions), (error) => {
+    assert.match(error.message, /Machine writer places are full/);
+    for (const ticket of ["#201", "#202", "#103"]) assert.ok(error.message.includes(ticket));
+    return true;
+  }, "unrelated pending and observed writers still fill capacity");
+  const duplicateTaskNames = plan({ 101: held({ ...native, launchId: ids.otherAssignment, brief: { coordinator: ids.coordinator } }) }, { machine: machine(foreign({ 201: held(native) })), observations: { tasks: { "/root/writer": { state: "running" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } });
+  assert.equal(duplicateTaskNames.concurrency.machine.executing, 2, "parent-scoped task paths do not merge unrelated writers");
+  const contactChanged = structuredClone(other);
+  contactChanged.tickets[201].owner.coordinator = ids.coordinator;
+  assert.equal(machinePlan(contactChanged, { observations: scoped(contactChanged, "running") }).concurrency.machine.executing, 1, "a mutable reporting contact does not change the native writer's identity");
+  const copiedAssignment = plan({ 101: held({ ...native, coordinator: ids.coordinator }) }, { machine: machine(foreign({ 201: held(native) })), observations: { tasks: { "/root/writer": { state: "running" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } });
+  assert.equal(copiedAssignment.concurrency.machine.executing, 1, "copied references to one immutable assignment remain one writer after contact changes");
+  const retained = foreign({ 201: { ...held(native), requests: [{ id: "waiting-decision", state: "requested" }] } });
+  const retainedBefore = JSON.stringify(retained);
+  const idle = machinePlan(retained, { observations: scoped(retained, "completed") });
+  assert.equal(idle.concurrency.machine.executing, 0, "a completed native turn retaining its assignment is not executing load");
+  assert.equal(idle.concurrency.machine.retained, 1);
+  assert.equal(JSON.stringify(retained), retainedBefore, "capacity accounting never releases or modifies another run's retained ownership");
+  const unknown = machinePlan(retained);
+  assert.equal(unknown.concurrency.machine.unknown, 1, "an unobserved native owner remains explicitly unknown");
+  assert.ok(unknown.concurrency.machine.diagnostics.some((entry) => entry.next && entry.recordPath), "unknown ownership names the record and the evidence needed");
+  assert.ok(unknown.concurrency.capacityNow > 0, "fresh healthy resources remain a usable fallback for unknown migration state");
+  const missingRecord = { pointerPath: path.join(tmp, "missing-pointer.json"), recordPath: path.join(tmp, "missing-run.json"), reason: "ENOENT", next: "Ask the recorded coordinator to locate its run record; preserve this pointer" };
+  const missing = plan({}, { machine: machine(foreign({}), { diagnostics: [missingRecord] }) });
+  assert.deepEqual(missing.concurrency.machine.diagnostics.find((entry) => entry.recordPath === missingRecord.recordPath), missingRecord);
+  assert.ok(missing.concurrency.capacityNow > 0, "a missing historical record is reported without inventing an empty census or permanent global hold");
+  for (const [physical, commit] of [[0.4, 2.4], [1.19, 17.68], [3.5, 2.4]]) {
+    const pressured = plan({}, { machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB } }) });
+    assert.equal(pressured.concurrency.capacityNow, 0, `physical ${physical} GiB and direct commit ${commit} GiB do not admit a source writer`);
+    assert.ok(pressured.tickets.every((entry) => entry.action === "wait-capacity"));
+  }
+  for (const physical of [3.4, 3.6]) assert.ok(plan({}, { machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: physical * GB } }) }).concurrency.capacityNow > 0, "the observed successful source/review envelope remains admitted");
+  const meminfo = "MemAvailable: 3670016 kB\nCommitLimit: 4194304 kB\nCommitted_AS: 8388608 kB\n";
+  for (const mode of ["0", "1", "2"]) {
+    const memory = run.linuxWriterMemory(meminfo, mode);
+    assert.equal(memory.physicalAvailableBytes, 3.5 * GB);
+    assert.equal(memory.commitHeadroomBytes, mode === "2" ? -4 * GB : null);
+    const linux = plan({}, { machine: machine(foreign({}), { resources: { totalBytes: resources.totalBytes, ...memory } }) });
+    assert.equal(linux.concurrency.capacityNow, mode === "2" ? 0 : 3, "only strict Linux overcommit policy enforces the commit budget");
+  }
+  const unmeasured = plan({}, { machine: machine(foreign({}), { resources: { ...resources, totalBytes: undefined } }) });
+  assert.equal(unmeasured.concurrency.capacityNow, 0, "a sample without total memory admits no writer");
+  assert.ok(unmeasured.tickets.every((entry) => entry.action === "wait-capacity" && /Cannot measure writer admission memory/.test(entry.reason)));
+  const writersOn = (count) => foreign(Object.fromEntries(Array.from({ length: count }, (_, index) => [201 + index, held(owner(`00000000-0000-4000-8000-0000000003${String(index).padStart(2, "0")}`))])));
+  const running = (other) => ({ ...observations, runs: { [other.runId]: { sessions: Object.fromEntries(Object.values(other.tickets).map(({ owner: { handle } }) => [handle.id, { state: "running" }])) } } });
+  const host = (totalGiB, values) => ({ resources: { ...resources, totalBytes: totalGiB * GB, ...values } });
+  const roomy = { physicalAvailableBytes: 14.3 * GB, commitHeadroomBytes: 27 * GB };
+  const onHost = (totalGiB, other, values = roomy) => plan({}, { record: { ...record, concurrency: run.defaultConcurrency({ totalMemory: totalGiB * GB }), tickets: {} }, machine: machine(other, host(totalGiB, values)), observations: running(other) });
+  const dispatched = (result) => result.tickets.filter((entry) => entry.action === "dispatch").length;
+  const observedLoad = onHost(31.1, writersOn(3));
+  assert.equal(observedLoad.concurrency.machine.executing, 3);
+  assert.equal(observedLoad.concurrency.capacityNow, 12, "three writers of other runs leave twelve of a 31.1 GiB host's fifteen places");
+  assert.equal(dispatched(observedLoad), 3, "the run dispatches every eligible ticket beside the three foreign writers");
+  const fourteenth = onHost(31.1, writersOn(14));
+  assert.equal(fourteenth.concurrency.capacityNow, 1, "fourteen writers across runs leave the fifteenth place");
+  assert.equal(dispatched(fourteenth), 3, "the fifteenth place admits every eligible ticket, and the coordinator claims one");
+  const full = onHost(31.1, writersOn(15));
+  assert.equal(full.concurrency.capacityNow, 0);
+  assert.ok(full.tickets.every((entry) => entry.action === "wait-capacity" && /Machine writer places are full: all 15 by total memory at 2 GiB per writer/.test(entry.reason)), "fifteen writers fill a 31.1 GiB host");
+  const startOn = { ...record, tickets: { 101: { pending } } };
+  const startCheck = (totalGiB, other) => run.checkMachineStart(startOn, machine(other, host(totalGiB, roomy)), { starting: 101, observations: running(other), census: () => [] });
+  assert.equal(startCheck(31.1, writersOn(14)).executing, 14, "start-check admits a fifteenth writer machine-wide on a 31.1 GiB host");
+  assert.throws(() => startCheck(31.1, writersOn(15)), /Machine writer places are full: all 15/);
+  assert.equal(onHost(15.8, writersOn(6)).concurrency.capacityNow, 1, "a 15.8 GiB host has a seventh place");
+  assert.equal(onHost(15.8, writersOn(7)).concurrency.capacityNow, 0, "seven writers fill a 15.8 GiB host");
+  assert.throws(() => startCheck(15.8, writersOn(7)), /Machine writer places are full: all 7/);
+  assert.equal(onHost(7.9, writersOn(2)).concurrency.capacityNow, 1, "a 7.9 GiB host has a third place");
+  assert.equal(onHost(7.9, writersOn(3)).concurrency.capacityNow, 0, "a 7.9 GiB host admits no writer beyond its three places");
+  assert.throws(() => startCheck(7.9, writersOn(3)), /Machine writer places are full: all 3/);
+  for (const totalGiB of [15.8, 31.1]) {
+    for (const [physical, commit, why] of [[0.4, 27, /Available physical memory/], [1.9, 27, /Available physical memory/], [14.3, 4.9, /Direct commit headroom/], [14.3, 2.4, /Direct commit headroom/]]) {
+      const loaded = onHost(totalGiB, writersOn(1), { physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB });
+      assert.equal(loaded.concurrency.capacityNow, 0, `a ${totalGiB} GiB host with ${physical} GiB available and ${commit} GiB commit headroom admits no writer`);
+      assert.ok(loaded.tickets.every((entry) => entry.action === "wait-capacity" && why.test(entry.reason)), `the ${totalGiB} GiB host names the reserve that refuses it`);
+      assert.throws(() => run.checkMachineStart(startOn, machine(writersOn(1), host(totalGiB, { physicalAvailableBytes: physical * GB, commitHeadroomBytes: commit * GB })), { starting: 101, observations: running(writersOn(1)), census: () => [] }), why);
+    }
+  }
+  const pendingBefore = JSON.stringify(other);
+  assert.equal(machinePlan(other, { observations: { sessions: { [ids.parent]: { state: "absent" } }, runs: { [other.runId]: { tasks: { "/root/writer": { state: "running" } } } } } }).concurrency.machine.executing, 1);
+  assert.equal(JSON.stringify(other), pendingBefore, "coordinator disappearance neither clears a live writer nor withdraws a partial start");
+  const processHandle = { kind: "process", host: os.hostname(), pid: 424242, start: "fixture-start-a", launchDir: path.join(tmp, "detached-launch") };
+  const detached = owner(ids.other, { route: "codex-cli", handle: processHandle });
+  const processRun = foreign({ 201: held(detached), 202: held(structuredClone(detached)) });
+  assert.equal(machinePlan(processRun, { identify: () => ({ pid: processHandle.pid, start: processHandle.start }) }).concurrency.machine.executing, 1, "recorded host/PID/start identity deduplicates the same running process");
+  const survivor = { pid: 424243, start: "fixture-child-start" };
+  const detachedRun = foreign({ 201: held(detached) });
+  const observerOnly = machinePlan(detachedRun, { identify: (pid) => pid === survivor.pid ? survivor : null, census: () => [{ pid: survivor.pid, name: "node", cmd: `node observer.mjs "${processHandle.launchDir}"` }] });
+  assert.equal(observerOnly.concurrency.machine.executing, 0, "a live directory observer supplies no writer execution evidence");
+  assert.equal(observerOnly.concurrency.machine.unknown, 1);
+  const childEvidence = { host: os.hostname(), wrapper: { pid: processHandle.pid, start: processHandle.start }, process: survivor };
+  const withChild = (evidence, identify = (pid) => pid === survivor.pid ? survivor : null) => machinePlan(detachedRun, { identify, observations: { runs: { [detachedRun.runId]: { writerChildren: { 201: evidence } } } } });
+  const wrapperGone = withChild(childEvidence);
+  assert.equal(wrapperGone.concurrency.machine.executing, 1, "a positively observed and still-matching writer child outlives its wrapper");
+  assert.deepEqual(wrapperGone.concurrency.machine.writers[0].references[0].process, survivor);
+  const direct = { ...detached, handle: { ...processHandle, ...survivor } };
+  const sharedChild = plan({ 101: held(direct) }, { machine: machine(detachedRun), identify: (pid) => pid === survivor.pid ? survivor : null, observations: { runs: { [detachedRun.runId]: { writerChildren: { 201: childEvidence } } } } }).concurrency.machine;
+  assert.equal(sharedChild.executing, 1, "a directly recorded writer and a surviving child with the same live identity share one place");
+  assert.deepEqual(sharedChild.writers[0].identity, ["process", os.hostname(), survivor.pid, survivor.start]);
+  assert.deepEqual(sharedChild.writers[0].references.map(({ ticket }) => ticket).sort(), [101, 201]);
+  assert.deepEqual(sharedChild.writers[0].references.find(({ ticket }) => ticket === 201).recordedIdentity, ["process", os.hostname(), processHandle.pid, processHandle.start]);
+  assert.equal(withChild({ ...childEvidence, wrapper: { ...childEvidence.wrapper, start: "different-wrapper" } }).concurrency.machine.unknown, 1);
+  assert.equal(withChild(childEvidence, () => ({ ...survivor, start: "reused-child" })).concurrency.machine.unknown, 1);
+  const unreadable = machinePlan(foreign({ 201: held(detached) }), { identify: () => { throw new Error("fixture access denied"); }, census: () => [] });
+  assert.equal(unreadable.concurrency.machine.unknown, 1, "a failed identity probe is not exit evidence even with an empty census");
+  const reused = machinePlan(foreign({ 201: held(detached), 202: held({ ...detached, handle: { ...processHandle, start: "fixture-start-b", launchDir: path.join(tmp, "other-launch") } }) }), { identify: () => ({ pid: processHandle.pid, start: "fixture-start-b" }), census: () => null });
+  assert.equal(reused.concurrency.machine.executing, 1);
+  assert.equal(reused.concurrency.machine.unknown, 1, "PID reuse with an unreadable descendant census does not settle the former writer");
+  const foreignHost = machinePlan(foreign({ 201: held({ ...detached, handle: { ...processHandle, host: "another-machine" } }) }));
+  assert.equal(foreignHost.concurrency.machine.executing, 0, "a positively different host consumes no local machine place");
+  assert.equal(foreignHost.concurrency.machine.foreign, 1, "foreign ownership stays visible rather than being silently discarded");
+  const claimRecord = structuredClone(record);
+  const claimBefore = JSON.stringify(claimRecord);
+  const healthy = plan({}, { machine: machine(foreign({})) });
+  const healthyFile = write("accounting-healthy-plan.json", healthy);
+  assert.throws(() => run.claim(claimRecord, { plan: healthyFile, ticket: 101, worktree: path.join(tmp, "claim-tree"), branch: "fix/101-claim-tree", artifactParent: tmp, defaults, machine: machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: 0.4 * GB } }) }), /physical|memory|resources/i, "claim remeasures admission instead of trusting a previously healthy plan");
+  assert.equal(JSON.stringify(claimRecord), claimBefore, "an admission refusal creates no partial claim");
+  console.log("writer accounting focused checks passed");
+  const resumeFile = path.join(tmp, "accounting-run.json");
+  const resumeOwner = { ...detached, route: "claude-cli", model: record.writer.model, permissionMode: "bypassPermissions", artifactParent: tmp, sessionId: ids.shared };
+  const initial = run.updateRecord(resumeFile, { coordinator: ids.coordinator, expectRevision: record.revision }, (r) => { r.tickets[101] = held(resumeOwner); }).record;
+  const resumePrompt = write("accounting-resume-prompt.txt", "Continue the scratch assignment.");
+  let spawned = 0;
+  const resume = (observe, extra = {}) => run.resumeWriter(resumeFile, {
+    coordinator: ids.coordinator, expectRevision: run.readRecord(resumeFile).revision,
+    ticket: 101, executable: process.execPath, args: ["-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions"],
+    prompt: resumePrompt, identify: () => null, census: () => [], observe,
+    spawner: () => { spawned++; return { started: false, reason: "fixture" }; }, ...extra,
+  });
+  const resumeDirs = () => fs.readdirSync(tmp).filter((name) => name.startsWith("resume-101-"));
+  const low = (values) => () => machine(foreign({}), { resources: { ...resources, ...values } });
+  assert.throws(() => resume(low({ physicalAvailableBytes: 0.4 * GB })), /Available physical memory/);
+  assert.throws(() => resume(low({ commitHeadroomBytes: 2.4 * GB })), /Direct commit headroom/);
+  assert.equal(spawned, 0);
+  assert.deepEqual(resumeDirs(), []);
+  assert.deepEqual(run.readRecord(resumeFile), initial);
+  const loaded = foreign({ 201: held(shared), 202: held(owner(ids.other)), 203: held(native) });
+  assert.throws(() => resume(() => machine(loaded), { observations: { runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+  let saved = false;
+  const drift = resume(() => machine(foreign({}), { resources: { ...resources, physicalAvailableBytes: (saved ? 0.4 : 3.5) * GB } }), { afterIntent: () => { assert.ok(run.readRecord(resumeFile).tickets[101].owner.resuming); saved = true; } });
+  assert.equal(drift.started, false);
+  assert.match(drift.reason, /Available physical memory/);
+  assert.deepEqual(run.readRecord(resumeFile).tickets[101].owner, initial.tickets[101].owner);
+  assert.deepEqual(resumeDirs(), []);
+  assert.equal(spawned, 0);
+  const alias = foreign({ 201: held(resumeOwner), 202: held(shared), 203: held(owner(ids.other)) });
+  assert.equal(resume(() => machine(alias), { observations: { runs: { [alias.runId]: observations } } }).reason, "fixture");
+  assert.equal(spawned, 1, "a healthy resume starts once, with the ended owner and alias consuming no executing place");
+  console.log("writer resume admission checks passed");
+  if (process.argv.includes("--writer-resume-live")) {
+    const done = path.join(tmp, "resume-live-done.json");
+    const stop = path.join(tmp, "resume-live-stop");
+    const standIn = write("resume-live.cjs", `const fs = require("node:fs"); const at = process.argv.indexOf("--resume");
+if (process.argv[at + 1] !== ${JSON.stringify(ids.shared)}) process.exit(2);
+console.log(process.pid); const end = Date.now() + 15000;
+const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || Date.now() > end) {
+  clearInterval(timer); fs.writeFileSync(${JSON.stringify(done)}, JSON.stringify({pid:process.pid}));
+} }, 100);`);
+    const real = resume(run.observeWriterMachine, { identify: processIdentity, spawner: run.startDetachedWriter, args: [standIn, "-p", "--model", record.writer.model, "--effort", "medium", "--permission-mode", "bypassPermissions"] });
+    assert.equal(real.started, true, real.reason);
+    const liveOwner = run.readRecord(resumeFile).tickets[101].owner;
+    let child;
+    try {
+      const out = path.join(liveOwner.handle.launchDir, "out.jsonl");
+      waitFor(() => fs.existsSync(out) && /^\d+\s*$/.test(fs.readFileSync(out, "utf8")), "resume stand-in PID", 10000);
+      child = processIdentity(Number(fs.readFileSync(out, "utf8")));
+      assert.ok(child?.start && liveOwner.handle.start);
+      assert.equal(liveOwner.sessionId, ids.shared);
+      console.log("production resume wrapper and child identities:", liveOwner.handle, child);
+    } finally {
+      fs.writeFileSync(stop, "");
+      waitFor(() => fs.existsSync(done) && processIdentity(liveOwner.handle.pid) === null && processIdentity(readJsonFile(done).pid) === null, "resume wrapper and child positive exit", 15000);
+      console.log("production resume wrapper and child absent:", liveOwner.handle.pid, readJsonFile(done).pid);
+    }
+  }
+  if (["--writer-continuation", "--writer-native"].some((flag) => process.argv.includes(flag))) {
+    const file = path.join(tmp, "continuation-run.json");
+    const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
+    const snapshot = { repository: current.repository, issue: { number: 110, state: "open" }, tickets: [{ ...ticket(111), parent: 110, prs: [{ number: 500, state: "OPEN", isDraft: true, branch: "fix/111-existing", head: "fixture-head", rounds: 1 }] }] };
+    const savedPlan = write("continuation-plan.json", run.planDispatch({ record: current, snapshot, preflights: [{ route: "codex-app", model: current.writer.model, verdicts: [{ ticket: 111, effort: "medium", verdict: "available" }] }], defaults, freeBytes: 100 * GB, census: () => [] }));
+    const update = run.updateRecord(file, { coordinator: ids.parent, expectRevision: current.revision }, (r) => run.claim(r, { plan: savedPlan, ticket: 111, operation: "continue", worktree: path.join(tmp, "continuation-tree"), branch: "fix/111-existing", artifactParent: tmp, evidence: "the previous writer's session was observed archived" }));
+    const pendingStart = update.record.tickets[111].pending;
+    assert.equal(pendingStart.operation, "dispatch");
+    assert.equal(pendingStart.continues.pr, 500);
+    assert.equal(pendingStart.route, "codex-app");
+    const check = (coordinator, revision) => run.main(["start-check", "--record", file, "--coordinator", coordinator, "--expect-revision", String(revision), "--ticket", "111"], { defaults });
+    assert.throws(() => check(ids.shared, update.record.revision), /ownership or revision changed/);
+    assert.throws(() => check(ids.parent, current.revision), /ownership or revision changed/);
+    fs.writeFileSync(file, JSON.stringify({ ...update.record, tickets: { 111: { pending: { ...pendingStart, host: "another-machine" } } } }));
+    assert.throws(() => check(ids.parent, update.record.revision), /claimed on another-machine/);
+    fs.writeFileSync(file, JSON.stringify(update.record));
+    assert.equal(check(ids.parent, update.record.revision).launchId, pendingStart.launchId);
+    assert.deepEqual(run.readRecord(file), update.record, "the pre-spawn check leaves the saved intent and ownership unchanged");
+    console.log("external writer continuation admission passed");
+    if (process.argv.includes("--writer-native")) {
+      const handle = "/root/writer_111";
+      const saved = run.updateRecord(file, { coordinator: ids.parent, expectRevision: update.record.revision }, (r) => {
+        run.launched(r, { ticket: 111, handleKind: "task", handle });
+        const req = run.request(r, { ticket: 111, text: "May I continue?", source: "fixture turn" });
+        run.answer(r, { ticket: 111, request: req.id, text: "Continue the same assignment." });
+      }).record;
+      const owner = saved.tickets[111].owner;
+      const ended = { state: "completed", host: os.hostname(), assignment: owner.launchId, revision: saved.revision, model: owner.model, effort: owner.effort, permissionMode: "bypassPermissions" };
+      const observed = write("native-ended.json", { tasks: { [handle]: ended } });
+      const resourceCheck = (r = saved, options = {}) => run.checkExternalStart(r, 111, {
+        assignment: owner.launchId, observations: { tasks: { [handle]: ended } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...options,
+      });
+      assert.throws(() => resourceCheck(saved, { assignment: ids.assignment }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck(saved, { observations: undefined }), /current ended-turn observation/);
+      for (const change of [{ state: "running" }, { state: "unknown" }, { assignment: ids.assignment }, { revision: saved.revision - 1 }, { host: "another-machine" }, { model: "different-model" }, { effort: "low" }, { permissionMode: "default" }]) {
+        assert.throws(() => resourceCheck(saved, { observations: { tasks: { [handle]: { ...ended, ...change } } } }), /current ended-turn observation/);
+      }
+      assert.throws(() => resourceCheck(saved, { observations: { tasks: { "/root/wrong": ended } } }), /current ended-turn observation/);
+      assert.throws(() => resourceCheck({ ...saved, handoff: { since: saved.coordinator.since } }), /planned handoff/);
+      assert.throws(() => resourceCheck({ ...saved, coordinator: { ...saved.coordinator, permissionMode: "default" } }), /coordinator runs in default/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, route: "codex-cli" } } } }), /no matching retained native assignment/);
+      assert.throws(() => resourceCheck({ ...saved, tickets: { 111: { owner: { ...owner, handle: { ...owner.handle, host: "another-machine" } } } } }), /claimed on another-machine/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ physicalAvailableBytes: 0.4 * GB }) }), /Available physical memory/);
+      assert.throws(() => resourceCheck(saved, { observe: low({ commitHeadroomBytes: 2.4 * GB }) }), /Direct commit headroom/);
+      assert.throws(() => resourceCheck(saved, { observe: () => machine(loaded), observations: { tasks: { [handle]: ended }, runs: { [loaded.runId]: { ...observations, tasks: { "/root/writer": { state: "running" } } } } } }), /Machine writer places are full/);
+      assert.deepEqual(resourceCheck().handle, owner.handle);
+      const checked = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(saved.revision), "--ticket", "111", "--assignment", owner.launchId, "--observations", observed], { defaults });
+      assert.equal(checked.launchId, owner.launchId);
+      assert.deepEqual(run.readRecord(file), saved, "healthy admission preserves the retained owner and the saved answer");
+      console.log("same-owner native continuation admission passed");
+      const adopted = structuredClone(current);
+      run.adopt(adopted, { plan: savedPlan, ticket: 111, handleKind: "session", handle: ids.other, route: "codex-app", model: current.writer.model, effort: "medium", worktree: path.join(tmp, "adopted-native-tree") });
+      const adoptedOwner = adopted.tickets[111].owner;
+      const request = run.request(adopted, { ticket: 111, text: "Continue adopted work?", source: "fixture turn" });
+      run.answer(adopted, { ticket: 111, request: request.id, text: "Continue the adopted owner." });
+      assert.equal(adoptedOwner.launchId, undefined);
+      assert.equal(adopted.tickets[111].requests[0].owner, ids.other);
+      fs.writeFileSync(file, JSON.stringify(adopted));
+      const adoptedSeen = { state: "idle", host: os.hostname(), revision: adopted.revision, model: adoptedOwner.model, effort: adoptedOwner.effort, permissionMode: "bypassPermissions" };
+      const adoptedObservations = write("adopted-native-ended.json", { sessions: { [ids.other]: adoptedSeen } });
+      const adoptedCheck = (opts) => run.checkExternalStart(adopted, 111, { ownerHandle: ids.other, observations: { sessions: { [ids.other]: adoptedSeen } }, observe: () => machine(foreign({})), freeBytes: 100 * GB, ...opts });
+      assert.throws(() => adoptedCheck({ ownerHandle: ids.shared }), /no matching retained native assignment/);
+      assert.throws(() => adoptedCheck({ assignment: ids.assignment }), /either --assignment or --owner-handle/);
+      assert.throws(() => resourceCheck(saved, { assignment: undefined, ownerHandle: handle }), /no matching retained native assignment/);
+      const accepted = run.main(["start-check", "--record", file, "--coordinator", ids.parent, "--expect-revision", String(adopted.revision), "--ticket", "111", "--owner-handle", ids.other, "--observations", adoptedObservations], { defaults });
+      assert.deepEqual(accepted.handle, adoptedOwner.handle);
+      assert.deepEqual(run.readRecord(file), adopted, "admission preserves the adopted owner and saved answer");
+      console.log("adopted native continuation admission passed");
+    }
+  }
+}
+
+try {
+  writerAccountingChecks();
+  if (["--writer-accounting", "--writer-continuation", "--writer-resume-live", "--writer-native"].some((flag) => process.argv.includes(flag))) process.exit(0);
+  const checkout = path.join(tmp, "checkout");
+  fs.mkdirSync(checkout);
+  git(checkout, "init", "-q", "-b", "main");
+  git(checkout, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+  const artifacts = path.join(tmp, "artifacts");
+  fs.mkdirSync(artifacts);
+
+  assert.deepEqual(run.resolveWriterModel("claude", undefined, defaults), { model: "claude-opus-5-5", source: "claude orchestrator default" });
+  assert.deepEqual(run.resolveWriterModel("codex", undefined, defaults), { model: "gpt-6.1-sol", source: "codex orchestrator default" });
+  assert.deepEqual(run.resolveWriterModel("claude", "gpt-6-astra", defaults), { model: "gpt-6-astra", source: "invocation" });
+  assert.throws(() => run.resolveWriterModel("claude", "gemini-3", defaults), /no supported writer route/);
+  for (const routes of Object.values(defaults.routes)) for (const { route, selfCheck } of routes) { assert.ok(Object.hasOwn(writerRoutes, route), route); assert.ok(selfCheck, route); }
+  assert.deepEqual(run.routeOptions("claude-opus-5-5", defaults).map((r) => r.route), ["claude-cli"]);
+  assert.deepEqual(run.routeOptions("gpt-6.1-sol", defaults).map((r) => r.route), ["codex-cli", "codex-app"]);
+  assert.throws(() => run.routeOptions("claude-opus-5-5", { ...defaults, retiredRoutes: { "claude-cli": "test" } }), /also listed as retired/);
+
+  const GB = 2 ** 30;
+  assert.equal(run.defaultConcurrency({ totalMemory: 64 * GB }).limit, 32);
+  assert.equal(run.defaultConcurrency({ totalMemory: 31.1 * GB }).limit, 15);
+  assert.equal(run.defaultConcurrency({ totalMemory: 15.8 * GB }).limit, 7);
+  assert.equal(run.defaultConcurrency({ totalMemory: 7 * GB }).limit, 3);
+  assert.equal(run.defaultConcurrency({ totalMemory: 3 * GB }).limit, 1);
+  assert.equal(run.defaultConcurrency({ totalMemory: 1.5 * GB }).limit, 0);
+
+  {
+    const calls = [];
+    const exec = (file, args, options) => { calls.push({ file, script: args.at(-1), command: options.env.LAUNCH_COMMAND }); return "0 4242\r\n"; };
+    const absent = path.join(tmp, "absent-writer.exe");
+    assert.deepEqual(run.startDetachedWriter({ executable: absent, args: ["-p"], cwd: tmp, launchDir: path.join(tmp, "hidden-launch") }, { exec, platform: "win32" }), { started: true, pid: 4242 });
+    assert.deepEqual(run.runHandoff({ executable: absent, sessionId: "00000000-0000-0000-0000-000000000000", cwd: tmp }, { exec, platform: "win32" }), { requested: true, pid: 4242 });
+    assert.equal(calls.length, 2, "both paths create through the PowerShell runner they are given");
+    for (const { file, script, command } of calls) {
+      assert.equal(file, "powershell.exe");
+      assert.match(script, /\$s = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @\{ ShowWindow = \[uint16\]0 \};/);
+      assert.match(script, /Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @\{ [^}]*ProcessStartupInformation = \$s \}/);
+      assert.match(command, /^cmd\.exe \/d /);
+    }
+    assert.doesNotMatch(calls[1].command, /\bstart\b/i, "the handoff resumes in the hidden console");
+  }
+
+  if (process.platform === "win32") {
+    const probe = write("console-probe.ps1", [
+      "Add-Type -Name Console -Namespace Probe -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern IntPtr GetConsoleWindow(); [DllImport(\"user32.dll\")] public static extern bool IsWindowVisible(IntPtr h);'",
+      "$h = [Probe.Console]::GetConsoleWindow()",
+      "Set-Content -LiteralPath $args[0] -Value \"$h $([Probe.Console]::IsWindowVisible($h))\"",
+    ].join("\n"));
+    const probeArgs = (out) => ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", probe, out];
+    const consoleOf = (file, what) => {
+      let report = null;
+      waitFor(() => {
+        try { report = /^(\d+) (True|False)$/.exec(fs.readFileSync(file, "utf8").trim()); } catch (error) { if (!["ENOENT", "EBUSY"].includes(error.code)) throw error; }
+        return report !== null;
+      }, `the ${what} probe's report`);
+      return { window: Number(report[1]), visible: report[2] };
+    };
+    const launchDir = path.join(tmp, "console-launch");
+    fs.mkdirSync(launchDir);
+    fs.writeFileSync(path.join(launchDir, "prompt.txt"), "");
+    const writerReport = path.join(tmp, "writer-console.txt");
+    assert.equal(run.startDetachedWriter({ executable: "powershell.exe", args: probeArgs(writerReport), cwd: tmp, launchDir }).started, true);
+    const writer = consoleOf(writerReport, "writer");
+    assert.notEqual(writer.window, 0, "the writer runs in a console of its own");
+    assert.equal(writer.visible, "False", "the writer's console is hidden");
+    const handoffReport = path.join(tmp, "handoff-console.txt");
+    const resume = write("stand-in-resume.cmd", `@powershell.exe ${probeArgs(handoffReport).map((a) => `"${a}"`).join(" ")}\r\n`);
+    assert.equal(run.runHandoff({ executable: resume, sessionId: "00000000-0000-0000-0000-000000000000", cwd: tmp }).requested, true);
+    const handoff = consoleOf(handoffReport, "handoff");
+    assert.notEqual(handoff.window, 0, "the resume runs in a console of its own");
+    assert.equal(handoff.visible, "False", "the resume's console is hidden");
+  }
+
+  const record = path.join(artifacts, "run.json");
+  const init = (extra = {}) => run.initRecord({ record, checkout, repository: "acme/widgets", issue: 100, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #100.", ...extra }, { defaults, freeBytes: 40 * GB, totalMemory: 7.9 * GB });
+  const first = init();
+  assert.equal(first.action, "init");
+  assert.equal(first.record.writer.model, "claude-opus-5-5");
+  assert.equal(first.record.concurrency.limit, 3, "init records the host-derived writer places");
+  assert.equal(init().action, "resume");
+  const later = (extra) => init({ record: path.join(artifacts, "later.json"), issue: 109, invocation: "Use orchestrate-issues for #109.", ...extra });
+  assert.equal(later().action, "init");
+  assert.equal(run.coordinatorMerges(later({ merging: "coordinator" }).record), true);
+  const stopped = later({ invocation: "Use orchestrate-issues for #109; stop at ready PRs.", merging: "maintainer" }).record;
+  assert.deepEqual([run.coordinatorMerges(stopped), stopped.authority, stopped.log.at(-1).replaced], [false, run.AUTHORITY, { text: "Use orchestrate-issues for #109.", merging: "coordinator" }]);
+  assert.equal(later().record.invocation.text, "Use orchestrate-issues for #109.");
+  for (const converted of ["C:/Program Files/Git/orchestrate-issues #I-109", "D:\\Git\\orchestrate-issues I-109"]) {
+    assert.throws(() => later({ invocation: converted }), /rewritten by the shell.*MSYS_NO_PATHCONV=1/);
+    assert.throws(() => run.mergingFor(converted, "coordinator"), /rewritten by the shell/);
+  }
+  assert.equal(later().record.invocation.text, "Use orchestrate-issues for #109.", "a refused request leaves the recorded one");
+  assert.equal(later({ invocation: "/orchestrate-issues #I-109" }).record.invocation.text, "/orchestrate-issues #I-109");
+  const second = path.join(artifacts, "second.json");
+  assert.throws(() => init({ record: second, coordinator: "local_b" }), /already has coordinator local_a/);
+  assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "idle" } } } }), /Takeover refused: .* waiting/);
+  assert.throws(() => init({ record: second, coordinator: "local_b", takeover: true }), /Takeover refused: .* unknown/);
+  assert.ok(!fs.existsSync(second), "a refused coordinator writes no record");
+  assert.throws(() => run.initRecord({ record: path.join(artifacts, "x.json"), checkout, repository: "acme/widgets", issue: 101, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "Use orchestrate-issues for #101.", concurrency: 9 }, { defaults, freeBytes: 40 * GB }), /--concurrency must be 1 to 8/);
+
+  const ticket = (number, more = {}) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [], ...more });
+  const snapshot = {
+    repository: "acme/widgets", issue: { number: 100, state: "open" }, originMain: "abc", tickets: [
+      ticket(101),
+      ticket(102, { blockers: [{ number: 101, state: "open", delivered: false }] }),
+      ticket(103, { blockers: [{ number: 90, state: "closed", delivered: true }], effort: "High", priority: "Urgent" }),
+      ticket(104, { prs: [{ number: 504, state: "OPEN", isDraft: true, branch: "fix/104-thing", head: "d4", rounds: 2 }], priority: "High" }),
+      ticket(105, { prs: [{ number: 505, state: "OPEN", isDraft: false, branch: "fix/105-thing", head: "d5", rounds: 3 }] }),
+      ticket(106, { blockers: [{ number: 91, state: "closed", delivered: false }] }),
+      ticket(107, { effort: null }),
+      ticket(108), ticket(109),
+      ticket(110, { worktrees: [{ path: path.join(tmp, "wt-110"), branch: "feat/110-thing", head: "e1" }] }),
+      ticket(111, { state: "closed", delivered: true }),
+      ticket(112, { container: true }),
+    ],
+  };
+  const available = (route, model, numbers, extra = {}) => ({ route, model, verdicts: numbers.map((n) => ({ ticket: n, effort: n === 103 ? "high" : "medium", verdict: "available", ...extra })) });
+  const all = [101, 103, 108, 109];
+  const settled105 = (rec) => ({ ...rec, tickets: { 105: { owner: null, pending: null, history: [{ released: "fixture: the ready PR's writer ended" }], results: [] }, ...rec.tickets } });
+  const plan = (r, more = {}) => run.planDispatch({ record: settled105(run.readRecord(record)), snapshot, preflights: [available("claude-cli", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, census: () => [], ...more, ...r });
+  const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
+  const p1 = plan();
+  assert.deepEqual(actions(p1), { 101: "dispatch", 102: "wait-dependency", 103: "dispatch", 104: "adopt-pr", 105: "await-maintainer", 106: "wait-dependency", 107: "assign-effort", 108: "dispatch", 109: "dispatch", 110: "adopt-worktree", 111: "done", 112: "container" }, "one free place admits every ready ticket, and the coordinator chooses among them");
+  assert.deepEqual([p1.concurrency.active, p1.concurrency.capacityNow], [2, 1], "existing PR and worktree work occupies capacity");
+  const facts = (p, n) => { const { priority, effort, dependents } = p.tickets.find((t) => t.number === n); return { priority, effort, dependents }; };
+  assert.deepEqual([101, 103, 104, 110].map((n) => facts(p1, n)), [{ priority: null, effort: "medium", dependents: 1 }, { priority: "Urgent", effort: "high", dependents: 0 }, { priority: "High", effort: "medium", dependents: 0 }, { priority: null, effort: "medium", dependents: 0 }], "dispatch and adopt entries carry Priority, Effort and dependents for the coordinator to weigh");
+  assert.ok(p1.tickets.filter((t) => !["dispatch", "adopt-pr", "adopt-worktree"].includes(t.action)).every((t) => !("priority" in t) && !("dependents" in t)), "entries the coordinator cannot start carry no ranking facts");
+  {
+    const blocker = (number) => ({ number, state: "open", delivered: false });
+    const tree = { ...snapshot, tickets: [
+      ticket(301),
+      ticket(302, { blockers: [blocker(301)], prs: [{ number: 532, state: "OPEN", isDraft: true, branch: "fix/302-thing", head: "c2", rounds: 0 }] }),
+      ticket(303, { blockers: [blocker(302)] }),
+      ticket(304, { blockers: [blocker(301), blocker(302)] }),
+      ticket(305, { state: "closed", delivered: true, blockers: [blocker(301)] }),
+      ticket(306, { type: "Task" }),
+      ticket(307, { type: "Bug", parent: 306, deliveredBy: { ticket: 306, via: "sub-issue", pr: null, merged: false } }),
+      ticket(308, { blockers: [blocker(307), blocker(391)] }),
+    ] };
+    const ranked = (snap) => plan({ snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [301, 306, 310])] });
+    const dependents = (p) => Object.fromEntries(p.tickets.filter((t) => "dependents" in t).map((t) => [t.number, [t.action, t.dependents]]));
+    assert.deepEqual(dependents(ranked(tree)), { 301: ["dispatch", 3], 302: ["adopt-pr", 2], 306: ["dispatch", 2] }, "a ticket two blockers deep counts toward each ancestor once, a delivered ticket toward none, and a slice counts its Bug and what waits on that Bug");
+    const behind = { ...tree, tickets: [...tree.tickets.map((t) => (t.number === 307 ? { ...t, blockers: [blocker(310)] } : t)), ticket(310)] };
+    assert.deepEqual(dependents(ranked(behind)), { 301: ["dispatch", 3], 302: ["adopt-pr", 2], 310: ["dispatch", 3] }, "a slice held by its Bug's blocker counts toward that blocker with its Bug and what waits on them");
+  }
+  const unknownEffort = plan({ snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => t.number === 107 ? { ...t, effort: "Huge" } : t) } });
+  const huge = unknownEffort.tickets.find((t) => t.number === 107);
+  assert.deepEqual([actions(unknownEffort)[107], huge.decides, huge.maintainerRequest.file], ["decision-needed", "maintainer", "decision"], "the coordinator assigns a missing Effort but never reinterprets an existing one, which is the maintainer's call");
+  assert.match(huge.maintainerRequest.key, /^reason:[0-9a-f]{16}$/, "a decision entry's wait is keyed by its reason");
+  assert.match(huge.reason, /^Effort Huge has no writer effort; the maintainer has no request for it yet: file a maintainer decision request with \.agents\/skills\/ask-maintainer\/maintainer-request\.mjs file, naming #107 in its tickets and "orchestrate-issues #100" as its owner .*, then record it with issue-run\.mjs asked --plan <this plan> --ticket 107 --maintainer-request <its number>, and the plan names it here$/, "a decision that is the maintainer's call tells the coordinator to file a request and record it");
+  {
+    const key = huge.maintainerRequest.key;
+    const waiting = (r, waits) => ({ ...r, tickets: { ...r.tickets, 107: { owner: null, pending: null, history: [], results: [], waits: structuredClone(waits) } } });
+    const entry107 = (blockers, waits = []) => plan({ record: waiting(settled105(run.readRecord(record)), waits), snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers } : t)) } }).tickets.find((t) => t.number === 107);
+    const request = (number, state, more = {}) => ({ number, state, delivered: false, request: true, ...more });
+    const on9101 = [{ key, action: "decision-needed", request: { number: 9101 } }];
+    assert.deepEqual(entry107([request(9101, "open")]).maintainerRequest, { file: "decision", key }, "an open request the record does not tie to this entry is not its request");
+    const open = entry107([request(9101, "open")], on9101);
+    assert.deepEqual([open.action, open.maintainerRequest], ["decision-needed", { filed: { number: 9101, state: "open" }, key }]);
+    assert.match(open.reason, /^Effort Huge has no writer effort; maintainer request #9101 is open: the maintainer has not answered$/, "once recorded, the plan names the request and stops asking for one");
+    assert.match(entry107([request(9101, "open", { wentAhead: true })], on9101).reason, /; maintainer request #9101 went ahead without the maintainer: act on its fallback/);
+    const unlinked = entry107([request(9102, "open")], on9101);
+    assert.deepEqual(unlinked.maintainerRequest, { file: "decision", key, unlinked: 9101 }, "a recorded request GitHub no longer blocks the ticket on holds nothing, and another open request does not replace it");
+    assert.match(unlinked.reason, /; its maintainer request #9101 no longer blocks it on GitHub, so it holds nothing: file a maintainer decision request/);
+    assert.deepEqual(entry107([request(9101, "open")], [{ key: "reason:0000000000000000", action: "decision-needed", request: { number: 9101 } }]).maintainerRequest, { file: "decision", key }, "a request recorded for another wait on the ticket is not this entry's");
+    const closedEntry = entry107([request(9101, "closed")], on9101);
+    assert.deepEqual(closedEntry.maintainerRequest, { filed: { number: 9101, state: "closed" }, key }, "a recorded request that closed is named, whatever GitHub's close reason, since only reading it says whether it holds an answer");
+    assert.match(closedEntry.reason, /; maintainer request #9101 is closed: read it, then record its answer and act on it; only when read reports it withdrawn, unclear or will not be done, reopen an unclear one with revise or file a maintainer decision request .*, which reads it again before replacing it$/);
+    {
+      const blockers107 = [request(9101, "closed"), request(9102, "open")];
+      const snap107 = { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: blockers107 } : t)) };
+      const closedPlan = write("closed-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), on9101), snapshot: snap107 }));
+      const next = { number: 9102, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting" };
+      const old = (state) => ({ number: 9101, url: "u", title: "t", kind: "decision", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state });
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("answered") }), /#107 waits on maintainer request #9101, which is answered; record its answer and act on it: only a request read as withdrawn, unclear or will not be done, or one GitHub no longer blocks the ticket on, is replaced/, "an answered request, even one closed as not planned, is never set aside");
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), on9101), { plan: closedPlan, ticket: 107, maintainerRequest: next }), /which is closed; record its answer/, "a closed request is read before it is replaced");
+      for (const state of ["withdrawn", "unclear"]) {
+        const replacing = waiting(settled105(run.readRecord(record)), on9101);
+        run.asked(replacing, { plan: closedPlan, ticket: 107, maintainerRequest: next, previousRequest: old(state) });
+        assert.deepEqual(plan({ record: replacing, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" }, key }, `asked records the replacement for a ${state} request, and the plan names it`);
+      }
+      const otherKey = "reason:0000000000000000";
+      const reused = [{ key, action: "decision-needed", request: { number: 9101 } }, { key: otherKey, action: "decision-needed", request: { number: 9101 } }];
+      const reusedPlan = write("reused-plan.json", plan({ record: waiting(settled105(run.readRecord(record)), reused), snapshot: snap107 }));
+      const moved = waiting(settled105(run.readRecord(record)), reused);
+      run.asked(moved, { plan: reusedPlan, ticket: 107, maintainerRequest: next, previousRequest: old("unclear") });
+      assert.deepEqual(moved.tickets[107].waits.at(-1).key, key, "a request tied to two waits is replaced under the active entry's key, not the last wait that shares its number");
+      assert.deepEqual(plan({ record: moved, snapshot: snap107 }).tickets.find((t) => t.number === 107).maintainerRequest, { filed: { number: 9102, state: "open" }, key }, "the active entry names the replacement");
+      const staleKeyPlan = write("stale-key-plan.json", { ...JSON.parse(fs.readFileSync(reusedPlan, "utf8")), tickets: JSON.parse(fs.readFileSync(reusedPlan, "utf8")).tickets.map((t) => (t.number === 107 ? { ...t, maintainerRequest: { ...t.maintainerRequest, key: otherKey, filed: { number: 9103, state: "closed" } } } : t)) });
+      assert.throws(() => run.asked(waiting(settled105(run.readRecord(record)), reused), { plan: staleKeyPlan, ticket: 107, maintainerRequest: next, previousRequest: { ...old("unclear"), number: 9103 } }), /The plan entry's wait for #107 is not tied to maintainer request #9103 in the record; plan again/, "a plan whose closed request is not the one tied to its key is refused");
+    }
+    const readyPr = (blockers, waits = []) => plan({ record: { ...settled105(run.readRecord(record)), tickets: { ...settled105(run.readRecord(record)).tickets, 105: { ...settled105(run.readRecord(record)).tickets[105], waits } } }, snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 105 ? { ...t, blockers } : t)) } }).tickets.find((t) => t.number === 105);
+    assert.deepEqual(readyPr([request(9001, "closed")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an answered design decision on the ticket does not stand in for the task to merge its ready PR");
+    assert.deepEqual(readyPr([request(9003, "open")]).maintainerRequest, { file: "task", key: "pr:505", pr: 505 }, "an open task asking for something else, such as a phone test, does not stand in for the merge");
+    assert.deepEqual(readyPr([request(9003, "open"), request(9004, "open")], [{ key: "pr:505", action: "await-maintainer", pr: 505, request: { number: 9004 } }]).maintainerRequest, { filed: { number: 9004, state: "open" }, key: "pr:505" }, "the merge task recorded for this PR is named");
+  }
+  const adopted = p1.tickets.find((t) => t.number === 104);
+  assert.deepEqual([adopted.pr, adopted.rounds], [504, 2], "an adopted PR keeps its started review rounds");
+  const ready = p1.tickets.find((t) => t.number === 105);
+  assert.deepEqual([ready.action, ready.maintainerRequest], ["await-maintainer", { file: "task", key: `pr:${ready.pr}`, pr: ready.pr }]);
+  assert.match(ready.reason, new RegExp(String.raw`the maintainer merges it; the maintainer has no request for it yet: file a maintainer task request with .*, naming #105 in its tickets and "orchestrate-issues #100" as its owner \(a maintainer task request asking the maintainer to merge PR #${ready.pr}\), then record it with issue-run\.mjs asked --plan <this plan> --ticket 105 --maintainer-request <its number>, and the plan names it here$`), "a ready PR the maintainer merges tells the coordinator to file a task");
+  {
+    const planFile = write("asked-plan.json", plan({ snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge" } : t)) } }));
+    const facts = (over = {}) => ({ number: 9201, url: "https://github.com/acme/widgets/issues/9201", title: "Which Effort fits #107? (#107)", kind: "decision", question: "Which Effort fits #107?", owner: "orchestrate-issues #100", tickets: [107], holding: 107, holds: true, state: "waiting", answered: false, recorded: false, words: [], ...over });
+    const before = run.readRecord(record);
+    const tryAsked = (over, ticket = 107) => run.asked(structuredClone(before), { plan: planFile, ticket, maintainerRequest: over === null ? undefined : facts(over) });
+    assert.throws(() => tryAsked(null), /waits on the maintainer only through a filed request/, "asked refuses without a request");
+    assert.throws(() => tryAsked({ kind: "task" }), /#9201 is a maintainer task request; .* needs a decision request/, "asked refuses a request of the wrong kind");
+    assert.throws(() => tryAsked({ holds: false }), /GitHub does not block #107 on maintainer request #9201/);
+    assert.throws(() => tryAsked({ owner: "resolve-issue #107" }), /owned by "resolve-issue #107"/);
+    assert.throws(() => tryAsked({}, 101), /The plan's action for #101 is dispatch/, "asked refuses a ticket the plan does not wait on the maintainer for");
+    const after = structuredClone(before);
+    run.asked(after, { plan: planFile, ticket: 107, maintainerRequest: facts() });
+    assert.deepEqual(after.tickets[107].waits.map((w) => [w.key, w.action, w.request.number]), [[JSON.parse(fs.readFileSync(planFile, "utf8")).tickets.find((t) => t.number === 107).maintainerRequest.key, "decision-needed", 9201]], "asked records the request against the entry's key");
+    const named = run.planDispatch({ record: settled105(after), snapshot: { ...snapshot, tickets: snapshot.tickets.map((t) => (t.number === 107 ? { ...t, effort: "Huge", blockers: [{ number: 9201, state: "open", delivered: false, request: true }] } : t)) }, preflights: [available("claude-cli", "claude-opus-5-5", all)], freeBytes: 100 * GB, defaults, census: () => [] }).tickets.find((t) => t.number === 107);
+    assert.deepEqual(named.maintainerRequest, { filed: { number: 9201, state: "open" }, key: JSON.parse(fs.readFileSync(planFile, "utf8")).tickets.find((t) => t.number === 107).maintainerRequest.key }, "the next plan names the recorded request");
+    const namedPlan = write("asked-plan-2.json", { ...JSON.parse(fs.readFileSync(planFile, "utf8")), tickets: [named] });
+    assert.throws(() => run.asked(structuredClone(after), { plan: namedPlan, ticket: 107, maintainerRequest: facts({ number: 9202 }) }), /The plan does not ask for a maintainer request for #107: it already waits on #9201/);
+  }
+  assert.match(p1.tickets.find((t) => t.number === 106).reason, /#91 \(closed, but no merged deliverable is on origin\/main\)/);
+  assert.equal(p1.complete, false);
+  assert.ok(p1.remaining.some((line) => /maintainer to merge/.test(line)), "a run that recorded no coordinator merge leaves it to the maintainer");
+  const merging = { ...settled105(run.readRecord(record)), invocation: { text: "Use orchestrate-issues for #100.", merging: "coordinator" }, authority: run.authorityFor("coordinator") };
+  const viaGate = plan({ record: merging });
+  assert.equal(actions(viaGate)[105], "merge-gate");
+  assert.ok(viaGate.remaining.some((line) => /merges only through integration\.mjs's merge gate/.test(line)));
+  assert.equal(p1.tickets.find((t) => t.number === 101).route, "claude-cli");
+  const roomy = { ...settled105(run.readRecord(record)), concurrency: { limit: 4, basis: "test" } };
+  assert.deepEqual(Object.entries(actions(plan({ record: roomy }))).filter(([, a]) => a === "dispatch").map(([n]) => Number(n)), [101, 103, 108, 109]);
+  const diskFull = plan({ freeBytes: 13 * GB });
+  assert.deepEqual([diskFull.concurrency.capacityNow, all.map((n) => actions(diskFull)[n])], [0, ["wait-capacity", "wait-capacity", "wait-capacity", "wait-capacity"]], "no free place admits no ready ticket");
+  assert.match(diskFull.tickets.find((t) => t.number === 101).reason, /free disk does not admit another writer/);
+  assert.throws(() => run.claim(structuredClone(run.readRecord(record)), { plan: write("plan-disk.json", diskFull), ticket: 101, worktree: path.join(tmp, "wt-101"), branch: "fix/101-thing", artifactParent: artifacts }), /admits no new writer: 2 writer places are held against a limit of 3, and free disk does not admit another writer/, "under its limit, the refusal names what else holds the room");
+
+  const blocked = plan({ preflights: [available("claude-cli", "claude-sonnet-5-5", all), available("claude-desktop", "claude-opus-5-5", all), { route: "claude-cli", model: "claude-opus-5-5", verdicts: [{ ticket: 101, effort: "medium", verdict: "blocked", reason: "the Claude CLI probe exited 1: not signed in" }] }] }).tickets.find((t) => t.number === 101);
+  assert.equal(blocked.action, "blocked-route");
+  assert.match(blocked.reason, /claude-cli: the Claude CLI probe exited 1: not signed in; claude-desktop is retired as a dispatch route: /);
+  assert.match(plan({ preflights: [] }).tickets.find((t) => t.number === 101).reason, /claude-cli: no preflight result for claude-opus-5-5 at medium/);
+
+  const planFile = write("plan.json", p1);
+  const wt101 = path.join(tmp, "wt-101");
+  const mutate = (rev, fn) => run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, fn).record.revision;
+  assert.throws(() => mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 102, worktree: path.join(tmp, "wt-102"), branch: "fix/102-thing", artifactParent: artifacts })), /action for #102 is wait-dependency/);
+  assert.throws(() => run.updateRecord(record, { expectRevision: 1, coordinator: "local_b" }, () => {}), /coordinated by local_a/);
+  assert.throws(() => mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/999-thing", artifactParent: artifacts })), /--branch must be <type>\/101-<slug>/);
+  {
+    const chosen = structuredClone(run.readRecord(record));
+    const pending = run.claim(chosen, { plan: planFile, ticket: 109, worktree: path.join(tmp, "wt-109"), branch: "fix/109-thing", artifactParent: artifacts });
+    assert.equal(pending.operation, "dispatch", "the coordinator claims the dispatch ticket it chooses, whatever its number");
+    assert.deepEqual(Object.keys(pending).sort(), ["artifactParent", "branch", "coordinator", "effort", "host", "launchId", "model", "operation", "permissionMode", "reportFields", "route", "time", "worktree"], "the claim records no reason or ordering for the choice");
+    assert.deepEqual(Object.keys(chosen.log.at(-1)).sort(), ["event", "launchId", "route", "ticket", "time"]);
+  }
+  let rev = mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
+  assert.equal(rev, 2);
+  assert.throws(() => mutate(1, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /revision 2, not 1/, "a duplicate invocation on a stale revision changes nothing");
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: planFile, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /made at revision 1/);
+  const p2 = plan();
+  const p2File = write("plan2.json", p2);
+  assert.equal(actions(p2)[101], "reconcile-pending", "a claimed ticket waits for its launch outcome");
+  assert.deepEqual([p2.concurrency.capacityNow, [103, 108, 109].map((n) => actions(p2)[n])], [0, ["wait-capacity", "wait-capacity", "wait-capacity"]], "the claim holds its place in the next plan, which admits no other start");
+  const beforeRefusal = fs.readFileSync(record, "utf8");
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 109, worktree: path.join(tmp, "wt-109"), branch: "fix/109-thing", artifactParent: artifacts })), /admits no new writer: 3 writer places are held against a limit of 3;/);
+  assert.equal(fs.readFileSync(record, "utf8"), beforeRefusal, "a refused claim leaves the record unchanged");
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts })), /admits no new writer/);
+  assert.throws(() => mutate(2, (r) => run.claim(r, { plan: p2File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts, operation: "continue", evidence: "x" })), /action for #101 is reconcile-pending/);
+
+  assert.throws(() => mutate(2, (r) => run.launched(r, { ticket: 101, handleKind: "session", handle: "local_w101" })), /started with launch and confirmed with reconcile/);
+  assert.throws(() => mutate(2, (r) => run.withdraw(r, { ticket: 101 })), /--evidence must say why/);
+  rev = mutate(2, (r) => run.withdraw(r, { ticket: 101, evidence: "the session list shows no session on fix/101-thing" }));
+  assert.equal(rev, 3);
+
+  const standIn = write("stand-in-writer.mjs", [
+    'import fs from "node:fs";',
+    'const stop = process.argv[process.argv.indexOf("--stop") + 1];',
+    'fs.readFileSync(0, "utf8");',
+    'console.log(JSON.stringify({ type: "system", subtype: "init", model: process.argv[process.argv.indexOf("--model") + 1] }));',
+    'const end = Date.now() + 120000;',
+    'const wait = () => { if (fs.existsSync(stop) || Date.now() > end) process.exit(0); setTimeout(wait, 100); };',
+    "wait();",
+  ].join("\n"));
+  const prompt = write("prompt.txt", "Resolve #101.");
+  const cliPreflights = [available("claude-cli", "claude-opus-5-5", all)];
+  const p3File = write("plan3.json", plan({ preflights: cliPreflights }));
+  rev = mutate(rev, (r) => run.claim(r, { plan: p3File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
+  const stop101 = path.join(tmp, "stop-101");
+  const args101 = [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop101];
+  assert.throws(() => mutate(rev, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "high", "--permission-mode", "bypassPermissions", "--stop", stop101], prompt })), /--effort must be medium/, "a launch at another effort is refused");
+  assert.throws(() => mutate(rev, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: [standIn, "-p", "--model", "claude-sonnet-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop101], prompt })), /--model must be claude-opus-5-5/, "a launch of another model is refused");
+  assert.throws(() => mutate(rev, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: [...args101, "& calc"], prompt })), /character the command line would interpret/);
+  const launchedRun = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: args101, prompt }));
+  rev = launchedRun.record.revision;
+  const owner101 = launchedRun.output.owner;
+  started.push({ stop: stop101, pid: owner101.handle.pid });
+  assert.equal(owner101.handle.kind, "process");
+  assert.ok(owner101.handle.start, "the launch records the process start identity");
+  waitFor(() => fs.existsSync(path.join(owner101.handle.launchDir, "out.jsonl")) && fs.readFileSync(path.join(owner101.handle.launchDir, "out.jsonl"), "utf8").includes('"model":"claude-opus-5-5"'), "the stand-in writer's init event");
+  assert.equal(actions(plan({ preflights: cliPreflights }))[101], "observe");
+  assert.equal(run.ownerStatus({ handle: { ...owner101.handle, host: "elsewhere" } }).status, "unknown", "a process on another host is never probed locally");
+  assert.throws(() => mutate(rev, (r) => run.release(r, { ticket: 101, observations: {} })), /writer is live/, "a live writer is never released");
+  const wt103 = path.join(tmp, "wt-103");
+  const widened = (limit) => ({ ...settled105(run.readRecord(record)), concurrency: { limit, basis: "test" } });
+  const p4File = write("plan4.json", plan({ record: widened(4), preflights: cliPreflights }));
+  assert.throws(() => mutate(rev, (r) => run.claim(r, { plan: p4File, ticket: 103, worktree: wt101, branch: "fix/103-thing", artifactParent: artifacts })), /assigned to #101/, "one worktree per writer");
+
+  assert.throws(() => mutate(rev, (r) => run.verify(r, { ticket: 101, preflight: write("confirm-other.json", { route: "claude-desktop", model: "claude-opus-5-5", verdicts: [{ ticket: 101, effort: "medium", verdict: "confirmed" }] }) })), /not claude-cli claude-opus-5-5/);
+  rev = mutate(rev, (r) => run.verify(r, { ticket: 101, preflight: write("confirm.json", { route: "claude-cli", model: "claude-opus-5-5", verdicts: [{ ticket: 101, effort: "medium", verdict: "confirmed" }] }) }));
+  assert.equal(run.readRecord(record).tickets[101].owner.verified, true);
+
+  assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("partial.json", { model: "claude-opus-5-5", effort: "medium", pr: 601 }) })), /lacks permissionMode, reviewedHead, rounds, findings, verification, ci, filed, next/);
+  const wrong = structuredClone(run.readRecord(record));
+  run.result(wrong, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "x" }) });
+  assert.match(wrong.tickets[101].owner.mismatch, /the writer reported claude-opus-5-5 at low in bypassPermissions, not claude-opus-5-5 at medium in bypassPermissions/);
+  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" }, filed: "None", next: "await review" }) }));
+
+  fs.writeFileSync(stop101, "");
+  waitFor(() => !processIdentity(owner101.handle.pid) || processIdentity(owner101.handle.pid).start !== owner101.handle.start, "the stand-in writer to exit");
+  assert.equal(actions(plan({ preflights: cliPreflights }))[101], "release");
+  rev = mutate(rev, (r) => run.release(r, { ticket: 101, observations: {}, evidence: "stand-in finished" }));
+  assert.equal(actions(plan({ preflights: cliPreflights }))[101], "dispatch");
+
+  const p5File = write("plan5.json", plan({ preflights: cliPreflights }));
+  rev = mutate(rev, (r) => run.claim(r, { plan: p5File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
+  const stopLost = path.join(tmp, "stop-lost");
+  assert.throws(() => mutate(rev, (r) => run.launch(r, { ticket: 101, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stopLost], prompt, spawner: (o) => { const out = run.startDetachedWriter(o); started.push({ stop: stopLost, pid: out.pid }); throw new Error("the host lost the reply"); } })), /outcome of launch .* is uncertain/);
+  assert.equal(run.readRecord(record).tickets[101].pending.operation, "dispatch", "the uncertain launch stays pending");
+  assert.equal(actions(plan({ preflights: cliPreflights }))[101], "reconcile-pending");
+  waitFor(() => { const r = run.readRecord(record); return fs.existsSync(path.join(run.launchDirOf(r.tickets[101].pending, 101), "out.jsonl")) && fs.statSync(path.join(run.launchDirOf(r.tickets[101].pending, 101), "out.jsonl")).size > 0; }, "the unrecorded writer to start");
+  const settled = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.reconcile(r, { ticket: 101 }));
+  rev = settled.record.revision;
+  assert.equal(settled.output.outcome, "running");
+  assert.equal(actions(plan({ preflights: cliPreflights }))[101], "observe", "the found writer owns the ticket; no replacement is offered");
+  fs.writeFileSync(stopLost, "");
+  waitFor(() => !processIdentity(settled.output.owner.handle.pid), "the found writer to exit");
+  rev = mutate(rev, (r) => run.release(r, { ticket: 101, observations: {} }));
+
+  const session = { handle: { kind: "session", id: "local_w" } };
+  assert.equal(run.ownerStatus(session, {}).status, "unknown");
+  assert.equal(run.ownerStatus(session, { sessions: { local_w: { state: "running" } } }).status, "live");
+  assert.equal(run.ownerStatus(session, { sessions: { local_w: { state: "idle" } } }).status, "waiting");
+  assert.equal(run.ownerStatus(session, { sessions: { local_w: { state: "archived" } } }).status, "exited");
+  assert.equal(run.ownerStatus({ handle: { kind: "task", id: "t1" } }, { tasks: { t1: { state: "cancel-requested" } } }).status, "unknown", "a cancellation request is not exit");
+  assert.equal(run.ownerStatus({ handle: { kind: "task", id: "t1" } }, { tasks: { t1: { state: "completed" } } }).status, "exited");
+
+  const p6File = write("plan6.json", plan());
+  rev = mutate(rev, (r) => run.claim(r, { plan: p6File, ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, ["No stacked branches."], defaults), /brief takes the number of an answered maintainer request with --maintainer-request, never typed decision text/, "a brief refuses typed decision text");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [waitingRequest()], defaults), /Maintainer request #9001 has no answer yet: it is waiting/, "a brief refuses an unanswered request");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ state: "went-ahead", answered: false, recorded: false })], defaults), /has no answer yet: it is went-ahead/, "a fallback is not the maintainer's decision");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ recorded: false })], defaults), /answer is not recorded; run .*maintainer-request\.mjs record 9001/, "a brief refuses an answer not yet recorded");
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ tickets: [102] })], defaults), /does not hold up #101 \(it blocks #102\)/);
+  assert.throws(() => run.brief(run.readRecord(record), p6File, 101, [requestOf({ kind: "task", state: "done" })], defaults), /#9001 is a maintainer task request; brief needs a decision request/);
+  const text = run.brief(run.readRecord(record), p6File, 101, [requestOf()], defaults);
+  assert.ok(text.includes('- Maintainer request #9001 (https://github.com/acme/widgets/issues/9001) asked "Should branches stack?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:09 UTC (https://github.com/acme/widgets/issues/9001#issuecomment-1):\n> No stacked branches.\n'), "the brief carries the maintainer's recorded words and links them");
+  assert.ok(run.brief(run.readRecord(record), p6File, 101, [requestOf({ state: "accepted", words: [] })], defaults).includes('asked "Should branches stack?"; the maintainer accepted the recommendation, A · No stacking, by closing without comment at 2026-11-13 16:10 UTC.'), "a close without comment carries the accepted recommendation");
+  for (const needle of ["#101", "a sub-issue of issue #100", "The design of record is the body of issue #100, as its template structures it", "coordinator session local_a", "claude-cli, model claude-opus-5-5 at effort medium in permission mode bypassPermissions", defaults.routes.claude[0].selfCheck, "never substitute", "resolve-issue", wt101, "fix/101-thing", artifacts, "three-round cap", "checkpoint report", "machine-wide reviewer and test reservations", "Never merge", ...run.REPORT_FIELDS]) assert.ok(text.includes(needle), `brief names ${needle}`);
+
+  const p7File = write("plan7.json", plan());
+  rev = mutate(rev, (r) => run.adopt(r, { plan: p7File, ticket: 104, handleKind: "session", handle: "local_w104", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(tmp, "wt-104") }));
+  assert.match(run.brief(run.readRecord(record), p7File, 104, [], defaults), /PR #504, which has started 2 review rounds; the count continues/);
+  assert.equal(run.readRecord(record).tickets[104].owner.adopted.rounds, 2);
+  assert.throws(() => mutate(rev, (r) => run.adopt(r, { plan: p7File, ticket: 104, handleKind: "session", handle: "local_x", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(tmp, "wt-104") })), /revision/);
+  assert.equal(actions(plan({ observations: { sessions: { local_w104: { state: "running" } } } }))[104], "observe");
+  assert.equal(actions(plan({ observations: { sessions: { local_w104: { state: "idle" } } } }))[104], "collect-report");
+  assert.equal(actions(plan())[104], "blocked-owner-unknown", "an unobserved session blocks replacement");
+  const idle104 = { sessions: { local_w104: { state: "idle" } } };
+  assert.throws(() => mutate(rev, (r) => run.request(r, { ticket: 104, text: "authorize round 4?" })), /--source/);
+  const asked = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.request(r, { ticket: 104, text: "authorize round 4?", source: "session local_w104 transcript" }));
+  rev = asked.record.revision;
+  const requestId = asked.output.id;
+  const plan104 = () => plan({ observations: idle104 }).tickets.find((t) => t.number === 104);
+  assert.deepEqual([plan104().action, plan104().requests.map((q) => q.text)], ["answer-request", ["authorize round 4?"]]);
+  const asking = waitingRequest({ number: 9002, url: "https://github.com/acme/widgets/issues/9002", tickets: [104], holding: 104, holds: true });
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: { ...asking, holds: false } })), /GitHub does not block #104 on maintainer request #9002, although the request names it, so the request holds nothing/, "relay refuses a request whose live dependency on the ticket is gone");
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: { ...asking, holding: undefined, holds: undefined } })), /GitHub does not block #104/, "relay refuses facts read without the live dependency");
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer" })), /Relaying request \w+ to the maintainer waits on the maintainer only through a filed request: file a maintainer decision or task request with .*, naming #104 in its tickets and "orchestrate-issues #100" as its owner, then pass its number with --maintainer-request/, "relay refuses without a filed request");
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer", maintainerRequest: { ...asking, tickets: [101] } })), /Maintainer request #9002 does not hold up #104/);
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer", maintainerRequest: { ...asking, owner: "resolve-issue #104" } })), /is owned by "resolve-issue #104", not by this run \("orchestrate-issues #100"\)/);
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "the maintainer", maintainerRequest: { ...asking, state: "withdrawn" } })), /#9002 was withdrawn/);
+  assert.throws(() => mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, to: "another coordinator", maintainerRequest: asking })), /only the maintainer decides/);
+  rev = mutate(rev, (r) => run.relay(r, { ticket: 104, request: requestId, maintainerRequest: asking }));
+  assert.deepEqual(run.readRecord(record).tickets[104].requests[0].relayed.maintainerRequest, { number: 9002, url: "https://github.com/acme/widgets/issues/9002", title: "Should branches stack? (#101)", kind: "decision" }, "the record stores the request number beside the question");
+  assert.equal(run.readRecord(record).tickets[104].requests[0].text, "authorize round 4?");
+  {
+    const next = { ...asking, number: 9003, url: "https://github.com/acme/widgets/issues/9003" };
+    const rerelay = (relayedBefore) => run.relay(run.readRecord(record), { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore });
+    assert.throws(() => rerelay(undefined), /is relayed as maintainer request #9002; relaying it as #9003 needs #9002's state/, "moving a relayed question to another request reads the first one");
+    assert.throws(() => rerelay(asking), /which is waiting; it moves to another request only once #9002 is withdrawn, closed as not planned or no longer blocks #104/, "an open question is never set aside");
+    assert.throws(() => rerelay({ ...asking, state: "answered" }), /which is answered/, "nor is an answer");
+    const moved = run.readRecord(record);
+    run.relay(moved, { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore: { ...asking, state: "withdrawn" } });
+    assert.deepEqual([moved.tickets[104].requests[0].relayed.maintainerRequest.number, moved.tickets[104].requests[0].relayed.replaced.map((x) => x.number)], [9003, [9002]], "a withdrawn request is replaced, and kept as history");
+    const unlinkedMove = run.readRecord(record);
+    run.relay(unlinkedMove, { ticket: 104, request: requestId, maintainerRequest: next, relayedBefore: { ...asking, holds: false } });
+    assert.equal(unlinkedMove.tickets[104].requests[0].relayed.maintainerRequest.number, 9003, "so is one GitHub no longer blocks the ticket on");
+  }
+  assert.match(plan104().reason, /relayed to the maintainer at .* as maintainer request #9002 \(https:\/\/github\.com\/acme\/widgets\/issues\/9002\); once .*maintainer-request\.mjs read shows it answered, record it there, then record answer with the recorded words and send it/, "a relayed request stays open and names its maintainer request");
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, text: "round 4 is authorized" })), /relayed as maintainer request #9002; answer it with --maintainer-request 9002/, "a relayed request's answer is not typed");
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, maintainerRequest: asking })), /#9002 has no answer yet: it is waiting/);
+  const answeredRequest = requestOf({ number: 9002, url: "https://github.com/acme/widgets/issues/9002", question: "May #104 take a fourth review round?", tickets: [104], words: [{ url: "https://github.com/acme/widgets/issues/9002#issuecomment-2", at: "2026-11-13T16:09:00Z", body: "Yes, one more round." }] });
+  assert.throws(() => mutate(rev, (r) => run.answered(r, { ticket: 104, request: requestId })), /record answer before sending it/);
+  const answering = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 104, request: requestId, text: "round 4 is authorized", maintainerRequest: answeredRequest }));
+  rev = answering.record.revision;
+  assert.match(answering.output.message, new RegExp(`^Answer to your request ${requestId}, which asked: "authorize round 4\\?" \\(delivery \\w+\\):\\nMaintainer request #9002 \\(https://github\\.com/acme/widgets/issues/9002\\) asked "May #104 take a fourth review round\\?"; the maintainer answered in the words quoted below\\.\\n\\nTheir comment at 2026-11-13 16:09 UTC \\(https://github\\.com/acme/widgets/issues/9002#issuecomment-2\\):\\n> Yes, one more round\\.\\nThe coordinator adds: round 4 is authorized\\nIf you already received an answer to request ${requestId}, ignore this copy\\.`), "the answer quotes the question it answers");
+  assert.equal(plan104().action, "answer-request", "an answer recorded but not confirmed sent keeps the request open");
+  assert.match(plan104().reason, /may still be queued; .* answer --retry/);
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, text: "again" })), /--retry/);
+  const resent = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.answer(r, { ticket: 104, request: requestId, retry: true }));
+  rev = resent.record.revision;
+  assert.match(resent.output.message, /round 4 is authorized/, "a retry resends the same answer");
+  rev = mutate(rev, (r) => run.answered(r, { ticket: 104, request: requestId, evidence: "the writer acknowledged it" }));
+  assert.throws(() => mutate(rev, (r) => run.answer(r, { ticket: 104, request: requestId, text: "again" })), /already answered/);
+  assert.equal(plan104().action, "collect-report");
+  const p7bFile = write("plan7b.json", plan());
+  assert.throws(() => mutate(rev, (r) => run.adopt(r, { plan: p7bFile, ticket: 110, handleKind: "session", handle: "local_w110", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(tmp, "elsewhere") })), /one the plan found for #110/);
+  rev = mutate(rev, (r) => run.adopt(r, { plan: p7bFile, ticket: 110, handleKind: "session", handle: "local_w110", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(tmp, "wt-110") }));
+  assert.equal(run.readRecord(record).tickets[110].owner.branch, "feat/110-thing");
+
+  rev = mutate(rev, (r) => run.verify(r, { ticket: 104, preflight: write("mismatch.json", { route: "claude-desktop", model: "claude-opus-5-5", verdicts: [{ ticket: 104, effort: "medium", verdict: "blocked", reason: "the launched writer runs claude-opus-5-5 at low, not claude-opus-5-5 at medium" }] }) }));
+  assert.equal(actions(plan({ observations: { sessions: { local_w104: { state: "running" } } } }))[104], "stop-writer");
+
+  rev = mutate(rev, (r) => run.diskRecovery(r, { removed: path.join(tmp, "old"), branch: "fix/1-old", classifier: "remove: merged into origin/main, clean, idle" }));
+  assert.equal(run.readRecord(record).diskRecoveries.length, 1);
+
+  const artifactDir = (issue, name, owner = { issue }) => {
+    const dir = path.join(artifacts, `writer-${issue}-${name}`);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify(owner));
+    fs.writeFileSync(path.join(dir, "evidence.png"), "bytes");
+    return dir;
+  };
+  const gone101 = artifactDir(101, "a"), busy101 = artifactDir(101, "b"), mislabelled101 = artifactDir(101, "c", { issue: 7 }), other = artifactDir(777, "d");
+  assert.throws(() => mutate(rev, (r) => run.cleanArtifacts(r, { ticket: 104 })), /still has a writer/, "a ticket with a writer keeps its artifacts");
+  assert.throws(() => mutate(rev, (r) => run.cleanArtifacts(r, { ticket: 101 })), /pending start/, "a ticket with a pending start keeps its artifacts");
+  rev = mutate(rev, (r) => run.withdraw(r, { ticket: 101, evidence: "the brief's claim started no writer" }));
+  const cleaned = run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, (r) => run.cleanArtifacts(r, { ticket: 101, processes: () => ({ ok: true, list: [{ pid: 4242, name: "node.exe", cmd: `node probe.mjs "${busy101}"` }] }) }));
+  rev = cleaned.record.revision;
+  assert.ok(cleaned.output.removed.includes(gone101), JSON.stringify(cleaned.output));
+  assert.ok(cleaned.output.removed.filter((d) => d !== gone101).every((d) => path.basename(d).startsWith("launch-101-")), "clean-artifacts removed more than the ticket's writer and launch directories");
+  assert.ok(!fs.readdirSync(artifacts).some((name) => name.startsWith("launch-101-")), "a launch directory of the released ticket survived");
+  assert.deepEqual(cleaned.output.kept.map((k) => [path.basename(k.dir), k.reason.split(" ").slice(0, 3).join(" ")]).sort(), [["writer-101-b", "its path is"], ["writer-101-c", "its owner.json names"]]);
+  assert.ok(!fs.existsSync(gone101) && fs.existsSync(busy101) && fs.existsSync(mislabelled101) && fs.existsSync(other), "clean-artifacts removed the wrong directories");
+  assert.equal(run.readRecord(record).log.filter((e) => e.event === "artifacts-cleaned").length, 1);
+  rev = mutate(rev, (r) => run.claim(r, { plan: write("plan6b.json", plan()), ticket: 101, worktree: wt101, branch: "fix/101-thing", artifactParent: artifacts }));
+  assert.equal(run.readRecord(record).tickets[101].pending.operation, "dispatch", "the brief's claim is restored for the checks below");
+
+  const lock = `${record}.lock`;
+  const self = processIdentity(process.pid);
+  fs.writeFileSync(lock, JSON.stringify({ token: "x", identity: self }));
+  assert.throws(() => mutate(rev, () => {}), new RegExp(`Process ${process.pid} holds`));
+  assert.throws(() => run.recoverLock(record), /still holds/);
+  fs.writeFileSync(lock, JSON.stringify({ token: "x", identity: { pid: self.pid, start: "0" } }));
+  assert.throws(() => mutate(rev, () => {}), /which has exited; run recover-lock/);
+  assert.match(run.recoverLock(record), /removed the lock/);
+  fs.writeFileSync(lock, "{");
+  assert.throws(() => mutate(rev, () => {}), /unreadable; preserve it/);
+  fs.unlinkSync(lock);
+
+  git(checkout, "worktree", "add", "-q", "-b", "fix/103-thing", wt103);
+  const unlisted = plan({ record: widened(3), snapshot: { ...snapshot, tickets: snapshot.tickets.filter((t) => t.number !== 101) } });
+  assert.equal(actions(unlisted)[101], "decision-needed", "a pending start outside the parent issue is reported");
+  assert.equal(unlisted.concurrency.active, 3, "and still occupies capacity beside #104 and #110");
+  const p8File = write("plan8.json", plan({ record: widened(8) }));
+  assert.throws(() => mutate(rev, (r) => run.claim(r, { plan: p8File, ticket: 103, worktree: wt103, branch: "fix/103-thing", artifactParent: artifacts })), /already exists; adopt/, "existing work is adopted, never claimed for a second writer");
+  const wt109 = path.join(tmp, "wt-109");
+  rev = mutate(rev, (r) => run.claim(r, { plan: p8File, ticket: 109, worktree: wt109, branch: "feat/109-thing", artifactParent: artifacts }));
+  git(checkout, "worktree", "add", "-q", "-b", "feat/109-thing", wt109);
+  const admin = git(wt109, "rev-parse", "--path-format=absolute", "--git-dir");
+  const before = fs.readdirSync(admin).sort();
+  rev = mutate(rev, (r) => run.launch(r, { ticket: 109, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions"], prompt, spawner: () => ({ started: true, pid: process.pid }) }));
+  const head = git(wt109, "rev-parse", "HEAD");
+  const job = path.join(tmp, "job");
+  fs.mkdirSync(job);
+  run.updateRecord(record, { expectRevision: rev, coordinator: "local_a" }, () => {
+    reserveFreeze({ worktree: fs.realpathSync.native(wt109), commonGit: git(wt109, "rev-parse", "--path-format=absolute", "--git-common-dir"), head, base: head, jobId: "job-1" }, job);
+  });
+  rev++;
+  assert.ok(fs.existsSync(worktreePaths(wt109).freeze), "the reviewer launcher froze the writer's worktree");
+  fs.unlinkSync(worktreePaths(wt109).freeze);
+  assert.deepEqual(fs.readdirSync(admin).sort(), before, "coordinator operations leave the writer worktree's Git directory alone");
+
+  const client = {
+    fetchMain: () => "m1",
+    issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "## Description\n\nx\n\n## Acceptance criteria\n\n- [ ] Widgets work.\n" }),
+    worktrees: () => run.parseWorktrees(`worktree ${checkout}\nHEAD m1\nbranch refs/heads/main\n\nworktree ${path.join(tmp, "x")}\nHEAD e2\nbranch refs/heads/codex/fix/202-thing\n`),
+    subIssues: (n) => ({
+      200: [{ number: 201, state: "open", title: "a", type: { name: "Task" }, body: "## Scope\n\nCloses #221 and, with it, #2010 outside this tree; closes other/repo#223 there, not here; closes #228 too (it does not: #227's own PR does)." }, { number: 202, state: "open", title: "b", type: { name: "Task" }, body: "Fixes acme/widgets#222." }, { number: 210, state: "open", title: "container", type: { name: "Task" } }, { number: 212, state: "open", title: "slice with bugs", type: { name: "Task" } }, { number: 215, state: "open", title: "sibling-closed bug", type: { name: "Bug" } }, { number: 217, state: "closed", title: "merged sibling bug", type: { name: "Bug" } }, { number: 220, state: "open", title: "umbrella", type: { name: "Task" } }, { number: 223, state: "open", title: "stale closed PR bug", type: { name: "Bug" } }, { number: 224, state: "open", title: "two closers bug", type: { name: "Bug" } }, { number: 225, state: "open", title: "pr-only umbrella", type: { name: "Task" } }, { number: 227, state: "open", title: "slice with its own pr", type: { name: "Task" } }],
+      210: [{ number: 211, state: "open", title: "c", type: { name: "Task" } }],
+      212: [{ number: 213, state: "open", title: "d", type: { name: "Bug" } }, { number: 214, state: "open", title: "e", type: { name: "Bug" } }],
+      220: [{ number: 221, state: "open", title: "umbrella bug one", type: { name: "Bug" } }, { number: 222, state: "open", title: "umbrella bug two", type: { name: "Bug" } }],
+      225: [{ number: 226, state: "open", title: "bug a sibling PR closes", type: { name: "Bug" } }],
+      227: [{ number: 228, state: "open", title: "bug its own slice closes", type: { name: "Bug" } }],
+    })[n] ?? [],
+    blockedBy: (n) => ({ 201: [{ number: 190, state: "closed" }], 202: [{ number: 191, state: "closed" }] })[n] ?? [],
+    fields: () => ({ effort: "Medium", priority: null }),
+    pulls: (n) => ({
+      190: [{ number: 390, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/190-x", closingIssuesReferences: [{ number: 190 }] }],
+      191: [{ number: 391, state: "MERGED", mergeCommit: { oid: "off-main" }, headRefName: "fix/191-x", closingIssuesReferences: [{ number: 191 }] }],
+      201: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215, repository: { name: "widgets", owner: { login: "acme" } } }, { number: 221 }, { number: 224 }, { number: 213, repository: { name: "repo", owner: { login: "other" } } }] }, { number: 499, state: "OPEN", isDraft: false, headRefName: "fix/2010-y", headRefOid: "h9", closingIssuesReferences: [{ number: 2010 }] }],
+      202: [{ number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }, { number: 224 }, { number: 226 }] }],
+      211: [{ number: 405, state: "CLOSED", isDraft: false, headRefName: "fix/211-x", headRefOid: "h5", closingIssuesReferences: [{ number: 223 }] }],
+      215: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }],
+      217: [{ number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }, { number: 224 }, { number: 226 }] }],
+      221: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }],
+      223: [{ number: 405, state: "CLOSED", isDraft: false, headRefName: "fix/211-x", headRefOid: "h5", closingIssuesReferences: [{ number: 223 }] }],
+      227: [{ number: 407, state: "OPEN", isDraft: true, headRefName: "feat/227-x", headRefOid: "h7", closingIssuesReferences: [{ number: 227 }, { number: 228 }] }],
+      228: [{ number: 407, state: "OPEN", isDraft: true, headRefName: "feat/227-x", headRefOid: "h7", closingIssuesReferences: [{ number: 227 }, { number: 228 }] }],
+      224: [{ number: 401, state: "OPEN", isDraft: true, headRefName: "feat/201-x", headRefOid: "h1", closingIssuesReferences: [{ number: 215 }, { number: 221 }, { number: 224 }] }, { number: 392, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/202-thing", closingIssuesReferences: [{ number: 217 }, { number: 224 }, { number: 226 }] }],
+    })[n] ?? [],
+    comments: () => [{ body: "### Review round 1 state\n" }, { body: "intro\n### Review round 3 state\n" }, { body: "Round 4 is not a heading" }],
+    checks: () => [{ name: "hook-tests", state: "SUCCESS" }],
+    onMain: (sha) => sha === "on-main",
+  };
+  const snap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, client);
+  const byNumber = Object.fromEntries(snap.tickets.map((t) => [t.number, t]));
+  assert.deepEqual(byNumber[201].prs.map((p) => [p.number, p.rounds]), [[401, 3]], "the PR of another ticket is not adopted");
+  assert.deepEqual(byNumber[201].blockers, [{ number: 190, state: "closed", delivered: true }]);
+  assert.deepEqual(byNumber[202].blockers, [{ number: 191, state: "closed", delivered: false }]);
+  assert.deepEqual(byNumber[202].worktrees.map((w) => w.branch), ["codex/fix/202-thing"]);
+  assert.deepEqual([byNumber[210].container, byNumber[211].parent], [true, 210]);
+  assert.deepEqual([byNumber[212].container, byNumber[212].deliveredBy, byNumber[212].type], [false, undefined, "Task"], "a slice whose sub-issues are all Bugs is not a container");
+  assert.deepEqual([byNumber[213].deliveredBy, byNumber[214].deliveredBy], [{ ticket: 212, via: "sub-issue", pr: null, merged: false }, { ticket: 212, via: "sub-issue", pr: null, merged: false }], "its Bugs are delivered by its PR, which does not exist yet");
+  assert.deepEqual(byNumber[215].deliveredBy, { ticket: 201, via: "pr", pr: 401, merged: false }, "a Bug a sibling's PR closes is delivered by that sibling");
+  assert.deepEqual([byNumber[217].deliveredBy, byNumber[217].delivered], [{ ticket: 202, via: "pr", pr: 392, merged: true }, true], "a Bug a merged sibling PR closed is delivered");
+  assert.equal(byNumber[201].deliveredBy, undefined, "a ticket with a PR of its own is its own slice");
+  assert.deepEqual([byNumber[220].container, byNumber[220].deliveredBy], [true, undefined], "an umbrella is a container");
+  assert.deepEqual(byNumber[221].deliveredBy, { ticket: 201, via: "pr", pr: 401, merged: false }, "the claimant's open PR delivers the umbrella's Bug, never the umbrella");
+  assert.deepEqual(byNumber[222].deliveredBy, { ticket: 202, via: "body", pr: 392, merged: true }, "a body claim with the claimant's merged PR");
+  assert.equal(byNumber[223].deliveredBy, undefined, "a closed, unmerged PR delivers nothing, and a body reference qualified with another repository names nothing here");
+  assert.deepEqual([byNumber[225].container, byNumber[226].prs, byNumber[226].deliveredBy], [true, [], { ticket: 202, via: "pr", pr: 392, merged: true }], "a PR-only claim makes the umbrella a container");
+  assert.deepEqual(byNumber[213].deliveredBy.ticket, 212, "a foreign-repository PR reference claims nothing");
+  assert.deepEqual([byNumber[227].container, byNumber[227].deliveredBy, byNumber[228].deliveredBy], [false, undefined, { ticket: 227, via: "pr", pr: 407, merged: false }], "the own PR's claim outranks the sibling's body claim in the classification too");
+  assert.deepEqual([byNumber[224].deliveredBy, byNumber[224].deliveryConflict], [undefined, [201, 202]], "two slices' PRs closing one ticket is a conflict, not a delivery");
+  assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read and the snapshot agree on the slices");
+  {
+    const { mergeScope } = await import("../../../../.agents/skills/orchestrate-issues/integration.mjs");
+    const counting = () => { const calls = { fields: 0, blockedBy: 0, checks: 0, comments: 0, subIssues: 0 }; return { calls, client: { ...client, ...Object.fromEntries(Object.keys(calls).map((k) => [k, (...a) => { calls[k]++; return client[k](...a); }])) } }; };
+    const whole = counting(), fullSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, whole.client);
+    assert.deepEqual(fullSnap.tickets, snap.tickets, "counting reads changes nothing");
+    assert.equal(whole.calls.subIssues, fullSnap.tickets.length + 1, "each sub-issue list is read once");
+    for (const t of fullSnap.tickets.filter((x) => !x.container && !x.deliveredBy)) {
+      const scoped = counting(), scopedSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200, scope: t.number }, scoped.client);
+      assert.deepEqual(mergeScope(scopedSnap, t.number), mergeScope(fullSnap, t.number), `the scoped read of #${t.number} yields the full snapshot's merge scope`);
+      for (const m of fullSnap.tickets.filter((x) => x.number === t.number || x.deliveredBy?.ticket === t.number)) assert.deepEqual(scopedSnap.tickets.find((x) => x.number === m.number).blockers, m.blockers, `#${m.number}'s blockers read the same in scope`);
+      assert.deepEqual(scopedSnap.scope, { ticket: t.number });
+      assert.deepEqual([scoped.calls.fields, scoped.calls.comments, scoped.calls.checks], [0, 0, 0], "a scoped read skips the fields, rounds and checks the gate never uses");
+      assert.ok(scoped.calls.blockedBy < whole.calls.blockedBy,`the scoped read of #${t.number} reads fewer tickets (${JSON.stringify(scoped.calls)} vs ${JSON.stringify(whole.calls)})`);
+    }
+    const batches = [];
+    const batched = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, { ...client, prefetch: (requests) => { batches.push(Object.fromEntries(Object.entries(requests).map(([kind, keys]) => [kind, keys.length]))); } });
+    assert.deepEqual(batched.tickets, snap.tickets, "batching changes nothing a snapshot reports");
+    const kinds = (kind) => batches.filter((b) => b[kind] > 0).length;
+    assert.ok(kinds("subIssues") >= 2, `the walk batches each tree level's sub-issue lists (${JSON.stringify(batches)})`);
+    assert.deepEqual([kinds("blockedBy"), kinds("fields"), kinds("checks"), kinds("comments")], [1, 1, 1, 1], `a full snapshot batches its per-ticket and per-PR reads once (${JSON.stringify(batches)})`);
+    const ran = [], fanned = [];
+    const gh = run.githubClient({ repository: "acme/widgets" }, tmp, {
+      run: (cmd, args) => { ran.push(args.join(" ")); return args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: "direct", conclusion: "SUCCESS" }] }) : "[[]]"; },
+      parallel: (jobs) => { fanned.push(...jobs.map(([, args]) => args.join(" "))); return jobs.map(([, args]) => ({ ok: true, stdout: args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [{ name: `batched ${args[2]}`, conclusion: "SUCCESS" }] }) : `HTTP/2.0 200 OK\r\nEtag: W/"7"\r\n\r\n${JSON.stringify([{ number: 7, state: "open" }])}` })); },
+      cache: run.conditionalCache(path.join(tmp, "conditional-cache")),
+    });
+    gh.prefetch({ checks: [11, 12, 11], blockedBy: [5] });
+    assert.equal(fanned.length, 3, "the prefetch fans out each distinct read once");
+    assert.deepEqual([gh.checks(11), gh.checks(12), gh.blockedBy(5)], [[{ name: "batched 11", state: "SUCCESS" }], [{ name: "batched 12", state: "SUCCESS" }], [{ number: 7, state: "open" }]], "prefetched reads are served from the fan-out");
+    assert.deepEqual(ran, [], "no read ran serially");
+    assert.deepEqual(gh.checks(11), [{ name: "direct", state: "SUCCESS" }], "a prefetched read is used once, then read fresh");
+    const { runJobs, runParallel } = await import("../../../../.agents/skills/orchestrate-issues/gh-parallel.mjs");
+    let live = 0, peak = 0;
+    const exec = (cmd, args, options, done) => { live++; peak = Math.max(peak, live); setTimeout(() => { live--; if (args[0] === "fail") done(new Error("boom"), "", "denied"); else done(null, `out ${args[0]}`, ""); }, 5); };
+    const results = await runJobs(Array.from({ length: 10 }, (_, i) => ["gh", [i === 3 ? "fail" : String(i)]]), { limit: 4, exec });
+    assert.equal(peak, 4, "the fan-out never runs more reads than its limit");
+    assert.deepEqual([results[0], results[3], results.length], [{ ok: true, stdout: "out 0" }, { ok: false, stdout: "", stderr: "denied" }, 10], "results keep their order and a failed read is reported, not thrown");
+    assert.deepEqual(runParallel([[process.execPath, ["-e", "process.stdout.write('real')"]], [process.execPath, ["-e", "process.exit(3)"]]], { cwd: tmp }).map((r) => [r.ok, r.stdout]), [[true, "real"], [false, ""]], "the worker process runs real commands and reports a failing one");
+    const failing =run.githubClient({ repository: "acme/widgets" }, tmp, { run: () => "[[{\"number\":9}]]", parallel: (jobs) => jobs.map(() => ({ ok: false, stdout: "", stderr: "x" })), cache: run.conditionalCache(path.join(tmp, "conditional-cache-failing")) });
+    failing.prefetch({ blockedBy: [5] });
+    assert.deepEqual(failing.blockedBy(5), [{ number: 9 }], "a failed prefetch falls back to a direct read");  }
+  assert.deepEqual(run.snapshotScope(snap).slices, ["#201 open", "#202 open", "#211 open", "#212 open", "#213 open", "#214 open", "#215 open", "#217 closed", "#221 open", "#222 open", "#223 open", "#224 open", "#226 open", "#227 open", "#228 open"]);
+  assert.deepEqual(run.closingReferences("Closes #1, closes #2, fixed #3, Resolves: acme/widgets#4, close #1, other/repo#2 is not closed, and #5 is only mentioned").map((r) => `${r.repository ?? ""}#${r.number}`), ["#1", "#2", "#3", "acme/widgets#4"]);
+  assert.deepEqual(run.readIssueScope({ issue: 200 }, client).slices, run.snapshotScope(snap).slices, "the scope read reads the same PRs and agrees");
+  {
+    assert.deepEqual([snap.issue.number, snap.issue.type, snap.issue.criteria.map((c) => c.text)], [200, "Task", ["Widgets work."]], "the snapshot carries the parent's type and criteria");
+    const taskRecord = path.join(artifacts, "run-200.json");
+    assert.equal(run.initRecord({ record: taskRecord, checkout, repository: "acme/widgets", issue: 200, coordinator: "local_a", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #200.", concurrency: 4 }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB }).action, "init");
+    const taskPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [211, 212])], freeBytes: 100 * GB, defaults, census: () => [] });
+    const roundCases = [
+      [2111, ["Review round state: PR ImpowerGames/impower#2111, round 2 of the default cap of 3."], 2],
+      [2111, ["Review round state: PR ImpowerGames/impower#2111, round 3, the last of the default cap of 3."], 3],
+      [2318, ["Review round state: ImpowerGames/impower#2318, round 6."], 6],
+      [2318, ["### Review round state: ImpowerGames/impower#2318, round 5."], 5],
+      [2318, ["Review round state: ImpowerGames/impower#2318, round 6,000."], 0],
+      [2340, ["Review round 2 for ImpowerGames/impower#2340 / #1714 under Task #1741.", "Review round 1 for ImpowerGames/impower#2340 / Task #1714 under coordinated Task #1741."], 2],
+      [2395, ["### Review round 1 state"], 1],
+      [2405, ["Review round 1 state for ImpowerGames/impower#2405"], 1],
+      [2405, ["### Review round state: PR ImpowerGames/impower#2405, round 2 of the default cap of 3."], 2],
+      [2405, ["> Review round state: PR ImpowerGames/impower#2405, round 3 of the default cap of 3.", "Adjudication\n\nReview round 3 for ImpowerGames/impower#2405.", "```markdown\n### Review round 3 state\n```"], 0],
+      [2318, ["> Review round state: ImpowerGames/impower#2318, round 6.", "~~~markdown\n### Review round state: ImpowerGames/impower#2318, round 5.\n~~~"], 0],
+      [2318, ["```bad`info\n### Review round 6 state"], 6],
+      [2318, ["````markdown\n```` suffix\n~~~~\n```\n### Review round 6 state\n````\n### Review round 5 state"], 5],
+      [2318, ["\t```\n### Review round 6 state"], 6],
+      [2318, ["```\n```\nReview round state: ImpowerGames/impower#2318, round 6."], 0],
+    ];
+    const roundRecord = run.readRecord(taskRecord);
+    const roundResults = roundCases.map(([number, bodies, rounds]) => {
+      const roundSnapshot = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, {
+        ...client,
+        pulls: (ticket) => client.pulls(ticket).map((pr) => pr.number === 401 ? { ...pr, number } : pr),
+        comments: (pr) => pr === number ? bodies.map((body) => ({ body })) : client.comments(pr),
+      });
+      const roundPlan = run.planDispatch({ record: roundRecord, snapshot: roundSnapshot, preflights: [], freeBytes: 100 * GB, defaults, census: () => [] });
+      const entry = roundPlan.tickets.find((t) => t.number === 201);
+      assert.equal(entry.action, "adopt-pr");
+      return { bodies, actual: [roundSnapshot.tickets.find((t) => t.number === 201).prs[0].rounds, entry.rounds, entry.reason.includes(`continues the PR from round ${rounds}`)], expected: [rounds, rounds, true] };
+    });
+    assert.deepEqual(roundResults.map(({ bodies, actual }) => [bodies, actual]), roundResults.map(({ bodies, expected }) => [bodies, expected]), "snapshot and adoption count the started round from the review thread");
+    const acceptance = [
+      "## Acceptance criteria",
+      "\t```bad`info",
+      "- [ ] Hidden by the legacy opener.",
+      "``` suffix",
+      "- [ ] Visible after the legacy closer.",
+      "<!--",
+      "## Hidden heading",
+      "- [ ] Hidden by the HTML comment.",
+      "-->",
+      "- [ ] Visible after the HTML comment.",
+    ].join("\n");
+    assert.deepEqual(run.parseCriteria(acceptance).map(({ text }) => text), ["Visible after the legacy closer.", "Visible after the HTML comment."], "acceptance retains legacy fences and HTML comments");
+    assert.deepEqual([taskPlan.parent, actions(taskPlan)[211]], [{ type: "Task", title: "Widgets" }, "dispatch"], "the plan carries the parent's type and admits the nested slice");
+    assert.deepEqual([213, 214, 215, 221].map((n) => actions(taskPlan)[n]), ["delivered-by", "delivered-by", "delivered-by", "delivered-by"]);
+    assert.deepEqual([actions(taskPlan)[217], actions(taskPlan)[212], taskPlan.concurrency.active, taskPlan.concurrency.capacityNow], ["done", "dispatch", 3, 1], "a merged deliverer's Bug is done; delivered Bugs take no writer place");
+    assert.deepEqual([211, 212].map((n) => taskPlan.tickets.find((t) => t.number === n).dependents), [0, 2], "a slice counts the Bugs its PR delivers");
+    assert.match(taskPlan.tickets.find((t) => t.number === 215).reason, /#201's PR #401 delivers it \(that PR closes it\): it is never dispatched and holds no writer place/);
+    assert.match(taskPlan.tickets.find((t) => t.number === 213).reason, /#212's PR delivers it \(a Bug under slice #212\)/);
+    assert.deepEqual([actions(taskPlan)[220], actions(taskPlan)[225], actions(taskPlan)[223], actions(taskPlan)[224], actions(taskPlan)[226], actions(taskPlan)[227], actions(taskPlan)[228]], ["container", "container", "blocked-route", "decision-needed", "decision-needed", "adopt-pr", "delivered-by"], "umbrellas are containers, a ticket with only a dead PR is its own work, two closers need the maintainer, a merged deliverer with the ticket open is a decision, and a slice whose own PR claims its Bug keeps it");
+    assert.deepEqual(taskPlan.tickets.find((t) => t.number === 227).delivers, [228]);
+    const conflicted = run.planDispatch({ record: { ...run.readRecord(taskRecord), tickets: { 224: { owner: null, pending: { operation: "dispatch", launchId: "L1", route: "claude-cli", host: os.hostname(), since: new Date().toISOString() }, history: [], results: [] } } }, snapshot: snap, preflights: [], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(conflicted)[224], conflicted.concurrency.active], ["decision-needed", 4], "a pending start on a conflicted ticket is counted until settled");
+    assert.match(conflicted.tickets.find((t) => t.number === 224).reason, /keeps a place until it is settled/);
+    assert.match(taskPlan.tickets.find((t) => t.number === 224).reason, /#201 and #202 both claim it \(by an open or merged PR or a body closing reference\)/);
+    assert.match(taskPlan.tickets.find((t) => t.number === 222).reason, /#202's PR #392 is merged on origin\/main, but GitHub left it open/, "a merged deliverer with the ticket still open is a decision, not a silent wait");
+    assert.equal(actions(taskPlan)[222], "decision-needed");
+    assert.deepEqual([212, 201, 202].map((n) => taskPlan.tickets.find((t) => t.number === n).delivers), [[213, 214], [215, 221], [217, 222, 226]]);
+    assert.equal(taskPlan.concurrency.active, 3, "#227's draft PR reserves a place beside #201's PR and #202's worktree");
+    assert.equal(taskPlan.tickets.find((t) => t.number === 211).delivers, undefined);
+    const held = run.planDispatch({ record: { ...run.readRecord(taskRecord), tickets: { 213: { owner: { route: "claude-desktop", handle: { kind: "session", id: "local_stray" }, since: new Date().toISOString() }, pending: null, history: [], results: [] } } }, snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [], observations: { sessions: { local_stray: { state: "running" } } } });
+    assert.deepEqual([actions(held)[213], actions(held)[212], held.concurrency.active], ["decision-needed", "wait-dependency", 4], "a held writer on a delivered ticket is counted and holds its slice");
+    assert.match(held.tickets.find((t) => t.number === 212).reason, /#213, which its PR delivers, holds a writer or work of its own; settle that before #212 is dispatched/);
+    const treeSnap = { ...snap, tickets: snap.tickets.map((t) => (t.number === 213 ? { ...t, worktrees: [{ path: path.join(tmp, "wt-213-stray"), branch: "fix/213-work", head: "x" }] } : t)) };
+    const tree = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: treeSnap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(tree)[213], actions(tree)[212], tree.concurrency.active], ["adopt-worktree", "wait-dependency", 4], "a worktree on a delivered ticket reserves a place and holds its slice");
+    const slicePlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [212])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(slicePlan)[211], actions(slicePlan)[212]], ["blocked-route", "dispatch"]);
+    const taskPlanFile = write("plan-200.json", slicePlan);
+    run.updateRecord(taskRecord, { expectRevision: 1, coordinator: "local_a" }, (r) => run.claim(r, { plan: taskPlanFile, ticket: 212, worktree: path.join(tmp, "wt-212"), branch: "fix/212-thing", artifactParent: artifacts }));
+    const taskBrief = run.brief(run.readRecord(taskRecord), taskPlanFile, 212, [], defaults);
+    assert.match(taskBrief, /You are the writer for acme\/widgets ticket #212 \(slice with bugs\), a sub-issue of Task #200, coordinated by/);
+    assert.match(taskBrief, /Your PR also delivers #213, #214 \(sub-issues of #212, or tickets its body or PR closes\), never dispatched to another writer, so the PR body carries a closing reference for each of them beside the one for #212/);
+    assert.match(taskBrief, /The design of record is the body of Task #200, as its template structures it, together with the decisions below\. Settled decisions: none beyond the ticket and that body\./);
+    assert.doesNotMatch(taskBrief, /Feature/, "nothing in the brief calls the Task a Feature");
+    const task = (number, title, body) => ({ number, state: "open", title, type: { name: "Task" }, ...(body && { body }) });
+    const bug = (number, title, body) => ({ number, state: "open", title, type: { name: "Bug" }, ...(body && { body }) });
+    const miniTree = {
+      200: [task(301, "slice"), task(303, "blocker slice"), task(311, "claiming container", "Closes #313."), bug(313, "claimed by a container"), task(321, "slice with a claiming bug"), bug(323, "claimed by a delivered bug"), task(331, "url claimant", "Closes https://github.com/acme/widgets/issues/334, and closes https://github.com/other/repo/issues/336."), task(333, "url umbrella"), task(335, "foreign url umbrella")],
+      301: [bug(302, "blocked bug")], 311: [task(312, "inner task")], 321: [bug(322, "claiming bug", "Closes #323.")], 333: [bug(334, "url-claimed bug")], 335: [bug(336, "bug a foreign url names")],
+    };
+    const mini = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => miniTree[n] ?? [], blockedBy: (n) => (n === 302 ? [{ number: 303, state: "open" }] : []), fields: () => ({ effort: "Medium", priority: null }), pulls: () => [], comments: () => [], checks: () => [] };
+    const miniSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, mini);
+    const m = Object.fromEntries(miniSnap.tickets.map((t) => [t.number, t]));
+    assert.deepEqual([m[311].container, m[313].claimInvalid, m[313].deliveredBy], [true, { ticket: 311, via: "body", reason: "a container, planned through its own sub-issues" }, undefined], "a container's claim delivers nothing");
+    assert.deepEqual([m[322].deliveredBy, m[323].claimInvalid?.ticket, m[323].deliveredBy], [{ ticket: 321, via: "sub-issue", pr: null, merged: false }, 322, undefined], "a delivered ticket's claim delivers nothing");
+    assert.deepEqual([m[333].container, m[334].deliveredBy, m[335].container, m[336].deliveredBy], [true, { ticket: 331, via: "body", pr: null, merged: false }, false, { ticket: 335, via: "sub-issue", pr: null, merged: false }], "a URL claim counts for the tickets repository and names nothing for another");
+    assert.deepEqual(run.readIssueScope({ issue: 200, tickets: "acme/widgets" }, mini).slices, run.snapshotScope(miniSnap).slices, "the scope read agrees");
+    const miniPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: miniSnap, preflights: [available("claude-cli", "claude-opus-5-5", [303])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([301, 302, 303, 313, 323, 334].map((n) => actions(miniPlan)[n]), ["wait-dependency", "delivered-by", "dispatch", "decision-needed", "decision-needed", "delivered-by"]);
+    assert.match(miniPlan.tickets.find((t) => t.number === 301).reason, /#302, which its PR delivers, waits for #303 \(open\)/);
+    assert.deepEqual(miniPlan.tickets.find((t) => t.number === 301).waitingFor, [303]);
+    assert.match(miniPlan.tickets.find((t) => t.number === 313).reason, /#311's body claims it, but #311 cannot deliver it \(a container/);
+    assert.match(miniPlan.tickets.find((t) => t.number === 323).reason, /#322's body claims it, but #322 cannot deliver it \(itself delivered by another slice or contested\)/);
+    assert.deepEqual(miniPlan.tickets.find((t) => t.number === 321).delivers, [322], "no writer is handed a claim its slice cannot carry");
+    assert.deepEqual(run.closingReferences("Fixes https://github.com/acme/widgets/issues/7 and closes http://github.com/o/r/issues/8").map((r) => `${r.repository}#${r.number}`), ["acme/widgets#7", "o/r#8"]);
+    assert.deepEqual(run.closingReferences("<!-- Previous scope: Closes #102. -->\nNothing here.\n<!--\ncloses #103\n-->"), []);
+    const t2 = {
+      200: [task(401, "claimant", "Closes #402. <!-- and closes #404 once, long ago -->"), task(402, "claimed task"), task(405, "slice with a bug"), task(406, "waits on the bug"), bug(404, "independent bug")],
+      402: [bug(403, "bug under a claimed task")], 405: [bug(407, "closed bug the slice delivers")],
+    };
+    const t2Pulls = { 407: [{ number: 599, state: "MERGED", mergeCommit: { oid: "on-main" }, headRefName: "fix/999-work", closingIssuesReferences: [{ number: 407 }] }], 405: [{ number: 501, state: "OPEN", isDraft: true, headRefName: "feat/405-x", headRefOid: "h501", closingIssuesReferences: [{ number: 405 }, { number: 407 }] }] };
+    const t2Client = { ...mini, subIssues: (n) => t2[n] ?? [], pulls: (n) => [...(t2Pulls[n] ?? []), ...(n === 407 ? t2Pulls[405] : [])], blockedBy: (n) => (n === 406 ? [{ number: 407, state: "closed" }] : []), onMain: (sha) => sha === "on-main" };
+    const t2Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, { ...t2Client, subIssues: (n) => (t2[n] ?? []).map((x) => (x.number === 407 ? { ...x, state: "closed" } : x)) });
+    const k = Object.fromEntries(t2Snap.tickets.map((t) => [t.number, t]));
+    assert.deepEqual([k[402].container, k[402].claimedContainer, k[403].deliveredBy, k[404].deliveredBy], [true, { ticket: 401, via: "body" }, undefined, undefined], "a claimed task delivers nothing and a commented-out claim names nothing");
+    assert.deepEqual([k[407].deliveredBy, k[407].delivered, k[406].blockers[0].delivered], [{ ticket: 405, via: "pr", pr: 501, merged: false }, false, false], "only the deliverer's merge delivers the Bug and admits its dependents");
+    const t2Plan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: t2Snap, preflights: [available("claude-cli", "claude-opus-5-5", [403, 404, 406])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([402, 403, 404, 406, 407].map((n) => actions(t2Plan)[n]), ["decision-needed", "dispatch", "dispatch", "wait-dependency", "decision-needed"]);
+    assert.match(t2Plan.tickets.find((t) => t.number === 402).reason, /#401's body claims it, but it has sub-issues of its own/);
+    assert.equal(t2Plan.tickets.find((t) => t.number === 401).delivers, undefined, "no writer is handed a container's closing reference");
+    const treeT2 = { ...t2Snap, tickets: t2Snap.tickets.map((t) => (t.number === 402 ? { ...t, worktrees: [{ path: path.join(tmp, "wt-402"), branch: "feat/402-work", head: "x" }] } : t)) };
+    const treeT2Plan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: treeT2, preflights: [available("claude-cli", "claude-opus-5-5", [403, 404, 406])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(treeT2Plan)[402], actions(treeT2Plan)[403], treeT2Plan.concurrency.active - t2Plan.concurrency.active], ["decision-needed", "wait-dependency", 1], "the claimed container's worktree reserves a place and holds #403");
+    assert.match(treeT2Plan.tickets.find((t) => t.number === 402).reason, /existing work on it .*wt-402.* may still have a writer/);
+    const closedSnap = { ...miniSnap, tickets: miniSnap.tickets.map((t) => (t.number === 302 ? { ...t, state: "closed", delivered: false } : t)) };
+    const closedPlan = run.planDispatch({ record: run.readRecord(taskRecord), snapshot: closedSnap, preflights: [available("claude-cli", "claude-opus-5-5", [301, 303])], freeBytes: 100 * GB, defaults, census: () => [] });
+    assert.deepEqual([actions(closedPlan)[301], actions(closedPlan)[302]], ["wait-dependency", "decision-needed"], "a closed issue alone is not delivery");
+  }
+
+  const committedRepos = readRepos();
+  const pinRepos = (cutover) => { const file = path.join(tmp, `repos-${cutover ? "on" : "off"}.json`); fs.writeFileSync(file, JSON.stringify({ ...committedRepos, code: "acme/widgets", internal: "acme/widgets-internal", cutover })); return readRepos(file); };
+  const OFF = pinRepos(false), ON = pinRepos(true), INTERNAL = "acme/widgets-internal";
+  const parentSnapshot = (issue, tickets) => ({ repository: "acme/widgets", issue: { number: issue, state: "open" }, originMain: "abc", tickets });
+  assert.deepEqual(run.startRepositories("acme/widgets", OFF), {}, "with the switch off a run has one repository, and its record names no second one");
+  assert.deepEqual(run.startRepositories("acme/widgets", ON), { ticketsRepository: INTERNAL });
+  assert.deepEqual(run.startRepositories("acme/other", ON), {}, "a repository the file does not name keeps its own tickets");
+
+  const conditionalReply = (reply, args) => `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(JSON.parse(reply(["api", "--paginate", "--slurp", args.at(-1).replace(/\?per_page=100$/, "")])).flat())}`;
+  const ghCalls = (names, reply) => { const calls = []; return { calls, client: run.githubClient(names, checkout, { cache: run.conditionalCache(path.join(tmp, "gh-calls-cache")), run: (cmd, args) => { calls.push(`${cmd} ${args.join(" ")}`); return args[1] === "-i" ? conditionalReply(reply, args) : reply(args); } }) }; };
+  const accountPages = (pulls, { totalCount = pulls.length, hasNextPage = false, login = "shared", endCursor = hasNextPage ? "next" : null } = {}) => [{ data: { viewer: { login, pullRequests: { totalCount, pageInfo: { hasNextPage, endCursor }, nodes: pulls.map((p) => ({ createdAt: "2026-10-20T00:00:00Z", ...p, repository: { nameWithOwner: p.repository?.nameWithOwner ?? "acme/widgets" }, closingIssuesReferences: { nodes: (p.closingIssuesReferences ?? []).map((r) => ({ number: r.number, url: `https://github.com/${r.repository?.owner?.login ?? "acme"}/${r.repository?.name ?? "widgets"}/issues/${r.number}` })), pageInfo: { hasNextPage: false } } })) } } } }];
+  const replies = (pulls, comments = {}) => (args) => (args[0] === "api" && args[1] === "graphql" ? JSON.stringify(accountPages(typeof pulls === "function" ? pulls(null) : pulls)) : args[0] === "api" && args[1] === "user" ? "shared\n" : args[0] === "pr" && args[1] === "list" ? JSON.stringify(typeof pulls === "function" ? pulls(args[args.indexOf("--search") + 1]) : pulls) : args[0] === "pr" ? JSON.stringify({ statusCheckRollup: [] }) : args.includes("--slurp") ? JSON.stringify([comments[args.at(-1)] ?? []]) : "{}");
+  const listFields = "number,state,isDraft,headRefName,headRefOid,baseRefName,closingIssuesReferences,mergeCommit,createdAt";
+  {
+    const pull = (number, ticket) => ({ number, state: "MERGED", isDraft: false, headRefName: `codex/perf/${ticket}-work`, headRefOid: `h${number}`, baseRefName: "main", mergeCommit: { oid: `m${number}` }, author: { login: "shared" }, closingIssuesReferences: [{ number: ticket, repository: { name: "internal", owner: { login: "acme" } } }] });
+    const historical = Array.from({ length: 1001 }, (_, i) => pull(2000 + i, 3000 + i));
+    const last = { ...pull(4001, 9999), closingIssuesReferences: [{ number: 22, repository: { name: "internal", owner: { login: "acme" } } }] };
+    historical[1000] = last;
+    const pages = historical.flatMap((_, i) => i % 100 === 0 ? accountPages(historical.slice(i, i + 100), { totalCount: historical.length, hasNextPage: i + 100 < historical.length, endCursor: `page-${i}` }) : []);
+    const { client, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, (args) => {
+      if (args[1] === "user") return "shared\n";
+      if (args[1] === "graphql") return JSON.stringify(pages);
+      if (args[0] === "pr" && args[1] === "list") return JSON.stringify(args[args.indexOf("--search") + 1] === "22" ? [last] : []);
+      throw new Error(`Unexpected discovery call: ${args.join(" ")}`);
+    });
+    const snapshot = run.takeSnapshot({ repository: "acme/widgets", tickets: "acme/internal", issue: 100 }, { ...client, fetchMain: () => "main", worktrees: () => [], onMain: () => true, issue: (number) => ({ number, state: "open", title: "Task", body: "" }), subIssues: (number) => number === 100 ? Array.from({ length: 22 }, (_, i) => ({ number: i + 1, state: "open", title: "slice" })) : [], blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
+    assert.equal(calls.filter((c) => !c.startsWith("gh run list")).length, 1, "a 22-ticket snapshot shares one completely paginated account listing");
+    assert.ok(!calls.some((call) => call.includes("--search") || call.includes("search(")));
+    assert.deepEqual(snapshot.tickets.find((t) => t.number === 22).prs.map((p) => p.number), [4001], "a closing-reference-only PR beyond 1000 historical PRs is found");
+    for (const incomplete of [accountPages([], { totalCount: 1 }), accountPages([], { hasNextPage: true })]) {
+      const fallback = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, (args) => args[1] === "graphql" ? JSON.stringify(incomplete) : JSON.stringify([last]));
+      assert.deepEqual(fallback.client.pulls(22).map((p) => p.number), [4001]);
+      fallback.client.pulls(21);
+      assert.equal(fallback.calls.filter((call) => call.startsWith("gh api graphql")).length, 1);
+      assert.equal(fallback.calls.filter((call) => call.includes("--search")).length, 4, "only a truncated listing invokes the two legacy searches per ticket");
+    }
+    const broken = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify([{ errors: [{ message: "temporary failure" }] }]));
+    assert.throws(() => broken.client.pulls(22), /incomplete page/, "an API failure cannot masquerade as no deliverable");
+    for (const [label, change] of [
+      ["partial API error", (page) => { page.errors = [{ message: "partial response" }]; }],
+      ["opaque API error", (page) => { page.errors = {}; }],
+      ["missing account", (page) => { delete page.data.viewer.login; }],
+      ["missing count", (page) => { delete page.data.viewer.pullRequests.totalCount; }],
+      ["negative count", (page) => { page.data.viewer.pullRequests.totalCount = -1; }],
+      ["missing outer cursor", (page) => { delete page.data.viewer.pullRequests.pageInfo.endCursor; }],
+      ["missing author", (page) => { delete page.data.viewer.pullRequests.nodes[0].author; }],
+      ["missing state", (page) => { delete page.data.viewer.pullRequests.nodes[0].state; }],
+      ["missing head", (page) => { delete page.data.viewer.pullRequests.nodes[0].headRefName; }],
+      ["missing head revision", (page) => { delete page.data.viewer.pullRequests.nodes[0].headRefOid; }],
+      ["missing draft state", (page) => { delete page.data.viewer.pullRequests.nodes[0].isDraft; }],
+      ["missing base", (page) => { delete page.data.viewer.pullRequests.nodes[0].baseRefName; }],
+      ["missing creation date", (page) => { delete page.data.viewer.pullRequests.nodes[0].createdAt; }],
+      ["invalid creation date", (page) => { page.data.viewer.pullRequests.nodes[0].createdAt = "invalid"; }],
+      ["missing merge identity", (page) => { delete page.data.viewer.pullRequests.nodes[0].mergeCommit; }],
+      ["missing closing references", (page) => { delete page.data.viewer.pullRequests.nodes[0].closingIssuesReferences; }],
+      ["missing nested completeness", (page) => { delete page.data.viewer.pullRequests.nodes[0].closingIssuesReferences.pageInfo; }],
+      ["partial closing reference", (page) => { delete page.data.viewer.pullRequests.nodes[0].closingIssuesReferences.nodes[0].url; }],
+      ["mismatched closing identity", (page) => { page.data.viewer.pullRequests.nodes[0].closingIssuesReferences.nodes[0].number++; }],
+    ]) {
+      const malformed = accountPages([last]);
+      change(malformed[0]);
+      const failed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(malformed));
+      assert.throws(() => failed.client.pulls(22), /account pull request listing/, `${label} cannot silently omit a pull request`);
+      assert.equal(failed.calls.length, 1, `${label} refuses without Search fallback`);
+    }
+    for (const malformed of [null, {}, [], [null]]) {
+      const failed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(malformed));
+      assert.throws(() => failed.client.pulls(22), /account pull request listing/);
+    }
+    for (const malformed of [
+      accountPages([last], { hasNextPage: true, endCursor: null }),
+      [...accountPages([last]), ...accountPages([last])],
+      [...accountPages([last], { hasNextPage: true }), ...accountPages([last], { endCursor: "next" })],
+      [...accountPages([last], { hasNextPage: true }), ...accountPages([last], { login: "other" })],
+    ]) {
+      const failed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(malformed));
+      assert.throws(() => failed.client.pulls(22), /invalid pagination|account changed/, "invalid pagination and account changes cannot become a complete inventory");
+    }
+    const malformedJson = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => "{");
+    assert.throws(() => malformedJson.client.pulls(22), SyntaxError);
+    const nested = accountPages([last]);
+    nested[0].data.viewer.pullRequests.nodes[0].closingIssuesReferences.pageInfo.hasNextPage = true;
+    const nestedFallback = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, (args) => JSON.stringify(args[1] === "graphql" ? nested : [last]));
+    assert.deepEqual(nestedFallback.client.pulls(22).map((p) => p.number), [4001]);
+    assert.equal(nestedFallback.calls.filter((call) => call.includes("--search")).length, 2, "nested truncation preserves the legacy fallback");
+    const unrelated = { ...last, repository: { nameWithOwner: "other/repo" } };
+    const mixed = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(accountPages([unrelated, last])));
+    assert.deepEqual(mixed.client.pulls(22).map((p) => p.number), [4001], "same PR numbers in distinct repositories are distinct inventory entries");
+    assert.equal(mixed.calls.length, 1, "repository filtering happens after completeness counting");
+    const nextSnapshot = ghCalls({ repository: "acme/widgets", ticketsRepository: "acme/internal" }, () => JSON.stringify(accountPages([])));
+    assert.deepEqual(nextSnapshot.client.pulls(22), [], "a later client does not retain an earlier inventory");
+    assert.equal(nextSnapshot.calls.length, 1);
+  }
+  {
+    const { client: one, calls } = ghCalls({ repository: "acme/widgets" }, replies([]));
+    one.issue(200); one.subIssues(200); one.blockedBy(201); one.fields(201); one.pulls(201); one.comments(401, 201); one.checks(401);
+    assert.deepEqual(calls, [
+      "gh api repos/acme/widgets/issues/200",
+      "gh api -i repos/acme/widgets/issues/200/sub_issues?per_page=100",
+      "gh api -i repos/acme/widgets/issues/201/dependencies/blocked_by?per_page=100",
+      "gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/acme/widgets/issues/201/issue-field-values",
+      `gh pr list --repo acme/widgets --state all --search 201 --limit 100 --json ${listFields}`,
+      "gh api --paginate --slurp repos/acme/widgets/issues/401/comments",
+      "gh pr view 401 --repo acme/widgets --json statusCheckRollup",
+    ], "with one repository the client makes today's calls, and a PR's comments are its own");
+  }
+  {
+    const option = (name, value) => ({ issue_field_name: name, single_select_option: { name: value } });
+    const values = { "repos/acme/widgets/issues/201/issue-field-values": [option("Priority", "Urgent"), option("Effort", "Low")], "repos/acme/widgets/issues/202/issue-field-values": [option("Effort", "High")] };
+    const { client: fielded, calls } = ghCalls({ repository: "acme/widgets" }, replies([], values));
+    const fieldSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 200 }, { ...fielded, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", body: "" }), subIssues: (n) => (n === 200 ? [201, 202].map((number) => ({ number, state: "open", title: `ticket ${number}` })) : []), blockedBy: () => [], pulls: () => [] });
+    assert.deepEqual(fieldSnap.tickets.map((t) => [t.number, t.effort, t.priority]), [[201, "Low", "Urgent"], [202, "High", null]], "Priority is read from the field values that carry Effort, and is null when unset");
+    assert.deepEqual(calls.filter((c) => c.includes("issue-field-values")).length, 2, "each ticket's field values are read once for both fields");
+  }
+  {
+    const ref = (slug, number) => ({ number, repository: { name: slug.split("/")[1], owner: { login: slug.split("/")[0] } } });
+    const pr = (number, branch, login, refs) => ({ number, state: "OPEN", isDraft: true, headRefName: branch, headRefOid: `h${number}`, baseRefName: "main", closingIssuesReferences: refs, mergeCommit: null, author: { login } });
+    const listed = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref("acme/widgets", 7)]), pr(702, "fix/7-thing", "someone-else", [ref(INTERNAL, 7)]), pr(703, "feat/70-other", "shared", [ref(INTERNAL, 70)])];
+    const prefixed = pr(704, "codex/fix/7-prefixed", "shared", [ref(INTERNAL, 7)]);
+    const heads = run.DISCOVERY_TYPES.map((t) => `head:${t}/7-`).join(" ");
+    const { client: split, calls } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies((search) => (search === null ? [...listed, prefixed, pr(705, "fix/77-other", "shared", [])] : search === heads ? listed : search === "7" ? [prefixed, listed[0], pr(705, "fix/77-other", "shared", [])] : []), { [`repos/${INTERNAL}/issues/7/comments`]: [{ body: "### Review round 2 state\n" }], "repos/acme/widgets/issues/701/comments": [{ body: "### Review round 5 state\n" }] }));
+    split.issue(6); split.subIssues(6); split.blockedBy(7); split.fields(7);
+    const found = split.pulls(7);
+    assert.deepEqual(found.map((p) => [p.number, p.closingIssuesReferences.map((r) => `${r.repository.owner.login}/${r.repository.name}#${r.number}`)]), [[704, [`${INTERNAL}#7`]], [701, [`${INTERNAL}#7`]]], "only the shared account's PRs on the ticket's own branch, prefixed or not, are the ticket's, once each, with their references to the tickets repository");
+    assert.ok(!("author" in found[0]), "the author is read for discovery only");
+    split.comments(701, 7); split.checks(701);
+    const listingCall = calls[4];
+    assert.match(listingCall, /^gh api graphql --paginate --slurp -f query=/);
+    assert.match(listingCall, /viewer\s*\{\s*login\s*pullRequests/);
+    assert.ok(!listingCall.includes("search("));
+    assert.deepEqual(calls, [
+      `gh api repos/${INTERNAL}/issues/6`,
+      `gh api -i repos/${INTERNAL}/issues/6/sub_issues?per_page=100`,
+      `gh api -i repos/${INTERNAL}/issues/7/dependencies/blocked_by?per_page=100`,
+      `gh api --paginate --slurp -H X-GitHub-Api-Version: 2026-03-10 repos/${INTERNAL}/issues/7/issue-field-values`,
+      listingCall,
+      `gh api --paginate --slurp repos/${INTERNAL}/issues/7/comments`,
+      "gh pr view 701 --repo acme/widgets --json statusCheckRollup",
+    ]);
+    assert.ok(!calls.some((c) => /^gh issue|repos\/acme\/widgets\//.test(c)), "nothing reads tickets or comments of the code repository");
+    assert.throws(() => split.comments(701), /Supply ticket/, "a PR's review thread needs its ticket once tickets live apart");
+    const splitSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6 }, { ...split, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Feature", body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice" }] : []), blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
+    assert.deepEqual(splitSnap.tickets[0].prs.map((p) => [p.number, p.rounds]), [[704, 2], [701, 2]], "the PRs' rounds come from the round-state comments on their ticket");
+    const dir = path.join(tmp, "split-run");
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "run.json");
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", ...run.startRepositories("acme/widgets", ON), issue: 6, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: "Use orchestrate-issues for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.throws(() => run.initRecord({ record: path.join(dir, "bad.json"), checkout: dir, repository: "acme/widgets", ticketsRepository: "acme/widgets", issue: 9, coordinator: "local_split", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", invocation: "x" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB }), /another owner\/name than --repo/);
+    const splitRecord = run.readRecord(file);
+    assert.equal(splitRecord.ticketsRepository, INTERNAL);
+    const sameNumber = run.initRecord({ record: path.join(dir, "public-6.json"), checkout: dir, repository: "acme/widgets", issue: 6, coordinator: "local_public", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #6." }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.equal(sameNumber.action, "init", "an unrelated issue of the same number in the code repository starts its own run");
+    assert.equal(sameNumber.pointer, run.pointerFile(dir, "acme/widgets", 6));
+    assert.notEqual(run.pointerFile(dir, INTERNAL, 6), sameNumber.pointer);
+    assert.equal(JSON.parse(fs.readFileSync(run.pointerFile(dir, INTERNAL, 6), "utf8")).coordinator, "local_split", "and the internal issue's pointer still names its coordinator");
+    assert.deepEqual(run.repositoriesOf(splitRecord).thread(701, 7), { repo: INTERNAL, number: 7, issueUrl: `https://api.github.com/repos/${INTERNAL}/issues/7` });
+    const splitSnapshot = parentSnapshot(6, [{ ...ticket(7), parent: 6 }]);
+    const splitPlanFile = write("split-plan.json", run.planDispatch({ record: splitRecord, snapshot: splitSnapshot, preflights: [available("claude-cli", "claude-opus-5-5", [7])], freeBytes: 100 * GB, defaults }));
+    assert.match(readJsonFile(splitPlanFile).remaining[0], /publishes it on the slice's ticket, its review thread\.$/);
+    run.updateRecord(file, { expectRevision: 1, coordinator: "local_split" }, (r) => run.claim(r, { plan: splitPlanFile, ticket: 7, worktree: path.join(dir, "wt-7"), branch: "feat/7-thing", artifactParent: dir }));
+    {
+      const listedWith8 = [pr(701, "feat/7-thing", "shared", [ref(INTERNAL, 7), ref(INTERNAL, 8)])];
+      const { client: split8 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(listedWith8, { [`repos/${INTERNAL}/issues/7/comments`]: [] }));
+      const split8Snap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, { ...split8, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => (n === 6 ? [{ number: 7, state: "open", title: "slice", type: { name: "Task" } }, { number: 8, state: "open", title: "bug the slice closes", type: { name: "Bug" } }] : []), blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) });
+      const eight = split8Snap.tickets.find((t) => t.number === 8);
+      assert.deepEqual([eight.prs, eight.deliveredBy], [[], { ticket: 7, via: "pr", pr: 701, merged: false }], "the sibling's PR is absent from the Bug's own list and still delivers it");
+      const split8Plan = run.planDispatch({ record: run.readRecord(file), snapshot: split8Snap, preflights: [available("claude-cli", "claude-opus-5-5", [8])], freeBytes: 100 * GB, defaults, census: () => [] });
+      assert.deepEqual([actions(split8Plan)[8], split8Plan.tickets.find((t) => t.number === 7).delivers], ["delivered-by", [8]], "the Bug is delivered by #7 whatever the record holds for #7");
+      const { client: split9 } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => []));
+      const bodyClient = { ...split9, fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: () => ({ state: "open", title: "Widgets", type: { name: "Task" }, body: "" }), subIssues: (n) => ({ 6: [{ number: 7, state: "open", title: "slice", type: { name: "Task" }, body: `Closes ${INTERNAL}#9.` }, { number: 10, state: "open", title: "umbrella", type: { name: "Task" } }], 10: [{ number: 9, state: "open", title: "bug the slice's body claims", type: { name: "Bug" } }] })[n] ?? [], blockedBy: () => [], fields: () => ({ effort: "Medium", priority: null }) };
+      const cliOut = path.join(tmp, "split-cli-snapshot.json");
+      run.main(["snapshot", "--record", file, "--out", cliOut], { clientFor: () => bodyClient, defaults });
+      const cliSnap = readJsonFile(cliOut);
+      assert.deepEqual([cliSnap.tickets.find((t) => t.number === 10).container, cliSnap.tickets.find((t) => t.number === 9).deliveredBy], [true, { ticket: 7, via: "body", pr: null, merged: false }], "the CLI snapshot reads qualified body claims against the tickets repository");
+      assert.deepEqual(run.snapshotScope(cliSnap).slices, run.readIssueScope({ issue: 6, tickets: INTERNAL }, bodyClient).slices, "and agrees with the gate's scope read");
+    }
+    {
+      const stale = { number: 1357, state: "MERGED", isDraft: false, headRefName: "codex/refactor/1322-x", headRefOid: "h", baseRefName: "main", mergeCommit: { oid: "c" }, closingIssuesReferences: [ref(INTERNAL, 873)] };
+      const fresh = { number: 1400, state: "OPEN", isDraft: true, headRefName: "feat/7-x", headRefOid: "f", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [] };
+      const tree = { 6: [{ number: 1322, state: "open", title: "slice", type: { name: "Task" }, body: "" }, { number: 7, state: "open", title: "fresh slice", type: { name: "Task" }, body: "" }], 1322: [{ number: 900, state: "open", title: "bug", type: { name: "Bug" }, body: "" }] };
+      const staleClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: () => ({ state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], fields: () => ({ effort: "Low", priority: null }), comments: () => [], checks: () => [], pulls: (n) => (n === 1322 ? [stale] : n === 7 ? [fresh] : []) };
+      const staleSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, staleClient);
+      const of = (n) => staleSnap.tickets.find((t) => t.number === n);
+      assert.deepEqual([of(1322).prs, of(900).deliveredBy?.ticket, of(900).deliveredBy?.pr, of(7).prs.map((p) => p.number)], [[], 1322, null, [1400]], "a PR that closes another internal ticket is not the one its old branch names; a draft with no references is found by its branch");
+      const stalePlan = run.planDispatch({ record: run.readRecord(file), snapshot: staleSnap, preflights: [available("claude-cli", "claude-opus-5-5", [1322, 900, 7])], freeBytes: 100 * GB, defaults, census: () => [] });
+      assert.equal(actions(stalePlan)[900], "delivered-by", "the slice's Bug is delivered by the slice");
+      assert.deepEqual(run.readIssueScope({ issue: 6, tickets: INTERNAL, split: true }, staleClient).slices, run.snapshotScope(staleSnap).slices, "the gate's scope read applies the same rule");
+      const { client: staleGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [{ ...stale, author: { login: "shared" } }]));
+      assert.deepEqual(staleGh.pulls(1322), [], "the client does not give the ticket a PR closing another ticket");
+      assert.deepEqual(staleGh.pulls(873).map((p) => p.number), [1357], "and gives it to the ticket it closes");
+      const sibling = { ...stale, number: 1358, headRefName: "feat/7-x", closingIssuesReferences: [ref(INTERNAL, 7), ref(INTERNAL, 8)], author: { login: "shared" } };
+      const { client: siblingGh } = ghCalls({ repository: "acme/widgets", ticketsRepository: INTERNAL }, replies(() => [sibling]));
+      assert.deepEqual([siblingGh.pulls(7).map((p) => p.number), siblingGh.pulls(8)], [[1358], []], "a PR whose branch ticket it closes is that ticket's only");
+    }
+    {
+      const old = { number: 1413, state: "OPEN", isDraft: true, headRefName: "codex/refactor/1389-x", headRefOid: "o", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [], createdAt: "2026-10-05T00:00:00Z" };
+      const fresh = { number: 1401, state: "OPEN", isDraft: true, headRefName: "feat/8-x", headRefOid: "f", baseRefName: "main", mergeCommit: null, closingIssuesReferences: [], createdAt: "2026-10-21T00:00:00Z" };
+      assert.equal(run.ownsPull(old, 1389, true, "2026-10-20T00:00:00Z"), false, "a no-reference PR older than its branch's ticket is not that ticket's");
+      assert.equal(run.ownsPull(fresh, 8, true, "2026-10-20T00:00:00Z"), true, "a no-reference PR opened after its branch's ticket is that ticket's");
+      const created = { 6: "2026-10-01T00:00:00Z", 1389: "2026-10-20T00:00:00Z", 8: "2026-10-20T00:00:00Z" };
+      const tree = { 6: [{ number: 1389, state: "open", title: "slice", type: { name: "Task" }, body: "", created_at: created[1389] }, { number: 8, state: "open", title: "fresh slice", type: { name: "Task" }, body: "", created_at: created[8] }] };
+      const oldClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => true, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" }, created_at: created[n] }), subIssues: (n) => tree[n] ?? [], blockedBy: () => [], fields: () => ({ effort: "Low", priority: null }), comments: () => [], checks: () => [], pulls: (n) => (n === 1389 ? [old] : n === 8 ? [fresh] : []) };
+      const oldSnap = run.takeSnapshot({ repository: "acme/widgets", issue: 6, tickets: INTERNAL }, oldClient);
+      const of = (n) => oldSnap.tickets.find((t) => t.number === n);
+      assert.deepEqual([of(1389).prs, of(8).prs.map((p) => p.number)], [[], [1401]], "the snapshot gives the old draft to no ticket and the fresh draft to its branch's");
+      const oldPlan = run.planDispatch({ record: run.readRecord(file), snapshot: oldSnap, preflights: [available("claude-cli", "claude-opus-5-5", [1389, 8])], freeBytes: 100 * GB, defaults, census: () => [] });
+      assert.notEqual(actions(oldPlan)[1389], "adopt-pr", "plan does not adopt the old draft for the ticket its branch number collides with");
+      assert.equal(actions(oldPlan)[8], "adopt-pr", "and still adopts the fresh draft");
+    }
+    const splitBrief = run.brief(run.readRecord(file), splitPlanFile, 7, [], defaults);
+    assert.match(splitBrief, new RegExp(`You are the writer for ${INTERNAL} ticket #7 `));
+    assert.match(splitBrief, new RegExp(`checkpoint decision it publishes on your ticket in ${INTERNAL}, the PR's review thread\\.`));
+  }
+
+  {
+    const dir = path.join(tmp, "legacy-run");
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "run.json"), since = "2026-10-16T10:00:00.000Z", host = os.hostname();
+    const legacy = {
+      version: run.RECORD_VERSION, revision: 119, runId: "6d7a2c1e-1c2b-4f3a-8e5d-000000000119", repository: "acme/widgets", issue: 1900, checkout: dir,
+      coordinator: { session: "local_legacy", host, harness: "claude", model: "claude-opus-5-5", effort: "high", permissionMode: "bypassPermissions", since },
+      invocation: { text: "/orchestrate-issues #1900", merging: "coordinator" }, authority: run.authorityFor("coordinator"),
+      writer: { model: "claude-opus-5-5", source: "claude orchestrator default" }, concurrency: { limit: 3, basis: "the smaller of 3 (reviewer slots) and 15 by memory at 4 GB per writer" },
+      tickets: { 1901: { owner: null, pending: null, history: [], results: [], requests: [], checkpoints: [] } },
+      diskRecoveries: [], previousCoordinators: [], title: "ORCH #1900: legacy shaped run", log: [{ time: since, event: "init", coordinator: "local_legacy", writer: "claude-opus-5-5", concurrency: 3 }],
+      checkpoints: { remote: "origin", branch: "orchestrate-state/issue-1900" }, updated: since,
+      checkIn: { interval: 30, cron: "10,40 * * * *", prompt: "check in", command: run.scheduleCommand(file), job: "job-1", none: null, state: "scheduled", since, expires: null }, operations: [],
+    };
+    fs.writeFileSync(file, JSON.stringify(legacy, null, 2));
+    const pointer = run.pointerFile(dir, "acme/widgets", 1900);
+    fs.mkdirSync(path.dirname(pointer), { recursive: true });
+    fs.writeFileSync(pointer, JSON.stringify({ record: file, coordinator: "local_legacy", host, since }));
+    const loaded = run.readRecord(file);
+    assert.deepEqual([run.repositoriesOf(loaded).split, run.repositoriesOf(loaded).tickets], [false, "acme/widgets"], "a record without a tickets repository is a one-repository run");
+    assert.deepEqual(run.repositoriesOf(loaded).thread(2001, 1902), { repo: "acme/widgets", number: 2001, issueUrl: "https://api.github.com/repos/acme/widgets/issues/2001" }, "its review threads are the PRs");
+    const legacySnap = parentSnapshot(1900, [{ ...ticket(1901), parent: 1900, state: "closed", delivered: true }, { ...ticket(1902), parent: 1900, blockers: [{ number: 1901, state: "closed", delivered: true }] }]);
+    const legacyPlanFile = write("legacy-plan.json", run.planDispatch({ record: loaded, snapshot: legacySnap, preflights: [available("claude-cli", "claude-opus-5-5", [1902])], freeBytes: 100 * GB, defaults }));
+    const legacyPlan = readJsonFile(legacyPlanFile);
+    assert.deepEqual(actions(legacyPlan), { 1901: "done", 1902: "dispatch" });
+    assert.equal(legacyPlan.remaining[0], "A writer's review reaches a checkpoint after round 3's verified fixes and after every later round's, and an acceptance of verified final corrections may be decided after any completed round; the coordinator decides each with review-checkpoint.mjs and publishes it on the PR.");
+    const claimed = run.updateRecord(file, { expectRevision: 119, coordinator: "local_legacy" }, (r) => run.claim(r, { plan: legacyPlanFile, ticket: 1902, worktree: path.join(dir, "wt-1902"), branch: "feat/1902-thing", artifactParent: dir }));
+    assert.equal(claimed.record.revision, 120);
+    assert.ok(!("ticketsRepository" in claimed.record), "a change adds no tickets repository to the record");
+    const legacyBrief = run.brief(run.readRecord(file), legacyPlanFile, 1902, [], defaults);
+    assert.match(legacyBrief, /You are the writer for acme\/widgets ticket #1902 /);
+    assert.match(legacyBrief, /The coordinator answers with a checkpoint decision it publishes on the PR\. Launch a further round/);
+    const upper = run.pointerFile(dir, "ACME/widgets", 1900);
+    if (!fs.existsSync(upper)) fs.copyFileSync(pointer, upper);
+    const caseTakeover = run.initRecord({ record: path.join(dir, "run-upper.json"), checkout: dir, repository: "ACME/widgets", issue: 1900, coordinator: "local_upper", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "/orchestrate-issues #1900", takeover: true, observations: { sessions: { local_legacy: { state: "archived" } } } }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB });
+    assert.deepEqual([caseTakeover.action, "ticketsRepository" in caseTakeover.record], ["takeover", false], "a case-only difference in --repo takes the run over as before");
+  }
+
+  const cli = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: "utf8", windowsHide: true });
+  const refused = cli("claim", "--record", record, "--coordinator", "local_a", "--expect-revision", String(rev - 1), "--plan", p8File, "--ticket", "108", "--worktree", path.join(tmp, "wt-108"), "--branch", "fix/108-thing", "--artifact-parent", artifacts);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, new RegExp(`at revision ${rev}, not ${rev - 1}`));
+  assert.equal(run.readRecord(record).revision, rev);
+  const duplicate = cli("init", "--record", second, "--checkout", checkout, "--repo", "acme/widgets", "--issue", "100", "--coordinator", "local_0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", "--harness", "claude", "--coordinator-model", "claude-opus-5-5", "--coordinator-effort", "high", "--coordinator-mode", "bypassPermissions", "--slug", "widget-feature", "--invocation", "Use orchestrate-issues for #100.", "--merging", "coordinator");
+  assert.equal(duplicate.status, 1);
+  assert.match(duplicate.stderr, /already has coordinator local_a/);
+  assert.equal(cli("plan", "--record", "relative.json").status, 1);
+
+  const taken = init({ record: second, coordinator: "local_b", takeover: true, observations: { sessions: { local_a: { state: "archived" } } } });
+  assert.equal(taken.action, "takeover");
+  assert.deepEqual(taken.record.tickets[104].owner.adopted, { pr: 504, rounds: 2 });
+  assert.deepEqual(taken.record.previousCoordinators.map((c) => [c.session, c.record]), [["local_a", record]]);
+  assert.throws(() => mutate(rev, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })), /this record no longer coordinates the parent issue/);
+  assert.equal(run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.diskRecovery(r, { removed: "x", classifier: "y" })).record.revision, 2);
+
+  const fresh = (name, issue = 300) => {
+    const dir = path.join(tmp, name);
+    fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "artifacts", "run.json");
+    run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", slug: "coordinator-contact", invocation: `Use orchestrate-issues for #${issue}.` }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    const change = (fn) => run.updateRecord(file, { expectRevision: run.readRecord(file).revision, coordinator: "local_r" }, fn).output;
+    return { dir, file, artifacts: path.join(dir, "artifacts"), change };
+  };
+  const snapshotOf = (issue, tickets) => ({ repository: "acme/widgets", issue: { number: issue, state: "open" }, originMain: "abc", tickets });
+  const planOf = (f, snap, more = {}) => run.planDispatch({ record: run.readRecord(f.file), snapshot: snap, freeBytes: 100 * GB, defaults, ...more });
+
+  {
+    const f = fresh("idle-session-release");
+    const branch = "fix/1901-thing", handle = "local_delivered";
+    const pr = { number: 1902, state: "OPEN", isDraft: true, branch, head: "reviewed", rounds: 1 };
+    const open = { ...ticket(1901), parent: 300, prs: [pr] };
+    const plan = write("idle-adoption.json", planOf(f, snapshotOf(300, [open])));
+    f.change((r) => run.adopt(r, { plan, ticket: 1901, handleKind: "session", handle, route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const report = write("idle-final-report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 1902, reviewedHead: "reviewed", rounds: 1, findings: "None", verification: "Passed", ci: "Passed", filed: "None", next: "Complete" });
+    const observations = { sessions: { [handle]: { state: "idle" } } };
+    const observed = write("idle-observations.json", observations);
+    let state = "closed", onMain = true, closingTicket = 1901;
+    const merged = { ...pr, state: "MERGED", mergeCommit: "delivered", onMain: true };
+    const closed = { ...open, state: "closed", delivered: true, prs: [merged] };
+    const rawPr = { number: 1902, state: "MERGED", headRefName: branch, mergeCommit: { oid: "delivered" }, closingIssuesReferences: [{ number: 1901 }] };
+    const client = {
+      issue: () => ({ state }),
+      pull: () => ({ ...rawPr, headRefName: closingTicket === 1901 ? branch : "fix/1903-other", closingIssuesReferences: [{ number: closingTicket }] }),
+      fetchMain: () => "main-tip",
+      onMain: (sha) => onMain && sha === "delivered",
+    };
+    const release = (obs = observed, evidence = "Read its final transcript") => run.main(["release", "--record", f.file, "--coordinator", "local_r", "--expect-revision", String(run.readRecord(f.file).revision), "--ticket", "1901", "--observations", obs, "--evidence", evidence], { defaults, clientFor: () => client });
+    assert.throws(() => release(), /writer is waiting/, "an idle owner without a recorded result stays held");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    const before = run.readRecord(f.file);
+    state = "open";
+    assert.throws(() => release(), /writer is waiting/, "a merged PR alone does not settle an idle owner");
+    state = "closed";
+    onMain = false;
+    assert.throws(() => release(), /writer is waiting/, "a closed ticket with a merge missing from origin/main stays held");
+    onMain = true;
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a merged PR for another ticket does not settle this owner");
+    closingTicket = 1901;
+    assert.throws(() => release(observed, " "), /writer is waiting/, "an idle release needs transcript evidence");
+    assert.throws(() => release(write("idle-foreign.json", { sessions: { [handle]: { state: "idle", host: "other-host" } } })), /writer is (waiting|unknown)/, "an observation from a different host does not settle the owner");
+    assert.throws(() => release(write("idle-running.json", { sessions: { [handle]: { state: "running" } } })), /writer is live/);
+    assert.deepEqual(run.readRecord(f.file), before, "refused release attempts leave the record intact");
+    for (const delivery of ["brief", "contact"]) {
+      f.change((r) => { r.tickets[1901].owner[delivery] = { state: "intent" }; });
+      assert.throws(() => release(), /writer is waiting/, `a pending ${delivery} delivery can start another turn`);
+      assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+      f.change((r) => { delete r.tickets[1901].owner[delivery]; });
+    }
+    const asked = f.change((r) => run.request(r, { ticket: 1901, text: "May I continue?", source: "fixture transcript" }));
+    f.change((r) => {
+      run.answer(r, { ticket: 1901, request: asked.id, text: "Yes" });
+      run.answered(r, { ticket: 1901, request: asked.id, evidence: "fixture transcript" });
+      const own = r.tickets[1901];
+      own.results.at(-1).time = new Date(Date.parse(own.requests.at(-1).answer.time) - 1).toISOString();
+    });
+    assert.throws(() => release(), /writer is waiting/, "the earlier report cannot settle a session after a delivered follow-up");
+    assert.notEqual(actions(planOf(f, snapshotOf(300, [closed]), { observations }))[1901], "release");
+    f.change((r) => run.result(r, { ticket: 1901, report }));
+    f.change((r) => { r.tickets[1901].owner.branch = null; });
+    closingTicket = 1903;
+    assert.throws(() => release(), /writer is waiting/, "a PR with no claim to the ticket is refused even without a recorded branch");
+    closingTicket = 1901;
+    f.change((r) => { r.tickets[1901].owner.branch = branch; });
+    const planned = planOf(f, snapshotOf(300, [closed]), { observations });
+    const otherMerge = { ...closed, prs: [{ ...merged, onMain: false }, { ...merged, number: 1903 }] };
+    assert.equal(actions(planOf(f, snapshotOf(300, [otherMerge]), { observations }))[1901], "done", "the reported PR itself must be on origin/main to plan release");
+    assert.doesNotThrow(() => release(), "the idle session's recorded report and closed, delivered ticket allow release");
+    assert.equal(actions(planned)[1901], "release");
+    assert.equal(planned.concurrency.active, 1, "the place stays held until release is recorded");
+    const settled = run.readRecord(f.file).tickets[1901];
+    assert.equal(settled.owner, null);
+    assert.match(settled.history.at(-1).released, /origin\/main.*Read its final transcript/);
+    const after = planOf(f, snapshotOf(300, [closed]), { observations });
+    assert.deepEqual([actions(after)[1901], after.concurrency.active], ["done", 0]);
+  }
+
+  {
+    const f = fresh("r1");
+    const snap = snapshotOf(300, [{ ...ticket(301), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [301])];
+    f.change((r) => run.claim(r, { plan: write("r1-plan.json", planOf(f, snap, { preflights: pre })), ticket: 301, worktree: path.join(f.dir, "wt-301"), branch: "fix/301-thing", artifactParent: f.artifacts }));
+    const stop = path.join(f.dir, "stop-301");
+    const owner = f.change((r) => run.launch(r, { ticket: 301, executable: process.execPath, args: [standIn, "-p", "--model", "claude-opus-5-5", "--effort", "medium", "--permission-mode", "bypassPermissions", "--stop", stop], prompt })).owner;
+    started.push({ stop, pid: owner.handle.pid });
+    waitFor(() => fs.existsSync(path.join(owner.handle.launchDir, "out.jsonl")) && fs.statSync(path.join(owner.handle.launchDir, "out.jsonl")).size > 0, "the r1 writer to start");
+    const { host, pid, start } = owner.handle;
+    const seenExit = { host, start, state: "exited" };
+    const observed = (seen) => ({ processes: { [pid]: seen } });
+    const identify = () => { throw new Error("Process start identity unavailable"); };
+    assert.equal(run.ownerStatus(owner, observed(seenExit)).status, "live", "a matching live wrapper identity overrides an exit observation");
+    process.kill(owner.handle.pid);
+    waitFor(() => { const now = processIdentity(owner.handle.pid); return !now || now.start !== owner.handle.start; }, "the r1 wrapper to exit");
+    const status = run.ownerStatus(owner);
+    assert.equal(status.status, "live", "the writer outlives its wrapper");
+    assert.match(status.reason, /still names launch directory/);
+    assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: {} })), /writer is live/);
+    assert.equal(actions(planOf(f, snap, { preflights: pre }))[301], "observe", "no replacement is offered while the writer runs");
+    assert.equal(run.ownerStatus(owner, {}, { census: () => null }).status, "unknown", "a failed census proves nothing");
+    const afterProbeFailure = (seen, census) => run.ownerStatus(owner, observed(seen), { identify, census });
+    for (const seen of [undefined, { ...seenExit, host: "other-host" }, { ...seenExit, start: "other-start" }, { ...seenExit, state: "running" }]) {
+      assert.equal(afterProbeFailure(seen, () => []).status, "unknown", "an unreadable wrapper requires a matching exit observation even when the census is empty");
+    }
+    const noStart = { ...owner, handle: { ...owner.handle, start: undefined } };
+    assert.equal(run.ownerStatus(noStart, observed({ ...seenExit, start: undefined }), { identify, census: () => [] }).status, "unknown", "missing start identities do not match");
+    assert.match(afterProbeFailure(seenExit, () => null).reason, /process census failed/, "a verified wrapper exit still requires a successful census");
+    const observedStatus = afterProbeFailure({ ...seenExit, launchDirUnused: true });
+    assert.equal(observedStatus.status, "live", "a fresh census still protects a writer after an observed wrapper exit");
+    assert.match(observedStatus.reason, /still names launch directory/);
+    assert.throws(() => f.change((r) => run.release(r, { ticket: 301, observations: observed(seenExit), identify })), /writer is live/);
+    console.log(`observed wrapper exit: ${host} pid=${pid} start=${start}; ${observedStatus.reason}`);
+    fs.writeFileSync(stop, "");
+    waitFor(() => run.ownerStatus(owner).status === "exited", "the r1 writer to exit");
+    assert.equal(afterProbeFailure(seenExit).status, "exited", "a matching wrapper exit and a clear live census permit release");
+    f.change((r) => run.release(r, { ticket: 301, observations: observed(seenExit), identify }));
+    assert.equal(run.readRecord(f.file).tickets[301].owner, null);
+    console.log(`released wrapper pid=${pid} after the launch directory drained (injected primary probe failure)`);
+  }
+
+  {
+    const f = fresh("r2");
+    const pointerLock = `${run.pointerFile(f.dir, "acme/widgets", 300)}.lock`;
+    const takeover = () => run.initRecord({ record: path.join(f.artifacts, "c.json"), checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: "local_c", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    fs.writeFileSync(pointerLock, JSON.stringify({ token: "b", identity: processIdentity(process.pid) }));
+    assert.throws(takeover, new RegExp(`Process ${process.pid} holds .*pointer|Process ${process.pid} holds`), "a takeover in progress blocks another");
+    fs.unlinkSync(pointerLock);
+    fs.writeFileSync(`${f.file}.lock`, JSON.stringify({ token: "m", identity: processIdentity(process.pid) }));
+    assert.throws(takeover, /holds/, "a change in progress to the previous record blocks the copy");
+    fs.unlinkSync(`${f.file}.lock`);
+    assert.ok(!fs.existsSync(path.join(f.artifacts, "c.json")), "a refused takeover writes no record");
+    assert.equal(takeover().action, "takeover");
+    assert.throws(() => run.initRecord({ record: path.join(f.artifacts, "d.json"), checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: "local_d", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB }), /previous coordinator local_c is unknown/, "a stale view of the first coordinator cannot replace the second");
+  }
+
+  {
+    const f = fresh("r3");
+    const lock = `${f.file}.lock`, self = processIdentity(process.pid);
+    fs.writeFileSync(lock, JSON.stringify({ token: "old", identity: { pid: self.pid, start: "0" } }));
+    assert.throws(() => run.recoverLock(f.file, { identify: () => { fs.writeFileSync(lock, JSON.stringify({ token: "new-live", identity: self })); return null; } }), /changed during recovery/);
+    assert.equal(JSON.parse(fs.readFileSync(lock, "utf8")).token, "new-live", "the new generation survives");
+    fs.unlinkSync(lock);
+    fs.writeFileSync(`${lock}.recovery`, "{}");
+    assert.throws(() => run.recoverLock(f.file), /Another recovery/);
+    assert.throws(() => f.change(() => {}), /Recovery of .* is in progress/);
+    assert.ok(!fs.existsSync(lock), "a refused mutation gives its lock back");
+    fs.unlinkSync(`${lock}.recovery`);
+  }
+
+  {
+    const f = fresh("r4");
+    const wt = path.join(f.dir, "wt-402");
+    fs.mkdirSync(wt);
+    const snap = snapshotOf(300, [{ ...ticket(401), parent: 300, prs: [{ number: 801, state: "OPEN", isDraft: true, branch: "fix/401-thing", head: "h1", rounds: 2 }] }, { ...ticket(402), parent: 300, worktrees: [{ path: wt, branch: "feat/402-thing", head: "h2" }] }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [401, 402])];
+    const planFile = write("r4-plan.json", planOf(f, snap, { preflights: pre }));
+    const entry = readJsonFile(planFile).tickets.find((t) => t.number === 401);
+    assert.deepEqual([entry.action, entry.continueWith.route, entry.rounds], ["adopt-pr", "claude-cli", 2]);
+    assert.throws(() => f.change((r) => run.claim(r, { plan: planFile, ticket: 401, worktree: path.join(f.dir, "wt-401"), branch: "fix/401-thing", artifactParent: f.artifacts, operation: "continue" })), /--evidence must say/);
+    assert.throws(() => f.change((r) => run.claim(r, { plan: planFile, ticket: 401, worktree: path.join(f.dir, "wt-401"), branch: "fix/401-other", artifactParent: f.artifacts, operation: "continue", evidence: "x" })), /existing branch fix\/401-thing/);
+    f.change((r) => run.claim(r, { plan: planFile, ticket: 401, worktree: path.join(f.dir, "wt-401"), branch: "fix/401-thing", artifactParent: f.artifacts, operation: "continue", evidence: "the previous writer's session is archived" }));
+    const pending = run.readRecord(f.file).tickets[401].pending;
+    assert.deepEqual([pending.operation, pending.route, pending.continues.pr, pending.continues.rounds], ["dispatch", "claude-cli", 801, 2]);
+    assert.match(run.brief(run.readRecord(f.file), planFile, 401, [], defaults), /checked out from the existing origin branch on branch fix\/401-thing and its PR #801, which has started 2 review rounds/);
+    const plan2 = write("r4-plan2.json", planOf(f, snap, { preflights: pre }));
+    assert.throws(() => f.change((r) => run.claim(r, { plan: plan2, ticket: 402, worktree: path.join(f.dir, "elsewhere"), branch: "feat/402-thing", artifactParent: f.artifacts, operation: "continue", evidence: "ended" })), /one the plan found for #402/);
+    f.change((r) => run.claim(r, { plan: plan2, ticket: 402, worktree: wt, branch: "feat/402-thing", artifactParent: f.artifacts, operation: "continue", evidence: "ended" }));
+    assert.match(run.brief(run.readRecord(f.file), plan2, 402, [], defaults), new RegExp(`Continue the existing work in ${wt.replace(/[\\.]/g, (c) => `\\${c}`)} on branch feat/402-thing`));
+  }
+
+  {
+    const f = fresh("r5");
+    const held = { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" }, tickets: { 501: { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: "w", handle: { kind: "session", id: "local_w501" } }, pending: null, history: [], results: [] } } };
+    const snap = snapshotOf(300, [{ ...ticket(501), parent: 300, container: true }, { ...ticket(502), parent: 300 }]);
+    const p = run.planDispatch({ record: held, snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [502])], observations: { sessions: { local_w501: { state: "running" } } }, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(p)[501], actions(p)[502], p.concurrency.active], ["decision-needed", "wait-capacity", 1]);
+    assert.match(p.tickets.find((t) => t.number === 501).reason, /gained sub-issues while writer local_w501 \(live\)/);
+  }
+
+  {
+    const chain = (from, to) => Object.fromEntries(Array.from({ length: to - from }, (_, i) => [from + i, [{ number: from + i + 1, state: "open", title: `n${from + i + 1}` }]]));
+    const nested = (links) => ({ ...client, worktrees: () => [], pulls: () => [], blockedBy: () => [], subIssues: (n) => links[n] ?? [] });
+    const deep = run.takeSnapshot({ repository: "acme/widgets", issue: 600 }, nested(chain(600, 604)));
+    assert.deepEqual(deep.tickets.map((t) => [t.number, t.container]), [[601, true], [602, true], [603, true], [604, false]], "a leaf four levels down is a ticket");
+    const tooDeep = run.takeSnapshot({ repository: "acme/widgets", issue: 700 }, nested(chain(700, 700 + run.MAX_SUB_ISSUE_DEPTH + 1)));
+    const last = tooDeep.tickets.at(-1);
+    assert.deepEqual([last.container, last.truncated], [true, true]);
+    const f = fresh("r6", 700);
+    assert.equal(actions(planOf(f, tooDeep))[last.number], "decision-needed");
+  }
+
+  {
+    const f = fresh("r7");
+    const pr = (n) => ({ number: 900 + n, state: "OPEN", isDraft: true, branch: `fix/${n}-thing`, head: "h", rounds: 1 });
+    const pre = [available("claude-cli", "claude-opus-5-5", [701, 702, 703])];
+    const limited = (limit) => ({ ...run.readRecord(f.file), concurrency: { limit, basis: "test" } });
+    const blocked = run.planDispatch({ record: limited(1), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)], blockers: [{ number: 99, state: "open", delivered: false }] }, { ...ticket(702), parent: 300, prs: [pr(702)], blockers: [{ number: 99, state: "open", delivered: false }] }]), preflights: pre, freeBytes: 100 * GB, defaults });
+    for (const n of [701, 702]) {
+      const entry = blocked.tickets.find((t) => t.number === n);
+      assert.equal(entry.continueWith, undefined, `#${n} with an undelivered blocker has no continuation`);
+      assert.match(entry.continueBlocked, /waiting for #99 \(open\)/);
+    }
+    const bounded = run.planDispatch({ record: limited(1), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(702), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-702"), branch: "fix/702-thing", head: "h" }] }]), preflights: pre, freeBytes: 100 * GB, defaults });
+    for (const entry of [701, 702].map((n) => bounded.tickets.find((t) => t.number === n))) {
+      assert.equal(entry.continueWith, undefined, `#${entry.number}: the other ticket's writer may still run`);
+      assert.match(entry.continueBlocked, /1 other writers, held or possibly running on existing work, fill the limit of 1/);
+    }
+    const released = { ...limited(1), tickets: { 702: { owner: null, pending: null, history: [{ released: "session archived" }], results: [] } } };
+    const freed = run.planDispatch({ record: released, snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(702), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-702"), branch: "fix/702-thing", head: "h" }] }]), preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.equal(freed.concurrency.active, 1, "the released ticket's existing work reserves nothing");
+    assert.equal(freed.tickets.find((t) => t.number === 701).continueWith.route, "claude-cli");
+    assert.match(freed.tickets.find((t) => t.number === 702).continueBlocked, /1 other writers, .* fill the limit of 1/, "the ended writer's ticket waits for the other ticket's possibly running writer");
+    const planFile = write("r7-plan.json", run.planDispatch({ record: run.readRecord(f.file), snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(703), parent: 300, prs: [pr(703)] }]), preflights: pre, freeBytes: 100 * GB, defaults }));
+    f.change((r) => run.claim(r, { plan: planFile, ticket: 701, worktree: path.join(f.dir, "wt-701"), branch: "fix/701-thing", artifactParent: f.artifacts, operation: "continue", evidence: "archived" }));
+    const after = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: snapshotOf(300, [{ ...ticket(701), parent: 300, prs: [pr(701)] }, { ...ticket(703), parent: 300, prs: [pr(703)] }]), preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.match(after.tickets.find((t) => t.number === 703).continueBlocked, /fill the limit of 1/, "a claimed continuation holds its place");
+  }
+
+  {
+    const f = fresh("r11");
+    const snap = snapshotOf(300, [{ ...ticket(1201), parent: 300 }, { ...ticket(1202), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1201, 1202])];
+    const oldPlan = write("r11-old.json", planOf(f, snap, { preflights: pre }));
+    const second = path.join(f.artifacts, "b.json");
+    run.initRecord({ record: second, checkout: f.dir, repository: "acme/widgets", issue: 300, coordinator: "local_b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #300.", concurrency: 1, takeover: true, observations: { sessions: { local_r: { state: "archived" } } } }, { defaults, freeBytes: 40 * GB, totalMemory: 64 * GB });
+    assert.equal(run.readRecord(second).revision, 1, "the new run also starts at revision 1");
+    assert.throws(() => run.updateRecord(second, { expectRevision: 1, coordinator: "local_b" }, (r) => run.claim(r, { plan: oldPlan, ticket: 1202, worktree: path.join(f.dir, "wt-1202"), branch: "fix/1202-thing", artifactParent: f.artifacts })), /made for another run/);
+  }
+
+  {
+    const f = fresh("r12");
+    const pr = { number: 1301, state: "OPEN", isDraft: true, branch: "fix/1301-thing", head: "h", rounds: 1 };
+    const snapNew = snapshotOf(300, [{ ...ticket(1301), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1301])];
+    f.change((r) => run.claim(r, { plan: write("r12-plan.json", planOf(f, snapNew, { preflights: pre })), ticket: 1301, worktree: path.join(f.dir, "wt-1301"), branch: "fix/1301-thing", artifactParent: f.artifacts }));
+    fs.mkdirSync(run.launchDirOf(run.readRecord(f.file).tickets[1301].pending, 1301), { recursive: true });
+    assert.equal(f.change((r) => run.reconcile(r, { ticket: 1301, census: () => [] })).outcome, "not running");
+    const withPr = snapshotOf(300, [{ ...ticket(1301), parent: 300, prs: [pr] }]);
+    const p = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: withPr, preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.equal(p.concurrency.active, 0, "a census-settled writer reserves nothing");
+    assert.equal(p.tickets[0].continueWith.route, "claude-cli");
+  }
+
+  {
+    const dir = path.join(tmp, "r13");
+    fs.mkdirSync(path.join(dir, "artifacts"), { recursive: true });
+    git(tmp, "init", "-q", "-b", "main", dir);
+    git(dir, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "base");
+    const file = path.join(dir, "artifacts", "run.json");
+    const made = run.initRecord({ record: file, checkout: dir, repository: "acme/widgets", issue: 300, coordinator: "local_r", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "x" }, { defaults, freeBytes: 5 * GB, totalMemory: 64 * GB });
+    assert.deepEqual([made.record.concurrency.limit, made.diskAdmits], [32, 0]);
+    const snap = snapshotOf(300, [{ ...ticket(1401), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1401])];
+    const low = run.planDispatch({ record: run.readRecord(file), snapshot: snap, preflights: pre, freeBytes: 5 * GB, defaults });
+    assert.match(low.tickets[0].reason, /free disk does not admit another writer/);
+    assert.equal(run.planDispatch({ record: run.readRecord(file), snapshot: snap, preflights: pre, freeBytes: 40 * GB, defaults }).tickets[0].action, "dispatch", "after disk recovery the next plan dispatches");
+  }
+
+  {
+    const f = fresh("r14");
+    const held = { ...run.readRecord(f.file), concurrency: { limit: 3, basis: "test" }, tickets: { 1501: { owner: { route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: "w", handle: { kind: "session", id: "local_w1501" } }, pending: null, history: [], results: [] } } };
+    const snap = snapshotOf(300, [{ ...ticket(1501), parent: 300, container: true }, { ...ticket(1502), parent: 1501 }, { ...ticket(1503), parent: 1501, prs: [{ number: 1601, state: "OPEN", isDraft: true, branch: "fix/1503-thing", head: "h", rounds: 0 }] }, { ...ticket(1504), parent: 300 }]);
+    const p = run.planDispatch({ record: held, snapshot: snap, preflights: [available("claude-cli", "claude-opus-5-5", [1502, 1503, 1504])], observations: { sessions: { local_w1501: { state: "running" } } }, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([1501, 1502, 1503, 1504].map((n) => actions(p)[n]), ["decision-needed", "wait-dependency", "adopt-pr", "dispatch"]);
+    assert.match(p.tickets.find((t) => t.number === 1502).reason, /parent #1501 is still held/);
+    assert.match(p.tickets.find((t) => t.number === 1503).continueBlocked, /parent #1501 is still held/);
+  }
+
+  {
+    const f = fresh("r18");
+    const pre = [available("claude-cli", "claude-opus-5-5", [2201, 2202, 2204]), { route: "claude-cli", model: "claude-opus-5-5", verdicts: [{ ticket: 2203, effort: "high", verdict: "available" }] }];
+    const snap = snapshotOf(300, [
+      { ...ticket(2201), parent: 300, prs: [{ number: 2301, state: "OPEN", isDraft: false, branch: "fix/2201-thing", head: "h", rounds: 2 }] },
+      { ...ticket(2202), parent: 300 },
+    ]);
+    const one = (rec) => ({ ...rec, concurrency: { limit: 1, basis: "test" } });
+    const p = run.planDispatch({ record: one(run.readRecord(f.file)), snapshot: snap, preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(p)[2201], actions(p)[2202], p.concurrency.active], ["await-maintainer", "wait-capacity", 1], "a ready PR's unsettled writer keeps its place");
+    assert.match(p.tickets.find((t) => t.number === 2201).reason, /may still be running, so find it and record it with adopt/);
+    f.change((r) => run.adopt(r, { plan: write("r18-plan.json", p), ticket: 2201, handleKind: "session", handle: "local_ready", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt-2201") }));
+    f.change((r) => run.release(r, { ticket: 2201, observations: { sessions: { local_ready: { state: "archived" } } } }));
+    const after = run.planDispatch({ record: one(run.readRecord(f.file)), snapshot: snap, preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(after)[2201], actions(after)[2202]], ["await-maintainer", "dispatch"], "once its writer is settled the place is free");
+
+    const nested = snapshotOf(300, [
+      { ...ticket(2203), parent: 300, effort: "High", container: true, prs: [{ number: 2303, state: "OPEN", isDraft: true, branch: "fix/2203-thing", head: "h", rounds: 1 }] },
+      { ...ticket(2204), parent: 2203 },
+    ]);
+    const q = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 3, basis: "test" } }, snapshot: nested, preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(q)[2203], actions(q)[2204]], ["adopt-pr", "wait-dependency"], "a container's unrecorded writer holds its sub-issues");
+    assert.match(q.tickets.find((t) => t.number === 2203).continueBlocked, /now a container/);
+    f.change((r) => run.adopt(r, { plan: write("r18-plan2.json", q), ticket: 2203, handleKind: "session", handle: "local_low", route: "claude-desktop", model: "claude-opus-5-5", effort: "low", worktree: path.join(f.dir, "wt-2203") }));
+    assert.equal(run.readRecord(f.file).tickets[2203].owner.requestedEffort, "high");
+    const { preflight } = await import("../../../../scripts/writer-route-preflight.mjs");
+    const confirmation = write("r18-confirm.json", preflight({ route: "claude-desktop", model: "claude-opus-5-5", tickets: [{ number: 2203, effort: "high", observed: { model: "claude-opus-5-5", effort: "low" } }] }));
+    f.change((r) => run.verify(r, { ticket: 2203, preflight: confirmation }));
+    assert.match(run.readRecord(f.file).tickets[2203].owner.mismatch, /runs claude-opus-5-5 at low, not claude-opus-5-5 at high/);
+  }
+
+  {
+    const f = fresh("r19");
+    const wt = path.join(f.dir, "wt-2401");
+    const merged = { number: 2501, state: "MERGED", isDraft: false, branch: "fix/2401-thing", head: "h", mergeCommit: "m" };
+    const snap = (worktrees) => snapshotOf(300, [{ ...ticket(2401), parent: 300, state: "closed", delivered: true, prs: [merged], worktrees }, { ...ticket(2402), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [2402])];
+    const one = () => ({ ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } });
+    const lingering = run.planDispatch({ record: one(), snapshot: snap([{ path: wt, branch: "fix/2401-thing", head: "h" }]), preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([actions(lingering)[2401], actions(lingering)[2402], lingering.concurrency.active], ["done", "wait-capacity", 1], "a merge does not show the writer ended");
+    assert.match(lingering.tickets.find((t) => t.number === 2401).reason, /its writer is not settled in the record, so it keeps a place/);
+    const planFile = write("r19-plan.json", lingering);
+    assert.throws(() => f.change((r) => run.adopt(r, { plan: planFile, ticket: 2401, handleKind: "session", handle: "local_late", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "elsewhere") })), /one the plan found for #2401/);
+    f.change((r) => run.adopt(r, { plan: planFile, ticket: 2401, handleKind: "session", handle: "local_late", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt }));
+    assert.equal(actions(run.planDispatch({ record: one(), snapshot: snap([{ path: wt, branch: "fix/2401-thing", head: "h" }]), preflights: pre, observations: { sessions: { local_late: { state: "running" } } }, freeBytes: 100 * GB, defaults }))[2402], "wait-capacity", "the adopted writer still holds its place while it runs");
+    f.change((r) => run.release(r, { ticket: 2401, observations: { sessions: { local_late: { state: "archived" } } } }));
+    assert.equal(actions(run.planDispatch({ record: one(), snapshot: snap([{ path: wt, branch: "fix/2401-thing", head: "h" }]), preflights: pre, freeBytes: 100 * GB, defaults }))[2402], "dispatch", "once released, the place is free");
+    const elsewhereRecord = fresh("r19b");
+    const noTree = run.planDispatch({ record: { ...run.readRecord(elsewhereRecord.file), concurrency: { limit: 1, basis: "test" } }, snapshot: snap([]), preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.deepEqual([noTree.concurrency.active, actions(noTree)[2402]], [0, "dispatch"], "a closed ticket with no worktree here reserves nothing");
+    const doneFile = write("r19-done.json", noTree);
+    assert.throws(() => elsewhereRecord.change((r) => run.adopt(r, { plan: doneFile, ticket: 2401, handleKind: "session", handle: "x", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: wt })), /no unsettled writer to adopt/);
+  }
+
+  {
+    const f = fresh("r15");
+    const snap = snapshotOf(300, [{ ...ticket(1701), parent: 300, prs: [{ number: 1801, state: "OPEN", isDraft: true, branch: "fix/1701-thing", head: "h", rounds: 3 }] }]);
+    f.change((r) => run.adopt(r, { plan: write("r15-plan.json", planOf(f, snap)), ticket: 1701, handleKind: "session", handle: "local_w", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const round4 = f.change((r) => run.request(r, { ticket: 1701, text: "May I start review round 4?", source: "transcript" })).id;
+    const scope = f.change((r) => run.request(r, { ticket: 1701, text: "May I expand the implementation scope?", source: "transcript" })).id;
+    const yes = f.change((r) => run.answer(r, { ticket: 1701, request: round4, text: "yes" })).message;
+    const no = f.change((r) => run.answer(r, { ticket: 1701, request: scope, text: "no" })).message;
+    assert.match(yes, /which asked: "May I start review round 4\?"[^\n]*:\nyes/);
+    assert.match(no, /which asked: "May I expand the implementation scope\?"[^\n]*:\nno/);
+  }
+
+  {
+    const f = fresh("r17");
+    const withPr = snapshotOf(300, [{ ...ticket(2001), parent: 300, prs: [{ number: 2101, state: "OPEN", isDraft: true, branch: "fix/2001-thing", head: "h", rounds: 1 }] }, { ...ticket(2002), parent: 300 }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [2001, 2002])];
+    f.change((r) => run.claim(r, { plan: write("r17-plan.json", planOf(f, withPr, { preflights: pre })), ticket: 2001, worktree: path.join(f.dir, "wt-2001"), branch: "fix/2001-thing", artifactParent: f.artifacts, operation: "continue", evidence: "the previous writer's session is archived" }));
+    assert.equal(f.change((r) => run.reconcile(r, { ticket: 2001 })).outcome, "not started");
+    const after = run.planDispatch({ record: { ...run.readRecord(f.file), concurrency: { limit: 1, basis: "test" } }, snapshot: withPr, preflights: pre, freeBytes: 100 * GB, defaults });
+    assert.equal(after.concurrency.active, 0, "neither the never-started continuation nor the ended writer holds a place");
+    assert.equal(actions(after)[2002], "dispatch");
+    assert.equal(run.readRecord(f.file).tickets[2001].history.at(-1).priorEnded, "the previous writer's session is archived");
+  }
+
+  {
+    const f = fresh("r10");
+    const snap = snapshotOf(300, [{ ...ticket(1001), parent: 300, prs: [{ number: 1101, state: "OPEN", isDraft: true, branch: "fix/1001-thing", head: "h", rounds: 1 }] }]);
+    const planFile = write("r10-plan.json", planOf(f, snap));
+    f.change((r) => run.adopt(r, { plan: planFile, ticket: 1001, handleKind: "session", handle: "local_old", route: "claude-adopted", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    const idle = { sessions: { local_old: { state: "idle" } } };
+    assert.equal(actions(planOf(f, snap, { observations: idle }))[1001], "collect-report", "an adopted existing writer is not briefed again");
+    assert.throws(() => f.change((r) => run.deliver(r, { ticket: 1001, retry: true })), /already has its assignment/);
+    const { id } = f.change((r) => run.request(r, { ticket: 1001, text: "may I widen the PR?", source: "transcript" }));
+    assert.equal(actions(planOf(f, snap, { observations: idle }))[1001], "answer-request");
+    f.change((r) => run.release(r, { ticket: 1001, observations: { sessions: { local_old: { state: "archived" } } } }));
+    assert.match(run.readRecord(f.file).tickets[1001].requests[0].closed.reason, /writer was released/);
+    assert.throws(() => f.change((r) => run.answer(r, { ticket: 1001, request: id, text: "yes" })), /closed: its writer was released/);
+    f.change((r) => run.adopt(r, { plan: write("r10-plan2.json", planOf(f, snap)), ticket: 1001, handleKind: "session", handle: "local_new", route: "claude-desktop", model: "claude-opus-5-5", effort: "medium", worktree: path.join(f.dir, "wt") }));
+    assert.equal(actions(planOf(f, snap, { observations: { sessions: { local_new: { state: "idle" } } } }))[1001], "collect-report", "a new writer does not inherit its predecessor's question");
+  }
+
+  {
+    const f = fresh("closed-history");
+    const before = "2020-01-01T00:00:00Z", during = new Date(Date.now() + 3600000).toISOString();
+    const closed = (number, more) => ({ ...ticket(number), parent: 300, state: "closed", stateReason: "completed", closedAt: before, ...more });
+    const snap = snapshotOf(300, [
+      closed(1101, { type: "Task" }),
+      closed(1102, { type: "Bug", parent: 1101, deliveredBy: { ticket: 1101, via: "sub-issue", pr: null, merged: false } }),
+      closed(1103, { type: "Bug" }),
+      closed(1104, { type: "Bug", closedAt: during }),
+      closed(1105, { type: "Bug", stateReason: "not_planned" }),
+      closed(1106, { type: "Bug", prs: [{ number: 1199, state: "MERGED", branch: "fix/1106-thing", mergeCommit: "off-main" }] }),
+    ]);
+    const p = planOf(f, snap);
+    assert.deepEqual(actions(p), { 1101: "done", 1102: "done", 1103: "done", 1104: "decision-needed", 1105: "decision-needed", 1106: "decision-needed" });
+    for (const n of [1101, 1102, 1103]) assert.match(p.tickets.find((t) => t.number === n).reason, /closed before the run, delivered outside it/);
+    assert.match(p.tickets.find((t) => t.number === 1105).reason, /closed as not planned/);
+    assert.equal(p.concurrency.active, 0, "history holds no writer place");
+    const waiting = (blocker) => snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: blocker, state: "closed", delivered: false }] }]);
+    const pre = [available("claude-cli", "claude-opus-5-5", [1107])];
+    assert.equal(actions(planOf(f, waiting(1103), { preflights: pre }))[1107], "dispatch", "history counts as a delivered blocker");
+    assert.equal(actions(planOf(f, waiting(1104), { preflights: pre }))[1107], "wait-dependency", "a blocker closed during the run without its deliverable still holds");
+    const asking = (state) => snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: 2290, state, delivered: false, request: true }] }]);
+    assert.equal(actions(planOf(f, asking("closed"), { preflights: pre }))[1107], "dispatch", "a closed maintainer request is a met blocker, with no deliverable to wait for");
+    const held = planOf(f, asking("open"), { preflights: pre }).tickets.find((t) => t.number === 1107);
+    assert.equal(held.action, "wait-dependency", "an open maintainer request holds the ticket");
+    assert.deepEqual(held.waitingFor, [2290]);
+    assert.match(held.reason, /waiting for #2290 \(an open maintainer request\)/);
+    const wentAhead = snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: 2290, state: "open", delivered: false, request: true, wentAhead: true }] }]);
+    assert.equal(actions(planOf(f, wentAhead, { preflights: pre }))[1107], "dispatch", "an open request that went ahead without the maintainer no longer holds the ticket");
+    const alsoOpen = snapshotOf(300, [...snap.tickets, { ...ticket(1107), parent: 300, blockers: [{ number: 2290, state: "open", delivered: false, request: true, wentAhead: true }, { number: 2291, state: "open", delivered: false, request: true }] }]);
+    const stillHeld = planOf(f, alsoOpen, { preflights: pre }).tickets.find((t) => t.number === 1107);
+    assert.deepEqual([stillHeld.action, stillHeld.waitingFor], ["wait-dependency", [2291]], "a request still waiting beside one that went ahead holds the ticket, naming only the waiting one");
+    {
+      const maintainer = readRepos().maintainer;
+      const isRequest = run.maintainerRequest(maintainer);
+      const labelled = (name, state) => ({ number: name === "plain" ? 2299 : 2290, state, labels: name === "plain" ? [{ name: "workflow: skills" }] : [{ name: maintainer.labels[name] }] });
+      const requestClient = { fetchMain: () => "m1", worktrees: () => [], onMain: () => false, issue: (n) => ({ number: n, state: "open", title: "T", body: "", type: { name: "Task" } }), subIssues: (n) => (n === 300 ? [{ number: 1107, state: "open", title: "slice" }] : []), blockedBy: () => [labelled("decision", "closed"), labelled("plain", "closed")], fields: () => ({ effort: "Medium", priority: null }), pulls: () => [], comments: () => [], checks: () => [] };
+      const read = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, requestClient).tickets.find((t) => t.number === 1107);
+      assert.deepEqual(read.blockers, [{ number: 2290, state: "closed", delivered: false, request: true }, { number: 2299, state: "closed", delivered: false }], "the snapshot marks a blocker labelled as a maintainer request");
+      assert.deepEqual([labelled("decision"), labelled("task"), labelled("decidedWithoutYou"), labelled("plain")].map(isRequest), [true, true, false, false], "a decision or task label marks a request; the decided-without-you label alone does not");
+      const fallbackAt = "2026-11-13T17:37:00.000Z";
+      const requestBody = `Body\n<!-- maintainer-request ${JSON.stringify({ kind: "decision", options: ["A", "B"], recommended: "A", fallback: { option: "B", at: fallbackAt }, blocks: [1107], owner: "orchestrate-issues #300", wentAhead: { option: "B", name: "Two", owner: "orchestrate-issues #300", at: "2026-11-13T17:40:00.000Z", fallbackAt } })} -->\n`;
+      const labeled = { event: "labeled", label: { name: maintainer.labels.decidedWithoutYou }, created_at: "2026-11-13T17:40:02Z", actor: { login: maintainer.login } };
+      const asked = { event: "commented", id: 2, created_at: "2026-11-13T17:40:01Z", user: { login: maintainer.login, type: "User" }, html_url: "https://github.com/acme/tickets/issues/2290#issuecomment-2", body: "Wait. Can I see A first?" };
+      const timelines = { 2290: [labeled], 2292: [asked, labeled] };
+      const labelledRequest = (number) => ({ number, state: "open", body: requestBody, html_url: `https://github.com/acme/tickets/issues/${number}`, title: "Which? (#1107)", labels: [{ name: maintainer.labels.decision }, { name: maintainer.labels.decidedWithoutYou }] });
+      const aheadClient = { ...requestClient, timeline: (n) => timelines[n] ?? [], blockedBy: () => [labelledRequest(2290), { number: 2291, state: "open", labels: [{ name: maintainer.labels.decision }] }, labelledRequest(2292)] };
+      const ahead = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, aheadClient).tickets.find((t) => t.number === 1107);
+      assert.deepEqual(ahead.blockers, [{ number: 2290, state: "open", delivered: false, request: true, wentAhead: true }, { number: 2291, state: "open", delivered: false, request: true }, { number: 2292, state: "open", delivered: false, request: true }], "the snapshot marks an open labelled request as gone ahead only when its timeline shows the fallback committed; a commit edit that landed after a maintainer question does not count");
+      assert.equal(actions(planOf(f, snapshotOf(300, [...snap.tickets, { ...ahead, parent: 300 }]), { preflights: pre }))[1107], "wait-dependency", "the uncommitted fallback and the waiting request still hold the ticket");
+      assert.deepEqual([{ request: true, state: "open", wentAhead: true }, { request: true, state: "open" }, { request: true, state: "closed" }, { state: "open", wentAhead: true }].map(run.requestMet), [true, false, true, false], "a request is met once closed or once it went ahead; the flag alone on a non-request is not");
+      assert.equal(actions(planOf(f, snapshotOf(300, [...snap.tickets, { ...read, parent: 300 }]), { preflights: pre }))[1107], "wait-dependency", "the closed plain blocker without a deliverable still holds beside the met request");
+    }
+    console.log("ok: a ticket blocked by a closed maintainer request, or by an open one that went ahead without the maintainer, is no longer waiting, and one blocked by an open request waits naming it");
+    const umbrella = snapshotOf(300, [
+      { ...ticket(1108), parent: 300, type: "Task" },
+      closed(1109, { type: "Bug", parent: 1108, deliveredBy: { ticket: 1108, via: "sub-issue", pr: null, merged: false }, blockers: [{ number: 900, state: "closed", delivered: false }] }),
+    ]);
+    assert.deepEqual(actions(planOf(f, umbrella, { preflights: [available("claude-cli", "claude-opus-5-5", [1108])] })), { 1108: "dispatch", 1109: "done" });
+    const record = run.readRecord(f.file), start = run.runStartedAt(record);
+    const second = new Date(Math.floor(Date.parse(start) / 1000) * 1000).toISOString().replace(".000Z", "Z");
+    assert.equal(run.closedBeforeRun(record, closed(1110, { closedAt: second })), false, "a closure in the start's second");
+    assert.equal(run.closedBeforeRun(record, closed(1110, { closedAt: new Date(Date.parse(second) - 1000).toISOString() })), true, "a closure in the second before");
+    const reclosed = snapshotOf(300, snap.tickets.map((t) => (t.number === 1103 ? { ...t, closedAt: during } : t)));
+    assert.notDeepEqual(run.snapshotScope(reclosed).slices, run.snapshotScope(snap).slices);
+    const client = { subIssues: (n) => (n === 300 ? [{ number: 1103, title: "t", state: "closed", state_reason: "completed", closed_at: before, type: { name: "Bug" }, body: "" }] : []), pulls: () => [] };
+    const [walked] = run.walkSubIssues(300, client);
+    assert.deepEqual([walked.stateReason, walked.closedAt], ["completed", before]);
+  }
+
+  {
+    const f = fresh("filed");
+    const pre = [available("claude-cli", "claude-opus-5-5", [3001, 3003])];
+    assert.ok(run.REPORT_FIELDS.includes("filed"), "the report has a field for filed tickets");
+    const claimed = f.change((r) => run.claim(r, { plan: write("filed-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3001), parent: 300 }]), { preflights: pre })), ticket: 3001, worktree: path.join(f.dir, "wt-3001"), branch: "fix/3001-thing", artifactParent: f.artifacts }));
+    assert.deepEqual(claimed.reportFields, run.REPORT_FIELDS, "the claim keeps the fields its brief asks for");
+    f.change((r) => { const t = r.tickets[3001]; t.owner = { ...t.pending, handle: { kind: "session", id: "local_w3001" }, since: new Date().toISOString() }; t.pending = null; });
+    const base = { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 3901, reviewedHead: "abc1234", rounds: { codex: 1 }, findings: "None", verification: "tests", ci: "test-suite passed", next: "none" };
+    assert.throws(() => f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r0.json", base) })), /lacks filed/, "a writer briefed for it reports its filed tickets");
+    const named = f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r1.json", { ...base, filed: [{ number: 3002, reading: "completes the fix" }] }) }));
+    assert.match(named.filed, /#3002 as filed; confirm each on GitHub/, "the report's list is a hint to confirm");
+    f.change((r) => { r.tickets[3009] = { owner: { route: "claude-cli", model: "claude-opus-5-5", effort: "medium", handle: { kind: "session", id: "local_old" }, adopted: { pr: null, rounds: 0 }, since: new Date().toISOString() }, pending: null, history: [], results: [] }; });
+    assert.match(f.change((r) => run.result(r, { ticket: 3009, report: write("filed-r2.json", { ...base, pr: 3909 }) })).filed, /read what #3009's writer filed from GitHub/, "an older writer's report still records");
+    assert.equal(run.readRecord(f.file).tickets[3009].results.length, 1);
+    assert.throws(() => f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r3.json", { ...base, filed: "#3002: removes the guard in #3001, needed by parent #300" }) })), /filed field must be "None" or a list of entries/);
+    assert.throws(() => f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r4.json", { ...base, filed: [{ reading: "no number" }] }) })), /filed field must be "None" or a list/);
+    f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r5.json", { ...base, filed: "None." }) }));
+    assert.deepEqual(run.filedNumbers([3002, { number: 3003, reading: "x" }, 3002]), [3002, 3003]);
+    assert.deepEqual(run.filedNumbers("None"), []);
+    const filedOf = (p) => Object.fromEntries(p.filed.map((x) => [x.number, x.action]));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3002: "confirm-filed" });
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3002, ticket: 3001, pr: 3901 })), /--source must say where GitHub confirms/);
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 300, source: "x" })), /is the parent issue/);
+    f.change((r) => run.filed(r, { filed: 3002, ticket: 3001, pr: 3901, source: "PR #3901's report, Notes for reviewers", reading: "completes the fix" }));
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3002, source: "again" })), /already recorded as filed/);
+    let p = planOf(f, snapshotOf(300, []));
+    assert.deepEqual(filedOf(p), { 3002: "triage-filed" }, "a recorded ticket with no outcome is an action");
+    assert.ok(p.remaining.some((line) => /#3002 \(triage-filed\)/.test(line)), "the remaining work names it");
+    const verified = { ...run.readRecord(f.file), verifications: [{ verdict: "complete", mainSha: "abc", criteria: [], acceptanceSha256: null, tickets: [3001] }] };
+    const doneSnap = { ...snapshotOf(300, [{ ...ticket(3001), parent: 300, state: "closed", delivered: true }]), issue: { number: 300, state: "open", criteria: [], acceptanceSha256: null } };
+    assert.deepEqual(run.verificationGaps(verified, doneSnap), ["#3002 was filed during the run and has no triage outcome; triage it with issue-run.mjs triage"]);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "later" })), /--outcome must be completes, needed, separate, maintainer/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "completes", reason: "same root cause" })), /--slice must name the slice/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3002, outcome: "separate", reason: "outside the parent's goal" })), /--under must name the umbrella[\s\S]*record maintainer instead/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3004, outcome: "separate", under: 1259, reason: "x" })), /not recorded as filed/);
+    f.change((r) => { r.filed[3002].outcome = { kind: "separate", reason: "outside the parent's goal", time: "2026-10-01T00:00:00.000Z" }; });
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3002: "triage-filed" }, "a saved separate outcome with no umbrella is triaged again");
+    assert.deepEqual(run.verificationGaps({ ...run.readRecord(f.file), verifications: verified.verifications }, doneSnap), ["#3002 was triaged separate with no umbrella it was attached under; triage it again with issue-run.mjs triage --under, or record maintainer"]);
+    f.change((r) => run.triage(r, { filed: 3002, outcome: "separate", under: 1259, reason: "outside the parent's goal" }));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {}, "a separate outcome under an umbrella settles the ticket");
+    f.change((r) => run.triage(r, { filed: 3002, outcome: "completes", slice: 3001, reason: "it replaces the guard PR #3901 adds" }));
+    assert.deepEqual(run.verificationGaps({ ...run.readRecord(f.file), verifications: verified.verifications }, doneSnap), [], "a triaged ticket leaves the verification holding");
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {});
+    assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002]);
+    const slicePr = (closes) => ({ number: 3901, state: "OPEN", isDraft: true, branch: "fix/3001-thing", head: "h", rounds: 1, closes });
+    p = planOf(f, snapshotOf(300, [{ ...ticket(3001), parent: 300, prs: [slicePr([3001])] }, { ...ticket(3002), parent: 300 }]), { preflights: [available("claude-cli", "claude-opus-5-5", [3002])], observations: { sessions: { local_w3001: { state: "running" } } } });
+    assert.equal(actions(p)[3002], "wait-dependency");
+    assert.match(p.tickets.find((t) => t.number === 3002).reason, /completes #3001's fix .*makes the proper fix in its PR with a closing reference to #3002/);
+    const issues = { 300: { title: "parent", state: "open", body: "## Acceptance criteria\n\n- [ ] done\n" }, 3001: { title: "slice", state: "open", type: { name: "Bug" }, body: "" }, 3002: { title: "filed", state: "open", type: { name: "Bug" }, body: "" } };
+    const prNode = { number: 3901, state: "OPEN", isDraft: true, headRefName: "fix/3001-thing", headRefOid: "h", baseRefName: "main", closingIssuesReferences: [{ number: 3001 }, { number: 3002 }], mergeCommit: null };
+    const client = { fetchMain: () => "abc", worktrees: () => [], issue: (n) => issues[n], subIssues: (n) => (n === 300 ? [3001, 3002].map((k) => ({ number: k, ...issues[k] })) : []), pulls: (n) => ([3001, 3002].includes(n) ? [prNode] : []), fields: () => ({ effort: "Medium", priority: null }), blockedBy: () => [], comments: () => [], checks: () => [], onMain: () => false };
+    const walked = run.takeSnapshot({ repository: "acme/widgets", issue: 300 }, client);
+    assert.deepEqual(walked.tickets.find((t) => t.number === 3002).deliveredBy, { ticket: 3001, via: "pr", pr: 3901, merged: false });
+    p = planOf(f, walked, { observations: { sessions: { local_w3001: { state: "running" } } } });
+    assert.equal(actions(p)[3002], "delivered-by", "an open slice's PR delivers the completing ticket");
+    assert.deepEqual(p.tickets.find((t) => t.number === 3001).delivers, [3002]);
+    f.change((r) => run.filed(r, { filed: 3003, ticket: 3001, pr: 3901, source: "ticket #3003's provenance line" }));
+    f.change((r) => run.triage(r, { filed: 3003, outcome: "needed", under: 300, reason: "a defect in behavior #3001 changed" }));
+    const needed = (delivered) => snapshotOf(300, [{ ...ticket(3001), parent: 300, state: delivered ? "closed" : "open", delivered }, { ...ticket(3003), parent: 300, blockers: [{ number: 3001, state: delivered ? "closed" : "open", delivered }] }]);
+    const freed = (r) => ({ ...r, tickets: { ...r.tickets, 3001: { ...r.tickets[3001], owner: null } } });
+    assert.equal(actions(run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: needed(false), preflights: pre, freeBytes: 100 * GB, defaults }))[3003], "wait-dependency", "it waits behind the chain's tail");
+    assert.equal(actions(run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: needed(true), preflights: pre, freeBytes: 100 * GB, defaults }))[3003], "dispatch", "a ticket attached mid-run is admitted once its blocker is delivered");
+    f.change((r) => run.filed(r, { filed: 3005, ticket: 3001, pr: 3901, source: "review-pr's deferral Task" }));
+    const cacheKey = (over = {}) => waitingRequest({ number: 9305, url: "https://github.com/acme/widgets/issues/9305", title: "Should the cache key change? (#3005)", question: "Should the cache key change?", owner: "orchestrate-issues #300", tickets: [3005], holding: 3005, holds: true, ...over });
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001 })), /Raising #3005 with the maintainer waits on the maintainer only through a filed request: file a maintainer decision request with .*, naming #3005 in its tickets and "orchestrate-issues #300" as its owner/, "triage --outcome maintainer refuses without a request number");
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001, maintainerRequest: cacheKey({ kind: "task" }) })), /#9305 is a maintainer task request; Raising #3005 with the maintainer needs a decision request/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001, maintainerRequest: cacheKey({ tickets: [3001] }) })), /does not hold up #3005/);
+    assert.throws(() => f.change((r) => run.triage(r, { filed: 3005, outcome: "needed", under: 300, reason: "x", maintainerRequest: cacheKey() })), /--maintainer-request belongs to --outcome maintainer/);
+    f.change((r) => run.triage(r, { filed: 3005, outcome: "maintainer", question: "Should the cache key change?", slice: 3001, maintainerRequest: cacheKey() }));
+    assert.deepEqual(run.readRecord(f.file).filed[3005].outcome.maintainerRequest, { number: 9305, url: "https://github.com/acme/widgets/issues/9305", title: "Should the cache key change? (#3005)", kind: "decision" }, "the record stores the request number beside the question");
+    const raised = planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9305, state: "open", delivered: false, request: true }] }])).tickets.find((t) => t.number === 3005);
+    assert.deepEqual([raised.action, raised.decides, raised.maintainerRequest], ["decision-needed", "maintainer", { filed: { number: 9305, state: "open" } }], "triage's recorded request is the entry's request");
+    const unlinkedTriage = planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9002, state: "open", delivered: false, request: true }] }])).tickets.find((t) => t.number === 3005);
+    assert.equal(unlinkedTriage.maintainerRequest.unlinked, 9305, "with triage's request no longer blocking the ticket, another open request does not stand in for it");
+    assert.equal(unlinkedTriage.maintainerRequest.triage, true);
+    {
+      const unlinkedPlan = write("triage-unlinked-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }])));
+      const replaced = run.readRecord(f.file);
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }) }), /#3005 was raised with the maintainer in request #9305, which is unread/, "the raised request is read before it is replaced");
+      run.asked(replaced, { plan: unlinkedPlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ holds: false }) });
+      assert.deepEqual([replaced.filed[3005].outcome.maintainerRequest.number, replaced.filed[3005].outcome.replaced.map((r) => r.number), replaced.tickets[3005]?.waits], [9306, [9305], undefined], "asked on a triage entry replaces triage's request, keeping the old one as history");
+      const after = run.planDispatch({ record: replaced, snapshot: snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9306, state: "open", delivered: false, request: true }] }]), freeBytes: 100 * GB, defaults }).tickets.find((t) => t.number === 3005);
+      assert.deepEqual(after.maintainerRequest, { filed: { number: 9306, state: "open" } }, "the next plan names the replacement, so the recovery path converges");
+      const closedTriagePlan = write("triage-closed-plan.json", planOf(f, snapshotOf(300, [{ ...ticket(3005), parent: 300, blockers: [{ number: 9305, state: "closed", delivered: false, request: true }, { number: 9306, state: "open", delivered: false, request: true }] }])));
+      assert.throws(() => run.asked(run.readRecord(f.file), { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "answered" }) }), /#3005 was raised with the maintainer in request #9305, which is answered; record its answer and act on it/, "a raised ticket's answered request, whatever its close reason, is not replaced");
+      const afterWithdrawal = run.readRecord(f.file);
+      run.asked(afterWithdrawal, { plan: closedTriagePlan, ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
+      assert.equal(afterWithdrawal.filed[3005].outcome.maintainerRequest.number, 9306, "a withdrawn one is");
+      const outside = run.readRecord(f.file);
+      run.asked(outside, { ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey({ state: "withdrawn" }) });
+      assert.deepEqual([outside.filed[3005].outcome.maintainerRequest.number, outside.filed[3005].outcome.slice], [9306, 3001], "a raised ticket's request is replaced from the record alone, with no plan entry (a ticket outside the run's tree has none), and its slice hold stays");
+      assert.throws(() => run.asked(run.readRecord(f.file), { ticket: 3005, maintainerRequest: cacheKey({ number: 9306 }), previousRequest: cacheKey() }), /which is waiting; record its answer/, "an open raised request is not replaced");
+      assert.throws(() => run.asked(run.readRecord(f.file), { ticket: 107, maintainerRequest: cacheKey({ number: 9306 }) }), /--plan must name the plan/, "any other wait needs its plan entry");
+    }
+    {
+      const answered = (number, over = {}) => cacheKey({ number, state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: `https://github.com/acme/widgets/issues/${number}#issuecomment-9`, at: "2026-11-13T16:09:00Z", body: "Use the blue label." }], ...over });
+      const retriage = (maintainerRequest) => run.triage(run.readRecord(f.file), { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest });
+      assert.throws(() => retriage(undefined), /#3005 waits on the maintainer's answer in request #9305; triage it as needed only once that answer is recorded or the request is withdrawn, passing --maintainer-request 9305$/, "re-triage refuses to release a pending maintainer question silently");
+      assert.throws(() => retriage(answered(9400)), /passing --maintainer-request 9305, not #9400$/, "an unrelated answer on the same ticket does not release it");
+      assert.throws(() => retriage(cacheKey()), /#9305 has no answer yet: it is waiting/, "nor does the question itself before its answer");
+      assert.throws(() => retriage(answered(9305, { recorded: false })), /answer is not recorded/);
+      const settled = run.readRecord(f.file);
+      run.triage(settled, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: answered(9305) });
+      assert.deepEqual([settled.filed[3005].outcome.kind, settled.filed[3005].outcome.released], ["needed", { request: 9305, state: "answered" }], "the recorded answer releases it, and the record says which request did");
+      const withdrawn = run.readRecord(f.file);
+      run.triage(withdrawn, { filed: 3005, outcome: "needed", under: 300, reason: "the parent needs it", maintainerRequest: cacheKey({ state: "withdrawn" }) });
+      assert.deepEqual(withdrawn.filed[3005].outcome.released, { request: 9305, state: "withdrawn" }, "a withdrawn request releases it too");
+      const reraise = (over) => run.triage(run.readRecord(f.file), { filed: 3005, outcome: "maintainer", question: "May the narrow fix merge?", slice: 3001, maintainerRequest: cacheKey(), ...over });
+      assert.throws(() => reraise({ slice: undefined }), /#3005 waits on the maintainer's answer in request #9305, holding #3001's PR; raising it again keeps that request and --slice 3001/, "raising it again without its slice would drop the slice's hold");
+      assert.throws(() => reraise({ slice: 3002 }), /keeps that request and --slice 3001/, "moving the hold to another slice is refused too");
+      assert.throws(() => reraise({ maintainerRequest: cacheKey({ number: 9307 }) }), /raising it again keeps that request.*Replace the request with asked/, "a new request goes through asked, which keeps the slice");
+      const reworded = run.readRecord(f.file);
+      run.triage(reworded, { filed: 3005, outcome: "maintainer", question: "May the narrow fix merge?", slice: 3001, maintainerRequest: cacheKey() });
+      assert.deepEqual([reworded.filed[3005].outcome.question, reworded.filed[3005].outcome.slice, reworded.filed[3005].outcome.maintainerRequest.number], ["May the narrow fix merge?", 3001, 9305], "rewording the question keeps the request and the hold");
+    }
+    assert.match(raised.reason, /raised with the maintainer: "Should the cache key change\?".*; maintainer request #9305 is open: the maintainer has not answered$/, "the plan names the filed request");
+    assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002, 3005]);
+    const keepNarrow = cacheKey({ state: "answered", answered: true, recorded: true, closed: { at: "2026-11-13T16:10:05Z", by: "maintainer", reason: "completed" }, words: [{ url: "https://github.com/acme/widgets/issues/9305#issuecomment-5", at: "2026-11-13T16:09:00Z", body: "Keep the narrow fix for now." }] });
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3003, maintainerRequest: keepNarrow })), /not triaged as completing/);
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent" })), /interim takes the number of an answered maintainer request with --maintainer-request, never typed decision text/, "interim refuses typed decision text");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: cacheKey() })), /#9305 has no answer yet: it is waiting/, "interim refuses an unanswered request");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: { ...keepNarrow, number: 9400, url: "https://github.com/acme/widgets/issues/9400" } })), /#3005 was raised with the maintainer in request #9305; only that request's recorded answer accepts the narrow fix as an interim, not #9400/, "an unrelated recorded answer on the same ticket does not release the slice's hold");
+    assert.throws(() => f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: { ...keepNarrow, recorded: false } })), /answer is not recorded/);
+    f.change((r) => run.interim(r, { filed: 3005, maintainerRequest: keepNarrow }));
+    const after = run.readRecord(f.file).filed[3005].outcome;
+    assert.deepEqual([after.kind, after.slice, after.interim.request, after.interim.decision], ["completes", 3001, 9305, 'Maintainer request #9305 (https://github.com/acme/widgets/issues/9305) asked "Should the cache key change?"; the maintainer answered in the words quoted below.\n\nTheir comment at 2026-11-13 16:09 UTC (https://github.com/acme/widgets/issues/9305#issuecomment-5):\n> Keep the narrow fix for now.'],"the interim carries the maintainer's recorded words");
+    assert.deepEqual(run.completingTickets(run.readRecord(f.file), 3001).map((e) => e.number), [3002], "an interim releases the slice's PR");
+    f.change((r) => run.filed(r, { filed: 3006, ticket: 3001, pr: 3901, source: "ticket #3006's provenance line" }));
+    f.change((r) => run.triage(r, { filed: 3006, outcome: "maintainer", question: "Does the cache key change?", maintainerRequest: cacheKey({ number: 9306, tickets: [3006], holding: 3006 }) }));
+    const draft = (n) => ({ number: 3900 + n, state: "OPEN", isDraft: true, branch: `fix/${n}-thing`, head: "h", rounds: 1 });
+    const continuing = run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: snapshotOf(300, [{ ...ticket(3001), parent: 300 }, { ...ticket(3006), parent: 300, prs: [{ ...draft(3006), number: 3966 }] }, { ...ticket(3002), parent: 300, worktrees: [{ path: path.join(f.dir, "wt-3002"), branch: "fix/3002-thing", head: "h" }] }]), preflights: [available("claude-cli", "claude-opus-5-5", [3001, 3002, 3006])], freeBytes: 100 * GB, defaults });
+    const entryOf = (p, n) => p.tickets.find((t) => t.number === n);
+    assert.deepEqual([entryOf(continuing, 3006).action, entryOf(continuing, 3006).continueWith], ["adopt-pr", undefined], "no continuation while the maintainer decides");
+    assert.match(entryOf(continuing, 3006).continueBlocked, /raised with the maintainer: "Does the cache key change\?"/);
+    assert.deepEqual([entryOf(continuing, 3002).action, entryOf(continuing, 3002).continueWith], ["adopt-worktree", undefined], "no continuation of a completing ticket before its slice is delivered");
+    assert.match(entryOf(continuing, 3002).continueBlocked, /completes #3001's fix/);
+    const orphan = run.planDispatch({ record: freed(run.readRecord(f.file)), snapshot: snapshotOf(300, [{ ...ticket(3002), parent: 300 }]), preflights: [available("claude-cli", "claude-opus-5-5", [3002])], freeBytes: 100 * GB, defaults });
+    assert.equal(actions(orphan)[3002], "decision-needed");
+    assert.match(entryOf(orphan, 3002).reason, /#3001 is not in the parent's tree/);
+    f.change((r) => run.result(r, { ticket: 3001, report: write("filed-r6.json", { ...base, filed: [3002, 3007] }) }));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), { 3007: "confirm-filed" });
+    assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3008, evidence: "x" })), /No writer's report names #3008/);
+    assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3002, evidence: "x" })), /recorded as filed during the run; triage it instead/);
+    assert.throws(() => f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3009, evidence: "x" })), /#3009's writer's report does not name #3007/);
+    f.change((r) => run.dismiss(r, { filed: 3007, ticket: 3001, evidence: "#3007 is a mistyped number: PR #3901's report lists #3006, and #3007 is an unrelated pull request" }));
+    assert.deepEqual(filedOf(planOf(f, snapshotOf(300, []))), {}, "a dismissed number holds nothing");
+    assert.throws(() => f.change((r) => run.filed(r, { filed: 3007, source: "x" })), /was dismissed at .* as no ticket a writer filed or reused/);
+    const legacyRequest = "1e9acy00";
+    f.change((r) => {
+      r.filed[3006].outcome = { kind: "maintainer", question: "Does the cache key change?", time: "2026-11-01T00:00:00.000Z" };
+      r.filed[3005].outcome.interim = { decision: "Keep the narrow fix for now", evidence: "the maintainer's reply on the parent", time: "2026-11-01T00:00:00.000Z" };
+      (r.tickets[3001].requests ??= []).push({ id: legacyRequest, owner: r.tickets[3001].owner.launchId ?? r.tickets[3001].owner.handle.id, time: "2026-11-01T00:00:00.000Z", text: "may the cache key change?", source: "transcript", relayed: { time: "2026-11-01T00:00:00.000Z", to: "the maintainer" }, answer: null });
+    });
+    const legacy = run.readRecord(f.file);
+    assert.equal(legacy.filed[3006].outcome.maintainerRequest, undefined, "a record written before requests keeps its maintainer question with no request number");
+    const legacyPlan = run.planDispatch({ record: legacy, snapshot: snapshotOf(300, [{ ...ticket(3001), parent: 300 }, { ...ticket(3006), parent: 300 }]), preflights: [available("claude-cli", "claude-opus-5-5", [3001, 3006])], freeBytes: 100 * GB, defaults, observations: { sessions: { local_w3001: { state: "idle" } } } });
+    assert.deepEqual([entryOf(legacyPlan, 3006).action, entryOf(legacyPlan, 3006).maintainerRequest.file], ["decision-needed", "decision"], "an old maintainer question still plans, and the plan asks for a request");
+    assert.match(entryOf(legacyPlan, 3001).reason, new RegExp(`request ${legacyRequest} "may the cache key change\\?" was relayed to the maintainer at 2026-11-01T00:00:00.000Z; once they decide, record answer and send it`), "an old relayed request still plans");
+    assert.deepEqual(run.completingTickets(legacy, 3001).map((e) => e.number), [3002], "an old interim still releases the slice's PR");
+    const legacyAnswer = run.updateRecord(f.file, { expectRevision: legacy.revision, coordinator: legacy.coordinator.session }, (r) => run.answer(r, { ticket: 3001, request: legacyRequest, text: "Yes" }));
+    assert.match(legacyAnswer.output.message, /:\nYes\nIf you already received/, "an old relayed request is answered as before");
+    const coordinator = legacy.coordinator.session;
+    const cli = (args, options = {}) => run.main([...args, "--record", f.file, "--coordinator", coordinator, "--expect-revision", String(run.readRecord(f.file).revision)], { defaults, ...options });
+    assert.throws(() => cli(["interim", "--filed", "3005", "--decision", "Keep the narrow fix", "--evidence", "chat"]), /^Error: interim takes no typed decision text: file the question with ask-maintainer, record its answer with maintainer-request\.mjs record, and pass the request's number with --maintainer-request/);
+    assert.throws(() => run.main(["brief", "--record", f.file, "--plan", write("cli-plan.json", legacyPlan), "--ticket", "3006", "--decision", "No stacked branches."], { defaults }), /^Error: brief takes no typed decision text/);
+    const body = fs.readFileSync(path.join(here, "..", "ask-maintainer", "fixtures", "decision-body.md"), "utf8").replace('"blocks":[2271],"owner":"orchestrate-issues #977"', '"blocks":[3001],"owner":"orchestrate-issues #300"');
+    const reads = [];
+    const tracker = { repo: "acme/widgets", issue: (n) => { reads.push(n); return { number: n, title: "May the cache key change? (#3001)", html_url: `https://github.com/acme/widgets/issues/${n}`, state: "open", state_reason: null, created_at: "2026-11-13T15:37:00Z", closed_at: null, closed_by: null, labels: [{ name: readRepos().maintainer.labels.decision }], body }; }, timeline: () => [], comments: () => [], blockedBy: (n) => (n === 3001 ? [{ number: 9310 }] : []) };
+    const asks = run.updateRecord(f.file, { expectRevision: run.readRecord(f.file).revision, coordinator }, (r) => run.request(r, { ticket: 3001, text: "may the cache key change now?", source: "transcript" })).output.id;
+    assert.throws(() => cli(["relay", "--ticket", "3001", "--request", asks, "--to", "the maintainer"], { requestsFor: () => tracker }), /waits on the maintainer only through a filed request/, "the command refuses a relay without a request number");
+    assert.throws(() => cli(["relay", "--ticket", "3001", "--request", asks, "--maintainer-request", "9310"], { requestsFor: () => ({ ...tracker, blockedBy: () => [] }) }), /GitHub does not block #3001 on maintainer request #9310/, "the command reads the live dependency, not only the request's own list");
+    reads.length = 0;
+    cli(["relay", "--ticket", "3001", "--request", asks, "--maintainer-request", "#9310"], { requestsFor: () => tracker });
+    assert.deepEqual([reads, run.readRecord(f.file).tickets[3001].requests.find((q) => q.id === asks).relayed.maintainerRequest.number], [[9310], 9310], "the command reads the filed request from GitHub and stores its number");
+    {
+      const raisedBody = body.replace('"blocks":[3001]', '"blocks":[3006]');
+      const raisedTracker = { ...tracker, issue: (n) => ({ ...tracker.issue(n), title: "Does the cache key change? (#3006)", body: raisedBody }), blockedBy: (n) => (n === 3006 ? [{ number: 9311 }] : []) };
+      cli(["asked", "--ticket", "3006", "--maintainer-request", "9311"], { requestsFor: () => raisedTracker });
+      assert.equal(run.readRecord(f.file).filed[3006].outcome.maintainerRequest.number, 9311, "asked on a raised ticket runs from the record with no --plan, and stores the request read from GitHub");
+      assert.throws(() => cli(["asked", "--ticket", "3006", "--maintainer-request", "9312"], { requestsFor: () => raisedTracker }), /#3006 was raised with the maintainer in request #9311, which is waiting; record its answer and act on it/, "the command reads the raised request before replacing it");
+    }
+  }
+} finally {
+  for (const { stop } of started) fs.writeFileSync(stop, "");
+  for (const { pid } of started) { try { waitFor(() => !processIdentity(pid), `stand-in ${pid} to exit`, 15000); } catch (error) { console.error(error.message); } }
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (error) { console.error(`scratch not removed: ${error.message}`); }
+}
+console.log("PASS: dependency admission, adoption, exclusive ownership, uncertain launches, observed exit, writer routes, brief contract and reviewer-freeze coexistence");

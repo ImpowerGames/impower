@@ -630,7 +630,7 @@ Three more invariants hold:
 - **A mark adds no node.** It goes on an existing rule's `contentName`, `name` or capture names. A new wrapping rule would add a node to the tree the lowerer reads.
 - **A marked rule reads a character Luau never reads as an unread token** rather than passing over it (§17.1). Each marked statement, condition and interpolation rule that does not end with `LuauUnreadToken` ends its `patterns:` with `LuauUnreadableCharacter`, which reads one character of `LUAU_UNREADABLE_CHARACTER` (`$`, `!`, `?`, `%`, `^`, `|`, `~`, `[`, a backslash, an `@` before neither an identifier nor `[`, a non-ASCII character) as an unread token. The class holds only characters that begin no construct that can follow a statement on its line; a wider catch-all such as `LuauUnreadCharacter` would take the `&` of `local a = 0 & a = 2`, whose statement the declaration has to leave to the line. The interpolations and call shorthands read `,` and `;` as separators, the narrative conditions read `;` (and `until` a `,`). The interpolations, call shorthands and the `if`, `while` and `for` conditions, where no statement can follow, read an `&` as `LuauUnreadStatementMark`, an unread token. A story declaration, reassignment and `until` condition, and the story operations, assignment and if expression in their values, end before an `&` instead (`(?={{WS}}*[&])`, or `&` in the class of characters their `end:` stops before), so the `&` opens the next statement on the line in both engines; without that end both engines would pass over the `&` inside the declaration and the second statement would be lost (I-2038). A `define` header without `with` ends at its line, so that a header typed incomplete opens the same body in both engines.
 
-`createLanguageReader` in `packages/textmate-grammar-tree/src/tree/utils/createLanguageReader.ts` reads the language from the tree, the document's language and an `embeddedLanguages` map, by vscode-textmate's rule: walking out from the innermost node, the first scope that equals a key of the map, or extends it at a dot, decides, and with none the document's language applies. `character` gives the language of the character at an offset. `cursor` gives the language at a cursor position as VS Code's `getLanguageIdAtPosition` does: the character after the cursor, the line's last character at the end of a line, and on an empty line the line break that ends it (on an empty last line, the one before it), which the tree places in the rules still open at that line's start. A `\r` counts as part of a line break. Four checks in `src/tests/compiler/` hold the regions:
+`createLanguageReader` in `packages/textmate-grammar-tree/src/tree/utils/createLanguageReader.ts` reads the language from the tree, the document's language and an `embeddedLanguages` map, by vscode-textmate's rule: walking out from the innermost node, the first scope that equals a key of the map, or extends it at a dot, decides, and with none the document's language applies. `character` gives the language of the character at an offset. `cursor` gives the language at a cursor position as VS Code's `getLanguageIdAtPosition` does: the character after the cursor, the line's last character at the end of a line, and on an empty line the line break that ends it (on an empty last line, the one before it), which the tree places in the rules still open at that line's start. A `\r` counts as part of a line break. Four checks in `test/compiler/` hold the regions:
 
 - `languageEquality.test.ts` compares the reader's `cursor` with vscode-textmate's token language ids at every cursor position of every grammar fixture, ends of lines and of the document included, for the `.sd` and `.luau` roots, and at the end of open regions, past unreadable characters and after an incomplete `define` header in sources of its own. It also holds the two engines equal on an `&` after a declaration's, reassignment's or `until` condition's value (I-2038) and on a structural word (`end`, `then`, `do`, `until`, `else`, `elseif`) inside a marked interpolation or call shorthand, or inside the wrong narrative condition (I-2048). A known difference is pinned by its positions and tracked by its ticket; a pin may shrink and may not grow, so a case fails on a position its pin does not list and passes, reporting the stale pin and its ticket, when a pinned position is gone.
 - `languageContext.test.ts` asserts the language at each position of the feature's sample script (I-2019).
@@ -1258,7 +1258,7 @@ This is the order to follow when introducing a new construct to the language. It
 4. **Add captures** for every sub-token the lowerer or formatter might want to address. Use `emit: true` if the capture would otherwise be invisible. (§6)
 5. **Decide where this rule plugs in.** Add it to the relevant parent's `patterns:` list. **Order matters** — put it before any rule it might conflict with. (§10) For block-shaped constructs in two contexts, write both `LuauX` and `LuauSparkdownX` variants. (§13)
 6. **Build the JSON** — `cd definitions && npm run build`. (Or `npm run watch` while iterating.)
-7. **Write a `dumpTree` snapshot test** for at least one minimal example. Add it to `src/tests/compiler/__snapshots__/grammar/<category>/<name>.sd` plus a matching `.snap` and `.vsc.snap`. (§15.2, §15.3)
+7. **Write a `dumpTree` snapshot test** for at least one minimal example. Add it to `test/compiler/__snapshots__/grammar/<category>/<name>.sd` plus a matching `.snap` and `.vsc.snap`. (§15.2, §15.3)
 8. **Open a `.sd` file in VS Code** and visually verify the highlighting matches what you intended.
 9. **Then** write the lowerer.
 
@@ -1273,7 +1273,7 @@ When a grammar feature misbehaves, the question is almost always "what did the p
 `printTree` (from `@impower/textmate-grammar-tree/src/tree/utils/printTree`) renders the full parse tree as ASCII. The snapshot test harness wraps this in `dumpTree`:
 
 ```typescript
-import { dumpTree, stripAnsi } from "./src/tests/compiler/grammarSnapshot";
+import { dumpTree, stripAnsi } from "./test/compiler/grammarSnapshot";
 
 console.log(
   stripAnsi(
@@ -1303,10 +1303,10 @@ sparkdown [0..27]
 
 ### 15.2 Snapshot tests
 
-`src/tests/compiler/grammarSnapshot.test.ts` walks every `.sd` file under `src/tests/compiler/__snapshots__/grammar/**` and asserts its parse tree matches a `.snap` file alongside it. After a grammar change:
+`test/compiler/grammarSnapshot.test.ts` walks every `.sd` file under `test/compiler/__snapshots__/grammar/**` and asserts its parse tree matches a `.snap` file alongside it. After a grammar change:
 
 ```
-npx vitest run src/tests/compiler/grammarSnapshot.test.ts
+npx vitest run test/compiler/grammarSnapshot.test.ts
 ```
 
 If a snapshot fails:
@@ -1323,7 +1323,7 @@ The textmate-grammar-tree parser is **not bug-compatible** with VS Code's TextMa
 
 This matters because the **same grammar file** ships to the VS Code extension. So:
 
-- **A parallel snapshot suite covers VS Code's engine.** `src/tests/compiler/vscodeGrammarSnapshot.test.ts` runs every fixture through `vscode-textmate` + `vscode-oniguruma` (the literal engine VS Code uses) and writes the tokenized output to a sibling `.vsc.snap` file. When you add a new fixture, add **both** snapshots. A diff between the two reveals engine divergence at fixture-add time, not when a user opens the file in their editor.
+- **A parallel snapshot suite covers VS Code's engine.** `test/compiler/vscodeGrammarSnapshot.test.ts` runs every fixture through `vscode-textmate` + `vscode-oniguruma` (the literal engine VS Code uses) and writes the tokenized output to a sibling `.vsc.snap` file. When you add a new fixture, add **both** snapshots. A diff between the two reveals engine divergence at fixture-add time, not when a user opens the file in their editor.
 - After non-trivial grammar changes, **open a representative `.sd` file in VS Code** and verify it highlights correctly.
 - Prefer patterns simple enough to behave the same in both engines: avoid deeply nested lookaheads, prefer rule reordering, prefer captured tokens over regex-internal disambiguation.
 - **If a pattern relies on parser-level lookahead behavior VS Code can't replicate, restructure it.** Divergence between the editor's highlighting and the runtime's parse is not acceptable — both must agree, since the grammar drives both.
@@ -1469,10 +1469,10 @@ A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|
 
 ### 17.4 The gate: `scopeEquality.test.ts`
 
-`packages/sparkdown/src/tests/compiler/scopeEquality.{ts,test.ts}` runs a fixture through **both** engines and asserts the scope stack at **every character** is identical, failing the build on any divergence. It covers a set of hand-written targeted fixtures (each top-level construct; nesting under `scene NAME` with and without a trailing colon; blank-line- and comment-line-separated content) plus every `.sd` fixture in the snapshot corpus. Run it after any grammar change:
+`packages/sparkdown/test/compiler/scopeEquality.{ts,test.ts}` runs a fixture through **both** engines and asserts the scope stack at **every character** is identical, failing the build on any divergence. It covers a set of hand-written targeted fixtures (each top-level construct; nesting under `scene NAME` with and without a trailing colon; blank-line- and comment-line-separated content) plus every `.sd` fixture in the snapshot corpus. Run it after any grammar change:
 
 ```
-cd packages/sparkdown && npx vitest run src/tests/compiler/scopeEquality.test.ts
+cd packages/sparkdown && npx vitest run test/compiler/scopeEquality.test.ts
 ```
 
 The comparison maps each tree node back to the TextMate scope it contributes (`name` on the rule's whole span, `contentName` on its `<Rule>_content` sub-span — read from the live grammar nodes, not by parsing node-name suffixes), counts a capture's scope once where an `emit: true` capture appears as two nested nodes of the same type, and ignores `tag` (a CodeMirror-only highlight hint vscode-textmate never sees). Newlines are excluded from the comparison: vscode-textmate strips the trailing `\n` per line and structurally never scopes a line break, so requiring equality there would test an impossible condition without reflecting any real highlighting difference.
@@ -1575,7 +1575,7 @@ A condensed list of the things that bite hardest in practice. Each line links ba
 - `packages/textmate-grammar-tree/src/grammar/types/GrammarDefinition.ts` — the full schema of allowed rule properties.
 - `packages/textmate-grammar-tree/src/grammar/classes/rules/ScopedRule.ts` — `applyEndPatternLast` logic.
 - `packages/textmate-grammar-tree/src/tree/utils/printTree.ts` — the tree printer.
-- `packages/sparkdown/src/tests/compiler/grammarSnapshot.test.ts` — the textmate-grammar-tree snapshot harness.
-- `packages/sparkdown/src/tests/compiler/vscodeGrammarSnapshot.test.ts` — the VS Code engine snapshot harness.
-- `packages/sparkdown/src/tests/compiler/scopeEquality.ts` / `scopeEquality.test.ts` — the per-character engine-equality comparison and the CI gate that fails on any divergence (§17).
+- `packages/sparkdown/test/compiler/grammarSnapshot.test.ts` — the textmate-grammar-tree snapshot harness.
+- `packages/sparkdown/test/compiler/vscodeGrammarSnapshot.test.ts` — the VS Code engine snapshot harness.
+- `packages/sparkdown/test/compiler/scopeEquality.ts` / `scopeEquality.test.ts` — the per-character engine-equality comparison and the CI gate that fails on any divergence (§17).
 - `packages/sparkdown/src/compiler/classes/annotators/FormattingAnnotator.ts` — what node names the formatter looks for.
