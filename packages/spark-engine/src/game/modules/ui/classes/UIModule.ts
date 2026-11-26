@@ -815,6 +815,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReset() {
     this.settleLine();
+    this._exits.clear();
     this._inlineLayout = false;
     this._events = {};
     this._mountedLayouts = new Map();
@@ -1475,6 +1476,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     for (const exit of this._exits) {
+      if (this.superseded(exit.epoch)) {
+        this._exits.delete(exit);
+        continue;
+      }
       for (const el of exit.elements) {
         writeElement(el, ["image", "mask"]);
       }
@@ -5829,6 +5834,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [...this._exits].some((exit) => exit.elements.some((el) => elements.has(el)));
   }
 
+  protected dropExits(elements: Element[]): void {
+    let dropped = false;
+    for (const exit of this._exits) {
+      if (exit.elements.some((el) => elements.includes(el))) {
+        this._exits.delete(exit);
+        dropped = true;
+      }
+    }
+    if (dropped && !this._uiBatchScheduled) {
+      this._uiBatchScheduled = true;
+      queueMicrotask(() => this.flushUIBatch());
+    }
+  }
+
   protected endExit(exit: PictureExit): void {
     if (!this._exits.has(exit)) {
       return;
@@ -7270,6 +7289,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         exits = false,
       ) {
         const targetEls = $.findElements(target, true);
+        if (instant) {
+          $.dropExits(targetEls);
+        }
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
         }
