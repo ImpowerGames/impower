@@ -10,14 +10,14 @@ end
 
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       image
     }
   }
-  dialogue {
+  dialogue #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
 }
@@ -249,12 +249,12 @@ end
 
 layout main {
   left {
-    portrait {
+    portrait #clear {
       image
     }
   }
   right {
-    portrait {
+    portrait #clear {
       image
     }
   }
@@ -359,7 +359,7 @@ end
 
 layout gallery {
   for n in items do
-    face {
+    face #clear {
       image
     }
   end
@@ -472,7 +472,7 @@ screen menu {
 }
 
 layout home in menu {
-  face {
+  face #clear {
     image
   }
 }
@@ -509,10 +509,10 @@ style frame {
 end
 
 layout main {
-  first {
+  first #clear {
     image
   }
-  second {
+  second #clear {
     image
   }
 }
