@@ -18,6 +18,7 @@ jobs:
     uses: ./.github/workflows/changed-paths.yml
     with:
       patterns: |
+        test/**
         .agents/**
         .claude/**
         .codex/**
@@ -43,6 +44,10 @@ jobs:
     uses: ./.github/workflows/changed-paths.yml
     with:
       patterns: |
+        test/scripts/**
+        test/agents/skills/clean-worktrees/**
+        test/agents/skills/drive-vscode-web/**
+        test/agents/skills/drive-web-editor/**
         .agents/hooks/**
         .agents/repos.json
         .agents/repos.mjs
@@ -85,6 +90,7 @@ jobs:
             /.claude/
             /.codex/
             /scripts/
+            /test/
             /.github/scripts/
             /.github/ISSUE_TEMPLATE/
             /.github/workflows/
@@ -138,6 +144,7 @@ jobs:
             /.claude/
             /.codex/
             /scripts/
+            /test/
             /.github/scripts/
             /.github/workflows/test-suite.yml
             /.github/workflows/comment-check.yml
@@ -168,8 +175,8 @@ jobs:
           const fs = require("node:fs");
           const assert = require("node:assert/strict");
           const { spawnSync } = require("node:child_process");
-          const file = ".agents/skills/drive-vscode-web/fixture-regression-control.mjs";
-          const source = fs.readFileSync(".agents/skills/drive-vscode-web/driver.test.mjs", "utf8");
+          const file = "test/agents/skills/drive-vscode-web/fixture-regression-control.mjs";
+          const source = fs.readFileSync("test/agents/skills/drive-vscode-web/driver.test.mjs", "utf8");
           const needle = "const FIXTURE_ROOT = path.parse(process.cwd()).root;";
           assert.ok(source.includes(needle), "fixture control must replace the actual root");
           try {
@@ -203,6 +210,7 @@ jobs:
             /.claude/
             /.codex/
             /scripts/
+            /test/
             /.github/scripts/
             /.github/workflows/test-suite.yml
             /.github/PULL_REQUEST_TEMPLATE.md
@@ -224,7 +232,7 @@ jobs:
         env:
           IMPOWER_REQUIRE_VITEST_INTEGRATION: '1'
           IMPOWER_TEST_VITEST_VERSION: ${{ matrix.vitest }}
-        run: node scripts/check-agent-tooling.mjs --only scripts/test-suite-api-integration.test.mjs
+        run: node scripts/check-agent-tooling.mjs --only test/scripts/test-suite-api-integration.test.mjs
       - name: Retain admitted dependency and actual API evidence
         if: always() && env.IMPOWER_TEST_VITEST_DEPENDENCIES != ''
         uses: actions/upload-artifact@v4

@@ -1,0 +1,201 @@
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity } from "../../src/compiler/types/SparkDiagnostic";
+import { officialSyntaxErrors } from "./officialSyntax";
+import { dumpTree, parseSource, stripAnsi } from "./grammarSnapshot";
+import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+const URI = "inmemory:///main.sd";
+
+function sparkdownErrors(text: string): string[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  const program = compiler.compile({ textDocument: { uri: URI } } as never).program;
+  return (program.diagnostics?.[URI] ?? [])
+    .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+    .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
+    .sort();
+}
+
+function luauErrors(luau: string): string[] {
+  return officialSyntaxErrors(luau)
+    .map((e) => `${e.location.begin.line}:${e.location.begin.column}-${e.location.end.line}:${e.location.end.column} ${e.message}`)
+    .sort();
+}
+
+function read(source: string) {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const tree = stripAnsi(dumpTree(source));
+  const emptyMatches = warn.mock.calls.filter((args) =>
+    args.some((a) => String(a).includes("empty match")),
+  ).length;
+  warn.mockRestore();
+  return { tree, emptyMatches };
+}
+
+describe("a comment after a function type's `->` keeps the type", () => {
+  test.each([
+    "() -> --[[c]] <T>(T) -> T",
+    "() -> --[[c]] <T>",
+    "() -> <T>(T) -> T",
+    "() -> --[[c]] (T) -> T",
+    "() -> --[[c]] number",
+    "() -> --[[c]] {T}",
+    "() -> --[[a]] --[[b]] <T>(T) -> T",
+    "(number) -> --[==[c]==] <T, U...>(T) -> U...",
+    "() -> --[====[a ] b]====] <T>(T) -> T",
+    "() -> --[====[a]=====]b]====] <T>(T) -> T",
+    "--[=====[a]====]b]=====] <T>(T) -> T",
+  ])("type F = %s", (type) => {
+    const { tree, emptyMatches } = read(
+      `function g()\n  type F = ${type}\nend\n`,
+    );
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(emptyMatches).toBe(0);
+  });
+
+  test.each([
+    "function g()\n  local f = function(): --[[c]] <T>(T) -> T end\nend\n",
+    "function g()\n  local f: --[[c]] <T>(T) -> T = nil\nend\n",
+    "function g()\n  type F = --[[c]] <T>(T) -> T\nend\n",
+    "function g(): --[[c]] <T>(T) -> T\nend\n",
+  ])("%s", (source) => {
+    const { tree, emptyMatches } = read(source);
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(emptyMatches).toBe(0);
+  });
+
+  test.each([
+    "x :: {} < y",
+    "x :: {} --[[c]] < y",
+    "f :: () -> {} < y",
+    "f :: () -> {} --[[c]] < y",
+    "f :: () -> --[[c]] {} --[[d]] < y",
+  ])("a comparison after a complete type ends the type: %s", (value) => {
+    const { tree, emptyMatches } = read(
+      `function g(x, f, y)\n  local b = ${value}\nend\n`,
+    );
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(emptyMatches).toBe(0);
+    expect(tree, tree).toContain("LuauCompareOperation");
+    expect(tree, tree).not.toContain("PunctuationAngleOpen");
+  });
+});
+
+describe("an error at an assignment's operator keeps its range", () => {
+  test.each([
+    "local w = --[[ c ]] ;",
+    "local w = --[====[ c ]====] ;",
+    "local a, b = 1, 2\n  a, b += --[[ c ]] 1",
+  ])("%s", (statement) => {
+    const luau = `function f()\n  ${statement}\nend\n`;
+    expect(sparkdownErrors(`${luau}Story.\n`)).toEqual(luauErrors(luau));
+  });
+});
+
+describe("a level-nine comment holding another level-nine close", () => {
+  const comment = "--[=========[a]==========]b]=========]";
+  test("between a scope modifier and `function`", () => {
+    const source = `local ${comment} function k() return 5 end\nValue {k()}.\n`;
+    const top = parseSource(source).topNode.firstChild!;
+    expect(top.name).toBe("LuauFunctionDefinition");
+    expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
+  });
+  test("after a closing `end`", () => {
+    const source = `function k() return 5 end ${comment}\nValue {k()}.\n`;
+    const top = parseSource(source).topNode.firstChild!;
+    expect(top.name).toBe("LuauFunctionDefinition");
+    expect([top.from, top.to]).toEqual([0, source.indexOf("\n")]);
+  });
+  test.each([
+    ["if true then\nend", "LuauSparkdownIfBlock"],
+    ["do\nend", "LuauSparkdownDoBlock"],
+    ["while false do\nend", "LuauSparkdownDoBlock"],
+    ["choose\n  + [One]\n    Picked.\nend", "LuauSparkdownChooseBlock"],
+    ["& if true then local x = 1 end", "LuauSparkdownExplicitIfBlock"],
+    ["& do local x = 1 end", "LuauSparkdownExplicitDoBlock"],
+    ["define D with\nend", "LuauDefine"],
+    ["style S {\n}", "LuauStyle"],
+    ["animation A {\n}", "LuauAnimation"],
+    ["theme T {\n}", "LuauTheme"],
+    ["framing F {\n}", "LuauFraming"],
+    ["morph M {\n}", "LuauMorph"],
+    ["layout L {\n}", "LuauLayout"],
+    ["screen C {\n}", "LuauScreen"],
+    ["component P {\n}", "LuauComponent"],
+  ])("after the `end` of %j", (block, name) => {
+    const source = `${block} ${comment}\nStory.\n`;
+    const { tree } = read(source);
+    const end = source.indexOf("\nStory.");
+    const nodes: string[] = [];
+    parseSource(source).iterate({
+      enter: (node) => {
+        if (node.name === name && node.to === end) nodes.push(node.name);
+      },
+    });
+    expect(nodes, tree).toEqual([name]);
+  });
+  const dashComment = "--[=========[a]==========]-- x]=========]";
+  test.each([
+    `local w = ${dashComment} 5`,
+    `local w = ${dashComment} --[[c]] if true then 1 else 2`,
+    `w = ${dashComment} --[[c]] if true then 1 else 2`,
+  ])("after an assignment operator: %s", (statement) => {
+    const luau = `function f()\n  local w = 0\n  ${statement}\nend\n`;
+    expect(sparkdownErrors(`${luau}Story.\n`)).toEqual(luauErrors(luau));
+    const { tree } = read(luau);
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(tree, tree).not.toContain("ERROR_UNRECOGNIZED");
+    const commentEnd = luau.indexOf(dashComment) + dashComment.length;
+    const operators: number[] = [];
+    parseSource(luau).iterate({
+      enter: (node) => {
+        if (node.name === "LuauAssignmentOperator" && node.from > luau.indexOf("\n", 14)) operators.push(node.to);
+      },
+    });
+    expect(operators.length, tree).toBe(1);
+    expect(operators[0], tree).toBeGreaterThan(commentEnd);
+  });
+  test("after a type operator", () => {
+    const { tree, emptyMatches } = read(
+      `function g()\n  type F = () -> ${comment} <T>(T) -> T\nend\n`,
+    );
+    expect(tree, tree).not.toContain("ERROR_INCOMPLETE");
+    expect(emptyMatches).toBe(0);
+  });
+});
+
+describe("many comments before a failing suffix parse quickly", () => {
+  const comments = "--[[a]]    ".repeat(30);
+  test.each([
+    ["after `end`", `function f() end ${comments}Text.\n`],
+    ["after a scope modifier", `function g()\n  local ${comments}x = 1\nend\n`],
+    ["after an assignment operator", `function g()\n  local x = ${comments}\nend\n`],
+    ["after a type operator", `function g()\n  type F = () -> ${comments}number\nend\n`],
+  ])("%s", (_name, source) => {
+    const started = performance.now();
+    parseSource(source);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+});
+
+describe("a comment after a closing `end` at story scope belongs to its block", () => {
+  test.each([
+    ["function m() return 1 end", "LuauFunctionDefinition"],
+    ["function m() local function n() return 1 end return n() end", "LuauFunctionDefinition"],
+    ["local function m() return 1 end", "LuauFunctionDefinition"],
+  ])("%s", (block, name) => {
+    for (const comment of [" --[[ c ]]", " -- c", "--[[ c ]]", " --[==[ c ]==]"]) {
+      const source = `${block}${comment}\nValues {m()}.\n`;
+      const top = parseSource(source).topNode.firstChild!;
+      expect(top.name, comment).toBe(name);
+      expect([top.from, top.to], comment).toEqual([0, block.length + comment.length]);
+    }
+  });
+});

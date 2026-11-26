@@ -1,4 +1,4 @@
-import { imageSizeFixtures } from "@impower/sparkdown/src/tests/morph/imageSizeFixtures";
+import { imageSizeFixtures } from "@impower/sparkdown/test/morph/imageSizeFixtures";
 import { IMAGE_HEADER_BYTES, imageSizeOf } from "@impower/sparkdown/src/workspace/utils/imageSize";
 import { chromium } from "playwright";
 import { describe, expect, it } from "vitest";

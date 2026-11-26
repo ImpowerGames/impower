@@ -1,0 +1,197 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SKILLS_DIR = fileURLToPath(new URL("../../../.agents/skills", import.meta.url));
+
+const PINNED = { gotchas: 18, troubleshooting: 3 };
+
+const WHY =
+  "A new Gotchas bullet or Troubleshooting row needs a mechanism first: a driver refusal, a report field, a hook, or a check " +
+  "that meets the session at the moment the trap bites, rather than a sentence it reads beforehand. Where one is possible, " +
+  "build it and leave the list where it is. Where none is (a behaviour of an app the driver does not wrap, a fact about this " +
+  "machine, a judgement call), raise the number in this check in the same change and say in the pull request why no mechanism " +
+  "is possible.";
+
+export function countEntries(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const counts = { gotchas: 0, troubleshooting: 0 };
+  let section = null;
+  let fence = null;
+  let tableRun = 0;
+  let listContentIndent = null;
+  let previousBlank = true;
+  for (const line of lines) {
+    const followsBlank = previousBlank;
+    previousBlank = line.trim() === "";
+    const fenceMark = /^\s*(```+|~~~+)/.exec(line);
+    if (fenceMark) {
+      if (fence && line.trim().startsWith(fence)) fence = null;
+      else if (!fence) fence = fenceMark[1];
+      continue;
+    }
+    if (fence) continue;
+    const heading = /^#{1,6}\s+(.*?)\s*$/.exec(line);
+    if (heading) {
+      const name = heading[1].toLowerCase();
+      section = name === "gotchas" ? "gotchas" : name === "troubleshooting" ? "troubleshooting" : null;
+      tableRun = 0;
+      listContentIndent = null;
+      continue;
+    }
+    if (!section) continue;
+    if (section === "gotchas") {
+      if (/^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line)) {
+        if (listContentIndent !== null && /^ */.exec(line)[0].length < listContentIndent) listContentIndent = null;
+        continue;
+      }
+      const item = /^( {0,3})([-*+]|\d{1,9}[.)])([ \t]+|$)/.exec(line);
+      if (item && (listContentIndent === null || item[1].length < listContentIndent)) {
+        counts.gotchas += 1;
+        const markerEnd = item[1].length + item[2].length;
+        let contentColumn = markerEnd;
+        for (const space of item[3]) contentColumn += space === "\t" ? 4 - contentColumn % 4 : 1;
+        const padding = contentColumn - markerEnd;
+        listContentIndent = markerEnd + (padding >= 1 && padding <= 4 ? padding : 1);
+      } else if (!item && line.trim() && listContentIndent !== null && /^ */.exec(line)[0].length < listContentIndent && (followsBlank || /^ {0,3}(?:>|<)/.test(line))) {
+        listContentIndent = null;
+      }
+    }
+    if (section === "troubleshooting") {
+      if (/^ {0,3}\|/.test(line)) {
+        tableRun += 1;
+        if (tableRun > 2) counts.troubleshooting += 1;
+      } else if (line.trim() === "") {
+        tableRun = 0;
+      }
+    }
+  }
+  return counts;
+}
+
+function skillFiles(directory = path.resolve(SKILLS_DIR, "..")) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory() && !entry.name.startsWith(".")) return skillFiles(file);
+    return entry.isFile() && entry.name.endsWith(".md") ? [file] : [];
+  }).sort();
+}
+
+let failures = 0;
+function check(label, fn) {
+  try {
+    fn();
+    console.log(`PASS: ${label}`);
+  } catch (err) {
+    failures++;
+    console.log(`FAIL: ${label}`);
+    console.log(`  ${String(err.message || err).split("\n").slice(0, 8).join("\n  ")}`);
+  }
+}
+
+check("a bullet is an entry, and an indented one, a fenced line and another section's list are not", () => {
+  const md = [
+    "## Gotchas",
+    "",
+    "This list holds only what no mechanism can absorb.",
+    "",
+    "- The first entry.",
+    "  - A nested bullet continues it.",
+    "- The second entry.",
+    "",
+    "```bash",
+    "- not an entry, a shell comment in a fence",
+    "```",
+    "",
+    "- The third entry.",
+    "",
+    "## Improving this skill",
+    "",
+    "- A bullet under another heading is not an entry.",
+  ].join("\n");
+  assert.deepEqual(countEntries(md), { gotchas: 3, troubleshooting: 0 });
+});
+
+check("a troubleshooting entry is a table row, and neither the header nor the rule under it", () => {
+  const md = [
+    "## Troubleshooting",
+    "",
+    "| Symptom | Cause → fix |",
+    "| ------- | ------------ |",
+    "| One     | Do this.     |",
+    "| Two     | Do that.     |",
+    "",
+    "A sentence after the table is not a row.",
+    "",
+    "| A second table | here |",
+    "| -------------- | ---- |",
+    "| Three          | Also |",
+  ].join("\n");
+  assert.deepEqual(countEntries(md), { gotchas: 0, troubleshooting: 3 });
+});
+
+check("a file with neither section counts nothing", () => {
+  assert.deepEqual(countEntries("# A skill\n\n- a step\n\n## Steps\n\n| a | b |\n| - | - |\n| c | d |\n"), { gotchas: 0, troubleshooting: 0 });
+});
+
+check("every Markdown unordered-list marker counts as a Gotchas entry", () => {
+  assert.deepEqual(countEntries("## Gotchas\n\n- One.\n* Two.\n+ Three.\n"), { gotchas: 3, troubleshooting: 0 });
+});
+
+check("numbered items and indented tables count, with nested detail and thematic breaks excluded", () => {
+  assert.deepEqual(countEntries("## Gotchas\n\n1. One.\n2) Two.\n"), { gotchas: 2, troubleshooting: 0 });
+  assert.deepEqual(countEntries("## Gotchas\n\n* * *\n- - -\n___\n"), { gotchas: 0, troubleshooting: 0 });
+  const markdown = [
+    "## Gotchas", "", "  1. One.", "     - Nested detail.", "  2) Two.", "", "* * *", "- - -", "___", "",
+    "## Troubleshooting", "", " | Symptom | Fix |", " | --- | --- |", " | A failure | Its remedy |",
+  ].join("\n");
+  assert.deepEqual(countEntries(markdown), { gotchas: 2, troubleshooting: 1 });
+  assert.deepEqual(countEntries("## Gotchas\n\n  + An indented entry.\n"), { gotchas: 1, troubleshooting: 0 });
+});
+
+check("nested thematic breaks preserve their containing entry", () => {
+  for (const gap of ["", "\n"]) {
+    for (const rule of ["* * *", "- - -", "___"]) {
+      const nested = "## Gotchas\n\n- One entry.\n" + gap + "  " + rule + "\n" + gap + "  - Nested detail.\n";
+      assert.deepEqual(countEntries(nested), { gotchas: 1, troubleshooting: 0 });
+      const separate = "## Gotchas\n\n- One entry.\n\n" + rule + "\n\n  - Another entry.\n";
+      assert.deepEqual(countEntries(separate), { gotchas: 2, troubleshooting: 0 });
+    }
+  }
+});
+
+check("a lazy continuation stays in its list while a separate paragraph or block quote ends it", () => {
+  assert.deepEqual(countEntries("## Gotchas\n\n- One.\nlazy line.\n  - Nested detail.\n- Two.\n"), { gotchas: 2, troubleshooting: 0 });
+  for (const separator of ["\nA paragraph.\n", "> A quote.\n"]) {
+    assert.deepEqual(countEntries("## Gotchas\n\n- One.\n" + separator + "  - Another entry.\n"), { gotchas: 2, troubleshooting: 0 });
+  }
+});
+
+check("the Gotchas and Troubleshooting lists are the size this check pins", () => {
+  const files = skillFiles();
+  assert.ok(files.length >= 9, `only ${files.length} instruction documents were found under ${SKILLS_DIR}; the check is reading the wrong directory`);
+  const total = { gotchas: 0, troubleshooting: 0 };
+  const rows = [];
+  for (const file of files) {
+    const counts = countEntries(fs.readFileSync(file, "utf8"));
+    total.gotchas += counts.gotchas;
+    total.troubleshooting += counts.troubleshooting;
+    if (counts.gotchas || counts.troubleshooting) rows.push(`  ${path.relative(path.resolve(SKILLS_DIR, ".."), file)}: ${counts.gotchas} gotchas, ${counts.troubleshooting} troubleshooting`);
+  }
+  for (const row of rows) console.log(row);
+  assert.ok(total.gotchas > 0, "no Gotchas bullet was found in any skill; the heading or the list shape changed");
+  assert.ok(total.troubleshooting > 0, "no Troubleshooting row was found in any skill; the heading or the table shape changed");
+  for (const kind of ["gotchas", "troubleshooting"]) {
+    assert.ok(
+      total[kind] <= PINNED[kind],
+      `the ${kind} entries across canonical .agents Markdown number ${total[kind]}, above the ${PINNED[kind]} this check pins. ${WHY}`,
+    );
+  }
+  if (total.gotchas < PINNED.gotchas || total.troubleshooting < PINNED.troubleshooting) {
+    console.log(`  NOTE: the lists are now ${total.gotchas} gotchas and ${total.troubleshooting} troubleshooting, under the pinned ${PINNED.gotchas} and ${PINNED.troubleshooting}; lower PINNED in this change so the pin keeps its grip.`);
+  }
+});
+
+console.log(failures === 0 ? "all checks passed" : `${failures} check(s) failed`);
+process.exit(failures === 0 ? 0 : 1);

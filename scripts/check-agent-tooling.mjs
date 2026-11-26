@@ -16,8 +16,8 @@ const unlinked = toolDirectories.map((tool) => `${tool}/skills`).filter((link) =
 });
 if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: ${unlinked.join(", ")}; run node scripts/link-agent-skills.mjs from this checkout, then rerun`);
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
-const FULL_TREE_CHECKS = ["scripts/check-listrow-overflow.test.mjs", "scripts/check-node-names.test.mjs", "scripts/check-lowerer-conventions.test.mjs"];
-const isCheck = (f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f) && !f.startsWith("scripts/agent-notification-alerts/");
+const FULL_TREE_CHECKS = ["test/scripts/check-listrow-overflow.test.mjs", "test/scripts/check-node-names.test.mjs", "test/scripts/check-lowerer-conventions.test.mjs"];
+const isCheck = (f) => /^test\/(?:agents\/|claude\/hooks\/|github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && !FULL_TREE_CHECKS.includes(f);
 const checks = files.filter(isCheck);
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 const fixtures = checks.filter((f) => /\.(?:json|snap|md|txt)$/.test(f));
@@ -28,9 +28,9 @@ const expected = fs.readFileSync(path.join(root, manifestFile), "utf8").trimEnd(
 if (expected.some((f, i) => !isCheck(f) || !/\.test\.(?:mjs|sh)$/.test(f) || (i > 0 && expected[i - 1] >= f))) throw new Error(`Invalid tooling check manifest ${manifestFile}: use sorted, unique runnable check paths, one per line`);
 const missing = expected.filter((f) => !runnable.includes(f) || !fs.existsSync(path.join(root, f)));
 const unlisted = runnable.filter((f) => !expected.includes(f));
-const untracked = execFileSync("git", ["ls-files", "--others", "-z", "--", ".agents/", ".claude/hooks/", ".github/scripts/", "scripts/"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter((f) => isCheck(f) && !/\.(?:json|snap|md|txt)$/.test(f));
-if (missing.length || unlisted.length || untracked.length || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: missing ${JSON.stringify(missing)}, unlisted ${JSON.stringify(unlisted)}, untracked ${JSON.stringify(untracked)}; preserve .agents/, .claude/hooks/ and scripts/link-agent-skills.test.mjs anchors; update ${manifestFile}, stage checks and verify the checkout`);
-const DRIVER_PREFIXES = [".agents/skills/clean-worktrees/", ".agents/skills/drive-vscode-web/", ".agents/skills/drive-web-editor/", "scripts/"];
+const untracked = execFileSync("git", ["ls-files", "--others", "-z", "--", "test/"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter((f) => isCheck(f) && !/\.(?:json|snap|md|txt)$/.test(f));
+if (missing.length || unlisted.length || untracked.length || !checks.some((f) => f.startsWith("test/agents/")) || !checks.some((f) => f.startsWith("test/claude/hooks/")) || !checks.includes("test/scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: missing ${JSON.stringify(missing)}, unlisted ${JSON.stringify(unlisted)}, untracked ${JSON.stringify(untracked)}; preserve test/agents/, test/claude/hooks/ and test/scripts/link-agent-skills.test.mjs anchors; update ${manifestFile}, stage checks and verify the checkout`);
+const DRIVER_PREFIXES = ["test/agents/skills/clean-worktrees/", "test/agents/skills/drive-vscode-web/", "test/agents/skills/drive-web-editor/", "test/scripts/"];
 const tierOf = (file) => (DRIVER_PREFIXES.some((prefix) => file.startsWith(prefix)) ? "drivers" : "skills");
 const args = process.argv.slice(2);
 let tier = "all";

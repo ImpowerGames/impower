@@ -1,0 +1,708 @@
+import { h, render } from "preact";
+import { act } from "preact/test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  DidChangeGameStateMessage,
+  type GameState,
+} from "@impower/spark-editor-protocol/src/protocols/preview/GameStateMessage";
+import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import { GameRolledMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameRolledMessage";
+import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import { HISTORY_REASONS } from "@impower/spark-engine/src/game/core/constants/HISTORY_REASONS";
+import type { GameHistory, SettledBeat } from "@impower/spark-engine/src/game/core/types/RunHistory";
+import PlayerBar, { type PlayerBarProps } from "../../../src/components/PlayerBar/PlayerBar";
+import {
+  foldRunHistory,
+  initialPlayerBarState,
+  initialRunHistory,
+  reducePlayerBar,
+  type PlayerBarState,
+  type RunHistoryInput,
+} from "../../../src/components/PlayerBar/playerBarState";
+
+const WORKSPACE = "file:///project";
+
+const location = (line: number, endLine = line) => ({
+  uri: `${WORKSPACE}/main.sd`,
+  range: {
+    start: { line, character: 0 },
+    end: { line: endLine, character: 0 },
+  },
+});
+
+const gameState = (
+  overrides: Partial<GameState> = {},
+) =>
+  DidChangeGameStateMessage.type.notification({
+    mounted: true,
+    programLoaded: true,
+    programVersion: 1,
+    launchState: "preview",
+    paused: false,
+    stepping: false,
+    run: null,
+    position: null,
+    shownBeatDescription: null,
+    completion: null,
+    ending: null,
+    statuses: { completion: null, ending: null },
+    ...overrides,
+  });
+
+const executed = GameExecutedMessage.type.notification({
+  firstLocation: location(2),
+  lastLocation: location(5),
+  conditions: [],
+  choices: [{ options: ["a", "b"], selected: 1 }],
+  state: "previewing",
+  simulation: "success",
+});
+
+let container: HTMLElement;
+
+beforeEach(() => {
+  container = document.createElement("div");
+  document.body.append(container);
+});
+
+afterEach(() => {
+  render(null, container);
+  container.remove();
+  vi.useRealTimers();
+});
+
+const mount = (props: Partial<PlayerBarProps> & { state: PlayerBarState }) => {
+  act(() => {
+    render(h(PlayerBar, { controls: {}, workspace: WORKSPACE, ...props }), container);
+  });
+  return (selector: string) => container.querySelector<HTMLElement>(selector);
+};
+
+const pointer = (type: string) =>
+  new (window.PointerEvent ?? MouseEvent)(type, { bubbles: true, button: 0 });
+
+const pointerClick = () =>
+  new MouseEvent("click", { bubbles: true, button: 0, detail: 1 });
+
+describe("PlayerBar state", () => {
+  it("renders the launch state, position, size and ratio from protocol messages", () => {
+    let state = reducePlayerBar(initialPlayerBarState, gameState());
+    state = reducePlayerBar(state, executed);
+    state = reducePlayerBar(
+      state,
+      GameResizedMessage.type.notification({
+        width: 960,
+        height: 540,
+        aspectRatio: "16:9",
+        fit: "auto",
+      }),
+    );
+    const $ = mount({ state, controls: { resize: true } });
+    expect($("#left-items")!.hidden).toBe(false);
+    expect($("#launch-state-icon")!.getAttribute("data-state")).toBe("preview");
+    expect($("#launch-label")!.textContent).toBe("main : 3");
+    expect($("#execution-info")!.hidden).toBe(false);
+    expect($("#connection-label")!.textContent).toBe("→  [ 2 ]  →");
+    expect($("#executed-label")!.textContent).toBe("main : 6");
+    expect($("#size-label")!.textContent).toBe("960 × 540");
+    expect($("#aspect-ratio-label")!.textContent).toBe("(16:9)");
+    expect($("#transport-items")).toBeNull();
+  });
+
+  it("hides the location until the game has executed and marks a failed simulation", () => {
+    const $ = mount({ state: initialPlayerBarState });
+    expect($("#left-items")!.hidden).toBe(true);
+    expect($("#launch-state-icon")!.hasAttribute("data-state")).toBe(false);
+    const failed = reducePlayerBar(
+      initialPlayerBarState,
+      GameExecutedMessage.type.notification({
+        ...executed.params,
+        simulation: "fail",
+        simulationFailure: "exhausted",
+        simulateFlow: "start",
+        simulateLocation: location(0),
+        startLocation: location(7),
+      }),
+    );
+    mount({ state: failed });
+    expect($("#location-items")!.classList.contains("error")).toBe(true);
+    expect($("#location-items")!.title).toMatch(/No path through this scene/);
+    expect($("#launch-label")!.textContent).toBe("main : 1");
+    expect($("#connection-label")!.textContent).toBe("→  [ 2 ]  → 🞪 →");
+    expect($("#executed-label")!.textContent).toBe("main : 8");
+    mount({ state: failed, routeShown: true });
+    expect($("#route-button")!.hidden).toBe(false);
+    expect($("#location-items")!.hidden).toBe(true);
+  });
+
+  it("shows the ending and completion statuses the game state carries, as the player words them", () => {
+    const ended = reducePlayerBar(
+      initialPlayerBarState,
+      gameState({
+        launchState: "ended",
+        run: 3,
+        ending: { kind: "error", location: null, error: { message: "boom", location: location(3) } },
+        statuses: {
+          completion: null,
+          ending: { text: "Stopped by an error", hover: "boom (line 4)", kind: "error" },
+        },
+      }),
+    );
+    const $ = mount({ state: ended });
+    expect($("#ending-status")!.hidden).toBe(false);
+    expect($("#ending-status")!.textContent).toBe("Stopped by an error");
+    expect($("#ending-status")!.title).toBe("boom (line 4)");
+    expect($("#ending-status")!.getAttribute("data-kind")).toBe("error");
+    expect($("#completion-status")!.hidden).toBe(true);
+
+    mount({
+      state: reducePlayerBar(
+        initialPlayerBarState,
+        gameState({
+          completion: { request: 1, status: "unavailable" },
+          statuses: {
+            completion: { text: "Cannot preview this suggestion yet", status: "unavailable" },
+            ending: null,
+          },
+        }),
+      ),
+    });
+    expect($("#completion-status")!.hidden).toBe(false);
+    expect($("#completion-status")!.getAttribute("data-state")).toBe("unavailable");
+    expect($("#completion-status")!.textContent).toBe("Cannot preview this suggestion yet");
+    expect($("#ending-status")!.hidden).toBe(true);
+
+    mount({
+      state: reducePlayerBar(
+        initialPlayerBarState,
+        gameState({ completion: { request: 2, status: "preparing" } }),
+      ),
+    });
+    expect($("#completion-status")!.hidden).toBe(true);
+  });
+});
+
+describe("PlayerBar controls", () => {
+  const playing = (paused: boolean, stepping = false) =>
+    reducePlayerBar(
+      initialPlayerBarState,
+      gameState({ launchState: paused ? "pause" : "play", run: 1, paused, stepping }),
+    );
+
+  it("shows only the controls the host enables", () => {
+    const $ = mount({ state: playing(false), controls: { skip: true } });
+    expect($("[aria-label='Skip back']")).not.toBeNull();
+    expect($("[aria-label='Skip forward']")).not.toBeNull();
+    expect($("[aria-label='Pause']")).toBeNull();
+    mount({ state: initialPlayerBarState, controls: { step: true } });
+    expect($("#transport-items")).toBeNull();
+    mount({
+      state: reducePlayerBar(initialPlayerBarState, gameState({ launchState: "ended", run: 1 })),
+      controls: { step: true },
+    });
+    expect($("[aria-label='Pause']")).toBeNull();
+    mount({ state: initialPlayerBarState, controls: { fullscreen: true } });
+    expect($("#fullscreen-button")).not.toBeNull();
+  });
+
+  it("lets the keyboard reach the fullscreen toggle as a named button", () => {
+    const $ = mount({ state: initialPlayerBarState, controls: { fullscreen: true } });
+    const toggle = $("#fullscreen-button") as HTMLElement;
+    expect(toggle).toBeInstanceOf(HTMLButtonElement);
+    expect((toggle as HTMLButtonElement).type).toBe("button");
+    expect(toggle.tabIndex).toBe(0);
+    expect(toggle.getAttribute("aria-label")).toBe("Fullscreen");
+  });
+
+  it("disables each skip at its end of the run history with the history's reason", () => {
+    const history = (canRollBack: boolean, canRollForward: boolean) => ({
+      canRollBack,
+      canRollForward,
+      behindLatest: canRollForward,
+      canStepOut: false,
+      rollBackRefusal: canRollBack ? null : HISTORY_REASONS.rollBack,
+      rollForwardRefusal: canRollForward ? null : HISTORY_REASONS.rollForward,
+      stepRefusal: null,
+      stepOutRefusal: HISTORY_REASONS.stepOut,
+      heldChoices: [],
+    });
+    const skips = (state: PlayerBarState) => {
+      const $ = mount({ state, controls: { skip: true } });
+      return [-1, 1].map((direction) => {
+        const button = $(
+          `[aria-label='${direction < 0 ? "Skip back" : "Skip forward"}']`,
+        ) as HTMLButtonElement;
+        return { disabled: button.disabled, title: button.title };
+      });
+    };
+    const back = { disabled: true, title: HISTORY_REASONS.rollBack };
+    const forward = { disabled: true, title: HISTORY_REASONS.rollForward };
+    const backOpen = { disabled: false, title: "Skip back" };
+    const forwardOpen = { disabled: false, title: "Skip forward" };
+    const run = playing(true);
+    const atFirst = reducePlayerBar(
+      run,
+      GameExecutedMessage.type.notification({
+        ...executed.params,
+        history: history(false, false),
+      }),
+      1,
+    );
+    expect(skips(atFirst)).toEqual([back, forward]);
+    const stepped = reducePlayerBar(
+      atFirst,
+      GameSteppedMessage.type.notification({
+        location: location(5),
+        history: history(true, false),
+      }),
+      1,
+    );
+    expect(skips(stepped)).toEqual([backOpen, forward]);
+    const between = reducePlayerBar(
+      stepped,
+      GameRolledMessage.type.notification({
+        restored: {} as SettledBeat,
+        history: history(true, true),
+      }),
+      1,
+    );
+    expect(skips(between)).toEqual([backOpen, forwardOpen]);
+    const rolledToFirst = reducePlayerBar(
+      between,
+      GameRolledMessage.type.notification({
+        restored: {} as SettledBeat,
+        history: history(false, true),
+      }),
+      1,
+    );
+    expect(skips(rolledToFirst)).toEqual([back, forwardOpen]);
+    expect(
+      skips(reducePlayerBar(rolledToFirst, gameState({ run: null }))),
+    ).toEqual([backOpen, forwardOpen]);
+    expect(skips(playing(true))).toEqual([back, forward]);
+    const restarted = reducePlayerBar(
+      reducePlayerBar(between, gameState({ run: null })),
+      gameState({ launchState: "pause", run: 2, paused: true }),
+    );
+    expect(skips(restarted)).toEqual([back, forward]);
+    expect(
+      skips(reducePlayerBar(between, gameState({ launchState: "pause", run: 2, paused: true }))),
+    ).toEqual([back, forward]);
+  });
+
+  it("keeps only the current run's history whatever order runs and their reports arrive in", () => {
+    const h = (canRollBack: boolean) => ({
+      canRollBack,
+      canRollForward: false,
+      behindLatest: false,
+      canStepOut: false,
+      rollBackRefusal: canRollBack ? null : HISTORY_REASONS.rollBack,
+      rollForwardRefusal: HISTORY_REASONS.rollForward,
+      stepRefusal: null,
+      stepOutRefusal: HISTORY_REASONS.stepOut,
+      heldChoices: [],
+    });
+    const old = h(true);
+    const fresh = h(false);
+    const cases: {
+      name: string;
+      inputs: RunHistoryInput[];
+      expected: GameHistory | null;
+    }[] = [
+      {
+        name: "a report for the current run",
+        inputs: [{ started: 1 }, { run: 1, history: old }],
+        expected: old,
+      },
+      {
+        name: "a restart drops the previous run's history",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { started: 2 }],
+        expected: null,
+      },
+      {
+        name: "a late stepped from the previous run after a restart",
+        inputs: [
+          { started: 1 },
+          { run: 1, history: old },
+          { started: 2 },
+          { run: 2, history: fresh },
+          { run: 1, history: old },
+        ],
+        expected: fresh,
+      },
+      {
+        name: "a late rolled from the previous run before the new run reports",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { started: 2 }, { run: 1, history: old }],
+        expected: null,
+      },
+      {
+        name: "a report for the new run before its start is announced",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { run: 2, history: fresh }, { started: 2 }],
+        expected: fresh,
+      },
+      {
+        name: "Stop then Play",
+        inputs: [
+          { started: 1 },
+          { run: 1, history: old },
+          { started: null },
+          { run: 1, history: old },
+          { started: 2 },
+        ],
+        expected: null,
+      },
+      {
+        name: "a report without history keeps the current one",
+        inputs: [{ started: 1 }, { run: 1, history: old }, { run: 1, history: undefined }],
+        expected: old,
+      },
+    ];
+    for (const { name, inputs, expected } of cases) {
+      expect(
+        inputs.reduce(foldRunHistory, initialRunHistory).history,
+        name,
+      ).toEqual(expected);
+    }
+  });
+
+  it("skips nothing from a press on a skip at its end of the history, nor from a hold that reaches it", () => {
+    vi.useFakeTimers();
+    const onSkip = vi.fn();
+    const at = (canRollBack: boolean) =>
+      reducePlayerBar(
+        playing(true),
+        GameRolledMessage.type.notification({
+          restored: {} as SettledBeat,
+          history: {
+            canRollBack,
+            canRollForward: true,
+            behindLatest: true,
+            canStepOut: false,
+            rollBackRefusal: canRollBack ? null : HISTORY_REASONS.rollBack,
+            rollForwardRefusal: null,
+            stepRefusal: null,
+            stepOutRefusal: HISTORY_REASONS.stepOut,
+            heldChoices: [],
+          },
+        }),
+        1,
+      );
+    const $ = mount({ state: at(false), controls: { skip: true }, onSkip });
+    act(() => {
+      $("[aria-label='Skip back']")!.dispatchEvent(pointer("pointerdown"));
+      vi.advanceTimersByTime(1000);
+      $("[aria-label='Skip back']")!.dispatchEvent(pointer("pointerup"));
+    });
+    expect(onSkip).not.toHaveBeenCalled();
+    mount({ state: at(true), controls: { skip: true }, onSkip });
+    act(() => {
+      $("[aria-label='Skip back']")!.dispatchEvent(pointer("pointerdown"));
+    });
+    expect(onSkip).toHaveBeenCalledTimes(1);
+    mount({ state: at(false), controls: { skip: true }, onSkip });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the resize handle and the size readout to a host that owns the display", () => {
+    const resized = reducePlayerBar(
+      initialPlayerBarState,
+      GameResizedMessage.type.notification({
+        width: 960,
+        height: 540,
+        aspectRatio: "16:9",
+        fit: "auto",
+      }),
+    );
+    const $ = mount({ state: resized, controls: { resize: true } });
+    expect($("#resize-handle")).not.toBeNull();
+    expect($("#size-label")!.textContent).toBe("960 × 540");
+    mount({ state: resized, controls: {} });
+    expect($("#resize-handle")).toBeNull();
+    expect($("#size-label")).toBeNull();
+    expect($("#aspect-ratio-label")).toBeNull();
+    expect($("#fullscreen-button")).toBeNull();
+  });
+
+  it("emits pause, resume, step and fullscreen events", () => {
+    const onPause = vi.fn();
+    const onResume = vi.fn();
+    const onStep = vi.fn();
+    const onToggleFullscreen = vi.fn();
+    const handlers = { onPause, onResume, onStep, onToggleFullscreen };
+    const controls = { step: true, fullscreen: true };
+    const $ = mount({ state: playing(false), controls, ...handlers });
+    expect(($("[aria-label='Step Into']") as HTMLButtonElement).disabled).toBe(true);
+    $("[aria-label='Pause']")!.click();
+    expect(onPause).toHaveBeenCalledTimes(1);
+    mount({ state: playing(true), controls, ...handlers });
+    $("[aria-label='Resume']")!.click();
+    $("[aria-label='Step Into']")!.click();
+    $("[aria-label='Step Out']")!.click();
+    $("#fullscreen-button")!.click();
+    expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onStep.mock.calls).toEqual([["in"], ["out"]]);
+    expect(onToggleFullscreen).toHaveBeenCalledTimes(1);
+    mount({ state: playing(true, true), controls, ...handlers });
+    expect(($("[aria-label='Step Out']") as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("repeats a held skip after 400ms then every 100ms and swallows the release click", () => {
+    vi.useFakeTimers();
+    const onSkip = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { skip: true }, onSkip });
+    const forward = $("[aria-label='Skip forward']")!;
+    act(() => {
+      forward.dispatchEvent(pointer("pointerdown"));
+    });
+    expect(onSkip.mock.calls).toEqual([[1]]);
+    expect(forward.hasAttribute("data-pressed")).toBe(true);
+    act(() => {
+      vi.advanceTimersByTime(399);
+    });
+    expect(onSkip).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(onSkip).toHaveBeenCalledTimes(2);
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(onSkip).toHaveBeenCalledTimes(5);
+    act(() => {
+      forward.dispatchEvent(pointer("pointerup"));
+      forward.dispatchEvent(pointerClick());
+    });
+    expect(forward.hasAttribute("data-pressed")).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(onSkip).toHaveBeenCalledTimes(5);
+    act(() => {
+      $("[aria-label='Skip back']")!.click();
+    });
+    expect(onSkip.mock.calls.at(-1)).toEqual([-1]);
+    expect(onSkip).toHaveBeenCalledTimes(6);
+  });
+
+  it("stops repeating when the pointer leaves while held", () => {
+    vi.useFakeTimers();
+    const onSkip = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { skip: true }, onSkip });
+    const back = $("[aria-label='Skip back']")!;
+    act(() => {
+      back.dispatchEvent(pointer("pointerdown"));
+      back.dispatchEvent(pointer("pointerleave"));
+      vi.advanceTimersByTime(800);
+    });
+    expect(onSkip.mock.calls).toEqual([[-1]]);
+    act(() => {
+      back.click();
+    });
+    expect(onSkip).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips once for a press that leaves the button and comes back before release", () => {
+    vi.useFakeTimers();
+    const onSkip = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { skip: true }, onSkip });
+    const forward = $("[aria-label='Skip forward']")!;
+    act(() => {
+      forward.dispatchEvent(pointer("pointerdown"));
+      forward.dispatchEvent(pointer("pointerleave"));
+      forward.dispatchEvent(pointer("pointerenter"));
+      vi.advanceTimersByTime(200);
+      forward.dispatchEvent(pointer("pointerup"));
+      forward.dispatchEvent(pointerClick());
+      vi.advanceTimersByTime(800);
+    });
+    expect(onSkip.mock.calls).toEqual([[1]]);
+  });
+
+  it("keeps a skip press from starting the bar's resize drag", () => {
+    const onToolbarPointerDown = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { skip: true, step: true } });
+    $("#toolbar")!.addEventListener("pointerdown", onToolbarPointerDown);
+    act(() => {
+      $("[aria-label='Skip back']")!.dispatchEvent(pointer("pointerdown"));
+      $("[aria-label='Skip back']")!.dispatchEvent(pointer("pointerup"));
+    });
+    expect(onToolbarPointerDown).not.toHaveBeenCalled();
+  });
+});
+
+describe("PlayerBar Run button", () => {
+  const runState = (overrides: Partial<GameState>) =>
+    reducePlayerBar(initialPlayerBarState, gameState(overrides));
+
+  const read = ($: ReturnType<typeof mount>) => {
+    const button = $("#run-button")!;
+    return {
+      tag: button.tagName,
+      name: button.textContent,
+      disabled: button.getAttribute("aria-disabled"),
+      title: button.title,
+      description: button.getAttribute("aria-description"),
+    };
+  };
+
+  it("is absent unless the host asks for it", () => {
+    const $ = mount({ state: initialPlayerBarState });
+    expect($("#run-button")).toBeNull();
+  });
+
+  it("reads Run with no game, Stop while playing or paused, and Run again after the run ends", () => {
+    const states: [string, PlayerBarState][] = [
+      ["first load", initialPlayerBarState],
+      ["preview", runState({ launchState: "preview" })],
+      ["playing", runState({ launchState: "play", run: 1 })],
+      ["paused", runState({ launchState: "pause", paused: true, run: 1 })],
+      [
+        "ended",
+        runState({
+          launchState: "ended",
+          run: 1,
+          statuses: {
+            completion: null,
+            ending: { text: "End of story", hover: "", kind: "fin" },
+          },
+        }),
+      ],
+      [
+        "stopped by an error",
+        runState({
+          launchState: "ended",
+          run: 1,
+          statuses: {
+            completion: null,
+            ending: { text: "Stopped by an error", hover: "", kind: "error" },
+          },
+        }),
+      ],
+    ];
+    const names = states.map(([label, state]) => {
+      const $ = mount({ state, controls: { run: true } });
+      const button = read($);
+      expect(button.tag).toBe("BUTTON");
+      expect(button.disabled).toBeNull();
+      return [label, button.name];
+    });
+    expect(names).toEqual([
+      ["first load", "Run"],
+      ["preview", "Run"],
+      ["playing", "Stop"],
+      ["paused", "Stop"],
+      ["ended", "Run again"],
+      ["stopped by an error", "Run again"],
+    ]);
+  });
+
+  it("starts, stops and restarts through the host's handlers", () => {
+    const onRun = vi.fn();
+    const onStop = vi.fn();
+    const click = (state: PlayerBarState) => {
+      const $ = mount({ state, controls: { run: true }, onRun, onStop });
+      act(() => $("#run-button")!.click());
+    };
+    click(initialPlayerBarState);
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([1, 0]);
+    click(runState({ launchState: "play", run: 1 }));
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([1, 1]);
+    click(runState({ launchState: "ended", run: 1 }));
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([2, 1]);
+  });
+
+  it("is disabled with the refusal as its tooltip and description when the program cannot run", () => {
+    const onRun = vi.fn();
+    const refusal = "The story has no scene named start.";
+    const $ = mount({
+      state: initialPlayerBarState,
+      controls: { run: true },
+      runRefusal: refusal,
+      onRun,
+    });
+    expect(read($)).toEqual({
+      tag: "BUTTON",
+      name: "Run",
+      disabled: "true",
+      title: refusal,
+      description: refusal,
+    });
+    act(() => $("#run-button")!.click());
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it("stays Run and disabled while a start is pending", () => {
+    const onRun = vi.fn();
+    const $ = mount({
+      state: initialPlayerBarState,
+      controls: { run: true },
+      starting: true,
+      onRun,
+    });
+    expect(read($)).toMatchObject({ name: "Run", disabled: "true" });
+    act(() => $("#run-button")!.click());
+    expect(onRun).not.toHaveBeenCalled();
+  });
+
+  it("stays Run and disabled while a pending start has already allocated its run", () => {
+    const onRun = vi.fn();
+    const onStop = vi.fn();
+    const $ = mount({
+      state: runState({ launchState: "play", run: 1 }),
+      controls: { run: true },
+      starting: true,
+      onRun,
+      onStop,
+    });
+    expect(read($)).toMatchObject({ name: "Run", disabled: "true" });
+    act(() => $("#run-button")!.click());
+    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([0, 0]);
+  });
+
+  it("keeps Space and Enter on its controls from the game's window key handlers", () => {
+    const reached: string[] = [];
+    const game = (e: KeyboardEvent) => {
+      reached.push(`${e.type} ${e.key}`);
+      if (e.key === " ") {
+        e.preventDefault();
+      }
+    };
+    const types = ["keydown", "keyup", "keypress"] as const;
+    types.forEach((type) => window.addEventListener(type, game));
+    try {
+      const $ = mount({
+        state: runState({ launchState: "pause", paused: true, run: 1 }),
+        controls: { run: true, step: true },
+      });
+      const press = (target: HTMLElement, type: (typeof types)[number], key: string) => {
+        const event = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
+        target.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      const controls = [$("#run-button")!, $("[aria-label='Resume']")!];
+      const cancelled = controls.flatMap((control) =>
+        types.flatMap((type) => [press(control, type, " "), press(control, type, "Enter")]),
+      );
+      expect(cancelled.every((c) => !c)).toBe(true);
+      expect(reached).toEqual([]);
+      press($("#run-button")!, "keydown", "p");
+      expect(reached).toEqual(["keydown p"]);
+    } finally {
+      types.forEach((type) => window.removeEventListener(type, game));
+    }
+  });
+
+  it("keeps a Run press from starting the bar's resize drag", () => {
+    const onToolbarPointerDown = vi.fn();
+    const $ = mount({ state: initialPlayerBarState, controls: { run: true, resize: true } });
+    $("#toolbar")!.addEventListener("pointerdown", onToolbarPointerDown);
+    act(() => {
+      $("#run-button")!.dispatchEvent(pointer("pointerdown"));
+    });
+    expect(onToolbarPointerDown).not.toHaveBeenCalled();
+  });
+});

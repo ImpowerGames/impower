@@ -1,0 +1,1267 @@
+#!/usr/bin/env node
+
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen, sha256 } from "../../../../.agents/skills/drive-web-editor/redgreen.mjs";
+
+const WIN = process.platform === "win32";
+
+const SCRATCH = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "impower-redgreen-checks-")));
+console.log(`Scratch directory: ${SCRATCH}`);
+process.on("exit", () => fs.rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+for (const name of ["TEMP", "TMP", "TMPDIR"]) process.env[name] = SCRATCH;
+
+let failures = 0;
+const check = (name, fn) => {
+  try {
+    fn();
+    console.log(`PASS: ${name}`);
+  } catch (err) {
+    failures++;
+    console.log(`FAIL: ${name}`);
+    console.log(`  ${String(err.message).split("\n").join("\n  ")}`);
+  }
+};
+
+const git = (cwd, ...args) => {
+  const r = spawnSync("git", args, { cwd, encoding: "utf8", windowsHide: true });
+  if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr}`);
+  return r.stdout;
+};
+
+const NODE = JSON.stringify(process.execPath);
+const OLD = 'export const value = "old";\n';
+const NEW = 'export const value = "new";\n';
+
+function makeRepo() {
+  const dir = fs.mkdtempSync(path.join(SCRATCH, "redgreen-test-"));
+  git(dir, "init", "-q");
+  git(dir, "config", "user.email", "test@example.com");
+  git(dir, "config", "user.name", "redgreen test");
+  git(dir, "config", "commit.gpgsign", "false");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), OLD);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "add", ".");
+  git(dir, "commit", "-q", "-m", "pre-fix");
+  return dir;
+}
+
+const applyFix = (dir) => fs.writeFileSync(path.join(dir, "lib.mjs"), NEW);
+const libText = (dir) => fs.readFileSync(path.join(dir, "lib.mjs"), "utf8");
+const snapshotDir = () => fs.mkdtempSync(path.join(SCRATCH, "redgreen-snap-"));
+const run = (dir, extra = {}) =>
+  runRedGreen({ repoRoot: dir, test: `${NODE} check.mjs`, files: ["lib.mjs"], snapshotDir: snapshotDir(), ...extra });
+
+check("an honest test fails on the base and passes on the fix, and the restore matches by hash", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(r.files[0].restored, true);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(r.files[0].snapshotSha, sha256(Buffer.from(NEW)));
+  assert.match(r.baseCommit, /^[0-9a-f]{40}$/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a snapshot directory the run makes itself names the run's process in owner.json, and one the caller supplies is left as given", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const made = run(dir, { snapshotDir: undefined });
+  assert.equal(made.ok, true, JSON.stringify(made.problems));
+  assert.match(path.basename(made.snapshotDir), /^redgreen-/);
+  assert.ok(made.snapshotDir.startsWith(SCRATCH), `the run made ${made.snapshotDir} outside the scratch directory`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(made.snapshotDir, "owner.json"), "utf8")), { pid: process.pid });
+  const given = run(dir);
+  assert.ok(!fs.existsSync(path.join(given.snapshotDir, "owner.json")), "owner.json was written into a caller's snapshot directory");
+});
+
+check("an out-of-memory red run names the large-object failure message as a cause", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'console.error("FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"); process.exit(134);\n',
+  );
+  git(dir, "commit", "-q", "-am", "crashing check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "crash");
+  const problems = r.problems.join("\n");
+  assert.match(problems, /failing assertion on a large object/);
+  assert.match(problems, /Vitest prints the received value, before any length cap applies/);
+  assert.match(problems, /assert on an identity or a boolean instead/);
+});
+
+check("a base that moved past the branch point reverts to the merge base, not the base's tip", () => {
+  const dir = makeRepo();
+  git(dir, "config", "core.autocrlf", "false");
+  const branchPoint = git(dir, "rev-parse", "HEAD").trim();
+  git(dir, "branch", "upstream");
+  applyFix(dir);
+  git(dir, "commit", "-q", "-am", "fix");
+  git(dir, "checkout", "-q", "upstream");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), 'export { value } from "./moved-away.mjs";\n');
+  git(dir, "commit", "-q", "-am", "upstream rewrite");
+  git(dir, "checkout", "-q", "-");
+  assert.equal(libText(dir), NEW);
+
+  const r = run(dir, { base: "upstream" });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.base, "upstream");
+  assert.equal(r.baseCommit, branchPoint);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(libText(dir), NEW);
+});
+
+check("a base with two merge bases (a criss-cross merge) is refused, naming both", () => {
+  const dir = makeRepo();
+  git(dir, "config", "core.autocrlf", "false");
+  git(dir, "branch", "other");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), 'export const value = "a";\n');
+  git(dir, "commit", "-q", "-am", "a");
+  const a = git(dir, "rev-parse", "HEAD").trim();
+  git(dir, "checkout", "-q", "other");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), 'export const value = "b";\n');
+  git(dir, "commit", "-q", "-am", "b");
+  git(dir, "merge", "-q", "-s", "ours", "--no-edit", a);
+  git(dir, "checkout", "-q", "-");
+  git(dir, "merge", "-q", "-s", "ours", "--no-edit", "other~1");
+  applyFix(dir);
+  assert.throws(() => run(dir, { base: "other" }), /2 merge bases .*Pass the intended one as --base/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a base with no shared history is refused", () => {
+  const dir = makeRepo();
+  const home = git(dir, "rev-parse", "--abbrev-ref", "HEAD").trim();
+  git(dir, "checkout", "-q", "--orphan", "stranger");
+  git(dir, "commit", "-q", "-m", "unrelated");
+  git(dir, "checkout", "-q", home);
+  applyFix(dir);
+  assert.throws(() => run(dir, { base: "stranger" }), /shares no history with HEAD/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a shallow clone cut above the branch point is refused with how to deepen it", () => {
+  const origin = makeRepo();
+  git(origin, "branch", "upstream");
+  fs.writeFileSync(path.join(origin, "lib.mjs"), NEW);
+  git(origin, "commit", "-q", "-am", "fix");
+  git(origin, "checkout", "-q", "upstream");
+  fs.writeFileSync(path.join(origin, "other.mjs"), "export {};\n");
+  git(origin, "add", "other.mjs");
+  git(origin, "commit", "-q", "-m", "upstream moves");
+  git(origin, "checkout", "-q", "-");
+  const dir = fs.mkdtempSync(path.join(SCRATCH, "redgreen-shallow-"));
+  git(dir, "clone", "-q", "--depth", "1", "--no-single-branch", `file://${origin.replace(/\\/g, "/")}`, "c");
+  const clone = path.join(dir, "c");
+  assert.throws(
+    () => runRedGreen({ repoRoot: clone, test: `${NODE} check.mjs`, files: ["lib.mjs"], base: "origin/upstream", snapshotDir: snapshotDir() }),
+    /shallow clone.*--unshallow/,
+  );
+});
+
+const RED_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m1 failed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
+const RED_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[31m2 failed\x1b[39m\x1b[22m\x1b[2m | \x1b[22m\x1b[1m\x1b[32m3 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
+const GREEN_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m1 passed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
+const GREEN_TESTS = "\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m5 passed\x1b[39m\x1b[22m\x1b[90m (5)\x1b[39m";
+
+const COLLECT_FAIL_TEST_FILES = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m1 failed\x1b[39m\x1b[22m\x1b[90m (1)\x1b[39m";
+const NO_TESTS_LINE = "\x1b[2m      Tests \x1b[22m \x1b[2mno tests\x1b[22m";
+
+const VITEST_RUN_BANNER =
+  "\x1b[1m\x1b[7m\x1b[36m RUN \x1b[39m\x1b[27m\x1b[22m \x1b[36mv2.1.9 \x1b[39m\x1b[90mC:/scratch/vt\x1b[39m";
+
+const MULTI_FAILURE_CHECK =
+  [
+    'import { value } from "./lib.mjs";',
+    'if (value !== "new") {',
+    `  console.error(${JSON.stringify(RED_TEST_FILES)});`,
+    `  console.error(${JSON.stringify(RED_TESTS)});`,
+    '  for (let i = 0; i < 45; i++) console.error("AssertionError: trailing detail line " + i);',
+    "  process.exit(1);",
+    "} else {",
+    `  console.log(${JSON.stringify(GREEN_TEST_FILES)});`,
+    `  console.log(${JSON.stringify(GREEN_TESTS)});`,
+    '  for (let i = 0; i < 45; i++) console.log("ok detail line " + i);',
+    "}",
+  ].join("\n") + "\n";
+
+check("red.summary and green.summary carry the Test Files / Tests lines, ANSI-coloured as vitest really prints them, even when they are not in tail", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "check.mjs"), MULTI_FAILURE_CHECK);
+  const r = run(dir);
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.summary, "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)");
+  assert.ok(
+    !r.red.tail.some((l) => l.includes("Test Files")),
+    "the tail should end on the trailing detail lines, not the summary -- proving summary is not just a re-read of tail",
+  );
+  assert.equal(r.green.summary, "Test Files  1 passed (1) / Tests  5 passed (5)");
+});
+
+check("parseVitestSummary reads either line alone (ANSI-coloured or plain) and returns null when neither is present", () => {
+  assert.equal(parseVitestSummary(` ${RED_TEST_FILES}\n`), "Test Files  1 failed (1)");
+  assert.equal(parseVitestSummary(`${RED_TESTS}\n`), "Tests  2 failed | 3 passed (5)");
+  assert.equal(parseVitestSummary(" Test Files  1 passed (1)\n"), "Test Files  1 passed (1)");
+  assert.equal(parseVitestSummary("      Tests  8 passed (8)\n"), "Tests  8 passed (8)");
+  assert.equal(parseVitestSummary("AssertionError: expected new, got old\n"), null);
+  assert.equal(parseVitestSummary(""), null);
+});
+
+check("parseVitestSummary ignores a line that starts with the label but carries no count, per its own docstring", () => {
+  assert.equal(parseVitestSummary("Test Files  1 passed (1)\nTests are slow today\n"), "Test Files  1 passed (1)");
+  assert.equal(parseVitestSummary("Test Files were deleted by the fix\n"), null);
+  assert.equal(parseVitestSummary("Tests are slow today\nTest Files were deleted by the fix\n"), null);
+});
+
+check("parseVitestSummary takes the last matching pair, not the first, on a --test that runs vitest more than once", () => {
+  const twoRuns = [
+    " Test Files  1 passed (1)",
+    "      Tests  5 passed (5)",
+    "--- second invocation ---",
+    ` ${RED_TEST_FILES}`,
+    ` ${RED_TESTS}`,
+  ].join("\n");
+  assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)");
+});
+
+check("parseVitestSummary reads vitest's \"no tests\" Tests line -- the shape a collection failure prints when zero tests ran", () => {
+  const output = [` ${COLLECT_FAIL_TEST_FILES}`, `${NO_TESTS_LINE}`].join("\n");
+  assert.equal(parseVitestSummary(output), "Test Files  1 failed (1) / Tests  no tests");
+});
+
+check("parseVitestSummary pairs the last Test Files line with the FIRST Tests line after it, and falls back to the LAST Tests line when no Test Files line anchors the pair", () => {
+  const trailing = [` ${COLLECT_FAIL_TEST_FILES}`, `${NO_TESTS_LINE}`, "--- later output ---", ` ${GREEN_TESTS}`].join("\n");
+  assert.equal(parseVitestSummary(trailing), "Test Files  1 failed (1) / Tests  no tests");
+  const noAnchor = ["      Tests  1 passed (1)", "--- second invocation ---", ` ${GREEN_TESTS}`].join("\n");
+  assert.equal(parseVitestSummary(noAnchor), "Tests  5 passed (5)");
+});
+
+check("parseVitestSummary pairs Test Files / Tests by invocation, not by taking the last of each independently, when the second invocation's Tests line is a shape this parser does not recognise", () => {
+  const twoRuns = [
+    ` ${GREEN_TEST_FILES}`,
+    ` ${GREEN_TESTS}`,
+    "--- second invocation ---",
+    ` ${RED_TEST_FILES}`,
+    "      Tests  cancelled",
+  ].join("\n");
+  assert.equal(parseVitestSummary(twoRuns), "Test Files  1 failed (1)");
+});
+
+check("a red run naming vitest that fails on assertion with no parseable summary is a problem, not a silent null", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'import { value } from "./lib.mjs";\nif (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }\nconsole.log("ok");\n',
+  );
+  const r = run(dir, { test: `${NODE} check.mjs # npx vitest run` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+  assert.match(r.problems.join("\n"), /command names vitest, or the output shows vitest's own run banner.*no `Test Files`\/`Tests` summary line could be parsed/);
+});
+
+check("a red run whose output carries vitest's own run banner is flagged for a missing summary even when the command text never says vitest", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      `console.error(${JSON.stringify(VITEST_RUN_BANNER)});`,
+      'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} check.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+  assert.match(r.problems.join("\n"), /output shows vitest's own run banner/);
+});
+
+check("a red run whose output merely carries the words RUN, Tests and node in other positions is not read as a vitest run", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error("RUN failed while preparing the fixture");',
+      '  console.error("Tests are slow today");',
+      '  console.error("    at loadESM (node:internal/modules/esm/loader:42:7)");',
+      '  console.error("AssertionError: expected new, got " + value);',
+      "  process.exit(1);",
+      "}",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  const r = run(dir);
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+  assert.deepEqual(r.problems, []);
+});
+
+check("a red run whose summary says no test ran is a problem, not a proof", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error(" FAIL  pins-the-ticket.test.mjs [ pins-the-ticket.test.mjs ]");',
+      '  console.error("Error: fixture setup failed: value is " + value);',
+      `  console.error(${JSON.stringify(COLLECT_FAIL_TEST_FILES)});`,
+      `  console.error(${JSON.stringify(NO_TESTS_LINE)});`,
+      "  process.exit(1);",
+      "}",
+      `console.log(${JSON.stringify(GREEN_TEST_FILES)});`,
+      `console.log(${JSON.stringify(GREEN_TESTS)});`,
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} check.mjs # npx vitest run` });
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, "Test Files  1 failed (1) / Tests  no tests");
+  assert.equal(r.green.summary, "Test Files  1 passed (1) / Tests  5 passed (5)");
+  assert.equal(r.ok, false, "a red that collected nothing was certified as a proof");
+  assert.match(r.problems.join("\n"), /reports that no test ran/);
+});
+
+check("a red run that does not name vitest and has no summary is not flagged for a missing summary (plain runners have none to begin with)", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.summary, null);
+});
+
+check("a test that passes on the base is reported as pinning nothing", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "check.mjs"), 'console.log("always ok");\n');
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "passed");
+  assert.match(r.problems.join("\n"), /pins nothing/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a file edited during the red run is named and left alone, not overwritten by the stale snapshot", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "mutate.mjs"),
+    [
+      'import fs from "node:fs";',
+      'fs.appendFileSync("lib.mjs", "// review-round edit\\n");',
+      'console.error("AssertionError: still old");',
+      "process.exit(1);",
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} mutate.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.files[0].changedDuringRed, true);
+  assert.equal(r.files[0].restored, false);
+  assert.match(r.problems.join("\n"), /lib\.mjs changed while it was reverted/);
+  assert.equal(r.green.skipped, true);
+  assert.equal(libText(dir), OLD + "// review-round edit\n");
+  assert.equal(fs.readFileSync(r.files[0].snapshotPath, "utf8"), NEW);
+});
+
+check("a restore that never reached the disk is reported as a hash mismatch, not a success", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "lock.mjs"),
+    ['import fs from "node:fs";', 'fs.chmodSync("lib.mjs", 0o444);', 'console.error("AssertionError: still old");', "process.exit(1);"].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} lock.mjs` });
+  fs.chmodSync(path.join(dir, "lib.mjs"), 0o644);
+  assert.equal(r.ok, false);
+  assert.equal(r.files[0].changedDuringRed, false);
+  assert.equal(r.files[0].restored, false);
+  assert.equal(r.files[0].matches, false);
+  assert.match(r.files[0].restoreError ?? "", /EPERM|EACCES/);
+  assert.match(r.problems.join("\n"), /does not match its snapshot after restore/);
+  assert.equal(r.green.skipped, true);
+  assert.equal(libText(dir), OLD);
+});
+
+check("a red run that dies on an import is not accepted as proof of the defect", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "added.mjs"), "export const added = 1;\n");
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'import { added } from "./added.mjs";\nimport { value } from "./lib.mjs";\nif (value !== "new") process.exit(1);\nconsole.log(added);\n',
+  );
+  const r = run(dir, { files: ["lib.mjs", "added.mjs"] });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.red.reason, "import");
+  assert.match(r.problems.join("\n"), /simulate the old behaviour in place/);
+  assert.equal(r.files[1].baseSha, null);
+  assert.equal(r.files[1].matches, true);
+  assert.equal(fs.readFileSync(path.join(dir, "added.mjs"), "utf8"), "export const added = 1;\n");
+});
+
+check("a red run the classifier cannot place is not accepted, and an empty output is named as such", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "check.mjs"), 'import { value } from "./lib.mjs";\nprocess.exit(value === "new" ? 0 : 1);\n');
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.red.reason, "unknown");
+  assert.match(r.problems.join("\n"), /no output at all/);
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(libText(dir), NEW);
+});
+
+check("naming the test file in --files (so the revert removes it) is reported as no tests found, not as a red", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "runner.mjs"),
+    [
+      'import fs from "node:fs";',
+      'if (!fs.existsSync("new.test.mjs")) { console.error("No test files found, exiting with code 1"); process.exit(1); }',
+      'await import("./new.test.mjs");',
+    ].join("\n") + "\n",
+  );
+  fs.writeFileSync(path.join(dir, "new.test.mjs"), 'import { value } from "./lib.mjs";\nif (value !== "new") { console.error("AssertionError"); process.exit(1); }\n');
+  const r = run(dir, { test: `${NODE} runner.mjs`, files: ["lib.mjs", "new.test.mjs"] });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "notests");
+  assert.match(r.problems.join("\n"), /found no test to run/);
+  assert.equal(fs.existsSync(path.join(dir, "new.test.mjs")), true);
+});
+
+check("a shell failure on the red alone still fails the verdict when the green passes", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "gate.mjs"),
+    'import { value } from "./lib.mjs";\nif (value !== "new") { console.error("bash: line 1: nosuchcmd: command not found"); process.exit(127); }\n',
+  );
+  const r = run(dir, { test: `${NODE} gate.mjs` });
+  assert.equal(r.red.reason, "shell");
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /could not run/);
+});
+
+check("a failure-count status reports its shell-dependent ambiguity and execution metadata", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "count.mjs"), 'import { value } from "./lib.mjs"; if (value !== "new") { console.error("AssertionError: expected new"); console.error("127 failing"); process.exit(127); }');
+  const r = run(dir, { test: `${NODE} count.mjs` });
+  assert.equal(r.red.exit, 127);
+  assert.equal(r.green.outcome, "passed");
+  if (r.red.reason === "unknown") {
+    assert.match(r.problems.join("\n"), /status is reserved for execution failure/);
+    assert.doesNotMatch(r.problems.join("\n"), /mixes assertion and shell diagnostics/);
+    assert.equal(r.red.posixShell, true);
+    assert.equal(r.ok, false);
+  } else {
+    assert.equal(r.red.reason, "assertion");
+    assert.equal(r.red.posixShell, false);
+    assert.equal(r.ok, true);
+  }
+  assert.equal(r.red.launchError, null);
+  assert.equal(r.red.signal, null);
+});
+
+check("after the fix is committed, HEAD is the fix and --base must point at the pre-fix revision", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  git(dir, "commit", "-q", "-am", "the fix");
+  const againstHead = run(dir);
+  assert.equal(againstHead.ok, false);
+  assert.match(againstHead.problems.join("\n"), /identical to HEAD/);
+  assert.match(againstHead.problems.join("\n"), /pins nothing/);
+  const againstParent = run(dir, { base: "HEAD~1" });
+  assert.equal(againstParent.ok, true, JSON.stringify(againstParent.problems));
+});
+
+check("a --base that does not resolve is refused before any file is touched", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  assert.throws(() => run(dir, { base: "orgin/main" }), /--base "orgin\/main" does not resolve/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a repoRoot that is not the repository root is refused before any file is touched", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const sub = path.join(dir, "sub");
+  fs.mkdirSync(sub);
+  fs.writeFileSync(path.join(sub, "lib.mjs"), "export const value = 1;\n");
+  git(dir, "add", ".");
+  git(dir, "commit", "-q", "-m", "sub");
+  assert.throws(() => runRedGreen({ repoRoot: sub, test: "true", files: ["lib.mjs"], snapshotDir: snapshotDir() }), /run from the repository root/);
+  assert.equal(fs.readFileSync(path.join(sub, "lib.mjs"), "utf8"), "export const value = 1;\n");
+});
+
+check("a file identical to the base among the changed files fails the verdict, and the tree still comes back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "other.mjs"), "export const other = 1;\n");
+  git(dir, "add", "other.mjs");
+  git(dir, "commit", "-q", "-m", "other");
+  const r = run(dir, { files: ["lib.mjs", "other.mjs"] });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /other\.mjs is identical to HEAD/);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(libText(dir), NEW);
+});
+
+check("a directory or a path outside the repository in --files is refused before any file is touched", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  assert.throws(() => run(dir, { files: [""] }), /is not a file/);
+  assert.throws(() => run(dir, { files: ["../"] }), /is not a file|outside the repository/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a VAR=value prefix on the test command runs, as every vitest example in the skill is written", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'import { value } from "./lib.mjs";\nif (process.env.REDGREEN_PROBE !== "yes") { console.error("prefix not applied"); process.exit(2); }\nif (value !== "new") { console.error("AssertionError: expected new"); process.exit(1); }\n',
+  );
+  const r = run(dir, { test: `REDGREEN_PROBE=yes ${NODE} check.mjs` });
+  assert.equal(r.ok, true, JSON.stringify([r.problems, r.red.tail, r.green.tail]));
+  assert.equal(r.red.reason, "assertion");
+});
+
+check("a test command the shell cannot run is a shell problem, not a red", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = run(dir, { test: "definitely-not-a-command-xyz --run" });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.red.reason, "shell");
+  assert.match(r.problems.join("\n"), /could not run/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a file that cannot be reverted is a problem, the red run is skipped, and the report still comes back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "other.mjs"), "export const other = 1;\n");
+  git(dir, "add", "other.mjs");
+  git(dir, "commit", "-q", "-m", "other");
+  fs.writeFileSync(path.join(dir, "other.mjs"), "export const other = 2;\n");
+  fs.chmodSync(path.join(dir, "other.mjs"), 0o444);
+  const r = run(dir, { files: ["lib.mjs", "other.mjs"] });
+  fs.chmodSync(path.join(dir, "other.mjs"), 0o644);
+  assert.equal(r.ok, false);
+  assert.equal(r.red, null);
+  assert.equal(r.green.skipped, true);
+  assert.match(r.problems.join("\n"), /other\.mjs could not be reverted/);
+  assert.equal(r.files[0].reverted, true);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(r.files[1].reverted, false);
+  assert.equal(r.files[1].changedDuringRed, false);
+  assert.equal(r.files[1].matches, true);
+  assert.equal(libText(dir), NEW);
+  assert.equal(fs.readFileSync(path.join(dir, "other.mjs"), "utf8"), "export const other = 2;\n");
+});
+
+check("a revert failure in the middle of the list leaves the files after it untouched, and they are checked from disk", () => {
+  const dir = makeRepo();
+  for (const n of ["a", "c"]) fs.writeFileSync(path.join(dir, `${n}.txt`), `${n} old\n`);
+  fs.writeFileSync(path.join(dir, "b.txt"), "b old\n");
+  git(dir, "add", ".");
+  git(dir, "commit", "-q", "-m", "three");
+  applyFix(dir);
+  for (const n of ["a", "b", "c"]) fs.writeFileSync(path.join(dir, `${n}.txt`), `${n} fixed\n`);
+  fs.chmodSync(path.join(dir, "b.txt"), 0o444);
+  const r = runRedGreen({
+    repoRoot: dir,
+    test: `${NODE} check.mjs`,
+    files: ["a.txt", "b.txt", "c.txt"],
+    snapshotDir: snapshotDir(),
+    log: (line) => {
+      if (line.startsWith("revert  b.txt")) fs.writeFileSync(path.join(dir, "c.txt"), "c rewritten\n");
+    },
+  });
+  fs.chmodSync(path.join(dir, "b.txt"), 0o644);
+  assert.equal(r.ok, false);
+  assert.equal(r.red, null);
+  assert.deepEqual(r.files.map((f) => f.reverted), [true, false, false]);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(r.files[2].matches, false);
+  assert.match(r.problems.join("\n"), /c\.txt does not match its snapshot/);
+  assert.equal(fs.readFileSync(path.join(dir, "c.txt"), "utf8"), "c rewritten\n");
+});
+
+check("an error after the snapshot becomes a problem and the report still comes back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = runRedGreen({
+    repoRoot: dir,
+    test: `${NODE} check.mjs`,
+    files: ["lib.mjs"],
+    snapshotDir: snapshotDir(),
+    log: (line) => {
+      if (line.startsWith("red ")) throw new Error("log sink exploded");
+    },
+  });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /stopped early: log sink exploded/);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a file deleted while it was reverted is recreated from the snapshot and noted", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(
+    path.join(dir, "del.mjs"),
+    [
+      'import fs from "node:fs";',
+      'if (fs.readFileSync("lib.mjs", "utf8").includes("old")) { fs.rmSync("lib.mjs"); console.error("AssertionError: still old"); process.exit(1); }',
+    ].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} del.mjs` });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join("\n"), /lib\.mjs was deleted while it was reverted/);
+  assert.equal(r.files[0].matches, true);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a repository root reached through a directory link is accepted and its target preserved", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const link = path.join(SCRATCH, `redgreen-link-${process.pid}-${Date.now()}`);
+  console.log(`scratch repository: ${dir}; directory link: ${link}`);
+  fs.symlinkSync(dir, link, WIN ? "junction" : "dir");
+  try {
+    const r = runRedGreen({ repoRoot: link, test: `${NODE} check.mjs`, files: ["lib.mjs"], snapshotDir: snapshotDir() });
+    assert.equal(r.ok, true, JSON.stringify(r.problems));
+  } finally {
+    if (WIN) fs.rmdirSync(link);
+    else fs.unlinkSync(link);
+    assert.equal(libText(dir), NEW, "link cleanup changed the target");
+    assert.ok(fs.existsSync(path.join(dir, ".git")), "link cleanup removed the repository");
+  }
+});
+
+check("a file that cannot be read back during the restore does not stop the other files coming back", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "c.mjs"), "export const c = 1;\n");
+  git(dir, "add", "c.mjs");
+  git(dir, "commit", "-q", "-m", "c");
+  fs.writeFileSync(path.join(dir, "c.mjs"), "export const c = 2;\n");
+  fs.writeFileSync(
+    path.join(dir, "swap.mjs"),
+    ['import fs from "node:fs";', 'fs.rmSync("lib.mjs");', 'fs.mkdirSync("lib.mjs");', 'console.error("AssertionError: still old");', "process.exit(1);"].join("\n") + "\n",
+  );
+  const r = run(dir, { test: `${NODE} swap.mjs`, files: ["lib.mjs", "c.mjs"] });
+  assert.equal(r.ok, false);
+  assert.equal(r.files[0].matches, false);
+  assert.match(r.problems.join("\n"), /lib\.mjs could not be checked or restored|lib\.mjs changed while it was reverted/);
+  assert.equal(r.files[1].restored, true);
+  assert.equal(r.files[1].matches, true);
+  assert.equal(fs.readFileSync(path.join(dir, "c.mjs"), "utf8"), "export const c = 2;\n");
+  assert.equal(fs.readFileSync(r.files[0].snapshotPath, "utf8"), NEW);
+  assert.equal(process.listenerCount("SIGINT"), 0);
+});
+
+check("two paths that flatten to the same name get distinct snapshot files", () => {
+  const dir = makeRepo();
+  fs.mkdirSync(path.join(dir, "src", "a"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "src", "a__b.txt"), "flat\n");
+  fs.writeFileSync(path.join(dir, "src", "a", "b.txt"), "nested\n");
+  git(dir, "add", ".");
+  git(dir, "commit", "-q", "-m", "two");
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "src", "a__b.txt"), "flat fixed\n");
+  fs.writeFileSync(path.join(dir, "src", "a", "b.txt"), "nested fixed\n");
+  const r = run(dir, { files: ["lib.mjs", "src/a__b.txt", "src/a/b.txt"] });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.notEqual(r.files[1].snapshotPath, r.files[2].snapshotPath);
+  assert.equal(fs.readFileSync(r.files[1].snapshotPath, "utf8"), "flat fixed\n");
+  assert.equal(fs.readFileSync(r.files[2].snapshotPath, "utf8"), "nested fixed\n");
+});
+
+check("a --test whose own script does not exist is a shell problem, not an import break", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const r = run(dir, { test: `${NODE} redgreen.tests.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "shell");
+  assert.match(r.problems.join("\n"), /could not run/);
+});
+
+
+check("verbose passing output preserves the named failure and complete log", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "verbose.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'if (value === "old") console.log("\\x1b[31mFAIL: preserves the first failure\\x1b[0m\\n  AssertionError: expected new");',
+    'for (let i = 0; i < 100; i++) console.log("PASS: later case " + i);',
+    'console.log("PASS: reports AssertionError and FAIL and not ok correctly");',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} verbose.mjs` });
+  assert.equal(r.ok, true);
+  assert.ok(!r.red.tail.some((line) => line.includes("FAIL:")));
+  assert.ok(r.red.failures.includes("FAIL: preserves the first failure"));
+  assert.ok(r.red.failures.some((line) => line.includes("AssertionError: expected new")));
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /PASS: later case 99/);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /FAIL: preserves the first failure/);
+  assert.equal(r.red.failuresOmitted, 0);
+  assert.equal(r.red.failureLinesTruncated, 0);
+  assert.equal(r.red.failures.length, 2, "passing assertion names are not failed cases");
+});
+
+check("failure excerpts report omitted lines and clipped text with the full log retained", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "many.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'if (value === "old") for (let i = 0; i < 45; i++) console.log("not ok " + i + " - " + (i === 0 ? "x".repeat(3000) : "case"));',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} many.mjs` });
+  assert.equal(r.ok, true);
+  assert.equal(r.red.failures.length, 40);
+  assert.equal(r.red.failuresOmitted, 5);
+  assert.equal(r.red.failureLinesTruncated, 1);
+  assert.equal(r.red.failures[0].length, 2000);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /not ok 44 - case/);
+  assert.ok(fs.readFileSync(r.red.logPath, "utf8").includes("x".repeat(3000)));
+});
+
+check("real Node spec failures retain their distinct names", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "spec.mjs"), [
+    'import test from "node:test"; import assert from "node:assert/strict"; import { value } from "./lib.mjs";',
+    'test("the ticket case", () => assert.equal(value, "new"));',
+    'test("the other error case", () => { if (value === "old") throw new Error("another failure"); });',
+    'test("passes mentioning AssertionError and FAIL", () => assert.ok(true));',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} --test --test-reporter=spec spec.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.ok(r.red.failures.some((line) => line.includes("the ticket case")));
+  assert.ok(r.red.failures.some((line) => line.includes("the other error case")));
+  assert.ok(!r.red.failures.some((line) => line.includes("passes mentioning")));
+});
+
+check("log-write failures preserve both run results and verified snapshots", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  fs.mkdirSync(path.join(snapshots, "red.log"));
+  fs.mkdirSync(path.join(snapshots, "green.log"));
+  const r = run(dir, { snapshotDir: snapshots });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.exit, 1);
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.red.failures.length > 0);
+  assert.equal(r.red.logPath, null);
+  assert.ok(r.red.logError);
+  assert.equal(r.green.exit, 0);
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(r.green.logPath, null);
+  assert.ok(r.green.logError);
+  assert.equal(r.problems.filter((problem) => problem.includes("output could not be saved")).length, 2);
+  assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
+});
+
+check("symbol-only failures classify consistently without accepting ambiguous shell evidence", () => {
+  for (const glyph of ["✕", "✖"]) {
+    assert.equal(classifyRedFailure(`${glyph} ticket case`, { exit: 1, posixShell: true }), "assertion");
+    for (const exit of [126, 127]) assert.equal(classifyRedFailure(`${glyph} ticket case`, { exit, posixShell: true }), "unknown");
+    assert.equal(classifyRedFailure(`${glyph} ticket case\nbash: line 1: missing: command not found`, { exit: 1, posixShell: true }), "unknown");
+  }
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "symbol.mjs"), 'import { value } from "./lib.mjs"; console.log(value === "old" ? "✖ ticket case" : "✔ ticket case"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { test: `${NODE} symbol.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.red.failures.includes("✖ ticket case"));
+});
+
+check("decorative and trailing failure markers do not establish assertion evidence", () => {
+  for (const output of ["benchmark: header rebuild is 2 × slower than budget\nrun aborted", "progress ✖✖✖ markers in a banner", "ticket case: header rebuild ✖"]) {
+    assert.equal(classifyRedFailure(output, { exit: 1 }), "unknown", output);
+  }
+  for (const glyph of ["✕", "✗", "×", "✖"]) assert.equal(classifyRedFailure(`\u001b[31m  ${glyph} ticket case\u001b[0m`, { exit: 1 }), "assertion");
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "decorative.mjs"), 'import { value } from "./lib.mjs"; console.log("progress ✖✖✖ markers in a banner"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { test: `${NODE} decorative.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "unknown");
+  assert.deepEqual(r.red.failures, []);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /progress/);
+});
+
+check("leading decorative banners cannot crowd the real assertion out of excerpts", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  fs.writeFileSync(path.join(dir, "banners.mjs"), [
+    'import { value } from "./lib.mjs";',
+    'for (let i = 0; i < 45; i++) console.log("✖✖✖ decorative banner row " + i);',
+    'if (value === "old") console.log("AssertionError: expected new, got old");',
+    'process.exitCode = value === "old" ? 1 : 0;',
+  ].join("\n"));
+  const r = run(dir, { test: `${NODE} banners.mjs` });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.deepEqual(r.red.failures, ["AssertionError: expected new, got old"]);
+  assert.equal(r.red.failuresOmitted, 0);
+  assert.deepEqual(r.green.failures, []);
+  assert.match(fs.readFileSync(r.red.logPath, "utf8"), /decorative banner row 44/);
+});
+
+check("missing-summary guidance does not direct readers to a failed log", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  fs.mkdirSync(path.join(snapshots, "red.log"));
+  fs.writeFileSync(path.join(dir, "banner.mjs"), 'import { value } from "./lib.mjs"; console.log(" RUN v2.1.9 /fixture"); if (value === "old") console.log("AssertionError: expected new"); process.exitCode = value === "old" ? 1 : 0;');
+  const r = run(dir, { snapshotDir: snapshots, test: `${NODE} banner.mjs` });
+  assert.equal(r.ok, false);
+  assert.equal(r.red.logPath, null);
+  assert.equal(r.red.reason, "assertion");
+  assert.ok(r.problems.some((problem) => problem.includes("raw log could not be saved")));
+  assert.ok(!r.problems.some((problem) => problem.includes("log at red.logPath")));
+  assert.equal(r.green.exit, 0);
+  assert.ok(r.files.every((file) => file.matches));
+});
+
+check("partial log writes are retained and explicitly disowned as evidence", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const snapshots = snapshotDir();
+  const target = path.join(snapshots, "red.log");
+  const originalWrite = fs.writeFileSync;
+  let r;
+  try {
+    fs.writeFileSync = function (file, data, ...args) {
+      if (file === target) {
+        originalWrite.call(fs, file, data.slice(0, 12), ...args);
+        throw new Error("ENOSPC: simulated full disk");
+      }
+      return originalWrite.call(fs, file, data, ...args);
+    };
+    r = run(dir, { snapshotDir: snapshots });
+  } finally {
+    fs.writeFileSync = originalWrite;
+  }
+  assert.equal(r.ok, false);
+  assert.equal(r.red.logPath, null);
+  assert.equal(r.red.unverifiedLogPath, target);
+  assert.match(r.red.logError, /unverified.*partial or stale/);
+  assert.equal(fs.readFileSync(target, "utf8").length, 12);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.ok(r.files.every((file) => file.matches && fs.existsSync(file.snapshotPath)));
+});
+
+check("classifyRedFailure tells the reasons apart on real runner output", () => {
+  assert.equal(classifyRedFailure("Error [ERR_MODULE_NOT_FOUND]: Cannot find module"), "import");
+  assert.equal(classifyRedFailure('Error: Failed to resolve import "./x" from "y.ts"'), "import");
+  assert.equal(classifyRedFailure("AssertionError: expected 2 to be 3"), "assertion");
+  assert.equal(classifyRedFailure("SyntaxError: Unexpected token"), "syntax");
+  assert.equal(classifyRedFailure("bash: line 1: nosuch: command not found"), "shell");
+  assert.equal(classifyRedFailure("/bin/sh: 1: nosuch: not found"), "shell");
+  assert.equal(classifyRedFailure("/bin/sh: 1: ./script: Permission denied"), "shell");
+  assert.equal(classifyRedFailure("AssertionError: expected '/bin/sh: 1: ./script: Permission denied' to match"), "assertion");
+  assert.equal(classifyRedFailure("'NODE_OPTIONS' is not recognized as an internal or external command,"), "shell");
+  assert.equal(classifyRedFailure('npm ERR! Missing script: "test"'), "shell");
+  for (const diagnostic of ["No test files found, exiting with code 1\nfilter: x", "No test suite found", "no tests found"]) {
+    assert.equal(classifyRedFailure(diagnostic), "notests", diagnostic);
+  }
+  for (const passingName of ["PASS handles no tests found", "PASS handles No test files found", "PASS handles No test suite found"]) {
+    assert.equal(
+      classifyRedFailure(`${passingName}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3\nTests  1 failed | 1 passed`),
+      "assertion",
+      passingName,
+    );
+  }
+  for (const loggedPhrase of ["no tests found", "No test files found", "No test suite found"]) {
+    const assertion = `${loggedPhrase}\nFAIL regression preserves output\nAssertionError: expected 2 to be 3`;
+    assert.equal(classifyRedFailure(`RUN  v2.1.9 C:/repo\n${assertion}\nTest Files  1 failed (1)\nTests  1 failed | 1 passed (2)`), "unknown", loggedPhrase);
+    assert.equal(classifyRedFailure(assertion), "unknown", `${loggedPhrase} without a positive runner summary`);
+  }
+  assert.equal(
+    classifyRedFailure("RUN  v2.1.9 C:/repo\nNo test files found\nFAIL collection\nTest Files  1 failed (1)\nTests  no tests"),
+    "notests",
+    "an explicit zero-test runner summary remains authoritative",
+  );
+  assert.equal(
+    classifyRedFailure("No test files found\nTests  1 failed (1)\nFAIL wrapper\nAssertionError: expected 2 to be 3"),
+    "unknown",
+    "summary-like stdout without a Vitest invocation cannot establish provenance",
+  );
+  assert.equal(
+    classifyRedFailure("RUN  v2.1.9 C:/spoofed\nNo test files found\nAssertionError: expected 2 to be 3\nTest Files  1 failed (1)\nTests  1 failed (1)"),
+    "unknown",
+    "fully fabricated Vitest-looking stdout cannot prove that a test ran",
+  );
+  assert.equal(
+    classifyRedFailure(
+      "RUN  v2.1.9 C:/repo\nNo test files found, exiting with code 1\nTest Files  1 failed (1)\nTests  no tests\nRUN  v2.1.9 C:/repo\nAssertionError: synthetic text from a passing test\nTest Files  1 passed (1)\nTests  1 passed (1)",
+    ),
+    "unknown",
+    "a later invocation's positive summary cannot validate an earlier no-test diagnostic",
+  );
+  assert.equal(
+    classifyRedFailure(
+      " FAIL  test/loadAsset.test.ts > loads the fixture\nAssertionError: expected [Error: ENOENT: no such file or directory, open 'fixtures/a.png'] to be undefined\n Test Files  1 failed (1)",
+    ),
+    "assertion",
+  );
+  assert.equal(classifyRedFailure("Error: ENOENT: no such file or directory, open 'x'"), "unknown");
+  assert.equal(classifyRedFailure(""), "unknown");
+  assert.equal(classifyRedFailure("Error: could not reach the license server on 3 October 2026; aborting"), "unknown");
+  assert.equal(classifyRedFailure("TAP version 13\nnot ok 1 - value is new\n  operator: strictEqual"), "assertion");
+  assert.equal(classifyRedFailure("expect(received).toBe(expected)\nExpected: 2\nReceived: 3"), "assertion");
+  assert.equal(classifyRedFailure("Error: Worker exited unexpectedly"), "crash");
+  assert.equal(classifyRedFailure("FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"), "crash");
+  assert.equal(classifyRedFailure(" FAIL src/game.test.ts > the enemy is killed when health reaches 0\nAssertionError: expected 1 to be 0\nTests  1 failed | 12 passed"), "assertion");
+  assert.equal(classifyRedFailure("AssertionError: expected 'FATAL ERROR: heap' to be 'ok'\nTests  1 failed"), "assertion");
+  assert.equal(
+    classifyRedFailure("AssertionError: expected the log to contain 'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory' but it did not\nTests  1 failed | 3 passed"),
+    "assertion",
+  );
+  assert.equal(classifyRedFailure(" FAIL  src/a.test.ts > reports when the worker dies from heap out of memory\nAssertionError: expected 1 to be 0\nTests  1 failed"), "assertion");
+  const esm = "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\\x\\added.mjs' imported from C:\\x\\check.mjs\n{ code: 'ERR_MODULE_NOT_FOUND', url: 'file:///C:/x/added.mjs' }";
+  assert.equal(classifyRedFailure(esm), "import");
+  assert.equal(classifyRedFailure(esm + "\nError: Cannot find module 'C:\\x\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }"), "import");
+  const spawned = "Error: Cannot find module 'C:\\x\\scripts\\tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
+  assert.equal(classifyRedFailure(spawned), "shell");
+  assert.equal(classifyRedFailure(spawned, { removed: ["scripts/tool.mjs"] }), "import");
+  const schema = "Error: Cannot find module 'C:\\x\\scripts\\schema.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }";
+  assert.equal(classifyRedFailure(schema, { removed: ["a.mjs"] }), "shell");
+  assert.equal(classifyRedFailure(schema, { removed: ["scripts/schema.mjs"] }), "import");
+  assert.equal(classifyRedFailure(schema, { removed: ["schema.mjs"] }), "import");
+  if (process.platform === "win32") {
+    assert.equal(classifyRedFailure("Error: Cannot find module 'C:\\x\\Scripts\\Tool.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [] }", { removed: ["scripts/tool.mjs"] }), "import");
+  }
+  assert.equal(classifyRedFailure("    FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"), "crash");
+  assert.equal(
+    classifyRedFailure("Error: Cannot find module './added.mjs'\n{ code: 'MODULE_NOT_FOUND', requireStack: [ 'C:/x/check.mjs' ] }\n--- second runner ---\nError: Cannot find module 'z'\n{ requireStack: [] }"),
+    "import",
+  );
+  assert.equal(
+    classifyRedFailure("node:internal/modules/cjs/loader:1412\n  throw err;\n\nError: Cannot find module 'C:\\x\\redgreen.tests.mjs'\n{\n  code: 'MODULE_NOT_FOUND',\n  requireStack: []\n}"),
+    "shell",
+  );
+  assert.equal(classifyRedFailure("Error: Cannot find module './added.mjs'\n{\n  code: 'MODULE_NOT_FOUND',\n  requireStack: [ 'C:\\x\\check.mjs' ]\n}"), "import");
+});
+
+check("parseRedGreenArgs takes several files and an optional base, and refuses a flag without a value", () => {
+  const o = parseRedGreenArgs(["--test", "npx vitest run x", "--files", "a.ts", "b.ts", "--base", "origin/main"]);
+  assert.deepEqual(o, { test: "npx vitest run x", files: ["a.ts", "b.ts"], base: "origin/main" });
+  assert.equal(parseRedGreenArgs(["--test", "t", "--files", "a"]).base, "HEAD");
+  assert.throws(() => parseRedGreenArgs(["--bogus"]), /unknown argument/);
+  assert.throws(() => parseRedGreenArgs(["--test", "t", "--files", "a", "--base"]), /--base needs a value/);
+  assert.throws(() => parseRedGreenArgs(["--test", "--files", "a"]), /--test needs a value/);
+  assert.throws(() => parseRedGreenArgs(["--test", "t", "--files", ""]), /needs a value/);
+  assert.throws(() => parseRedGreenArgs(["--files", "a"]), /--test <command> is required/);
+});
+
+const NOT_RUN = "test-suite: not run: Reservation transaction unavailable at guard.json: EEXIST";
+const notRunWhen = (dir, condition) => fs.writeFileSync(
+  path.join(dir, "check.mjs"),
+  [
+    'import { value } from "./lib.mjs";',
+    `if (${condition}) { console.error(${JSON.stringify(NOT_RUN)}); process.exit(75); }`,
+    'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+    'console.log("ok");',
+  ].join("\n") + "\n",
+);
+
+check("a green run the test-suite runner never started is not run, never a failing fix", () => {
+  const dir = makeRepo();
+  notRunWhen(dir, 'value === "new"');
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "not run");
+  const problems = r.problems.join("\n");
+  assert.doesNotMatch(problems, /failed against the fix/);
+  assert.match(problems, /green run never started.*run redgreen again/s);
+});
+
+check("a red run the test-suite runner never started is not run, never a red", () => {
+  const dir = makeRepo();
+  notRunWhen(dir, "true");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "not run");
+  assert.equal(r.red.reason, "notrun");
+  assert.match(r.problems.join("\n"), /red run never started.*run redgreen again/s);
+});
+
+check("SyntaxError text inside an assertion diff is an assertion, not a syntax failure", () => {
+  const runnerSummary = "\n Test Files  1 failed (1)\n      Tests  5 failed | 17 passed (22)";
+  const diffs = [
+    ' FAIL  a.test.ts > x\nAssertionError: expected [] to deeply equal [ \'4:8-4:9 SyntaxError: Type function cannot reference\' ]\n- Expected\n+ Received\n\n-   "4:8-4:9 SyntaxError: Type function cannot reference outer local \'var\'",\n+   [],',
+    ' FAIL  a.test.ts > x\nAssertionError: expected [ { code: \'SyntaxError\' } ] to deeply equal []\n-   "code": "SyntaxError",\n+   "code": "Other",',
+    ' FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n  Expected: "0:8-0:10 SyntaxError: Expected identifier"\n  Received: "Unexpected token"',
+    ' FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n+   "1 SyntaxError Expected identifier when parsing expression, got \'+\'",\n+   "src/a.ts:1:1 error TS2304: Cannot find name"',
+  ];
+  for (const diff of diffs) assert.equal(classifyRedFailure(diff + runnerSummary), "assertion", diff);
+});
+
+check("a runner-level syntax failure is still a syntax failure", () => {
+  assert.equal(classifyRedFailure("SyntaxError: Unexpected token"), "syntax");
+  assert.equal(classifyRedFailure("file:///C:/x/check.mjs:3\n  foo bar\n      ^^^\nSyntaxError: Unexpected identifier 'bar'"), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nError: Transform failed with 1 error:\nC:/x/a.ts:1:2: ERROR: Unexpected \"}\""), "syntax");
+  assert.equal(classifyRedFailure("src/a.ts(3,5): error TS2304: Cannot find name 'x'."), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts\n    SyntaxError: Unexpected token '}'\n"), "syntax");
+});
+
+check("a red run whose assertion diff prints SyntaxError is accepted end to end", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value !== "new") {',
+      '  console.error(" FAIL  a.test.ts > x");',
+      '  console.error("AssertionError: expected [] to deeply equal [ 0:8-0:10 SyntaxError: Expected type ]");',
+      '  console.error("-   \\"0:8-0:10 SyntaxError: Expected type, got \'=\'\\",");',
+      '  console.error(" Tests  1 failed | 1 passed (2)");',
+      "  process.exit(1);",
+      "}",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "diff check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+});
+
+check("a not-run marker after other output on its line is still not run", () => {
+  for (const half of ["green", "red"]) {
+    const dir = makeRepo();
+    const condition = half === "red" ? "true" : 'value === "new"';
+    fs.writeFileSync(
+      path.join(dir, "check.mjs"),
+      [
+        'import { value } from "./lib.mjs";',
+        `if (${condition}) {`,
+        '  process.stderr.write("Starting the CLR failed with HRESULT 80004005.");',
+        `  console.error(${JSON.stringify(NOT_RUN)});`,
+        "  process.exit(75);",
+        "}",
+        'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+        'console.log("ok");',
+      ].join("\n") + "\n",
+    );
+    git(dir, "commit", "-q", "-am", "clr");
+    applyFix(dir);
+    const r = run(dir);
+    assert.equal(r.ok, false, half);
+    assert.equal(r[half].outcome, "not run", half);
+    assert.doesNotMatch(r.problems.join("\n"), /failed against the fix/, half);
+    assert.match(r.problems.join("\n"), new RegExp(`${half} run never started`), half);
+  }
+});
+
+check("a test that only quotes the not-run marker, with an ordinary failing exit, stays a red", () => {
+  assert.equal(
+    classifyRedFailure(`AssertionError: expected '${NOT_RUN}' to be ''\nTests  1 failed (1)`, { exit: 1 }),
+    "assertion",
+  );
+});
+
+check("a failed green run with no test result and no assertion is not blamed on the fix", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'if (value === "new") { console.error("Starting the CLR failed with HRESULT 80004005."); process.exit(1); }',
+      'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "no-result green");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  const problems = r.problems.join("\n");
+  assert.doesNotMatch(problems, /failed against the fix/);
+  assert.match(problems, /green run produced no test result/);
+});
+
+check("a genuinely failing green run is still reported as failing against the fix", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'console.error("AssertionError: expected never, got " + value); process.exit(1);',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "always fails");
+  applyFix(dir);
+  const r = run(dir);
+  assert.match(r.problems.join("\n"), /failed against the fix/);
+});
+
+check("a pretty tsc compile error is a syntax failure even when its source frame holds assertion words", () => {
+  const pretty = "lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n\nFound 1 error in lib.ts:1\n";
+  assert.equal(classifyRedFailure(pretty, { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure(pretty.replace(/(lib\.ts)(:1:21)/, "\x1b[96m$1\x1b[0m$2"), { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+});
+
+check("a plain Node console.assert failure is assertion evidence on the green half too", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import { value } from "./lib.mjs";',
+      'const passes = value === "never";',
+      'console.assert(passes, "expected never to equal " + value);',
+      "process.exit(passes ? 0 : 1);",
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "console.assert check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  const problems = r.problems.join("\n");
+  assert.match(problems, /failed against the fix/);
+  assert.doesNotMatch(problems, /produced no test result/);
+});
+
+check("an assertion that quotes the not-run marker and exits 75 is a red, not a run that never started", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    [
+      'import assert from "node:assert/strict";',
+      'import { value } from "./lib.mjs";',
+      `const quoted = ${JSON.stringify(NOT_RUN)};`,
+      'try { assert.equal(value === "new" ? "" : quoted, "", "expected no marker, got " + quoted); }',
+      "catch (error) { console.error(error.stack); process.exit(75); }",
+      'console.log("ok");',
+    ].join("\n") + "\n",
+  );
+  git(dir, "commit", "-q", "-am", "exit 75 assertion");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.red.outcome, "failed");
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+});
+
+check("a compiler error in a path with spaces is a syntax failure", () => {
+  const output = "folder space/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n";
+  assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("C:\\repo with space\\lib.ts(1,21): error TS1109: Expression expected.\n1 export const FAIL = ;", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("O'Connor/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("O'Connor/lib.ts(1,21): error TS1109: Expression expected.", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("/srv/a:b c/lib.ts:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n", { exit: 2 }), "syntax");
+  assert.equal(classifyRedFailure("error TS5058: The specified path does not exist: 'x.ts'.", { exit: 1 }), "syntax");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts > x\nexpected 'a.ts:1:2 - error TS2304: x' to be 'ok'\n Tests  1 failed (1)", { exit: 1 }), "assertion");
+  assert.equal(
+    classifyRedFailure("AssertionError: expected 'a.ts:1:2 - error TS2304: Cannot find name' to be 'ok'\n Tests  1 failed (1)", { exit: 1 }),
+    "assertion",
+  );
+});
+
+check("unchanged context lines of a multiline assertion diff never decide a syntax verdict", () => {
+  const vitest = [
+    " FAIL  a.test.ts > x",
+    "AssertionError: expected 'header\\nSyntaxError: diagnostic\\nnew' to be 'header\\nSyntaxError: diagnostic\\nold' // Object.is equality",
+    "",
+    "- Expected",
+    "+ Received",
+    "",
+    "  header",
+    "  SyntaxError: diagnostic",
+    "- old",
+    "+ new",
+    "",
+    " ❯ a.test.ts:3:41",
+    "",
+    " Test Files  1 failed (1)",
+    "      Tests  1 failed (1)",
+  ].join("\n");
+  assert.equal(classifyRedFailure(vitest, { exit: 1 }), "assertion");
+  assert.equal(classifyRedFailure(vitest.replace(/^(  header|  SyntaxError.*|- old|\+ new|- Expected|\+ Received)$/gm, "    $1"), { exit: 1 }), "assertion");
+  const node = "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n  header\n  SyntaxError: diagnostic\n+ new\n- old\n";
+  assert.equal(classifyRedFailure(node, { exit: 1 }), "assertion");
+  assert.equal(classifyRedFailure(node + "SyntaxError: Unexpected token '}'\n", { exit: 1 }), "syntax");
+});
+
+check("a Vitest run that ran and failed an assertion is not a syntax failure because a passing test printed one", () => {
+  const output = "stdout | a.test.ts > prints\nSyntaxError: Unexpected token } in JSON\n\n FAIL  a.test.ts > x\nAssertionError: expected 1 to be 2\n\n Test Files  1 failed (1)\n      Tests  1 failed | 1 passed (2)";
+  assert.equal(classifyRedFailure(output, { exit: 1 }), "assertion");
+  assert.equal(classifyRedFailure(" FAIL  a.test.ts [ a.test.ts ]\nSyntaxError: Unexpected token } in JSON\n Test Files  1 failed (1)\n      Tests  no tests", { exit: 1 }), "syntax");
+});
+
+check("assertion words in a compiler path do not make a compile error an assertion", () => {
+  for (const file of ["AssertionError.ts", "Expected files/lib.ts", "expected dir/Received.ts"]) {
+    const output = `${file}:1:21 - error TS1109: Expression expected.\n\n1 export const FAIL = ;\n                      ~\n`;
+    assert.equal(classifyRedFailure(output, { exit: 2 }), "syntax", file);
+  }
+  assert.equal(classifyRedFailure("lib.ts(1,2): error TS1109: x\nAssertionError: expected 1 to be 2\n", { exit: 1 }), "unknown");
+});
+
+check("a file that failed to load beside a file that asserted is still a syntax failure", () => {
+  const output = [
+    " RUN  v2.1.9 C:/repo",
+    "",
+    " FAIL  collection.test.mjs [ collection.test.mjs ]",
+    "SyntaxError: Unexpected token ';'",
+    " ❯ loadModule collection.test.mjs:2:1",
+    "",
+    " FAIL  assertion.test.mjs > unrelated assertion",
+    "AssertionError: expected 1 to be 2",
+    "",
+    " Test Files  2 failed (2)",
+    "      Tests  1 failed (1)",
+  ].join("\n");
+  assert.equal(classifyRedFailure(output, { exit: 1 }), "syntax");
+  assert.equal(classifyRedFailure(output.replace(" FAIL  collection.test.mjs [ collection.test.mjs ]\n", ""), { exit: 1 }), "assertion");
+});
+
+if (failures > 0) {
+  console.log(`\n${failures} failing`);
+  process.exit(1);
+}
+console.log("\nall passing");

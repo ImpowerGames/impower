@@ -1,0 +1,114 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+
+function compile(source: string): any {
+  const compiler = new SparkdownCompiler();
+  const uri = "inmemory:///main.sd";
+  compiler.configure({
+    files: [
+      {
+        uri,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  return compiler.compile({ textDocument: { uri } }).program;
+}
+
+describe("Sparkle struct/style value trailing comments", () => {
+  test("style scalar values drop a trailing --/// comment", () => {
+    const style = compile(
+      `style card {\n` +
+        `  background-color = red -- swap later\n` +
+        `  note = blue // done\n` +
+        `}\n`,
+    ).styles?.["card"];
+    expect(style?.["background-color"]).toBe("red");
+    expect(style?.["note"]).toBe("blue");
+  });
+
+  test("values without a whitespace-delimited comment are untouched", () => {
+    const style = compile(
+      `style card {\n` +
+        `  transition = all 0.2s ease-in\n` +
+        `  grid-template = auto-fill\n` +
+        `  bg = url(http://x.com/y)\n` +
+        `}\n`,
+    ).styles?.["card"];
+    expect(style?.["transition"]).toBe("all 0.2s ease-in");
+    expect(style?.["grid-template"]).toBe("auto-fill");
+    expect(style?.["bg"]).toBe("url(http://x.com/y)");
+  });
+
+  test("a quoted value keeps a `--` inside the quotes", () => {
+    const style = compile(
+      `style card {\n  quip = "a -- b"\n}\n`,
+    ).styles?.["card"];
+    expect(style?.["quip"]).toBe("a -- b");
+  });
+
+  test("a `://` URL in a prop value is not mistaken for a block header", () => {
+    const layouts = (
+      compile(
+        `layout main {\n` +
+          `  link "Docs" #href="https://example.com/a/b?x=1"\n` +
+          `}\n`,
+      ) as any
+    ).sparkle?.layouts;
+    const link = layouts?.main?.children?.[0];
+    expect(link?.tag).toBe("link");
+    expect(link?.props?.href?.value).toBe("https://example.com/a/b?x=1");
+  });
+
+  test("a protocol-relative `//` URL survives too", () => {
+    const layouts = (
+      compile(
+        `layout main {\n` +
+          `  image #src="//cdn.example.com/x.png"\n` +
+          `}\n`,
+      ) as any
+    ).sparkle?.layouts;
+    expect(layouts?.main?.children?.[0]?.props?.src?.value).toBe(
+      "//cdn.example.com/x.png",
+    );
+  });
+
+  test("a block header still accepts `//` and `--` trailing comments", () => {
+    const layouts = (
+      compile(
+        `layout main {\n` +
+          `  column #child-gap=8 { // spaced comment\n` +
+          `    text "a"\n` +
+          `  }\n` +
+          `  row #child-gap=4 { -- dash comment\n` +
+          `    text "b"\n` +
+          `  }\n` +
+          `}\n`,
+      ) as any
+    ).sparkle?.layouts;
+    const kids = layouts?.main?.children ?? [];
+    expect(kids[0]?.tag).toBe("column");
+    expect(kids[0]?.children?.length).toBe(1);
+    expect(kids[1]?.tag).toBe("row");
+    expect(kids[1]?.children?.length).toBe(1);
+  });
+
+  test("typed (animation) keyframe values drop a trailing comment", () => {
+    const kf = compile(
+      `animation slide as animation {\n` +
+        `  target = layer.self\n` +
+        `  keyframes {\n` +
+        `    {\n` +
+        `      background_position = right -- move it\n` +
+        `    }\n` +
+        `  }\n` +
+        `}\n`,
+    ).context?.animation?.slide?.keyframes;
+    expect(kf?.[0]?.["background_position"]).toBe("right");
+  });
+});

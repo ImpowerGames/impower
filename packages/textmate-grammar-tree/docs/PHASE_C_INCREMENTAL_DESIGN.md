@@ -24,7 +24,7 @@ defect is somewhere in the `Compiler.step`/`finish` global assembly or the
 
 > **✅ SPIKE RESOLVED (2026-06-20) — GO.** The prerequisite spike isolated the
 > defect and proved the fix. Harness:
-> `packages/sparkdown/src/tests/incremental/crossChunkAssemblySpike.test.ts`
+> `packages/sparkdown/test/incremental/crossChunkAssemblySpike.test.ts`
 > (no real grammar / no real parse — hand-crafted per-line tokens for
 > `for…do…end` and `function…end`, fed through the REAL `Compiler` +
 > `Tree.build`, TreeBuffer conversion disabled via `isSplitPoint`).
@@ -43,7 +43,7 @@ defect is somewhere in the `Compiler.step`/`finish` global assembly or the
 >
 > **✅ MATCHER-RESUME SPIKE RESOLVED (2026-06-20) — GO.** Second isolated spike
 > proves the OTHER half (the reverted regression lived here):
-> `packages/sparkdown/src/tests/incremental/matcherResumeSpike.test.ts` (10
+> `packages/sparkdown/test/incremental/matcherResumeSpike.test.ts` (10
 > tests). A small synthetic grammar through the REAL `Grammar`/`ScopedRule`/
 > `RegExpMatcher` machinery; oracle = the whole-block recursive matcher, since removed in favour of `ResumableTokenizer` as the only matcher.
 > A flat, stack-driven per-line tokenizer (reusing the real
@@ -501,11 +501,11 @@ Each must produce a **byte-identical** tree vs. a from-scratch parse of the edit
 17. **(net gap) Post-slide spanning-detection** — confirm `spanningCloseOffsets` is populated pre-slide and never recomputed via `s[1] < from` on a slid chunk (the `Uint32Array` hazard) — assert via a C2 case where the ahead region is slid by a non-trivial offset.
 
 **Standing nets (must stay byte-identical throughout both phases):**
-- `packages/sparkdown/src/tests/compiler/grammarSnapshot.test.ts`
-- `packages/sparkdown/src/tests/compiler/vscodeGrammarSnapshot.test.ts`
-- `packages/sparkdown/src/tests/incremental/` (14 edit-vs-scratch cases + boundedness)
-- `packages/sparkdown/src/tests/incremental/crossChunkNesting.test.ts`
-- `packages/sparkdown/src/tests/textmate-conformance/conformance.test.ts` (1/95 baseline)
+- `packages/sparkdown/test/compiler/grammarSnapshot.test.ts`
+- `packages/sparkdown/test/compiler/vscodeGrammarSnapshot.test.ts`
+- `packages/sparkdown/test/incremental/` (14 edit-vs-scratch cases + boundedness)
+- `packages/sparkdown/test/incremental/crossChunkNesting.test.ts`
+- `packages/sparkdown/test/textmate-conformance/conformance.test.ts` (1/95 baseline)
 
 ---
 

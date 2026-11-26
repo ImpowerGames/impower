@@ -1,0 +1,599 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, test } from "vitest";
+import {
+  AstExprGlobal,
+  AstStatFunction,
+  isSparkdownNode,
+  visitAst,
+  type AstNode,
+  type AstVisitor,
+} from "../../src/compiler/typecheck/Ast";
+import { parseOfficialTree, withoutLocations, jsonNodes, jsonLocation } from "./officialAstTestUtils";
+import { printOfficialAst } from "./printOfficialAst";
+import type { Json } from "./officialLuau";
+import { checkerTextUnits, normalizeNarrativeReturnScopes, rawIslandSyntaxErrors, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
+import { printAst } from "../../src/compiler/typecheck/printAst";
+import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type LuauAstUnit } from "../../src/compiler/typecheck/readLuauAst";
+import { runWrapperText } from "../../src/compiler/utils/runWrapper";
+import { parseSource } from "./grammarSnapshot";
+import { checkerView, NoCheckerView } from "./luauCheckerView";
+import { expectWithinPin } from "./knownDifferences";
+import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
+import { expressionDocument, generatedExpressions } from "./luauGeneratedExpressions";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+interface StructuralDisagreement {
+  input: string;
+  issue: number;
+  reason: string;
+}
+
+const KNOWN_STRUCTURAL_DISAGREEMENTS: StructuralDisagreement[] = [
+];
+
+const syntaxKnown = new Set(KNOWN_DISAGREEMENTS.filter((entry) => entry.limitation).map((entry) => entry.fixture));
+const structuralKnown = new Map(KNOWN_STRUCTURAL_DISAGREEMENTS.map((entry) => [entry.input, entry]));
+const STRUCTURAL_DIFFERENCE = "a difference from Luau's parser's AST";
+
+function structuralPin(entry: StructuralDisagreement, subject: string) {
+  return { ticket: `#${entry.issue}`, subject, list: "KNOWN_STRUCTURAL_DISAGREEMENTS" };
+}
+
+function firstDifference(luau: string, tree: string): string {
+  const a = luau.split("\n");
+  const b = tree.split("\n");
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (a[i] !== b[i]) {
+      const around = (lines: string[]) => lines.slice(Math.max(0, i - 3), i + 4).join("\n    ");
+      return `at printed line ${i + 1}\n  Luau's parser:\n    ${around(a)}\n  the tree:\n    ${around(b)}`;
+    }
+  }
+  return "";
+}
+
+function compareUnit(label: string, luauRoot: Json, luauErrors: number, unit: LuauAstUnit, tree: AstNode, view: Parameters<typeof printAst>[1]): string[] {
+  if (luauErrors > 0 || unit.errors.length > 0) {
+    if (luauErrors > 0 !== unit.errors.length > 0) {
+      return [`${label}: Luau's parser finds ${luauErrors} syntax errors, the tree ${unit.errors.length} (${unit.errors.map((e) => `${e.location.begin} ${e.message}`).join("; ")})`];
+    }
+    return [];
+  }
+  const a = JSON.stringify(withoutLocations(luauRoot), null, 2);
+  let b: string;
+  try {
+    b = JSON.stringify(withoutLocations(printOfficialAst(tree, view)), null, 2);
+  } catch (error) {
+    if (error instanceof NoCheckerView) return [`${label}: the checker's text has no reading of ${error.message}`];
+    throw error;
+  }
+  return a === b ? [] : [`${label}: ${firstDifference(a, b)}`];
+}
+
+function fixtureDifferences(input: LuauInput): string[] {
+  const tree = parseSource(input.text);
+  const units = readLuauUnits(tree, input.text);
+  if (input.luau !== undefined) {
+    const parsed = parseOfficialTree(input.luau);
+    const run = units.prelude.root.body.find((s) => s instanceof AstStatFunction && s.name instanceof AstExprGlobal && s.name.name === "run");
+    if (!run && units.prelude.errors.length === 0) return ["the tree has no `run` function"];
+    return compareUnit("run", parsed.errors.length ? parsed.root : parsed.root.body[0] ?? parsed.root, parsed.errors.length, units.prelude, run ?? units.prelude.root, checkerView(input.text, "_G"));
+  }
+  const extracted = checkerTextUnits(tree, input.text);
+  const theirs: LuauTextUnit[] = [extracted.prelude, ...extracted.flows];
+  const ours = [units.prelude, ...units.flows];
+  if (theirs.length !== ours.length) return [`the type checker extracts ${theirs.length} units, the tree reads ${ours.length}`];
+  return theirs.flatMap((unit, i) => {
+    const parsed = parseOfficialTree(unit.text);
+    const ourUnit = ours[i]!;
+    const root = parsed.errors.length ? parsed.root : normalizeNarrativeReturnScopes(parsed.root, unit);
+    const islandErrors = rawIslandSyntaxErrors(unit);
+    return compareUnit(`${unit.kind} unit ${i} (projected ${parsed.errors.length}, written islands ${islandErrors.length})`, root, parsed.errors.length + islandErrors.length, ourUnit, ourUnit.root, checkerView(input.text, extracted.anyName));
+  });
+}
+
+describe("The AST read from the syntax tree is the AST Luau's parser reads", () => {
+  const inputs = luauInputs().filter((input) => !syntaxKnown.has(input.name));
+
+  test("finds the fixtures and lists each known structural disagreement once", () => {
+    expect(inputs.some((input) => input.name.startsWith("grammar/"))).toBe(true);
+    expect(inputs.some((input) => input.name.startsWith("conformance/"))).toBe(true);
+    const names = new Set([...inputs.map((input) => input.name), ...generatedExpressions().map((g) => g.expression)]);
+    expect(KNOWN_STRUCTURAL_DISAGREEMENTS.filter((entry) => !names.has(entry.input)).map((entry) => entry.input)).toEqual([]);
+    expect(structuralKnown.size).toBe(KNOWN_STRUCTURAL_DISAGREEMENTS.length);
+  });
+
+  for (const input of inputs) {
+    test(input.name, () => {
+      const differences = fixtureDifferences(input);
+      const entry = structuralKnown.get(input.name);
+      if (entry) {
+        expectWithinPin(structuralPin(entry, input.name), [STRUCTURAL_DIFFERENCE], differences.length ? [STRUCTURAL_DIFFERENCE] : []);
+      } else {
+        expect(differences, `${input.name}: the tree's AST differs from Luau's parser's`).toEqual([]);
+      }
+    }, 120_000);
+  }
+
+  const groups = new Map<string, string[]>();
+  for (const { group, expression } of generatedExpressions()) groups.set(group, [...(groups.get(group) ?? []), expression]);
+  for (const [group, expressions] of groups) {
+    test(`generated: ${group} (${expressions.length} expressions)`, () => {
+      const failures: string[] = [];
+      for (const expression of expressions) {
+        const text = expressionDocument(expression);
+        const units = readLuauUnits(parseSource(text), text);
+        const parsed = parseOfficialTree(text);
+        const differences = [
+          ...(parsed.errors.length ? [`Luau's parser finds a syntax error: ${parsed.errors[0]!.message}`] : []),
+          ...(units.flows.length ? ["the tree reads a flow"] : []),
+          ...compareUnit("expression", parsed.root, parsed.errors.length, units.prelude, units.prelude.root, undefined),
+        ];
+        const entry = structuralKnown.get(expression);
+        if (entry) {
+          expectWithinPin(structuralPin(entry, JSON.stringify(expression)), [STRUCTURAL_DIFFERENCE], differences.length ? [STRUCTURAL_DIFFERENCE] : []);
+        }
+        if (!entry && differences.length > 0) failures.push(`${JSON.stringify(expression)}\n${differences.join("\n")}`);
+      }
+      expect(failures).toEqual([]);
+    }, 120_000);
+  }
+});
+
+function range(begin: { line: number; column?: number; character?: number }, end: { line: number; column?: number; character?: number }): string {
+  return `${begin.line}:${begin.character ?? begin.column}-${end.line}:${end.character ?? end.column}`;
+}
+
+function locationDifferences(text: string, pick: (units: { prelude: LuauTextUnit; flows: LuauTextUnit[] }) => LuauTextUnit, pickOurs: (units: ReturnType<typeof readLuauUnits>) => LuauAstUnit): string[] {
+  const tree = parseSource(text);
+  const unit = pick(checkerTextUnits(tree, text));
+  const parsed = parseOfficialTree(unit.text);
+  const ours = pickOurs(readLuauUnits(tree, text));
+  expect(parsed.errors).toEqual([]);
+  expect(ours.errors).toEqual([]);
+  const theirs = jsonNodes(normalizeNarrativeReturnScopes(parsed.root, unit));
+  const mine = jsonNodes(printOfficialAst(ours.root, checkerView(text, "_G")));
+  expect(mine.map((n) => n["type"])).toEqual(theirs.map((n) => n["type"]));
+  const lines = text.split("\n");
+  return theirs.flatMap((node, i) => {
+    const theirLocation = jsonLocation(node);
+    const myLocation = jsonLocation(mine[i]!);
+    const expected = range(textDocumentPosition(unit, theirLocation.begin), textDocumentPosition(unit, theirLocation.end));
+    const actual = range(myLocation.begin, myLocation.end);
+    return expected === actual ? [] : [`${node["type"]} on ${JSON.stringify(lines[theirLocation.begin.line] ?? "")}: Luau ${expected}, tree ${actual}`];
+  });
+}
+
+describe("Each node's location is the parser's, in the document", () => {
+  test("statements in their one-line and multi-line forms", () => {
+    const text = [
+      "function g(a, b, ...)",
+      "  if a then b = 1 elseif b then b = 2 else b = 3 end",
+      "  if a then",
+      "    b = 1",
+      "  elseif b then",
+      "    b = 2",
+      "  else",
+      "    b = 3",
+      "  end",
+      "  local function h(x: number): number return x * 2 end",
+      "  local f = function(y)",
+      "    return y",
+      "  end",
+      "  function t.m(self, z) return z end",
+      "  function t:n(z)",
+      "    return self, z",
+      "  end",
+      "  local u = { 1, k = 2, [3] = 4 }",
+      "  local v = {",
+      "    1,",
+      "    k = 2,",
+      "    [a] = { b },",
+      "  }",
+      '  local w = a.b:c(1):d("s").e[2]',
+      "  local q = a",
+      "    .b",
+      "    :c(1)",
+      "    :d { k = 1 }",
+      "  for i = 1, 10, 2 do b = i end",
+      "  for k, v2 in pairs(u) do",
+      "    b = k .. v2",
+      "  end",
+      "  while a do break end",
+      "  repeat b = b - 1 until b < 0",
+      "  do local r = 1 end",
+      "  b += 1",
+      "  local s = `x{a}y{b + 1}`",
+      "  local c: { [string]: number }? = nil",
+      "  return a and not b or #u, ...",
+      "end",
+      "",
+    ].join("\n");
+    expect(locationDifferences(text, (units) => units.prelude, (units) => units.prelude)).toEqual([]);
+  });
+
+  test("statements in a scene, with characters that take more than one UTF-8 byte", () => {
+    const text = [
+      "scene s(n: number)",
+      "  Hello.",
+      '  & local s = "é😀" .. n',
+      "  if n > 1 then",
+      "    & n = n - 1",
+      "  end",
+      "  Bye {n}.",
+      '  local t = { a = "é", b = n }',
+      "end",
+      "",
+    ].join("\n");
+    expect(locationDifferences(text, (units) => units.flows[0]!, (units) => units.flows[0]!)).toEqual([]);
+  });
+});
+
+describe("Sparkdown's own constructs", () => {
+  const text = [
+    "define Penguin with",
+    '  name = "p"',
+    "end",
+    "& x = -> elsewhere.part",
+    "& r = @/a+b/gi",
+    "& p = new Penguin(1, 2).name",
+    "& q = new Penguin",
+    '& s = `Hi {{shout}} {cycle|"a"|"b"}!`',
+    '& d = "Val: {{fmt(1)}} {x}"',
+    "store a, b: number = 1, 2",
+    "",
+    "scene one(k: number)",
+    "  local n = k",
+    "  choose",
+    "    + [A]",
+    "      n = 2",
+    "    + [B]",
+    "      & n = 3",
+    "  then",
+    "    n = n + 1",
+    "  end",
+    "  branch inner(m, w: string)",
+    "    & n = m",
+    "  end",
+    "end",
+    "",
+  ].join("\n");
+  const tree = parseSource(text);
+  const units = readLuauUnits(tree, text);
+
+  test("each is read as its own class", () => {
+    expect(units.prelude.errors).toEqual([]);
+    expect(printAst(units.prelude.root)).toBe(
+      [
+        "StatBlock",
+        "  SparkdownExplicit",
+        "    StatAssign",
+        "      ExprGlobal x",
+        "      =",
+        '      SparkdownDivertTarget "elsewhere.part"',
+        "  SparkdownExplicit",
+        "    StatAssign",
+        "      ExprGlobal r",
+        "      =",
+        '      SparkdownRegex "a+b" "gi"',
+        "  SparkdownExplicit",
+        "    StatAssign",
+        "      ExprGlobal p",
+        "      =",
+        "      ExprIndexName .name",
+        "        SparkdownNew Penguin call",
+        "          ExprConstantNumber 1",
+        "          ExprConstantNumber 2",
+        "  SparkdownExplicit",
+        "    StatAssign",
+        "      ExprGlobal q",
+        "      =",
+        "      SparkdownNew Penguin",
+        "  SparkdownExplicit",
+        "    StatAssign",
+        "      ExprGlobal s",
+        "      =",
+        '      ExprInterpString "Hi " " " "!"',
+        "        SparkdownCallShorthand",
+        "          ExprGlobal shout",
+        "        SparkdownSequentialAlternator LuauSequentialAlternatorBlock",
+        "  SparkdownExplicit",
+        "    StatAssign",
+        "      ExprGlobal d",
+        "      =",
+        '      SparkdownInterpString "Val: " " " ""',
+        "        SparkdownCallShorthand",
+        "          ExprCall",
+        "            ExprGlobal fmt",
+        "            ExprConstantNumber 1",
+        "        ExprGlobal x",
+        "  SparkdownStore =",
+        "    ExprGlobal a",
+        "    ExprGlobal b",
+        "      TypeReference number",
+        "    ExprConstantNumber 1",
+        "    ExprConstantNumber 2",
+      ].join("\n"),
+    );
+    expect(units.flows).toHaveLength(2);
+    expect(units.flows[0]!.errors).toEqual([]);
+    expect(units.flows[1]!.errors).toEqual([]);
+    expect(printAst(units.flows[0]!.root)).toBe(
+      [
+        "StatBlock",
+        "  StatLocalFunction",
+        "    local __flow#0 function=0 loop=0",
+        '    ExprFunction "__flow" depth=1 parens',
+        "      local k#1 function=1 loop=0",
+        "        TypeReference number",
+        "      StatBlock",
+        "        StatLocal =",
+        "          ExprLocal k#1",
+        "          local n#2 function=1 loop=0",
+        "        SparkdownChoose",
+        "          StatBlock",
+        "            StatAssign",
+        "              ExprLocal n#2",
+        "              =",
+        "              ExprConstantNumber 2",
+        "            SparkdownExplicit",
+        "              StatAssign",
+        "                ExprLocal n#2",
+        "                =",
+        "                ExprConstantNumber 3",
+        "          then",
+        "            StatBlock",
+        "              StatAssign",
+        "                ExprLocal n#2",
+        "                =",
+        "                ExprBinary +",
+        "                  ExprLocal n#2",
+        "                  ExprConstantNumber 1",
+      ].join("\n"),
+    );
+    expect(printAst(units.flows[1]!.root)).toBe(
+      [
+        "StatBlock",
+        "  StatLocalFunction",
+        "    local __flow#0 function=0 loop=0",
+        '    ExprFunction "__flow" depth=1 parens',
+        "      local k#1 function=1 loop=0",
+        "        TypeReference number",
+        "      StatBlock",
+        "        StatLocal ;",
+        "          local n#2 function=1 loop=0",
+        "            TypeReference any",
+        "        StatLocal =",
+        "          SparkdownFlowArgument",
+        "          SparkdownFlowArgument",
+        "          local m#3 function=1 loop=0",
+        "          local w#4 function=1 loop=0",
+        "            TypeReference string",
+        "        SparkdownExplicit",
+        "          StatAssign",
+        "            ExprLocal n#2",
+        "            =",
+        "            ExprLocal m#3",
+      ].join("\n"),
+    );
+  });
+
+  test("a narrative interpolation's alternators are read as expressions", () => {
+    const narrative = ': {match x|"a"|"b"} and {queue|"a"|"b"}\n';
+    const printed: string[] = [];
+    const cursor = parseSource(narrative).cursor();
+    do {
+      if (cursor.name === "LuauInterpolatedStringExpression") {
+        const inner = [];
+        for (let child = cursor.node.firstChild; child; child = child.nextSibling) inner.push(child);
+        const { expr, errors } = readLuauExpression(inner.slice(1, -1), narrative);
+        expect(errors).toEqual([]);
+        printed.push(printAst(expr));
+      }
+    } while (cursor.next());
+    expect(printed).toEqual(["SparkdownConditionalAlternator LuauConditionalAlternatorBlock", "SparkdownSequentialAlternator LuauSequentialAlternatorBlock"]);
+  });
+
+  test("a visitor's method for each construct sees it, and a visitor without them sees it and its children through visit", () => {
+    const seen: string[] = [];
+    const record = (node: AstNode) => {
+      seen.push(node.kind);
+      return true;
+    };
+    const visitor: Required<AstVisitor> = {
+      visit: () => true,
+      visitSparkdownDivertTarget: record,
+      visitSparkdownRegex: record,
+      visitSparkdownConditionalAlternator: record,
+      visitSparkdownSequentialAlternator: record,
+      visitSparkdownNew: record,
+      visitSparkdownCallShorthand: record,
+      visitSparkdownInterpString: record,
+      visitSparkdownFlowArgument: record,
+      visitSparkdownExplicit: record,
+      visitSparkdownStore: record,
+      visitSparkdownChoose: record,
+    };
+    for (const unit of [units.prelude, ...units.flows]) visitAst(unit.root, visitor);
+    expect(new Set(seen)).toEqual(
+      new Set([
+        "SparkdownDivertTarget",
+        "SparkdownRegex",
+        "SparkdownSequentialAlternator",
+        "SparkdownNew",
+        "SparkdownCallShorthand",
+        "SparkdownInterpString",
+        "SparkdownFlowArgument",
+        "SparkdownExplicit",
+        "SparkdownStore",
+        "SparkdownChoose",
+      ]),
+    );
+    const kinds: string[] = [];
+    visitAst(units.prelude.root, { visit: (node) => (kinds.push(isSparkdownNode(node) ? `*${node.kind}` : node.kind), true) });
+    expect(kinds).toContain("*SparkdownCallShorthand");
+    expect(kinds.filter((k) => k === "ExprConstantNumber")).toHaveLength(5);
+  });
+
+  test("each statement names the tree nodes it was read from", () => {
+    const flow = units.flows[0]!;
+    expect(flow.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([
+      ["StatLocal", ["LuauSparkdownVariableDefinition"]],
+      ["SparkdownChoose", ["LuauSparkdownChooseBlock"]],
+    ]);
+    expect(units.flows[1]!.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([
+      ["StatLocal", ["Branch"]],
+      ["StatLocal", ["Branch"]],
+      ["SparkdownExplicit", ["LuauSparkdownExplicitStatement"]],
+    ]);
+    const choose = flow.statements[1]!.nodes[0]!;
+    expect(statementAt(flow, choose)).toBe(flow.statements[1]!.statement);
+    expect(units.prelude.statements.map((s) => s.nodes.map((n) => text.slice(n.from, n.to).split("\n")[0]))).toEqual([
+      ["& x = -> elsewhere.part"],
+      ["& r = @/a+b/gi"],
+      ["& p = new Penguin(1, 2).name"],
+      ["& q = new Penguin"],
+      ['& s = `Hi {{shout}} {cycle|"a"|"b"}!`'],
+      ['& d = "Val: {{fmt(1)}} {x}"'],
+      ["store a, b: number = 1, 2"],
+    ]);
+  });
+});
+
+describe("Unfinished and boundary input", () => {
+  function preludeErrors(text: string): { tree: string[]; luau: string[] } {
+    const tree = parseSource(text);
+    const unit = checkerTextUnits(tree, text).prelude;
+    const ours = readLuauUnits(tree, text).prelude;
+    return {
+      tree: ours.errors.map((e) => `${e.location.begin.line}:${e.location.begin.column} ${e.message}`),
+      luau: parseOfficialTree(unit.text).errors.map((e) => {
+        const at = textDocumentPosition(unit, e.location.begin);
+        return `${at.line}:${at.character} ${e.message}`;
+      }),
+    };
+  }
+
+  test("nesting past Luau's recursion limit is Luau's error, not an exception", () => {
+    for (const [operators, limited] of [
+      [100, false],
+      [1200, true],
+      [10000, true],
+    ] as const) {
+      const { tree, luau } = preludeErrors(`local x = ${"1 ^ ".repeat(operators)}1\n`);
+      const expected = limited ? ["Exceeded allowed recursion depth; simplify your expression to make the code compile"] : [];
+      expect(luau.map((e) => e.replace(/^\S+ /, ""))).toEqual(expected);
+      expect(tree.map((e) => e.replace(/^\S+ /, ""))).toEqual(expected);
+    }
+  });
+
+  test("a break reports the required block closer at the following token (I-1508)", () => {
+    const { tree, luau } = preludeErrors("function f()\n  while true do\n    break\n    x = 2\n  end\nend\n");
+    expect(luau).toEqual(["3:4 Expected 'end' (to close 'do' at line 2), got 'x'", "5:0 Expected <eof>, got 'end'"]);
+    expect(tree).toEqual(luau);
+    expect(preludeErrors("function f()\n  x = 2\n  return 1\nend\n")).toEqual({ tree: [], luau: [] });
+  });
+
+  test("a plain Luau return reports the required block closer at the following token (#1298)", () => {
+    const { tree, luau } = preludeErrors("function f()\n  return 1\n  x = 2\nend\n");
+    expect(luau).toEqual(["2:2 Expected 'end' (to close 'function' at line 1), got 'x'", "3:0 Expected <eof>, got 'end'"]);
+    expect(tree).toEqual(luau);
+  });
+
+  test("an interpolation missing its closing brace is an error where Luau reports it", () => {
+    const { tree, luau } = preludeErrors("local x = `a{x`\n");
+    expect(luau).toEqual(["0:14 Malformed interpolated string; did you forget to add a '}'?"]);
+    expect(tree).toEqual(luau);
+  });
+
+  test("an error at the end of an interpolation's expression stays in the interpolation", () => {
+    const { tree, luau } = preludeErrors("local x = `a{x +}`\nlocal y = 1\n");
+    expect(luau.map((e) => e.split(" ")[0])).toEqual(["0:16"]);
+    expect(tree.map((e) => e.split(" ")[0])).toEqual(["0:16"]);
+  });
+
+  test("a flow whose only Luau is a branch's parameters keeps them, as the checker's unit does", () => {
+    const text = "scene s(x)\n  branch b(y: Missing)\n  Hello.\n  end\nend\n";
+    const tree = parseSource(text);
+    const extracted = checkerTextUnits(tree, text);
+    const units = readLuauUnits(tree, text);
+    expect(extracted.flows).toHaveLength(1);
+    expect(units.flows).toHaveLength(1);
+    expect(units.flows[0]!.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([["StatLocal", ["Branch"]]]);
+    expect(withoutLocations(printOfficialAst(units.flows[0]!.root, checkerView(text, extracted.anyName)))).toEqual(withoutLocations(parseOfficialTree(extracted.flows[0]!.text).root));
+  });
+});
+
+describe("The other entry points", () => {
+  test("a run file is read from its wrapper document as Luau reads the file, with its hot comments", () => {
+    const file = ["--!strict", "local t = { 1, 2 }", "local function sum(xs: { number }): number", "  local total = 0", "  for _, x in ipairs(xs) do total += x end", "  return total", "end", "print(sum(t) .. \"!\")", ""].join("\n");
+    const text = runWrapperText("W", file);
+    const unit = readLuauRunFile(parseSource(text), text);
+    expect(unit).toBeDefined();
+    const parsed = parseOfficialTree(file);
+    expect(parsed.errors).toEqual([]);
+    expect(unit!.errors).toEqual([]);
+    expect(withoutLocations(printOfficialAst(unit!.root))).toEqual(withoutLocations(parsed.root));
+    expect(unit!.hotcomments.map((c) => [c.header, c.content])).toEqual([[true, "strict"]]);
+    expect(unit!.root.body[0]!.location.begin.line).toBe(jsonLocation(parsed.root.body[0]!).begin.line + 2);
+  });
+
+  test("a run file's statements each name the tree node they were read from", () => {
+    const text = runWrapperText("W", "local a = 1\nlocal b = 2\na = b\n");
+    const tree = parseSource(text);
+    const unit = readLuauRunFile(tree, text)!;
+    expect(unit.statements.map((s) => [s.statement.kind, s.nodes.map((n) => text.slice(n.from, n.to).trim())])).toEqual([
+      ["StatLocal", ["local a = 1"]],
+      ["StatLocal", ["local b = 2"]],
+      ["StatAssign", ["a = b"]],
+    ]);
+    for (const source of unit.statements) expect(statementAt(unit, source.nodes[0]!)).toBe(source.statement);
+  });
+
+  test("type functions and the attributes the grammar reads are read as Luau reads them", () => {
+    const file = [
+      "type function id(t) return t end",
+      "export type function id2(t) return t end",
+      "@native function f() return 1 end",
+      "@checked local function g(x: number) return x end",
+      "local h = @native function() end",
+      "@native @checked function k() end",
+      "",
+    ].join("\n");
+    const text = runWrapperText("W", file);
+    const unit = readLuauRunFile(parseSource(text), text)!;
+    const parsed = parseOfficialTree(file);
+    expect(parsed.errors).toEqual([]);
+    expect(unit.errors).toEqual([]);
+    expect(withoutLocations(printOfficialAst(unit.root))).toEqual(withoutLocations(parsed.root));
+    const bad = "local x = 1\ntype function t() return x end\n@nope function f() end\n@constructor function g() end\n@toString function h() end\n@__proto__ function i() end\n@hasOwnProperty function j() end\n";
+    const badText = runWrapperText("W", bad);
+    const expected = parseOfficialTree(bad).errors.map((e) => e.message);
+    expect(expected).toContain("Invalid attribute '@constructor'");
+    expect(readLuauRunFile(parseSource(badText), badText)!.errors.map((e) => e.message)).toEqual(expected);
+  });
+
+  test("a narrative interpolation's expression is read with Luau's precedence, its names as globals", () => {
+    const narrative = ": Total {a + b * -c ^ 2 .. f(x):m().y}\n";
+    const cursor = parseSource(narrative).cursor();
+    const printed: Json[] = [];
+    do {
+      if (cursor.name === "LuauInterpolatedStringExpression") {
+        const inner = [];
+        for (let child = cursor.node.firstChild; child; child = child.nextSibling) inner.push(child);
+        const { expr, errors } = readLuauExpression(inner.slice(1, -1), narrative);
+        expect(errors).toEqual([]);
+        printed.push(withoutLocations(printOfficialAst(expr)));
+      }
+    } while (cursor.next());
+    expect(printed).toEqual(withoutLocations(parseOfficialTree("return a + b * -c ^ 2 .. f(x):m().y").root.body[0]!["list"]!));
+  });
+});
+
+test("the converter reads the tree, not the text through Luau's parser", () => {
+  const source = readFileSync(join(__dirname, "../../src/compiler/typecheck/readLuauAst.ts"), "utf8");
+  expect(source).not.toMatch(/from "\.\/DefinitionParser"/);
+  expect(source).not.toMatch(/\bparseLuau\(/);
+});

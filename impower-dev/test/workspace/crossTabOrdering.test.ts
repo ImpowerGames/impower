@@ -9,7 +9,7 @@ import {
   memoryLocks,
 } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import { allocateCommit } from "../../../packages/opfs-workspace/src/utils/commitSequence";
-import { imageSizeFixtures } from "@impower/sparkdown/src/tests/morph/imageSizeFixtures";
+import { imageSizeFixtures } from "@impower/sparkdown/test/morph/imageSizeFixtures";
 import type WorkspaceFileSystemType from "../../src/modules/spark-editor/workspace/WorkspaceFileSystem";
 
 const PROJECT = "local";

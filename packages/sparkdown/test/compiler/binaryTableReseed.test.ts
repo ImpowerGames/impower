@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
+
+const URI = "inmemory:///main.sd";
+
+function quiet<T>(fn: () => T): T {
+  const realWarn = console.warn;
+  const realError = console.error;
+  console.warn = () => {};
+  console.error = () => {};
+  try {
+    return fn();
+  } finally {
+    console.warn = realWarn;
+    console.error = realError;
+  }
+}
+
+function makeCompiler(text: string) {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as never);
+  return c;
+}
+
+function coldContent(text: string): string[] {
+  return quiet(() => {
+    const c = makeCompiler(text);
+    return programContent(c.compile({ textDocument: { uri: URI } }).program.chunks);
+  });
+}
+
+function corpus(tag: string): string {
+  const L: string[] = [];
+  L.push("title: Reseed");
+  L.push("");
+  L.push("store trust = 0");
+  L.push("");
+  for (let s = 0; s < 4; s++) {
+    L.push(`scene scene_${s}`);
+    L.push(":");
+    L.push(`  Action ${s} ${tag} with {trust}.`);
+    L.push(`-> scene_${(s + 1) % 4}`);
+    L.push("end");
+    L.push("");
+  }
+  return L.join("\n");
+}
+
+describe("string-table reseeding", () => {
+  it("keeps the table bounded instead of growing per keystroke", () => {
+    const text = corpus("a");
+    const c = quiet(() => makeCompiler(text));
+    quiet(() => c.compile({ textDocument: { uri: URI } } as never));
+    const table = (c as never as { _binaryTable: { strings: string[] } })
+      ._binaryTable;
+    const baseline = table.strings.length;
+
+    const NL = String.fromCharCode(10);
+    let current = text;
+    const EDITS = 900;
+    for (let i = 0; i < EDITS; i += 1) {
+      const anchor = "Action 2 a";
+      const at = current.indexOf(anchor);
+      const off = at + anchor.length;
+      const before = current.slice(0, off);
+      const line = before.split(NL).length - 1;
+      const character = off - (before.lastIndexOf(NL) + 1);
+      current = current.slice(0, off) + "z" + current.slice(off);
+      quiet(() =>
+        c.updateDocument({
+          textDocument: { uri: URI, version: i + 2 },
+          contentChanges: [
+            {
+              range: { start: { line, character }, end: { line, character } },
+              text: "z",
+            },
+          ],
+        } as never),
+      );
+      quiet(() => c.compile({ textDocument: { uri: URI } } as never));
+    }
+
+    expect(table.strings.length).toBeLessThan(baseline + EDITS);
+    expect(table.strings.length).toBeLessThan(baseline * 2 + 600);
+
+    const program = quiet(
+      () => c.compile({ textDocument: { uri: URI } } as never).program,
+    );
+    expect(programContent(program.chunks)).toEqual(coldContent(current));
+  });
+});
