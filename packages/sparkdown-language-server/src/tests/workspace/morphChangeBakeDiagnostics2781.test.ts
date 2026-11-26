@@ -144,6 +144,62 @@ describe("a change morph's bake diagnostics", () => {
     expect(morphOn(asset)).toHaveLength(1);
   }, 60_000);
 
+  it("a layered picture's played pair lands each problem on its own layer file", async () => {
+    const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">${body}</svg>`;
+    const layer = (name: string, body: string) => ({ uri: `file:///project/${name}.svg`, type: "image", name, ext: "svg", data: svg(body) });
+    const script = `${CHANGE}\ndefine pip as layered_image with\n  assets = {\n    ["base"] = head,\n    ["mouth.smile default"] = smile,\n    ["mouth.frown"] = frown,\n  }\nend\n${shows("pip:mouth.smile", "pip:mouth.frown")}`;
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri: main, type: "script", name: "main", ext: "sd", text: script, version: 1, languageId: "sparkdown" },
+        layer("head", `<circle cx="50" cy="50" r="45"/>`),
+        layer("smile", lips(40, 60)),
+        layer("frown", lips(30, 50, 70)),
+      ],
+    } as any);
+    const program = compiler.compile({ textDocument: { uri: main } }).program as any;
+    const struct = (name: string) => getContextEntry(program.context, "filtered_image", name);
+    const [ref] = morphRefsForStruct(program.context, program.morphs, struct("pip:mouth.frown"), undefined, { struct: struct("pip:mouth.smile") });
+    expect(ref?.layered).toBe(true);
+    const inline = inlineMorphSource(() => program.context);
+    const host = createMorphHost({
+      service: new MorphBakeService(),
+      channel: () => program.morphs,
+      readSource: async (source, signal) => {
+        const read = await inline(source, signal);
+        return read ? { text: read.text } : undefined;
+      },
+    });
+    const handle = await host.resolve(ref!);
+    expect(handle.artifact.status).toBe("live");
+    handle.release();
+    const problem = (path: string | undefined, message: string) => ({
+      code: "unsupported-element",
+      severity: "warning" as const,
+      message,
+      morphs: ["bend"],
+      ...(path === undefined ? {} : { path }),
+    });
+    const { compiled, report, published } = setup();
+    compiled(program);
+    report({
+      program: { uri: main, scripts: { ...program.scripts } },
+      diagnostics: {},
+      morphBakes: [
+        {
+          image: ref!.image,
+          layered: true,
+          variant: changeLookName(ref!),
+          diagnostics: [problem("/0/1", "on the smile"), problem("/0/2", "on the frown"), problem(undefined, "on the picture")],
+        },
+      ],
+    });
+    const messages = (uri: string) => (published(uri).at(-1) ?? []).map((d: any) => d.message);
+    expect(messages("file:///project/smile.svg")).toEqual(["Morph `bend` on `pip:mouth.frown`: on the smile"]);
+    expect(messages("file:///project/frown.svg")).toEqual(["Morph `bend` on `pip:mouth.frown`: on the frown"]);
+    expect(messages("file:///project/head.svg")).toEqual(["Morph `bend` on `pip:mouth.frown`: on the picture"]);
+  }, 60_000);
+
   it("an entry whose image the compiled program does not hold is ignored", async () => {
     const { compiled, report, morphOn } = setup();
     const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
