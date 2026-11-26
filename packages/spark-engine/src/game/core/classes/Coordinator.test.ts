@@ -28,6 +28,7 @@ const createGame = (
     autoAdvanceDelay?: number;
     previewing?: boolean;
     outputLatency?: number;
+    now?: () => number;
   } = {},
 ) => {
   const calls: Calls = {
@@ -47,7 +48,7 @@ const createGame = (
       system: {
         previewing: overrides.previewing,
         simulating: undefined,
-        now: () => NOW,
+        now: overrides.now ?? (() => NOW),
         setTimeout: (handler: Function) => {
           handler();
           return 0;
@@ -399,6 +400,142 @@ describe("Coordinator", () => {
       const { game } = createGame();
       const coordinator = new Coordinator(game, { end: 0 });
       expect(coordinator.shouldContinue()).toBe(AUTO_ADVANCED);
+    });
+  });
+
+  describe("readiness between ticks (#2814)", () => {
+    const twoSounds = (gameOverrides: Parameters<typeof createGame>[0] = {}, text = true) => {
+      const { game, calls } = createGame(gameOverrides);
+      const audio = (game.module as any).audio;
+      const pending = new Set([1, 2]);
+      let next = 0;
+      audio.schedule = () => [1, 2][next++];
+      audio.isReady = (id: number) => !pending.has(id);
+      const audioOnly = { audio: { music: [], sound: [] } as never, end: 0 };
+      const instructions = text ? textBeat(audioOnly) : audioOnly;
+      const coordinator = new ProbeCoordinator(game, instructions);
+      return { coordinator, calls, pending };
+    };
+
+    it("becomes ready when its last load completes, with no tick in between", () => {
+      const { coordinator, calls, pending } = twoSounds();
+      expect(calls.audioTriggerTimes).toEqual([]);
+
+      pending.delete(1);
+      coordinator.recheckReadiness();
+      expect(calls.audioTriggerTimes).toEqual([]);
+      expect(calls.textWrites).toEqual([]);
+      expect(coordinator.startedExecution).toBe(false);
+
+      pending.delete(2);
+      coordinator.recheckReadiness();
+      expect(calls.audioTriggerTimes).toEqual([NOW + BEAT_LEAD_MS]);
+      expect(calls.textWrites).toEqual([
+        { target: "textbox", instant: false, time: NOW + BEAT_LEAD_MS },
+      ]);
+      expect(coordinator.startedExecution).toBe(true);
+    });
+
+    it("presents once when a completion is noticed by both a re-check and a tick", () => {
+      const { coordinator, calls, pending } = twoSounds();
+      pending.clear();
+      coordinator.recheckReadiness();
+      coordinator.onUpdate(tick(16));
+      coordinator.recheckReadiness();
+      expect(calls.audioTriggerTimes).toHaveLength(1);
+      expect(calls.textWrites).toHaveLength(1);
+
+      const other = twoSounds();
+      other.pending.clear();
+      other.coordinator.onUpdate(tick(16));
+      other.coordinator.recheckReadiness();
+      expect(other.calls.audioTriggerTimes).toHaveLength(1);
+      expect(other.calls.textWrites).toHaveLength(1);
+    });
+
+    it("counts the beat's time from the moment it became ready, not from the tick before", () => {
+      let now = NOW;
+      const { coordinator, pending } = twoSounds({ now: () => now }, false);
+      coordinator.onUpdate(tick(16));
+      now += 5;
+      pending.clear();
+      coordinator.recheckReadiness();
+      now += BEAT_LEAD_MS - 1;
+      coordinator.onUpdate(tick(1000));
+      expect(coordinator.finishedExecution).toBe(false);
+      now += 1;
+      coordinator.onUpdate(tick(1));
+      expect(coordinator.finishedExecution).toBe(true);
+    });
+
+    it("does nothing for a beat that is shown at once", () => {
+      const { game, calls } = createGame({ previewing: true });
+      const coordinator = new ProbeCoordinator(game, textBeat());
+      const writes = calls.textWrites.length;
+      coordinator.recheckReadiness();
+      expect(calls.textWrites).toHaveLength(writes);
+      expect(calls.audioTriggerTimes).toEqual([]);
+    });
+
+    const onScaledClock = (speed: number, end: number) => {
+      let now = NOW;
+      let nextFrame: (() => void) | undefined;
+      const { game, calls } = createGame({ now: () => now });
+      const audio = (game.module as any).audio;
+      let resident = false;
+      audio.schedule = () => 1;
+      audio.isReady = () => resident;
+      const coordinator = new ProbeCoordinator(game, {
+        audio: { voice: [] } as never,
+        end,
+      });
+      const clock = new Clock(
+        {
+          get currentTime() {
+            return now / 1000;
+          },
+        },
+        (callback) => {
+          nextFrame = callback as () => void;
+          return 1;
+        },
+      );
+      clock.speed = speed;
+      (game as any).clock = clock;
+      clock.add((time) => coordinator.onUpdate(time));
+      clock.start();
+      return {
+        coordinator,
+        calls,
+        clock,
+        advance(ms: number, frame = false) {
+          now += ms;
+          if (frame) nextFrame?.();
+        },
+        complete() {
+          resident = true;
+          coordinator.recheckReadiness();
+        },
+      };
+    };
+
+    it("counts the time since a between-tick readiness at the clock's speed, at half speed", () => {
+      const h = onScaledClock(0.5, 0.005);
+      h.advance(20);
+      h.complete();
+      h.advance(40, true);
+      expect(h.clock.deltaMS).toBeCloseTo(30);
+      expect(h.calls.audioTriggerTimes).toEqual([NOW + 20 + BEAT_LEAD_MS]);
+      expect(h.coordinator.finishedExecution).toBe(false);
+    });
+
+    it("counts the time since a between-tick readiness at the clock's speed, at double speed", () => {
+      const h = onScaledClock(2, 0.01);
+      h.advance(20);
+      h.complete();
+      h.advance(20, true);
+      expect(h.clock.deltaMS).toBeCloseTo(80);
+      expect(h.coordinator.finishedExecution).toBe(true);
     });
   });
 

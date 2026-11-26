@@ -292,3 +292,80 @@ describe("when the games a worker holds tick", () => {
     ]);
   });
 });
+
+describe("when the page answers or tells a game something (#2814)", () => {
+  const createWorker = async () => {
+    const timers = new Map<number, { handler: () => void; timeout?: number }>();
+    let nextTimer = 1;
+    vi.stubGlobal("self", {
+      setTimeout: (handler: () => void, timeout?: number) => {
+        timers.set(nextTimer, { handler, timeout });
+        return nextTimer++;
+      },
+      clearTimeout: (id: number) => {
+        timers.delete(id);
+      },
+    });
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const state = installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+      sendResponse: async (_message: unknown, result: unknown) =>
+        typeof result === "function" ? await result() : result,
+      sendNotification() {},
+      postMessage() {},
+    } as any);
+    const deliver = (message: unknown) => {
+      for (const listener of listeners) {
+        listener({ data: message } as MessageEvent);
+      }
+    };
+    deliver(CreateGameMessage.type.request({ program: compileProgram(SOURCE) }));
+    await Promise.resolve();
+    const game = state.game!;
+    const order: string[] = [];
+    const rechecks = vi
+      .spyOn(game, "recheckReadiness")
+      .mockImplementation(() => void order.push("recheck"));
+    const zeroTimers = () => [...timers].filter(([, t]) => t.timeout === 0);
+    const fireZeroTimers = () => {
+      for (const [id, timer] of zeroTimers()) {
+        timers.delete(id);
+        timer.handler();
+      }
+    };
+    return { deliver, rechecks, order, zeroTimers, fireZeroTimers };
+  };
+
+  test("re-checks its pending beat's readiness once the answer's work has settled, without waiting for a page frame", async () => {
+    const worker = await createWorker();
+    worker.deliver({ jsonrpc: "2.0", id: "load-1", method: "audio/load", result: {} });
+    expect(worker.rechecks).not.toHaveBeenCalled();
+    expect(worker.zeroTimers()).toHaveLength(1);
+
+    worker.fireZeroTimers();
+
+    expect(worker.rechecks).toHaveBeenCalledTimes(1);
+  });
+
+  test("re-checks once for answers and notifications that arrive together", async () => {
+    const worker = await createWorker();
+    worker.deliver({ jsonrpc: "2.0", id: "load-1", method: "audio/load", result: {} });
+    worker.deliver({ jsonrpc: "2.0", id: "load-2", method: "audio/load", result: {} });
+    worker.deliver({ jsonrpc: "2.0", method: "audio/sample-rate", params: { sampleRate: 48000 } });
+    worker.fireZeroTimers();
+    expect(worker.rechecks).toHaveBeenCalledTimes(1);
+
+    worker.deliver({ jsonrpc: "2.0", id: "load-3", method: "audio/load", result: {} });
+    worker.fireZeroTimers();
+    expect(worker.rechecks).toHaveBeenCalledTimes(2);
+  });
+
+  test("does not re-check on the page's frame messages, which tick the game instead", async () => {
+    const worker = await createWorker();
+    worker.deliver(PageFramedMessage.type.notification({}));
+    expect(worker.zeroTimers()).toHaveLength(0);
+    expect(worker.rechecks).not.toHaveBeenCalled();
+  });
+});

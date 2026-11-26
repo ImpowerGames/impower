@@ -12,7 +12,10 @@ import type { ChannelState } from "../types/ChannelState";
 import type { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
 import type { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
+import { SynthBuffer } from "./helpers/SynthBuffer";
 import { AudioClockMessage } from "./messages/AudioClockMessage";
+import { AudioReleasedMessage } from "./messages/AudioReleasedMessage";
+import { AudioSampleRateMessage } from "./messages/AudioSampleRateMessage";
 import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
@@ -61,6 +64,10 @@ export class AudioModule extends Module<
 
   protected _pageHears = false;
 
+  protected _sampleRate?: number;
+
+  protected _pageHolds = new Map<string, number>();
+
   override onReceiveNotification(msg: NotificationMessage): void {
     if (AudioClockMessage.type.isNotification(msg)) {
       this._outputLatency = msg.params.outputLatency;
@@ -69,6 +76,12 @@ export class AudioModule extends Module<
         this.forgetHeard();
       }
       this._pageHears = hears;
+    }
+    if (AudioSampleRateMessage.type.isNotification(msg)) {
+      this._sampleRate = msg.params.sampleRate;
+    }
+    if (AudioReleasedMessage.type.isNotification(msg)) {
+      this._pageHolds.delete(`${msg.params.channel}/${msg.params.key}`);
     }
   }
 
@@ -410,6 +423,41 @@ export class AudioModule extends Module<
   protected async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
     const mixer = this.getMixerName(data.channel);
     const mixerGain = this.context?.mixer?.[mixer]?.gain ?? 1;
+    const sampleRate = this._sampleRate;
+    const held = `${data.channel}/${data.key}`;
+    const epoch = this._game.connection.epoch;
+    if (data.synth && data.tones && sampleRate) {
+      if (this._pageHolds.get(held) === epoch) {
+        const answer = await this.emitSettled(
+          LoadAudioPlayerMessage.type.request({
+            ...data,
+            mixer,
+            mixerGain,
+            held: true,
+          }),
+        );
+        if (!answer?.needsSamples || this._game.connection.epoch !== epoch) {
+          return;
+        }
+        this._pageHolds.delete(held);
+      }
+      const samples = new SynthBuffer(data.synth, data.tones, sampleRate)
+        .soundBuffer;
+      const loaded = await this.emitSettled(
+        LoadAudioPlayerMessage.type.request({
+          ...data,
+          mixer,
+          mixerGain,
+          samples,
+          sampleRate,
+        }),
+        [samples.buffer],
+      );
+      if (loaded && this._game.connection.epoch === epoch) {
+        this._pageHolds.set(held, epoch);
+      }
+      return;
+    }
     await this.emitSettled(
       LoadAudioPlayerMessage.type.request({ ...data, mixer, mixerGain }),
     );

@@ -193,6 +193,19 @@ export function installGameWorker(connection: MessageConnection) {
   const games = () =>
     [state.running, state.game].filter((game): game is Game => !!game);
 
+  let rechecking: number | undefined;
+  const recheckOnceSettled = () => {
+    if (rechecking !== undefined) {
+      return;
+    }
+    rechecking = self.setTimeout(() => {
+      rechecking = undefined;
+      for (const game of games()) {
+        game.recheckReadiness();
+      }
+    }, 0);
+  };
+
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
     if (PageFramedMessage.type.isNotification(message)) {
@@ -204,8 +217,10 @@ export function installGameWorker(connection: MessageConnection) {
       for (const game of games()) {
         game.connection.receive(message);
       }
+      recheckOnceSettled();
     } else if (isNotification(message)) {
       target()?.connection.receive(message);
+      recheckOnceSettled();
     }
     if (InitializeMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => ({}));

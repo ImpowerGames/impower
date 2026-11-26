@@ -3,6 +3,8 @@ import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import AudioProbe from "./AudioProbe";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { AudioReleasedMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioReleasedMessage";
+import { AudioSampleRateMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioSampleRateMessage";
 import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
 import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
@@ -47,6 +49,15 @@ export default class AudioManager extends Manager {
 
   override async onInit(): Promise<void> {
     this.exposeAudioProbe();
+    this.reportSampleRate();
+  }
+
+  protected reportSampleRate() {
+    const sampleRate =
+      this.app.audioContext?.sampleRate ?? this.app.audioClock?.sampleRate;
+    if (sampleRate) {
+      this.app.emit(AudioSampleRateMessage.type.notification({ sampleRate }));
+    }
   }
 
   protected _exposedProbe?: () => unknown;
@@ -96,6 +107,15 @@ export default class AudioManager extends Manager {
     if (params.src) {
       const response = await fetch(params.src);
       return decodeAudioBytes(audioContext, await response.arrayBuffer());
+    }
+    if (params.samples && params.sampleRate) {
+      const audioBuffer = audioContext.createBuffer(
+        1,
+        Math.max(1, params.samples.length),
+        params.sampleRate,
+      );
+      audioBuffer.copyToChannel(params.samples, 0);
+      return audioBuffer;
     }
     if (params.synth && params.tones) {
       const synthBuffer = new SynthBuffer(
@@ -277,8 +297,16 @@ export default class AudioManager extends Manager {
         audioChannel.delete(key);
         this._synthKeys.delete(key);
         player.dispose();
+        this.app.emit(AudioReleasedMessage.type.notification({ channel, key }));
       }
     });
+  }
+
+  protected holds(params: LoadAudioPlayerParams): boolean {
+    return (
+      this.getAudioChannel(params.channel).has(params.key) ||
+      this._pendingPlayers.has(`${params.channel}/${params.key}`)
+    );
   }
 
   protected async getAudioPlayer(
@@ -287,6 +315,12 @@ export default class AudioManager extends Manager {
     const audioChannel = this.getAudioChannel(params.channel);
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
+    }
+    if (
+      params.synth &&
+      this._pendingPlayers.has(`${params.channel}/${params.key}`)
+    ) {
+      return undefined;
     }
     const audioBuffer = await this.getAudioBuffer(params);
     if (audioChannel.get(params.key)) {
@@ -436,6 +470,7 @@ export default class AudioManager extends Manager {
   }
 
   onAudioContextRunning() {
+    this.reportSampleRate();
     const audioContext = this.app.audioContext;
     if (audioContext) {
       const pending = [...this._pendingPlayers.values()];
@@ -592,8 +627,15 @@ export default class AudioManager extends Manager {
       return ConfigureAudioMixerMessage.type.result(msg.params);
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
+      const { samples, ...loaded } = msg.params;
+      if (msg.params.held && !this.holds(msg.params)) {
+        return LoadAudioPlayerMessage.type.result({
+          ...loaded,
+          needsSamples: true,
+        });
+      }
       await this.onLoadAudioPlayer(msg.params);
-      return LoadAudioPlayerMessage.type.result(msg.params);
+      return LoadAudioPlayerMessage.type.result(loaded);
     }
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
       await this.onUpdateAudioPlayers(msg.params);

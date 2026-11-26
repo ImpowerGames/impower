@@ -39,6 +39,7 @@ export interface StandInBuffer {
   key: string;
   duration: number;
   length: number;
+  samples?: Float32Array;
 }
 
 export class StandInSource extends StandInNode {
@@ -102,6 +103,9 @@ class StandInMovieSource extends StandInNode {
 
 export interface StandInAudio {
   readonly sources: StandInSource[];
+  readonly buffers: StandInBuffer[];
+  readonly pageSyntheses: number;
+  holdSynth?: Promise<void>;
   readonly running: boolean;
   readonly currentTime: number;
   sourcesOf(key: string): StandInSource[];
@@ -116,10 +120,12 @@ export interface StandInAudio {
 }
 
 export function createStandInAudio(
-  options: { running?: boolean; timed?: boolean } = {},
+  options: { running?: boolean; timed?: boolean; synthesises?: boolean } = {},
 ): StandInAudio {
   let clockNow: (() => number) | undefined;
   const sources: StandInSource[] = [];
+  const buffers: StandInBuffer[] = [];
+  let pageSyntheses = 0;
   const movies: StandInMovieSource[] = [];
   const destination = new StandInNode();
   const gainNode = () => {
@@ -141,12 +147,18 @@ export function createStandInAudio(
         fftSize: 2048,
         getFloatTimeDomainData() {},
       }),
-    createBuffer: (_channels: number, length: number) => ({
-      key: "",
-      duration: length / 48000,
-      length,
-      copyToChannel() {},
-    }),
+    createBuffer: (_channels: number, length: number) => {
+      const buffer: StandInBuffer & { copyToChannel(source: Float32Array): void } = {
+        key: "",
+        duration: length / 48000,
+        length,
+        copyToChannel(source: Float32Array) {
+          buffer.samples = Float32Array.from(source);
+        },
+      };
+      buffers.push(buffer);
+      return buffer;
+    },
     createBufferSource: () => {
       const source = new StandInSource(destination);
       sources.push(source);
@@ -162,6 +174,10 @@ export function createStandInAudio(
   let attached: { app: any; manager: AudioManager; emit: (m: unknown) => void } | undefined;
   const audio: StandInAudio = {
     sources,
+    buffers,
+    get pageSyntheses() {
+      return pageSyntheses;
+    },
     get running() {
       return context.state === "running";
     },
@@ -201,6 +217,15 @@ export function createStandInAudio(
         protected override async loadAudioBuffer(
           params: LoadAudioPlayerParams,
         ): Promise<AudioBuffer> {
+          if (options.synthesises && params.synth && params.tones) {
+            await audio.holdSynth;
+            if (!params.samples) {
+              pageSyntheses += 1;
+            }
+            const buffer = await super.loadAudioBuffer(params);
+            (buffer as unknown as StandInBuffer).key = params.key;
+            return buffer;
+          }
           return {
             key: params.key,
             duration: 4,

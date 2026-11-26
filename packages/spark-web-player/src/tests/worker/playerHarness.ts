@@ -48,13 +48,13 @@ export class LoopbackConnection extends MessageConnection {
 
   protected _listeners = new Set<(e: MessageEvent) => void>();
 
-  constructor(protected onPost?: (message: any) => void) {
-    super((message) => this.deliver(message));
+  constructor(protected onPost?: (message: any, transfer?: Transferable[]) => void) {
+    super((message, transfer) => this.deliver(message, transfer));
   }
 
-  protected deliver(message: any) {
-    const copy = structuredClone(message);
-    this.onPost?.(copy);
+  protected deliver(message: any, transfer?: Transferable[]) {
+    const copy = transfer?.length ? structuredClone(message, { transfer }) : structuredClone(message);
+    this.onPost?.(copy, transfer);
     const peer = this.peer;
     if (this.closed || peer?.closed) {
       return;
@@ -190,6 +190,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     restoreDOM();
   };
   const toPage: any[] = [];
+  const transferred: { message: any; transfer: Transferable[] }[] = [];
   const recordMessages = options.recordMessages !== false;
   const onChannel: any[] = [];
   g.BroadcastChannel = loopbackBroadcastChannel((message) => {
@@ -203,8 +204,9 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
 
   const createWorker = () => {
     const page = new LoopbackConnection();
-    const worker = new LoopbackConnection((message) => {
+    const worker = new LoopbackConnection((message, transfer) => {
       if (recordMessages) toPage.push(message);
+      if (transfer?.length) transferred.push({ message, transfer });
     });
     page.peer = worker;
     worker.peer = page;
@@ -447,6 +449,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       return hang;
     },
     toPage,
+    transferred,
     onChannel,
     toEditor,
     toRouter,
