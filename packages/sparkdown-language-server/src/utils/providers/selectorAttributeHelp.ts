@@ -26,21 +26,21 @@ export const propOfAttribute = (attribute: string) => PROP_OF_ATTRIBUTE.get(attr
 export const labelKindOfProp = (prop: string | undefined) =>
   prop === "variant" || prop === "speaker" ? prop : undefined;
 
-const PROP_MEANINGS: ReadonlyMap<string, (value: string) => string> = new Map([
+const PROP_MEANINGS: ReadonlyMap<string, (written: string, value: string) => string> = new Map([
   [
     "variant",
-    (value: string) =>
-      `In a layout, \`#variant=${value}\` limits an element to lines labelled \`${value}\` in their cue's brackets, as \`BUNNY [${value}]:\` is labelled \`${value}\`. \`[<]\` is \`left\` and \`[>]\` is \`right\`.`,
+    (written: string, value: string) =>
+      `In a layout, \`#variant=${written}\` limits an element to lines labelled \`${value}\` in their cue's brackets, as \`BUNNY [${value}]:\` is labelled \`${value}\`. \`[<]\` is \`left\` and \`[>]\` is \`right\`.`,
   ],
   [
     "speaker",
-    (value: string) =>
-      `In a layout, \`#speaker=${value}\` limits an element to lines spoken by the character defined as \`${value}\`.`,
+    (written: string, value: string) =>
+      `In a layout, \`#speaker=${written}\` limits an element to lines spoken by the character defined as \`${value}\`.`,
   ],
   [
     "tooltip",
-    (value: string) =>
-      `\`#tooltip=${value}\` shows its text in a bubble while the pointer is over the element.`,
+    (written: string) =>
+      `\`#tooltip=${written}\` shows its text in a bubble while the pointer is over the element.`,
   ],
 ]);
 
@@ -64,7 +64,7 @@ export const selectorPropDocumentation = (prop: string) =>
     isValuelessAttribute(prop)
       ? `\`#${prop} { … }\` selects the elements written with a \`#${prop}\` prop.`
       : `\`#${prop}=name { … }\` selects the elements written with \`#${prop}=name\`.`,
-    ...(PROP_MEANINGS.has(prop) ? [PROP_MEANINGS.get(prop)!("name")] : []),
+    ...(PROP_MEANINGS.has(prop) ? [PROP_MEANINGS.get(prop)!("name", "name")] : []),
     ...guideLink(prop),
   ].join("\n\n");
 
@@ -96,7 +96,7 @@ const describeProp = (written: string): string | null => {
     : operator === "="
       ? `\`${written} { … }\` selects the elements written with \`#${prop}=${raw}\`.`
       : `\`${written} { … }\` selects the elements written with a \`#${prop}\` prop whose value ${OPERATOR_MATCHES[operator]} \`${value}\`.`;
-  const meaning = operator === "=" && value ? PROP_MEANINGS.get(prop)?.(value) : undefined;
+  const meaning = operator === "=" && value ? PROP_MEANINGS.get(prop)?.(raw, value) : undefined;
   return [selects, ...(meaning ? [meaning] : []), ...guideLink(prop)].join("\n\n");
 };
 
@@ -127,7 +127,7 @@ const describeAttribute = (written: string): string | null => {
         : `\`#${attribute}${shown}\` writes \`${renamed}\`, not \`${attribute}\`, so this block selects no element written with it; \`#${attribute}${shown} { … }\` does.`
       : undefined;
   const meaning =
-    operator === "=" && value && prop && !ignoresCase ? PROP_MEANINGS.get(prop)?.(value) : undefined;
+    operator === "=" && value && prop && !ignoresCase ? PROP_MEANINGS.get(prop)?.(raw, value) : undefined;
   return [
     selects,
     ...(writtenBy ? [writtenBy] : []),

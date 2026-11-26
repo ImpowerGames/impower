@@ -218,6 +218,8 @@ describe("hovering an attribute selector block in a style (#2805)", () => {
     const prop = await hoverOn('#tooltip="Say \\"so\\""');
     expect(prop?.marked).toBe('#tooltip="Say \\"so\\""');
     expect(prop?.value).toContain('selects the elements written with `#tooltip="Say \\"so\\""`');
+    expect(prop?.value).toContain('`#tooltip="Say \\"so\\""` shows its text');
+    expect(quoted?.value).toContain('`#tooltip="Say \\"hi\\""` shows its text');
   });
 
   it("describes a plain attribute selector", async () => {
