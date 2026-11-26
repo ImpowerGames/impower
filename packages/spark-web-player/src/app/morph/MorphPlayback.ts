@@ -985,7 +985,12 @@ export class MorphLayer {
       return [this.unbuilt(image) ? still.layers[index - still.layer]! : this.layers[index]!];
     }
     if (!this.images.some((image) => image.layer < end && still.layer < image.layer + image.span && this.unbuilt(image))) return [this.layers[index]!];
-    return index === end - 1 ? still.layers : [];
+    return index === this.stillSlot(still.layer, end) ? still.layers : [];
+  }
+
+  protected stillSlot(start: number, end: number): number {
+    if (!this.shadowHost) return end - 1;
+    return Math.max(-1, ...this.statics.filter(({ layer }) => layer >= start && layer < end).map(({ layer }) => layer));
   }
 
   protected staticLayer(index: number): string {

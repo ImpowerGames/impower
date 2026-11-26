@@ -40,7 +40,7 @@ async function until(check: () => boolean, what: string) {
   throw new Error(`Timed out waiting for ${what}`);
 }
 
-async function mount(content: MorphImageContent) {
+async function mount(content: MorphImageContent, repeat = "no-repeat, repeat, no-repeat") {
   const env = installJSDOM();
   const win = env.overlay.ownerDocument.defaultView!;
   const computedStyle = win.getComputedStyle;
@@ -49,7 +49,7 @@ async function mount(content: MorphImageContent) {
     return new Proxy(style, {
       get: (target, key) =>
         key === "getPropertyValue"
-          ? (name: string) => (name === "background-repeat" ? "no-repeat, repeat, no-repeat" : target.getPropertyValue(name))
+          ? (name: string) => (name === "background-repeat" ? repeat : target.getPropertyValue(name))
           : Reflect.get(target, key, target),
     });
   }) as typeof win.getComputedStyle;
@@ -91,6 +91,16 @@ describe("a change morph's still, per picture", () => {
     const { views, statics } = await mount({ plays, epoch: 0, still: [{ layer: 1, span: 2, image: 'url("first-hat-b.svg"), url("first-b.svg")' }] });
     expect(views()).toBeGreaterThan(0);
     expect(statics()).toEqual(['url("first-b.svg")', 'url("hat-b.svg")']);
+  });
+
+  test.each([
+    ["above another picture", 1, "no-repeat, repeat, no-repeat"],
+    ["at the bottom of the background", 0, "no-repeat, no-repeat, repeat"],
+  ])("a still of another layer count keeps its old drawing when its picture's top layer draws live, %s", async (_, layer, repeat) => {
+    const three = [...plays, { layer: 2, ref: ref("c"), morph: "shut", timing, definition: "d" }];
+    const { views, statics } = await mount({ plays: three, epoch: 0, still: [{ layer, span: 2, image: 'url("first.svg")' }] }, repeat);
+    expect(views()).toBeGreaterThan(0);
+    expect(statics()).toEqual(['url("first.svg")']);
   });
 
   test("before any view is built, each picture's still takes its own place in the background", async () => {
