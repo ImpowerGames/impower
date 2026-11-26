@@ -88,28 +88,6 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     expect(accepted(body, item)).toBe(styled("  [data-speaker=] {  }"));
   });
 
-  it("writes over the ] the editor closed the [ with", () => {
-    const body = "  [data-sp@1]";
-    const item = completeIn(body, "[").items.find((i) => i.label === "[data-speaker]")!;
-    expect(accepted(body, item)).toBe(styled("  [data-speaker=] {  }"));
-  });
-
-  it.each([
-    ["  #var@1 }", "#", "#variant", "  #variant= {  } }"],
-    ["  [data-sp@1] }", "[", "[data-speaker]", "  [data-speaker=] {  } }"],
-    ["  #dis@1; opacity = 1", "#", "#disabled", "  #disabled {  }; opacity = 1"],
-    ["  #var@1, opacity = 1", "#", "#variant", "  #variant= {  }, opacity = 1"],
-    ["  #dis@1 -- keep this note", "#", "#disabled", "  #disabled {  } -- keep this note"],
-    ["  [data-sp@1] // keep this note", "[", "[data-speaker]", "  [data-speaker=] {  } // keep this note"],
-    ["  #var@1 -- a { brace", "#", "#variant", "  #variant= {  } -- a { brace"],
-    ["  #var@1; x = { 1 }", "#", "#variant", "  #variant= {  }; x = { 1 }"],
-    ["  @hovered { #dis@1 } @hide { opacity = 0 }", "#", "#disabled", "  @hovered { #disabled {  } } @hide { opacity = 0 }"],
-    ["  @hovered { [dis@1] } @hide { opacity = 0 }", "[", "[disabled]", "  @hovered { [disabled] {  } } @hide { opacity = 0 }"],
-  ])("writes the whole block before the enclosing body's }, the next entry or a comment in %j", (body, trigger, label, expected) => {
-    const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
-    expect(accepted(body, item)).toBe(styled(expected));
-  });
-
   it("writes the block on the key's line when the next line opens a brace, which is not the key's body", () => {
     const nextLine = (compile(styled("  #variant=left\n  {\n    opacity = 1\n  }")).context as any).style.text;
     expect(nextLine["#variant=left"]).toBeUndefined();
@@ -122,6 +100,17 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
   });
 
   it.each([
+    ["  [data-sp@1]", "[", "[data-speaker]", "  [data-speaker=]"],
+    ["  #var@1 }", "#", "#variant", "  #variant= }"],
+    ["  [data-sp@1] }", "[", "[data-speaker]", "  [data-speaker=] }"],
+    ["  #dis@1; opacity = 1", "#", "#disabled", "  #disabled; opacity = 1"],
+    ["  #var@1, opacity = 1", "#", "#variant", "  #variant=, opacity = 1"],
+    ["  #dis@1 -- keep this note", "#", "#disabled", "  #disabled -- keep this note"],
+    ["  [data-sp@1] // keep this note", "[", "[data-speaker]", "  [data-speaker=] // keep this note"],
+    ["  #var@1 -- a { brace", "#", "#variant", "  #variant= -- a { brace"],
+    ["  #var@1; x = { 1 }", "#", "#variant", "  #variant=; x = { 1 }"],
+    ["  @hovered { #dis@1 } @hide { opacity = 0 }", "#", "#disabled", "  @hovered { #disabled } @hide { opacity = 0 }"],
+    ["  @hovered { [dis@1] } @hide { opacity = 0 }", "[", "[disabled]", "  @hovered { [disabled] } @hide { opacity = 0 }"],
     ["  #var@1 { opacity = 1 }", "#", "#variant", "  #variant= { opacity = 1 }"],
     ["  #var@1 @hovered { opacity = 1 }", "#", "#variant", "  #variant= @hovered { opacity = 1 }"],
     ["  #var@1, #variant=right { opacity = 1 }", "#", "#variant", "  #variant=, #variant=right { opacity = 1 }"],
@@ -139,11 +128,66 @@ describe("completing attribute selector blocks in a style (#2805)", () => {
     ["  [data-sp@1eaker=bunny] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=bunny] { opacity = 1 }"],
     ["  [dis@1] { opacity = 1 }", "[", "[disabled]", "  [disabled] { opacity = 1 }"],
     ["  [data-sp@1 = bunny] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker = bunny] { opacity = 1 }"],
-    ["  [data-sp@1 ] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker=] { opacity = 1 }"],
-    ["  [data-sp@1 ]", "[", "[data-speaker]", "  [data-speaker=] {  }"],
-  ])("completes the key of an existing block in %j without writing another block", (body, trigger, label, expected) => {
+    ["  [data-sp@1 ] { opacity = 1 }", "[", "[data-speaker]", "  [data-speaker= ] { opacity = 1 }"],
+    ["  [data-sp@1 ]", "[", "[data-speaker]", "  [data-speaker= ]"],
+  ])("accepting in %j writes one block per key and leaves the text after the caret", (body, trigger, label, expected) => {
     const item = completeIn(body, trigger).items.find((i) => i.label === label)!;
-    expect(accepted(body, item)).toBe(styled(expected));
+    const result = accepted(body, item);
+    expect(result).toBe(styled(expected));
+    const caretLine = body.slice(0, body.indexOf("@1")).split("\n").length - 1;
+    const before = body.replace("@1", "").split("\n")[caretLine]!;
+    const after = body.slice(body.indexOf("@1") + 2).split("\n")[0]!;
+    const nameRest = /^[\p{L}\p{N}_-]*/u.exec(after)![0];
+    const kept = /^\s*[~|^$*]?=/.test(after.slice(nameRest.length)) ? after.slice(nameRest.length) : after;
+    const resultLine = expected.split("\n")[caretLine]!;
+    expect(resultLine.endsWith(kept)).toBe(true);
+    const braces = (line: string) => line.split("{").length - 1;
+    expect(braces(resultLine)).toBe(braces(before) + (after.trim() ? 0 : 1));
+  });
+
+  const REMAINDERS = [
+    ["empty", "  ", ""],
+    ["spaces", "  ", "   "],
+    ["a tab", "  ", "\t"],
+    ["a body", "  ", " { opacity = 1 }"],
+    ["a comment", "  ", " -- a note"],
+    ["a slash comment", "  ", " // a note"],
+    ["a next entry", "  ", "; opacity = 1"],
+    ["a sibling block", "  @hovered { ", " } @hide { opacity = 0 }"],
+    ["a selector list", "  ", ", #variant=right { opacity = 1 }"],
+    ["a quoted brace", "  ", ' [title="a { b"] { opacity = 1 }'],
+    ["a quoted comment marker", "  ", " [title='a -- b'] { opacity = 1 }"],
+    ["a class name with hyphens", "  ", " .foo--bar { opacity = 1 }"],
+    ["a closing bracket", "  ", "]"],
+  ] as const;
+
+  const edited = (opener: "#" | "[", prefix: string, remainder: string) => {
+    const typed = opener === "#" ? "#var" : "[data-sp";
+    const label = opener === "#" ? "#variant" : "[data-speaker]";
+    const body = `${prefix}${typed}@1${remainder}`;
+    const item = completeIn(body, opener).items.find((i) => i.label === label)!;
+    const edit = item.textEdit as {
+      range: { start: { character: number }; end: { character: number } };
+      newText: string;
+    };
+    const caret = prefix.length + typed.length;
+    return { newText: edit.newText, from: caret - edit.range.start.character, to: edit.range.end.character - caret };
+  };
+
+  it.each(REMAINDERS.flatMap(([name, prefix, remainder]) => (["#", "["] as const).map((opener) => [opener, name, prefix, remainder] as const)))(
+    "after %s with %s after the caret, writes a body only for a blank remainder",
+    (opener, _name, prefix, remainder) => {
+      const { newText, to } = edited(opener, prefix, remainder);
+      expect(newText.includes("{")).toBe(remainder.trim() === "");
+      expect(to).toBe(0);
+    },
+  );
+
+  it.each(["#", "["] as const)("after %s, writes the same edit for every remainder that is not blank", (opener) => {
+    const results = REMAINDERS.filter(([, , remainder]) => remainder.trim()).map(([, prefix, remainder]) =>
+      JSON.stringify(edited(opener, prefix, remainder)),
+    );
+    expect(new Set(results).size).toBe(1);
   });
 
   it.each(["  #variant=@1", "  #variant=sh@1", "  [data-variant=@1", "  [data-variant=@1]"])("offers the script's variants in %j", (body) => {

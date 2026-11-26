@@ -813,46 +813,13 @@ const addLineLabelCompletions = (
 
 const SELECTOR_ATTRIBUTE_BEFORE = /^\s*([#[])([\p{L}\p{N}_-]*)(?:([~|^$*]?=)[\p{L}\p{N}_@-]*)?$/u;
 
-const QUOTED_AHEAD = /"(?:\\[^]|[^"\\])*"?|'(?:\\[^]|[^'\\])*'?/y;
-
-const opensBodyOnEntry = (text: string) => {
-  let depth = 0;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]!;
-    if (char === '"' || char === "'") {
-      QUOTED_AHEAD.lastIndex = i;
-      i += QUOTED_AHEAD.exec(text)![0].length - 1;
-    } else if (char === "\\") {
-      i++;
-    } else if (char === "(" || char === "[") {
-      depth++;
-    } else if (char === ")" || char === "]") {
-      depth = Math.max(0, depth - 1);
-    } else if (depth === 0) {
-      if (char === "{") {
-        return true;
-      }
-      if (char === "}" || char === ";") {
-        return false;
-      }
-      if (
-        (text.startsWith("--", i) || text.startsWith("//", i)) &&
-        (i === 0 || /\s/.test(text[i - 1]!))
-      ) {
-        return false;
-      }
-    }
-  }
-  return false;
-};
-
 const addSelectorAttributeCompletions = (
   completions: Map<string, CompletionItem>,
   typed: RegExpExecArray,
   range: Range,
   scripts: Map<string, AnnotatedScript>,
   program: SparkProgram | undefined,
-  written: "nothing" | "body" | "value",
+  written: "nothing" | "text" | "value",
 ) => {
   const [, opener, name = "", operator] = typed;
   if (operator) {
@@ -866,14 +833,14 @@ const addSelectorAttributeCompletions = (
     const attribute = opener === "#" ? prop : toDataAttributeName(prop);
     const assigned = written === "value" || isValuelessAttribute(prop) ? "" : "=$1";
     const key = opener === "#" ? `#${prop}${assigned}` : `[${attribute}${assigned}`;
-    const closed = opener === "#" || written === "value" ? key : `${key}]`;
     const label = opener === "#" ? `#${prop}` : `[${attribute}]`;
     completions.set(label, {
       label,
       filterText: `${opener}${attribute}`,
       textEdit: {
         range,
-        newText: written === "nothing" ? `${closed} { $0 }` : closed,
+        newText:
+          written === "nothing" ? `${key}${opener === "[" ? "]" : ""} { $0 }` : key,
       },
       insertTextFormat: InsertTextFormat.Snippet,
       sortText: `${DATA_ATTRIBUTE_PROPS.has(prop) ? 0 : 1}${prop}`,
@@ -2512,20 +2479,17 @@ const completionsAt = (
         .slice(position.character)
         .replace(/[\r\n]+$/, "");
       const nameRest = /^[\p{L}\p{N}_-]*/u.exec(after)![0];
-      const rest = after.slice(nameRest.length);
-      const closing =
-        typedSelector[1] === "[" ? (/^\s*\]/.exec(rest)?.[0] ?? "") : "";
-      const written = /^\s*[~|^$*]?=/.test(rest)
+      const written = /^\s*[~|^$*]?=/.test(after.slice(nameRest.length))
         ? "value"
-        : opensBodyOnEntry(rest.slice(closing.length))
-          ? "body"
+        : after.trim()
+          ? "text"
           : "nothing";
       addSelectorAttributeCompletions(
         completions,
         typedSelector,
         document.range(
           documentCursorOffset - typedLength,
-          documentCursorOffset + nameRest.length + closing.length,
+          documentCursorOffset + (written === "value" ? nameRest.length : 0),
         ),
         scripts,
         program,
