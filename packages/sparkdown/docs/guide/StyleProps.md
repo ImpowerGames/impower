@@ -99,6 +99,7 @@ style button {
 - One selector can hold a state and a condition such as `@screen-size(sm)` or `@theme(dark)`: `@hovered @screen-size(sm) { … }` applies while both hold, in either order. In a list separated by commas, every selector needs the same conditions; write the selectors as separate rules when they differ.
 - Write an element's name before a condition (`button @media (min-width: 600px)`), since a word after a condition is read as part of it.
 - A condition that lists several queries with commas, such as `@media (min-width: 600px), print`, cannot share a key with a selector or a state. Write them as nested blocks instead: `@media (min-width: 600px), print { @hovered { … } }`.
+- A key that combines a selector or a state with a condition cannot hold a backslash before a space, a brace, a semicolon, a quote, `=`, `,` or `[`, or at its end; nest the blocks instead, with the condition outside: `@media print { @hovered { … } }`.
 - A rule's properties are separated by a new line or a `;`, as the entries of
   any block are (see [Blocks](./Structure.md#blocks)).
 

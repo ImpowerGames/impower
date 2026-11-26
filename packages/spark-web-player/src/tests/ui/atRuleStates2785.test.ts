@@ -360,12 +360,19 @@ describe("a raw at-rule that lists queries with a comma beside a selector or sta
 
 const HEADER_READ = [" ", "\t", "{", "}", ";", '"', "=", ",", "["];
 
-const BACKSLASH_KEYS = [
+const backslashKeys = (templates: string[]) =>
+  templates.flatMap((template) => [
+    ...HEADER_READ.map((char) => template.replace("E", `\\${char}`)),
+    template.slice(0, template.indexOf("E")) + "\\",
+  ]);
+
+const STANDALONE_BACKSLASH_KEYS = backslashKeys([
   "@media printE",
   "@media (min-width: 1px), printE",
   "@media printE, (min-width: 1px)",
   "@media (min-width: 1px)E",
   "@media (min-width: 1px)E, print",
+  "@media print cardE",
   "@layer fooE",
   "@layer fooE, bar",
   "@container cardE (min-width: 1px)",
@@ -373,45 +380,52 @@ const BACKSLASH_KEYS = [
   "cardE",
   "cardE @hovered",
   "@hovered cardE",
+]);
+
+const MIXED_BACKSLASH_KEYS = backslashKeys([
   "@hovered @media printE",
   "@media printE @hovered",
   "@hovered @media (min-width: 1px), printE",
   "@media (min-width: 1px)E, print @hovered",
   "cardE @media print",
-  "@media print cardE",
   "@busy @container-size(sm) cardE",
   "@showing(hud) @media printE",
-].flatMap((template) => [
-  ...HEADER_READ.map((char) => template.replace("E", `\\${char}`)),
-  template.slice(0, template.indexOf("E")) + "\\",
 ]);
 
 describe("a key holding a backslash the block header reads on its own is written as on main or refused (#2785)", () => {
-  const refused = (key: string, colorScheme: "attribute" | "media") =>
-    writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme }).refusals.length > 0;
+  const refusals = (key: string, colorScheme: "attribute" | "media") =>
+    writeSparkleSelectorChecked(key, { breakpoints: BREAKPOINTS, colorScheme }).refusals;
+  const playerAsMain = (key: string) =>
+    expect(playerCss({ [key]: { opacity: "0.5" } }), `player ${key}`).toBe(
+      `.card {\n  ${basePrelude(key, "attribute").prelude} {\n    opacity: 0.5;\n  }\n}`,
+    );
+  const previewAsMain = (key: string) =>
+    expect(previewCss([key, "  opacity = 0.5"]), `preview ${key}`).toBe(
+      `.style.card { ${basePrelude(key, "media").prelude} { opacity:0.5; } }`,
+    );
 
-  test(`each of ${BACKSLASH_KEYS.length} keys is written by both renderers as main writes it, or refused and written by neither`, () => {
-    const outcomes = { identical: 0, refused: 0 };
-    for (const key of BACKSLASH_KEYS) {
-      const player = playerCss({ [key]: { opacity: "0.5" } });
-      if (refused(key, "attribute")) {
-        outcomes.refused++;
-        expect(player, `player ${key}`).not.toContain("0.5");
-      } else {
-        outcomes.identical++;
-        expect(player, `player ${key}`).toBe(`.card {\n  ${basePrelude(key, "attribute").prelude} {\n    opacity: 0.5;\n  }\n}`);
-      }
-      const preview = previewCss([key, "  opacity = 0.5"]);
-      if (refused(key, "media")) {
-        outcomes.refused++;
-        expect(preview, `preview ${key}`).not.toContain("0.5");
-      } else {
-        outcomes.identical++;
-        expect(preview, `preview ${key}`).toBe(`.style.card { ${basePrelude(key, "media").prelude} { opacity:0.5; } }`);
+  test(`each of ${STANDALONE_BACKSLASH_KEYS.length} keys made only of an at-rule or only of a selector is refused in neither mode and written by both renderers as main writes it`, () => {
+    for (const key of STANDALONE_BACKSLASH_KEYS) {
+      expect(refusals(key, "attribute"), `attribute ${key}`).toEqual([]);
+      expect(refusals(key, "media"), `media ${key}`).toEqual([]);
+      playerAsMain(key);
+      previewAsMain(key);
+    }
+  });
+
+  test(`each of ${MIXED_BACKSLASH_KEYS.length} keys with a selector or state beside an at-rule is written as main writes it, or refused as escape or query-list and written by neither`, () => {
+    for (const key of MIXED_BACKSLASH_KEYS) {
+      for (const colorScheme of ["attribute", "media"] as const) {
+        const refused = refusals(key, colorScheme);
+        const write = colorScheme === "attribute" ? playerCss({ [key]: { opacity: "0.5" } }) : previewCss([key, "  opacity = 0.5"]);
+        if (refused.length === 0) {
+          (colorScheme === "attribute" ? playerAsMain : previewAsMain)(key);
+        } else {
+          expect(refused.map(({ kind }) => kind).filter((kind) => kind === "escape" || kind === "query-list"), `${colorScheme} ${key}`).not.toEqual([]);
+          expect(write, `${colorScheme} ${key}`).not.toContain("0.5");
+        }
       }
     }
-    expect(outcomes.identical).toBeGreaterThan(0);
-    expect(outcomes.refused).toBeGreaterThan(0);
   });
 
   test("a key with a state beside an at-rule and such a backslash is refused in both colour-scheme modes", () => {
