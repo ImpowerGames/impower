@@ -203,6 +203,7 @@ import {
 } from "./messages/UpdateElementMessage";
 import {
   type MorphImageContent,
+  type MorphPictureStill,
   type MorphLayerPlay,
   type MorphPicture,
   type LayeredPicture,
@@ -3131,15 +3132,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
-    const still = assets
-      .map((asset, index) => {
-        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
-        return froms[index] !== undefined || cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
-      })
-      .reverse()
-      .join(", ");
-    if (still !== [...rests].reverse().join(", ")) {
+    const still: MorphPictureStill[] = [];
+    let layer = 0;
+    for (const [index, asset] of assets.entries()) {
+      const rest = this.getBackgroundImageFromString(asset, undefined, pickOf(asset));
+      const span = cssList(rest).length;
+      const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
+      if (start !== rest && (froms[index] !== undefined || cssList(start).length === span)) {
+        still.push({ layer, span, image: start });
+      }
+      layer += span;
+    }
+    if (still.length) {
       content.still = still;
     }
     return content;
