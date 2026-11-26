@@ -120,7 +120,7 @@ export default function TypewriterSound({ filename }: { filename: string }) {
           role="region"
           aria-labelledby={previewLabel}
           tabIndex={0}
-          class="m-0 h-28 w-full min-w-0 resize-y select-text overflow-auto rounded border border-edge p-2 font-mono text-xs"
+          class="m-0 h-[152px] max-h-[40vh] w-full min-w-0 select-text overflow-auto rounded border border-edge p-2 font-mono text-xs"
         >
           <code>{definition}</code>
         </pre>
