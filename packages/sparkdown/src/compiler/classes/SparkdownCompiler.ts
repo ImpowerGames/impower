@@ -204,8 +204,8 @@ import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
-import { GAME_WIDE_STATES, SHOWING_STATE } from "../constants/selectorStates";
-import { showingRefusalAt } from "../utils/showingRefusal";
+import { GAME_WIDE_STATES, isAtRuleState, SHOWING_STATE } from "../constants/selectorStates";
+import { selectorRefusalAt } from "../utils/selectorRefusal";
 import { cueVariant } from "../utils/readCue";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
@@ -1730,6 +1730,7 @@ export class SparkdownCompiler {
       this.validateMorphs(program);
       this.validateWriteTargets(program);
       this.validateShowingNames(program);
+      this.validateAtRuleLists(program);
       this.validateCueVariants(program);
       this.validateClearTargets(program);
       this.validateLints(program);
@@ -5265,6 +5266,51 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateWriteTargets", uri);
   }
 
+  validateAtRuleLists(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateAtRuleLists", uri);
+    const breakpoints = program.context?.["config"]?.["ui"]?.["breakpoints"] ?? {};
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "SelectorStateName") {
+            return undefined;
+          }
+          const state = doc.read(node.from, node.to);
+          if (!isAtRuleState(state)) {
+            return false;
+          }
+          const read = (from: number, to: number) => doc.read(from, to);
+          const player = selectorRefusalAt(node.node, read, "attribute", breakpoints);
+          const refusal = player ?? selectorRefusalAt(node.node, read, "media", breakpoints);
+          if (refusal && refusal.kind !== "game-wide") {
+            const consequence = player ? "this block never applies" : "the screen preview drops this block";
+            const value =
+              refusal.kind === "query-list"
+                ? `\`@${state}\` lists queries with a comma beside a selector or state, so ${consequence}.\n> Nest the blocks, as in \`@${state} (…), (…) { @hovered { … } }\`, or write each query as its own key`
+                : refusal.kind === "escape"
+                  ? `\`@${state}\` sits beside a selector or state in a key with a backslash ${refusal.where}, which a block header does not read as an escape, so ${consequence}.\n> Nest the blocks, as in \`@${state} … { @hovered { … } }\`, or write the key without that backslash`
+                  : `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`;
+            const code =
+              refusal.kind === "query-list" ? "at-rule-query-list" : refusal.kind === "escape" ? "at-rule-escape" : "at-rule-list";
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(refusal.from, refusal.to),
+              code,
+              severity: DiagnosticSeverity.Warning,
+              message: { kind: "markdown", value },
+              source: LANGUAGE_NAME,
+            });
+          }
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateAtRuleLists", uri);
+  }
+
   validateShowingNames(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateShowingNames", uri);
@@ -5282,7 +5328,7 @@ export class SparkdownCompiler {
           if (!GAME_WIDE_STATES.has(state)) {
             return undefined;
           }
-          const refusal = showingRefusalAt(node.node, (from, to) => doc.read(from, to));
+          const refusal = selectorRefusalAt(node.node, (from, to) => doc.read(from, to));
           if (refusal) {
             const example = GAME_WIDE_EXAMPLES[state]!;
             ((program.diagnostics ??= {})[scriptUri] ??= []).push({

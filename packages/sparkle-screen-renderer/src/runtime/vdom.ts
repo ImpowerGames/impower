@@ -1,6 +1,6 @@
 import type { ThemeVariables } from "../../../sparkle-style-transformer/src/types/themeVariables";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
-import { anchorSelfTargeted } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
+import { sparkleBlockPreludes } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier, getThemeVariableName } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
@@ -276,14 +276,13 @@ export function renderVNode(
     if (selector === undefined) {
       return "";
     }
-    const selfTargetedSelector = anchorSelfTargeted(selector.css);
     const blockCtx = selector.afterCombinator ? { ...ctx, afterCombinator: true } : ctx;
     const blockContent = (children ?? [])
       .map((c, i) => {
         return renderVNode(c, blockCtx, el, i) as string;
       })
       .join(" ");
-    return `${selfTargetedSelector} { ${blockContent} }`;
+    return sparkleBlockPreludes(selector).reduceRight((inner, prelude) => `${prelude} { ${inner} }`, blockContent);
   }
 
   if (el.root === "animation") {

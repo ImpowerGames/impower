@@ -11,6 +11,7 @@ import {
   LINE_SPEAKER_ATTRIBUTE,
   LINE_VARIANT_ATTRIBUTE,
   SHOWING_ATTRIBUTE,
+  sparkleBlockPreludes,
   writeSparkleSelector,
   writeSparkleSelectorChecked,
 } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
@@ -62,14 +63,18 @@ export const getStyleContent = (
           if (written.refusals.length > 0) {
             return;
           }
-          const selfTargetedSelector = anchorSelfTargeted(written.css);
-          styleContent += `\n${indent}${selfTargetedSelector} {`;
-          level++;
+          const preludes = sparkleBlockPreludes(written);
+          for (const prelude of preludes) {
+            styleContent += `\n${"  ".repeat(level)}${prelude} {`;
+            level++;
+          }
           Object.entries(v).forEach(([nk, nv]) => {
             process(nk, nv, written.afterCombinator);
           });
-          level--;
-          styleContent += `\n${indent}}`;
+          for (const _ of preludes) {
+            level--;
+            styleContent += `\n${"  ".repeat(level)}}`;
+          }
         } else {
           const value = getCssTokenValue(v);
           if (
