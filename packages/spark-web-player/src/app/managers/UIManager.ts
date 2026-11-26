@@ -825,7 +825,7 @@ export default class UIManager extends Manager {
             continue;
           }
           const group = new MorphGroup();
-          const maskEls = content.morph ? this.getContentElements(targetEl, "mask") : [];
+          const maskEls = this.getContentElements(targetEl, "mask");
           for (const [els, property] of [
             [imageEls, "background_image"],
             [maskEls, "mask_image"],
@@ -849,7 +849,7 @@ export default class UIManager extends Manager {
                 property === "mask_image" ? "mask" : "background",
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
                 group,
-                property === "background_image" ? (content.pictures ?? []) : [],
+                content.pictures ?? [],
                 true,
               );
               layer.size({ zoom, scale: around * keyframeScale(content.enterAnimation ? [content.enterAnimation] : []) * nested(span) });
@@ -2972,8 +2972,10 @@ export default class UIManager extends Manager {
                 ? content.srcs.filter((src) => src !== content.video?.src)
                 : content.srcs;
             const morph = instruction.control !== "hide" ? content.morph : undefined;
-            const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
-            const composited = new Set(pictures.flatMap((picture) => picture.files.map((file) => file.src)));
+            const pictures = !video ? (content.pictures ?? []) : [];
+            const composited = new Set(
+              (property === "background_image" ? pictures : []).flatMap((picture) => picture.files.map((file) => file.src)),
+            );
             (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs.filter((src) => !composited.has(src)));
             const preparedLayer = prepared ? (prepared as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph : undefined;
             if (preparedLayer) {

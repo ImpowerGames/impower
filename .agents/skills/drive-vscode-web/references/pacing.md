@@ -2,7 +2,7 @@
 
 All commands run from the worktree root unless stated otherwise.
 
-`pacing` plays fixed lines in VS Code's Game Preview and reports, for each, the wait from the click to the line firing and whether the screen kept up afterwards (I-2809). What each figure means, the fixture and the repeatability rule are in [the web editor driver's pacing page](../../drive-web-editor/references/pacing.md); both surfaces share one analysis module and one run loop. This page covers what is particular to the desktop host.
+`pacing` plays fixed lines in VS Code's Game Preview and reports, for each, the wait from the click to the line firing and whether the screen kept up afterwards (I-2809). What each figure means, the fixture and the repeatability rule are in [the web editor driver's pacing page](../../drive-web-editor/references/pacing.md); both surfaces share one analysis module and one run loop. This page covers what is particular to the desktop host. The main fixture decodes its sounds before any measured line; to measure the player's fallback decoder for the RFC 6716 codec while a narration line plays, run the second fixture through `--project` as `fixtures/pacing-audio/SOURCE.md` describes.
 
 ```bash
 cd vscode-sparkdown && npm run build

@@ -392,7 +392,7 @@ The runtime side of the table, and how the engine builds a beat from it, is in `
 
 ### 11.1 Snapshot tests
 
-`src/tests/compiler/compileSnapshot.test.ts` walks `src/tests/compiler/__snapshots__/compile/**` and snapshots the **lowered ParsedHierarchy JSON** (the input to the program path's resolver and writer). When you change a lowerer, these are the tests that catch regressions.
+`test/compiler/compileSnapshot.test.ts` walks `test/compiler/__snapshots__/compile/**` and snapshots the **lowered ParsedHierarchy JSON** (the input to the program path's resolver and writer). When you change a lowerer, these are the tests that catch regressions.
 
 Reading a failing compile snapshot diff requires familiarity with the inkjs ParsedObject vocabulary (`VariableAssignment`, `FunctionCall`, `Conditional`, `Divert`, etc.). The same advice as grammar snapshots applies: **read the diff**. Don't reflexively regenerate.
 
@@ -442,8 +442,8 @@ You'll see the compiled `ProgramRoot`: its sequences, typed-array chunks, and in
    - Part of a parent's ParsedObject → the parent's lowerer should walk to it via `getDescendent` and consume its content.
    - Nothing → add `case "Foo": return {};` if it might come up in `lowerStatements`, otherwise omit.
 3. **Reuse helpers** from `utils/`. `lowerPropertyTargetAssignment`, `wrapInWeave`, `wrapInScope`, `findChildByName`, etc.
-4. **Write a snapshot fixture** under `src/tests/compiler/__snapshots__/compile/<category>/<name>.sd` for compile output. Snapshot the lowered JSON.
-5. **Write a runtime test** under `src/tests/runtime/<Category>.test.ts` that exercises the behavior end-to-end.
+4. **Write a snapshot fixture** under `test/compiler/__snapshots__/compile/<category>/<name>.sd` for compile output. Snapshot the lowered JSON.
+5. **Write a runtime test** under `test/runtime/<Category>.test.ts` that exercises the behavior end-to-end.
 6. **Verify** with `dumpTree` + bytecode inspection that the actual emit matches expectations. Don't trust passing tests if the bytecode isn't what you intended — they may be passing for the wrong reason.
 
 ---

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { imageSizeFixtures } from "@impower/sparkdown/src/tests/morph/imageSizeFixtures";
+import { imageSizeFixtures } from "@impower/sparkdown/test/morph/imageSizeFixtures";
 import { IMAGE_HEADER_BYTES } from "@impower/sparkdown/src/workspace/utils/imageSize";
 import { writeMemoryFile } from "../../../packages/opfs-workspace/test/memoryOpfs";
 import { releaseStorageWorker, storageWorkerHarness } from "./storageWorkerHarness";

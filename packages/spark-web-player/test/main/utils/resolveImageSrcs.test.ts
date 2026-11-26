@@ -1,0 +1,126 @@
+import { describe, expect, it } from "vitest";
+import { resolveImageLayers } from "../../../../sparkdown/src/compiler/utils/resolveImageLayers";
+import { resolveImageSrcs, rootHasInlinedData } from "../../../src/main/utils/resolveImageSrcs";
+
+const SVG = `<svg xmlns="http://www.w3.org/2000/svg"><g id='hat' data-name='hat.on'><path/></g><g id='body'><path/></g></svg>`;
+
+const context = () => ({
+  image: {
+    portrait: {
+      $type: "image",
+      $name: "portrait",
+      ext: "svg",
+      src: "/file:/local/assets/portrait.svg?v=1",
+      data: `data:image/svg+xml,${encodeURIComponent(SVG)}`,
+    } as any,
+    stripped: {
+      $type: "image",
+      $name: "stripped",
+      ext: "svg",
+      src: "/file:/local/assets/stripped.svg?v=1&content=abc",
+    } as any,
+    portrait__hat: {
+      $type: "image",
+      $name: "portrait__hat",
+      src: "/file:/local/assets/portrait__hat.png?v=1",
+    } as any,
+    portrait__body: {
+      $type: "image",
+      $name: "portrait__body",
+      src: "/file:/local/assets/portrait__body.png?v=1",
+    } as any,
+  },
+  layered_image: {
+    layers: {
+      $type: "layered_image",
+      $name: "layers",
+      assets: {
+        "hat.on": { $type: "image", $name: "portrait__hat" },
+        body: { $type: "image", $name: "portrait__body" },
+      },
+    } as any,
+  },
+  filtered_image: {
+    "stripped:hat.off": {
+      $type: "filtered_image",
+      $name: "stripped:hat.off",
+      image: { $type: "image", $name: "stripped" },
+      attributes: ["hat.off"],
+    } as any,
+    "portrait:hat.off": {
+      $type: "filtered_image",
+      $name: "portrait:hat.off",
+      image: { $type: "image", $name: "portrait" },
+      attributes: ["hat.off"],
+    } as any,
+    "layers:hat.off": {
+      $type: "filtered_image",
+      $name: "layers:hat.off",
+      image: { $type: "layered_image", $name: "layers" },
+      attributes: ["hat.off"],
+    } as any,
+  },
+});
+
+const shape = (ctx: any) =>
+  Object.entries(ctx).flatMap(([type, structs]: [string, any]) =>
+    Object.entries(structs).map(
+      ([name, struct]: [string, any]) =>
+        `${type}.${name}: ${Object.keys(struct).sort().join(",")}`,
+    ),
+  );
+
+const gameSrcs = (ctx: any, name: string) =>
+  resolveImageLayers(ctx, ctx.filtered_image?.[name] ?? ctx.image?.[name]).map(
+    (layer) => layer.src,
+  );
+
+describe("warming the urls the renderer will request", () => {
+  it.each(["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"])("warms the own image named %s", name => {
+    const src = `/assets/${name}.png`;
+    const ctx = { filtered_image: {}, layered_image: {}, image: { [name]: { $type: "image", $name: name, src } } };
+    expect(resolveImageSrcs(ctx, [name])).toEqual([src]);
+  });
+
+  it.each(["ordinary", "toString", "constructor", "hasOwnProperty", "__proto__"])("follows the own filtered look named %s to its inlined root", name => {
+    const ctx = {
+      image: { root: { data: SVG } },
+      filtered_image: { [name]: { image: { $name: "root" } } },
+    };
+    expect(rootHasInlinedData(ctx, { image: { $name: name } })).toBe(true);
+  });
+
+  it("writes nothing onto the program's structs", () => {
+    const ctx = context();
+    const before = shape(ctx);
+    resolveImageSrcs(ctx, [
+      "stripped:hat.off",
+      "layers:hat.off",
+      "layers",
+      "portrait",
+    ]);
+    expect(shape(ctx)).toEqual(before);
+  });
+
+  it("resolves the same urls the game resolves for the same name", () => {
+    const warm = context();
+    const game = context();
+    for (const name of ["stripped:hat.off", "layers:hat.off"]) {
+      expect(resolveImageSrcs(warm, [name])).toEqual(gameSrcs(game, name));
+    }
+  });
+
+  it("agrees with the game when both resolve through the same structs", () => {
+    const ctx = context();
+    for (const name of ["stripped:hat.off", "layers:hat.off"]) {
+      const warmFirst = resolveImageSrcs(ctx, [name]);
+      expect(warmFirst).toEqual(gameSrcs(ctx, name));
+      expect(resolveImageSrcs(ctx, [name])).toEqual(warmFirst);
+    }
+  });
+
+  it("still skips a look whose root keeps its source inlined", () => {
+    const ctx = context();
+    expect(resolveImageSrcs(ctx, ["portrait:hat.off"])).toEqual([]);
+  });
+});

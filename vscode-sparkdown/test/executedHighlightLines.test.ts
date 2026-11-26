@@ -7,7 +7,7 @@ import {
   story,
   type ExecutedReport,
   type Story,
-} from "@impower/spark-engine/src/tests/core/executedReportHarness";
+} from "@impower/spark-engine/test/core/executedReportHarness";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { isExecutionGapLine } from "@impower/sparkdown/src/compiler/utils/isExecutionGapLine";
 import { describe, expect, it } from "vitest";

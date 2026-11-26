@@ -1,0 +1,349 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { TYPE_ERROR_KINDS } from "../../src/compiler/typecheck/Error";
+import { DiagnosticSeverity } from "../../src/compiler/types/SparkDiagnostic";
+import type { SparkProgram } from "../../src/compiler/types/SparkProgram";
+
+const MAIN = "inmemory:///main.sd";
+
+function compile(body: string): SparkProgram {
+  const text = `---\ntypecheck: strict\n---\n\n${body}`;
+  const compiler = new SparkdownCompiler();
+  compiler.configure({ files: [{ uri: MAIN, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
+  return compiler.compile({ textDocument: { uri: MAIN } }).program;
+}
+
+function describeDiagnostics(program: SparkProgram, types: boolean): string[] {
+  return (program.diagnostics?.[MAIN] ?? [])
+    .filter((d) => TYPE_ERROR_KINDS.has(String(d.code)) === types && d.severity !== DiagnosticSeverity.Hint)
+    .map((d) => {
+      const message = typeof d.message === "string" ? d.message : d.message.value;
+      return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${message}`;
+    });
+}
+
+function typeWarnings(program: SparkProgram): string[] {
+  return describeDiagnostics(program, true);
+}
+
+describe("the Luau of a .sd file", () => {
+  test("a choose block's statements are checked in its flow, which the block does not scope", () => {
+    const program = compile(`scene start(n: number)
+  choose
+    + [Ask]
+      Bunny asks.
+      & local answer: string = n
+    + [Leave]
+      & print(n)
+  then
+    & local after = n
+  end
+  & print(after)
+end
+`);
+    expect(typeWarnings(program)).toEqual(["8:31-8:32 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("a branch is checked in its scene, seeing the scene's parameters as typed, the scene's locals as any and none of an earlier branch's", () => {
+    const program = compile(`scene intro(n: number)
+  local value: number = n
+  local function helper() return n end
+  branch inner(k: number)
+    local copy: number = value + k
+    local wrong: string = k
+    local called: number = helper()
+  end
+  branch other
+    local seen: number = copy
+    local typed: string = n
+    local named: string = value
+  end
+end
+scene start
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "9:26-9:27 Expected this to be 'string', but got 'number'",
+      "14:26-14:27 Expected this to be 'string', but got 'number'",
+    ]);
+    expect(describeDiagnostics(program, false)).toEqual([
+      "13:25-13:29 Cannot find variable named `copy`",
+    ]);
+  });
+
+  test("a function in a branch reads its scene's parameter as typed (I-1674)", () => {
+    const program = compile(`-> main(5)
+
+scene main(amount: number)
+  branch b
+    local wrong: string = amount
+    local function wrongResult(): string
+      return amount
+    end
+    Branch {amount}.
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "8:26-8:32 Expected this to be 'string', but got 'number'",
+      "10:13-10:19 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("an unknown type in a scene's parameter is reported once, though each branch reads the parameters (I-1674)", () => {
+    const program = compile(`scene start(n: Missing)
+  & local a = n
+  branch one
+    & local b = n
+  end
+  branch two
+    & local c = n
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual(["4:15-4:22 Unknown type 'Missing'"]);
+  });
+
+  test("a string that spans lines is checked as written, blank lines and trailing spaces included", () => {
+    const program = compile(
+      [
+        'local blank: "a\\n\\nb" = [[a',
+        "",
+        "b]]",
+        'local spaced: "a \\nb" = [[a ',
+        "b]]",
+        'local wrong: "a\\nb" = [[a',
+        "",
+        "b]]",
+        "",
+      ].join("\n"),
+    );
+    expect(typeWarnings(program)).toEqual(["9:22-11:3 Expected this to be '\"a\\nb\"', but got '\"a\\n\\nb\"'"]);
+  });
+
+  test("a range after a character outside ASCII is in the document's columns", () => {
+    const program = compile(`function f(a: string, b: string) end
+
+scene start
+  & f("é", 42)
+  local wide: number = "é"
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:11-7:13 Expected this to be 'string', but got 'number'",
+      "8:23-8:26 Expected this to be 'number', but got 'string'",
+    ]);
+  });
+
+  test("Sparkdown's own expressions are not Luau's to warn about, and the Luau around them is checked", () => {
+    const program = compile(`scene place
+end
+
+function geese(n: number): string
+  return \`There {plural(n)|one="is"|other="are"} {n} goose {{shout}}\`
+end
+
+scene start(n: number)
+  local target = -> place
+  local pattern = @/ab+c/i
+  local line = cycle "a" | "b" end
+  local wrong: string = n
+  & print(target, pattern, line)
+end
+`);
+    expect(typeWarnings(program)).toEqual(["15:24-15:25 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("a type the program defines can annotate Luau", () => {
+    const program = compile(`define companion with
+  trust = 0
+end
+
+scene start(c: companion)
+  local other: companion = c
+  & print(other.trust)
+end
+`);
+    expect(typeWarnings(program)).toEqual([]);
+  });
+
+  test("a flow sees the type aliases its file declares outside every flow", () => {
+    const program = compile(`type Point = { x: number, y: number }
+
+scene start
+  local good: Point = { x = 1, y = 2 }
+  local bad: Point = { x = 1, y = "two" }
+end
+`);
+    expect(typeWarnings(program)).toEqual(["8:34-8:39 Expected this to be 'number', but got 'string'"]);
+  });
+
+  test("an unknown name is reported once, on the line that reads it", () => {
+    const program = compile(`function lookup()
+  return missingInFunction
+end
+
+& print(missingAtTop)
+
+scene start
+  & print(missingInScene)
+  local copy = missingInSceneLocal
+  branch first
+    if missingInBranch then
+      Yes.
+    end
+  end
+end
+`);
+    const diagnostics = [...describeDiagnostics(program, true), ...describeDiagnostics(program, false)];
+    const lines = (name: string) =>
+      diagnostics.filter((d) => d.includes(`\`${name}\``) || d.includes(`'${name}'`)).map((d) => Number(d.split(":")[0]));
+    expect({
+      missingInFunction: lines("missingInFunction"),
+      missingAtTop: lines("missingAtTop"),
+      missingInScene: lines("missingInScene"),
+      missingInSceneLocal: lines("missingInSceneLocal"),
+      missingInBranch: lines("missingInBranch"),
+    }).toEqual({
+      missingInFunction: [5],
+      missingAtTop: [8],
+      missingInScene: [11],
+      missingInSceneLocal: [12],
+      missingInBranch: [14],
+    });
+  });
+
+  test("a branch's parameters before its `...` are declared, and its `...` has the type the branch gives it, past any comment", () => {
+    const program = compile(`scene start(a: number)
+  branch inner(k: number, ...: boolean)
+    local first: boolean = ...
+    local wrong: string = k
+  end
+end
+
+scene other
+  branch only(...: number)
+    local fine: number = ...
+    local wrong: string = ...
+  end
+end
+
+scene commented
+  branch inner(... --[[args]] : boolean)
+    local wrong: string = ...
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:26-7:27 Expected this to be 'string', but got 'number'",
+      "14:26-14:29 Expected this to be 'string', but got 'number'",
+      "20:26-20:29 Expected this to be 'string', but got 'boolean'",
+    ]);
+  });
+
+  test("where branches in a scene give `...` different types, each branch's `...` has its own, and the scene is still checked (I-1674)", () => {
+    const program = compile(`scene start
+  branch first(...: string)
+    local mine: string = ...
+    local wrongFirst: number = ...
+  end
+  branch second(...: number)
+    local theirs: number = ...
+    local wrongSecond: string = ...
+  end
+  local bad: string = 1
+end
+
+scene singletons
+  branch one(...: "a  b")
+    local mine: "a  b" = ...
+  end
+  branch two(...: "a b")
+    local theirs: "a b" = ...
+  end
+  local bad: string = 1
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "13:22-13:23 Expected this to be 'string', but got 'number'",
+      "7:31-7:34 Expected this to be 'number', but got 'string'",
+      "11:32-11:35 Expected this to be 'string', but got 'number'",
+      "23:22-23:23 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("a branch's own `...` replaces its variadic scene's, with the branch's type (I-1674)", () => {
+    const program = compile(`scene s(...: string)
+  local fine: string = ...
+  branch b(...: number)
+    local wrong: string = ...
+  end
+  branch c
+    local inherited: number = ...
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:26-7:29 Expected this to be 'string', but got 'number'",
+      "10:30-10:33 Expected this to be 'number', but got 'string'",
+    ]);
+  });
+
+  test("a branch's parameter without an annotation holds a value of any type, as an argument does", () => {
+    const program = compile(`scene start
+  branch inner(k)
+    local sum: number = k + 1
+    & k()
+    local bad: string = 1
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual(["8:24-8:25 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("the checker's own `any` values stay `any` where the script binds `_G`", () => {
+    const program = compile(`scene start
+  local _G: number = 1
+  local target = -> start
+  branch inner(k: string, m)
+    local copy: string = k
+    & m()
+    local bad: string = 1
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual(["10:24-10:25 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("a parameter list followed by more text in its header keeps its annotations", () => {
+    const program = compile(`scene start(n: number) -- how many times
+  Hello.
+  local wrong: string = n
+  branch inner(k: number) oops
+    local alsoWrong: string = k
+  end
+  local bad: string = 1
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "6:24-6:25 Expected this to be 'string', but got 'number'",
+      "10:22-10:23 Expected this to be 'string', but got 'number'",
+      "8:30-8:31 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("a parameter list whose type the grammar has no rule for is read whole", () => {
+    const program = compile(`scene intro(a: number)
+  branch inner(f: (...any) -> (), k: number)
+    & f()
+    & print(any)
+    local wrong: string = k
+  end
+end
+scene start
+end
+`);
+    expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
+    expect(describeDiagnostics(program, false)).toEqual(["7:12-7:15 Cannot find variable named `any`"]);
+  });
+});

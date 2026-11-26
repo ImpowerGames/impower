@@ -1,0 +1,40 @@
+import { describe, expect, it } from "vitest";
+import { compileProgram } from "../../../harness/compileProgram";
+import { Game } from "../../../../src/game/core/classes/Game";
+
+describe("a game's evaluation context", () => {
+  const program = compileProgram(
+    [
+      "store count = 5",
+      'store label = "hello"',
+      "store where = -> start",
+      "",
+      "",
+      "",
+      "scene start",
+      "  The line.",
+      "end",
+      "",
+    ].join("\n"),
+  );
+
+  it("holds numbers, strings and divert targets, and survives a clone", () => {
+    const game = new Game({
+      program,
+      now: () => 0,
+      setTimeout: (handler: Function) => {
+        handler();
+        return 0;
+      },
+    } as never);
+    game.start();
+    const context = game.getEvaluationContext();
+    expect(context.count).toBe(5);
+    expect(context.label).toBe("hello");
+    expect(context.where).toBeDefined();
+    const cloned = structuredClone(context);
+    expect(cloned.count).toBe(5);
+    expect(JSON.stringify(cloned.where)).toContain("start");
+    game.destroy();
+  });
+});

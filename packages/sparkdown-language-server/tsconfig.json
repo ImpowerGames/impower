@@ -24,6 +24,7 @@
   },
   "include": [
     "src",
+    "test",
     "../sparkdown/src/workspace/classes/SparkdownWorkspace.ts",
     "../sparkdown/src/workspace/utils/timing"
   ],
