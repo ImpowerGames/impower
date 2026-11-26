@@ -40,6 +40,7 @@ export interface UIHarness {
   heldLayout(): any[];
   releaseLayout(moved?: string[]): number;
   releaseAnimations(): number;
+  heldExits(): any[];
   releaseExits(count?: number): number;
 }
 
@@ -433,6 +434,9 @@ export function createHarness(
         reply(msg);
       }
       return held.length;
+    },
+    heldExits() {
+      return heldExits.slice();
     },
     releaseExits(count = heldExits.length) {
       const held = heldExits.splice(0, count);

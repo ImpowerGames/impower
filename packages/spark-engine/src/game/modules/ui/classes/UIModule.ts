@@ -7320,16 +7320,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (writing.length === 0) {
           return;
         }
-        $.flushUIBatch();
-        if (arriving.length > 0) {
-          void $.present(arriving, "show");
-        }
         const exit: PictureExit | undefined =
           exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
             ? { elements: writing, epoch: $._game.connection.epoch }
             : undefined;
         if (exit) {
           $._exits.add(exit);
+        }
+        $.flushUIBatch();
+        if (arriving.length > 0) {
+          void $.present(arriving, "show");
         }
         const request = $.onLine(
           WriteImageMessage.type.request({
@@ -7352,8 +7352,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
         const written = $.emitSettled(request);
         if (exit) {
-          const ended = () => $.endExit(exit);
-          void ($._exitReports.get(request) ?? written).then(ended, ended);
+          const report = $._exitReports.get(request);
+          void (report ? $.settled(request.method, report) : written).then(() =>
+            $.endExit(exit),
+          );
         }
         await written;
       }
