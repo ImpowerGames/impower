@@ -242,39 +242,64 @@ layout textbox {
     ["without line stamps", "two targets share", "dialogue.action", true],
     ["with its line stamps", "named by its one target", "action", false],
     ["without line stamps", "named by its one target", "action", true],
-  ])("a save %s restores the text it shows in a #clear element %s", async (_, __, element, unstamped) => {
-    const source = `
+  ])(
+    "a save %s puts back nothing on a #clear element %s when it connects, and shows its line again when the game starts",
+    async (_, __, element, unstamped) => {
+      const source = `
 layout textbox {
   textbox { ${element} #clear { text } }
 }
 
 scene start
+  First.
+
   Before.
 
   After.
 end
 `;
-    const original = createHarness(source);
-    await original.ready;
-    expect(original.errors).toEqual([]);
-    original.jumpToFlow("start");
-    new Coordinator(original.game, original.nextBeat()!);
-    await flushMicrotasks(20);
-    const save = JSON.parse(original.game.save());
-    expect(save.modules.ui.textWritten).toEqual({ action: 1 });
-    if (unstamped) {
-      delete save.modules.ui.textLine;
-      delete save.modules.ui.textWritten;
-      delete save.modules.ui.textCleared;
-    }
-    const h = createHarness(source, 0, { loadCheckpoint: JSON.stringify(save) });
-    await h.ready;
-    const written = flattenMessages(h.messages)
-      .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "action")
-      .flatMap((m: any) => m.params.instructions.map((e: any) => e.text ?? ""))
-      .join("");
-    expect(written).toBe("Before.");
-  });
+      const original = createHarness(source);
+      await original.ready;
+      expect(original.errors).toEqual([]);
+      original.game.context.system.previewing = undefined;
+      original.game.start();
+      const settle = async (h: typeof original) => {
+        for (let i = 0; i < 5; i += 1) {
+          h.game.update({ deltaMS: 10000 } as any);
+          await flushMicrotasks(30);
+        }
+      };
+      await settle(original);
+      original.game.clickedToContinue();
+      await settle(original);
+      const save = JSON.parse(original.game.saveHere()!.data);
+      expect(save.shown).toBeDefined();
+      expect(save.modules.ui.text.action.map((s: any) => s.text).join("")).toBe("Before.");
+      if (unstamped) {
+        delete save.modules.ui.textLine;
+        delete save.modules.ui.textWritten;
+        delete save.modules.ui.textCleared;
+      }
+      const h = createHarness(source, 0, {
+        beforeConnect: (game) => {
+          expect(game.loadToResume(JSON.stringify(save))).toBe(true);
+        },
+      });
+      await h.ready;
+      const actionWrites = (from: number) =>
+        flattenMessages(h.messages.slice(from))
+          .filter((m: any) => m?.method === "ui/write-text" && m.params?.target === "action")
+          .map((m: any) => m.params.instructions.map((e: any) => e.text ?? "").join(""))
+          .filter(Boolean);
+      expect(actionWrites(0)).toEqual([]);
+      const connected = h.messages.length;
+      h.game.context.system.previewing = undefined;
+      h.game.start();
+      await settle(h);
+      expect(actionWrites(connected)).toContain("Before.");
+      expect(actionWrites(connected)).not.toContain("First.");
+    },
+  );
 
   test("a restore records no line stamp", async () => {
     const { ui, stamps } = await playThenRestore(`
@@ -321,7 +346,7 @@ end
     expect(ui.state.textWritten).toEqual({ title: 1, action: 2 });
     expect(ui.state.textCleared).toMatchObject({ title: 1, action: 2 });
     expect(Object.values(ui.state.textCleared).every((v) => v === 1 || v === 2)).toBe(true);
-    expect(seen).toEqual([1, 2, 2, 2]);
+    expect(seen).toEqual([2, 2, 2, 2]);
   });
 
   const CHOICE_SOURCE = `

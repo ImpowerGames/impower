@@ -1134,8 +1134,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         !this._state.text?.[target] &&
         !this._state.image?.[target],
     );
+    this.beginTextLine();
     await Promise.all([
-      ...[...transientTargets, ...emptySlots].map((target) => this.text.clearRendered(target)),
+      this.text.clearAll([...transientTargets, ...emptySlots]),
       this.clearTransientPictures(transientTargets),
       this.image.clearAll(emptySlots),
     ]);
