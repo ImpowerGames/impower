@@ -234,6 +234,69 @@ end
     expect(marked(h)).toEqual([]);
   });
 
+  test("a picture hidden again while its exit plays counts as showing until the last exit is reported ended (#2777)", async () => {
+    const { h, marks } = await play(`define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+layout main {
+  stage {
+    portrait {
+      image
+    }
+  }
+}
+
+style frame {
+  @showing(portrait) {
+    opacity = 1
+  }
+}
+
+scene start
+  [[show portrait SPRITE]] Hello.
+  [[hide portrait with fadeout over 0.5s]] Going.
+  [[hide portrait with fadeout over 2s]] Gone.
+end
+`, { holdExits: true });
+    expect(marks).toEqual([["portrait"], ["portrait"], ["portrait"]]);
+    expect(h.releaseExits(1)).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual(["portrait"]);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
+  });
+
+  test("a picture shown and hidden with an exit animation in one line counts as showing until its exit is reported ended (#2777)", async () => {
+    const { h, marks } = await play(`define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+layout main {
+  stage {
+    portrait {
+      image
+    }
+  }
+}
+
+style frame {
+  @showing(portrait) {
+    opacity = 1
+  }
+}
+
+scene start
+  [[show portrait SPRITE]] Hello [[hide portrait with fadeout over 0.5s]] there.
+end
+`, { holdExits: true });
+    expect(marks).toEqual([["portrait"]]);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(10);
+    expect(marked(h)).toEqual([]);
+  });
+
   test("a line cleared through its @hide leaves the mark, with what it holds, when its hide starts", async () => {
     const h = createHarness(
       `define ui as config with

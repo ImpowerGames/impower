@@ -40,7 +40,7 @@ export interface UIHarness {
   heldLayout(): any[];
   releaseLayout(moved?: string[]): number;
   releaseAnimations(): number;
-  releaseExits(): number;
+  releaseExits(count?: number): number;
 }
 
 export function compileUI(
@@ -434,8 +434,8 @@ export function createHarness(
       }
       return held.length;
     },
-    releaseExits() {
-      const held = heldExits.splice(0, heldExits.length);
+    releaseExits(count = heldExits.length) {
+      const held = heldExits.splice(0, count);
       for (const msg of held) {
         reply(msg);
       }

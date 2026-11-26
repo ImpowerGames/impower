@@ -5821,6 +5821,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  protected exiting(target: string): boolean {
+    if (this._exits.size === 0) {
+      return false;
+    }
+    const elements = new Set(this.findElements(target, true));
+    return [...this._exits].some((exit) => exit.elements.some((el) => elements.has(el)));
+  }
+
   protected endExit(exit: PictureExit): void {
     if (!this._exits.has(exit)) {
       return;
@@ -7408,7 +7416,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (sequence.length === 0 && events.length > 0) {
           return;
         }
-        const shown = $.pictureShown($._state.image?.[target]);
+        const onScreen =
+          $.pictureShown($._state.image?.[target]) ||
+          $.exiting(target) ||
+          sequence.some((e) => e.control === "show" && e.assets?.length);
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(
@@ -7417,7 +7428,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             time,
             view,
-            shown && !$.pictureShown($._state.image?.[target]),
+            onScreen && !$.pictureShown($._state.image?.[target]),
           );
         }
       }
