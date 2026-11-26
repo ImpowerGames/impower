@@ -1,5 +1,5 @@
-sparkdown [0..435]
- ├─ LuauStyle [0..434]
+sparkdown [0..515]
+ ├─ LuauStyle [0..514]
  │   ├─ LuauStyle_begin [0..6]
  │   │   ├─ LuauStyle_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
@@ -8,7 +8,7 @@ sparkdown [0..435]
  │   │   └─ LuauStyle_begin_c3 [5..6]
  │   │       └─ LuauStyle_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
- │   ├─ LuauStyle_content [6..434]
+ │   ├─ LuauStyle_content [6..514]
  │   │   ├─ LuauStyleNameAndInheritance [6..11]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [6..10]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [6..10]
@@ -16,11 +16,11 @@ sparkdown [0..435]
  │   │   │   └─ LuauStyleNameAndInheritance_end [10..11]
  │   │   │       └─ LuauStyleNameAndInheritance_end_c1 [10..11]
  │   │   │           └─ Whitespace [10..11]: " "
- │   │   └─ LuauStructBraceBody [11..434]
+ │   │   └─ LuauStructBraceBody [11..514]
  │   │       ├─ LuauStructBraceBody_begin [11..12]
  │   │       │   └─ LuauStructBraceBody_begin_c1 [11..12]
  │   │       │       └─ LuauStructBlockOpen [11..12]: "{"
- │   │       ├─ LuauStructBraceBody_content [12..433]
+ │   │       ├─ LuauStructBraceBody_content [12..513]
  │   │       │   ├─ Newline [12..13]: "\n"
  │   │       │   ├─ Whitespace [13..15]: "  "
  │   │       │   ├─ LuauStructBlock [15..69]
@@ -630,14 +630,112 @@ sparkdown [0..435]
  │   │       │   │   │           └─ LuauStructBlockBody_end_c1 [431..432]
  │   │       │   │   │               └─ LuauStructBlockClose [431..432]: "}"
  │   │       │   │   └─ LuauStructBlock_end 432
- │   │       │   └─ Newline [432..433]: "\n"
- │   │       └─ LuauStructBraceBody_end [433..434]
- │   │           └─ LuauStructBraceBody_end_c1 [433..434]
- │   │               └─ LuauStructBlockClose [433..434]: "}"
- │   └─ LuauStyle_end 434
- │       ├─ LuauStyle_end_c1 434
- │       │   └─ LuauStyle_end_c1 434
- │       │       └─ OptionalWhitespace 434
- │       ├─ LuauStyle_end_c2 434
- │       └─ LuauStyle_end_c3 434
- └─ Newline [434..435]: "\n"
+ │   │       │   ├─ Newline [432..433]: "\n"
+ │   │       │   ├─ Whitespace [433..435]: "  "
+ │   │       │   ├─ LuauStructBlock [435..512]
+ │   │       │   │   ├─ LuauStructBlock_begin [435..491]
+ │   │       │   │   │   ├─ LuauStructBlock_begin_c1 [435..490]
+ │   │       │   │   │   │   └─ LuauStructBlockKey [435..490]
+ │   │       │   │   │   │       └─ LuauStructBlockKey_c1 [435..490]
+ │   │       │   │   │   │           └─ SelectorAtRule [435..490]
+ │   │       │   │   │   │               ├─ SelectorAtRule_begin [435..445]
+ │   │       │   │   │   │               │   ├─ SelectorAtRule_begin_c1 [435..436]
+ │   │       │   │   │   │               │   │   └─ SelectorStateOperator [435..436]: "@"
+ │   │       │   │   │   │               │   └─ SelectorAtRule_begin_c2 [436..445]
+ │   │       │   │   │   │               │       └─ SelectorStateName [436..445]: "container"
+ │   │       │   │   │   │               ├─ SelectorAtRule_content [445..490]
+ │   │       │   │   │   │               │   ├─ Separator [445..446]: " "
+ │   │       │   │   │   │               │   ├─ SelectorCssWord [446..451]: "style"
+ │   │       │   │   │   │               │   ├─ SelectorAtRuleGroup [451..465]
+ │   │       │   │   │   │               │   │   ├─ SelectorAtRuleGroup_begin [451..452]
+ │   │       │   │   │   │               │   │   │   └─ SelectorAtRuleGroup_begin_c1 [451..452]
+ │   │       │   │   │   │               │   │   │       └─ PunctuationParenOpen [451..452]: "("
+ │   │       │   │   │   │               │   │   ├─ SelectorAtRuleGroup_content [452..464]
+ │   │       │   │   │   │               │   │   │   ├─ SelectorCssWord [452..458]: "--mode"
+ │   │       │   │   │   │               │   │   │   └─ SelectorAtRuleDeclarationValue [458..464]
+ │   │       │   │   │   │               │   │   │       ├─ SelectorAtRuleDeclarationValue_begin [458..459]
+ │   │       │   │   │   │               │   │   │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [458..459]
+ │   │       │   │   │   │               │   │   │       │       └─ SelectorCssPunctuation [458..459]: ":"
+ │   │       │   │   │   │               │   │   │       ├─ SelectorAtRuleDeclarationValue_content [459..464]
+ │   │       │   │   │   │               │   │   │       │   ├─ Separator [459..460]: " "
+ │   │       │   │   │   │               │   │   │       │   └─ SelectorCssWord [460..464]: "dark"
+ │   │       │   │   │   │               │   │   │       └─ SelectorAtRuleDeclarationValue_end 464
+ │   │       │   │   │   │               │   │   └─ SelectorAtRuleGroup_end [464..465]
+ │   │       │   │   │   │               │   │       └─ SelectorAtRuleGroup_end_c1 [464..465]
+ │   │       │   │   │   │               │   │           └─ PunctuationParenClose [464..465]: ")"
+ │   │       │   │   │   │               │   ├─ SelectorAtRuleListComma [465..466]: ","
+ │   │       │   │   │   │               │   ├─ Separator [466..467]: " "
+ │   │       │   │   │   │               │   ├─ SelectorCssWord [467..472]: "style"
+ │   │       │   │   │   │               │   └─ SelectorAtRuleGroup [472..490]
+ │   │       │   │   │   │               │       ├─ SelectorAtRuleGroup_begin [472..473]
+ │   │       │   │   │   │               │       │   └─ SelectorAtRuleGroup_begin_c1 [472..473]
+ │   │       │   │   │   │               │       │       └─ PunctuationParenOpen [472..473]: "("
+ │   │       │   │   │   │               │       ├─ SelectorAtRuleGroup_content [473..489]
+ │   │       │   │   │   │               │       │   ├─ SelectorCssWord [473..479]: "--mode"
+ │   │       │   │   │   │               │       │   └─ SelectorAtRuleDeclarationValue [479..489]
+ │   │       │   │   │   │               │       │       ├─ SelectorAtRuleDeclarationValue_begin [479..480]
+ │   │       │   │   │   │               │       │       │   └─ SelectorAtRuleDeclarationValue_begin_c1 [479..480]
+ │   │       │   │   │   │               │       │       │       └─ SelectorCssPunctuation [479..480]: ":"
+ │   │       │   │   │   │               │       │       ├─ SelectorAtRuleDeclarationValue_content [480..489]
+ │   │       │   │   │   │               │       │       │   ├─ Separator [480..481]: " "
+ │   │       │   │   │   │               │       │       │   └─ LuauStructBlockKeyString [481..489]: "\"@night\""
+ │   │       │   │   │   │               │       │       └─ SelectorAtRuleDeclarationValue_end 489
+ │   │       │   │   │   │               │       └─ SelectorAtRuleGroup_end [489..490]
+ │   │       │   │   │   │               │           └─ SelectorAtRuleGroup_end_c1 [489..490]
+ │   │       │   │   │   │               │               └─ PunctuationParenClose [489..490]: ")"
+ │   │       │   │   │   │               └─ SelectorAtRule_end 490
+ │   │       │   │   │   └─ LuauStructBlock_begin_c2 [490..491]
+ │   │       │   │   │       └─ Whitespace [490..491]: " "
+ │   │       │   │   ├─ LuauStructBlock_content [491..512]
+ │   │       │   │   │   └─ LuauStructBlockBody [491..512]
+ │   │       │   │   │       ├─ LuauStructBlockBody_begin [491..492]
+ │   │       │   │   │       │   └─ LuauStructBlockBody_begin_c1 [491..492]
+ │   │       │   │   │       │       └─ LuauStructBlockOpen [491..492]: "{"
+ │   │       │   │   │       ├─ LuauStructBlockBody_content [492..511]
+ │   │       │   │   │       │   ├─ Newline [492..493]: "\n"
+ │   │       │   │   │       │   ├─ Whitespace [493..497]: "    "
+ │   │       │   │   │       │   ├─ LuauStructBlockProperty [497..508]
+ │   │       │   │   │       │   │   ├─ LuauStructBlockProperty_c1 [497..502]
+ │   │       │   │   │       │   │   │   └─ StylingDeclarationScalarPropertyName [497..502]
+ │   │       │   │   │       │   │   │       └─ StylingDeclarationScalarPropertyName_c1 [497..502]
+ │   │       │   │   │       │   │   │           └─ DeclarationScalarPropertyKey [497..502]: "color"
+ │   │       │   │   │       │   │   ├─ LuauStructBlockProperty_c2 [502..505]
+ │   │       │   │   │       │   │   │   └─ AssignEqualOperator [502..505]
+ │   │       │   │   │       │   │   │       ├─ AssignEqualOperator_c1 [502..503]
+ │   │       │   │   │       │   │   │       │   └─ AssignEqualOperator_c1 [502..503]
+ │   │       │   │   │       │   │   │       │       └─ OptionalSeparator [502..503]: " "
+ │   │       │   │   │       │   │   │       ├─ AssignEqualOperator_c2 [503..504]
+ │   │       │   │   │       │   │   │       │   └─ EqualOperator [503..504]: "="
+ │   │       │   │   │       │   │   │       └─ AssignEqualOperator_c3 [504..505]
+ │   │       │   │   │       │   │   │           └─ AssignEqualOperator_c3 [504..505]
+ │   │       │   │   │       │   │   │               └─ OptionalSeparator [504..505]: " "
+ │   │       │   │   │       │   │   ├─ LuauStructBlockProperty_c3 [505..508]
+ │   │       │   │   │       │   │   │   └─ StylingValue [505..508]
+ │   │       │   │   │       │   │   │       ├─ StylingValue_c1 505
+ │   │       │   │   │       │   │   │       ├─ StylingValue_c2 505
+ │   │       │   │   │       │   │   │       ├─ StylingValue_c3 505
+ │   │       │   │   │       │   │   │       ├─ StylingValue_c4 [505..508]
+ │   │       │   │   │       │   │   │       │   └─ StylingValueContent [505..508]
+ │   │       │   │   │       │   │   │       │       └─ StylingValueContent_c1 [505..508]
+ │   │       │   │   │       │   │   │       │           └─ StylingStringIdentifier [505..508]: "red"
+ │   │       │   │   │       │   │   │       ├─ StylingValue_c5 508
+ │   │       │   │   │       │   │   │       ├─ StylingValue_c6 508
+ │   │       │   │   │       │   │   │       └─ StylingValue_c7 508
+ │   │       │   │   │       │   │   └─ LuauStructBlockProperty_c4 508
+ │   │       │   │   │       │   ├─ Newline [508..509]: "\n"
+ │   │       │   │   │       │   └─ Whitespace [509..511]: "  "
+ │   │       │   │   │       └─ LuauStructBlockBody_end [511..512]
+ │   │       │   │   │           └─ LuauStructBlockBody_end_c1 [511..512]
+ │   │       │   │   │               └─ LuauStructBlockClose [511..512]: "}"
+ │   │       │   │   └─ LuauStructBlock_end 512
+ │   │       │   └─ Newline [512..513]: "\n"
+ │   │       └─ LuauStructBraceBody_end [513..514]
+ │   │           └─ LuauStructBraceBody_end_c1 [513..514]
+ │   │               └─ LuauStructBlockClose [513..514]: "}"
+ │   └─ LuauStyle_end 514
+ │       ├─ LuauStyle_end_c1 514
+ │       │   └─ LuauStyle_end_c1 514
+ │       │       └─ OptionalWhitespace 514
+ │       ├─ LuauStyle_end_c2 514
+ │       └─ LuauStyle_end_c3 514
+ └─ Newline [514..515]: "\n"

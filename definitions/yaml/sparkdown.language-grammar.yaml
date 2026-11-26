@@ -72,7 +72,7 @@ variables:
   SELECTOR_WORD_PART_START: '[@][\p{L}\p{N}_]'
   SELECTOR_WORD: (?:[{{SELECTOR_WORD_CHAR}}]+(?:{{SELECTOR_WORD_PART_START}}[{{SELECTOR_WORD_CHAR}}]*)*)
   SELECTOR_WORD_GOES_ON: (?:[{{SELECTOR_WORD_CHAR}}]|{{SELECTOR_WORD_PART_START}})
-  SELECTOR_LIST_ITEM_AFTER: (?:{{WS}}*[#\[:.&>+~]|[^,]*[@][_\p{L}])
+  SELECTOR_LIST_ITEM_AFTER: (?:{{WS}}*[#\[:.&>+~]|(?:"[^"\r\n]*"|'[^'\r\n]*'|[(][^()\r\n]*[)]|[^,"'()\r\n])*[@][_\p{L}])
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}-'
   IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"

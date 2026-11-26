@@ -84,6 +84,7 @@ describe("a comma list whose selectors hold different at-rule states is reported
     "@hovered @media (min-width: 1px), text",
     "@hovered @container-size(sm), @focused @container-size(640px)",
     "@hovered @screen-size(sm) @screen-size(sm), @focused @screen-size(sm)",
+    '@container style(--mode: dark), style(--mode: "@night")',
   ])("does not warn on %s", (selector) => {
     expect(warnings(selector, "at-rule-list")).toEqual([]);
   });

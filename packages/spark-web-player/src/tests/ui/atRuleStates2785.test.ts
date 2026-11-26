@@ -72,6 +72,8 @@ const AT_RULE_ONLY = [
   ),
   ...AT_RULE_CASES.map(([source]) => source),
   "@container card (min-width: 1px), sidebar (min-width: 2px)",
+  '@container style(--mode: dark), style(--mode: "@night")',
+  "@container style(--mode: dark), style(--mode: '@night')",
 ];
 
 const THEMED = SELECTOR_ONLY.flatMap((key) => [`@theme(dark) ${key}`, `${key} @theme(light)`, `@theme(dark), ${key}`]);

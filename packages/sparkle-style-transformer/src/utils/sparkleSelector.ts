@@ -221,7 +221,7 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
-const SELECTOR_LIST_ITEM_AFTER = /[^\S\n\r]*[#\[:.&>+~]|[^,]*@[_\p{L}]/uy;
+const SELECTOR_LIST_ITEM_AFTER = /[^\S\n\r]*[#\[:.&>+~]|(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^()\r\n]*\)|[^,"'()\r\n])*@[_\p{L}]/uy;
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
