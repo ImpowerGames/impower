@@ -218,6 +218,7 @@ interface CanvasView {
   smooth?: boolean;
   last?: string;
   snap?: { x: number; y: number; width: number; height: number; rect: string };
+  next?: { rect: string; w: number; h: number; rasters: Map<number, FileRaster>; pending: number; refused?: number };
 }
 
 interface Container {
@@ -847,6 +848,10 @@ export class MorphPlayback {
     return waiting;
   }
 
+  layersIn(root: Element): MorphLayer[] {
+    return this.layersWithin(root).filter((layer) => layer.span.isConnected);
+  }
+
   protected layersWithin(root: Element): MorphLayer[] {
     return [...this.layers].filter((layer) => root === layer.span || root.contains(layer.span));
   }
@@ -1310,7 +1315,7 @@ export class MorphLayer {
   }
 
   adoptNext() {
-    if (!this.active || !this.stills.some((still) => still.next)) return;
+    if (!this.active || (!this.stills.some((still) => still.next) && !this.images.some((image) => image.canvas?.next))) return;
     this.measureStyle();
     this.relayout();
   }
@@ -1325,7 +1330,7 @@ export class MorphLayer {
         !still.broken &&
         still.canvases.some((view) => view.painted !== undefined && view.box.isConnected),
     );
-    if (shown.length === 0) return;
+    if (shown.length === 0 && !this.images.some((image) => image.canvas?.box.isConnected)) return;
     const computed = this.computed();
     const win = this.span.ownerDocument.defaultView;
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
@@ -1366,9 +1371,69 @@ export class MorphLayer {
           this.rasterizeStill(still, index, raster);
         }
       }
+      const area = this.areaOf(computed);
+      for (const image of area.width > 0 && area.height > 0 ? this.images : []) {
+        const view = image.canvas;
+        if (!view || !image.files || image.broken || !view.box.isConnected || !view.runs.some((run) => run.painted !== undefined) || view.files.rasters.size === 0) continue;
+        const rect = this.pictureRect(image.files, image.layer, computed, area);
+        if (!rect) continue;
+        const rectKey = `${rect.x},${rect.y},${rect.width},${rect.height}`;
+        const place = this.canvasPlacement(rect, dpr);
+        const { w, h } = this.canvasBacking(view, place.width, place.height, dpr);
+        if ([...view.files.rasters.values()].every((raster) => raster.want?.width === w && raster.want.height === h)) {
+          this.dropCanvasNext(view);
+          continue;
+        }
+        if (view.next && view.next.rect === rectKey && view.next.w === w && view.next.h === h) continue;
+        this.dropCanvasNext(view);
+        const next: NonNullable<CanvasView["next"]> = { rect: rectKey, w, h, rasters: new Map(), pending: 0 };
+        view.next = next;
+        for (const file of view.files.rasters.keys()) this.rasterizeCanvasNext(view, file, next);
+      }
     } finally {
       this.sizing.style = style;
     }
+  }
+
+  protected dropCanvasNext(view: CanvasView) {
+    for (const raster of view.next?.rasters.values() ?? []) raster.release();
+    view.next = undefined;
+  }
+
+  protected rasterizeCanvasNext(view: CanvasView, file: number, next: NonNullable<CanvasView["next"]>) {
+    const bitmap = view.files.bitmaps.get(file);
+    if (!bitmap?.vector) return;
+    next.pending += 1;
+    void this.playback
+      .rasterizeSvgLayer(bitmap.vector, { width: bitmap.width, height: bitmap.height }, next.w, next.h, this.span.ownerDocument)
+      .catch(() => undefined)
+      .then((made) => {
+        if (view.next !== next || view.files.released || !this.active) {
+          made?.release();
+          return;
+        }
+        next.pending -= 1;
+        if (made) next.rasters.set(file, { image: made.image, release: made.release, width: next.w, height: next.h });
+        else next.refused ??= file;
+        if (next.pending === 0) this.layout();
+        this.checkDrawn();
+      });
+  }
+
+  protected canvasPlacement(rect: Rect, dpr: number) {
+    let { x, y, width, height } = rect;
+    const host = this.shadowHost;
+    const bounds = host?.getBoundingClientRect();
+    if (host && bounds && host.offsetWidth > 0 && Math.abs(bounds.width - host.offsetWidth) < 0.5) {
+      const snap = (value: number) => Math.round(value * dpr) / dpr;
+      const left = snap(bounds.left + x) - bounds.left;
+      const top = snap(bounds.top + y) - bounds.top;
+      width = snap(bounds.left + x + width) - bounds.left - left;
+      height = snap(bounds.top + y + height) - bounds.top - top;
+      x = left;
+      y = top;
+    }
+    return { x, y, width, height };
   }
 
   protected sizing = { zoom: 1, scale: 1, style: 1 };
@@ -1516,6 +1581,7 @@ export class MorphLayer {
     const view = image.canvas;
     if (!view) return !this.stale;
     if (view.runs.some((run) => run.painted === undefined)) return false;
+    if (view.next && view.next.refused === undefined && view.next.pending > 0) return false;
     return [...view.files.rasters.values()].every((raster) => !raster.busy);
   }
 
@@ -1694,6 +1760,7 @@ export class MorphLayer {
     this.releaseMotions();
     this.alone = [];
     for (const image of this.images) {
+      if (image.canvas) this.dropCanvasNext(image.canvas);
       image.view = undefined;
       image.canvas = undefined;
       for (const inner of image.inner) inner.view = undefined;
@@ -1990,8 +2057,6 @@ export class MorphLayer {
           still.rasters.set(index, raster);
         }
         still.next = undefined;
-      } else {
-        this.dropNext(still);
       }
     }
     if (!painted || adopt) this.measureStyle();
@@ -2513,7 +2578,9 @@ export class MorphLayer {
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
     const rectKey = `${rect.x},${rect.y},${rect.width},${rect.height}`;
     const snapped = view.snap;
-    if (snapped && !this.settling && view.runs.some((run) => run.painted !== undefined)) {
+    const next = view.next;
+    const adopt = !!next && next.rect === rectKey && next.pending === 0 && snapped?.rect !== rectKey;
+    if (snapped && !this.settling && !adopt && view.runs.some((run) => run.painted !== undefined)) {
       if (snapped.rect !== rectKey) {
         const style = `position:absolute;left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px;overflow:hidden`;
         if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
@@ -2526,21 +2593,39 @@ export class MorphLayer {
       this.paint(view);
       return;
     }
-    let { x, y, width, height } = rect;
-    const host = this.shadowHost;
-    const bounds = host?.getBoundingClientRect();
-    if (host && bounds && host.offsetWidth > 0 && Math.abs(bounds.width - host.offsetWidth) < 0.5) {
-      const snap = (value: number) => Math.round(value * dpr) / dpr;
-      const left = snap(bounds.left + x) - bounds.left;
-      const top = snap(bounds.top + y) - bounds.top;
-      width = snap(bounds.left + x + width) - bounds.left - left;
-      height = snap(bounds.top + y + height) - bounds.top - top;
-      x = left;
-      y = top;
+    if (next && next.rect === rectKey && next.pending === 0) {
+      view.next = undefined;
+      if (next.refused !== undefined) {
+        for (const raster of next.rasters.values()) raster.release();
+        const image = this.images.find((entry) => entry.canvas === view);
+        if (image) {
+          image.broken = true;
+          releaseFiles(view.files);
+          const name = image.picture?.files[next.refused]?.name;
+          if (name !== undefined) this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: name, reason: "undrawn" });
+          this.build();
+          return;
+        }
+      } else {
+        for (const [file, made] of next.rasters) {
+          const raster = view.files.rasters.get(file);
+          if (!raster) {
+            made.release();
+            continue;
+          }
+          raster.release();
+          raster.image = made.image;
+          raster.release = made.release;
+          raster.width = made.width;
+          raster.height = made.height;
+          raster.refused = undefined;
+        }
+      }
     }
+    const { x, y, width, height } = this.canvasPlacement(rect, dpr);
     const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;overflow:hidden`;
     if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-    if (!view.runs.some((run) => run.painted !== undefined)) this.measureStyle();
+    if (!view.runs.some((run) => run.painted !== undefined) || adopt) this.measureStyle();
     const { w, h } = this.canvasBacking(view, width, height, dpr);
     view.snap = { x, y, width, height, rect: rectKey };
     for (const run of view.runs) {

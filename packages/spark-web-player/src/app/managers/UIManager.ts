@@ -855,6 +855,17 @@ export default class UIManager extends Manager {
         }
       }
     }
+    for (const { element, scale } of animated) {
+      for (const layer of morphs.layersIn(element)) {
+        if (layers.includes(layer)) {
+          continue;
+        }
+        layer.size({ scale: nested(layer.span) });
+        if (scale > 1 && !layer.drawn) {
+          layers.push(layer);
+        }
+      }
+    }
     if (changed.length > 0 || made.length > 0) {
       layers.push(...morphs.prepareLayouts(new Set(layers)));
     }
@@ -964,6 +975,7 @@ export default class UIManager extends Manager {
 
   protected applyBeatLayout(ops: IMessage[]): { restore: () => void; changed: HTMLElement[] } {
     const saved: { el: HTMLElement; style: string | null; attributes: [string, string | null][] }[] = [];
+    const removed: { el: Element; parent: Node; next: Node | null }[] = [];
     const changed: HTMLElement[] = [];
     const put = (el: HTMLElement, name: string, value: string | null) => {
       if (el.getAttribute(name) === value) {
@@ -977,12 +989,24 @@ export default class UIManager extends Manager {
     };
     for (const op of ops) {
       const msg = op as RequestMessage;
+      if (DestroyElementMessage.type.isRequest(msg)) {
+        const el = this.getElement(msg.params.element);
+        const parent = el?.parentNode;
+        if (el && el !== this.app.overlay && parent) {
+          removed.push({ el, parent, next: el.nextSibling });
+          parent.removeChild(el);
+          if (parent instanceof HTMLElement) {
+            changed.push(parent);
+          }
+        }
+        continue;
+      }
       if (!UpdateElementMessage.type.isRequest(msg)) {
         continue;
       }
       const { element, style, attributes } = msg.params;
       const el = this.getElement(element);
-      if (!el || (!style && !attributes)) {
+      if (!el || !el.isConnected || (!style && !attributes)) {
         continue;
       }
       const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked");
@@ -1004,6 +1028,9 @@ export default class UIManager extends Manager {
         for (const [name, value] of attributes) {
           put(el, name, value);
         }
+      }
+      for (const { el, parent, next } of removed.reverse()) {
+        parent.insertBefore(el, next && next.parentNode === parent ? next : null);
       }
     };
     return { restore, changed };

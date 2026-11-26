@@ -144,7 +144,7 @@ async function setup(
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -608,6 +608,40 @@ describe("a later beat's layout changes are measured on every shown picture befo
     expect(t.rasters).toHaveLength(2);
   });
 
+  test("a beat that removes a sibling, making a shown picture wider, draws it at the new size before it fires", async () => {
+    const t = await setup({ holdRasters: true });
+    const backdrop = t.h.overlay.querySelector(".backdrop") as HTMLElement & { __sdId?: string };
+    const { first, canvas } = await shown(t, 114);
+    t.beat([], 116, [{ method: "ui/destroy", params: { element: backdrop.__sdId } }]);
+    await until(() => t.rasters.length === 2, "the wider raster");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    expect(backdrop.isConnected).toBe(true);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the beat");
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    expect(backdrop.isConnected).toBe(false);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  });
+
+  test("a beat that only animates a shown picture's element to twice its scale draws it at that scale before it fires", async () => {
+    const t = await setup({ holdRasters: true });
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
+    const { first } = await shown(t, 118);
+    const double = { ...grow, $name: "double", keyframes: [{ scale: "1" }, { scale: "2" }] } as unknown as Animation;
+    t.beat([], 120, [{ method: "ui/animate", params: { effects: [{ element: sigil.__sdId, animations: [double] }] } }]);
+    await until(() => t.rasters.length === 2, "the larger raster");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([first.width * 2, first.height * 2]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the beat");
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", `paint ${second.width}x${second.height}`, "applied"]);
+  });
+
   test("a shown picture the browser will not draw at its new size shows the placeholder as the beat fires, with one warning", async () => {
     const t = await setup({ holdRasters: true, placeholders: true });
     const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
@@ -840,6 +874,77 @@ describe("a layered bitmap picture a morph plays on is drawn before its beat fir
     expect(t.shadowOf("badge")!.querySelector("[data-undrawn]")!.getAttribute("data-undrawn")).toBe("undrawn");
     expect(t.reports).toHaveBeenCalledTimes(1);
     expect(t.reports).toHaveBeenCalledWith({ image: "kit", file: "base.svg", reason: "undrawn", placeholder: true });
+  });
+
+  test("a beat that widens a shown layered picture with an SVG layer, whose morph canvas is drawn, draws that canvas at the new size before it fires", async () => {
+    const options = { holdRasters: false };
+    const t = await setup(options);
+    const recipe = serializeMorphRecipe(
+      buildMorphRecipe("m", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 1, mouth: { state: "open" } }] } as never),
+    );
+    const context = {
+      ...KIT_CONTEXT,
+      image: { ...KIT_CONTEXT.image, base: { $type: "image", $name: "base", src: "/src/base.svg", uri: "file:///base.svg" } },
+    };
+    t.playback.configure({
+      host: createMorphHost({
+        service: new MorphBakeService(),
+        channel: () => ({ recipes: { m: recipe }, variants: {} }),
+        readSource: layeredMorphSource(() => context as never),
+      }),
+    });
+    const files = KIT.map((name) => (name === "base" ? { src: "/src/base.svg", name: "base.svg" } : { src: `/src/${name}.png`, name: `${name}.png` }));
+    t.beat([
+      {
+        target: "badge",
+        instant: false,
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: 'url("/src/closed.png"), url("/src/base.svg")',
+              imageNames: "kit",
+              srcs: files.map((file) => file.src),
+              morph: {
+                plays: [
+                  {
+                    layer: 0,
+                    picture: { span: 2, files },
+                    ref: { morphs: ["m"], key: "kit-wide", image: "kit", selection: "{}", groups: ["mouth"] },
+                    morph: "m",
+                    timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+                    definition: "d",
+                  },
+                ],
+                epoch: 0,
+              },
+              pictures: [{ layer: 0, span: 2, name: "kit", vector: true, files: files.slice(0, 2) }],
+            },
+          },
+        ],
+      },
+    ]);
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const morph = () => t.paints.filter((paint) => paint.draws.some((draw) => draw.includes("/src/closed.png")));
+    expect(morph().length).toBeGreaterThan(0);
+    const before = morph().at(-1)!;
+    const asked = t.rasters.length;
+    options.holdRasters = true;
+    const badge = t.h.overlay.querySelector(".badge") as HTMLElement & { __sdId?: string };
+    t.beat([], 122, [{ method: "ui/update", params: { element: badge.__sdId, attributes: { class: "badge wide" }, breakpoints: {} } }]);
+    await until(() => t.rasters.length > asked, "the wider SVG layer raster");
+    await flushMicrotasks(20);
+    const wider = t.rasters[t.rasters.length - 1]!;
+    expect([wider.width, wider.height]).toEqual([before.width * 2, before.height * 2]);
+    expect(t.events.filter((event) => event === "applied")).toHaveLength(1);
+    expect(t.pending()).toBe(true);
+    for (const held of t.rasters.slice(asked)) held.resolve(raster(held.src, held.width, held.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the widening beat");
+    await flushMicrotasks(20);
+    const after = morph().at(-1)!;
+    expect([after.width, after.height]).toEqual([wider.width, wider.height]);
+    expect(after.draws.some((draw) => draw.includes(`raster /src/base.svg ${wider.width}x${wider.height}`))).toBe(true);
   });
 
   test("its morph canvas is painted before the beat is applied, and a change morph on it starts only when the beat applies", async () => {
