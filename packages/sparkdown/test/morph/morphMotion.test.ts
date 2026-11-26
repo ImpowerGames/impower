@@ -8,6 +8,7 @@ import {
   morphMotionProblem,
   type MorphMotionProperty,
 } from "../../src/morph/motion";
+import { morphEasingJumps } from "../../src/morph/easing";
 import { buildMorphRecipe, parseMorphRecipe, serializeMorphRecipe } from "../../src/morph/recipe";
 import { parse as parseXml, type Node } from "../../src/txml/txml";
 import { CLOSED, EYEBALL, LOWER_OPEN, PUPIL, UPPER_OPEN } from "./fixtures";
@@ -346,5 +347,16 @@ ${marks}
     );
     const plain = source.replace('<path data-name="combined a.on b.on c.on" d="M0,30H40V35H0Z"/>\n', "");
     expect(bakeMorphArtifact({ source: plain, selection: {}, recipes: [recipe], key: "k4", variant: "trio" }).status).toBe("live");
+  });
+});
+
+describe("a steps easing's frame count, for a drawn tween (#2812)", () => {
+  test("a steps easing reports its count of jumps, and other easings none", () => {
+    expect(morphEasingJumps("steps(4)")).toBe(4);
+    expect(morphEasingJumps("steps(4, jump-none)")).toBe(3);
+    expect(morphEasingJumps("steps(4, jump-both)")).toBe(5);
+    expect(morphEasingJumps("step-end")).toBe(1);
+    expect(morphEasingJumps("linear")).toBeUndefined();
+    expect(morphEasingJumps("ease-in-out")).toBeUndefined();
   });
 });

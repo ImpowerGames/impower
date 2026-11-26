@@ -5,6 +5,7 @@ export type MorphEasing = (x: number) => number;
 interface Curve {
   ease: MorphEasing;
   reach: (position: number) => number;
+  jumps?: number;
 }
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -95,12 +96,13 @@ type StepPosition = "jump-start" | "jump-end" | "jump-none" | "jump-both";
 function steps(count: number, position: StepPosition): Curve {
   const jumps = position === "jump-none" ? count - 1 : position === "jump-both" ? count + 1 : count;
   const leading = position === "jump-start" || position === "jump-both";
-  return byInput((x) => {
+  const curve = byInput((x) => {
     let step = Math.floor(x * count) + (leading ? 1 : 0);
     if (step < 0) step = 0;
     if (step > jumps) step = jumps;
     return step / jumps;
   }, []);
+  return { ...curve, jumps };
 }
 
 function linearStops(args: string[]): Curve | undefined {
@@ -165,6 +167,10 @@ function curve(text: string): Curve | undefined {
 
 export function parseMorphEasing(text: string): MorphEasing | undefined {
   return curve(text)?.ease;
+}
+
+export function morphEasingJumps(text: string): number | undefined {
+  return curve(text)?.jumps;
 }
 
 export function firstMorphEasingReach(text: string, position: number): number {

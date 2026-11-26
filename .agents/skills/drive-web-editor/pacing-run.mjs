@@ -124,10 +124,14 @@ export function pacingRead(w, { firedName, sinceClicks }) {
   w.__pacing.morph = w.__pacing.morph.filter((m) => m.t >= w.performance.now() - 100);
   const firedAt = fired?.startTime ?? Infinity;
   const canvasPaints = {};
+  const posePaints = [];
   for (const paint of w.__pacing.paints.filter((p) => p.t >= from)) {
     const counts = (canvasPaints[paint.image] ??= { beforeFire: 0, afterFire: 0 });
     if (paint.t < firedAt) counts.beforeFire += 1;
-    else counts.afterFire += 1;
+    else {
+      counts.afterFire += 1;
+      posePaints.push(paint.t);
+    }
   }
   w.__pacing.paints = w.__pacing.paints.filter((p) => p.t >= w.performance.now() - 100);
   for (const m of clicks.slice(0, -1)) w.performance.clearMarks(m.name);
@@ -142,6 +146,7 @@ export function pacingRead(w, { firedName, sinceClicks }) {
     beatWaitMs: wait?.duration ?? null,
     morph,
     canvasPaints,
+    posePaints,
     text: lineText,
   };
 }
@@ -359,7 +364,7 @@ export async function playLines(surface, options) {
         text: plan?.text ?? read.text,
         typingEnd: typing.end,
         motionWindow: motion,
-        mouthChanges: read.morph.filter((m) => m.kind === "swap").map((m) => m.t),
+        mouthChanges: [...read.morph.filter((m) => m.kind === "swap").map((m) => m.t), ...(read.posePaints ?? [])].sort((a, b) => a - b),
       };
       record.layers = await describeLayers(surface.sendGame, layerPaints(layersBefore, layersAfter), layersAfter);
       const trace = parseTrace(JSON.parse(fs.readFileSync(file, "utf8")));
@@ -368,7 +373,8 @@ export async function playLines(surface, options) {
       const line = clock ? analyzeLine(trace, record, clock) : { line: read.line, kind: record.kind, failure: "the trace held none of the line's marks" };
       line.listed = plan?.line ?? null;
       line.page = { clickAt: read.clickAt, receivedAt: read.receivedAt, firedAt: read.firedAt, typingEnd: typing.end, motionWindow: motion, mouthChanges: record.mouthChanges, clockOffset: clock?.offset ?? null };
-      line.morphChanges = { swaps: record.mouthChanges.length, other: read.morph.length - record.mouthChanges.length };
+      const swaps = read.morph.filter((m) => m.kind === "swap").length;
+      line.morphChanges = { swaps, canvas: read.posePaints?.length ?? 0, other: read.morph.length - swaps };
       line.canvasPaints = read.canvasPaints;
       line.traceMB = Math.round(fs.statSync(file).size / 1e5) / 10;
       if (!keepTrace) fs.rmSync(file, { force: true });

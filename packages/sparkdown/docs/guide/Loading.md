@@ -22,6 +22,7 @@ define assets as config with
   load_timeout = 30
   loading_min = 0.5
   loading_transition = "fade"
+  morph_frame_rate = 24
 end
 ```
 
@@ -37,6 +38,7 @@ end
 | `load_timeout` | Seconds a `load` may wait before giving up and continuing. `0` means never give up. |
 | `loading_min` | Seconds the `loading` layout stays up once a `load` opened it. |
 | `loading_transition` | Transition used to open and close `loading` when `load` has no `with` clause. |
+| `morph_frame_rate` | Frames a second a drawn portrait's smooth morph is [drawn at before its line shows](./Portraits.md#how-pictures-are-drawn-before-a-line-shows). A morph whose easing is `steps(...)` keeps its own count. `0` means a smooth morph holds the rest pose. |
 
 Override any key with `define assets as config with … end`; the keys you leave out keep their defaults.
 

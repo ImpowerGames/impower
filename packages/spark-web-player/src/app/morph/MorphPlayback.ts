@@ -9,7 +9,9 @@ import {
   poseGradient,
   poseLeaf,
   poseSpreadMask,
+  renderMorphAt,
   type MorphFrameState,
+  type MorphGroupPose,
 } from "../../../../sparkdown/src/morph/render";
 import {
   layeredMorphDrawn,
@@ -18,8 +20,9 @@ import {
   type LayeredMorphDrawn,
   type LayeredMorphModel,
 } from "../../../../sparkdown/src/morph/layered";
-import { parseMorphEasing, type MorphEasing } from "../../../../sparkdown/src/morph/easing";
-import { morphMotionKeyframes } from "../../../../sparkdown/src/morph/motion";
+import { morphEasingJumps, parseMorphEasing, type MorphEasing } from "../../../../sparkdown/src/morph/easing";
+import { hashText } from "../../../../sparkdown/src/morph/hash";
+import { morphMotionKeyframes, type MorphMotionFrame } from "../../../../sparkdown/src/morph/motion";
 import { own } from "../../../../sparkdown/src/morph/own";
 import { MorphBakeService } from "../../../../sparkdown/src/morph/service";
 import { MorphTimeline, morphRandom } from "../../../../sparkdown/src/morph/timeline";
@@ -80,22 +83,147 @@ export type PictureCanvasFactory = (canvas: HTMLCanvasElement) => PictureCanvasC
 
 export type OutlineEncoder = (canvas: HTMLCanvasElement) => Promise<{ url: string; release(): void } | undefined>;
 
-export const browserOutlineEncoder: OutlineEncoder = (canvas) => {
-  const doc = canvas.ownerDocument;
-  const urls = doc.defaultView?.URL;
-  if (typeof canvas.toBlob !== "function" || typeof urls?.createObjectURL !== "function") return Promise.resolve(undefined);
-  return new Promise<Blob | null>((resolve) => {
+function outlineWorker(scope: { onmessage: ((event: MessageEvent) => void) | null; postMessage(message: unknown): void }) {
+  scope.onmessage = async (event: MessageEvent) => {
+    const { id, image } = event.data as { id: number; image: ImageBitmap };
     try {
-      canvas.toBlob(resolve, "image/png");
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("no context");
+      context.drawImage(image, 0, 0);
+      image.close();
+      scope.postMessage({ id, blob: await canvas.convertToBlob({ type: "image/png" }) });
     } catch {
-      resolve(null);
+      image.close();
+      scope.postMessage({ id });
     }
-  }).then(async (blob) => {
-    if (!blob) return undefined;
-    const url = urls.createObjectURL(blob);
-    await decodeImage(doc, url);
-    return { url, release: () => urls.revokeObjectURL(url) };
-  });
+  };
+}
+
+const OUTLINE_WORKER_IDLE_MS = 5000;
+const OUTLINE_WORKER_ANSWER_MS = 5000;
+
+type OutlineWorkerEncode = (canvas: HTMLCanvasElement) => Promise<Blob | undefined>;
+
+const outlineWorkers = new WeakMap<Window, OutlineWorkerEncode | null>();
+
+export function workerOutlineEncode(view: Window & typeof globalThis): OutlineWorkerEncode | undefined {
+  const known = outlineWorkers.get(view);
+  if (known !== undefined) return known ?? undefined;
+  if (
+    typeof view.Worker !== "function" ||
+    typeof view.Blob !== "function" ||
+    typeof view.URL?.createObjectURL !== "function" ||
+    typeof view.createImageBitmap !== "function" ||
+    typeof (view as unknown as { OffscreenCanvas?: unknown }).OffscreenCanvas !== "function"
+  ) {
+    outlineWorkers.set(view, null);
+    return undefined;
+  }
+  let worker: Worker | undefined;
+  let broken = false;
+  let next = 0;
+  let idle: number | undefined;
+  const pending = new Map<number, { settle: (blob: Blob | undefined) => void; deadline: number }>();
+  const stop = () => {
+    if (idle !== undefined) view.clearTimeout(idle);
+    idle = undefined;
+    worker?.terminate();
+    worker = undefined;
+  };
+  const fail = () => {
+    broken = true;
+    stop();
+    const waiting = [...pending.values()];
+    pending.clear();
+    for (const request of waiting) {
+      view.clearTimeout(request.deadline);
+      request.settle(undefined);
+    }
+  };
+  const settled = () => {
+    if (pending.size === 0 && worker) idle = view.setTimeout(stop, OUTLINE_WORKER_IDLE_MS);
+  };
+  const start = (): Worker | undefined => {
+    if (worker || broken) return worker;
+    let url: string | undefined;
+    try {
+      url = view.URL.createObjectURL(new view.Blob([`(${outlineWorker.toString()})(self);\n`], { type: "text/javascript" }));
+      worker = new view.Worker(url);
+    } catch {
+      fail();
+      return undefined;
+    } finally {
+      if (url !== undefined) view.URL.revokeObjectURL(url);
+    }
+    worker.onerror = fail;
+    worker.onmessageerror = fail;
+    worker.onmessage = (event: MessageEvent) => {
+      const { id, blob } = event.data as { id: number; blob?: Blob };
+      const request = pending.get(id);
+      if (!request) return;
+      pending.delete(id);
+      view.clearTimeout(request.deadline);
+      request.settle(blob);
+      settled();
+    };
+    return worker;
+  };
+  const encode: OutlineWorkerEncode = async (canvas) => {
+    if (broken) return undefined;
+    let image: ImageBitmap;
+    try {
+      image = await view.createImageBitmap(canvas);
+    } catch {
+      return undefined;
+    }
+    if (idle !== undefined) view.clearTimeout(idle);
+    idle = undefined;
+    const target = start();
+    if (!target) {
+      image.close();
+      return undefined;
+    }
+    const id = ++next;
+    return new Promise((resolve) => {
+      const deadline = view.setTimeout(fail, OUTLINE_WORKER_ANSWER_MS);
+      pending.set(id, { settle: resolve, deadline });
+      try {
+        target.postMessage({ id, image }, [image]);
+      } catch {
+        pending.delete(id);
+        view.clearTimeout(deadline);
+        image.close();
+        settled();
+        resolve(undefined);
+      }
+    });
+  };
+  outlineWorkers.set(view, encode);
+  return encode;
+}
+
+export const browserOutlineEncoder: OutlineEncoder = async (canvas) => {
+  const doc = canvas.ownerDocument;
+  const view = doc.defaultView as (Window & typeof globalThis) | null;
+  const urls = view?.URL;
+  if (!view || typeof urls?.createObjectURL !== "function") return undefined;
+  const pending = workerOutlineEncode(view)?.(canvas);
+  const blob =
+    (await pending) ??
+    (typeof canvas.toBlob === "function"
+      ? await new Promise<Blob | null>((resolve) => {
+          try {
+            canvas.toBlob(resolve, "image/png");
+          } catch {
+            resolve(null);
+          }
+        })
+      : null);
+  if (!blob) return undefined;
+  const url = urls.createObjectURL(blob);
+  await decodeImage(doc, url);
+  return { url, release: () => urls.revokeObjectURL(url) };
 };
 
 interface Outline {
@@ -403,13 +531,14 @@ interface LiveView {
 export interface MorphMotionEffect {
   sample(offset: number): void;
   cancel(): void;
+  commit?(): void;
 }
 
 export type MorphMotionAnimator = (element: Element, keyframes: Keyframe[]) => MorphMotionEffect | undefined;
 
 const MOTION_DURATION = 1000;
 
-const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
+export const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
   const view = element.ownerDocument.defaultView as (Window & typeof globalThis) | null;
   const Effect = view?.KeyframeEffect;
   const Player = view?.Animation;
@@ -425,6 +554,7 @@ const browserAnimator: MorphMotionAnimator = (element, keyframes) => {
       animation.currentTime = offset * MOTION_DURATION;
     },
     cancel: () => animation.cancel(),
+    commit: () => animation.commitStyles(),
   };
 };
 
@@ -453,7 +583,47 @@ interface ImageState {
   broken?: boolean;
   reported?: boolean;
   pendingReports?: MorphStillParams[];
+  poses?: PoseFrames;
 }
+
+type PoseHead = number | "rest";
+
+interface PoseFrame {
+  offsets: Record<string, number>;
+  motions: { play: number; offset: number }[];
+  raster?: SvgLayerRaster;
+  refused?: boolean;
+}
+
+interface PoseSet {
+  width: number;
+  height: number;
+  grids: (number | undefined)[];
+  cut: Set<string>;
+  keys: Map<string, string>;
+  frames: Map<string, PoseFrame>;
+  queue: string[];
+  running: boolean;
+  released?: boolean;
+}
+
+interface PoseFrames {
+  artifact: MorphArtifact;
+  still: StillPicture;
+  sets: PoseSet[];
+  shown: string;
+  showing?: PoseSet;
+  last?: string;
+  reported?: boolean;
+}
+
+const REST_POSE = "rest";
+
+const FRAME_BYTES_PER_PIXEL = 4;
+
+const MAX_POSE_FRAMES = 256;
+
+const MAX_POSE_COMBINATIONS = 1024;
 
 const restFrame = (): MorphFrameState => ({
   shown: new Set(),
@@ -508,6 +678,8 @@ export class MorphPlayback {
   readPose: MorphPoseReader;
   rasterizeSvgLayer: SvgLayerRasterizer;
   encodeOutline: OutlineEncoder;
+  frameRate = 24;
+  frameBudget?: () => number;
   reportStill?: (params: MorphStillParams) => void;
   reportChangeBake?: (ref: MorphRef, artifact: MorphArtifact) => void;
   keepWhole?: (srcs: string[]) => void;
@@ -1005,6 +1177,12 @@ export class MorphPlayback {
     }
   }
 
+  frameBytes(): number {
+    let bytes = 0;
+    for (const layer of this.layers) bytes += layer.poseBytes;
+    return bytes;
+  }
+
   get stats() {
     const layers = [...this.layers];
     return {
@@ -1168,7 +1346,7 @@ export class MorphLayer {
       !!image &&
       (image.slot.state === "idle" ||
         image.slot.state === "pending" ||
-        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.canvas && !image.broken))
+        (image.slot.state === "ready" && image.slot.artifact?.status === "live" && !image.view && !image.canvas && !image.poses && !image.broken))
     );
   }
 
@@ -1220,7 +1398,7 @@ export class MorphLayer {
   }
 
   get live(): boolean {
-    return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas || image.inner.some((inner) => inner.view));
+    return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas || image.poses || image.inner.some((inner) => inner.view));
   }
 
   get watched(): boolean {
@@ -1318,8 +1496,8 @@ export class MorphLayer {
       const old = layer.images.find((candidate) => candidate.layer === image.layer);
       const [was, more] = old?.plays ?? [];
       if (!old || more || old.inner.length || !was?.occurrence) return undefined;
-      const pending = !old.view && !old.canvas && !was.started && old.resume !== undefined;
-      if (!old.view && !old.canvas && !pending) return undefined;
+      const pending = !old.view && !old.canvas && !old.poses && !was.started && old.resume !== undefined;
+      if (!old.view && !old.canvas && !old.poses && !pending) return undefined;
       const ref = pending || (old.slot.state === "ready" && old.slot.artifact?.status === "live") ? old.drawn : undefined;
       if (!ref || was.play.morph !== play.morph || was.play.owner !== play.owner || ref.image !== play.ref.image) return undefined;
       if (JSON.stringify(was.play.timing) !== JSON.stringify(play.timing)) return undefined;
@@ -1511,6 +1689,7 @@ export class MorphLayer {
           });
         if (matches(still.rasters)) {
           this.dropNext(still);
+          if (still.under?.poses) this.wantPoses(still.under);
           continue;
         }
         if (still.next?.boxSize === boxSize && matches(still.next.rasters)) continue;
@@ -1522,6 +1701,7 @@ export class MorphLayer {
           next.rasters.set(index, raster);
           this.rasterizeStill(still, index, raster);
         }
+        if (still.under?.poses) this.wantPoses(still.under);
       }
       const area = this.areaOf(computed);
       for (const image of area.width > 0 && area.height > 0 ? this.images : []) {
@@ -1730,7 +1910,8 @@ export class MorphLayer {
     if (canvases.some((view) => view.painted === undefined)) return false;
     const ready = (raster: StillRaster) =>
       !raster.busy && !!raster.image && (!raster.want || (raster.width === raster.want.width && raster.height === raster.want.height));
-    return [...still.rasters.values()].every(ready) && (!still.next || !!still.next.refused || [...still.next.rasters.values()].every(ready));
+    if (![...still.rasters.values()].every(ready) || (still.next && !still.next.refused && ![...still.next.rasters.values()].every(ready))) return false;
+    return !this.posing(still) || this.posesDrawn(still.under!);
   }
 
   protected canvasDrawn(image: ImageState): boolean {
@@ -2095,6 +2276,7 @@ export class MorphLayer {
       image.view = undefined;
       image.canvas = undefined;
       for (const inner of image.inner) inner.view = undefined;
+      if (image.poses && (image.poses.artifact !== this.liveArtifact(image.slot) || !this.posing(image.poses.still))) this.releasePoses(image);
     }
     const ready = this.images.filter(
       (image) =>
@@ -2107,7 +2289,7 @@ export class MorphLayer {
         (still.files || still.undrawn || still.late) &&
         !still.broken &&
         (!still.under ||
-          (this.uncomposited(still.under) ? still.under.inner.length === 0 : !still.undrawn && !this.still)),
+          (this.uncomposited(still.under) ? still.under.inner.length === 0 : this.posing(still))),
     );
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
@@ -2173,7 +2355,8 @@ export class MorphLayer {
         i += span - 1;
         continue;
       }
-      const picture = state ? undefined : stills.find((entry) => entry.layer === i);
+      const rest = state ? this.posingStill(state) : undefined;
+      const picture = state && !rest ? undefined : stills.find((entry) => entry.layer === i);
       if (picture) {
         const span = Math.min(picture.span, count - i);
         if (picture.undrawn || picture.late) {
@@ -2189,7 +2372,12 @@ export class MorphLayer {
           this.fallBack(picture, picture.picture);
           for (let k = 0; k < span; k++) still(i + k);
         }
+        if (state && picture === rest) this.preparePoses(state, rest);
         i += span - 1;
+        continue;
+      }
+      if (rest) {
+        still(i);
         continue;
       }
       const covering = fallen.find((image) => i >= image.layer && i < image.layer + image.span);
@@ -2475,6 +2663,7 @@ export class MorphLayer {
       raster.want = want;
       this.rasterizeStill(still, index, raster);
     });
+    if (still.under?.poses) this.wantPoses(still.under);
   }
 
   protected rasterizeStill(still: StillPicture, index: number, raster: StillRaster) {
@@ -2515,6 +2704,7 @@ export class MorphLayer {
       return;
     }
     if (still.next!.refused || [...still.next!.rasters.values()].every((entry) => !entry.busy && !!entry.image)) this.layout();
+    if (still.under?.poses) this.wantPoses(still.under);
     this.checkDrawn();
   }
 
@@ -2537,6 +2727,7 @@ export class MorphLayer {
     for (const view of still.canvases ?? []) {
       if (view.still && view.segment.layers.includes(index)) this.paintStill(view, view.still, still);
     }
+    if (still.under?.poses) this.wantPoses(still.under);
     this.flushMorphReports(still.under);
     this.checkDrawn();
   }
@@ -2545,6 +2736,7 @@ export class MorphLayer {
     const { canvas, context } = view;
     const smooth = view.smooth !== false;
     const sources = new Map<number, PictureBitmap>();
+    const sizes = new Map<number, { width: number; height: number }>();
     const drawn: string[] = [];
     for (const index of still.layers) {
       const bitmap = view.files.bitmaps.get(index);
@@ -2552,8 +2744,10 @@ export class MorphLayer {
       const raster = picture.rasters.get(index);
       const want = raster?.want;
       if (!raster?.image || !want || raster.width !== want.width || raster.height !== want.height) return;
-      sources.set(index, { ...bitmap, image: raster.image, box: undefined });
-      drawn.push(`${index}:${raster.width}x${raster.height}`);
+      const pose = this.poseRaster(picture, index);
+      sources.set(index, { ...bitmap, image: pose?.image ?? raster.image, box: undefined });
+      sizes.set(index, pose ?? raster);
+      drawn.push(`${index}:${raster.width}x${raster.height}${pose ? `:${pose.id}@${pose.width}x${pose.height}` : ""}`);
     }
     if (canvas.width !== still.backing.w || canvas.height !== still.backing.h) {
       canvas.width = still.backing.w;
@@ -2628,7 +2822,7 @@ export class MorphLayer {
         const periodX = pattern.repeatX ? pattern.stepX : pattern.tile.width;
         const periodY = pattern.repeatY ? pattern.stepY : pattern.tile.height;
         const gapped = Math.abs(periodX - pattern.tile.width) > 0.01 || Math.abs(periodY - pattern.tile.height) > 0.01;
-        const raster = sources.has(layer) ? picture.rasters.get(layer) : undefined;
+        const raster = sources.has(layer) ? sizes.get(layer) : undefined;
         let source: CanvasImageSource | undefined = bitmap.image;
         let sourceWidth = raster?.width ?? bitmap.width;
         let sourceHeight = raster?.height ?? bitmap.height;
@@ -2683,6 +2877,301 @@ export class MorphLayer {
       if (authored && authored !== "auto") continue;
       img.style.setProperty("aspect-ratio", `auto ${files.width} / ${files.height}`);
     }
+  }
+
+  get poseBytes(): number {
+    let bytes = 0;
+    for (const image of this.images) {
+      for (const set of image.poses?.sets ?? []) {
+        for (const frame of set.frames.values()) if (!frame.refused) bytes += set.width * set.height * FRAME_BYTES_PER_PIXEL;
+      }
+    }
+    return bytes;
+  }
+
+  protected posing(still: StillPicture): boolean {
+    const under = still.under;
+    return (
+      !!under &&
+      !under.picture &&
+      under.inner.length === 0 &&
+      !!still.picture.vector &&
+      still.span === 1 &&
+      !still.broken &&
+      !still.undrawn &&
+      !this.uncomposited(under)
+    );
+  }
+
+  protected posingStill(image: ImageState): StillPicture | undefined {
+    return this.stills.find((still) => still.under === image && this.posing(still));
+  }
+
+  protected preparePoses(image: ImageState, still: StillPicture) {
+    const artifact = this.liveArtifact(image.slot);
+    if (!artifact || !still.files) {
+      this.releasePoses(image);
+      return;
+    }
+    if (image.poses?.artifact !== artifact || image.poses.still !== still) {
+      this.releasePoses(image);
+      image.poses = { artifact, still, sets: [], shown: REST_POSE };
+    }
+    this.wantPoses(image);
+  }
+
+  protected releasePoses(image: ImageState) {
+    for (const set of image.poses?.sets ?? []) this.releasePoseSet(set);
+    image.poses = undefined;
+  }
+
+  protected releasePoseSet(set: PoseSet) {
+    set.released = true;
+    set.queue = [];
+    for (const frame of set.frames.values()) {
+      frame.raster?.release();
+      frame.raster = undefined;
+    }
+  }
+
+  protected poseSizes(still: StillPicture): { width: number; height: number }[] {
+    const sizes = [still.rasters.get(0)?.want, still.next && !still.next.refused ? still.next.rasters.get(0)?.want : undefined];
+    return sizes.filter((size): size is { width: number; height: number } => !!size);
+  }
+
+  protected wantPoses(image: ImageState) {
+    const poses = image.poses;
+    if (!poses || !this.active) return;
+    const shown = poses.still.rasters.get(0);
+    const sizes = this.poseSizes(poses.still);
+    const sized = (set: PoseSet, size: { width: number; height: number } | undefined) => !!size && set.width === size.width && set.height === size.height;
+    const kept = (set: PoseSet) => sizes.some((size) => sized(set, size)) || (!!shown?.image && sized(set, shown));
+    for (const set of poses.sets) if (!kept(set)) this.releasePoseSet(set);
+    poses.sets = poses.sets.filter((set) => !set.released);
+    for (const size of sizes) {
+      if (poses.sets.some((set) => sized(set, size))) continue;
+      const set = this.planPoses(image, poses.artifact, size);
+      poses.sets.push(set);
+      set.running = true;
+      const view = this.span.ownerDocument.defaultView;
+      const start = () => {
+        set.running = false;
+        this.drawPoses(image, set);
+      };
+      if (view) view.setTimeout(start, 0);
+      else start();
+    }
+    poses.last = undefined;
+    this.renderPoses(image);
+  }
+
+  protected planPoses(image: ImageState, artifact: MorphArtifact, size: { width: number; height: number }): PoseSet {
+    const plays = image.plays.map(({ play }) => play);
+    const rate = Number.isFinite(this.playback.frameRate) && this.playback.frameRate > 0 ? this.playback.frameRate : 0;
+    const cut = plays.map((play) => cutMorph(artifact, play));
+    const full = plays.map((play, i) => {
+      if (cut[i]) return undefined;
+      const jumps = morphEasingJumps(play.timing.easing);
+      if (jumps !== undefined) return Math.min(MAX_POSE_FRAMES, jumps);
+      const duration = Number.isFinite(play.timing.duration) && play.timing.duration > 0 ? play.timing.duration : 0;
+      return rate > 0 ? Math.min(MAX_POSE_FRAMES, Math.max(1, Math.round(duration * rate))) : 0;
+    });
+    const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
+    const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes();
+    const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
+    const cutOptions = plays.map((play, i) => (cut[i] ? cutOffsets(artifact, play.morph) : []));
+    const cutLooks = plays.map((play, i) =>
+      cut[i] ? new Set(cutOptions[i]!.map((at) => frameText(morphFrameState(artifact, morphPosesAt(artifact, { [play.morph]: at }))))).add(rest).size : 1,
+    );
+    const counts = (grids: (number | undefined)[]) => {
+      let combinations = 1;
+      let looks = 1;
+      let cutOnly = 1;
+      grids.forEach((grid, i) => {
+        if (grid === undefined) {
+          combinations *= cutOptions[i]!.length + 1;
+          looks *= cutLooks[i]!;
+          cutOnly *= cutLooks[i]!;
+          return;
+        }
+        const tween = grid > 0 ? grid + 1 : 0;
+        combinations *= tween + 1;
+        looks *= tween + 1;
+      });
+      return { combinations, frames: looks - 1, tweenFrames: looks - cutOnly };
+    };
+    const bounded = (grids: (number | undefined)[]) => {
+      const { combinations, frames } = counts(grids);
+      return combinations <= MAX_POSE_COMBINATIONS && frames <= MAX_POSE_FRAMES;
+    };
+    const fits = (grids: (number | undefined)[]) => bounded(grids) && counts(grids).tweenFrames * bytes <= room;
+    const most = Math.max(0, ...full.map((grid) => grid ?? 0));
+    const scaled = (share: number) => full.map((grid) => (grid === undefined ? undefined : most > 0 ? Math.floor((grid * share) / most) : 0));
+    if (fits(full)) return this.enumeratePoses(artifact, plays, cut, size, full, cutOptions, rest);
+    let low = 1;
+    let high = most - 1;
+    let best = 0;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (fits(scaled(mid))) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    const chosen = scaled(best);
+    for (let i = plays.length - 1; i >= 0 && !bounded(chosen); i--) if (chosen[i] === undefined) chosen[i] = 0;
+    return this.enumeratePoses(artifact, plays, cut, size, chosen, cutOptions, rest);
+  }
+
+  protected enumeratePoses(
+    artifact: MorphArtifact,
+    plays: MorphPlay[],
+    cut: boolean[],
+    size: { width: number; height: number },
+    grids: (number | undefined)[],
+    cutOptions: number[][],
+    rest: string,
+  ): PoseSet {
+    const cutGroups = new Set(plays.flatMap((play, i) => (cut[i] ? [...morphGroups(artifact, play.morph)] : [])));
+    const options = plays.map((_, i): PoseHead[] => {
+      const grid = grids[i];
+      if (grid === undefined) return [REST_POSE, ...cutOptions[i]!];
+      return [REST_POSE, ...Array.from({ length: grid > 0 ? grid + 1 : 0 }, (_, k) => k / grid)];
+    });
+    const set: PoseSet = { width: size.width, height: size.height, grids: [...grids], cut: cutGroups, keys: new Map(), frames: new Map(), queue: [], running: false };
+    const heads: PoseHead[] = plays.map(() => REST_POSE);
+    const visit = (at: number) => {
+      if (at < plays.length) {
+        for (const head of options[at]!) {
+          heads[at] = head;
+          visit(at + 1);
+        }
+        return;
+      }
+      const key = poseKey(artifact, plays, heads, cutGroups);
+      if (set.keys.has(key)) return;
+      const offsets = poseOffsets(plays, heads);
+      const motions = plays.flatMap((play, i) => {
+        const head = heads[i]!;
+        return head !== REST_POSE && movesLayers(play) ? [{ play: i, offset: head }] : [];
+      });
+      const text = offsets ? frameText(morphFrameState(artifact, morphPosesAt(artifact, offsets))) : rest;
+      const moved = motions
+        .map(({ play, offset }) => Object.entries(plays[play]!.motion ?? {}).map(([label, track]) => `|${label}@${motionOffset(track, offset)}`).join(""))
+        .join("");
+      const id = motions.length === 0 && text === rest ? REST_POSE : hashText(`${text}${moved}`);
+      set.keys.set(key, id);
+      if (id === REST_POSE || set.frames.has(id)) return;
+      set.frames.set(id, { offsets: { ...offsets }, motions });
+      set.queue.push(id);
+    };
+    visit(0);
+    return set;
+  }
+
+  protected drawPoses(image: ImageState, set: PoseSet) {
+    const poses = image.poses;
+    if (!poses || set.running || set.released || !this.active) return;
+    const id = set.queue.shift();
+    if (id === undefined) {
+      this.checkDrawn();
+      return;
+    }
+    const frame = set.frames.get(id)!;
+    const files = poses.still.files;
+    const text = files ? this.poseMarkup(image, poses.artifact, frame) : undefined;
+    set.running = true;
+    const made =
+      text && files
+        ? this.playback
+            .rasterizeSvgLayer({ text, viewBox: !!poses.artifact.viewBox }, { width: files.width, height: files.height }, set.width, set.height, this.span.ownerDocument)
+            .catch(() => undefined)
+        : Promise.resolve(undefined);
+    void made.then((raster) => {
+      set.running = false;
+      if (set.released || !this.active || image.poses !== poses) {
+        raster?.release();
+        return;
+      }
+      if (raster) frame.raster = raster;
+      else {
+        frame.refused = true;
+        if (!poses.reported) {
+          poses.reported = true;
+          this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: poses.still.picture.files[0]?.name ?? "", reason: "undrawn" });
+        }
+      }
+      poses.last = undefined;
+      this.renderPoses(image);
+      this.drawPoses(image, set);
+    });
+  }
+
+  protected poseMarkup(image: ImageState, artifact: MorphArtifact, frame: PoseFrame): string | undefined {
+    const markup = renderMorphAt(artifact, frame.offsets);
+    const files = image.poses?.still.files;
+    if (frame.motions.length === 0 || !files) return markup;
+    const moves = (label: string) =>
+      frame.motions.flatMap(({ play, offset }) => {
+        const motion = image.plays[play]?.play.motion;
+        const track = motion ? own(motion, label) : undefined;
+        return track ? [{ track, offset }] : [];
+      });
+    return movedMarkup(markup, this.playback.overlay, files, moves, this.playback.animate);
+  }
+
+  protected poseHeads(plays: { occurrence?: Occurrence }[], turned?: boolean): PoseHead[] {
+    return plays.map(({ occurrence }) => {
+      const head = occurrence ? this.playback.playhead(occurrence) : undefined;
+      if (!head || !("offset" in head)) return turned ? 0 : REST_POSE;
+      return turned ? 1 - head.offset : head.offset;
+    });
+  }
+
+  protected shownPoseSet(poses: PoseFrames): PoseSet | undefined {
+    const raster = poses.still.rasters.get(0);
+    const sized = (set: PoseSet, size: { width: number; height: number } | undefined) => !!size && set.width === size.width && set.height === size.height;
+    return poses.sets.find((set) => !!raster?.image && sized(set, raster)) ?? poses.sets.find((set) => sized(set, raster?.want));
+  }
+
+  protected renderPoses(image: ImageState) {
+    const poses = image.poses;
+    if (!poses || this.frozen || this.disposed) return;
+    const set = this.shownPoseSet(poses);
+    const heads = this.poseHeads(image.plays, image.turned);
+    const signature = `${set ? `${set.width}x${set.height}` : ""}|${heads.join(",")}`;
+    if (poses.last === signature) return;
+    poses.last = signature;
+    const plays = image.plays.map(({ play }) => play);
+    const key = set ? poseKey(poses.artifact, plays, heads.map((head, i) => quantizePose(head, set.grids[i])), set.cut) : REST_POSE;
+    const id = set?.keys.get(key) ?? REST_POSE;
+    const shown = id !== REST_POSE && set?.frames.get(id)?.raster ? id : REST_POSE;
+    const showing = shown === REST_POSE ? undefined : set;
+    if (shown === poses.shown && showing === poses.showing) return;
+    poses.shown = shown;
+    poses.showing = showing;
+    for (const view of poses.still.canvases ?? []) if (view.still) this.paintStill(view, view.still, poses.still);
+  }
+
+  protected poseRaster(picture: StillPicture, index: number): { id: string; image: CanvasImageSource; width: number; height: number } | undefined {
+    const poses = picture.under?.poses;
+    const set = poses?.showing;
+    if (!poses || poses.still !== picture || index !== 0 || !set || set.released) return undefined;
+    const raster = set.frames.get(poses.shown)?.raster;
+    return raster ? { id: poses.shown, image: raster.image, width: set.width, height: set.height } : undefined;
+  }
+
+  protected posesDrawn(image: ImageState): boolean {
+    const state = image.slot.state;
+    if (state === "idle" || state === "pending") return false;
+    if (!this.liveArtifact(image.slot)) return true;
+    const poses = image.poses;
+    if (!poses) return false;
+    return this.poseSizes(poses.still).every((size) =>
+      poses.sets.some((set) => set.width === size.width && set.height === size.height && !set.running && set.queue.length === 0),
+    );
   }
 
   protected liveArtifact(slot: MorphArtifactSlot): MorphArtifact | undefined {
@@ -3144,6 +3633,7 @@ export class MorphLayer {
     for (const state of this.images) {
       const artifact = state.slot.state === "ready" ? state.slot.artifact : undefined;
       if (!artifact || artifact.status !== "live" || state.broken || (state.picture && !state.files)) continue;
+      if (!state.picture && this.posingStill(state)) continue;
       const eligible = state.picture
         ? !!this.pictureRect(state.files, state.layer, computed)
         : !!this.placement(artifact, computed, count - 1 - state.layer);
@@ -3242,6 +3732,7 @@ export class MorphLayer {
         );
       }
       if (image.view) this.renderView(image.view, image.plays, image.turned);
+      if (image.poses) this.renderPoses(image);
       for (const inner of image.inner) if (inner.view) this.renderView(inner.view, inner.plays);
     }
   }
@@ -3347,6 +3838,7 @@ export class MorphLayer {
       if (image.canvas) this.dropCanvasNext(image.canvas);
       image.view = undefined;
       image.canvas = undefined;
+      this.releasePoses(image);
       for (const inner of image.inner) {
         inner.slot.dispose();
         inner.view = undefined;
@@ -3419,6 +3911,138 @@ function changePair(ref: MorphRef, morph: string): { from: string; to: string; k
   if (!from || !to || typeof from !== "object" || typeof to !== "object") return undefined;
   const groups = [...new Set([...Object.keys(from), ...Object.keys(to)])];
   return { from: JSON.stringify(from), to: JSON.stringify(to), kept: JSON.stringify(kept), groups };
+}
+
+function morphGroups(artifact: MorphArtifact, morph: string): Set<string> {
+  return new Set(Object.entries(artifact.groups).flatMap(([group, owner]) => (owner === morph ? [group] : [])));
+}
+
+function movesLayers(play: MorphPlay): boolean {
+  return Object.keys(play.motion ?? {}).length > 0;
+}
+
+function cutMorph(artifact: MorphArtifact, play: MorphPlay): boolean {
+  if (movesLayers(play)) return false;
+  const groups = morphGroups(artifact, play.morph);
+  return (
+    !(artifact.paints ?? []).some((entry) => groups.has(entry.group)) &&
+    artifact.segments.every(
+      (segment) => !groups.has(segment.group) || (segment.clips.length === 0 && segment.transitions.every((t) => t.kind === "cut" || t.kind === "hold")),
+    )
+  );
+}
+
+function cutOffsets(artifact: MorphArtifact, morph: string): number[] {
+  const groups = morphGroups(artifact, morph);
+  const marks = new Set([0, 1]);
+  for (const segment of artifact.segments) {
+    if (!groups.has(segment.group)) continue;
+    marks.add(segment.from.offset);
+    marks.add(segment.to.offset);
+  }
+  for (const [group, entries] of Object.entries(artifact.schedules)) {
+    if (groups.has(group)) for (const entry of entries) marks.add(entry.offset);
+  }
+  const sorted = [...marks].filter((at) => Number.isFinite(at) && at >= 0 && at <= 1).sort((a, b) => a - b);
+  return sorted.flatMap((at, i) => {
+    const next = sorted[i + 1];
+    return next !== undefined && next > at ? [at, (at + next) / 2] : [at];
+  });
+}
+
+export function movedMarkup(
+  markup: string,
+  host: Element,
+  natural: { width: number; height: number },
+  moves: (label: string) => { track: readonly MorphMotionFrame[]; offset: number }[],
+  animate: MorphMotionAnimator,
+): string | undefined {
+  const doc = host.ownerDocument;
+  const view = doc.defaultView as (Window & typeof globalThis) | null;
+  if (!view?.DOMParser || !view.XMLSerializer) return undefined;
+  const svg = doc.importNode(new view.DOMParser().parseFromString(markup, "image/svg+xml").documentElement, true);
+  const stage = doc.createElement("div");
+  stage.setAttribute("style", `position:absolute;left:0;top:0;width:${natural.width}px;height:${natural.height}px;overflow:hidden;visibility:hidden;pointer-events:none`);
+  stage.appendChild(svg);
+  host.appendChild(stage);
+  try {
+    for (const element of Array.from(svg.querySelectorAll("[data-morph-motion]"))) {
+      for (const { track, offset } of moves(element.getAttribute("data-morph-motion")!)) {
+        const effect = animate(element, morphMotionKeyframes(track) as Keyframe[]);
+        if (!effect?.commit) return undefined;
+        try {
+          effect.sample(offset);
+          effect.commit();
+        } finally {
+          effect.cancel();
+        }
+      }
+    }
+    return new view.XMLSerializer().serializeToString(svg);
+  } catch {
+    return undefined;
+  } finally {
+    stage.remove();
+  }
+}
+
+function motionOffset(track: readonly MorphMotionFrame[], offset: number): number {
+  if (offset < 1) return offset;
+  const keys = new Set(track.flatMap(({ values }) => Object.keys(values)));
+  const loops = [...keys].every((key) => {
+    const set = track.filter(({ values }) => (values as Record<string, string | undefined>)[key] !== undefined);
+    return (set[0]?.values as Record<string, string | undefined>)[key] === (set.at(-1)?.values as Record<string, string | undefined>)[key];
+  });
+  return loops ? 0 : offset;
+}
+
+function poseOffsets(plays: readonly MorphPlay[], heads: readonly PoseHead[]): Record<string, number> | undefined {
+  const offsets: Record<string, number> = Object.create(null);
+  plays.forEach((play, i) => {
+    const at = heads[i];
+    if (at !== undefined && at !== REST_POSE) offsets[play.morph] = at;
+  });
+  return Object.keys(offsets).length ? offsets : undefined;
+}
+
+function quantizePose(head: PoseHead, grid: number | undefined): PoseHead {
+  if (head === REST_POSE || grid === undefined) return head;
+  return grid > 0 ? Math.round(head * grid) / grid : REST_POSE;
+}
+
+function groupPoseText(group: string, pose: MorphGroupPose, cut: boolean): string {
+  if (!("segment" in pose)) return `${group}=${pose.state}/${pose.last ?? ""}`;
+  const at = cut ? (pose.progress <= 0 ? "0" : pose.progress >= 1 ? "1" : "m") : String(pose.progress);
+  return `${group}@${pose.segment}:${at}`;
+}
+
+function poseKey(artifact: MorphArtifact, plays: readonly MorphPlay[], heads: readonly PoseHead[], cut: ReadonlySet<string>): string {
+  const offsets = poseOffsets(plays, heads);
+  if (!offsets) return REST_POSE;
+  const poses = morphPosesAt(artifact, offsets);
+  const parts = Object.keys(poses)
+    .sort()
+    .map((group) => groupPoseText(group, poses[group]!, cut.has(group)));
+  plays.forEach((play, i) => {
+    if (heads[i] !== REST_POSE && movesLayers(play)) parts.push(`~${i}@${heads[i]}`);
+  });
+  return parts.join("|");
+}
+
+function frameText(state: MorphFrameState): string {
+  const byName = <V>(map: Map<string, V>): [string, V][] => [...map].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify([
+    [...state.shown].sort(),
+    [...state.hidden].sort(),
+    byName(state.geometry),
+    byName(state.paint).map(([node, values]) => [node, Object.entries(values).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))]),
+    byName(state.gradients),
+    byName(state.opacity).filter(([, opacity]) => opacity !== 1),
+    byName(state.clips),
+    byName(state.reaches),
+    byName(state.spread),
+    byName(state.masks),
+  ]);
 }
 
 function releaseFiles(files: PictureFiles | undefined) {
