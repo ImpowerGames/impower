@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AudioClock } from "../app/AudioClock";
 import { serveOpusDecoding, type OpusServingScope } from "../app/utils/opusFallback";
 
-type WorkerMode = "real" | "silent" | "crash";
+type WorkerMode = "real" | "slow" | "silent" | "crash";
+
+const SLOW_DECODE_MS = 8_000;
 
 const counts = vi.hoisted(() => ({
   thisThread: 0,
@@ -40,7 +42,17 @@ class InProcessWorker {
     this._page = port1;
     this._worker = port2;
     const mode: WorkerMode = counts.mode;
-    if (mode === "real") {
+    if (mode === "real" || mode === "slow") {
+      let answered: Promise<unknown> = Promise.resolve();
+      const answer = (message: unknown, transfer: Transferable[]) => {
+        if (mode === "real") {
+          port2.postMessage(message, transfer as any);
+          return;
+        }
+        answered = answered
+          .then(() => new Promise((resolve) => setTimeout(resolve, SLOW_DECODE_MS)))
+          .then(() => port2.postMessage(message, transfer as any));
+      };
       const scope = {
         set onmessage(handler: OpusServingScope["onmessage"]) {
           port2.onmessage = (event) => {
@@ -51,8 +63,7 @@ class InProcessWorker {
         get onmessage() {
           return null;
         },
-        postMessage: (message: unknown, transfer: Transferable[]) =>
-          port2.postMessage(message, transfer as any),
+        postMessage: answer,
       };
       serveOpusDecoding(scope as OpusServingScope);
     } else {
@@ -183,6 +194,25 @@ describe("Opus clips the browser cannot decode (#2279, #2815)", () => {
     expect(counts.workers).toBe(1);
     expect(counts.served).toBe(4);
     expect(counts.thisThread).toBe(0);
+  });
+
+  test("keep a busy worker when clips queue behind long decodes", async () => {
+    counts.mode = "slow";
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const decode = await freshAudio();
+    const queued = [decode(TONE), decode(TONE)];
+    let done = 0;
+    queued.forEach((clip) => clip.then(() => done++));
+    while (done < queued.length) {
+      await new Promise((resolve) => setImmediate(resolve));
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    for (const clip of queued) {
+      expectTone(await clip);
+    }
+    expect(counts.served).toBe(2);
+    expect(counts.thisThread).toBe(0);
+    expect(counts.terminated).toBe(0);
   });
 
   test("retire the worker once it has been idle", async () => {

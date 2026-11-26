@@ -20,6 +20,8 @@ interface PendingDecode {
 interface FallbackWorker {
   worker: Worker;
   pending: Map<number, PendingDecode>;
+  queue: Promise<unknown>;
+  waiting: number;
   idle?: ReturnType<typeof setTimeout>;
 }
 
@@ -45,11 +47,11 @@ const abandonWorker = (reason: unknown) => {
 
 const retireWhenIdle = (current: FallbackWorker) => {
   clearTimeout(current.idle);
-  if (current.pending.size > 0) {
+  if (current.waiting > 0 || fallbackWorker !== current) {
     return;
   }
   current.idle = setTimeout(() => {
-    if (current.pending.size === 0 && fallbackWorker === current) {
+    if (current.waiting === 0 && fallbackWorker === current) {
       fallbackWorker = undefined;
       current.worker.terminate();
     }
@@ -81,7 +83,12 @@ const startWorker = (): FallbackWorker | undefined => {
   } finally {
     URL.revokeObjectURL(url);
   }
-  const current: FallbackWorker = { worker, pending: new Map() };
+  const current: FallbackWorker = {
+    worker,
+    pending: new Map(),
+    queue: Promise.resolve(),
+    waiting: 0,
+  };
   worker.onerror = (event: ErrorEvent) =>
     abandonWorker(event.error ?? new Error("Opus decoder worker failed"));
   worker.onmessageerror = () =>
@@ -98,23 +105,36 @@ const startWorker = (): FallbackWorker | undefined => {
     } else {
       request.resolve(data);
     }
-    retireWhenIdle(current);
   };
   fallbackWorker = current;
   return current;
 };
 
-const finishInWorker = (current: FallbackWorker, bytes: Uint8Array) =>
-  new Promise<FinishedOpus>((resolve, reject) => {
-    clearTimeout(current.idle);
-    const id = nextRequest++;
-    const deadline = setTimeout(
-      () => abandonWorker(new Error("Opus decoder worker did not answer")),
-      WORKER_ANSWER_DEADLINE_MS,
-    );
-    current.pending.set(id, { resolve, reject, deadline });
-    current.worker.postMessage({ id, bytes: bytes.buffer });
+const finishInWorker = (current: FallbackWorker, bytes: Uint8Array) => {
+  clearTimeout(current.idle);
+  current.waiting++;
+  const turn = current.queue.then(
+    () =>
+      new Promise<FinishedOpus>((resolve, reject) => {
+        if (fallbackWorker !== current) {
+          reject(new Error("Opus decoder worker was abandoned"));
+          return;
+        }
+        const id = nextRequest++;
+        const deadline = setTimeout(
+          () => abandonWorker(new Error("Opus decoder worker did not answer")),
+          WORKER_ANSWER_DEADLINE_MS,
+        );
+        current.pending.set(id, { resolve, reject, deadline });
+        current.worker.postMessage({ id, bytes: bytes.buffer });
+      }),
+  );
+  current.queue = turn.catch(() => undefined);
+  return turn.finally(() => {
+    current.waiting--;
+    retireWhenIdle(current);
   });
+};
 
 const finishOffThisThread = async (bytes: Uint8Array): Promise<FinishedOpus> => {
   const current = startWorker();
