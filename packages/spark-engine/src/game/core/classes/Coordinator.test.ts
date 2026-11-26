@@ -69,6 +69,9 @@ const createGame = (
         findIds: () => [],
         whenLayoutsSettled: () => null,
         setMotion: () => {},
+        beginLine: () => undefined,
+        closeLine: () => {},
+        line: () => {},
         beginPresentation: () => 0,
         layoutHolds: () => true,
         getTransientTargets: () => [],
@@ -76,6 +79,7 @@ const createGame = (
         refreshLayouts: () => {},
         speak: () => {},
         beginCompose: () => false,
+        composeSource: () => {},
         composeWait: () => {},
         endCompose: async () => {},
         afterCompose: (work: () => void) => work(),
@@ -105,7 +109,7 @@ const createGame = (
           restoreCleared: () => {},
           write: () => {},
         },
-        style: { update: () => {} },
+        style: { update: () => {}, updateWaiting: () => {} },
         cutsceneEnded: false,
         runCutscene(cutscene: { name: string }) {
           calls.cutscenes.push(cutscene.name);

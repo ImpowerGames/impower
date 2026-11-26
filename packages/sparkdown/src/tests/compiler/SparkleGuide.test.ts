@@ -34,7 +34,7 @@ function lineOf(code: string, offset: number): number {
 
 const SELECTOR_NAME = String.raw`[_\p{L}][_\p{L}\p{N}-]*`;
 const ALLOWED_SELECTOR = new RegExp(
-  String.raw`^(?:(?:>>?\s+)?(?:&|${SELECTOR_NAME})(?:\.${SELECTOR_NAME})*|@${SELECTOR_NAME}(?:\(${SELECTOR_NAME}\))?)`,
+  String.raw`^(?:(?:>>?\s+)?(?:&|${SELECTOR_NAME})(?:\.${SELECTOR_NAME})*|@${SELECTOR_NAME}(?:\(${SELECTOR_NAME}\))?|#${SELECTOR_NAME}=${SELECTOR_NAME})`,
   "u",
 );
 const BARE_WORD = new RegExp(
@@ -255,6 +255,7 @@ describe("the guide's old-form check", () => {
     ["`>> image`", style(">> image")],
     ["`@screen-size(sm)`", style("@screen-size(sm)")],
     ["`@hovered`", style("@hovered")],
+    ["`#variant=left`", style("#variant=left")],
     ["`&.secondary`", style("&.secondary")],
     ["several dotted classes", style("> text.headline.large")],
     ["a non-ASCII dotted class", style("> text.заголовок")],

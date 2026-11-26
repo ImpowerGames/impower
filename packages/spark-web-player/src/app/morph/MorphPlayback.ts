@@ -418,6 +418,7 @@ export class MorphPlayback {
   readPose: MorphPoseReader;
   rasterizeSvgLayer: SvgLayerRasterizer;
   reportStill?: (params: MorphStillParams) => void;
+  reportChangeBake?: (ref: MorphRef, artifact: MorphArtifact) => void;
   keepWhole?: (srcs: string[]) => void;
   residentPicture?: (src: string) => PictureBitmap | undefined;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
@@ -505,8 +506,18 @@ export class MorphPlayback {
     return loading;
   }
 
+  protected reporting: MorphHost = {
+    resolve: (ref, options) => {
+      const report = ref.recipes ? this.reportChangeBake : undefined;
+      return this.host.resolve(ref, options).then((handle) => {
+        if (report && !options?.signal?.aborted) report(ref, handle.artifact);
+        return handle;
+      });
+    },
+  };
+
   get resolver(): MorphHost {
-    return this.host;
+    return this.reporting;
   }
 
   deliver(params: { key: string; artifact?: MorphArtifact; error?: string }) {
@@ -933,7 +944,7 @@ export class MorphLayer {
   protected alone: { inner: FileState; layer: number }[] = [];
 
   protected layers: string[];
-  protected still?: string[];
+  protected still: { layer: number; span: number; layers: string[] }[] = [];
 
   constructor(
     protected playback: MorphPlayback,
@@ -947,7 +958,11 @@ export class MorphLayer {
   ) {
     this.layers = cssList(background).reverse();
     group.add(this);
-    if (kind === "background" && content.still) this.still = cssList(content.still).reverse();
+    if (kind === "background") {
+      this.still = (content.still ?? [])
+        .filter((still) => still.layer >= 0 && still.span > 0 && still.layer + still.span <= this.layers.length)
+        .map((still) => ({ layer: still.layer, span: still.span, layers: cssList(still.image).reverse() }));
+    }
   }
 
   get active(): boolean {
@@ -971,22 +986,36 @@ export class MorphLayer {
     );
   }
 
+  protected shownLayers(index: number): string[] {
+    if (this.loadingStill(index)) return ["none"];
+    const still = this.still.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
+    if (!still || !this.playback.animating) return [this.layers[index]!];
+    const end = still.layer + still.span;
+    if (still.layers.length === still.span) {
+      const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
+      return [this.unbuilt(image) ? still.layers[index - still.layer]! : this.layers[index]!];
+    }
+    if (!this.images.some((image) => image.layer < end && still.layer < image.layer + image.span && this.unbuilt(image))) return [this.layers[index]!];
+    return index === this.stillSlot(still.layer, end) ? still.layers : [];
+  }
+
+  protected stillSlot(start: number, end: number): number {
+    if (!this.shadowHost) return end - 1;
+    return Math.max(-1, ...this.statics.filter(({ layer }) => layer >= start && layer < end).map(({ layer }) => layer));
+  }
+
   protected staticLayer(index: number): string {
-    if (this.loadingStill(index)) return "none";
-    const image = this.images.find((entry) => index >= entry.layer && index < entry.layer + entry.span);
-    const aligned = this.still?.length === this.layers.length;
-    return aligned && this.unbuilt(image) && this.playback.animating ? (this.still![index] ?? this.layers[index]!) : this.layers[index]!;
+    return [...this.shownLayers(index)].reverse().join(", ") || "none";
   }
 
   showStill() {
-    if ((!this.still && !this.stills.length) || this.frozen || this.disposed) return;
+    if ((!this.still.length && !this.stills.length) || this.frozen || this.disposed) return;
     if (this.shadowHost) {
       this.layout();
       return;
     }
-    const whole = !!this.still && this.still.length !== this.layers.length && this.playback.animating && this.images.some((image) => this.unbuilt(image));
-    const shown = whole ? [...this.still!] : this.layers.map((_, index) => this.staticLayer(index));
-    this.span.style.setProperty("background-image", shown.reverse().join(", "));
+    const shown = this.layers.flatMap((_, index) => this.shownLayers(index));
+    this.span.style.setProperty("background-image", shown.reverse().join(", ") || "none");
   }
 
   protected styled?: string;

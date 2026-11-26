@@ -624,6 +624,7 @@ On the second directive the mouth bends from `open` to `closed` over 0.08 second
 - A group that another morph playing on the new look drives stays with that morph, and the change morph moves the other changed groups. Two change morphs that could both play on one change share its groups, so neither plays and the portrait cuts, with a warning that names them.
 - A change that comes while another change is still playing on the portrait, and goes back to the drawing that change started from, turns back from the frame on screen. It picks up the new play at the point that draws that frame, holds the frame while its `delay` runs, and needs no new pair of drawings, so a quick back-and-forth stays continuous however many times the options flip. This needs the change morph to be the only morph playing on the portrait: with another morph on it, such as a blink, and for a change to any other drawing, the change starts from the drawing the interrupted change ends on, and plays to the drawing the new options choose.
 - Previewing a line, stepping back, loading a save and the click that finishes a line show the new drawing at once.
+- A pair of drawings is checked when it plays. Once a change plays in the game, the editor reports any problem with its pair, such as two drawings the method cannot pair, on the artwork, as it does for the other triggers. The report stays until the script or the artwork changes.
 
 ### Replaying part of a play
 
@@ -878,7 +879,7 @@ scene doorway
 end
 ```
 
-A cue that is one of a character's aliases names that character, so `STRANGER? (O.S.):` is Raffles speaking: his portraits flap and the line uses his voice, while the name box shows `STRANGER?` as written. An alias matches the cue's name exactly, case and punctuation included, and the parenthetical and the position are not part of it. Several characters may list the same alias, such as `???`; a cue that is an alias of more than one character names nobody, with a warning that names the characters. An empty alias, an alias listed twice, and an alias that is the character's own name or define name or another character's are errors on the alias.
+A cue that is one of a character's aliases names that character, so `STRANGER? (O.S.):` is Raffles speaking: his portraits flap and the line uses his voice, while the name box shows `STRANGER?` as written. An alias matches the cue's name exactly, case and punctuation included, and the parenthetical and the variant are not part of it. Several characters may list the same alias, such as `???`; a cue that is an alias of more than one character names nobody, with a warning that names the characters. An empty alias, an alias listed twice, and an alias that is the character's own name or define name or another character's are errors on the alias.
 
 A cue says who speaks under a shared name, or under any name at all, by ending its name with `as` and the character's define name:
 
@@ -905,7 +906,7 @@ scene reunion
 end
 ```
 
-The text before `as` is the name the box shows, and the word after it is the character who speaks, whatever the shown name would name by itself: `??? as raffles:` shows `???` while Raffles's portraits flap and his voice speaks, and `BUNNY as raffles:` shows `BUNNY` with Raffles speaking. The parenthetical and the position follow the character, as on any cue. The word after `as` is a define name only, never a `name` or an alias; a word that names no character gets a warning on that word, and the line names nobody. The screenplay prints the shown name and the parenthetical, never the `as` part. A shown name that itself ends in `as` and a word keeps a backslash before `as`: `Dressed \as santa:` shows `Dressed as santa` and names nobody.
+The text before `as` is the name the box shows, and the word after it is the character who speaks, whatever the shown name would name by itself: `??? as raffles:` shows `???` while Raffles's portraits flap and his voice speaks, and `BUNNY as raffles:` shows `BUNNY` with Raffles speaking. The parenthetical and the variant ([Variants](./Variants.md)) follow the character, as on any cue. The word after `as` is a define name only, never a `name` or an alias; a word that names no character gets a warning on that word, and the line names nobody. The screenplay prints the shown name and the parenthetical, never the `as` part. A shown name that itself ends in `as` and a word keeps a backslash before `as`: `Dressed \as santa:` shows `Dressed as santa` and names nobody.
 
 An image is a character's portrait when its name, up to its first `@`, is the character's define name: `raffles`, `raffles@confident` and `raffles@happy` are all Raffles. A project that keeps one file per expression names its files that way ([Character Portraits](./Portraits.md)). A named look whose own name names no character belongs to the character of the image it is built on.
 

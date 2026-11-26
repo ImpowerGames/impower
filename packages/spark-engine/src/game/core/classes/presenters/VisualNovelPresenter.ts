@@ -42,6 +42,7 @@ export class VisualNovelPresenter implements Presenter {
     const game = this._game;
     const presentation = game.module.ui.beginPresentation();
     const composed = game.module.ui.beginCompose();
+    game.module.ui.composeSource(this._instructions.source);
     const written = this.writeUI(time);
     if (composed) {
       void game.module.ui.endCompose(time != null ? { time } : {});
@@ -56,7 +57,10 @@ export class VisualNovelPresenter implements Presenter {
     indicatorStyle["animation-play-state"] = this._options.preview
       ? "paused"
       : "running";
-    this._game.module.ui.style.update("continue_indicator", indicatorStyle);
+    this._game.module.ui.style.updateWaiting(
+      "continue_indicator",
+      indicatorStyle,
+    );
   }
 
   protected writeUI(time?: number): string[][] {
@@ -135,7 +139,7 @@ export class VisualNovelPresenter implements Presenter {
       indicatorStyle["animation-play-state"] = "paused";
       indicatorStyle["display"] = null;
     }
-    game.module.ui.style.update("continue_indicator", indicatorStyle);
+    game.module.ui.style.updateWaiting("continue_indicator", indicatorStyle);
   }
 
   protected bindChoices(): void {

@@ -21,7 +21,8 @@ export default function SearchBox({ label, value, onChange }: SearchBoxProps) {
         aria-label={label}
         placeholder={label}
         value={value}
-        class="text-[16px] [:root[data-layout=desktop]_&]:text-[13px]"
+        zoomSafe
+        class="[:root[data-layout=desktop]_&]:text-[13px]"
         onValueChange={onChange}
         onKeyDown={(e) => {
           if (e.key === "Escape" && value) {

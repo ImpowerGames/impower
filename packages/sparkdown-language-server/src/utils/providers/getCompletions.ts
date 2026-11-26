@@ -36,7 +36,7 @@ import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
 import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
-import { readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { cueVariant, readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { directiveOwnLookPick } from "@impower/sparkdown/src/compiler/utils/directiveOwnLook";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
@@ -72,6 +72,7 @@ import {
 } from "./alternatorKeywordHelp";
 import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
+import { getStyleValueDescription } from "./styleValueDescriptions";
 import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
 import { presenceBlockDocumentation } from "./presenceBlockHelp";
 
@@ -119,7 +120,7 @@ const GLOBAL_DECLARATION_KEYWORDS =
 const LOCAL_DECLARATION_KEYWORDS =
   GRAMMAR_DEFINITION.variables.LUAU_LOCAL_DECLARATION_KEYWORDS || [];
 
-const STYLING_DEFINE_TYPES: string[] = [];
+const STYLING_DEFINE_TYPES: string[] = ["style"];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const IMAGE_COMMAND_NAME_TYPES = [...IMAGE_TYPES, "video"];
@@ -766,6 +767,42 @@ const addShowingNameCompletions = (
   }
 };
 
+const LINE_ARGUMENT_BEFORE = /@(variant|speaker)\([ \t]*[\p{L}\p{N}_@]*$/u;
+
+const addLineLabelCompletions = (
+  completions: Map<string, CompletionItem>,
+  state: string,
+  scripts: Map<string, AnnotatedScript>,
+  program: SparkProgram | undefined,
+) => {
+  const labels = new Set<string>();
+  if (state === "speaker") {
+    for (const name of Object.keys(program?.context?.["character"] ?? {})) {
+      if (!name.startsWith("$")) labels.add(name);
+    }
+  } else {
+    for (const script of scripts.values()) {
+      script.tree?.iterate({
+        enter: (node) => {
+          if (node.name !== "DialogueCharacterPositionContent") return undefined;
+          const variant = cueVariant(script.read(node.from, node.to));
+          if (variant) labels.add(variant);
+          return false;
+        },
+      });
+    }
+  }
+  for (const label of [...labels].sort()) {
+    if (!completions.has(label)) {
+      completions.set(label, {
+        label,
+        labelDetails: { description: state === "speaker" ? "character" : "variant" },
+        kind: state === "speaker" ? CompletionItemKind.Constant : CompletionItemKind.EnumMember,
+      });
+    }
+  }
+};
+
 const addScreenElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -1118,24 +1155,34 @@ const addStructPropertyValueSchemaCompletions = (
         : relativePath;
       if (lookupPath) {
         const value = getProperty(schemaStruct, lookupPath);
+        const property = lookupPath.split(".").at(-1) ?? "";
+        const describeStyleValue = (completion: CompletionItem, option: string) => {
+          const documentation =
+            schemaStruct.$type === "style"
+              ? getStyleValueDescription(property, option)
+              : undefined;
+          if (documentation) {
+            completion.documentation = documentation;
+          }
+        };
         if (Array.isArray(value)) {
+          const isStyling = STYLING_DEFINE_TYPES.includes(schemaStruct.$type);
+          const listedValues = new Set(
+            valueText
+              .slice(0, valueCursorOffset)
+              .split(",")
+              .slice(0, -1)
+              .map((entry) => entry.trim()),
+          );
           for (const option of value) {
             const kind = getTypeKind(option);
             const insertTextPrefix =
               context?.triggerCharacter === "=" ? " " : "";
             const insertText = insertTextPrefix + option;
             if (typeof option === "string") {
-              if (!valueText) {
-                const insertTextWithoutCursorSyntax = insertText.replace(
-                  INSERT_TEXT_CURSOR_REGEX,
-                  "",
-                );
-                if (insertTextWithoutCursorSyntax) {
-                  const label = STYLING_DEFINE_TYPES.includes(
-                    schemaStruct.$type,
-                  )
-                    ? insertTextWithoutCursorSyntax
-                    : `"${insertTextWithoutCursorSyntax}"`;
+              if (isStyling) {
+                const label = option.replace(INSERT_TEXT_CURSOR_REGEX, "");
+                if (label && !listedValues.has(label)) {
                   const insertTextFormat = insertText.includes("$")
                     ? InsertTextFormat.Snippet
                     : undefined;
@@ -1145,6 +1192,28 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
+                  describeStyleValue(completion, option);
+                  if (!completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
+                }
+              } else if (!valueText) {
+                const insertTextWithoutCursorSyntax = insertText.replace(
+                  INSERT_TEXT_CURSOR_REGEX,
+                  "",
+                );
+                if (insertTextWithoutCursorSyntax) {
+                  const label = `"${insertTextWithoutCursorSyntax}"`;
+                  const insertTextFormat = insertText.includes("$")
+                    ? InsertTextFormat.Snippet
+                    : undefined;
+                  const completion: CompletionItem = {
+                    label,
+                    insertText,
+                    kind,
+                    insertTextFormat,
+                  };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1164,26 +1233,7 @@ const addStructPropertyValueSchemaCompletions = (
                     kind,
                     insertTextFormat,
                   };
-                  if (completion.label && !completions.has(completion.label)) {
-                    completions.set(completion.label, completion);
-                  }
-                }
-              } else if (STYLING_DEFINE_TYPES.includes(schemaStruct.$type)) {
-                const insertTextWithoutCursorSyntax = insertText.replace(
-                  INSERT_TEXT_CURSOR_REGEX,
-                  "",
-                );
-                if (insertTextWithoutCursorSyntax) {
-                  const label = insertTextWithoutCursorSyntax;
-                  const insertTextFormat = insertText.includes("$")
-                    ? InsertTextFormat.Snippet
-                    : undefined;
-                  const completion: CompletionItem = {
-                    label,
-                    insertText,
-                    kind,
-                    insertTextFormat,
-                  };
+                  describeStyleValue(completion, option);
                   if (completion.label && !completions.has(completion.label)) {
                     completions.set(completion.label, completion);
                   }
@@ -1610,6 +1660,15 @@ const completionsAt = (
     : null;
   if (showingTyped) {
     addShowingNameCompletions(completions, program);
+    return buildCompletions();
+  }
+  const lineTyped = leftStack.some((node) => node.name === "SimpleSelectorFunction")
+    ? LINE_ARGUMENT_BEFORE.exec(
+        read(document.offsetAt({ line: position.line, character: 0 }), documentCursorOffset),
+      )
+    : null;
+  if (lineTyped) {
+    addLineLabelCompletions(completions, lineTyped[1]!, scripts, program);
     return buildCompletions();
   }
 
@@ -2470,14 +2529,23 @@ const completionsAt = (
     return buildCompletions();
   }
 
-  const scalarPropertyNode = leftStack.find(
-    (n) =>
-      n.type.name === "LuauStructBlockProperty",
-  );
+  const trailingCommaNode = isWhitespaceNode(leftStack[0]?.name)
+    ? getStack<SparkdownNodeName>(tree, leftStack[0].from, -1)[0]
+    : undefined;
+  const continuedListPropertyNode =
+    trailingCommaNode?.name === "LuauStructBlockTrailingComma"
+      ? getStack<SparkdownNodeName>(tree, trailingCommaNode.from, -1).find(
+          (n) => n.type.name === "LuauStructBlockProperty",
+        )
+      : undefined;
+  const scalarPropertyNode =
+    leftStack.find((n) => n.type.name === "LuauStructBlockProperty") ??
+    continuedListPropertyNode;
   if (
     scalarPropertyNode &&
     ((isWhitespaceNode(leftStack[0]?.name) &&
       prevNode.name === "AssignEqualOperator") ||
+      scalarPropertyNode === continuedListPropertyNode ||
       leftStack.some(
         (n) =>
           n.type.name === "AssignEqualOperator" ||
@@ -2513,8 +2581,16 @@ const completionsAt = (
         ],
         scalarPropertyNode,
       );
-      const valueText = valueNode ? getNodeText(valueNode) : "";
-      const valueCursorOffset = getCursorOffset(valueNode ?? undefined);
+      const valueText =
+        valueNode && scalarPropertyNode === continuedListPropertyNode
+          ? read(valueNode.from, documentCursorOffset)
+          : valueNode
+            ? getNodeText(valueNode)
+            : "";
+      const valueCursorOffset =
+        scalarPropertyNode === continuedListPropertyNode
+          ? valueText.length
+          : getCursorOffset(valueNode ?? undefined);
       addStructPropertyValueCompletions(
         completions,
         program,
