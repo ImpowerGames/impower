@@ -83,22 +83,135 @@ export type PictureCanvasFactory = (canvas: HTMLCanvasElement) => PictureCanvasC
 
 export type OutlineEncoder = (canvas: HTMLCanvasElement) => Promise<{ url: string; release(): void } | undefined>;
 
-export const browserOutlineEncoder: OutlineEncoder = (canvas) => {
-  const doc = canvas.ownerDocument;
-  const urls = doc.defaultView?.URL;
-  if (typeof canvas.toBlob !== "function" || typeof urls?.createObjectURL !== "function") return Promise.resolve(undefined);
-  return new Promise<Blob | null>((resolve) => {
+function outlineWorker(scope: { onmessage: ((event: MessageEvent) => void) | null; postMessage(message: unknown): void }) {
+  scope.onmessage = async (event: MessageEvent) => {
+    const { id, image } = event.data as { id: number; image: ImageBitmap };
     try {
-      canvas.toBlob(resolve, "image/png");
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("no context");
+      context.drawImage(image, 0, 0);
+      image.close();
+      scope.postMessage({ id, blob: await canvas.convertToBlob({ type: "image/png" }) });
     } catch {
-      resolve(null);
+      image.close();
+      scope.postMessage({ id });
     }
-  }).then(async (blob) => {
-    if (!blob) return undefined;
-    const url = urls.createObjectURL(blob);
-    await decodeImage(doc, url);
-    return { url, release: () => urls.revokeObjectURL(url) };
-  });
+  };
+}
+
+const OUTLINE_WORKER_IDLE_MS = 5000;
+
+type OutlineWorkerEncode = (canvas: HTMLCanvasElement) => Promise<Blob | undefined>;
+
+const outlineWorkers = new WeakMap<Window, OutlineWorkerEncode | null>();
+
+export function workerOutlineEncode(view: Window & typeof globalThis): OutlineWorkerEncode | undefined {
+  const known = outlineWorkers.get(view);
+  if (known !== undefined) return known ?? undefined;
+  if (
+    typeof view.Worker !== "function" ||
+    typeof view.Blob !== "function" ||
+    typeof view.URL?.createObjectURL !== "function" ||
+    typeof view.createImageBitmap !== "function" ||
+    typeof (view as unknown as { OffscreenCanvas?: unknown }).OffscreenCanvas !== "function"
+  ) {
+    outlineWorkers.set(view, null);
+    return undefined;
+  }
+  let worker: Worker | undefined;
+  let broken = false;
+  let next = 0;
+  let idle: number | undefined;
+  const pending = new Map<number, (blob: Blob | undefined) => void>();
+  const stop = () => {
+    if (idle !== undefined) view.clearTimeout(idle);
+    idle = undefined;
+    worker?.terminate();
+    worker = undefined;
+  };
+  const fail = () => {
+    broken = true;
+    stop();
+    for (const settle of pending.values()) settle(undefined);
+    pending.clear();
+  };
+  const settled = () => {
+    if (pending.size === 0 && worker) idle = view.setTimeout(stop, OUTLINE_WORKER_IDLE_MS);
+  };
+  const start = (): Worker | undefined => {
+    if (worker || broken) return worker;
+    try {
+      const url = view.URL.createObjectURL(new view.Blob([`(${outlineWorker.toString()})(self);\n`], { type: "text/javascript" }));
+      worker = new view.Worker(url);
+      view.URL.revokeObjectURL(url);
+    } catch {
+      fail();
+      return undefined;
+    }
+    worker.onerror = fail;
+    worker.onmessage = (event: MessageEvent) => {
+      const { id, blob } = event.data as { id: number; blob?: Blob };
+      const settle = pending.get(id);
+      pending.delete(id);
+      settle?.(blob);
+      settled();
+    };
+    return worker;
+  };
+  const encode: OutlineWorkerEncode = async (canvas) => {
+    if (broken) return undefined;
+    let image: ImageBitmap;
+    try {
+      image = await view.createImageBitmap(canvas);
+    } catch {
+      return undefined;
+    }
+    if (idle !== undefined) view.clearTimeout(idle);
+    idle = undefined;
+    const target = start();
+    if (!target) {
+      image.close();
+      return undefined;
+    }
+    const id = ++next;
+    return new Promise((resolve) => {
+      pending.set(id, resolve);
+      try {
+        target.postMessage({ id, image }, [image]);
+      } catch {
+        pending.delete(id);
+        image.close();
+        settled();
+        resolve(undefined);
+      }
+    });
+  };
+  outlineWorkers.set(view, encode);
+  return encode;
+}
+
+export const browserOutlineEncoder: OutlineEncoder = async (canvas) => {
+  const doc = canvas.ownerDocument;
+  const view = doc.defaultView as (Window & typeof globalThis) | null;
+  const urls = view?.URL;
+  if (!view || typeof urls?.createObjectURL !== "function") return undefined;
+  const pending = workerOutlineEncode(view)?.(canvas);
+  const blob =
+    (await pending) ??
+    (typeof canvas.toBlob === "function"
+      ? await new Promise<Blob | null>((resolve) => {
+          try {
+            canvas.toBlob(resolve, "image/png");
+          } catch {
+            resolve(null);
+          }
+        })
+      : null);
+  if (!blob) return undefined;
+  const url = urls.createObjectURL(blob);
+  await decodeImage(doc, url);
+  return { url, release: () => urls.revokeObjectURL(url) };
 };
 
 interface Outline {
