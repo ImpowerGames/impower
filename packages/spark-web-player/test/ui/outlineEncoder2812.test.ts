@@ -1,7 +1,11 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { browserOutlineEncoder } from "../../src/app/morph/MorphPlayback";
 
-type Reply = "blob" | "none" | "error";
+type Reply = "blob" | "none" | "error" | "unreadable" | "silent" | "refused";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function page(reply: Reply, options: { offscreen?: boolean } = {}) {
   const blob = { kind: "worker png" };
@@ -13,17 +17,26 @@ function page(reply: Reply, options: { offscreen?: boolean } = {}) {
       sources.push(parts.join(""));
     }
   }
+  const terminated: FakeWorker[] = [];
   class FakeWorker {
     onmessage: ((event: { data: unknown }) => void) | null = null;
     onerror: (() => void) | null = null;
+    onmessageerror: (() => void) | null = null;
+    constructor() {
+      if (reply === "refused") throw new TypeError("This document requires 'TrustedScriptURL' assignment.");
+    }
     postMessage(data: { id: number; image: unknown }, transfer: unknown[]) {
       posted.push({ data, transfer });
+      if (reply === "silent") return;
       queueMicrotask(() => {
         if (reply === "error") this.onerror?.();
+        else if (reply === "unreadable") this.onmessageerror?.();
         else this.onmessage?.({ data: reply === "blob" ? { id: data.id, blob } : { id: data.id } });
       });
     }
-    terminate() {}
+    terminate() {
+      terminated.push(this);
+    }
   }
   class FakeImage {
     src = "";
@@ -48,7 +61,7 @@ function page(reply: Reply, options: { offscreen?: boolean } = {}) {
   };
   const toBlob = vi.fn((callback: (value: unknown) => void) => callback({ kind: "page png" }));
   const canvas = { ownerDocument: { defaultView: view }, width: 736, height: 552, toBlob } as unknown as HTMLCanvasElement;
-  return { canvas, toBlob, posted, sources, bitmaps, view };
+  return { canvas, toBlob, posted, sources, bitmaps, view, terminated };
 }
 
 describe("a picture's shadow outline is encoded off the page thread (#2812)", () => {
@@ -74,6 +87,47 @@ describe("a picture's shadow outline is encoded off the page thread (#2812)", ()
       expect(t.toBlob).toHaveBeenCalledTimes(1);
       expect(encoded?.url).toBe("blob:page");
     }
+  });
+
+  test("a worker whose message cannot be read leaves the encoding to toBlob, and later outlines skip the worker", async () => {
+    const t = page("unreadable");
+    expect((await browserOutlineEncoder(t.canvas))?.url).toBe("blob:page");
+    expect(t.terminated).toHaveLength(1);
+    expect((await browserOutlineEncoder(t.canvas))?.url).toBe("blob:page");
+    expect(t.posted).toHaveLength(1);
+    expect(t.toBlob).toHaveBeenCalledTimes(2);
+  });
+
+  test("a worker that never answers leaves every waiting outline to toBlob once its answer is overdue", async () => {
+    vi.useFakeTimers();
+    const t = page("silent");
+    const first = browserOutlineEncoder(t.canvas);
+    const second = browserOutlineEncoder(t.canvas);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(t.posted).toHaveLength(2);
+    expect(t.toBlob).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect((await first)?.url).toBe("blob:page");
+    expect((await second)?.url).toBe("blob:page");
+    expect(t.toBlob).toHaveBeenCalledTimes(2);
+    expect(t.terminated).toHaveLength(1);
+  });
+
+  test("a worker the page refuses to start releases its script URL and leaves the encoding to toBlob", async () => {
+    const t = page("refused");
+    const encoded = await browserOutlineEncoder(t.canvas);
+    expect(encoded?.url).toBe("blob:page");
+    expect(t.view.URL.revokeObjectURL).toHaveBeenCalledWith("blob:source");
+    expect(t.posted).toHaveLength(0);
+    expect(t.bitmaps[0]!.close).toHaveBeenCalled();
+  });
+
+  test("an answered outline releases the worker's script URL and settles no other request", async () => {
+    const t = page("blob");
+    const [a, b] = await Promise.all([browserOutlineEncoder(t.canvas), browserOutlineEncoder(t.canvas)]);
+    expect([a?.url, b?.url]).toEqual(["blob:worker", "blob:worker"]);
+    expect(t.view.URL.revokeObjectURL).toHaveBeenCalledWith("blob:source");
+    expect(t.toBlob).not.toHaveBeenCalled();
   });
 
   test("a page without OffscreenCanvas encodes with toBlob as before", async () => {

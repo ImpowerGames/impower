@@ -101,6 +101,7 @@ function outlineWorker(scope: { onmessage: ((event: MessageEvent) => void) | nul
 }
 
 const OUTLINE_WORKER_IDLE_MS = 5000;
+const OUTLINE_WORKER_ANSWER_MS = 5000;
 
 type OutlineWorkerEncode = (canvas: HTMLCanvasElement) => Promise<Blob | undefined>;
 
@@ -123,7 +124,7 @@ export function workerOutlineEncode(view: Window & typeof globalThis): OutlineWo
   let broken = false;
   let next = 0;
   let idle: number | undefined;
-  const pending = new Map<number, (blob: Blob | undefined) => void>();
+  const pending = new Map<number, { settle: (blob: Blob | undefined) => void; deadline: number }>();
   const stop = () => {
     if (idle !== undefined) view.clearTimeout(idle);
     idle = undefined;
@@ -133,28 +134,37 @@ export function workerOutlineEncode(view: Window & typeof globalThis): OutlineWo
   const fail = () => {
     broken = true;
     stop();
-    for (const settle of pending.values()) settle(undefined);
+    const waiting = [...pending.values()];
     pending.clear();
+    for (const request of waiting) {
+      view.clearTimeout(request.deadline);
+      request.settle(undefined);
+    }
   };
   const settled = () => {
     if (pending.size === 0 && worker) idle = view.setTimeout(stop, OUTLINE_WORKER_IDLE_MS);
   };
   const start = (): Worker | undefined => {
     if (worker || broken) return worker;
+    let url: string | undefined;
     try {
-      const url = view.URL.createObjectURL(new view.Blob([`(${outlineWorker.toString()})(self);\n`], { type: "text/javascript" }));
+      url = view.URL.createObjectURL(new view.Blob([`(${outlineWorker.toString()})(self);\n`], { type: "text/javascript" }));
       worker = new view.Worker(url);
-      view.URL.revokeObjectURL(url);
     } catch {
       fail();
       return undefined;
+    } finally {
+      if (url !== undefined) view.URL.revokeObjectURL(url);
     }
     worker.onerror = fail;
+    worker.onmessageerror = fail;
     worker.onmessage = (event: MessageEvent) => {
       const { id, blob } = event.data as { id: number; blob?: Blob };
-      const settle = pending.get(id);
+      const request = pending.get(id);
+      if (!request) return;
       pending.delete(id);
-      settle?.(blob);
+      view.clearTimeout(request.deadline);
+      request.settle(blob);
       settled();
     };
     return worker;
@@ -176,11 +186,13 @@ export function workerOutlineEncode(view: Window & typeof globalThis): OutlineWo
     }
     const id = ++next;
     return new Promise((resolve) => {
-      pending.set(id, resolve);
+      const deadline = view.setTimeout(fail, OUTLINE_WORKER_ANSWER_MS);
+      pending.set(id, { settle: resolve, deadline });
       try {
         target.postMessage({ id, image }, [image]);
       } catch {
         pending.delete(id);
+        view.clearTimeout(deadline);
         image.close();
         settled();
         resolve(undefined);
