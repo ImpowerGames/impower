@@ -243,6 +243,121 @@ describe("a picture's exit claim ends however its exit ends (#2777)", () => {
     expect(marked(h)).not.toContain("portrait");
   });
 
+  const PAIR = `define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+layout main {
+  left {
+    portrait {
+      image
+    }
+  }
+  right {
+    portrait {
+      image
+    }
+  }
+}
+
+style frame {
+  @showing(left) {
+    opacity = 1
+  }
+  @showing(right) {
+    opacity = 1
+  }
+}
+
+scene start
+  [[show portrait SPRITE]] Hello.
+  [[hide portrait with fadeout over 5s]] Bye.
+end
+`;
+
+  async function pairExiting() {
+    const h = createHarness(PAIR, 0, { reactive: true, autoOpenAll: false, holdExits: true, beforeConnect: live });
+    await h.ready;
+    await flushMicrotasks(10);
+    h.jumpToFlow("start");
+    await tick(new Coordinator(h.game, h.nextBeat()!));
+    expect(h.game.module.ui.findIds("portrait")).toHaveLength(2);
+    expect(marked(h)).toEqual(["left", "right"]);
+    await tick(new Coordinator(h.game, h.nextBeat()!), 2);
+    expect(h.heldExits()).toHaveLength(1);
+    expect(marked(h)).toEqual(["left", "right"]);
+    return h;
+  }
+
+  test("clearing one of a target's pictures at once keeps the other's exit claim (#2777 round 2)", async () => {
+    const h = await pairExiting();
+    await h.game.module.ui.image.clear("portrait#0");
+    await flushMicrotasks(20);
+    expect(marked(h)).toEqual(["right"]);
+    expect(claims(h)).toBe(1);
+    h.releaseExits();
+    await flushMicrotasks(20);
+    expect(marked(h)).toEqual([]);
+    expect(claims(h)).toBe(0);
+  });
+
+  test("closing the layout that holds an exiting picture releases its claim without a report (#2777 round 2)", async () => {
+    const h = await pairExiting();
+    await h.game.module.ui.closeLayout("main", undefined, true);
+    await flushMicrotasks(20);
+    expect(h.game.module.ui.findIds("portrait")).toEqual([]);
+    expect(marked(h)).toEqual([]);
+    expect(claims(h)).toBe(0);
+  });
+
+  test("two targets shown and hidden with exits in one line keep their marks until their own reports", async () => {
+    const source = `define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+layout main {
+  first {
+    image
+  }
+  second {
+    image
+  }
+}
+
+style frame {
+  @showing(first) {
+    opacity = 1
+  }
+  @showing(second) {
+    opacity = 1
+  }
+}
+
+scene start
+  [[show first SPRITE]] [[hide first with fadeout over 5s]] [[show second SPRITE]] [[hide second with fadeout over 5s]] Bye.
+end
+`;
+    const h = createHarness(source, 0, { reactive: true, autoOpenAll: false, holdExits: true, beforeConnect: live });
+    await h.ready;
+    await flushMicrotasks(10);
+    h.jumpToFlow("start");
+    await tick(new Coordinator(h.game, h.nextBeat()!), 2);
+    expect(h.heldExits()).toHaveLength(2);
+    expect(marked(h)).toEqual(["first", "second"]);
+    expect(
+      wire(h.messages).filter(
+        (m: any) => m?.method === "ui/showing" && Object.values(m.params.changes).some((n: any) => n < 0),
+      ),
+    ).toEqual([]);
+    expect(h.releaseExits(1)).toBe(1);
+    await flushMicrotasks(20);
+    expect(marked(h)).toHaveLength(1);
+    expect(h.releaseExits()).toBe(1);
+    await flushMicrotasks(20);
+    expect(marked(h)).toEqual([]);
+    expect(claims(h)).toBe(0);
+  });
+
   test("a claim from a superseded stream no longer counts", async () => {
     const { h } = await exiting();
     h.game.connection.beginEpoch();

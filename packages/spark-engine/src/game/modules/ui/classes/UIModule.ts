@@ -2008,8 +2008,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._root = undefined;
     }
     const subtree: string[] = [];
+    const destroyed = new Set<Element>();
     const collect = (el: Element) => {
       subtree.push(el.id);
+      destroyed.add(el);
       if (this.carriesDisplayTarget(el)) {
         this._displayTargetsChanged = true;
       }
@@ -2018,6 +2020,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     collect(element);
+    if (this._exits.size > 0) {
+      this.dropExits((el) => destroyed.has(el));
+    }
     for (const [event, byId] of Object.entries(this._events)) {
       if (!byId) {
         continue;
@@ -5834,12 +5839,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [...this._exits].some((exit) => exit.elements.some((el) => elements.has(el)));
   }
 
-  protected dropExits(elements: Element[]): void {
+  protected dropExits(drops: (element: Element) => boolean): void {
     let dropped = false;
     for (const exit of this._exits) {
-      if (exit.elements.some((el) => elements.includes(el))) {
+      const kept = exit.elements.filter((el) => !drops(el));
+      if (kept.length === exit.elements.length) {
+        continue;
+      }
+      dropped = true;
+      if (kept.length === 0) {
         this._exits.delete(exit);
-        dropped = true;
+      } else {
+        exit.elements = kept;
       }
     }
     if (dropped && !this._uiBatchScheduled) {
@@ -7290,7 +7301,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ) {
         const targetEls = $.findElements(target, true);
         if (instant) {
-          $.dropExits(targetEls);
+          $.dropExits((el) => targetEls.includes(el));
         }
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
