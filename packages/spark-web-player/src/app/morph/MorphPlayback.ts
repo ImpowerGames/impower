@@ -489,6 +489,7 @@ interface PoseFrames {
   shown: string;
   showing?: PoseSet;
   last?: string;
+  reported?: boolean;
 }
 
 const REST_POSE = "rest";
@@ -2846,9 +2847,9 @@ export class MorphLayer {
     const full = plays.map((play, i) => {
       if (cut[i]) return undefined;
       const jumps = morphEasingJumps(play.timing.easing);
-      if (jumps !== undefined) return jumps;
+      if (jumps !== undefined) return Math.min(MAX_POSE_FRAMES, jumps);
       const duration = Number.isFinite(play.timing.duration) && play.timing.duration > 0 ? play.timing.duration : 0;
-      return rate > 0 ? Math.max(1, Math.round(duration * rate)) : 0;
+      return rate > 0 ? Math.min(MAX_POSE_FRAMES, Math.max(1, Math.round(duration * rate))) : 0;
     });
     const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
     const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes();
@@ -2886,7 +2887,7 @@ export class MorphLayer {
     let high = most - 1;
     let best = 0;
     while (low <= high) {
-      const mid = (low + high) >> 1;
+      const mid = Math.floor((low + high) / 2);
       if (fits(scaled(mid))) {
         best = mid;
         low = mid + 1;
@@ -2970,7 +2971,13 @@ export class MorphLayer {
         return;
       }
       if (raster) frame.raster = raster;
-      else frame.refused = true;
+      else {
+        frame.refused = true;
+        if (!poses.reported) {
+          poses.reported = true;
+          this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: poses.still.picture.files[0]?.name ?? "", reason: "undrawn" });
+        }
+      }
       poses.last = undefined;
       this.renderPoses(image);
       this.drawPoses(image, set);

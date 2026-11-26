@@ -84,6 +84,14 @@ afterEach(() => {
   cleanup = undefined;
 });
 
+const marks = (line: number) =>
+  Object.fromEntries(
+    performance
+      .getEntriesByType("mark")
+      .filter((entry) => entry.name.includes(`main.sd:${line + 1} #`))
+      .map((entry) => [entry.name.split(" ")[1], entry.startTime]),
+  );
+
 async function until(check: () => boolean, what: string) {
   for (let i = 0; i < 2000; i++) {
     if (check()) return;
@@ -263,12 +271,17 @@ describe("a drawn portrait's morphs play from frames drawn before the beat fires
   test("the beat waits for its morph's poses, and its ready mark follows the last one", async () => {
     const t = await setup(CUT);
     let hold: (() => void) | undefined;
+    const landed: number[] = [];
     const rasterize = t.playback.rasterizeSvgLayer;
     t.playback.configure({
       rasterizeSvgLayer: (source, natural, w, h, doc) => {
         if ((source as unknown as { src?: string }).src) return rasterize(source, natural, w, h, doc);
         return new Promise((resolve) => {
-          hold = () => void rasterize(source, natural, w, h, doc).then(resolve);
+          hold = () =>
+            void rasterize(source, natural, w, h, doc).then((raster) => {
+              landed.push(performance.now());
+              resolve(raster);
+            });
         });
       },
     });
@@ -277,13 +290,51 @@ describe("a drawn portrait's morphs play from frames drawn before the beat fires
     await flushMicrotasks(10);
     expect(t.events).not.toContain("applied");
     for (let i = 0; i < 20 && !t.events.includes("applied"); i++) {
+      expect(marks(30)["ready"]).toBeUndefined();
       const next = hold!;
       hold = undefined;
       next();
       await until(() => hold !== undefined || t.events.includes("applied"), "the next pose or the beat");
     }
     expect(t.events.at(-1)).toBe("applied");
-    expect(t.events.filter((event) => event.startsWith("pose")).length).toBeGreaterThan(0);
+    expect(landed.length).toBeGreaterThan(0);
+    const entries = marks(30);
+    expect(entries["ready"]).toBeGreaterThanOrEqual(Math.max(...landed));
+    expect(entries["fired"]).toBeGreaterThanOrEqual(entries["ready"]!);
+  });
+
+  test("a pose the browser will not draw leaves the rest pose in its place and warns once", async () => {
+    const t = await setup(CUT);
+    const rasterize = t.playback.rasterizeSvgLayer;
+    t.playback.configure({
+      rasterizeSvgLayer: (source, natural, w, h, doc) => ((source as unknown as { src?: string }).src ? rasterize(source, natural, w, h, doc) : Promise.resolve(undefined)),
+    });
+    t.beat([show([play("nova-refused", ["talk", "blink"], "talk", speech()), play("nova-refused", ["talk", "blink"], "blink", loop())])], 40);
+    await until(() => t.events.includes("applied"), "the beat");
+    await until(() => t.reports.mock.calls.length > 0, "the warning");
+    t.playback.speak("nova", [[0, 1]]);
+    for (let i = 0; i < 40; i++) {
+      t.playback.advance(1 / 60);
+      await flushMicrotasks(2);
+      expect(t.shown()?.src).toBe(FILE);
+    }
+    expect(t.reports).toHaveBeenCalledTimes(1);
+    expect(t.reports).toHaveBeenCalledWith({ image: "nova", file: "nova.svg", reason: "undrawn" });
+  });
+
+  test("an enormous `morph_frame_rate` plans a bounded grid and still plays", async () => {
+    const t = await setup(TWEEN);
+    t.h.ui.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 8, restoreTimeout: 2, morphFrameRate: 4294967296 },
+    } as never);
+    t.beat([show([play("nova-huge-rate", ["blink"], "blink", loop({ duration: 1, iteration_delay_min: 0, iteration_delay_max: 0 }))])], 50);
+    await until(() => t.events.includes("applied"), "the beat");
+    const set = t.layer().images[0].poses.sets[0];
+    expect(set.grids[0]).toBeGreaterThan(0);
+    expect(set.grids[0]).toBeLessThanOrEqual(256);
+    expect(t.rasterized.filter((entry) => entry.text !== undefined).length).toBeLessThanOrEqual(256);
   });
 });
 
