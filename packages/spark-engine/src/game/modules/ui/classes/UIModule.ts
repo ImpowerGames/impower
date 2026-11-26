@@ -5532,7 +5532,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const sparkle = this._game.program?.sparkle;
     const components = sparkle?.components ?? {};
     const collect = (kind: string, name: string, nodes: readonly BodyNode[] | undefined) => {
-      const root = `${kind}:${name}@${hashText(bodyShape(nodes, components)).slice(0, 8)}`;
+      const root = `${kind}:${name}@${hashText(bodyShape(nodes, components))}`;
       this._roots.set(`${kind}:${name}`, root);
       this.collectMarks(nodes, root, "", []);
     };

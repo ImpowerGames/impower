@@ -171,6 +171,34 @@ describe("state written before a layout edit (I-2732)", () => {
   });
 });
 
+describe("two element structures whose fingerprints agree in their first 32 bits (I-2732)", () => {
+  const pair = (classes: string, children: string) => `
+layout textbox {
+  textbox.${classes} {
+${children}
+    action #clear { text }
+  }
+}
+`;
+  const before = pair("probe_14017", "    title #clear { text }\n    title { text }");
+  const after = pair("probe_100937", "    title { text }\n    title #clear { text }");
+
+  test("have different key roots, so the reordered layout's unmarked title keeps its content", async () => {
+    const k = KINDS.text;
+    const original = await playToSecondLine(PREFIX + before + k.scene);
+    const checkpoint = original.game.save();
+    const h = createHarness(PREFIX + after + k.scene, 0, { beforeConnect: (game) => game.load(checkpoint) });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    const roots = [(original.game.module.ui as any)._roots.get("layout:textbox"), ui._roots.get("layout:textbox")];
+    expect(roots[0]).not.toBe(roots[1]);
+    const [kept, marked] = (ui.textElements(k.tag) as any[]).filter((el) => inLayout(ui.elementPath(el), "textbox"));
+    expect(shownOn(h, k, kept.id)).toBe(true);
+    expect(shownOn(h, k, marked.id)).toBe(false);
+  });
+});
+
 describe("a program update during a game (I-2732)", () => {
   const k = KINDS.text;
   const titles = (h: UIHarness) => {

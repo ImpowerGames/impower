@@ -60,7 +60,7 @@ describe("#clear on an element inside a component (I-2732)", () => {
       const paths = (ui.textElements(tag) as any[]).map((el) => ui.elementPath(el));
       expect(new Set(paths).size).toBe(uses);
       for (const path of paths) {
-        expect(path).toMatch(/^layout:textbox@[0-9a-f]{8}\/0\/[0-9]+>banner\/0\/0$/);
+        expect(path).toMatch(/^layout:textbox@[0-9a-f]{16}\/0\/[0-9]+>banner\/0\/0$/);
       }
       const shown = writes(h.messages.slice(beats[0], beats[1]), method, tag).filter((m) => !isClear(m));
       expect(shown.flatMap((m) => m.params.elements ?? ids).sort()).toEqual([...ids].sort());
@@ -137,7 +137,7 @@ end
       const h = createHarness(source("title", "text", "^: Chapter One", mark, 1), 0, { connect: false });
       return (h.game.module.ui as any)._roots.get("layout:textbox");
     };
-    expect(rootOf("")).toMatch(/^layout:textbox@[0-9a-f]{8}$/);
+    expect(rootOf("")).toMatch(/^layout:textbox@[0-9a-f]{16}$/);
     expect(rootOf(" #clear")).not.toBe(rootOf(""));
     const { errors } = compileUI(source("title", "text", "^: Chapter One", " #clear", 1));
     expect(errors).toEqual([]);
