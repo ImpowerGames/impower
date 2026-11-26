@@ -855,6 +855,13 @@ export default class UIManager extends Manager {
         }
       }
     }
+    const relaid = ops.some((op) => {
+      const msg = op as RequestMessage;
+      return CreateElementMessage.type.isRequest(msg) || (UpdateElementMessage.type.isRequest(msg) && !!(msg.params.style || msg.params.attributes));
+    });
+    if (relaid) {
+      layers.push(...morphs.prepareLayouts(new Set(layers)));
+    }
     } finally {
       restore();
     }
@@ -883,7 +890,9 @@ export default class UIManager extends Manager {
     if (creates.length === 0) {
       return;
     }
+    const missing = (id: string) => !this.getElement(id);
     const needed = new Set<string>();
+    const within = new Set<string>();
     for (const op of ops) {
       const msg = op as RequestMessage;
       if (!WriteImageMessage.type.isRequest(msg)) {
@@ -893,32 +902,43 @@ export default class UIManager extends Manager {
       if (!instructions.some(drawsPicture)) {
         continue;
       }
+      for (const el of this.writeTargets(target, elements)) {
+        const id = (el as HTMLElement & { __sdId?: string }).__sdId;
+        if (id) {
+          within.add(id);
+        }
+      }
       const names = (target.split("#")[0] ?? "").split(" ").filter(Boolean);
       for (const create of creates) {
         const classes = (create.params.name || "").split(" ");
         const named = elements ? elements.includes(create.params.element) : names.length > 0 && names.every((name) => classes.includes(name));
-        if (named && !this.getElement(create.params.element)) {
+        if (named && missing(create.params.element)) {
           needed.add(create.params.element);
         }
       }
     }
-    if (needed.size === 0) {
-      return;
-    }
     const byId = new Map(creates.map((create) => [create.params.element, create]));
     for (const id of [...needed]) {
-      for (let parent = byId.get(id)?.params.parent; parent && byId.has(parent) && !needed.has(parent); parent = byId.get(parent)?.params.parent) {
+      for (
+        let parent = byId.get(id)?.params.parent;
+        parent && byId.has(parent) && !needed.has(parent) && missing(parent);
+        parent = byId.get(parent)?.params.parent
+      ) {
         needed.add(parent);
       }
     }
     for (let grew = true; grew; ) {
       grew = false;
       for (const create of creates) {
-        if (!needed.has(create.params.element) && create.params.parent && needed.has(create.params.parent)) {
+        const parent = create.params.parent;
+        if (!needed.has(create.params.element) && parent && (needed.has(parent) || within.has(parent)) && missing(create.params.element)) {
           needed.add(create.params.element);
           grew = true;
         }
       }
+    }
+    if (needed.size === 0) {
+      return;
     }
     this._applying += 1;
     try {
@@ -1321,6 +1341,7 @@ export default class UIManager extends Manager {
     }
     this.discardAllPrepared();
     this.revealPrecreated();
+    this.morphs?.adoptPrepared();
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
       this.sweepReconcile();

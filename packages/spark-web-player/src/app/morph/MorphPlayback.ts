@@ -114,6 +114,7 @@ interface StillPicture {
   late?: boolean;
   under?: ImageState;
   reported?: boolean;
+  next?: { boxSize: string; rasters: Map<number, StillRaster> };
 }
 
 interface StillRaster {
@@ -150,6 +151,7 @@ interface StillPaint {
   top: number;
   unitX: number;
   unitY: number;
+  backing: { w: number; h: number };
 }
 
 interface StillSegment {
@@ -830,6 +832,20 @@ export class MorphPlayback {
     for (const layer of this.layersWithin(root)) layer.dispose();
   }
 
+  adoptPrepared() {
+    for (const layer of this.layers) layer.adoptNext();
+  }
+
+  prepareLayouts(skip: Set<MorphLayer>): MorphLayer[] {
+    const waiting: MorphLayer[] = [];
+    for (const layer of this.layers) {
+      if (skip.has(layer) || !layer.span.isConnected) continue;
+      layer.prepareLayout();
+      if (!layer.drawn) waiting.push(layer);
+    }
+    return waiting;
+  }
+
   protected layersWithin(root: Element): MorphLayer[] {
     return [...this.layers].filter((layer) => root === layer.span || root.contains(layer.span));
   }
@@ -1242,15 +1258,10 @@ export class MorphLayer {
   }
 
   protected refuse(still: StillPicture, undrawn: Undrawn) {
-    if (still.under) {
-      still.broken = true;
-      this.releaseStill(still);
-      return;
-    }
     still.undrawn = undrawn;
     still.late = false;
     this.releaseStill(still);
-    this.report(still, undrawn);
+    if (!still.under) this.report(still, undrawn);
   }
 
   protected report(still: StillPicture, undrawn: Undrawn) {
@@ -1268,6 +1279,50 @@ export class MorphLayer {
   protected releaseStill(still: StillPicture) {
     for (const raster of still.rasters.values()) raster.release?.();
     still.rasters.clear();
+    this.dropNext(still);
+  }
+
+  protected dropNext(still: StillPicture) {
+    for (const raster of still.next?.rasters.values() ?? []) raster.release?.();
+    still.next = undefined;
+  }
+
+  adoptNext() {
+    if (this.active && this.stills.some((still) => still.next)) this.layout();
+  }
+
+  prepareLayout() {
+    if (!this.active || this.kind !== "background" || this.held) return;
+    const computed = this.computed();
+    const win = this.span.ownerDocument.defaultView;
+    const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
+    for (const still of this.stills) {
+      const views = still.canvases;
+      if (!views?.length || !still.picture.vector || still.undrawn || still.broken || !views.some((view) => view.painted !== undefined)) continue;
+      const plans = this.stillPlans(still, computed);
+      const area = this.layerBoxes(computed).padding;
+      if (!plans || !(area.width > 0 && area.height > 0) || JSON.stringify(this.stillSegments(plans)) !== still.segments) continue;
+      const boxSize = `${area.width}x${area.height}`;
+      if (views.every((view) => view.boxSize === boxSize)) {
+        this.dropNext(still);
+        continue;
+      }
+      if (still.next?.boxSize === boxSize) continue;
+      this.dropNext(still);
+      const next = { boxSize, rasters: new Map<number, StillRaster>() };
+      still.next = next;
+      const place = this.stillPlacement(still, plans, area, dpr);
+      for (const view of views) {
+        const paint = this.stillPaint(view, plans, place);
+        paint.layers.forEach((index, at) => {
+          const want = this.rasterWant(view, paint, at);
+          if (!want || next.rasters.has(index)) return;
+          const raster: StillRaster = { width: 0, height: 0, want };
+          next.rasters.set(index, raster);
+          this.rasterizeStill(still, index, raster);
+        });
+      }
+    }
   }
 
   protected sizing = { zoom: 1, scale: 1, style: 1 };
@@ -1376,7 +1431,7 @@ export class MorphLayer {
     if (!this.active) return;
     let changed = false;
     for (const still of this.stills) {
-      if (this.stillDrawn(still)) continue;
+      if (this.stillDrawn(still) || still.canvases?.some((view) => view.painted !== undefined)) continue;
       still.late = true;
       changed = true;
       this.report(still, {
@@ -1401,9 +1456,9 @@ export class MorphLayer {
     const canvases = still.canvases;
     if (!canvases) return false;
     if (canvases.some((view) => view.painted === undefined)) return false;
-    return [...still.rasters.values()].every(
-      (raster) => !raster.busy && !!raster.image && (!raster.want || (raster.width === raster.want.width && raster.height === raster.want.height)),
-    );
+    const ready = (raster: StillRaster) =>
+      !raster.busy && !!raster.image && (!raster.want || (raster.width === raster.want.width && raster.height === raster.want.height));
+    return [...still.rasters.values()].every(ready) && [...(still.next?.rasters.values() ?? [])].every(ready);
   }
 
   protected canvasDrawn(image: ImageState): boolean {
@@ -1493,7 +1548,9 @@ export class MorphLayer {
                 : undefined;
       return reason ? [{ index, reason }] : [];
     });
+    const rest = this.stills.some((still) => still.under === image && !still.broken);
     for (const { index, reason } of unfaithful) {
+      if (rest && (reason === "unread" || reason === "unsized" || reason === "styled")) continue;
       const declaration = reason === "styled" ? bitmaps.get(index)?.styled : undefined;
       this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason, ...(declaration !== undefined ? { declaration } : {}) });
     }
@@ -1603,7 +1660,12 @@ export class MorphLayer {
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    const stills = this.stills.filter((still) => (still.files || still.undrawn || still.late) && !still.broken && (!still.under || (!this.still && !this.uncomposited(still.under))));
+    const stills = this.stills.filter(
+      (still) =>
+        (still.files || still.undrawn || still.late) &&
+        !still.broken &&
+        (!still.under || (still.undrawn ? this.uncomposited(still.under) : !this.still && !this.uncomposited(still.under))),
+    );
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
     const alone = (i: number, picture: ImageState | undefined) => {
@@ -1672,6 +1734,7 @@ export class MorphLayer {
       if (picture) {
         const span = Math.min(picture.span, count - i);
         if (picture.undrawn || picture.late) {
+          if (picture.undrawn) this.report(picture, picture.undrawn);
           if (picture.late && picture.files) this.stillCanvases(picture, computed, doc);
           if (this.playback.placeholders) root.appendChild(this.placeholder(picture, doc));
         } else if (this.stillCanvases(picture, computed, doc)) {
@@ -1838,8 +1901,10 @@ export class MorphLayer {
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
     const boxSize = `${area.width}x${area.height}`;
     const painted = views.some((view) => view.painted !== undefined);
-    if (painted && !this.settling) {
-      const resized = views.some((view) => view.boxSize !== boxSize);
+    const resized = views.some((view) => view.boxSize !== boxSize);
+    const next = still.next;
+    const adopt = resized && next?.boxSize === boxSize && [...next.rasters.values()].every((raster) => !raster.busy && !!raster.image);
+    if (painted && !this.settling && !adopt) {
       for (const view of views) {
         const last = view.still;
         if (!last || !resized) continue;
@@ -1850,8 +1915,8 @@ export class MorphLayer {
       const grows = views.some((view) => {
         const last = view.still;
         if (!last) return false;
-        const wanted = this.stillBacking(still, plans, { width: view.canvas.width / last.unitX, height: view.canvas.height / last.unitY }, dpr);
-        return wanted.w > view.canvas.width || wanted.h > view.canvas.height;
+        const wanted = this.stillBacking(still, plans, { width: last.backing.w / last.unitX, height: last.backing.h / last.unitY }, dpr);
+        return wanted.w > last.backing.w || wanted.h > last.backing.h;
       });
       if (resized || grows) this.settleSoon();
       if (!resized) {
@@ -1865,7 +1930,32 @@ export class MorphLayer {
       }
       return;
     }
+    if (next) {
+      if (next.boxSize === boxSize) {
+        for (const [index, raster] of next.rasters) {
+          const old = still.rasters.get(index);
+          if (old !== raster) old?.release?.();
+          still.rasters.set(index, raster);
+        }
+        still.next = undefined;
+      } else {
+        this.dropNext(still);
+      }
+    }
     if (!painted) this.measureStyle();
+    const place = this.stillPlacement(still, plans, area, dpr);
+    for (const view of views) {
+      const blended = view.segment.blend !== "normal" ? `;mix-blend-mode:${view.segment.blend}` : "";
+      const style = `position:absolute;left:${place.left}px;top:${place.top}px;width:${place.width}px;height:${place.height}px${blended}`;
+      if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
+      view.boxSize = boxSize;
+      view.still = this.stillPaint(view, plans, place);
+      this.wantRasters(still, view, view.still);
+    }
+    for (const view of views) this.paintStill(view, view.still!, still);
+  }
+
+  protected stillPlacement(still: StillPicture, plans: LayerPaint[], area: { width: number; height: number }, dpr: number) {
     let left = 0;
     let top = 0;
     let { width, height } = area;
@@ -1879,21 +1969,20 @@ export class MorphLayer {
       height = snap(bounds.top + height) - bounds.top - top;
     }
     const { w, h } = this.stillBacking(still, plans, { width, height }, dpr);
-    for (const view of views) {
-      const segment = view.segment!;
-      const blended = segment.blend !== "normal" ? `;mix-blend-mode:${segment.blend}` : "";
-      const style = `position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${height}px${blended}`;
-      if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-      if (view.canvas.width !== w || view.canvas.height !== h) {
-        view.canvas.width = w;
-        view.canvas.height = h;
-        view.painted = undefined;
-      }
-      view.boxSize = boxSize;
-      view.still = { plans: segment.layers.map((index) => plans[index]!), layers: segment.layers, left, top, unitX: w / width, unitY: h / height };
-      this.wantRasters(still, view, view.still);
-    }
-    for (const view of views) this.paintStill(view, view.still!, still);
+    return { left, top, width, height, w, h };
+  }
+
+  protected stillPaint(view: StillCanvas, plans: LayerPaint[], place: ReturnType<MorphLayer["stillPlacement"]>): StillPaint {
+    const { left, top, width, height, w, h } = place;
+    return {
+      plans: view.segment.layers.map((index) => plans[index]!),
+      layers: view.segment.layers,
+      left,
+      top,
+      unitX: w / width,
+      unitY: h / height,
+      backing: { w, h },
+    };
   }
 
   protected stillBacking(still: StillPicture, plans: LayerPaint[], box: { width: number; height: number }, dpr: number) {
@@ -1910,26 +1999,32 @@ export class MorphLayer {
     return { w: Math.max(1, Math.round(box.width * dpr * scale * shrink)), h: Math.max(1, Math.round(box.height * dpr * scale * shrink)) };
   }
 
+  protected rasterWant(view: StillCanvas, paint: StillPaint, at: number): { width: number; height: number } | undefined {
+    const bitmap = view.files.bitmaps.get(paint.layers[at]!);
+    const plan = paint.plans[at];
+    if (!bitmap?.vector || !plan) return undefined;
+    const tile = plan.pattern?.tile ?? plan.tiles[0];
+    if (!tile) return undefined;
+    let width = Math.max(1, Math.round(tile.width * paint.unitX));
+    let height = Math.max(1, Math.round(tile.height * paint.unitY));
+    if (width * height > MAX_CANVAS_PIXELS) {
+      const shrink = Math.sqrt(MAX_CANVAS_PIXELS / (width * height));
+      width = Math.max(1, Math.floor(width * shrink));
+      height = Math.max(1, Math.floor(height * shrink));
+    }
+    return { width, height };
+  }
+
   protected wantRasters(still: StillPicture, view: StillCanvas, paint: StillPaint) {
     paint.layers.forEach((index, at) => {
-      const bitmap = view.files.bitmaps.get(index);
-      const plan = paint.plans[at];
-      if (!bitmap?.vector || !plan) return;
-      const tile = plan.pattern?.tile ?? plan.tiles[0];
-      if (!tile) return;
-      let width = Math.max(1, Math.round(tile.width * paint.unitX));
-      let height = Math.max(1, Math.round(tile.height * paint.unitY));
-      if (width * height > MAX_CANVAS_PIXELS) {
-        const shrink = Math.sqrt(MAX_CANVAS_PIXELS / (width * height));
-        width = Math.max(1, Math.floor(width * shrink));
-        height = Math.max(1, Math.floor(height * shrink));
-      }
+      const want = this.rasterWant(view, paint, at);
+      if (!want) return;
       let raster = still.rasters.get(index);
       if (!raster) {
         raster = { width: 0, height: 0 };
         still.rasters.set(index, raster);
       }
-      raster.want = { width, height };
+      raster.want = want;
       this.rasterizeStill(still, index, raster);
     });
   }
@@ -1945,12 +2040,33 @@ export class MorphLayer {
       .catch(() => undefined)
       .then((made) => {
         raster.busy = false;
-        if (!this.active || still.rasters.get(index) !== raster) {
+        const shown = still.rasters.get(index) === raster;
+        if (!this.active || (!shown && still.next?.rasters.get(index) !== raster)) {
           made?.release();
           return;
         }
-        this.landRaster(still, index, raster, want, made);
+        if (shown) this.landRaster(still, index, raster, want, made);
+        else this.landNext(still, index, raster, want, made);
       });
+  }
+
+  protected landNext(still: StillPicture, index: number, raster: StillRaster, want: { width: number; height: number }, made: SvgLayerRaster | undefined) {
+    if (!made) {
+      this.dropNext(still);
+      this.checkDrawn();
+      return;
+    }
+    raster.release?.();
+    raster.image = made.image;
+    raster.release = made.release;
+    raster.width = want.width;
+    raster.height = want.height;
+    if (raster.want && (raster.want.width !== want.width || raster.want.height !== want.height)) {
+      this.rasterizeStill(still, index, raster);
+      return;
+    }
+    if ([...still.next!.rasters.values()].every((entry) => !entry.busy && !!entry.image)) this.layout();
+    this.checkDrawn();
   }
 
   protected landRaster(still: StillPicture, index: number, raster: StillRaster, want: { width: number; height: number }, made: SvgLayerRaster | undefined) {
@@ -1970,10 +2086,7 @@ export class MorphLayer {
       return;
     }
     for (const view of still.canvases ?? []) {
-      if (view.still && view.segment.layers.includes(index)) {
-        view.painted = undefined;
-        this.paintStill(view, view.still, still);
-      }
+      if (view.still && view.segment.layers.includes(index)) this.paintStill(view, view.still, still);
     }
     this.checkDrawn();
   }
@@ -1982,6 +2095,7 @@ export class MorphLayer {
     const { canvas, context } = view;
     const smooth = view.smooth !== false;
     const sources = new Map<number, PictureBitmap>();
+    const drawn: string[] = [];
     for (const index of still.layers) {
       const bitmap = view.files.bitmaps.get(index);
       if (!bitmap?.vector) continue;
@@ -1989,6 +2103,11 @@ export class MorphLayer {
       const want = raster?.want;
       if (!raster?.image || !want || raster.width !== want.width || raster.height !== want.height) return;
       sources.set(index, { ...bitmap, image: raster.image, box: undefined });
+      drawn.push(`${index}:${raster.width}x${raster.height}`);
+    }
+    if (canvas.width !== still.backing.w || canvas.height !== still.backing.h) {
+      canvas.width = still.backing.w;
+      canvas.height = still.backing.h;
     }
     const device = (r: Rect): Rect => {
       const x = Math.round((r.x - still.left) * still.unitX);
@@ -2019,7 +2138,7 @@ export class MorphLayer {
           }
         : undefined,
     }));
-    const key = `${canvas.width}x${canvas.height}|${smooth}|${still.layers.join(",")}|${JSON.stringify(plans)}`;
+    const key = `${canvas.width}x${canvas.height}|${smooth}|${still.layers.join(",")}|${drawn.join(",")}|${JSON.stringify(plans)}`;
     if (view.painted === key) return;
     view.painted = key;
     context.setTransform(1, 0, 0, 1, 0, 0);
