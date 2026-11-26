@@ -175,15 +175,15 @@ put("test/agents/skills/coverage-2.test.mjs", 'import { execFileSync } from "nod
 assert.equal(run().status, 0, "nested Node checks inherit working Bash");
 spawnSync("git", ["rm", "--cached", "test/agents/skills/coverage-3.test.mjs"], { cwd: scratch, windowsHide: true });
 fs.unlinkSync(path.join(scratch, "test/agents/skills/coverage-3.test.mjs"));
-put(".github/scripts/fixture.test.mjs", 'console.log("github coverage");');
-spawnSync("git", ["add", ".github/scripts/fixture.test.mjs"], { cwd: scratch, windowsHide: true });
+put("test/github/scripts/fixture.test.mjs", 'console.log("github coverage");');
+spawnSync("git", ["add", "test/github/scripts/fixture.test.mjs"], { cwd: scratch, windowsHide: true });
 manifest();
 const github = run();
 assert.equal(github.status, 0, github.stderr);
-assert.match(github.stdout, /DONE: .github\/scripts\/fixture.test.mjs: passed/);
-put(".github/scripts/fixture.test.mjs", 'process.exitCode = 1;');
+assert.match(github.stdout, /DONE: test\/github\/scripts\/fixture.test.mjs: passed/);
+put("test/github/scripts/fixture.test.mjs", 'process.exitCode = 1;');
 assert.notEqual(run().status, 0, "GitHub script failure reaches the aggregate");
-put(".github/scripts/fixture.test.mjs", 'console.log("github coverage");');
+put("test/github/scripts/fixture.test.mjs", 'console.log("github coverage");');
 put("test/agents/skills/coverage-4.test.mjs", '// agent-tooling-timeout-ms: 30000\nsetTimeout(() => console.log("slow passed"), 4000);');
 const slow = run({ AGENT_TOOLING_TIMEOUT_MS: "2000" });
 assert.equal(slow.status, 0, slow.stderr);
@@ -203,7 +203,7 @@ assert.equal(hung.status, 1, hung.stderr);
 assert.match(hung.stdout, /DONE: test\/agents\/hooks\/policy.test.mjs: timed out/);
 assert.match(hung.stdout, /1 timed out, 0 exit unconfirmed/);
 assert.match(hung.stdout, /NOT RUN: test\/agents\/skills\/after-abort.test.py/);
-assert.match(hung.stdout, /NOT RUN: scripts\/link-agent-skills.test.mjs/);
+assert.match(hung.stdout, /NOT RUN: test\/scripts\/link-agent-skills.test.mjs/);
 assert.match(hung.stderr, /ABORT: timed-out check requires inspection/);
 const descendant = Number(fs.readFileSync(path.join(scratch, "child.pid"), "utf8"));
 const exited = (pid = descendant) => {
@@ -227,7 +227,7 @@ if (process.platform === "win32") {
 } else {
   assert.equal(earlyExit.status, 1, earlyExit.stderr);
   assert.match(earlyExit.stderr, /ABORT: cleanup was not confirmed/);
-  assert.match(earlyExit.stdout, /NOT RUN: scripts\/link-agent-skills.test.mjs/);
+  assert.match(earlyExit.stdout, /NOT RUN: test\/scripts\/link-agent-skills.test.mjs/);
 }
 const earlyPid = Number(fs.readFileSync(path.join(scratch, "early-child.pid"), "utf8"));
 const earlyDeadline = Date.now() + 8000;
@@ -279,8 +279,8 @@ manifest();
 git("add", "scripts/agent-tooling-checks.txt");
 git("commit", "-m", "Add independent check A");
 git("switch", "-c", "check-b", branchBase);
-put("scripts/branch-b.test.mjs", 'console.log("branch B passed");');
-git("add", "scripts/branch-b.test.mjs");
+put("test/scripts/branch-b.test.mjs", 'console.log("branch B passed");');
+git("add", "test/scripts/branch-b.test.mjs");
 manifest();
 git("add", "scripts/agent-tooling-checks.txt");
 git("commit", "-m", "Add independent check B");

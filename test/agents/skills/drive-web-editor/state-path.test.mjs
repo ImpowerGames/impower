@@ -84,7 +84,7 @@ await check("state lookup checks canonical paths before migration paths", () => 
 });
 
 await check("with no predicate, the disk decides: a tracked file at only the previous location is found there", () => {
-  assert.ok(under(hereOrPrevious("landing-pad.test.sh"), "resolve-issue"), "landing-pad.test.sh was not found under resolve-issue alone; this pin depends on that file sitting only there");
+  assert.ok(under(hereOrPrevious("writer-artifacts.mjs"), "resolve-issue"), "the writer artifact helper lives only under resolve-issue");
   assert.ok(under(hereOrPrevious("SKILL.md"), "drive-web-editor"));
   assert.ok(under(hereOrPrevious("no-such-file.probe"), "drive-web-editor"));
 });

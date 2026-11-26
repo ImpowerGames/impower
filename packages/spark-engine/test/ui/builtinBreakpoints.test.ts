@@ -15,7 +15,7 @@ describe("the builtin breakpoint table", () => {
     const prelude = authored((preludeContext()["config"] as any)?.ui?.breakpoints);
     expect(Object.keys(prelude)).not.toHaveLength(0);
     await expect(`${JSON.stringify(prelude, null, 2)}\n`).toMatchFileSnapshot(
-      "../../game/modules/ui/builtinBreakpoints.json",
+      "../../src/game/modules/ui/builtinBreakpoints.json",
     );
     expect(builtinBreakpoints).toEqual(prelude);
   });
