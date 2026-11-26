@@ -383,7 +383,7 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
       const { span, shadow, written } = await played(count);
       await flushMicrotasks(20);
       expect(span()).not.toBeNull();
-      expect(shadow()).toBeNull();
+      expect(shadow()?.querySelector("[data-morph]") ?? null).toBeNull();
       expect(written().morph).toBeUndefined();
       expect(decodeURIComponent(written().background)).toContain("mouth.frown");
     }
@@ -393,7 +393,7 @@ describe("a `trigger = change` morph in the player (#2737)", () => {
     const { span, shadow, written } = await played(2, (index) => index === 1);
     await flushMicrotasks(20);
     expect(span()).not.toBeNull();
-    expect(shadow()).toBeNull();
+    expect(shadow()?.querySelector("[data-morph]") ?? null).toBeNull();
     expect(written().morph).toBeUndefined();
     expect(decodeURIComponent(written().background)).toContain("mouth.frown");
   });

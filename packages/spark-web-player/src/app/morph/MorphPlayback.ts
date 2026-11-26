@@ -101,7 +101,6 @@ interface MorphPictureFiles extends PictureFiles {
 }
 
 interface StillPicture {
-  owner: MorphLayer;
   layer: number;
   span: number;
   picture: LayeredPicture;
@@ -114,6 +113,7 @@ interface StillPicture {
   undrawn?: Undrawn;
   late?: boolean;
   under?: ImageState;
+  reported?: boolean;
 }
 
 interface StillRaster {
@@ -807,15 +807,18 @@ export class MorphPlayback {
     base: string,
     group: MorphGroup = new MorphGroup(),
     pictures: LayeredPicture[] = [],
-    from?: MorphLayer,
+    held = false,
   ): MorphLayer {
     const layer = new MorphLayer(this, span, content, background, kind, base, group, pictures);
+    if (held) layer.hold();
     this.layers.add(layer);
     (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph = layer;
-    if (from) this.forget(from);
-    layer.start(from);
-    from?.retire();
+    layer.start();
     return layer;
+  }
+
+  undrawnWithin(root: Element): MorphLayer[] {
+    return this.layersWithin(root).filter((layer) => !layer.drawn);
   }
 
   freezeWithin(root: Element) {
@@ -1060,7 +1063,7 @@ export class MorphLayer {
     );
   }
 
-  start(from?: MorphLayer) {
+  start() {
     for (const play of this.content.plays) {
       if (play.picture && this.kind === "mask") continue;
       let image = this.images.find((entry) => entry.layer === play.layer);
@@ -1105,24 +1108,28 @@ export class MorphLayer {
       image.slot.set(image.drawn);
       for (const inner of image.inner) inner.slot.set(inner.plays[0]!.play.ref);
     });
-    this.startStills(from);
+    this.startStills();
     this.showStill();
   }
 
-  protected takeStill(picture: LayeredPicture): StillPicture | undefined {
-    const srcs = JSON.stringify(picture.files.map((file) => file.src));
-    const index = this.stills.findIndex(
-      (still) => still.layer === picture.layer && still.span === picture.span && JSON.stringify(still.picture.files.map((file) => file.src)) === srcs,
-    );
-    if (index < 0) return undefined;
-    const [still] = this.stills.splice(index, 1);
-    return still;
+  protected held = false;
+
+  hold() {
+    this.held = true;
   }
 
-  retire() {
-    this.shadowHost?.remove();
-    this.shadowHost = undefined;
-    this.dispose();
+  release() {
+    if (!this.held) return;
+    this.held = false;
+    for (const image of this.images) {
+      if (image.resume === undefined) continue;
+      const again = this.continuation(image);
+      if (again && again.ref === image.drawn) {
+        image.turned = again.turned;
+        image.resume = again.offset;
+      }
+    }
+    if (this.active && !this.stale) this.startChanges();
   }
 
   protected continuation(image: ImageState): { ref: MorphRef; turned: boolean; offset: number } | undefined {
@@ -1154,7 +1161,7 @@ export class MorphLayer {
     return undefined;
   }
 
-  protected startStills(from?: MorphLayer) {
+  protected startStills() {
     if (this.kind !== "background") return;
     for (const picture of this.pictures) {
       const end = picture.layer + picture.span;
@@ -1165,16 +1172,7 @@ export class MorphLayer {
           ? covering[0]
           : undefined;
       if (covering.length > 0 && !under) continue;
-      const carried = from?.takeStill(picture);
-      if (carried) {
-        carried.owner = this;
-        carried.picture = picture;
-        if (under) carried.under = under;
-        else delete carried.under;
-        this.stills.push(carried);
-        continue;
-      }
-      const still: StillPicture = { owner: this, layer: picture.layer, span: picture.span, picture, rasters: new Map(), ...(under ? { under } : {}) };
+      const still: StillPicture = { layer: picture.layer, span: picture.span, picture, rasters: new Map(), ...(under ? { under } : {}) };
       this.stills.push(still);
       const ready = picture.files.map((file) => this.playback.pictureNow(file.src));
       if (ready.every((bitmap) => bitmap)) this.settleStill(still, ready);
@@ -1187,12 +1185,11 @@ export class MorphLayer {
     still.loading = true;
     const loaded = await Promise.all(still.picture.files.map((file) => this.playback.picture(file.src)));
     still.loading = false;
-    const owner = still.owner;
-    if (!owner.active || !owner.stills.includes(still)) return;
-    owner.settleStill(still, loaded);
-    if (still.files || still.undrawn) owner.build();
-    owner.showStill();
-    owner.checkDrawn();
+    if (!this.active) return;
+    this.settleStill(still, loaded);
+    if (still.files || still.undrawn) this.build();
+    this.showStill();
+    this.checkDrawn();
   }
 
   protected settleStill(still: StillPicture, loaded: (PictureBitmap | undefined)[]) {
@@ -1244,6 +1241,11 @@ export class MorphLayer {
   }
 
   protected refuse(still: StillPicture, undrawn: Undrawn) {
+    if (still.under) {
+      still.broken = true;
+      this.releaseStill(still);
+      return;
+    }
     still.undrawn = undrawn;
     still.late = false;
     this.releaseStill(still);
@@ -1251,6 +1253,8 @@ export class MorphLayer {
   }
 
   protected report(still: StillPicture, undrawn: Undrawn) {
+    if (still.reported) return;
+    still.reported = true;
     this.playback.reportStill?.({
       image: still.picture.name ?? still.picture.files[0]?.name ?? "",
       file: undrawn.file,
@@ -1370,7 +1374,7 @@ export class MorphLayer {
   }
 
   protected stillDrawn(still: StillPicture, ignoreLate = false): boolean {
-    if (still.broken || still.undrawn || this.arealess) return true;
+    if (still.broken || still.undrawn || this.arealess || (still.under && this.uncomposited(still.under))) return true;
     if (still.late && !ignoreLate) return true;
     if (still.loading || !still.files) return !still.loading;
     const canvases = still.canvases;
@@ -1527,7 +1531,7 @@ export class MorphLayer {
       this.applyMask();
       return;
     }
-    this.startChanges();
+    if (!this.held) this.startChanges();
     this.build();
     this.showStill();
     this.playback.track(this);
@@ -1578,7 +1582,7 @@ export class MorphLayer {
         image.slot.artifact?.status === "live" &&
         (!image.picture || (!!image.files && !image.broken)),
     );
-    const stills = this.stills.filter((still) => (still.files || still.undrawn) && !still.broken && (!still.under || !this.still));
+    const stills = this.stills.filter((still) => (still.files || still.undrawn) && !still.broken && (!still.under || (!this.still && !this.uncomposited(still.under))));
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
     const alone = (i: number, picture: ImageState | undefined) => {
@@ -1588,7 +1592,7 @@ export class MorphLayer {
     if (
       !ready.length &&
       !stills.length &&
-      !this.stills.some((rest) => rest.under && rest.files && !rest.broken && !rest.undrawn) &&
+      !this.stills.some((rest) => rest.under && rest.files && !rest.broken && !rest.undrawn && !this.uncomposited(rest.under)) &&
       !fallen.some((image) => image.inner.some((inner) => this.liveArtifact(inner.slot) && image.picture!.files[inner.file]?.layer !== undefined))
     ) {
       this.unbuild();
@@ -1680,7 +1684,7 @@ export class MorphLayer {
       still(i);
     }
     for (const rest of this.stills) {
-      if (rest.under && rest.files && !rest.broken && !rest.undrawn && !rest.canvases?.some((view) => view.box.isConnected))
+      if (rest.under && rest.files && !rest.broken && !rest.undrawn && !this.uncomposited(rest.under) && !rest.canvases?.some((view) => view.box.isConnected))
         this.stillCanvases(rest, computed, doc);
     }
     this.span.style.setProperty("background-image", this.layers.map(() => "none").join(", "));
@@ -1918,12 +1922,11 @@ export class MorphLayer {
       .catch(() => undefined)
       .then((made) => {
         raster.busy = false;
-        const owner = still.owner;
-        if (!owner.active || !owner.stills.includes(still) || still.rasters.get(index) !== raster) {
+        if (!this.active || still.rasters.get(index) !== raster) {
           made?.release();
           return;
         }
-        owner.landRaster(still, index, raster, want, made);
+        this.landRaster(still, index, raster, want, made);
       });
   }
 

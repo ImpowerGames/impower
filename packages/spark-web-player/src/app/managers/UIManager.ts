@@ -107,6 +107,7 @@ interface PendingBeat {
   owner: UIManager;
   drawing?: MorphLayer[];
   drawTimer?: ReturnType<typeof setTimeout>;
+  veil?: boolean;
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
@@ -560,6 +561,7 @@ export default class UIManager extends Manager {
         }
       }
     }
+    this.liftVeil();
     this._beatMarks.clear();
     this.discardAllPrepared();
   }
@@ -636,6 +638,7 @@ export default class UIManager extends Manager {
 
   protected receiveBeat(params: BeatParams) {
     this.flushPendingBeat();
+    this.liftVeil();
     this._beatMarks.received(params);
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
@@ -644,16 +647,18 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
-    const drawing = overlay ? this.prepareDrawing(ops, plan).filter((layer) => !layer.drawn) : [];
-    if (drawing.length === 0) {
+    const prepared = overlay ? this.prepareDrawing(ops, plan) : { layers: [], unprepared: false };
+    const drawing = prepared.layers.filter((layer) => !layer.drawn);
+    const veil = prepared.unprepared;
+    if (drawing.length === 0 && !veil) {
       this._beatMarks.ready(params);
     }
     if (!overlay || (wait <= 0 && drawing.length === 0)) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
-      this.applyBeat(params, ops, plan);
+      this.applyBeat(params, ops, plan, veil);
       return;
     }
-    const pending: PendingBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this };
+    const pending: PendingBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this, ...(veil ? { veil } : {}) };
     overlay.__sdBeat = pending;
     if (drawing.length > 0) {
       pending.drawing = drawing;
@@ -664,11 +669,13 @@ export default class UIManager extends Manager {
         pending.drawing = undefined;
         clearTimeout(pending.drawTimer);
         pending.drawTimer = undefined;
-        this._beatMarks.ready(params);
+        if (!pending.veil) {
+          this._beatMarks.ready(params);
+        }
         pending.owner.scheduleCommit();
       };
       void Promise.all(drawing.map((layer) => layer.whenDrawn())).then(landed);
-      const seconds = this.app.previewing === true ? this._drawTimeouts.restore : this._drawTimeouts.beat;
+      const seconds = this.drawSeconds();
       if (seconds > 0) {
         pending.drawTimer = setTimeout(() => {
           if (overlay.__sdBeat !== pending || !pending.drawing) {
@@ -686,18 +693,20 @@ export default class UIManager extends Manager {
     this.scheduleCommit();
   }
 
-  protected prepareDrawing(ops: IMessage[], plan: Map<IMessage, WriteDecision>): MorphLayer[] {
+  protected drawSeconds(): number {
+    return this.app.previewing === true ? this._drawTimeouts.restore : this._drawTimeouts.beat;
+  }
+
+  protected prepareDrawing(ops: IMessage[], plan: Map<IMessage, WriteDecision>): { layers: MorphLayer[]; unprepared: boolean } {
     const morphs = this.morphs;
     if (!morphs) {
-      return [];
+      return { layers: [], unprepared: false };
     }
     const layers: MorphLayer[] = [];
+    let unprepared = false;
     const animated = this.beatAnimations(ops);
-    const scaleAt = (el: Element, own: Animation[] = []) =>
-      Math.max(
-        keyframeScale(own),
-        ...animated.filter(({ element }) => element === el || element.contains(el)).map(({ scale }) => scale),
-      );
+    const nested = (el: Element) =>
+      animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
     for (const op of ops) {
       const msg = op as RequestMessage;
       if (!WriteImageMessage.type.isRequest(msg)) {
@@ -710,6 +719,13 @@ export default class UIManager extends Manager {
       const { target, instructions, elements } = msg.params;
       const targetEls = this.writeTargets(target, elements);
       if (targetEls.length === 0) {
+        unprepared ||= instructions.some(
+          (instruction) =>
+            instruction.control !== "hide" &&
+            !!instruction.content &&
+            !instruction.content.video &&
+            (!!instruction.content.morph || (instruction.content.pictures?.length ?? 0) > 0),
+        );
         continue;
       }
       const sig = JSON.stringify(instructions);
@@ -724,66 +740,138 @@ export default class UIManager extends Manager {
         const zoom = Math.max(instruction.framing?.zoom ?? 1, instruction.travel?.framing?.zoom ?? 1);
         const content = instruction.content;
         for (const targetEl of targetEls) {
-          const own = [
-            ...(instruction.targetAnimations ?? []),
-            ...(instruction.affected ?? [])
+          const around =
+            keyframeScale(instruction.targetAnimations) *
+            (instruction.affected ?? [])
               .filter((a) => this.findTargetElements(a.target).some((el) => el === targetEl || el.contains(targetEl)))
-              .flatMap((a) => a.animations),
-          ];
-          const els = this.getContentElements(targetEl, "image");
-          for (const contentEl of els) {
-            if (!content) {
+              .reduce((product, a) => product * keyframeScale(a.animations), 1);
+          const imageEls = this.getContentElements(targetEl, "image");
+          if (!content) {
+            for (const contentEl of imageEls) {
               for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
                 const layer = (pictureEl as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
                 if (!layer) {
                   continue;
                 }
-                layer.size({ zoom, scale: scaleAt(pictureEl, own) });
+                layer.size({ zoom, scale: around * nested(pictureEl) });
                 layers.push(layer);
               }
-              continue;
             }
-            if (instruction.control === "hide" || content.video) {
-              continue;
+            continue;
+          }
+          if (instruction.control === "hide" || content.video || (!content.morph && !(content.pictures?.length ?? 0))) {
+            continue;
+          }
+          const group = new MorphGroup();
+          const maskEls = content.morph ? this.getContentElements(targetEl, "mask") : [];
+          for (const [els, property] of [
+            [imageEls, "background_image"],
+            [maskEls, "mask_image"],
+          ] as const) {
+            for (const contentEl of els) {
+              const span = createImageElement(
+                contentEl,
+                property,
+                content.background,
+                content.imageNames,
+                content.sources ?? (content.src ? [content.src] : []),
+                this.applyStyle.bind(this),
+              );
+              span.style.setProperty("visibility", "hidden");
+              (span as any).__sdPrepared = true;
+              placePicture(span, instruction.framing);
+              const layer = morphs.mount(
+                span,
+                content.morph ?? { plays: [], epoch: 0 },
+                content.background,
+                property === "mask_image" ? "mask" : "background",
+                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+                group,
+                property === "background_image" ? (content.pictures ?? []) : [],
+                true,
+              );
+              layer.size({ zoom, scale: around * keyframeScale(content.enterAnimation ? [content.enterAnimation] : []) * nested(span) });
+              this.presizeHidden(span, layer);
+              let byContent = this._prepared.get(instruction);
+              if (!byContent) {
+                byContent = new Map();
+                this._prepared.set(instruction, byContent);
+              }
+              byContent.set(contentEl, span);
+              layers.push(layer);
             }
-            const pictures = (content.pictures ?? []).filter((picture) => !content.morph || picture.vector);
-            if (pictures.length === 0) {
-              continue;
-            }
-            const span = createImageElement(
-              contentEl,
-              "background_image",
-              content.background,
-              content.imageNames,
-              content.sources ?? (content.src ? [content.src] : []),
-              this.applyStyle.bind(this),
-            );
-            span.style.setProperty("visibility", "hidden");
-            (span as any).__sdPrepared = true;
-            placePicture(span, instruction.framing);
-            const layer = morphs.mount(
-              span,
-              { plays: [], epoch: content.morph?.epoch ?? 0 },
-              content.background,
-              "background",
-              `${(targetEl as any).__sdId ?? target}:background_image:${els.indexOf(contentEl)}`,
-              new MorphGroup(),
-              pictures,
-            );
-            layer.size({ zoom, scale: scaleAt(span, [...own, ...(content.enterAnimation ? [content.enterAnimation] : [])]) });
-            this.presizeHidden(span, layer);
-            let byContent = this._prepared.get(instruction);
-            if (!byContent) {
-              byContent = new Map();
-              this._prepared.set(instruction, byContent);
-            }
-            byContent.set(contentEl, span);
-            layers.push(layer);
           }
         }
       }
     }
-    return layers;
+    return { layers, unprepared };
+  }
+
+  protected _veil?: { lift: () => void };
+
+  protected liftVeil() {
+    this._veil?.lift();
+  }
+
+  protected veilMade(params: BeatParams, before: WeakSet<Element>) {
+    const overlay = this.app.overlay;
+    const layers = overlay ? (this.morphs?.undrawnWithin(overlay) ?? []) : [];
+    const roots: HTMLElement[] = [];
+    for (const layer of layers) {
+      let root: HTMLElement | undefined;
+      for (let el: HTMLElement | null = layer.span; el && el !== overlay; el = el.parentElement) {
+        if (!before.has(el)) {
+          root = el;
+        }
+      }
+      if (!root || roots.some((other) => other.contains(root!))) {
+        continue;
+      }
+      const kept = roots.filter((other) => !root!.contains(other));
+      roots.splice(0, roots.length, ...kept, root);
+    }
+    if (roots.length === 0) {
+      this._beatMarks.ready(params);
+      this._beatMarks.fired(params);
+      return;
+    }
+    const veiled = roots.map((el) => ({ el, value: el.style.getPropertyValue("visibility"), priority: el.style.getPropertyPriority("visibility") }));
+    for (const { el } of veiled) {
+      el.style.setProperty("visibility", "hidden", "important");
+    }
+    const waiting = layers.filter((layer) => roots.some((root) => root.contains(layer.span)));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const veil = {
+      lift: () => {
+        if (this._veil !== veil) {
+          return;
+        }
+        this._veil = undefined;
+        clearTimeout(timer);
+        for (const { el, value, priority } of veiled) {
+          if (value) {
+            el.style.setProperty("visibility", value, priority);
+          } else {
+            el.style.removeProperty("visibility");
+          }
+        }
+        this._beatMarks.ready(params);
+        this._beatMarks.fired(params);
+      },
+    };
+    this._veil = veil;
+    void Promise.all(waiting.map((layer) => layer.whenDrawn())).then(() => veil.lift());
+    const seconds = this.drawSeconds();
+    if (seconds > 0) {
+      timer = setTimeout(() => {
+        for (const layer of waiting) {
+          if (!layer.drawn) {
+            layer.overdue();
+          }
+        }
+        veil.lift();
+      }, seconds * 1000);
+    }
   }
 
   protected presizeHidden(span: HTMLElement, layer: MorphLayer) {
@@ -908,7 +996,7 @@ export default class UIManager extends Manager {
     clearTimeout(pending.drawTimer);
     pending.drawing = undefined;
     this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
-    this.applyBeat(pending.params, pending.ops, pending.plan);
+    this.applyBeat(pending.params, pending.ops, pending.plan, pending.veil);
   }
 
   protected applyShowing(params: ShowingParams) {
@@ -1014,8 +1102,13 @@ export default class UIManager extends Manager {
     params: BeatParams,
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
+    veil = false,
   ) {
-    this._beatMarks.fired(params);
+    const overlay = this.app.overlay;
+    const before = veil && overlay ? new WeakSet<Element>(Array.from(overlay.querySelectorAll("*"))) : undefined;
+    if (!before) {
+      this._beatMarks.fired(params);
+    }
     const layouts = this.measureLayouts(params, ops);
     for (const op of ops) {
       const decision = plan.get(op);
@@ -1029,6 +1122,9 @@ export default class UIManager extends Manager {
       this.sweepReconcile();
     }
     this._layoutMotion.play(layouts);
+    if (before) {
+      this.veilMade(params, before);
+    }
   }
 
   protected applyBeatMessage(message: IMessage, decision?: WriteDecision) {
@@ -2504,7 +2600,7 @@ export default class UIManager extends Manager {
               content.video && property === "background_image"
                 ? content.video
                 : undefined;
-            const prepared = !video && property === "background_image" ? this.takePrepared(instruction, contentEl) : undefined;
+            const prepared = !video ? this.takePrepared(instruction, contentEl) : undefined;
             const newSpanEl = prepared ?? (video
               ? createVideoElement(
                   contentEl,
@@ -2548,7 +2644,9 @@ export default class UIManager extends Manager {
             const composited = new Set(pictures.flatMap((picture) => picture.files.map((file) => file.src)));
             (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs.filter((src) => !composited.has(src)));
             const preparedLayer = prepared ? (prepared as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph : undefined;
-            if ((morph || pictures.length > 0) && (!preparedLayer || morph)) {
+            if (preparedLayer) {
+              preparedLayer.release();
+            } else if (morph || pictures.length > 0) {
               this.morphs?.mount(
                 newSpanEl,
                 morph ?? { plays: [], epoch: 0 },
@@ -2557,7 +2655,6 @@ export default class UIManager extends Manager {
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
                 morphGroup,
                 pictures,
-                preparedLayer,
               );
             }
             if (instruction.control === "show") {

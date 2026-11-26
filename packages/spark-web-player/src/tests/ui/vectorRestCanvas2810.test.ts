@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { createMorphHost, layeredMorphSource } from "@impower/sparkdown/src/morph/hosts";
+import { buildMorphRecipe, serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
+import type { MorphImageContent } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { LayeredPicture, WriteImageParams } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { Animation } from "@impower/spark-engine/src/game/modules/ui/types/Animation";
 import { pictureViewOf } from "../../../../spark-dom/src/utils/placePicture";
@@ -192,12 +196,15 @@ async function setup(options: { placeholders?: boolean; holdRasters?: boolean; r
     apply(...args);
   };
   let id = 0;
-  const beat = (writes: WriteImageParams[], line = 20) => {
+  const beat = (writes: WriteImageParams[], line = 20, before: { method: string; params: unknown }[] = []) => {
     h.ui.onReceiveNotification({
       jsonrpc: "2.0",
       method: "ui/beat",
       params: {
-        messages: writes.map((params) => ({ jsonrpc: "2.0", id: `write-${++id}`, method: "ui/write-image", params })),
+        messages: [
+          ...before.map((message) => ({ jsonrpc: "2.0", id: `op-${++id}`, ...message })),
+          ...writes.map((params) => ({ jsonrpc: "2.0", id: `write-${++id}`, method: "ui/write-image", params })),
+        ],
         source: { uri: "file:///main.sd", range: { start: { line, character: 0 }, end: { line, character: 1 } } },
       },
     } as never);
@@ -225,18 +232,19 @@ const marks = (line: number) =>
 describe("a vector picture's rest pose is drawn on a canvas before its beat fires (#2810)", () => {
   test("it is painted once before the beat is applied, at its box, pixel ratio, framing at both ends of a move, style scale and scale keyframes, and not again when the move starts", async () => {
     const t = await setup();
+    const lift = { ...grow, $name: "lift", keyframes: [{ transform: "scale(1)" }, { transform: "scale(1.2, 1.1)" }] } as unknown as Animation;
     t.beat([
       {
         ...show("backdrop", "dusk", ["/src/dusk.svg"], { framing: { x: 0.5, y: 0.5, zoom: 2 }, enter: grow }),
         instructions: [
-          show("backdrop", "dusk", ["/src/dusk.svg"], { framing: { x: 0.5, y: 0.5, zoom: 2 }, enter: grow }).instructions[0]!,
+          { ...show("backdrop", "dusk", ["/src/dusk.svg"], { framing: { x: 0.5, y: 0.5, zoom: 2 }, enter: grow }).instructions[0]!, targetAnimations: [lift] },
           { control: "animate", travel: { framing: { x: 0.5, y: 0.5, zoom: 3 }, timing: { delay: "0s", duration: "2s", easing: "linear" } } },
         ],
       },
     ]);
     await until(() => t.events.includes("applied"), "the beat");
-    const width = Math.round(BOX.width * DPR * 3 * STYLE_SCALE * 1.25);
-    const height = Math.round(BOX.height * DPR * 3 * STYLE_SCALE * 1.25);
+    const width = Math.round(BOX.width * DPR * 3 * STYLE_SCALE * 1.25 * 1.2);
+    const height = Math.round(BOX.height * DPR * 3 * STYLE_SCALE * 1.25 * 1.2);
     expect(t.events).toEqual([`paint ${width}x${height}`, "applied"]);
     expect(t.paints[0]!.draws).toEqual([`raster /src/dusk.svg ${width}x${height} @${width}x${height}`]);
     const span = t.spanOf("backdrop")!;
@@ -282,17 +290,115 @@ describe("a vector picture's rest pose is drawn on a canvas before its beat fire
   });
 });
 
-describe("a vector picture in an element the beat reveals (#2810)", () => {
-  test("is drawn before the beat at the size its span has once the element shows, and the element stays hidden until the beat", async () => {
-    const t = await setup();
-    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement;
+describe("a vector picture in an element the beat reveals or creates (#2810)", () => {
+  test("in an element the beat reveals, it is drawn before the beat at the size its span has once shown, the element stays hidden until the beat, and nothing is painted again once it shows", async () => {
+    const t = await setup({ holdRasters: true });
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
     sigil.style.setProperty("display", "none");
-    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])]);
-    await until(() => t.events.includes("applied"), "the beat");
+    t.beat([show("sigil", "emblem", ["/src/emblem.svg"])], 20, [{ method: "ui/update", params: { element: sigil.__sdId, style: { display: null }, breakpoints: {} } }]);
     const width = Math.round(BOX.width * DPR * STYLE_SCALE);
     const height = Math.round(BOX.height * DPR * STYLE_SCALE);
-    expect(t.events).toEqual([`paint ${width}x${height}`, "applied"]);
+    await until(() => t.rasters.length === 1, "the raster to be asked for");
+    expect(t.rasters[0]!.width).toBe(width);
     expect(sigil.style.getPropertyValue("display")).toBe("none");
+    expect(t.events).toEqual([]);
+    t.rasters[0]!.resolve(raster(t.rasters[0]!.src, width, height));
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(sigil.style.getPropertyValue("display")).toBe("");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(t.events).toEqual([`paint ${width}x${height}`, "applied"]);
+  });
+
+  test("in an element the beat creates, the element stays hidden until its picture is drawn, and the beat's ready and fired marks land with the drawing", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 40, [
+      { method: "ui/create", params: { parent: stage.__sdId, element: "made-plaque", type: "div", name: "plaque", breakpoints: {} } },
+      { method: "ui/create", params: { parent: "made-plaque", element: "made-plaque-image", type: "div", name: "image", breakpoints: {} } },
+    ]);
+    await until(() => t.events.includes("applied") && t.rasters.length === 1, "the beat and its raster");
+    const plaque = t.h.overlay.querySelector(".plaque") as HTMLElement;
+    expect(plaque.style.getPropertyValue("visibility")).toBe("hidden");
+    expect(marks(40)["fired"]).toBeUndefined();
+    const asked = t.rasters[0]!;
+    asked.resolve(raster(asked.src, asked.width, asked.height));
+    await until(() => marks(40)["fired"] !== undefined, "the fired mark");
+    expect(plaque.style.getPropertyValue("visibility")).toBe("");
+    expect(t.events).toEqual(["applied", `paint ${asked.width}x${asked.height}`]);
+    expect(marks(40)["ready"]).toBeGreaterThanOrEqual(Math.max(...t.paints.map((paint) => paint.at)));
+    expect(marks(40)["fired"]).toBeGreaterThanOrEqual(marks(40)["ready"]!);
+  });
+});
+
+const KIT = ["base", "closed", "open"];
+
+const KIT_CONTEXT = {
+  image: Object.fromEntries(KIT.map((name) => [name, { $type: "image", $name: name, src: `/src/${name}.png`, uri: `file:///${name}.png` }])),
+  layered_image: {
+    kit: {
+      $type: "layered_image",
+      $name: "kit",
+      assets: { base: { $name: "base" }, "mouth.closed default": { $name: "closed" }, "mouth.open": { $name: "open" } },
+    },
+  },
+};
+
+describe("a layered bitmap picture a morph plays on is drawn before its beat fires (#2810)", () => {
+  test("its morph canvas is painted before the beat is applied, and a change morph on it starts only when the beat applies", async () => {
+    const t = await setup();
+    const recipe = serializeMorphRecipe(
+      buildMorphRecipe("m", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 1, mouth: { state: "open" } }] } as never),
+    );
+    t.playback.configure({
+      host: createMorphHost({
+        service: new MorphBakeService(),
+        channel: () => ({ recipes: { m: recipe }, variants: {} }),
+        readSource: layeredMorphSource(() => KIT_CONTEXT as never),
+      }),
+    });
+    const files = KIT.map((name) => ({ src: `/src/${name}.png`, name: `${name}.png` }));
+    const morph: MorphImageContent = {
+      plays: [
+        {
+          layer: 0,
+          picture: { span: 2, files },
+          ref: { morphs: ["m"], key: "kit-mouth", image: "kit", selection: "{}", groups: ["mouth"] },
+          morph: "m",
+          timing: { trigger: "change", duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+          definition: "d",
+        },
+      ],
+      epoch: 0,
+    };
+    const startChange = t.playback.startChange.bind(t.playback);
+    vi.spyOn(t.playback, "startChange").mockImplementation((...args) => {
+      t.events.push("started");
+      startChange(...args);
+    });
+    t.beat([
+      {
+        target: "badge",
+        instant: false,
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: 'url("/src/closed.png"), url("/src/base.png")',
+              imageNames: "kit",
+              srcs: files.map((file) => file.src),
+              morph,
+              pictures: [{ layer: 0, span: 2, name: "kit", files: files.slice(0, 2) }],
+            },
+          },
+        ],
+      },
+    ]);
+    await until(() => t.events.includes("applied"), "the beat");
+    const applied = t.events.indexOf("applied");
+    expect(t.events.slice(0, applied).some((event) => event.startsWith("paint"))).toBe(true);
+    await until(() => t.events.includes("started"), "the change morph");
+    expect(t.events.indexOf("started")).toBeGreaterThan(applied);
+    expect(t.events.filter((event) => event === "started")).toHaveLength(1);
   });
 });
 
@@ -325,6 +431,22 @@ describe("a picture that cannot be drawn shows a placeholder in the previews and
     expect(shadow?.querySelector("canvas") ?? null).toBeNull();
     expect(t.spanOf("backdrop")!.style.getPropertyValue("background-image")).toBe("none");
     expect(t.reports).toHaveBeenCalledTimes(1);
+  });
+
+  test("a picture not drawn when the timeout runs out and then refused keeps one warning, and its placeholder takes the refusal's reason", async () => {
+    const t = await setup({ holdRasters: true, placeholders: true });
+    t.h.ui.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0.05, restoreTimeout: 0.05 },
+    } as never);
+    t.beat([show("backdrop", "dusk", ["/src/dusk.svg"])]);
+    await until(() => t.events.includes("applied"), "the beat after its timeout");
+    expect(t.shadowOf("backdrop")!.querySelector("[data-undrawn]")?.getAttribute("data-undrawn")).toBe("late");
+    t.rasters[0]!.resolve(undefined);
+    await until(() => t.shadowOf("backdrop")?.querySelector("[data-undrawn]")?.getAttribute("data-undrawn") === "undrawn", "the refusal");
+    expect(t.reports).toHaveBeenCalledTimes(1);
+    expect(t.reports).toHaveBeenCalledWith({ image: "dusk", file: "dusk.svg", reason: "late", placeholder: true });
   });
 
   test("a picture not drawn when the timeout runs out gets the placeholder and one warning, and its drawing replaces the placeholder when it lands", async () => {
