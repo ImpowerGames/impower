@@ -1,5 +1,4 @@
 import type { SparkProgram } from "../types/SparkProgram";
-import type { BodyNode } from "../types/SparkleNode";
 
 const WRITE_CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "image", "stroke", "mask"]);
 
@@ -66,18 +65,4 @@ export const layoutNames = (program: SparkProgram | undefined): Set<string> =>
 export const showingNames = (program: SparkProgram | undefined): Set<string> => {
   const { named, content } = layoutElementNames(program);
   return new Set([...layoutNames(program), ...named, ...content].filter((name) => !name.startsWith("$")));
-};
-
-export const mainLayoutElementNames = (program: SparkProgram | undefined): Set<string> => {
-  const names = new Set<string>();
-  const components = program?.sparkle?.components ?? {};
-  const visit = (nodes: readonly BodyNode[]) => {
-    for (const node of nodes) {
-      if (node.kind !== "element" || Object.hasOwn(components, node.tag)) continue;
-      for (const name of [node.tag, node.name]) if (name && !WRITE_CONTENT_TAGS.has(name)) names.add(name);
-      visit(node.children);
-    }
-  };
-  visit(program?.sparkle?.layouts?.["main"]?.children ?? []);
-  return names;
 };

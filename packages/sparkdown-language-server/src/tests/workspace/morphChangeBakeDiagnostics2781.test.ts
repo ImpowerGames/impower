@@ -1,5 +1,10 @@
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { channelRefs, morphRefsForStruct } from "@impower/sparkdown/src/morph/channel";
+import { changeLookName } from "@impower/sparkdown/src/morph/diagnostics";
+import { createMorphHost, inlineMorphSource } from "@impower/sparkdown/src/morph/hosts";
+import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@impower/sparkdown/src/worker/sparkdown.worker", () => ({ default: "" }));
 import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
@@ -15,36 +20,26 @@ const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
 <g data-name="mouth.open">${lips(45, 65)}</g>
 </svg>`;
 
-const morph = (trigger: string, keyframes = "") => `morph bend {
-  method = match
-${keyframes}  timing {
-    trigger = ${trigger}
-    duration = 0.08
-  }
-}
-`;
-
-const APPEAR = morph("appear", "  keyframes {\n    from { mouth { state = smile } }\n    to { mouth { state = frown } }\n  }\n");
-const CHANGE = morph("change");
+const CHANGE = `morph bend {\n  method = match\n  timing {\n    trigger = change\n    duration = 0.08\n  }\n}\n`;
 const TALK = `morph talk {\n  blend = cut\n  timing { trigger = speech }\n  keyframes {\n    from { mouth { state = smile } }\n    to { mouth { state = open } }\n  }\n}\n`;
 const MIA = `define mia as character with\n  name = "Mia"\nend\n`;
 
 const shows = (...looks: string[]) => `\nscene start\n${looks.map((look) => `  [[show portrait ${look}]]\n  Mia speaks.\n`).join("")}end\n`;
 
-function compile(script: string): any {
+function compile(script: string, version = 1): any {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    stripImageData: true,
     files: [
-      { uri: main, type: "script", name: "main", ext: "sd", text: script, version: 1, languageId: "sparkdown" },
-      { uri: asset, type: "image", name: "mia", ext: "svg", src: "/file:/local/mia.svg?v=1-1", text: SVG },
-      { uri: other, type: "image", name: "tom", ext: "svg", src: "/file:/local/tom.svg?v=1-1", text: SVG },
+      { uri: main, type: "script", name: "main", ext: "sd", text: script, version, languageId: "sparkdown" },
+      { uri: asset, type: "image", name: "mia", ext: "svg", data: SVG },
+      { uri: other, type: "image", name: "tom", ext: "svg", data: SVG },
     ],
   } as any);
   return compiler.compile({ textDocument: { uri: main } }).program;
 }
 
 function setup() {
+  const notifications = new Map<string, (params: any) => any>();
   const workspace = Object.create(SparkdownLanguageServerWorkspace.prototype) as SparkdownLanguageServerWorkspace;
   Object.assign(workspace, {
     _documents: new SparkdownDocumentRegistry([]),
@@ -55,94 +50,180 @@ function setup() {
     _lastFormattedText: new Map(),
     _watchedFiles: new Map<string, any>([[main, {}], [asset, { uri: asset, text: SVG }], [other, { uri: other, text: SVG }]]),
     _programStates: new Map(),
+    _fileChanges: 0,
     _entryPrograms: new Map(),
+    _connection: new Proxy(
+      {},
+      {
+        get: (_target, key) =>
+          key === "onNotification"
+            ? (method: string, handler: (params: any) => any) => {
+                notifications.set(method, handler);
+                return { dispose() {} };
+              }
+            : () => ({ dispose() {} }),
+      },
+    ),
     sendNotification: vi.fn(),
     sendRequest: vi.fn(),
   });
-  const publishes = () =>
-    vi.mocked(workspace.sendNotification).mock.calls
-      .filter(([method]) => method === "textDocument/publishDiagnostics")
-      .map(([, params]) => params as any);
-  return { workspace, publishes };
+  workspace.listen();
+  const compiled = (program: any) => {
+    (workspace as any)._programStates.set(main, { program });
+    workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
+  };
+  const report = (params: any) => notifications.get("sparkdown/runtimeDiagnostics")!(params);
+  const published = (uri: string) =>
+    vi
+      .mocked(workspace.sendNotification)
+      .mock.calls.filter(([method]) => method === "textDocument/publishDiagnostics")
+      .map(([, params]) => params as any)
+      .filter((p) => p.uri === uri)
+      .map((p) => p.diagnostics);
+  const morphOn = (uri: string) => (published(uri).at(-1) ?? []).filter((d: any) => String(d.code).startsWith("morph-"));
+  return { workspace, compiled, report, published, morphOn };
 }
 
-const until = async (check: () => boolean) => {
-  for (let i = 0; i < 200 && !check(); i++) await new Promise((resolve) => setTimeout(resolve, 10));
-};
-
-async function bakeDiagnostics(script: string) {
-  const { workspace, publishes } = setup();
-  const program = compile(script);
-  workspace.onCompiledTextDocument({ textDocument: { uri: main }, program });
-  await until(() => publishes().some((p) => p.uri === asset));
-  const published = publishes().filter((p) => p.uri === asset).at(-1)?.diagnostics ?? [];
-  return { program, diagnostics: published.filter((d: any) => String(d.code).startsWith("morph-")) };
+async function playedChange(program: any, fromLook: string, toLook: string) {
+  const struct = (name: string) => getContextEntry(program.context, "filtered_image", name) ?? getContextEntry(program.context, "image", name);
+  const [ref] = morphRefsForStruct(program.context, program.morphs, struct(toLook), undefined, { struct: struct(fromLook) });
+  const inline = inlineMorphSource(() => program.context);
+  const host = createMorphHost({
+    service: new MorphBakeService(),
+    channel: () => program.morphs,
+    readSource: async (source, signal) => {
+      const read = await inline(source, signal);
+      return read ? { text: read.text } : undefined;
+    },
+  });
+  const handle = await host.resolve(ref!);
+  expect(handle.artifact.diagnostics.every((d) => d.uri === undefined)).toBe(true);
+  const diagnostics = handle.artifact.diagnostics.map(({ code, severity, message, morphs, layer, path }) => ({
+    code,
+    severity,
+    message,
+    morphs,
+    ...(layer === undefined ? {} : { layer }),
+    ...(path === undefined ? {} : { path }),
+  }));
+  handle.release();
+  return {
+    program: { uri: main, scripts: { ...program.scripts } },
+    diagnostics: {},
+    morphBakes: [{ image: ref!.image, variant: changeLookName(ref!), diagnostics }],
+  };
 }
 
-const PAIRING = expect.objectContaining({ severity: 2, code: "morph-pairing-count", message: expect.stringContaining("Morph `bend` on `mia:mouth.frown`") });
+const settleBakes = () => new Promise((resolve) => setTimeout(resolve, 200));
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("a change morph's bake diagnostics", () => {
-  it("an appear morph on the pair reports the drawings its method cannot pair on the art", async () => {
-    const { diagnostics } = await bakeDiagnostics(`${APPEAR}\nscene start\n  [[mia:mouth.smile]]\n  Mia speaks.\nend\n`);
-    expect(diagnostics).toEqual([
-      expect.objectContaining({ severity: 2, code: "morph-pairing-count", message: expect.stringContaining('Morph `bend` on `mia`, `mia:mouth.smile` (layer "lip")') }),
+  it("a played pair's bake problem, returned by the player, is published on the artwork naming the morph and the look", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    report(await playedChange(program, "mia:mouth.smile", "mia:mouth.frown"));
+    expect(morphOn(asset)).toEqual([
+      expect.objectContaining({
+        severity: 2,
+        code: "morph-pairing-count",
+        source: "sparkdown",
+        message: 'Morph `bend` on `mia:mouth.frown` (layer "lip"): "lip" has 2 drawings in one pose and 3 in the other; neither is a single drawing, so they cannot pair and each uses its fallback.',
+      }),
     ]);
   }, 60_000);
 
-  it("a change morph reports the same problem on the art for two shows to one target in adjacent beats", async () => {
-    const { diagnostics } = await bakeDiagnostics(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
-    expect(diagnostics).toEqual([PAIRING]);
-    expect(diagnostics[0].message).toContain('"lip" has 2 drawings in one pose and 3 in the other');
+  it("the pair played again replaces its report rather than adding to it", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report(played);
+    report(played);
+    expect(morphOn(asset)).toHaveLength(1);
   }, 60_000);
 
-  it("the directives' morph clauses choose the speech morphs, so `morph none` on both keeps the change and its problem", async () => {
-    const { diagnostics } = await bakeDiagnostics(`${CHANGE}${TALK}${shows("mia:mouth.smile morph none", "mia:mouth.frown morph none")}`);
-    expect(diagnostics).toEqual([PAIRING]);
+  it("an entry whose image the compiled program does not hold is ignored", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report({ ...played, morphBakes: played.morphBakes.map((bake) => ({ ...bake, image: "nobody" })) });
+    expect(morphOn(asset)).toEqual([]);
   }, 60_000);
 
-  it("a pair whose morphs depend on who speaks the line, over a character's own portrait, is neither baked nor reported", async () => {
-    const { program, diagnostics } = await bakeDiagnostics(`${MIA}${CHANGE}${TALK}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
-    expect(program.morphChanges).toBeUndefined();
-    expect(diagnostics).toEqual([]);
+  it("a report from a program other than the one compiled is ignored", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report({ ...played, program: { uri: main, scripts: { [main]: 7 } } });
+    expect(morphOn(asset)).toEqual([]);
   }, 60_000);
 
-  it("a character's own portrait with no speech morph still reports, since no speaker changes its morphs", async () => {
-    const { diagnostics } = await bakeDiagnostics(`${MIA}${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
-    expect(diagnostics).toEqual([PAIRING]);
+  it("a line preview's report of the same program keeps the played pair, once", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    const played = await playedChange(program, "mia:mouth.smile", "mia:mouth.frown");
+    report(played);
+    report({
+      ...played,
+      diagnostics: { [main]: [{ severity: 2, message: "careful", range: { start: { line: 1, character: 0 }, end: { line: 1, character: 4 } }, source: "runtime" }] },
+    });
+    expect(morphOn(asset)).toHaveLength(1);
   }, 60_000);
 
-  it("a portrait replaced on its target between two shows is not a pair", async () => {
-    const { program, diagnostics } = await bakeDiagnostics(`${CHANGE}${shows("mia:mouth.smile", "tom:mouth.smile", "mia:mouth.frown")}`);
-    expect(program.morphChanges).toBeUndefined();
-    expect(diagnostics).toEqual([]);
+  it("is cleared when a run of a different compiled program reports", async () => {
+    const { compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    report(await playedChange(program, "mia:mouth.smile", "mia:mouth.frown"));
+    expect(morphOn(asset)).toHaveLength(1);
+    report({ program: { uri: main, scripts: { [main]: 2 } }, diagnostics: {} });
+    expect(morphOn(asset)).toEqual([]);
   }, 60_000);
 
-  it("lists only the pairs the shows reach in turn", () => {
-    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.open", "mia:mouth.smile")}`);
-    expect(program.morphChanges?.map(({ variant }: any) => variant)).toEqual(["mia:mouth.open", "mia:mouth.smile"]);
-  });
+  it("is cleared when the script changes", async () => {
+    const { workspace, compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    report(await playedChange(program, "mia:mouth.smile", "mia:mouth.frown"));
+    expect(morphOn(asset)).toHaveLength(1);
+    (workspace as any)._documentVersions.set(main, 2);
+    compiled(compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}\n`, 2));
+    expect(morphOn(asset)).toEqual([]);
+  }, 60_000);
+
+  it("is cleared when the artwork changes", async () => {
+    const { workspace, compiled, report, morphOn } = setup();
+    const program = compile(`${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`);
+    compiled(program);
+    report(await playedChange(program, "mia:mouth.smile", "mia:mouth.frown"));
+    expect(morphOn(asset)).toHaveLength(1);
+    workspace.onChangedFile({ uri: asset, name: "mia", ext: "svg", type: "image", text: SVG });
+    compiled(program);
+    expect(morphOn(asset)).toEqual([]);
+  }, 60_000);
 
   it.each([
-    ["a show with no target", `\nscene start\n  [[mia:mouth.smile]]\n  Mia smiles.\n  [[mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["a jump between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  -> other\nend\n\nscene other\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["a choice between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  choose\n  + Frown\n    [[show portrait mia:mouth.frown]]\n    Then she does not.\n  end\nend\n`],
-    ["a condition between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  if true then\n    [[show portrait mia:mouth.frown]]\n    Then she does not.\n  end\nend\n`],
-    ["a target from a variable", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  [[show $place mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["options from a variable", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  [[show portrait mia:$mood]]\n  Then she does not.\nend\n`],
-    ["a hide between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  [[hide portrait]]\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["a beat between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  Mia waits.\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["two shows in one beat", `\nscene start\n  [[show portrait mia:mouth.smile]] [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["a jump at the end of the line between the shows", `\nscene start\n  [[show portrait mia:mouth.smile]]\n  First. -> elsewhere\n  [[show portrait mia:mouth.frown]]\n  Second.\nend\n\nscene elsewhere\n  Arrived.\nend\n`],
-    ["a target only a layout the game never opens holds", `\nlayout unused {\n  ghost\n}\n\nscene start\n  [[show ghost mia:mouth.smile]]\n  Mia smiles.\n  [[show ghost mia:mouth.frown]]\n  Then she does not.\nend\n`],
-    ["two change morphs that both drive the changed group", `${CHANGE.replace("morph bend", "morph sway")}\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia smiles.\n  [[show portrait mia:mouth.frown]]\n  Then she does not.\nend\n`],
-  ])("%s is not a certain pair, so nothing is baked", (_case, scene) => {
-    expect(compile(`${CHANGE}${scene}`).morphChanges).toBeUndefined();
-  });
-
-  it("emphasis and a dialogue cue in the lines of text keep the pair certain", () => {
-    const program = compile(`${CHANGE}\nscene start\n  [[show portrait mia:mouth.smile]]\n  Mia *smiles*, "quietly" -- (a lot)!\n  [[show portrait mia:mouth.frown]]\n  MIA (softly): Then she does not.\nend\n`);
-    expect(program.morphChanges?.map(({ variant }: any) => variant)).toEqual(["mia:mouth.frown"]);
-  });
+    ["the ticket's pair, shown and never played", `${CHANGE}${shows("mia:mouth.smile", "mia:mouth.frown")}`],
+    ["a pair whose directives turn the speech morph off", `${CHANGE}${TALK}${shows("mia:mouth.smile morph none", "mia:mouth.frown morph none")}`],
+    ["a character's own portrait with a speech morph", `${MIA}${CHANGE}${TALK}${shows("mia:mouth.smile", "mia:mouth.frown")}`],
+    ["a portrait replaced on its target", `${CHANGE}${shows("mia:mouth.smile", "tom:mouth.smile", "mia:mouth.frown")}`],
+    ["a jump at the end of the line between the shows", `${CHANGE}\nscene start\n  [[show portrait mia:mouth.smile]]\n  First. -> elsewhere\n  [[show portrait mia:mouth.frown]]\n  Second.\nend\n\nscene elsewhere\n  Arrived.\nend\n`],
+    ["a target only an unopened layout holds", `${CHANGE}\nlayout unused {\n  ghost\n}\n\nscene start\n  [[show ghost mia:mouth.smile]]\n  Mia smiles.\n  [[show ghost mia:mouth.frown]]\n  Then she does not.\nend\n`],
+    ["two change morphs driving the changed group", `${CHANGE}${CHANGE.replace("morph bend", "morph sway")}${shows("mia:mouth.smile", "mia:mouth.frown")}`],
+    ["a target nested in a text area", `${CHANGE}\nlayout main {\n  textarea {\n    ghost { image }\n  }\n}\n\nscene start\n  [[show ghost mia:mouth.smile]]\n  First.\n  [[show ghost mia:mouth.frown]]\n  Second.\nend\n`],
+  ])("%s: a compile with no play bakes no change pair and reports none", async (_case, script) => {
+    const request = vi.spyOn(MorphBakeService.prototype, "request");
+    const { compiled, morphOn } = setup();
+    const program = compile(script);
+    compiled(program);
+    await settleBakes();
+    const compiledKeys = new Set(channelRefs(program.morphs).map(({ ref }) => ref.key));
+    expect(request.mock.calls.map(([key]) => key).filter((key) => !compiledKeys.has(key))).toEqual([]);
+    expect(morphOn(asset).filter((d: any) => String(d.message).includes("Morph `bend`"))).toEqual([]);
+  }, 60_000);
 });

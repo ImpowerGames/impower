@@ -30,6 +30,7 @@ import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import type { ImagePick } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { createMorphHost, type MorphHost } from "@impower/sparkdown/src/morph/hosts";
 import { layeredMorphArtwork } from "@impower/sparkdown/src/morph/layered";
+import { morphArtworkFiles, morphDiagnosticUri, morphEditorDiagnostics, type MorphEditorDiagnostic } from "@impower/sparkdown/src/morph/diagnostics";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphBakeDiagnostic, MorphRef } from "@impower/sparkdown/src/morph/types";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
@@ -478,28 +479,14 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   protected morphRefs(program: SparkProgram): MorphConsumer[] {
-    const refs: MorphConsumer[] = [];
-    for (const { variant, ref } of [...channelRefs(program.morphs), ...(program.morphChanges ?? [])]) {
-      const image = ref.layered ? undefined : getContextEntry(program.context, "image", ref.image);
-      if (image) {
-        const uri = image.uri;
-        refs.push({ variant, ref, ...(typeof uri === "string" ? { uri } : {}) });
-        continue;
-      }
-      const artwork = layeredMorphArtwork(program.context, getContextEntry(program.context, "layered_image", ref.image));
-      if (!artwork) continue;
-      const files: Record<string, string> = Object.create(null);
-      for (const [path, index] of Object.entries(artwork.paths)) {
-        const uri = artwork.files[index]?.uri;
-        if (uri) files[path] = uri;
-      }
-      refs.push({ variant, ref, ...(artwork.uri === undefined ? {} : { uri: artwork.uri }), files });
-    }
-    return refs;
+    return channelRefs(program.morphs).flatMap(({ variant, ref }) => {
+      const artwork = morphArtworkFiles(program.context, ref);
+      return artwork ? [{ variant, ref, ...artwork }] : [];
+    });
   }
 
   protected morphDiagnosticUri(consumer: MorphConsumer, diagnostic: MorphBakeDiagnostic): string | undefined {
-    return (diagnostic.path !== undefined && consumer.files?.[diagnostic.path]) || consumer.uri;
+    return morphDiagnosticUri(consumer, diagnostic);
   }
 
   protected recordMorphDiagnostics(key: string, diagnostics: MorphBakeDiagnostic[]) {
@@ -511,33 +498,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  protected morphDiagnosticsFor(program: SparkProgram, uri: string) {
-    type Group = { diagnostic: MorphBakeDiagnostic; variants: string[] };
-    const grouped = new Map<string, Group>();
-    for (const consumer of this.morphRefs(program)) {
-      const { variant, ref } = consumer;
-      for (const d of this.morphDiagnostics.get(ref.key) ?? []) {
-        if (this.morphDiagnosticUri(consumer, d) !== uri) continue;
-        const key = JSON.stringify([d.morphs, d.code, d.severity, d.layer, d.message]);
-        const group: Group = grouped.get(key) ?? { diagnostic: d, variants: [] };
-        if (!group.variants.includes(variant)) group.variants.push(variant);
-        grouped.set(key, group);
-      }
-    }
-    const out: ReturnType<SparkdownWorkspace["getDiagnostics"]> = [];
-    for (const { diagnostic: d, variants } of grouped.values()) {
-      const shown = variants.slice(0, 3).map((v) => `\`${v}\``).join(", ");
-      const more = variants.length > 3 ? ` and ${variants.length - 3} more` : "";
-      const where = d.layer ? ` (layer "${d.layer}")` : "";
-      out.push({
-        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
-        severity: d.severity === "error" ? 1 : 2,
-        code: `morph-${d.code}`,
-        source: "sparkdown",
-        message: `${d.morphs.length > 1 ? "Morphs" : "Morph"} ${d.morphs.map((m) => `\`${m}\``).join(" and ")} on ${shown}${more}${where}: ${d.message}`,
-      });
-    }
-    return out;
+  protected morphDiagnosticsFor(program: SparkProgram, uri: string): ReturnType<SparkdownWorkspace["getDiagnostics"]> {
+    const consumers = this.morphRefs(program).map((consumer) => ({ ...consumer, diagnostics: this.morphDiagnostics.get(consumer.ref.key) ?? [] }));
+    return morphEditorDiagnostics(consumers).get(uri) ?? [];
   }
 
   protected bakeProgramMorphs(program: SparkProgram, owner: string | undefined) {
@@ -651,11 +614,26 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   protected _fileChanges = 0;
 
+  protected runtimeMorphDiagnostics(params: RuntimeDiagnosticsParams | undefined) {
+    const program = params ? this.compiledProgram(params.program.uri) : undefined;
+    if (!params?.morphBakes?.length || !program) {
+      return new Map<string, MorphEditorDiagnostic[]>();
+    }
+    return morphEditorDiagnostics(
+      params.morphBakes.flatMap((bake) => {
+        const artwork = morphArtworkFiles(program.context, bake);
+        return artwork ? [{ variant: bake.variant, ...artwork, diagnostics: bake.diagnostics }] : [];
+      }),
+    );
+  }
+
   reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
     const last = this._runtimeDiagnostics?.params;
     const uris = new Set([
       ...Object.keys(last?.diagnostics ?? {}),
       ...Object.keys(params.diagnostics ?? {}),
+      ...this.runtimeMorphDiagnostics(last).keys(),
+      ...this.runtimeMorphDiagnostics(params).keys(),
     ]);
     this._runtimeDiagnostics = { params, files: this._fileChanges };
     for (const uri of uris) {
@@ -765,7 +743,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       program,
     );
     const report = this._runtimeDiagnostics;
-    const reported = report?.params.diagnostics?.[uri];
+    const reported = report && [
+      ...(report.params.diagnostics?.[uri] ?? []),
+      ...(this.runtimeMorphDiagnostics(report.params).get(uri) ?? []),
+    ];
     const entry = report?.params.program.uri;
     const ran = entry ? this.compiledProgram(entry) : program;
     if (!report || !reported?.length || !ran || !this.ranProgram(report, ran)) {

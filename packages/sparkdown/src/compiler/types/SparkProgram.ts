@@ -1,4 +1,4 @@
-import type { MorphProgramChannel, MorphRef } from "../../morph/types";
+import type { MorphProgramChannel } from "../../morph/types";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { type File } from "./File";
 import type { ProgramChangeSummary } from "./ProgramChangeSummary";
@@ -41,7 +41,6 @@ export interface SparkProgram {
   };
   assets?: { [type: string]: { [name: string]: any } };
   morphs?: MorphProgramChannel;
-  morphChanges?: { variant: string; ref: MorphRef }[];
   imageSizeRequests?: string[];
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];

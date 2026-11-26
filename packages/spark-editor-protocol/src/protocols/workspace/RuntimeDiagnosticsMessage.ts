@@ -4,9 +4,26 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 
 export type RuntimeDiagnosticsMethod = typeof RuntimeDiagnosticsMessage.method;
 
+export interface RuntimeMorphBakeDiagnostic {
+  code: string;
+  severity: "warning" | "error";
+  message: string;
+  morphs: string[];
+  layer?: string;
+  path?: string;
+}
+
+export interface RuntimeMorphBake {
+  image: string;
+  layered?: true;
+  variant: string;
+  diagnostics: RuntimeMorphBakeDiagnostic[];
+}
+
 export interface RuntimeDiagnosticsParams {
   program: { uri: string; scripts: Record<string, number> };
   diagnostics: Record<string, Diagnostic[]>;
+  morphBakes?: RuntimeMorphBake[];
 }
 
 export class RuntimeDiagnosticsMessage {

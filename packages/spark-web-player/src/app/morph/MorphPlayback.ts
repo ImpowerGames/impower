@@ -418,6 +418,7 @@ export class MorphPlayback {
   readPose: MorphPoseReader;
   rasterizeSvgLayer: SvgLayerRasterizer;
   reportStill?: (params: MorphStillParams) => void;
+  reportChangeBake?: (ref: MorphRef, artifact: MorphArtifact) => void;
   keepWhole?: (srcs: string[]) => void;
   residentPicture?: (src: string) => PictureBitmap | undefined;
   protected pictures = new Map<string, Promise<PictureBitmap | undefined>>();
@@ -505,8 +506,16 @@ export class MorphPlayback {
     return loading;
   }
 
+  protected reporting: MorphHost = {
+    resolve: (ref, options) =>
+      this.host.resolve(ref, options).then((handle) => {
+        if (ref.recipes) this.reportChangeBake?.(ref, handle.artifact);
+        return handle;
+      }),
+  };
+
   get resolver(): MorphHost {
-    return this.host;
+    return this.reporting;
   }
 
   deliver(params: { key: string; artifact?: MorphArtifact; error?: string }) {
