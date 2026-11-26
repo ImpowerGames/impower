@@ -130,6 +130,7 @@ async function setup(
     refuse?: (src: string) => boolean;
     load?: (src: string) => Promise<PictureBitmap | undefined>;
     stretch?: { x: number; y: number };
+    stretchOf?: (el: HTMLElement) => { x: number; y: number } | undefined;
   } = {},
 ) {
   const stretch = options.stretch ?? { x: STYLE_SCALE, y: STYLE_SCALE };
@@ -143,7 +144,7 @@ async function setup(
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -169,8 +170,9 @@ async function setup(
     configurable: true,
     value(this: HTMLElement) {
       const zoom = laidOut(this) ? pictureViewOf(this).zoom : 0;
-      const across = BOX.width * stretch.x * zoom;
-      const down = BOX.height * stretch.y * zoom;
+      const factor = options.stretchOf?.(this) ?? stretch;
+      const across = BOX.width * factor.x * zoom;
+      const down = BOX.height * factor.y * zoom;
       return { x: 0, y: 0, left: 0, top: 0, right: across, bottom: down, width: across, height: down, toJSON() {} };
     },
   });
@@ -573,6 +575,55 @@ describe("a later beat that redraws a shown picture keeps it shown until the new
   });
 });
 
+describe("a later beat's layout changes are measured on every shown picture before it fires (#2810)", () => {
+  test("a sibling's change that widens a shown picture draws it at the new size before the beat fires", async () => {
+    const t = await setup({ holdRasters: true });
+    const backdrop = t.h.overlay.querySelector(".backdrop") as HTMLElement & { __sdId?: string };
+    const { first, canvas } = await shown(t, 102);
+    t.beat([], 104, [{ method: "ui/update", params: { element: backdrop.__sdId, attributes: { class: "backdrop expanded" }, breakpoints: {} } }]);
+    await until(() => t.rasters.length === 2, "the wider raster");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the beat");
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  });
+
+  test("a beat that widens a shown picture and magnifies it more draws it at its new magnification", async () => {
+    const t = await setup({ holdRasters: true, stretchOf: (el) => (el.closest(".sigil.big") ? { x: 3, y: 3 } : undefined) });
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
+    sigil.style.removeProperty("display");
+    const { first } = await shown(t, 106);
+    t.beat([], 108, [{ method: "ui/update", params: { element: sigil.__sdId, attributes: { class: "sigil big" }, breakpoints: {} } }]);
+    await until(() => t.rasters.length === 2, "the larger raster");
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([800 * DPR * 3, 450 * DPR * 3]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the beat");
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(t.rasters).toHaveLength(2);
+  });
+
+  test("a shown picture the browser will not draw at its new size shows the placeholder as the beat fires, with one warning", async () => {
+    const t = await setup({ holdRasters: true, placeholders: true });
+    const sigil = t.h.overlay.querySelector(".sigil") as HTMLElement & { __sdId?: string };
+    await shown(t, 110);
+    t.beat([], 112, [{ method: "ui/update", params: { element: sigil.__sdId, attributes: { class: "sigil wide" }, breakpoints: {} } }]);
+    await until(() => t.rasters.length === 2, "the wider raster");
+    await flushMicrotasks(20);
+    expect(t.events.filter((event) => event === "applied")).toHaveLength(1);
+    t.rasters[1]!.resolve(undefined);
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the beat");
+    expect(t.shadowOf("sigil")!.querySelector("[data-undrawn]")?.getAttribute("data-undrawn")).toBe("undrawn");
+    expect(t.reports).toHaveBeenCalledTimes(1);
+    expect(t.reports).toHaveBeenCalledWith({ image: "emblem", file: "emblem.svg", reason: "undrawn", placeholder: true });
+  });
+});
+
 describe("a vector picture in an element the beat reveals or creates (#2810)", () => {
   test("in an element the beat reveals, it is drawn before the beat at the size its span has once shown, the element stays hidden until the beat, and nothing is painted again once it shows", async () => {
     const t = await setup({ holdRasters: true });
@@ -734,6 +785,61 @@ describe("a layered bitmap picture a morph plays on is drawn before its beat fir
     expect(t.spanOf("badge")!.style.getPropertyValue("background-image")).toBe("none, none");
     expect(t.reports).toHaveBeenCalledTimes(1);
     expect(t.reports).toHaveBeenCalledWith({ image: "kit", file: "base.svg", reason: "styled", declaration: "filter", placeholder: true });
+  });
+
+  test("a vector layer neither its rest canvas nor its morph can rasterize shows the placeholder, with one warning", async () => {
+    const t = await setup({ placeholders: true, refuse: (src) => src.endsWith(".svg") });
+    const recipe = serializeMorphRecipe(
+      buildMorphRecipe("m", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "closed" } }, { offset: 1, mouth: { state: "open" } }] } as never),
+    );
+    const context = {
+      ...KIT_CONTEXT,
+      image: { ...KIT_CONTEXT.image, base: { $type: "image", $name: "base", src: "/src/base.svg", uri: "file:///base.svg" } },
+    };
+    t.playback.configure({
+      host: createMorphHost({
+        service: new MorphBakeService(),
+        channel: () => ({ recipes: { m: recipe }, variants: {} }),
+        readSource: layeredMorphSource(() => context as never),
+      }),
+    });
+    const files = KIT.map((name) => (name === "base" ? { src: "/src/base.svg", name: "base.svg" } : { src: `/src/${name}.png`, name: `${name}.png` }));
+    t.beat([
+      {
+        target: "badge",
+        instant: false,
+        instructions: [
+          {
+            control: "show",
+            content: {
+              background: 'url("/src/closed.png"), url("/src/base.svg")',
+              imageNames: "kit",
+              srcs: files.map((file) => file.src),
+              morph: {
+                plays: [
+                  {
+                    layer: 0,
+                    picture: { span: 2, files },
+                    ref: { morphs: ["m"], key: "kit-refused", image: "kit", selection: "{}", groups: ["mouth"] },
+                    morph: "m",
+                    timing: { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as never,
+                    definition: "d",
+                  },
+                ],
+                epoch: 0,
+              },
+              pictures: [{ layer: 0, span: 2, name: "kit", vector: true, files: files.slice(0, 2) }],
+            },
+          },
+        ],
+      },
+    ]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await until(() => !!t.shadowOf("badge")?.querySelector("[data-undrawn]"), "the placeholder");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(t.shadowOf("badge")!.querySelector("[data-undrawn]")!.getAttribute("data-undrawn")).toBe("undrawn");
+    expect(t.reports).toHaveBeenCalledTimes(1);
+    expect(t.reports).toHaveBeenCalledWith({ image: "kit", file: "base.svg", reason: "undrawn", placeholder: true });
   });
 
   test("its morph canvas is painted before the beat is applied, and a change morph on it starts only when the beat applies", async () => {

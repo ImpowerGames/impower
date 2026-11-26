@@ -855,9 +855,8 @@ export default class UIManager extends Manager {
         }
       }
     }
-    const relaid: Element[] = [...changed, ...made.flatMap((el) => (el.parentElement ? [el.parentElement] : []))];
-    if (relaid.length > 0) {
-      layers.push(...morphs.prepareLayouts(new Set(layers), relaid));
+    if (changed.length > 0 || made.length > 0) {
+      layers.push(...morphs.prepareLayouts(new Set(layers)));
     }
     } finally {
       restore();

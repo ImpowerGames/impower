@@ -114,7 +114,7 @@ interface StillPicture {
   late?: boolean;
   under?: ImageState;
   reported?: boolean;
-  next?: { boxSize: string; rasters: Map<number, StillRaster> };
+  next?: { boxSize: string; rasters: Map<number, StillRaster>; refused?: Undrawn };
 }
 
 interface StillRaster {
@@ -401,6 +401,7 @@ interface ImageState {
   loading?: { artifact: MorphArtifact; done: Promise<void> };
   broken?: boolean;
   reported?: boolean;
+  pendingReports?: MorphStillParams[];
 }
 
 const restFrame = (): MorphFrameState => ({
@@ -836,10 +837,10 @@ export class MorphPlayback {
     for (const layer of this.layers) layer.adoptNext();
   }
 
-  prepareLayouts(skip: Set<MorphLayer>, within: Element[]): MorphLayer[] {
+  prepareLayouts(skip: Set<MorphLayer>): MorphLayer[] {
     const waiting: MorphLayer[] = [];
     for (const layer of this.layers) {
-      if (skip.has(layer) || !layer.span.isConnected || !within.some((root) => root === layer.span || root.contains(layer.span))) continue;
+      if (skip.has(layer) || !layer.span.isConnected) continue;
       layer.prepareLayout();
       if (!layer.drawn) waiting.push(layer);
     }
@@ -1252,8 +1253,9 @@ export class MorphLayer {
     }
   }
 
-  protected fallBack(target: { broken?: boolean }, picture: { files: { src: string }[] } | undefined) {
+  protected fallBack(target: { broken?: boolean; under?: ImageState }, picture: { files: { src: string }[] } | undefined) {
     target.broken = true;
+    this.flushMorphReports(target.under);
     if (picture) this.playback.keepWhole?.(picture.files.map((file) => file.src));
   }
 
@@ -1262,6 +1264,7 @@ export class MorphLayer {
     still.late = false;
     this.releaseStill(still);
     if (!still.under) this.report(still, undrawn);
+    this.flushMorphReports(still.under);
   }
 
   protected report(still: StillPicture, undrawn: Undrawn) {
@@ -1276,6 +1279,25 @@ export class MorphLayer {
     });
   }
 
+  protected reportMorph(image: ImageState, report: MorphStillParams) {
+    if (image.inner.length === 0 && this.stills.some((still) => still.under === image && !still.broken)) {
+      (image.pendingReports ??= []).push(report);
+      this.flushMorphReports(image);
+      return;
+    }
+    this.playback.reportStill?.(report);
+  }
+
+  protected flushMorphReports(image: ImageState | undefined) {
+    const pending = image?.pendingReports;
+    if (!image || !pending?.length) return;
+    const rest = this.stills.find((still) => still.under === image && !still.broken);
+    if (rest && !rest.undrawn && (rest.loading || !rest.files || [...rest.rasters.values()].some((raster) => raster.busy || !raster.image))) return;
+    image.pendingReports = undefined;
+    if (rest?.undrawn) return;
+    for (const report of pending) this.playback.reportStill?.(report);
+  }
+
   protected releaseStill(still: StillPicture) {
     for (const raster of still.rasters.values()) raster.release?.();
     still.rasters.clear();
@@ -1288,50 +1310,64 @@ export class MorphLayer {
   }
 
   adoptNext() {
-    if (this.active && this.stills.some((still) => still.next)) this.layout();
+    if (!this.active || !this.stills.some((still) => still.next)) return;
+    this.measureStyle();
+    this.relayout();
   }
 
   prepareLayout() {
     if (!this.active || this.kind !== "background" || this.held) return;
+    const shown = this.stills.filter(
+      (still) =>
+        !!still.canvases?.length &&
+        still.picture.vector &&
+        !still.undrawn &&
+        !still.broken &&
+        still.canvases.some((view) => view.painted !== undefined && view.box.isConnected),
+    );
+    if (shown.length === 0) return;
     const computed = this.computed();
     const win = this.span.ownerDocument.defaultView;
     const dpr = win?.devicePixelRatio && win.devicePixelRatio > 0 ? win.devicePixelRatio : 1;
-    for (const still of this.stills) {
-      const views = still.canvases;
-      if (!views?.length || !still.picture.vector || still.undrawn || still.broken || !views.some((view) => view.painted !== undefined && view.box.isConnected)) {
-        continue;
-      }
-      const plans = this.stillPlans(still, computed);
-      const area = this.layerBoxes(computed).padding;
-      if (!plans || !(area.width > 0 && area.height > 0) || JSON.stringify(this.stillSegments(plans)) !== still.segments) continue;
-      const boxSize = `${area.width}x${area.height}`;
-      if (views.every((view) => view.boxSize === boxSize)) {
+    const style = this.sizing.style;
+    this.measureStyle();
+    try {
+      for (const still of shown) {
+        const views = still.canvases!;
+        const plans = this.stillPlans(still, computed);
+        const area = this.layerBoxes(computed).padding;
+        if (!plans || !(area.width > 0 && area.height > 0) || JSON.stringify(this.stillSegments(plans)) !== still.segments) continue;
+        const boxSize = `${area.width}x${area.height}`;
+        const place = this.stillPlacement(still, plans, area, dpr);
+        const wants = new Map<number, { width: number; height: number }>();
+        for (const view of views) {
+          const paint = this.stillPaint(view, plans, place);
+          paint.layers.forEach((index, at) => {
+            const want = this.rasterWant(view, paint, at);
+            if (want && !wants.has(index)) wants.set(index, want);
+          });
+        }
+        const matches = (rasters: Map<number, StillRaster>) =>
+          [...wants].every(([index, want]) => {
+            const current = rasters.get(index)?.want;
+            return current?.width === want.width && current.height === want.height;
+          });
+        if (matches(still.rasters)) {
+          this.dropNext(still);
+          continue;
+        }
+        if (still.next?.boxSize === boxSize && matches(still.next.rasters)) continue;
         this.dropNext(still);
-        continue;
+        const next: NonNullable<StillPicture["next"]> = { boxSize, rasters: new Map() };
+        still.next = next;
+        for (const [index, want] of wants) {
+          const raster: StillRaster = { width: 0, height: 0, want };
+          next.rasters.set(index, raster);
+          this.rasterizeStill(still, index, raster);
+        }
       }
-      if (still.next?.boxSize === boxSize) continue;
-      this.dropNext(still);
-      const place = this.stillPlacement(still, plans, area, dpr);
-      const wants = new Map<number, { width: number; height: number }>();
-      for (const view of views) {
-        const paint = this.stillPaint(view, plans, place);
-        paint.layers.forEach((index, at) => {
-          const want = this.rasterWant(view, paint, at);
-          if (want && !wants.has(index)) wants.set(index, want);
-        });
-      }
-      const same = [...wants].every(([index, want]) => {
-        const current = still.rasters.get(index)?.want;
-        return current?.width === want.width && current.height === want.height;
-      });
-      if (same) continue;
-      const next = { boxSize, rasters: new Map<number, StillRaster>() };
-      still.next = next;
-      for (const [index, want] of wants) {
-        const raster: StillRaster = { width: 0, height: 0, want };
-        next.rasters.set(index, raster);
-        this.rasterizeStill(still, index, raster);
-      }
+    } finally {
+      this.sizing.style = style;
     }
   }
 
@@ -1460,7 +1496,7 @@ export class MorphLayer {
   }
 
   protected stillDrawn(still: StillPicture, ignoreLate = false): boolean {
-    if (still.broken || still.undrawn || this.arealess || (still.under && this.uncomposited(still.under))) return true;
+    if (still.broken || still.undrawn || this.arealess || (still.under && this.uncomposited(still.under) && still.under.inner.length > 0)) return true;
     if (still.late && !ignoreLate) return true;
     if (still.loading || !still.files) return !still.loading;
     const canvases = still.canvases;
@@ -1468,7 +1504,7 @@ export class MorphLayer {
     if (canvases.some((view) => view.painted === undefined)) return false;
     const ready = (raster: StillRaster) =>
       !raster.busy && !!raster.image && (!raster.want || (raster.width === raster.want.width && raster.height === raster.want.height));
-    return [...still.rasters.values()].every(ready) && [...(still.next?.rasters.values() ?? [])].every(ready);
+    return [...still.rasters.values()].every(ready) && (!still.next || !!still.next.refused || [...still.next.rasters.values()].every(ready));
   }
 
   protected canvasDrawn(image: ImageState): boolean {
@@ -1558,11 +1594,9 @@ export class MorphLayer {
                 : undefined;
       return reason ? [{ index, reason }] : [];
     });
-    const rest = image.inner.length === 0 && this.stills.some((still) => still.under === image && !still.broken);
     for (const { index, reason } of unfaithful) {
-      if (rest && (reason === "unread" || reason === "unsized" || reason === "styled")) continue;
       const declaration = reason === "styled" ? bitmaps.get(index)?.styled : undefined;
-      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason, ...(declaration !== undefined ? { declaration } : {}) });
+      this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason, ...(declaration !== undefined ? { declaration } : {}) });
     }
     const declared = svgIntrinsicSize(artifact);
     const width = declared.width || bottom?.width;
@@ -1598,7 +1632,7 @@ export class MorphLayer {
       for (const [, raster] of made) raster?.release();
       if (!current) return;
       for (const [index] of refused) {
-        this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason: "undrawn" });
+        this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: files[index]!.name, reason: "undrawn" });
       }
       image.broken = true;
       return;
@@ -1675,7 +1709,7 @@ export class MorphLayer {
         (still.files || still.undrawn || still.late) &&
         !still.broken &&
         (!still.under ||
-          (still.undrawn ? this.uncomposited(still.under) && still.under.inner.length === 0 : !this.still && !this.uncomposited(still.under))),
+          (this.uncomposited(still.under) ? still.under.inner.length === 0 : !still.undrawn && !this.still)),
     );
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
@@ -1914,7 +1948,7 @@ export class MorphLayer {
     const painted = views.some((view) => view.painted !== undefined);
     const resized = views.some((view) => view.boxSize !== boxSize);
     const next = still.next;
-    const adopt = resized && next?.boxSize === boxSize && [...next.rasters.values()].every((raster) => !raster.busy && !!raster.image);
+    const adopt = resized && next?.boxSize === boxSize && (!!next.refused || [...next.rasters.values()].every((raster) => !raster.busy && !!raster.image));
     if (painted && !this.settling && !adopt) {
       for (const view of views) {
         const last = view.still;
@@ -1942,6 +1976,13 @@ export class MorphLayer {
       return;
     }
     if (next) {
+      if (next.boxSize === boxSize && next.refused) {
+        const undrawn = next.refused;
+        this.dropNext(still);
+        this.refuse(still, undrawn);
+        this.build();
+        return;
+      }
       if (next.boxSize === boxSize) {
         for (const [index, raster] of next.rasters) {
           const old = still.rasters.get(index);
@@ -1953,7 +1994,7 @@ export class MorphLayer {
         this.dropNext(still);
       }
     }
-    if (!painted) this.measureStyle();
+    if (!painted || adopt) this.measureStyle();
     const place = this.stillPlacement(still, plans, area, dpr);
     for (const view of views) {
       const blended = view.segment.blend !== "normal" ? `;mix-blend-mode:${view.segment.blend}` : "";
@@ -2063,7 +2104,8 @@ export class MorphLayer {
 
   protected landNext(still: StillPicture, index: number, raster: StillRaster, want: { width: number; height: number }, made: SvgLayerRaster | undefined) {
     if (!made) {
-      this.dropNext(still);
+      still.next!.refused ??= { reason: "undrawn", file: still.picture.files[index]!.name };
+      this.layout();
       this.checkDrawn();
       return;
     }
@@ -2076,7 +2118,7 @@ export class MorphLayer {
       this.rasterizeStill(still, index, raster);
       return;
     }
-    if ([...still.next!.rasters.values()].every((entry) => !entry.busy && !!entry.image)) this.layout();
+    if (still.next!.refused || [...still.next!.rasters.values()].every((entry) => !entry.busy && !!entry.image)) this.layout();
     this.checkDrawn();
   }
 
@@ -2099,6 +2141,7 @@ export class MorphLayer {
     for (const view of still.canvases ?? []) {
       if (view.still && view.segment.layers.includes(index)) this.paintStill(view, view.still, still);
     }
+    this.flushMorphReports(still.under);
     this.checkDrawn();
   }
 
@@ -2550,7 +2593,7 @@ export class MorphLayer {
             image.broken = true;
             releaseFiles(files);
             const name = image.picture?.files[file]?.name;
-            if (name !== undefined) this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: name, reason: "undrawn" });
+            if (name !== undefined) this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: name, reason: "undrawn" });
             this.build();
             return;
           }
