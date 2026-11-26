@@ -237,6 +237,8 @@ const ESCAPE_OR_AT = /\\[^]|@/g;
 const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
 
+const LEADING_DIGIT = /^-?[0-9][\p{L}\p{N}_-]*$/u;
+
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
 class SparkleSelectorWriter {
@@ -532,7 +534,8 @@ class SparkleSelectorWriter {
   private attribute(): string {
     const [, name = "", operator = "", value = ""] = this.match(ATTRIBUTE)!;
     const attribute = name ? (this.options.attributeName?.(name) ?? name) : "";
-    const written = value.startsWith('"') || value.startsWith("'") ? value : escapeAts(value);
+    const quoted = value.startsWith('"') || value.startsWith("'");
+    const written = quoted ? value : LEADING_DIGIT.test(value) ? JSON.stringify(value) : escapeAts(value);
     return `[${attribute}${operator}${written}]`;
   }
 

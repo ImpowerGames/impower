@@ -21,6 +21,9 @@ describe("@variant(name) and @speaker(name) compile to marks on the game's root 
   test("#variant=left selects the elements written with the prop", () => {
     expect(written("#variant=left")).toBe('&[data-variant=left]');
     expect(written("#speaker=bunny")).toBe('&[data-speaker=bunny]');
+    expect(written("#variant=1")).toBe('&[data-variant="1"]');
+    expect(written("#variant=2nd")).toBe('&[data-variant="2nd"]');
+    expect(written("#speaker=bunny@night")).toBe('&[data-speaker=bunny\\@night]');
   });
 
   test("a position that refuses @showing refuses @variant and @speaker too", () => {

@@ -53,6 +53,7 @@ import {
   type DirectiveClause,
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import { cueVariant, readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
 import {
   type CharacterNames,
@@ -738,27 +739,19 @@ export class InterpreterModule extends Module<
     name: string,
     ...fallbacks: string[]
   ) {
-    const value = (this.context as any)?.[type]?.[name] as any;
-    if (value) {
-      return value;
-    }
-    for (let i = 0; i < fallbacks.length; i += 1) {
-      const fallbackName = fallbacks[i] || "";
-      const fallbackValue = (this.context as any)?.[type]?.[fallbackName];
-      if (fallbackValue) {
-        return fallbackValue;
-      }
-    }
-    return (this.context as any)?.[type]?.["$default"];
+    return getContextEntry(
+      this.context as any,
+      type,
+      this.lookupContextValueName(type, name, ...fallbacks),
+    );
   }
 
   protected typewriterFor(target: string, options?: InstructionOptions) {
     const variant = options?.spoken ? options.variant : undefined;
-    const typewriters = (this.context as any)?.typewriter;
-    if (variant && typewriters && Object.hasOwn(typewriters, variant)) {
-      return typewriters[variant];
-    }
-    return this.lookupContextValue("typewriter", target);
+    const typewriter = variant
+      ? getContextEntry(this.context as any, "typewriter", variant)
+      : undefined;
+    return typewriter || this.lookupContextValue("typewriter", target);
   }
 
   protected lookupContextValueName(
@@ -766,15 +759,9 @@ export class InterpreterModule extends Module<
     name: string,
     ...fallbacks: string[]
   ) {
-    const value = (this.context as any)?.[type]?.[name];
-    if (value) {
-      return name;
-    }
-    for (let i = 0; i < fallbacks.length; i += 1) {
-      const fallbackName = fallbacks[i] || "";
-      const fallbackValue = (this.context as any)?.[type]?.[fallbackName];
-      if (fallbackValue) {
-        return fallbackName;
+    for (const candidate of [name, ...fallbacks]) {
+      if (getContextEntry(this.context as any, type, candidate || "")) {
+        return candidate || "";
       }
     }
     return "$default";
@@ -1915,7 +1902,7 @@ export class InterpreterModule extends Module<
                 "synth",
                 "typewriter",
               );
-              synthEvents[synthName] ??= [];
+              if (!Object.hasOwn(synthEvents, synthName)) synthEvents[synthName] = [];
               synthEvents[synthName]!.push({
                 time,
                 speed: c.speed ?? 1,
@@ -1929,7 +1916,7 @@ export class InterpreterModule extends Module<
                     target || "",
                     "typewriter",
                   );
-              synthEvents[synthName] ??= [];
+              if (!Object.hasOwn(synthEvents, synthName)) synthEvents[synthName] = [];
               synthEvents[synthName]!.push({
                 time,
                 speed: c.speed ?? 1,

@@ -124,6 +124,22 @@ describe("a cue's brackets hold the line's variant (#2741)", () => {
   });
 });
 
+describe("a character defined with an Object member's name speaks (#2741)", () => {
+  test.each(["constructor", "toString"])("a line spoken by a character defined as %s is read", async (name) => {
+    const h = await start(`define ${name} as character with
+  name = "BUNNY"
+end
+
+scene start
+  BUNNY: Hello.
+end
+`);
+    const beat = h.nextBeat();
+    expect(beat?.speaker?.character).toBe(name);
+    expect((beat?.text?.["dialogue"] ?? []).map((e: any) => e.text).join("")).toBe("Hello.");
+  });
+});
+
 describe("#variant and #speaker on a text element limit the lines it takes (#2741)", () => {
   test("character_name #variant=left takes only left lines' names, and #speaker=bunny only Bunny's lines", async () => {
     const h = await start(`${CHARACTERS}\n${LAYOUT}\n${LINES}`);
