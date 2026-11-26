@@ -3,7 +3,7 @@
 //
 // Paste this whole file into the editor to see it live, OR just open it: it is
 // the fixture behind
-// packages/spark-web-player/src/tests/ui/picoShowcase.test.ts, which compiles it
+// packages/spark-web-player/test/ui/picoShowcase.test.ts, which compiles it
 // WARNING-FREE and asserts the rendered DOM. Adding a section here is how a
 // builtin earns CI coverage, so keep the two in sync.
 //

@@ -1,6 +1,6 @@
 import type { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
-import { compileProgram } from "@impower/spark-engine/src/tests/harness/compileProgram";
+import { compileProgram } from "@impower/spark-engine/test/harness/compileProgram";
 import type { DebugProtocol } from "@vscode/debugprotocol";
 import { describe, expect, it } from "vitest";
 import {

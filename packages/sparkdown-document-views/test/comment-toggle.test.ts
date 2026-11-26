@@ -16,11 +16,11 @@ import {
   SPARKDOWN_LANGUAGE_CONFIGS,
   sparkdownLanguageFor,
 } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
-import { loadGrammarCorpus } from "@impower/sparkdown/src/tests/compiler/languageEquality";
+import { loadGrammarCorpus } from "@impower/sparkdown/test/compiler/languageEquality";
 import {
   LINE_COMMENT_MARKERS,
   lineCommentResults,
-} from "@impower/sparkdown/src/tests/compiler/lineComments";
+} from "@impower/sparkdown/test/compiler/lineComments";
 import { describe, expect, it, test, vi } from "vitest";
 
 const SD_URI = "file:///main.sd";

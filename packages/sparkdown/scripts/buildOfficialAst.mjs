@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const target = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../src/tests/luau-conformance/upstream",
+  "../test/luau-conformance/upstream",
 );
 const typecheck = process.argv[3] === "--typecheck";
 if (process.argv[3] && !typecheck)

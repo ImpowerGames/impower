@@ -1,0 +1,275 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { DiagnosticSeverity, type SparkDiagnostic } from "../../src/compiler/types/SparkDiagnostic";
+import { lexLuauDocumentForTesting, nextLuauToken, noteLuauDocumentEdit, readLuauExpressionAfter } from "../../src/compiler/typecheck/readLuauAst";
+import { officialErrorList } from "./officialSyntax";
+import { messageOf, NOT_SYNTAX } from "./luauSyntaxReadings";
+
+const URI = "inmemory:///main.sd";
+const SCENE = "scene start\n  Hello.\nend\n";
+
+function errorsOf(diagnostics: readonly SparkDiagnostic[]): string[] {
+  return diagnostics
+    .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
+    .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${messageOf(d)}`)
+    .sort();
+}
+
+function newCompiler(text: string): SparkdownCompiler {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+  } as never);
+  return compiler;
+}
+
+function compileErrors(compiler: SparkdownCompiler): string[] {
+  return errorsOf(compiler.compile({ textDocument: { uri: URI } } as never).program.diagnostics?.[URI] ?? []);
+}
+
+function sparkdownErrors(text: string): string[] {
+  return compileErrors(newCompiler(text));
+}
+
+const PADDING = "function padding()\n  local p = 0\nend\n";
+
+function expectIncrementalEqualsCold(text: string): void {
+  const padded = PADDING + text;
+  const offset = padded.indexOf("0");
+  const compiler = newCompiler(padded);
+  compiler.compile({ textDocument: { uri: URI } } as never);
+  compiler.updateDocument({
+    textDocument: { uri: URI, version: 2 },
+    contentChanges: [{ range: { start: { line: 1, character: 12 }, end: { line: 1, character: 13 } }, text: "10000000000" }],
+  } as never);
+  const edited = padded.slice(0, offset) + "10000000000" + padded.slice(offset + 1);
+  expect(compileErrors(compiler)).toEqual(sparkdownErrors(edited));
+}
+
+function official(text: string, line = 0, shift = 0): string[] {
+  return officialErrorList(text)
+    .map((error) =>
+      error
+        .replace(/^(\d+):(\d+)-(\d+):(\d+)/, (_, sl, sc, el, ec) => `${+sl + line}:${+sc + shift}-${+el + line}:${+ec + shift}`)
+        .replace(/at column (\d+)\)/, (_, column) => `at column ${+column + shift})`)
+        .replace(/at line (\d+)\)/, (_, at) => `at line ${+at + line})`),
+    )
+    .sort();
+}
+
+describe("an interpolation holding an expression and then a backtick string with interpolations (I-1427)", () => {
+  for (const string of ["`a {1 `b {x} c`} d`", "`a {1 `b {x} c` 2} d`", "`a {1 `b {x} c {y} e`} d`", "`a {1 `b`} d`", "`a {1 2} b`"]) {
+    test(`a function's local t = ${string}`, () => {
+      const luau = `local t = ${string}\n`;
+      const expected = official(luau, 1);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`function f()\n${luau}end\n${SCENE}`)).toEqual(expected);
+    });
+    test(`a story store t = ${string}`, () => {
+      expect(sparkdownErrors(`store t = ${string}\n`)).toEqual(official(`local t = ${string}\n`));
+      expectIncrementalEqualsCold(`store t = ${string}\n`);
+    });
+  }
+});
+
+describe("a story store's run-on value that is a backtick string with interpolations (I-1429)", () => {
+  for (const string of ["`a {x} b`", "`a {x} b {y} c`", "`a {x}`"]) {
+    for (const tail of ["", "scene start\n  Hello.\nend\n"]) {
+      test(`store s = 1 ${string}${tail ? " before a scene" : ""}`, () => {
+        const expected = official(`local s = 1 ${string}\n`);
+        expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+        expect(sparkdownErrors(`store s = 1 ${string}\n${tail}`)).toEqual(expected);
+        expectIncrementalEqualsCold(`store s = 1 ${string}\n${tail}`);
+      });
+    }
+  }
+});
+
+const DIRECTIVE_NAME_MARKS: Readonly<Record<string, string[]>> = {
+  "print((`a {} b`))": ["1:12-1:13 Invalid syntax", "1:13-1:14 Invalid syntax", "1:16-1:17 Invalid syntax", "1:9-1:10 Invalid syntax"],
+};
+
+describe("a malformed interpolation in a scene-level call's argument (I-1433)", () => {
+  for (const line of ["print(`a {} b`)", "print(`a {1 2} b`)", "print(`a {x y} b`)", "print(1, `a {} b`)", "print(1, `a {1 2} b`)", "print((`a {} b`))"]) {
+    test(`& ${line}`, () => {
+      const expected = official(`${line}\n`, 1, 4);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`scene start\n  & ${line}\n  Hello.\nend\n`)).toEqual(expected);
+    });
+    test(`display text: ${line}`, () => {
+      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(DIRECTIVE_NAME_MARKS[line] ?? []);
+    });
+  }
+  for (const line of ["s = `a {} b`", "local x = print(`a {} b`)"]) {
+    test(`unchanged: ${line}`, () => {
+      expect(sparkdownErrors(`scene start\n  ${line}\n  Hello.\nend\n`)).toEqual(official(`${line}\n`, 1, 2));
+    });
+  }
+});
+
+describe("an interpolation left open inside a call reads on from the line after it (I-1343)", () => {
+  for (const body of ["  f(`a {b\n  x = 1\n", "  local s = `a {b +\n  x = 1\n", "  local s = `a {b\n  x = 1\n", "  f(`a {b\n  x\n  }`)\n", "  f(1, `a {b\n  x = 1\n"]) {
+    test(JSON.stringify(body), () => {
+      const luau = `function run()\n${body}end\n`;
+      const expected = official(luau);
+      expect(expected.length, "the official parser reports the form").toBeGreaterThan(0);
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(expected);
+    });
+  }
+});
+
+describe("a backtick string's boundaries, as Luau reads them", () => {
+  const forms = [
+    "1 g(`a \\u{41} b`)",
+    "1 g(`a {x} \\u{41} b {y} c`)",
+    "1 g(`a {x} b",
+    "1 g(`a {x}",
+    "1 g(`a {x} b {y",
+    "1 g(`a {} b",
+    "1 g(`a {x} b, 2)",
+    "`a {1 `b {x} c\\x`} d`",
+    "`a {1 `b\\x {x} c`} d`",
+    "`a {1 `b {x} c\\x {y} e`} d`",
+    "`a {1 `b {x} c} d`",
+    "`a {1 `b {x} c} d` + 1",
+    "`a {1 `b {x} c {} e`} d`",
+    "`a {1 `b {x} c {`e {y} f`} g`} d`",
+    "`a {1 `b {x :: `a {y} b`} c`} d`",
+    "1 g(`a {x :: `b {y} c`} d`)",
+    "`a {1 `b {x} c",
+    "`a {x} b {1 `b {x} c",
+    "`a {1 `b {x} c {y} d",
+    "1 `a {1 `b {x} c",
+    "`a \\u{41} {x} b`",
+  ];
+  const callEnd = /^\d+:\d+-1:0 Expected '\)' \(to close '\(' at /;
+  const endsBeforeItsCall = "1 g(`a {x} b {y";
+  test(`store s = ${JSON.stringify(endsBeforeItsCall)} ends its value at 1 and reads the rest as display text, whose unclosed backtick is text`, () => {
+    expect(sparkdownErrors(`store s = ${endsBeforeItsCall}\n`)).toContain(
+      "0:23-1:0 Malformed interpolated string; did you forget to add a `}`?",
+    );
+  });
+  for (const value of forms.filter((form) => form !== endsBeforeItsCall)) {
+    test(`store s = ${JSON.stringify(value)}`, () => {
+      const expected = official(`local s = ${value}\n`).filter((error) => !callEnd.test(error));
+      expect(sparkdownErrors(`store s = ${value}\n`).filter((error) => !callEnd.test(error))).toEqual(expected);
+    });
+  }
+  for (const value of [...forms, "`a {1 `b {x +} c`} d`", "1 g(`a \\z\n  {x} b`)", "`a {1 `b {x\n} c`} d`", "`a {1 `b {x} c\nlocal z = {x = 1}", "`a {1 `b {x} c\nlocal z = 1"]) {
+    test(`a function's local s = ${JSON.stringify(value)}`, () => {
+      const luau = `function f()\nlocal s = ${value}\nend\n`;
+      expect(sparkdownErrors(`${luau}${SCENE}`)).toEqual(official(luau));
+    });
+  }
+  test("a \\z escape before a no-break space and a line break", () => {
+    const source = "`a \\z\u00a0\n   b`";
+    expect(readLuauExpressionAfter(0, source).errors[0]?.message).toBe("Malformed string; did you forget to finish it?");
+    forgetLookups();
+    expect(nextLuauToken(7, source)).toEqual({ text: "b", from: source.indexOf("b") });
+  });
+
+  test("a store whose continued string is left open at its line, before story lines", () => {
+    const text = "store s = `a {1 `b {x} c\nHello.\n} d`\nstore t = 1\n";
+    const errors = sparkdownErrors(text);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/^0:21-0:24 Malformed interpolated string; /);
+  });
+
+  test("a broken inner section's words, read no further than the bound", () => {
+    const source = "`a {1 `b {x} c} d`";
+    const bounded = readLuauExpressionAfter(0, source, 14);
+    forgetLookups();
+    expect(bounded.errors).toEqual(readLuauExpressionAfter(0, source.slice(0, 14)).errors);
+    expect(bounded.errors[0]?.message).toBe("Malformed interpolated string; did you forget to add a '}'?");
+  });
+
+  test("a broken inner section's words in a story local, after an edit on the next line", () => {
+    const text = "scene start\n  local s = `a {1 `b {x} c\n  x d`\n  Hello.\nend\n";
+    const at = text.indexOf("x d");
+    const compiler = newCompiler(text);
+    compiler.compile({ textDocument: { uri: URI } } as never);
+    compiler.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [{ range: { start: { line: 2, character: 2 }, end: { line: 2, character: 3 } }, text: "}" }],
+    } as never);
+    const edited = text.slice(0, at) + "}" + text.slice(at + 1);
+    expect(compileErrors(compiler)).toEqual(sparkdownErrors(edited));
+  });
+
+  test("a read bounded inside a string's section reads what the text up to the bound gives", () => {
+    const source = "`a {x} tail`";
+    for (let to = 1; to <= source.length; to++) {
+      forgetLookups();
+      nextLuauToken(source.length, source);
+      const bounded = readLuauExpressionAfter(0, source, to);
+      forgetLookups();
+      expect(bounded.errors, `to ${to}`).toEqual(readLuauExpressionAfter(0, source.slice(0, to)).errors);
+    }
+  });
+});
+
+function forgetLookups() {
+  nextLuauToken(0, "");
+}
+
+describe("the lookups after an edit inside a backtick string's interpolation", () => {
+  const forget = () => nextLuauToken(0, "");
+  const fresh = (from: number, source: string) => {
+    const token = lexLuauDocumentForTesting(source).find((candidate) => candidate.from >= from);
+    if (!token) return null;
+    return { text: token.kind === "name" || token.kind === "keyword" ? token.text : token.text[0], from: token.from };
+  };
+
+  test("an edit far into a long interpolation", () => {
+    const before = "local s = `a {" + "x + ".repeat(40) + "x} b`\n";
+    forget();
+    nextLuauToken(before.length, before);
+    const at = before.lastIndexOf("x}");
+    const after = before.slice(0, at) + "y" + before.slice(at + 1);
+    noteLuauDocumentEdit(before, after, at, at + 1, at + 1);
+    expect(nextLuauToken(at + 3, after)).toEqual(fresh(at + 3, after));
+    const cached = readLuauExpressionAfter(10, after);
+    forget();
+    expect(cached).toEqual(readLuauExpressionAfter(10, after));
+    expect(cached.errors).toEqual([]);
+  });
+
+  test("an edit after a backtick string's \\z escape and the lines it skips (round 1)", () => {
+    const before = "local s = `a \\z\n" + " ".repeat(160) + "x b`\n";
+    forget();
+    nextLuauToken(before.length, before);
+    const at = before.indexOf("x b");
+    const after = before.slice(0, at) + "{x}" + before.slice(at + 1);
+    noteLuauDocumentEdit(before, after, at, at + 1, at + 3);
+    const cached = { next: nextLuauToken(15, after), expression: readLuauExpressionAfter(10, after) };
+    forget();
+    expect(cached).toEqual({ next: fresh(15, after), expression: readLuauExpressionAfter(10, after) });
+    expect(cached.expression.errors).toEqual([]);
+  });
+
+  test("a chain of edits in and around interpolations", () => {
+    let seed = 1451;
+    const random = (n: number) => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    const pieces = ["`", "{", "}", "{ ", " }", "\n", " ", "x", "1", "+", "`a {", "} b {", "} c`", "{1}", "--", "\\", "\\z", " ".repeat(70), "\\u{41}"];
+    let source = Array.from({ length: 30 }, (_, i) =>
+      i % 3 === 0 ? `local v${i} = \`a {${"x + ".repeat(20)}{ y = ${i} }} b {z} c\`\n` : i % 3 === 1 ? `f(\`a {g(\`b {${i}} c\`)} d\`)\n` : `-- ${"note ".repeat(16)}${i}\n`).join("");
+    forget();
+    for (let step = 0; step < 150; step++) {
+      const at = random(source.length + 1);
+      const removed = random(4) === 0 ? random(8) : 0;
+      const inserted = random(3) === 0 ? "" : pieces[random(pieces.length)]!;
+      const before = source;
+      source = source.slice(0, at) + inserted + source.slice(at + removed);
+      noteLuauDocumentEdit(before, source, at, Math.min(at + removed, before.length), at + inserted.length);
+      const probes = Array.from({ length: 4 }, (_, i) => i % 2 === 0 ? Math.min(source.length, at + random(80)) : random(source.length + 1));
+      const found = { tokens: probes.map((from) => nextLuauToken(from, source)), expression: readLuauExpressionAfter(probes[0]!, source) };
+      const tokens = probes.map((from) => fresh(from, source));
+      forget();
+      expect(found, `step ${step}`).toEqual({ tokens, expression: readLuauExpressionAfter(probes[0]!, source) });
+      nextLuauToken(source.length, source);
+    }
+  });
+});

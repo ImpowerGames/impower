@@ -24,7 +24,7 @@ import {
   SPARKDOWN_LUAU_LANGUAGE,
   sparkdownLanguageFor,
 } from "@impower/sparkdown/src/compiler/utils/sparkdownLanguageFor";
-import { parseSource } from "@impower/sparkdown/src/tests/compiler/grammarSnapshot";
+import { parseSource } from "@impower/sparkdown/test/compiler/grammarSnapshot";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

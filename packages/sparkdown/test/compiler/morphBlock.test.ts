@@ -1,0 +1,1814 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { bindMorph } from "../../src/compiler/morph/bindMorph";
+import { normalizeMorphKeyframes } from "../../src/compiler/morph/normalizeMorphKeyframes";
+import { parseMorphRecipe } from "../../src/morph/recipe";
+import { compileSource } from "./compileSnapshot";
+
+const URI = "file:///main.sd";
+
+const PORTRAIT = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="face.happy default" id="happy">
+  <g data-name="eyelash-left eyes.open default" id="la"/>
+  <g data-name="eyelash-left eyes.closed" id="lc"/>
+  <g data-name="eyelash-right eyes.open default" id="ra"/>
+  <g data-name="eyelash-right eyes.closed" id="rc"/>
+  <g data-name="eyeball-white-left eyes.open" id="wl"/>
+  <g data-name="eyeball-shadow-left eyes.open" id="sl"/>
+  <g data-name="pupil-left eyes.open" id="pl"/>
+  <g data-name="eyeball-white-right eyes.open" id="wr"/>
+  <g data-name="eyeball-shadow-right eyes.open" id="sr"/>
+  <g data-name="pupil-right eyes.open" id="pr"/>
+  <g data-name="creases" id="cr"/>
+  <g data-name="eyebrows" id="eb"/>
+  <g data-name="nose" id="no"/>
+</g>
+<g data-name="face.sleepy" id="sleepy">
+  <g data-name="lids eyes.closed default" id="sl-lids"/>
+  <g data-name="lids eyes.open" id="sl-open"/>
+</g>
+</svg>`;
+
+const BLINK = `morph blink {
+  blend = morph
+  method = bend
+  fallback = fade
+
+  layers {
+    creases {
+      fallback = scale
+    }
+  }
+
+  keyframes {
+    0% {
+      eyes {
+        state = eyes.open
+      }
+      eyebrows {
+        translate = 0 0
+      }
+      nose {
+        translate = 0 0
+      }
+    }
+    33.333% {
+      eyes {
+        state = eyes.closed
+      }
+      eyebrows {
+        translate = 0 8px
+      }
+      nose {
+        translate = 0 -2px
+      }
+    }
+    100% {
+      eyes {
+        state = eyes.open
+      }
+      eyebrows {
+        translate = 0 0
+      }
+      nose {
+        translate = 0 0
+      }
+    }
+  }
+
+  timing {
+    duration = 0.25
+    easing = steps(3)
+    delay = 0.7
+    iterations = infinite
+    iteration_delay_min = 0.2
+    iteration_delay_max = 6
+  }
+
+  clips {
+    {
+      between {
+        eyelash-left
+      }
+      targets {
+        eyeball-white-left
+        eyeball-shadow-left
+        pupil-left
+      }
+    }
+    {
+      between {
+        eyelash-right
+      }
+      targets {
+        eyeball-white-right
+        eyeball-shadow-right
+        pupil-right
+      }
+    }
+  }
+}
+`;
+
+type Image = { name: string; svg: string };
+
+const withStart = (text: string) =>
+  /^scene start$/m.test(text) ? text : `${text}${text.endsWith("\n") ? "" : "\n"}scene start\nend\n`;
+
+function compile(text: string, images: Image[] = [{ name: "bunny", svg: PORTRAIT }]) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      { uri: URI, type: "script", name: "main", ext: "sd", text: withStart(text), version: 1, languageId: "sparkdown" },
+      ...images.map((image) => ({
+        uri: `file:///${image.name}.svg`,
+        type: "image",
+        name: image.name,
+        ext: "svg",
+        data: image.svg,
+      })),
+    ],
+  } as any);
+  return compiler.compile({ textDocument: { uri: URI } }).program;
+}
+
+interface Found {
+  message: string;
+  severity: number | undefined;
+  code: string | number | undefined;
+  line: number;
+  character: number;
+  text: string;
+}
+
+function diagnosticsOf(text: string, images?: Image[]): Found[] {
+  const program = compile(text, images);
+  const lines = text.split("\n");
+  return (program.diagnostics?.[URI] ?? []).map((d) => {
+    const { start, end } = d.range;
+    return {
+      message: typeof d.message === "string" ? d.message : d.message.value,
+      severity: d.severity,
+      code: d.code,
+      line: start.line,
+      character: start.character,
+      text:
+        start.line === end.line
+          ? lines[start.line]!.slice(start.character, end.character)
+          : lines[start.line]!.slice(start.character),
+    };
+  });
+}
+
+function morphDiagnostics(text: string, images?: Image[]): Found[] {
+  return diagnosticsOf(text, images).filter((d) => d.code === "morph");
+}
+
+function structOf(source: string, name: string): any {
+  const entry = compileSource(source).find((e) => e.block?.context?.["morph"]?.[name]);
+  return entry?.block?.context?.["morph"]?.[name];
+}
+
+describe("morph block lowering", () => {
+  test("the canonical example lowers with its policies, literal states, offsets, timing and secondary containers", () => {
+    const struct = structOf(BLINK, "blink");
+    expect(struct).toMatchObject({
+      $type: "morph",
+      $name: "blink",
+      blend: "morph",
+      method: "bend",
+      fallback: "fade",
+      layers: { creases: { fallback: "scale" } },
+      timing: {
+        duration: 0.25,
+        easing: "steps(3)",
+        delay: 0.7,
+        iterations: "infinite",
+        iteration_delay_min: 0.2,
+        iteration_delay_max: 6,
+      },
+      clips: [
+        {
+          between: ["eyelash-left"],
+          targets: ["eyeball-white-left", "eyeball-shadow-left", "pupil-left"],
+        },
+        {
+          between: ["eyelash-right"],
+          targets: ["eyeball-white-right", "eyeball-shadow-right", "pupil-right"],
+        },
+      ],
+    });
+    expect(struct.$extends).toBeUndefined();
+    expect(struct.keyframes.map((k: any) => k.eyes.state)).toEqual(["open", "closed", "open"]);
+    expect(struct.keyframes.map((k: any) => k.offset)).toEqual([0, 33.333 / 100, 1]);
+    expect(struct.keyframes[1].eyebrows).toEqual({ translate: "0 8px" });
+    expect(struct.keyframes[1].nose).toEqual({ translate: "0 -2px" });
+  });
+
+  test("an explicit parent is kept as `$extends`", () => {
+    const struct = structOf(
+      `morph slow as blink {
+  timing {
+    duration = 1
+  }
+}
+`,
+      "slow",
+    );
+    expect(struct.$extends).toBe("blink");
+  });
+
+  test("list and from/to keyframes normalize to the same poses", () => {
+    const keyed = structOf(
+      `morph m {
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    50% {
+      eyes {
+        state = closed
+      }
+    }
+    to {
+      eyes {
+        state = open
+      }
+    }
+  }
+}
+`,
+      "m",
+    );
+    const listed = structOf(
+      `morph m {
+  keyframes {
+    {
+      eyes {
+        state = open
+      }
+    }
+    {
+      eyes {
+        state = closed
+      }
+    }
+    {
+      eyes {
+        state = open
+      }
+    }
+  }
+}
+`,
+      "m",
+    );
+    expect(listed.keyframes[0].offset).toBeUndefined();
+    expect(normalizeMorphKeyframes(listed.keyframes)).toEqual(keyed.keyframes);
+
+  });
+
+  test("lists with the same explicit offsets are equal as written", () => {
+    const listed = structOf(
+      `morph m {
+  keyframes {
+    {
+      offset = 0
+      eyes {
+        state = open
+      }
+    }
+    {
+      offset = 1
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+`,
+      "m",
+    );
+    const keyed = structOf(
+      `morph m {
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+`,
+      "m",
+    );
+    expect(listed.keyframes).toEqual(keyed.keyframes);
+  });
+
+  test("omitted offsets are spaced between authored ones", () => {
+    expect(
+      normalizeMorphKeyframes([{}, {}, { offset: 0.8 }, {}]).map((k) => k["offset"]),
+    ).toEqual([0, 0.4, 0.8, 1]);
+  });
+});
+
+describe("literal state values", () => {
+  const stateOf = (value: string) =>
+    structOf(
+      `morph m {
+  keyframes {
+    from {
+      eyes {
+        state = ${value}
+      }
+    }
+    to {
+      eyes {
+        state = open
+      }
+    }
+  }
+}
+`,
+      "m",
+    ).keyframes[0].eyes.state;
+
+  test.each([
+    ["01", "01"],
+    ["closed", "closed"],
+    [`"closed"`, "closed"],
+    ["eyes.closed", "closed"],
+    [`"eyes.closed"`, "closed"],
+    ["true", "true"],
+    ["1.50", "1.50"],
+    ["open-wide", "open-wide"],
+    ["closed -- a note", "closed"],
+  ])("`state = %s` is the literal state %j", (value, expected) => {
+    expect(stateOf(value)).toBe(expected);
+  });
+
+  test("a different group prefix is reported where it is written and not stripped", () => {
+    const text = `morph m {
+  method = match
+  keyframes {
+    from {
+      eyes {
+        state = mouth.closed
+      }
+    }
+    to {
+      eyes {
+        state = open
+      }
+    }
+  }
+}
+`;
+    expect(structOf(text, "m").keyframes[0].eyes.state).toBe("mouth.closed");
+    const found = morphDiagnostics(text).find((d) => d.message.includes("`mouth` group"));
+    expect(found).toMatchObject({ line: 5, text: "mouth.closed", severity: 1 });
+  });
+
+  test("ordinary animation and style values keep their coercion", () => {
+    const animation = compileSource(`animation a {
+  target = layer.self
+  timing {
+    iterations = 01
+  }
+}
+`).find((e) => e.block?.context?.["animation"]?.["a"])!.block!.context!["animation"]!["a"];
+    expect(animation.target).toEqual({ $type: "layer", $name: "self" });
+    expect(animation.timing.iterations).toBe(1);
+  });
+
+  test("clip labels stay literal text", () => {
+    const struct = structOf(
+      `morph m {
+  clips {
+    {
+      between {
+        01
+        eyes.closed
+      }
+      targets {
+        true
+      }
+    }
+  }
+}
+`,
+      "m",
+    );
+    expect(struct.clips[0]).toEqual({ between: ["01", "eyes.closed"], targets: ["true"] });
+  });
+});
+
+describe("morph inheritance", () => {
+  test("the builtin supplies policy and timing defaults, and `method` is required", () => {
+    const text = `morph m {
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+`;
+    const program = compile(text);
+    expect(program.context?.["morph"]?.["m"]).toMatchObject({
+      blend: "morph",
+      fallback: "fade",
+      timing: { duration: 0.25, delay: 0, easing: "ease-out", iterations: 1, direction: "normal" },
+    });
+    expect(program.context?.["morph"]?.["m"].timing.iteration_delay_min).toBeUndefined();
+    const found = morphDiagnostics(text).find((d) => d.message.includes("`method` is required"));
+    expect(found).toMatchObject({ line: 0, text: "m", severity: 1 });
+  });
+
+  test("a parent's method and keyframes satisfy a child", () => {
+    const text = `${BLINK}
+morph slow as blink {
+  timing {
+    duration = 1
+  }
+}
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+  });
+
+  test("a parent morph supplies what the child leaves out", () => {
+    const text = `morph base {
+  method = bend
+}
+
+morph child as base {
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+`;
+    expect(morphDiagnostics(text).filter((d) => d.line > 2)).toEqual([]);
+  });
+
+  test("invalid values in a parent morph are reported where the parent writes them, not on the child's `as`", () => {
+    const text = `morph base {
+  method = bogus
+  timing { duration = -1 }
+}
+
+morph child as base {
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found.map((d) => d.line)).toEqual(expect.arrayContaining([1, 2]));
+    expect(found.filter((d) => d.line > 3)).toEqual([]);
+  });
+
+  const CHILD_KEYFRAMES = `  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+`;
+
+  test("a value the child sets itself is not reported as inherited", () => {
+    const text = `morph base {
+  method = bogus
+  timing { duration = -1 }
+}
+
+morph child as base {
+  method = match
+  timing {
+    duration = 1
+  }
+${CHILD_KEYFRAMES}}
+`;
+    expect(morphDiagnostics(text).filter((d) => d.message.includes("inherited from"))).toEqual([]);
+  });
+
+  test("a value invalid in a grandparent morph is reported only where it is written", () => {
+    const text = `morph base {
+  method = bogus
+}
+
+morph middle as base {
+  fallback = cut
+}
+
+morph child as middle {
+${CHILD_KEYFRAMES}}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found.map((d) => d.line)).toContain(1);
+    expect(found.filter((d) => d.line > 7)).toEqual([]);
+  });
+
+  test("an inherited delay range is reported where the parent writes it and on the `as` that brings it in", () => {
+    const text = `morph base {
+  method = bend
+  timing { iteration_delay_min = 5; iteration_delay_max = 1 }
+}
+
+morph child as base {
+${CHILD_KEYFRAMES}}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.message.includes("must be at least"));
+    expect(found).toEqual([
+      expect.objectContaining({ line: 2, text: "iteration_delay_max" }),
+      expect.objectContaining({ line: 5, text: "base" }),
+    ]);
+  });
+
+  test("a duration below one millisecond is reported on the field, and one at the minimum compiles", () => {
+    const below = morphDiagnostics(withBraceKeyframes(TWO_POSES_BRACED, "  timing { duration = 0.0000001 }\n")).filter(
+      (d) => d.message.includes("at least 0.001"),
+    );
+    expect(below).toEqual([expect.objectContaining({ severity: 1, text: "0.0000001" })]);
+    expect(
+      morphDiagnostics(withBraceKeyframes(TWO_POSES_BRACED, "  timing { duration = 0.001 }\n")).filter((d) =>
+        d.message.includes("duration"),
+      ),
+    ).toEqual([]);
+  });
+
+  test("an inherited duration below the minimum is reported where the parent writes it and on the `as` that brings it in", () => {
+    const text = `morph base {
+  method = bend
+  timing { duration = 0.0000001 }
+}
+
+morph child as base {
+${CHILD_KEYFRAMES}}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.message.includes("at least 0.001"));
+    expect(found).toEqual([
+      expect.objectContaining({ line: 2, text: "0.0000001" }),
+      expect.objectContaining({ line: 5, text: "base" }),
+    ]);
+    expect(found[1]!.message).toContain("`duration`, inherited");
+  });
+
+  test("a parent morph's invalid value is reported once, where it is written", () => {
+    const text = `morph base {
+  method = bogus
+}
+
+morph middle as base {
+${CHILD_KEYFRAMES}}
+
+morph child as middle {
+  fallback = cut
+}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found.map((d) => d.line)).toContain(1);
+    expect(found.filter((d) => d.line > 2)).toEqual([]);
+  });
+
+  test("an unknown parent is reported", () => {
+    const found = diagnosticsOf(`morph child as nowhere {
+  method = bend
+${CHILD_KEYFRAMES}}
+`);
+    expect(found.find((d) => d.text === "nowhere")).toMatchObject({
+      severity: 2,
+      message: expect.stringContaining("No morph named `nowhere`"),
+    });
+  });
+
+  test("an authored block replaces the builtin of the same type and name", () => {
+    const found = diagnosticsOf(`animation fadein {
+  timing {
+    duration = 9
+  }
+}
+`);
+    expect(found.filter((d) => d.severity === 1)).toEqual([]);
+  });
+
+  test("a parent's name may be shared by another type's block and by a variable", () => {
+    const text = `store base = 7
+
+animation base {
+  timing {
+    duration = 1
+  }
+}
+
+animation child as base {
+  timing {
+    duration = 2
+  }
+}
+
+theme base {
+  colors {
+    primary = red
+  }
+}
+
+${BLINK.replace("morph blink {", "morph base {")}
+morph slow as base {
+  timing {
+    duration = 1
+  }
+}
+`;
+    const found = diagnosticsOf(text);
+    expect(found.filter((d) => d.message.includes("Duplicate identifier"))).toEqual([]);
+    expect(found.filter((d) => d.severity === 1)).toEqual([]);
+  });
+
+  test("a label that morphs under a non-morph root needs its own method", () => {
+    const text = `morph m {
+  blend = fade
+  layers {
+    creases {
+      blend = morph
+    }
+  }
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+`;
+    const found = morphDiagnostics(text).find((d) => d.message.includes("needs a `method`"));
+    expect(found).toMatchObject({ line: 3, text: "creases" });
+    expect(morphDiagnostics(text.replace("blend = morph", "blend = morph\n      method = trace"))).toEqual([]);
+  });
+
+  test("the builtin prototype itself is not checked", () => {
+    const program = compile("");
+    expect(program.context?.["morph"]?.["$default"]).toBeDefined();
+    expect(program.diagnostics?.[URI] ?? []).toEqual([]);
+  });
+
+  test("the reserved `morph` root name warns like other builtin types", () => {
+    const found = diagnosticsOf("store morph = 1\n").find((d) =>
+      d.message.includes("'morph' is a reserved builtin type"),
+    );
+    expect(found).toBeDefined();
+  });
+
+  test("`morph.blink` stays a reference in an expression", () => {
+    const text = `${BLINK}
+function _chosen()
+  return morph.blink
+end
+`;
+    const program = compile(text);
+    expect(Object.keys(program.context?.["morph"] ?? {}).sort()).toEqual(["$default", "blink"]);
+    expect(diagnosticsOf(text)).toEqual([]);
+  });
+
+  test("the whole chain supplies what a morph leaves out", () => {
+    const text = `morph base {
+  method = trace
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to {
+      eyes {
+        state = closed
+      }
+    }
+  }
+}
+
+morph middle as base {
+  fallback = cut
+}
+
+morph leaf as middle {
+  timing {
+    duration = 1
+  }
+}
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+  });
+});
+
+const BLINK_BRACED = `morph blink {
+  blend = morph
+  method = bend
+  fallback = fade
+
+  layers {
+    creases { fallback = scale }
+  }
+
+  keyframes {
+    0% {
+      eyes { state = eyes.open }
+      eyebrows { translate = 0 0 }
+      nose { translate = 0 0 }
+    }
+    33.333% {
+      eyes { state = eyes.closed }
+      eyebrows { translate = 0 8px }
+      nose { translate = 0 -2px }
+    }
+    100% {
+      eyes { state = eyes.open }
+      eyebrows { translate = 0 0 }
+      nose { translate = 0 0 }
+    }
+  }
+
+  timing {
+    duration = 0.25
+    easing = steps(3)
+    delay = 0.7
+    iterations = infinite
+    iteration_delay_min = 0.2
+    iteration_delay_max = 6
+  }
+
+  clips {
+    { between { eyelash-left }; targets { eyeball-white-left; eyeball-shadow-left; pupil-left } }
+    { between { eyelash-right }; targets { eyeball-white-right; eyeball-shadow-right; pupil-right } }
+  }
+}
+`;
+
+const withBraceKeyframes = (keyframes: string, extra = "") => `morph m {
+  method = match
+${extra}  keyframes {
+${keyframes}  }
+}
+`;
+
+const TWO_POSES_BRACED = `    from { eyes { state = open } }
+    to { eyes { state = closed } }
+`;
+
+describe("morph blocks written with braces", () => {
+  test("the canonical example lowers to the struct of its indented form", () => {
+    expect(structOf(BLINK_BRACED, "blink")).toEqual(structOf(BLINK, "blink"));
+    expect(diagnosticsOf(BLINK_BRACED)).toEqual([]);
+  });
+
+  test.each([
+    ["unknown root field", "  speed = 2\n", "Unknown morph field `speed`", "speed"],
+    ["timing field at the root", "  duration = 2\n", "`duration` belongs in `timing { … }`", "duration"],
+    ["policy inside timing", "  timing { method = bend }\n", "`method` belongs at the morph root", "method"],
+    ["state at the root", "  state = open\n", "`state` belongs in a keyframe container", "state"],
+    ["unknown blend", "  blend = melt\n", "`melt` is not a `blend`", "melt"],
+    ["fallback cannot be morph", "  fallback = morph\n", "`morph` is not a `fallback`", "morph"],
+    ["unknown method", "  layers { creases { method = taper } }\n", "`taper` is not a `method`", "taper"],
+    ["string duration", "  timing { duration = \"0.25s\" }\n", "Timing values are numbers of seconds", "\"0.25s\""],
+    ["zero duration", "  timing { duration = 0 }\n", "`duration` must be greater than 0", "0"],
+    ["negative delay", "  timing { delay = -1 }\n", "`delay` must not be negative", "-1"],
+    ["fractional iterations", "  timing { iterations = 1.5 }\n", "`iterations` is a whole number", "1.5"],
+    ["unknown direction", "  timing { direction = backwards }\n", "`backwards` is not a `direction`", "backwards"],
+    ["unknown easing", "  timing { easing = bouncy }\n", "`bouncy` is not an easing", "bouncy"],
+    ["bad steps", "  timing { easing = steps(0) }\n", "`steps()` takes a whole number", "steps(0)"],
+    ["bad cubic-bezier", "  timing { easing = cubic-bezier(2, 0, 1, 1) }\n", "x values of `cubic-bezier()`", "cubic-bezier(2, 0, 1, 1)"],
+    ["unpaired bound", "  timing { iteration_delay_min = 1 }\n", "`iteration_delay_min` needs `iteration_delay_max`", "iteration_delay_min"],
+    ["reversed bounds", "  timing { iteration_delay_min = 3; iteration_delay_max = 1 }\n", "`iteration_delay_max` (1) must be at least", "iteration_delay_max"],
+    ["negative bound", "  timing { iteration_delay_min = -1; iteration_delay_max = 1 }\n", "`iteration_delay_min` must not be negative", "-1"],
+    ["scalar layers entry", "  layers { creases = scale }\n", "`creases` in `layers { … }` is a label", "creases = scale"],
+    ["unknown layer policy field", "  layers { creases { duration = 1 } }\n", "`duration` belongs in `timing { … }`", "duration"],
+  ])("%s", (_name, extra, message, text) => {
+    const found = morphDiagnostics(withBraceKeyframes(TWO_POSES_BRACED, extra)).find((d) =>
+      d.message.includes(message),
+    );
+    expect(found, JSON.stringify(morphDiagnostics(withBraceKeyframes(TWO_POSES_BRACED, extra)))).toBeDefined();
+    expect(found!.text).toBe(text);
+  });
+
+  test.each([
+    [
+      "a scalar shorthand pose",
+      "    from { eyes = closed }\n    to { eyes { state = open } }\n",
+      "`eyes = …` is not a pose",
+      "eyes = closed",
+    ],
+    [
+      "a scalar list keyframe",
+      "    0.5\n    { eyes { state = open } }\n",
+      "A keyframe is a pose, not a single value",
+      "0.5",
+    ],
+    [
+      "an empty container",
+      "    from { eyes {} }\n    to { eyes { state = open } }\n",
+      "`eyes { … }` poses nothing",
+      "eyes {",
+    ],
+    [
+      "the historical `option` field",
+      "    from { eyes { option = closed } }\n    to { eyes { state = open } }\n",
+      "Use `state`",
+      "option",
+    ],
+    [
+      "an offset above 1",
+      "    { offset = 1.5; eyes { state = open } }\n    { eyes { state = closed } }\n",
+      "Keyframe position `150%` must be between 0% and 100%",
+      "1.5",
+    ],
+    [
+      "decreasing offsets",
+      "    { offset = 0.6; eyes { state = open } }\n    { offset = 0.4; eyes { state = closed } }\n",
+      "Keyframe offsets must not decrease",
+      "0.4",
+    ],
+    [
+      "a 3D translate",
+      "    from { nose { translate = 0 0 5px } }\n    to { nose { translate = 0 0 } }\n",
+      "Only 2D `translate` is supported",
+      "0 0 5px",
+    ],
+    [
+      "a 3D transform function",
+      "    from { nose { transform = rotateX(20deg) } }\n    to { nose { transform = none } }\n",
+      "3D transforms are not supported",
+      "rotateX(20deg)",
+    ],
+    [
+      "an unsupported layer property",
+      "    from { nose { perspective = 100px } }\n    to { nose { translate = 0 0 } }\n",
+      "Unknown morph field `perspective`",
+      "perspective",
+    ],
+    [
+      "opacity above 1",
+      "    from { nose { opacity = 2 } }\n    to { nose { opacity = 1 } }\n",
+      "`opacity` must be between 0 and 1",
+      "2",
+    ],
+    [
+      "a keyframe block without positions or items",
+      "    eyes { state = open }\n",
+      "Write each keyframe as a position",
+      "keyframes",
+    ],
+  ])("%s", (_name, keyframes, message, text) => {
+    const found = morphDiagnostics(withBraceKeyframes(keyframes)).find((d) =>
+      d.message.includes(message),
+    );
+    expect(found, JSON.stringify(morphDiagnostics(withBraceKeyframes(keyframes)))).toBeDefined();
+    expect(found!.text).toBe(text);
+  });
+
+  test("fewer than two poses", () => {
+    const found = morphDiagnostics(
+      withBraceKeyframes("    from { eyes { state = open } }\n"),
+    ).find((d) => d.message.includes("at least two keyframes"));
+    expect(found?.text).toBe("keyframes");
+  });
+
+  test("clip entries need both label lists and cannot clip their own edges", () => {
+    const text = withBraceKeyframes(
+      TWO_POSES_BRACED,
+      "  clips {\n    { between { eyelash-left }; targets { eyelash-left } }\n    { targets { pupil-left } }\n  }\n",
+    );
+    const found = morphDiagnostics(text);
+    expect(found.find((d) => d.message.includes("cannot also clip it"))).toMatchObject({
+      line: 3,
+      text: "eyelash-left",
+      character: text.split("\n")[3]!.lastIndexOf("eyelash-left"),
+    });
+    expect(found.find((d) => d.message.includes("needs `between { … }`"))).toMatchObject({
+      line: 4,
+      text: "{",
+    });
+  });
+});
+
+const TWO_FOLDERS = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="face.happy default" id="happy">
+  <g data-name="lids eyes.open default" id="h-open"/>
+  <g data-name="lids eyes.closed" id="h-closed"/>
+</g>
+<g data-name="face.sleepy" id="sleepy">
+  <g data-name="lids eyes.closed default" id="s-closed"/>
+  <g data-name="lids eyes.open" id="s-open"/>
+</g>
+</svg>`;
+
+const WIDE = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+</svg>`;
+
+const NO_CLOSED = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.squint" id="squint"/>
+</svg>`;
+
+const NO_GROUPS = `<svg xmlns="http://www.w3.org/2000/svg"><g data-name="tree" id="tree"/></svg>`;
+
+const MOUTH_ONLY = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lips mouth.open default" id="open"/>
+<g data-name="lips mouth.closed" id="closed"/>
+</svg>`;
+
+const EYES_AND_MOUTH = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids eyes.open default" id="open"/>
+<g data-name="lids eyes.closed" id="closed"/>
+<g data-name="lips mouth.open default" id="mopen"/>
+<g data-name="lips mouth.closed" id="mclosed"/>
+</svg>`;
+
+const SIMPLE_BLINK = `morph blink {
+  method = bend
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    50% {
+      eyes {
+        state = closed
+      }
+    }
+    to {
+      eyes {
+        state = open
+      }
+    }
+  }
+}
+`;
+
+const bindingOf = (text: string, images: Image[]) => {
+  const program = compile(text, images);
+  return bindMorph(program.context!, program.context!["morph"]!["blink"]);
+};
+
+describe("morph binding", () => {
+  test("a variant rests each driven group in the morph's rest, the state of the last keyframe that names it", () => {
+    const binding = bindingOf(SIMPLE_BLINK, [{ name: "bunny", svg: TWO_FOLDERS }]);
+    const bunny = binding.candidates.find((c) => c.image === "bunny")!;
+    expect(bunny.compatible).toBe(true);
+    const base = bunny.variants.find((v) => v.name === "bunny")!;
+    expect(base.status).toBe("active");
+    expect(base.rest).toEqual({ eyes: "open" });
+  });
+
+  test("a variant resting in another state plays the morph, whatever its folders rest in", () => {
+    const text = `${SIMPLE_BLINK}
+scene start
+  [[bunny:sleepy]]
+  [[bunny:eyes.closed]]
+end
+`;
+    const binding = bindingOf(text, [{ name: "bunny", svg: TWO_FOLDERS }]);
+    const variants = binding.candidates[0]!.variants;
+    expect(variants.find((v) => v.name === "bunny:sleepy")?.status).toBe("active");
+    expect(variants.find((v) => v.name === "bunny:eyes.closed")?.status).toBe("active");
+    const warnings = morphDiagnostics(text, [{ name: "bunny", svg: TWO_FOLDERS }]);
+    expect(warnings.filter((d) => d.message.includes("does not apply"))).toEqual([]);
+  });
+
+  test("folders that rest in different states both play the morph", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="left" id="left">
+  <g data-name="lid eyes.open default" id="l-open"/>
+  <g data-name="lid eyes.closed" id="l-closed"/>
+</g>
+<g data-name="right" id="right">
+  <g data-name="lid eyes.closed default" id="r-closed"/>
+  <g data-name="lid eyes.open" id="r-open"/>
+</g>
+</svg>`;
+    expect(bindingOf(SIMPLE_BLINK, [{ name: "wink", svg }]).candidates[0]!.variants[0]!.status).toBe("active");
+    expect(morphDiagnostics(SIMPLE_BLINK, [{ name: "wink", svg }])).toEqual([]);
+  });
+
+  test("a visible folder that draws the group but not every state the morph names skips the variant with a warning", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="left" id="left">
+  <g data-name="lid eyes.open default" id="l-open"/>
+  <g data-name="lid eyes.closed" id="l-closed"/>
+</g>
+<g data-name="right" id="right">
+  <g data-name="lid eyes.open default" id="r-open"/>
+</g>
+</svg>`;
+    const binding = bindingOf(SIMPLE_BLINK, [{ name: "wink", svg }]);
+    expect(binding.candidates[0]!.variants[0]!.status).toBe("skipped");
+    const warning = morphDiagnostics(SIMPLE_BLINK, [{ name: "wink", svg }]).find((d) =>
+      d.message.includes("does not apply to `wink`"),
+    );
+    expect(warning).toMatchObject({ line: 0, text: "blink", severity: 2 });
+    expect(warning!.message).toContain('folder "right" draws no `eyes.closed`');
+  });
+
+  test("a hyphenated state is its own state, not a refinement of the word before it", () => {
+    const refined = SIMPLE_BLINK.replace("state = closed", "state = open-wide");
+    const found = morphDiagnostics(refined, [{ name: "bunny", svg: WIDE }]);
+    expect(found.find((d) => d.message.includes("image `bunny`: its `eyes` group has no `open-wide` state"))).toBeDefined();
+    const wideOnly = `<svg xmlns="http://www.w3.org/2000/svg">
+<g data-name="lids eyes.open-wide default" id="wide"/>
+<g data-name="lids eyes.closed" id="closed"/>
+</svg>`;
+    const owl = morphDiagnostics(SIMPLE_BLINK, [{ name: "owl", svg: wideOnly }]);
+    expect(owl.find((d) => d.message.includes("image `owl`: its `eyes` group has no `open` state"))).toBeDefined();
+  });
+
+  test("a state missing from only some images warns for those images only", () => {
+    const images = [
+      { name: "bunny", svg: WIDE },
+      { name: "raffles", svg: NO_CLOSED },
+    ];
+    const found = morphDiagnostics(SIMPLE_BLINK, images);
+    const perImage = found.filter((d) => d.message.includes("does not apply"));
+    expect(perImage).toHaveLength(1);
+    expect(perImage[0]).toMatchObject({ line: 0, text: "blink" });
+    expect(perImage[0]!.message).toContain("image `raffles`: its `eyes` group has no `closed` state");
+    expect(found.find((d) => d.message.includes("No image's `eyes` group"))).toBeUndefined();
+  });
+
+  test("images with none of the morph's groups are not candidates and stay silent", () => {
+    const images = [
+      { name: "bunny", svg: WIDE },
+      { name: "tree", svg: NO_GROUPS },
+      { name: "mouth", svg: MOUTH_ONLY },
+    ];
+    const binding = bindingOf(SIMPLE_BLINK, images);
+    expect(binding.candidates.map((c) => c.image)).toEqual(["bunny"]);
+    expect(morphDiagnostics(SIMPLE_BLINK, images)).toEqual([]);
+  });
+
+  test("every driven group must be present", () => {
+    const text = SIMPLE_BLINK.replace(
+      "    50% {\n      eyes {\n        state = closed\n      }\n",
+      "    50% {\n      eyes {\n        state = closed\n      }\n      mouth {\n        state = closed\n      }\n",
+    );
+    const images = [
+      { name: "bunny", svg: WIDE },
+      { name: "talker", svg: EYES_AND_MOUTH },
+    ];
+    const binding = bindingOf(text, images);
+    expect(binding.candidates.find((c) => c.image === "bunny")).toMatchObject({
+      compatible: false,
+      missingGroups: ["mouth"],
+      variants: [],
+    });
+    expect(binding.candidates.find((c) => c.image === "talker")?.compatible).toBe(true);
+    const found = morphDiagnostics(text, images).filter((d) => d.message.includes("does not apply"));
+    expect(found).toHaveLength(1);
+    expect(found[0]!.message).toContain("image `bunny`: it has no `mouth` group");
+  });
+
+  test("a first keyframe that leaves a group out binds without a starting state, so the morph gets no reference and plays nowhere", () => {
+    const text = `morph blink {
+  method = bend
+  keyframes {
+    from {
+      nose {
+        translate = 0 0
+      }
+    }
+    50% {
+      eyes {
+        state = closed
+      }
+    }
+    to {
+      nose {
+        translate = 0 0
+      }
+    }
+  }
+}
+
+scene start
+  [[bunny:eyes.closed]]
+end
+`;
+    const binding = bindingOf(text, [{ name: "bunny", svg: WIDE }]);
+    expect(binding.requirements.start.has("eyes")).toBe(false);
+    const closed = binding.candidates[0]!.variants.find((v) => v.name === "bunny:eyes.closed")!;
+    expect(closed.status).toBe("active");
+    expect(closed.rest).toEqual({ eyes: "closed" });
+    const program = compile(text, [{ name: "bunny", svg: WIDE }]);
+    expect(program.morphs?.recipes["blink"]).toBeDefined();
+    expect(Object.keys(program.morphs?.variants ?? {})).toEqual([]);
+  });
+
+  test("candidates are found by group before full compatibility", () => {
+    const binding = bindingOf(SIMPLE_BLINK, [{ name: "raffles", svg: NO_CLOSED }]);
+    expect(binding.candidates.map((c) => [c.image, c.compatible])).toEqual([["raffles", false]]);
+  });
+});
+
+describe("block-level artwork coverage", () => {
+
+  test("hypothetical binding selections publish no attribute warnings on the script", () => {
+    const text = `${BLINK}
+[[bunny:look.left]]
+`;
+    const svg = PORTRAIT.replace(
+      '<g data-name="pupil-left eyes.open" id="pl"/>',
+      '<g data-name="pupil-left eyes.open look.left" id="pl"/>',
+    );
+    const found = diagnosticsOf(text, [{ name: "bunny", svg }]);
+    expect(found.filter((d) => d.message.includes("closed eyes"))).toEqual([]);
+  });
+});
+
+describe("transition `depth`", () => {
+  const RAISE = (root: string, layers = "", keyframes = "from { eyes { state = open } }\n    to { eyes { state = closed } }") => `morph m {
+  method = bend
+${root}  layers {
+    eyelash-left { fallback = fade${layers} }
+  }
+  keyframes {
+    ${keyframes}
+  }
+}
+`;
+  const recipeOf = (text: string, name = "m") => JSON.parse(compile(text).morphs!.recipes[name]!);
+  const depthErrors = (text: string) => morphDiagnostics(text).filter((d) => d.message.includes("depth"));
+
+  test("`depth = eyes.closed` stays literal text at the root and under a label", () => {
+    const struct = structOf(RAISE("  depth = eyes.closed\n", "; depth = rest"), "m");
+    expect(struct.depth).toBe("eyes.closed");
+    expect(struct.layers["eyelash-left"].depth).toBe("rest");
+    expect(morphDiagnostics(RAISE("  depth = eyes.closed\n", "; depth = rest"))).toEqual([]);
+  });
+
+  test("`rest` is the builtin default and leaves the recipe as it is without the field", () => {
+    const program = compile(RAISE(""));
+    expect(program.context?.["morph"]?.["m"].depth).toBe("rest");
+    const recipe = recipeOf(RAISE(""));
+    expect(recipe.depth).toBeUndefined();
+    expect(recipe.layers["eyelash-left"]).toEqual({ fallback: "fade" });
+  });
+
+  test("the recipe carries the resolved `depth`, so changing it changes the bake key", () => {
+    expect(recipeOf(RAISE("  depth = eyes.closed\n")).depth).toBe("eyes.closed");
+    expect(recipeOf(RAISE("", "; depth = eyes.closed")).layers["eyelash-left"]).toEqual({ fallback: "fade", depth: "eyes.closed" });
+    const keys = (text: string) => compile(text, [{ name: "bunny", svg: PORTRAIT }]).morphs!.variants;
+    const before = JSON.stringify(keys(RAISE("")));
+    const after = JSON.stringify(keys(RAISE("  depth = eyes.closed\n")));
+    expect(before).not.toBe("{}");
+    expect(after).not.toBe(before);
+  });
+
+  test("a label's and the root's `depth` resolve field by field through `as PARENT`", () => {
+    const text = `${RAISE("  depth = eyes.closed\n")}
+morph child as m {
+  layers {
+    eyelash-left { depth = rest }
+    pupil-left { method = match }
+  }
+}
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+    const recipe = recipeOf(text, "child");
+    expect(recipe.depth).toBe("eyes.closed");
+    expect(recipe.layers["eyelash-left"]).toEqual({ fallback: "fade", depth: "rest" });
+    expect(recipe.layers["pupil-left"]).toEqual({ method: "match" });
+  });
+
+  test.each([
+    ["a value that is neither `rest` nor `group.state`", "2", "`2` is not a `depth`"],
+    ["a bare state", "closed", "Write `depth = eyes.closed`"],
+    ["a group the morph does not drive", "mouth.open", "does not drive `mouth`"],
+    ["a state the keyframes do not name", "eyes.squint", "never shows `eyes.squint`"],
+  ])("%s is reported at the value", (_, value, message) => {
+    for (const text of [RAISE(`  depth = ${value}\n`), RAISE("", `; depth = ${value}`)]) {
+      const found = depthErrors(text);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ text: value, severity: 1 });
+      expect(found[0]!.message).toContain(message);
+    }
+  });
+
+  test("`depth` in a keyframe container says where it belongs", () => {
+    const inContainer = RAISE("", "", "from { eyes { state = open; depth = eyes.closed } }\n    to { eyes { state = closed } }");
+    expect(depthErrors(inContainer)).toEqual([
+      expect.objectContaining({ text: "depth", message: "`depth` belongs at the morph root or under a label in `layers { … }`." }),
+    ]);
+  });
+
+  test("an inherited `depth` the child's keyframes no longer show is reported on its `as`", () => {
+    const text = `${RAISE("  depth = eyes.closed\n")}
+morph child as m {
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = squint } }
+  }
+}
+`;
+    const found = depthErrors(text).filter((d) => d.line > 10);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "m", severity: 1 });
+    expect(found[0]!.message).toContain("inherited");
+  });
+
+  test("a parent morph's `depth` is checked against its own keyframes where it is written", () => {
+    const text = `morph base {
+  method = bend
+  depth = eyes.missing
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+}
+
+morph child as base {
+  fallback = fade
+}
+`;
+    const found = depthErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ line: 2, text: "eyes.missing", severity: 1 });
+    expect(found[0]!.message).toContain("never shows `eyes.missing`");
+  });
+
+  test("a parent block's own `depth` problem is reported there, not again on a child that keeps it", () => {
+    const text = `${RAISE("  depth = eyes.squint\n")}
+morph child as m {
+  fallback = cut
+}
+`;
+    const found = depthErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "eyes.squint" });
+  });
+});
+
+describe("`paints`", () => {
+  const ENTRY = "{ targets { eyelash-left; eyelash-right }; state = eyes.closed; when = mask.on; fill = #c9c9c9; span = 40% }";
+  const KEYFRAMES = "from { eyes { state = open } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }";
+  const PAINTED = (entries: string[] | null = [ENTRY], keyframes = KEYFRAMES, extra = "") => `morph m {
+  method = bend
+${extra}  keyframes {
+    ${keyframes}
+  }
+${entries ? `  paints {\n    ${entries.join("\n    ")}\n  }\n` : ""}}
+`;
+  const recipeOf = (text: string, name = "m") => JSON.parse(compile(text).morphs!.recipes[name]!);
+  const paintErrors = (text: string) => morphDiagnostics(text).filter((d) => d.severity === 1);
+
+  test("the example entry lowers with literal `state`, `when`, `fill` and `stroke` and a parsed `span`", () => {
+    const struct = structOf(PAINTED([ENTRY, "{ targets { lids }; state = eyes.closed; stroke = rgb(201, 201, 201) }"]), "m");
+    expect(struct.paints).toEqual([
+      { targets: ["eyelash-left", "eyelash-right"], state: "eyes.closed", when: "mask.on", fill: "#c9c9c9", span: "40%" },
+      { targets: ["lids"], state: "eyes.closed", stroke: "rgb(201, 201, 201)" },
+    ]);
+    expect(morphDiagnostics(PAINTED())).toEqual([]);
+    const recipe = recipeOf(PAINTED([ENTRY, "{ targets { lids }; state = eyes.closed; stroke = rgb(201, 201, 201); span = 0.25 }"]));
+    expect(recipe.paints).toEqual([
+      { targets: ["eyelash-left", "eyelash-right"], state: "eyes.closed", when: "mask.on", span: 0.4, fill: "rgba(201,201,201,1)" },
+      { targets: ["lids"], state: "eyes.closed", span: 0.25, stroke: "rgba(201,201,201,1)" },
+    ]);
+  });
+
+  test("the builtin's `paints = {}` leaves the recipe without the field, and a child inherits its parent's entries", () => {
+    const program = compile(PAINTED(null));
+    expect(program.context?.["morph"]?.["m"]?.paints).toEqual({});
+    expect(recipeOf(PAINTED(null)).paints).toBeUndefined();
+    const child = `${PAINTED()}
+morph child as m {
+  fallback = cut
+}
+`;
+    expect(morphDiagnostics(child)).toEqual([]);
+    expect(recipeOf(child, "child").paints).toEqual(recipeOf(child).paints);
+  });
+
+  test("`opacity = 0.4` and `opacity = 40%` give one recipe, alone or beside a colour", () => {
+    const decimal = PAINTED(["{ targets { eyeshadow-left; eyeshadow-right }; state = eyes.closed; opacity = 0.4; span = 40% }"]);
+    const percent = PAINTED(["{ targets { eyeshadow-left; eyeshadow-right }; state = eyes.closed; opacity = 40%; span = 40% }"]);
+    expect(morphDiagnostics(decimal)).toEqual([]);
+    expect(morphDiagnostics(percent)).toEqual([]);
+    expect(recipeOf(decimal).paints).toEqual([{ targets: ["eyeshadow-left", "eyeshadow-right"], state: "eyes.closed", span: 0.4, opacity: 0.4 }]);
+    expect(compile(percent).morphs!.recipes["m"]).toBe(compile(decimal).morphs!.recipes["m"]);
+    expect(recipeOf(PAINTED(["{ targets { lids }; state = eyes.closed; fill = red; opacity = 0 }"])).paints).toEqual([
+      { targets: ["lids"], state: "eyes.closed", span: 1, fill: "rgba(255,0,0,1)", opacity: 0 },
+    ]);
+  });
+
+  test("an opacity-only entry written without its braces is told an entry may set `opacity`", () => {
+    const found = paintErrors(PAINTED(["targets { eyeshadow-left }; state = eyes.closed; opacity = 0"]));
+    expect(found.length).toBeGreaterThan(0);
+    for (const d of found.filter((d) => d.message.includes("A `paints` entry is"))) {
+      expect(d.message).toContain("at least one of `fill`, `stroke` and `opacity`");
+    }
+    expect(found.some((d) => d.message.includes("A `paints` entry is"))).toBe(true);
+    expect(found.some((d) => d.message.includes("a `fill` or `stroke`:"))).toBe(false);
+  });
+
+  test("equal colours give one recipe, and changing a colour changes the bake key", () => {
+    const spelled = PAINTED([ENTRY.replace("#c9c9c9", "rgb(201 201 201)")]);
+    expect(compile(spelled).morphs!.recipes["m"]).toBe(compile(PAINTED()).morphs!.recipes["m"]);
+    const keys = (text: string) => JSON.stringify(compile(text).morphs!.variants);
+    expect(keys(PAINTED())).not.toBe("{}");
+    expect(keys(PAINTED([ENTRY.replace("#c9c9c9", "#c9c9c8")]))).not.toBe(keys(PAINTED()));
+  });
+
+  test.each([
+    ["an entry that is not a `{ … }` block", "eyelash-left", "eyelash-left", "A `paints` entry is a `{ … }` entry"],
+    ["an unknown field", "{ targets { eyelash-left }; state = eyes.closed; fill = red; colour = red }", "colour", "Unknown morph field `colour`"],
+    ["a field that belongs elsewhere", "{ targets { eyelash-left }; state = eyes.closed; fill = red; between { eyelash-left } }", "between", "`between` belongs in a `clips { … }` entry."],
+    ["missing `targets`", "{ state = eyes.closed; fill = red }", "{", "needs `targets { … }`"],
+    ["empty `targets`", "{ targets { }; state = eyes.closed; fill = red }", "targets", "`targets` is a list of layer labels"],
+    ["a missing `state`", "{ targets { eyelash-left }; fill = red }", "{", "needs a `state`"],
+    ["a bare `state`", "{ targets { eyelash-left }; state = closed; fill = red }", "closed", "Write `state = eyes.closed`"],
+    ["an undriven `state`", "{ targets { eyelash-left }; state = mouth.open; fill = red }", "mouth.open", "does not drive `mouth`"],
+    ["an unnamed `state`", "{ targets { eyelash-left }; state = eyes.squint; fill = red }", "eyes.squint", "never shows `eyes.squint`"],
+    ["the starting state", "{ targets { eyelash-left }; state = eyes.open; fill = red }", "eyes.open", "the state this morph starts from"],
+    ["a bare `when`", "{ targets { eyelash-left }; state = eyes.closed; when = on; fill = red }", "on", "`when` names a state with its group"],
+    ["a `when` naming a driven group", "{ targets { eyelash-left }; state = eyes.closed; when = eyes.open; fill = red }", "eyes.open", "which this morph drives"],
+    ["no `fill`, `stroke` or `opacity`", "{ targets { eyelash-left }; state = eyes.closed }", "{", "needs a `fill` or `stroke` colour or an `opacity`"],
+    ["an `opacity` over 1", "{ targets { eyelash-left }; state = eyes.closed; opacity = 1.5 }", "1.5", "`opacity` is a number from 0 to 1"],
+    ["an `opacity` over 100%", "{ targets { eyelash-left }; state = eyes.closed; opacity = 140% }", "140%", "`opacity` is a number from 0 to 1"],
+    ["an unreadable `opacity`", "{ targets { eyelash-left }; state = eyes.closed; opacity = half }", "half", "`opacity` is a number from 0 to 1"],
+    ["a `fill` that does not parse", "{ targets { eyelash-left }; state = eyes.closed; fill = #c9c9c9z }", "#c9c9c9z", "is not a `fill` colour"],
+    ["a `stroke` that names no colour of its own", "{ targets { eyelash-left }; state = eyes.closed; stroke = currentColor }", "currentColor", "is not a `stroke` colour"],
+    ["a `span` over 100%", "{ targets { eyelash-left }; state = eyes.closed; fill = red; span = 140% }", "140%", "`span` is a percentage from `0%` to `100%`"],
+    ["a `span` over 1", "{ targets { eyelash-left }; state = eyes.closed; fill = red; span = 2 }", "2", "`span` is a percentage from `0%` to `100%`"],
+  ])("%s is reported on its span", (_, entry, text, message) => {
+    const found = paintErrors(PAINTED([entry]));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text, severity: 1 });
+    expect(found[0]!.message).toContain(message);
+    if (!message.startsWith("Unknown") && !message.includes("belongs")) expect(recipeOf(PAINTED([entry])).paints).toBeUndefined();
+  });
+
+  test.each([
+    ["a multiline `paints` entry", PAINTED(["{\n      targets { eyelash-left }\n      state = eyes.closed\n      when = mask.on\n      fill: #c9c9c9\n      span = 40%\n    }"])],
+    ["a one-line `paints` entry", PAINTED(["{ targets { eyelash-left }; state = eyes.closed; fill: #c9c9c9 }"])],
+    ["`timing`", PAINTED(null, KEYFRAMES, "  timing {\n    duration: 3\n  }\n")],
+    ["a keyframe container", PAINTED(null, "from { eyes { state: open } }\n    to { eyes { state = closed } }")],
+    ["a `layers` label", PAINTED(null, KEYFRAMES, "  layers {\n    creases {\n      fallback: scale\n    }\n  }\n")],
+  ])("a field set with `:` in %s is reported on its colon alone", (_, text) => {
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]);
+  });
+
+  test("a label list set with `:` in a clip entry is reported on its colon", () => {
+    const text = PAINTED(null, KEYFRAMES, "  clips {\n    {\n      between { eyelash-left }\n      targets: pupil-left\n    }\n  }\n");
+    expect(diagnosticsOf(text).filter((d) => d.severity === 1)).toEqual(expect.arrayContaining([expect.objectContaining({ text: ":", message: "Expected '=' when parsing field, got ':'" })]));
+  });
+
+  test("`paints` that is not a list is reported", () => {
+    const found = paintErrors(PAINTED(null, KEYFRAMES, "  paints = 2\n"));
+    expect(found).toEqual([expect.objectContaining({ text: "paints", message: expect.stringContaining("`paints` is a list") })]);
+  });
+
+  test.each([
+    ["a keyframe container", (paints: string) => PAINTED([ENTRY], `from { eyes { state = open; ${paints} } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }`)],
+    ["a `layers` label", (paints: string) => PAINTED([ENTRY], KEYFRAMES, `  layers { eyelash-left { ${paints} } }\n`)],
+    ["a clip", (paints: string) => PAINTED([ENTRY], KEYFRAMES, `  clips { { between { eyelash-left }; targets { pupil-left }; ${paints} } }\n`)],
+  ])("`paints` inside %s gets the placement message", (_, place) => {
+    const found = paintErrors(place(`paints { ${ENTRY} }`));
+    expect(found).toEqual([expect.objectContaining({ text: "paints", message: "`paints` belongs at the morph root." })]);
+  });
+
+  test("an inherited entry the child's keyframes no longer show is reported on its `as`", () => {
+    const text = `${PAINTED()}
+morph child as m {
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = squint } }
+  }
+}
+`;
+    const found = paintErrors(text).filter((d) => d.line > 10);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: "m" });
+    expect(found[0]!.message).toContain("`paints` (entry 1), inherited");
+    expect(found[0]!.message).toContain("never shows `eyes.closed`");
+  });
+
+  test("a parent morph's `paints` entry is checked where the parent writes it", () => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  paints {
+    { targets { eyelash-left }; state = eyes.closed; fill = nocolour }
+  }
+}
+
+morph child as base {
+  fallback = fade
+}
+`;
+    const found = paintErrors(text);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ line: 7, text: "nocolour" });
+    expect(found[0]!.message).toContain("not a `fill` colour");
+  });
+
+  test.each([
+    ["missing `targets`", "{ state = eyes.closed; fill = red }", "needs `targets { … }`"],
+    ["empty `targets`", "{ targets {}; state = eyes.closed; fill = red }", "`targets` is a list of layer labels"],
+    ["a bare `state`", "{ targets { eyelash-left }; state = closed; fill = red }", "names a state with its group"],
+    ["an unknown field", "{ targets { eyelash-left }; state = eyes.closed; fill = red; colour = red }", "Unknown morph field `colour`"],
+    ["an entry that is not a block", "eyelash-left", "A `paints` entry is a `{ … }` entry"],
+  ])("a parent morph's entry with %s is reported where the parent writes it", (_, entry, message) => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  paints {
+    ${entry}
+  }
+}
+
+morph child as base {
+  fallback = fade
+}
+`;
+    const found = paintErrors(text);
+    expect(found).toEqual([expect.objectContaining({ line: 7, message: expect.stringContaining(message) })]);
+  });
+});
+
+describe("`partner`", () => {
+  const CLIPS = "  clips {\n    { between { eyelash-left }; targets { eyeball-white-left; eyeball-shadow-left; pupil-left } }\n  }\n";
+  const PARTNERED = (layers: string, root = "", clips = CLIPS) => `morph m {
+  method = bend
+${root}  layers {
+    ${layers}
+  }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+${clips}}
+`;
+  const recipeOf = (text: string, name = "m") => JSON.parse(compile(text).morphs!.recipes[name]!);
+  const partnerIssues = (text: string) => morphDiagnostics(text).filter((d) => d.message.includes("partner") || d.message.includes("labelled"));
+
+  test("one label, a `= { … }` list and a `{ … }` block lower to the same recipe, the label as a one-label list", () => {
+    const scalar = PARTNERED("eyeball-shadow-left { partner = eyelash-left }");
+    const listed = PARTNERED("eyeball-shadow-left { partner = { eyelash-left } }");
+    const block = PARTNERED("eyeball-shadow-left {\n      partner {\n        eyelash-left\n      }\n    }");
+    for (const text of [scalar, listed, block]) {
+      expect(morphDiagnostics(text)).toEqual([]);
+      expect(recipeOf(text).layers["eyeball-shadow-left"]).toEqual({ partner: ["eyelash-left"] });
+    }
+    expect(structOf(scalar, "m").layers["eyeball-shadow-left"].partner).toBe("eyelash-left");
+    expect(structOf(listed, "m").layers["eyeball-shadow-left"].partner).toEqual(["eyelash-left"]);
+  });
+
+  test("a list keeps its written order, which is its priority", () => {
+    const text = PARTNERED("eyeball-shadow-right { partner = { eyeball-shadow-right; eyelash-right; eyelash-left } }");
+    expect(morphDiagnostics(text)).toEqual([]);
+    expect(recipeOf(text).layers["eyeball-shadow-right"]).toEqual({ partner: ["eyeball-shadow-right", "eyelash-right", "eyelash-left"] });
+  });
+
+  test("a morph without `partner` keeps the recipe text it has without the field", () => {
+    const text = PARTNERED("creases { fallback = scale }");
+    expect(compile(text).morphs!.recipes["m"]).toBe(
+      '{"name":"m","blend":"morph","method":"bend","fallback":"fade","layers":{"creases":{"fallback":"scale"}},"keyframes":[{"offset":0,"states":{"eyes":"open"}},{"offset":0.5,"states":{"eyes":"closed"}},{"offset":1,"states":{"eyes":"open"}}],"clips":[{"between":["eyelash-left"],"targets":["eyeball-white-left","eyeball-shadow-left","pupil-left"]}]}',
+    );
+  });
+
+  test("adding a partner changes the bake key", () => {
+    const keys = (text: string) => JSON.stringify(compile(text).morphs!.variants);
+    expect(keys(PARTNERED("creases { fallback = scale }"))).not.toBe("{}");
+    expect(keys(PARTNERED("creases { fallback = scale }\n    eyeball-shadow-left { partner = eyelash-left }"))).not.toBe(keys(PARTNERED("creases { fallback = scale }")));
+  });
+
+  test("a child morph inherits `partner` from its parent, field by field with the label's other fields", () => {
+    const text = `${PARTNERED("eyeball-shadow-left { partner = { eyeball-shadow-left; eyelash-left } }")}
+morph child as m {
+  layers {
+    eyeball-shadow-left { fallback = cut }
+  }
+}
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+    expect(recipeOf(text, "child").layers["eyeball-shadow-left"]).toEqual({ fallback: "cut", partner: ["eyeball-shadow-left", "eyelash-left"] });
+  });
+
+  test("a child morph inherits `partner` from its parent", () => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  layers {
+    eyeball-shadow-left { partner { eyeball-shadow-left; eyelash-left } }
+  }
+}
+
+morph child as base {
+  fallback = cut
+}
+`;
+    expect(morphDiagnostics(text)).toEqual([]);
+    expect(recipeOf(text, "child").layers["eyeball-shadow-left"]).toEqual({ partner: ["eyeball-shadow-left", "eyelash-left"] });
+  });
+
+  test.each([
+    ["`partner` at the morph root", PARTNERED("creases { fallback = scale }", "  partner = eyelash-left\n"), "partner", "`partner` belongs under a label in `layers { … }`."],
+    [
+      "`partner` in a clip entry",
+      PARTNERED("creases { fallback = scale }", "", "  clips {\n    { between { eyelash-left }; targets { pupil-left }; partner = eyelash-left }\n  }\n"),
+      "partner",
+      "`partner` belongs under a label in `layers { … }`.",
+    ],
+    ["a value that is not a label", PARTNERED("eyeball-shadow-left { partner { eyelash-left = 2 } }"), "partner", "`partner` names a label or a list of labels"],
+    ["a list item that is not a label", PARTNERED("eyeball-shadow-left { partner { eyelash-left; { eyelash-right } } }"), "{", "`partner` names a label or a list of labels"],
+    ["an empty list", PARTNERED("eyeball-shadow-left { partner { } }"), "partner", "`partner` needs at least one label"],
+    ["`partner` on a clip's `between` label", PARTNERED("eyelash-left { partner = eyeball-shadow-left }"), "partner", "`eyelash-left` forms an aperture in `clips`, so it cannot take a partner"],
+  ])("%s is an error on its span", (_, text, span, message) => {
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: span });
+    expect(found[0]!.message).toContain(message);
+  });
+
+  test("a child whose clip makes an inherited partner's label an aperture edge is reported on its `as`, and loses the partner", () => {
+    const text = `${PARTNERED("eyelash-left { partner = eyeball-shadow-left }", "", "")}
+morph child as m {
+  clips {
+    { between { eyelash-left }; targets { pupil-left } }
+  }
+}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([
+      expect.objectContaining({ text: "m", message: "`layers.eyelash-left.partner`, inherited: `eyelash-left` forms an aperture in `clips`, so it cannot take a partner: an aperture edge pairs by its own label." }),
+    ]);
+    expect(found[0]!.line).toBeGreaterThan(10);
+    expect(recipeOf(text, "child").layers["eyelash-left"]).toBeUndefined();
+  });
+
+  test("a parent's own partner on its aperture edge is reported once, where it is written", () => {
+    const text = `${PARTNERED("eyelash-left { partner = eyeball-shadow-left }")}
+morph child as m {
+  fallback = cut
+}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([expect.objectContaining({ text: "partner", message: expect.stringContaining("forms an aperture in `clips`") })]);
+    expect(found[0]!.line).toBeLessThan(10);
+  });
+
+  test("a rejected value leaves `partner` out of the recipe", () => {
+    expect(recipeOf(PARTNERED("eyeball-shadow-left { partner { eyelash-left = 2 } }")).layers["eyeball-shadow-left"]).toBeUndefined();
+    expect(recipeOf(PARTNERED("eyelash-left { partner = eyeball-shadow-left }")).layers["eyelash-left"]).toBeUndefined();
+  });
+
+  test.each([
+    ["a list that names only the label itself", "eyeball-shadow-left { partner = eyeball-shadow-left }", "eyeball-shadow-left", "names only `eyeball-shadow-left` itself"],
+    ["a label listed twice", "eyeball-shadow-left { partner = { eyelash-left; eyeball-shadow-left; eyelash-left } }", "eyelash-left", "`eyelash-left` is listed twice"],
+    ["a label no candidate image has", "eyeball-shadow-left { partner = { eyeball-shadow-left; eyelash-middle } }", "eyelash-middle", "No image the morph applies to has a layer labelled `eyelash-middle`."],
+  ])("%s is a warning on its span", (_, layers, span, message) => {
+    const found = partnerIssues(PARTNERED(layers));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: span, severity: 2 });
+    expect(found[0]!.message).toContain(message);
+  });
+
+  test("the duplicate is warned on its second mention, and a self-only list leaves `partner` out of the recipe", () => {
+    const layers = "eyeball-shadow-left { partner = { eyelash-left; eyeball-shadow-left; eyelash-left } }";
+    const duplicate = partnerIssues(PARTNERED(layers));
+    expect(duplicate).toHaveLength(1);
+    expect(duplicate[0]!.character).toBe(4 + layers.lastIndexOf("eyelash-left"));
+    expect(recipeOf(PARTNERED("eyeball-shadow-left { partner = { eyelash-left; eyeball-shadow-left; eyelash-left } }")).layers["eyeball-shadow-left"]).toEqual({
+      partner: ["eyelash-left", "eyeball-shadow-left"],
+    });
+    expect(recipeOf(PARTNERED("eyeball-shadow-left { partner = eyeball-shadow-left }")).layers["eyeball-shadow-left"]).toBeUndefined();
+  });
+
+  test("a parent morph's invalid `partner` is reported where the parent writes it", () => {
+    const text = `morph base {
+  method = bend
+  keyframes {
+    { offset = 0; eyes { state = open } }
+    { offset = 1; eyes { state = closed } }
+  }
+  layers {
+    eyeball-shadow-left { partner {} }
+  }
+}
+
+morph child as base {
+  fallback = cut
+}
+`;
+    const found = morphDiagnostics(text).filter((d) => d.severity === 1);
+    expect(found).toEqual([expect.objectContaining({ line: 7, text: "partner", message: expect.stringContaining("`partner` needs at least one label") })]);
+  });
+});
+
+describe("a clip entry's `spread`", () => {
+  const CLIPPED = (spread = "", extra = "", keyframes = "from { eyes { state = open } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }") => `morph m {
+  method = bend
+${extra}  keyframes {
+    ${keyframes}
+  }
+  clips {
+    { between { eyelash-left }; targets { eyeball-white-left; pupil-left }${spread} }
+  }
+}
+`;
+  const recipeText = (text: string, name = "m") => compile(text).morphs!.recipes[name]!;
+  const errors = (text: string) => morphDiagnostics(text).filter((d) => d.severity === 1);
+
+  test("an entry without `spread` and one with `spread = 1px` give the same recipe, with no `spread` in it", () => {
+    expect(errors(CLIPPED())).toEqual([]);
+    expect(errors(CLIPPED("; spread = 1px"))).toEqual([]);
+    expect(recipeText(CLIPPED("; spread = 1px"))).toBe(recipeText(CLIPPED()));
+    expect(JSON.parse(recipeText(CLIPPED())).clips).toEqual([{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"] }]);
+  });
+
+  test.each([
+    ["2px", 2],
+    ["0.5px", 0.5],
+    ["0", 0],
+    ["-1px", -1],
+  ])("`spread = %s` lowers to %s pixels", (value, pixels) => {
+    const text = CLIPPED(`; spread = ${value}`);
+    expect(errors(text)).toEqual([]);
+    expect(JSON.parse(recipeText(text)).clips[0].spread).toBe(pixels);
+    expect(parseMorphRecipe(recipeText(text))).toEqual(JSON.parse(recipeText(text)));
+  });
+
+  test.each(["2", "1em", "wide", "1e999px"])("`spread = %s` is reported on its value", (value) => {
+    const found = errors(CLIPPED(`; spread = ${value}`));
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ text: value, severity: 1 });
+    expect(found[0]!.message).toContain("`spread` is a length in `px` or `0`");
+  });
+
+  test.each([
+    ["a keyframe container", CLIPPED("", "", "from { eyes { state = open; spread = 1px } }\n    50% { eyes { state = closed } }\n    to { eyes { state = open } }")],
+    [
+      "a `paints` entry",
+      CLIPPED().replace(/\n}\n$/, "\n  paints {\n    { targets { eyelash-left }; state = eyes.closed; fill = red; spread = 1px }\n  }\n}\n"),
+    ],
+  ])("`spread` in %s names its three places", (_where, text) => {
+    const all = errors(text);
+    const found = all.filter((d) => d.text === "spread");
+    expect(found, JSON.stringify(all.map((d) => [d.text, d.message]))).toHaveLength(1);
+    expect(found[0]!.message).toContain("at the morph root, under a label in `layers { … }` or in a `clips { … }` entry");
+  });
+
+  test("a child morph inherits its parent's clip entry with its `spread`", () => {
+    const text = `${CLIPPED("; spread = -0.5px")}
+morph child as m {
+  fallback = cut
+}
+`;
+    expect(errors(text)).toEqual([]);
+    expect(JSON.parse(recipeText(text, "child")).clips).toEqual(JSON.parse(recipeText(text)).clips);
+    expect(JSON.parse(recipeText(text, "child")).clips[0].spread).toBe(-0.5);
+  });
+});
+describe("a drawing's `spread`", () => {
+  const SPREAD = (root = "", layer = "", clip = "") => `morph m {
+  method = bend
+${root}  layers {
+    eyeball-shadow-left { partner = eyelash-left${layer} }
+  }
+  keyframes {
+    from { eyes { state = open } }
+    50% { eyes { state = closed } }
+    to { eyes { state = open } }
+  }
+  clips {
+    { between { eyelash-left }; targets { eyeball-white-left; pupil-left }${clip} }
+  }
+}
+`;
+  const recipeText = (text: string, name = "m") => compile(text).morphs!.recipes[name]!;
+  const errors = (text: string) => morphDiagnostics(text).filter((d) => d.severity === 1);
+
+  test("a morph without `spread` and one with `spread = 0` at the root and under a label keep the same recipe, with no `spread` in it", () => {
+    expect(errors(SPREAD())).toEqual([]);
+    const zero = SPREAD("  spread = 0\n", "; spread = 0");
+    expect(errors(zero)).toEqual([]);
+    expect(recipeText(zero)).toBe(recipeText(SPREAD()));
+    expect(recipeText(SPREAD())).not.toContain("spread");
+  });
+
+  test.each([
+    ["2px", 2],
+    ["0.5px", 0.5],
+    ["-1px", -1],
+  ])("`spread = %s` lowers to %s pixels at the root and under a label", (value, pixels) => {
+    const root = SPREAD(`  spread = ${value}\n`);
+    expect(errors(root)).toEqual([]);
+    expect(JSON.parse(recipeText(root)).spread).toBe(pixels);
+    expect(parseMorphRecipe(recipeText(root))).toEqual(JSON.parse(recipeText(root)));
+    const layer = SPREAD("", `; spread = ${value}`);
+    expect(errors(layer)).toEqual([]);
+    expect(JSON.parse(recipeText(layer)).layers["eyeball-shadow-left"].spread).toBe(pixels);
+    expect(JSON.parse(recipeText(layer))).not.toHaveProperty("spread");
+    expect(parseMorphRecipe(recipeText(layer))).toEqual(JSON.parse(recipeText(layer)));
+  });
+
+  test("a label's `spread = 0` is kept where a root `spread` would otherwise apply to it", () => {
+    const text = SPREAD("  spread = -1px\n", "; spread = 0");
+    expect(errors(text)).toEqual([]);
+    const recipe = JSON.parse(recipeText(text));
+    expect(recipe.spread).toBe(-1);
+    expect(recipe.layers["eyeball-shadow-left"].spread).toBe(0);
+    expect(parseMorphRecipe(recipeText(text))).toEqual(recipe);
+  });
+
+  test.each(["2", "1em", "wide", "1e999px"])("`spread = %s` is reported on its value at the root and under a label", (value) => {
+    for (const text of [SPREAD(`  spread = ${value}\n`), SPREAD("", `; spread = ${value}`)]) {
+      const found = errors(text);
+      expect(found).toHaveLength(1);
+      expect(found[0]).toMatchObject({ text: value, severity: 1 });
+      expect(found[0]!.message).toContain("`spread` is a length in `px` or `0`");
+    }
+  });
+
+  test("a label written as a value names `spread` among the fields a label takes", () => {
+    const text = SPREAD().replace("    eyeball-shadow-left { partner = eyelash-left }", "    eyeball-shadow-left = -1px");
+    expect(text).toContain("eyeball-shadow-left = -1px");
+    const found = errors(text);
+    expect(found).toEqual([expect.objectContaining({ line: 3 })]);
+    expect(found[0]!.message).toBe(
+      "`eyeball-shadow-left` in `layers { … }` is a label: write `eyeball-shadow-left { … }` with its `blend`, `method`, `fallback`, `depth`, `spread` or `partner` inside.",
+    );
+  });
+
+  test("a root `spread` leaves every clip entry's recipe unchanged", () => {
+    const plain = JSON.parse(recipeText(SPREAD()));
+    const spread = JSON.parse(recipeText(SPREAD("  spread = -1px\n")));
+    expect(spread.clips).toEqual(plain.clips);
+    const clipped = JSON.parse(recipeText(SPREAD("  spread = -1px\n", "", "; spread = 2px")));
+    expect(clipped.clips).toEqual([{ between: ["eyelash-left"], targets: ["eyeball-white-left", "pupil-left"], spread: 2 }]);
+  });
+
+  test("a child morph inherits its parent's root and label `spread`", () => {
+    const text = `${SPREAD("  spread = 0.5px\n", "; spread = -1px")}
+morph child as m {
+  fallback = cut
+}
+`;
+    expect(errors(text)).toEqual([]);
+    const child = JSON.parse(recipeText(text, "child"));
+    expect(child.spread).toBe(0.5);
+    expect(child.layers["eyeball-shadow-left"].spread).toBe(-1);
+  });
+});

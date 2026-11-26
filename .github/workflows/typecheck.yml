@@ -58,34 +58,34 @@ jobs:
         run: npm ci
 
       - name: Verify installed test-suite runner
-        run: node scripts/test-suite.test.mjs
+        run: node test/scripts/test-suite.test.mjs
 
       - name: Test the ListRow overflow scanner
-        run: node --test scripts/check-listrow-overflow.test.mjs
+        run: node --test test/scripts/check-listrow-overflow.test.mjs
 
       - name: Check ListRow labels that clip themselves
         run: npm run check:listrow-overflow
 
       - name: Test the node-name scanner
-        run: node --test scripts/check-node-names.test.mjs
+        run: node --test test/scripts/check-node-names.test.mjs
 
       - name: Check grammar node names
         run: npm run check:node-names
 
       - name: Test the grammar lint rules
-        run: node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts
+        run: node --test packages/eslint-plugin-sparkdown-grammar/test/rules/*.test.ts
 
       - name: Lint the grammar
         run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml definitions/yaml/sparkdown-luau.language-grammar.yaml
 
       - name: Test the Radix import boundary rule
-        run: node --test eslint.config.test.mjs
+        run: node --test test/eslint.config.test.mjs
 
       - name: Lint the Radix import boundary
         run: npm run lint:radix-boundary
 
       - name: Test the lowerer conventions scanner
-        run: node --test scripts/check-lowerer-conventions.test.mjs
+        run: node --test test/scripts/check-lowerer-conventions.test.mjs
 
       - name: Check lowerer conventions
         run: node scripts/check-lowerer-conventions.mjs

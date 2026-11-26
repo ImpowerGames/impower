@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import builtinBreakpoints from "../../spark-engine/src/game/modules/ui/builtinBreakpoints.json";
 import { loadScreenPreview } from "../../sparkle-screen-preview/src/utils/loadScreenPreview";
 import { getUiBreakpoints } from "../../sparkdown-language-server/src/utils/providers/getUiBreakpoints";
-import { compileUI, createHarness } from "../../spark-engine/src/tests/ui/harness/uiTestHarness";
+import { compileUI, createHarness } from "../../spark-engine/test/ui/harness/uiTestHarness";
 
 const SCENE = "\nscene start\n  A line.\nend\n";
 

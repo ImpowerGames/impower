@@ -1,0 +1,25 @@
+define assets as config with
+  predict_distance = 1
+end
+
+scene start
+  The harbour lights come on one by one along the quay, and the water holds every one of them.
+  A ferry horn sounds somewhere beyond the breakwater, low and long, and the gulls lift from the rail.
+  -> quay
+end
+
+scene quay
+  Gulls settle again on the rail of the old pier, shuffling and calling as the evening cools.
+  The tide turns, and the moored boats swing slowly round on their ropes to face the open sea.
+  -> crossing
+end
+
+scene crossing
+  A lamp is lit in the wheelhouse, and the deckhands coil the last of the ropes by the gangway.
+  ((play sound bell))
+  The quay bell rings once as the ferry pulls away into open water, its wake spreading pale.
+  The wind picks up as the harbour falls behind, and the deck rocks under a long slow swell.
+  ((play music voyage))
+  Music drifts up from the saloon below, slow and steady, and carries far across the water.
+  The lights of the town shrink to a thin bright line along the edge of the dark.
+end

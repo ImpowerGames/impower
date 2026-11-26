@@ -4,6 +4,7 @@ export interface AudioClockContext {
   readonly state: AudioContextState;
   readonly currentTime: number;
   readonly outputLatency?: number;
+  readonly sampleRate?: number;
   getOutputTimestamp?(): AudioTimestamp;
 }
 
@@ -26,6 +27,10 @@ export class AudioClock {
     this._timeOrigin = timeOrigin;
     this._now = now;
     this._reading = { time: now(), outputLatency: 0 };
+  }
+
+  get sampleRate(): number | undefined {
+    return this._context?.sampleRate;
   }
 
   setContext(context: AudioClockContext | undefined): AudioClockParams {

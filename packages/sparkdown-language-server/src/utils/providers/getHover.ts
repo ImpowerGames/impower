@@ -27,6 +27,7 @@ import { getStreamElementHover } from "./streamElementHelp";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
 import { getClearPropHover } from "./clearPropHelp";
 import { getPresenceBlockHover } from "./presenceBlockHelp";
+import { getSelectorAttributeHover } from "./selectorAttributeHelp";
 import {
   MarkupKind,
   type Hover,
@@ -438,6 +439,10 @@ export const getHover = async (
     const presenceHover = getPresenceBlockHover(document, tree, position);
     if (presenceHover) {
       return presenceHover;
+    }
+    const selectorAttributeHover = getSelectorAttributeHover(document, tree, position);
+    if (selectorAttributeHover) {
+      return selectorAttributeHover;
     }
   }
   if (!document || !annotations || !program) {

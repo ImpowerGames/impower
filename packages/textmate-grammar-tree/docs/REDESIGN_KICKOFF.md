@@ -30,10 +30,10 @@ this matters. The non-negotiable contract: the incremental tree must be
   `reparsedTo`* — plus the merged Ink-compiler location-cache work). Re-merge
   `main` before you start if time has passed; the redesign must build on
   current-main, not the branch-point.
-- **vscode-textmate conformance suite** — `packages/sparkdown/src/tests/
+- **vscode-textmate conformance suite** — `packages/sparkdown/test/
   textmate-conformance/` (vendored upstream fixtures + harness; baseline 1/95,
   bucketed by divergence axis: regex/Oniguruma, while-rules, captures, includes).
-- **Incremental byte-identity harness** — `packages/sparkdown/src/tests/
+- **Incremental byte-identity harness** — `packages/sparkdown/test/
   incremental/incremental.ts` + `incremental.test.ts` (14 edit-vs-scratch cases +
   the 58× boundedness metric).
 - **Production-input parity guard** — `productionInputParity.test.ts`: parses

@@ -310,7 +310,7 @@ function main(checkout: string | undefined) {
   lines.push("}");
 
   const here = dirname(fileURLToPath(import.meta.url));
-  const output = join(here, "..", "src", "tests", "luau-conformance", "upstream", "typecheck-cases.json");
+  const output = join(here, "..", "test", "luau-conformance", "upstream", "typecheck-cases.json");
   writeFileSync(output, lines.join("\n") + "\n");
   console.log(
     `${output}: ${total} cases in ${TYPECHECK_TEST_FILES.length} files at ${pin}; ` +

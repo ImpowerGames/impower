@@ -75,6 +75,15 @@ import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
 import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
 import { presenceBlockDocumentation } from "./presenceBlockHelp";
+import {
+  isValuelessAttribute,
+  labelKindOfProp,
+  propOfAttribute,
+  SELECTABLE_PROPS,
+  selectorAttributeDocumentation,
+  selectorPropDocumentation,
+} from "./selectorAttributeHelp";
+import { DATA_ATTRIBUTE_PROPS, toDataAttributeName } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -800,6 +809,51 @@ const addLineLabelCompletions = (
         kind: state === "speaker" ? CompletionItemKind.Constant : CompletionItemKind.EnumMember,
       });
     }
+  }
+};
+
+const SELECTOR_ATTRIBUTE_BEFORE = /^\s*([#[])([\p{L}\p{N}_-]*)(?:([~|^$*]?=)[\p{L}\p{N}_@-]*)?$/u;
+
+const addSelectorAttributeCompletions = (
+  completions: Map<string, CompletionItem>,
+  typed: RegExpExecArray,
+  range: Range,
+  scripts: Map<string, AnnotatedScript>,
+  program: SparkProgram | undefined,
+  written: "nothing" | "text" | "value",
+) => {
+  const [, opener, name = "", operator] = typed;
+  if (operator) {
+    const kind = labelKindOfProp(opener === "#" ? name : propOfAttribute(name));
+    if (kind) {
+      addLineLabelCompletions(completions, kind, scripts, program);
+    }
+    return;
+  }
+  for (const prop of SELECTABLE_PROPS) {
+    const attribute = opener === "#" ? prop : toDataAttributeName(prop);
+    const assigned = written === "value" || isValuelessAttribute(prop) ? "" : "=$1";
+    const key = opener === "#" ? `#${prop}${assigned}` : `[${attribute}${assigned}`;
+    const label = opener === "#" ? `#${prop}` : `[${attribute}]`;
+    completions.set(label, {
+      label,
+      filterText: `${opener}${attribute}`,
+      textEdit: {
+        range,
+        newText:
+          written === "nothing" ? `${key}${opener === "[" ? "]" : ""} { $0 }` : key,
+      },
+      insertTextFormat: InsertTextFormat.Snippet,
+      sortText: `${DATA_ATTRIBUTE_PROPS.has(prop) ? 0 : 1}${prop}`,
+      labelDetails: {
+        description: opener === "#" ? "prop" : attribute === prop ? "attribute" : `written by #${prop}`,
+      },
+      kind: CompletionItemKind.Property,
+      documentation: {
+        kind: MarkupKind.Markdown,
+        value: opener === "#" ? selectorPropDocumentation(prop) : selectorAttributeDocumentation(attribute),
+      },
+    });
   }
 };
 
@@ -2424,6 +2478,35 @@ const completionsAt = (
           },
         });
       }
+      return buildCompletions();
+    }
+    const typedSelector = SELECTOR_ATTRIBUTE_BEFORE.exec(entryBefore);
+    if (
+      braceDefine.type === "style" &&
+      typedSelector &&
+      !insideElementValue(tree, documentCursorOffset)
+    ) {
+      const typedLength = typedSelector[0].trimStart().length;
+      const after = lineText
+        .slice(position.character)
+        .replace(/[\r\n]+$/, "");
+      const nameRest = /^[\p{L}\p{N}_-]*/u.exec(after)![0];
+      const written = /^\s*[~|^$*]?=/.test(after.slice(nameRest.length))
+        ? "value"
+        : after.trim()
+          ? "text"
+          : "nothing";
+      addSelectorAttributeCompletions(
+        completions,
+        typedSelector,
+        document.range(
+          documentCursorOffset - typedLength,
+          documentCursorOffset + (written === "value" ? nameRest.length : 0),
+        ),
+        scripts,
+        program,
+        written,
+      );
       return buildCompletions();
     }
     if (
