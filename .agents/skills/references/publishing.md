@@ -12,7 +12,7 @@ Every issue follows a template under `.agents/templates/issues/` and every pull 
 | Pull request                                    | `.github/PULL_REQUEST_TEMPLATE.md`            |
 | PR report (once the cutover switch is on)       | `.agents/templates/pr-report.md`              |
 
-A maintainer request is never filed by hand: [ask-maintainer](../ask-maintainer/SKILL.md)'s tool builds its body from the template and refuses an incomplete one. Until the cutover below, the public issue form under `.github/ISSUE_TEMPLATE/` serves identical copies of the Bug, Feature and Task templates; edit a template under `.agents/templates/issues/` and mirror it there, which `.agents/templates/templates.test.mjs` checks. At the cutover the public form changes to the human-facing bug report and feature request under `.agents/templates/public/`, and the pull request template to the shrunk one staged there as `PULL_REQUEST_TEMPLATE.md`.
+A maintainer request is never filed by hand: [ask-maintainer](../ask-maintainer/SKILL.md)'s tool builds its body from the template and refuses an incomplete one. Until the cutover below, the public issue form under `.github/ISSUE_TEMPLATE/` serves identical copies of the Bug, Feature and Task templates; edit a template under `.agents/templates/issues/` and mirror it there, which `test/agents/templates/templates.test.mjs` checks. At the cutover the public form changes to the human-facing bug report and feature request under `.agents/templates/public/`, and the pull request template to the shrunk one staged there as `PULL_REQUEST_TEMPLATE.md`.
 
 ## The tickets repository
 

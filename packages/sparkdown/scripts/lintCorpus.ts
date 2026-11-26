@@ -146,7 +146,7 @@ export function main(repo: string, project?: string) {
   }
   run("repository .sd files", repoFindings, tracked.length);
 
-  const conformance = "packages/sparkdown/src/tests/luau-conformance/upstream/conformance";
+  const conformance = "packages/sparkdown/test/luau-conformance/upstream/conformance";
   const luau = walk(join(repo, conformance))
     .filter((f) => f.endsWith(".luau"))
     .sort();

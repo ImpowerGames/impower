@@ -2,7 +2,7 @@ import { CompletionContext, type CompletionResult } from "@codemirror/autocomple
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { compileProject, complete } from "../../sparkdown-language-server/src/tests/providers/completionHarness";
+import { compileProject, complete } from "../../sparkdown-language-server/test/providers/completionHarness";
 import { serverCompletionSource } from "../src/completion";
 import { LSPPlugin } from "../src/plugin";
 

@@ -1,0 +1,82 @@
+import { describe, expect, it } from "vitest";
+import { SparkdownCompiler } from "../../src/compiler/classes/SparkdownCompiler";
+import { programContent } from "../programListing";
+
+const URI = "inmemory:///main.sd";
+
+function configured(text: string) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  return compiler;
+}
+
+function posAt(text: string, offset: number) {
+  const before = text.slice(0, offset).split("\n");
+  return { line: before.length - 1, character: before.at(-1)!.length };
+}
+
+const SOURCE = [
+  "define spawner with",
+  "  rate = 1",
+  "end",
+  "",
+  "function first()",
+  "  for i = 1, 3 do",
+  "    local made = new spawner()",
+  "  end",
+  "  return 1",
+  "end",
+  "",
+  "function second()",
+  "  for i = 1, 3 do",
+  "    local made = new spawner()",
+  "  end",
+  "  return 1",
+  "end",
+  "",
+  "{first()} and {second()}.",
+  "",
+].join("\n");
+
+describe("synthetic names carried into an incremental compile", () => {
+  it("compiles an edit beside a kept synthetic temp the same as a cold compile", () => {
+    const incremental = configured(SOURCE);
+    expect(
+      incremental.compile({ textDocument: { uri: URI } }).program.chunks,
+    ).toBeDefined();
+
+    const anchor = "function first()";
+    const offset = SOURCE.indexOf(anchor) + anchor.length;
+    const inserted = "\n  local unused = 1";
+    const at = posAt(SOURCE, offset);
+    incremental.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [{ range: { start: at, end: at }, text: inserted }],
+    });
+    const afterText = SOURCE.slice(0, offset) + inserted + SOURCE.slice(offset);
+
+    const incrementalProgram = incremental.compile({
+      textDocument: { uri: URI },
+    }).program;
+    const coldProgram = configured(afterText).compile({
+      textDocument: { uri: URI },
+    }).program;
+
+    expect(coldProgram.chunks).toBeDefined();
+    expect(programContent(incrementalProgram.chunks)).toEqual(
+      programContent(coldProgram.chunks),
+    );
+  });
+});

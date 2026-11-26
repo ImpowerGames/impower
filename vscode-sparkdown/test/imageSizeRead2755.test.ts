@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { imageSizeFixtures } from "@impower/sparkdown/src/tests/morph/imageSizeFixtures";
+import { imageSizeFixtures } from "@impower/sparkdown/test/morph/imageSizeFixtures";
 
 const state = vi.hoisted(() => ({
   bytes: new Uint8Array() as Uint8Array<ArrayBufferLike>,

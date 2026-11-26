@@ -1,0 +1,241 @@
+import { describe, expect, test } from "vitest";
+import { testCompiler, testStory, type TestStory } from "../engineUnderTest";
+import {
+  planRoute,
+  lastSearchStats,
+} from "../../src/compiler/utils/planRoute";
+import type { ProgramRoot } from "../../src/program/ProgramRoot";
+
+const URI = "inmemory:///main.sd";
+
+function compile(src: string) {
+  const compiler = testCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: src,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  if (!result.program.chunks) {
+    throw new Error(
+      "fixture failed to compile: " +
+        JSON.stringify(result.program.diagnostics),
+    );
+  }
+  return {
+    story: testStory(result.program.chunks),
+    root: result.program.chunks!,
+    program: result.program,
+  };
+}
+
+function addressesForLine(root: ProgramRoot, line: number): number[] {
+  const address = root.addressAt(URI, line);
+  return address !== undefined && root.locationOf(address)?.startLine === line
+    ? [address]
+    : [];
+}
+
+function plan(
+  story: TestStory,
+  fromPath: string,
+  to: number,
+  functions: string[],
+) {
+  return planRoute(story, fromPath, to, {
+    stayWithinKnot: true,
+    functions,
+  });
+}
+
+describe("knot-exit guard with tunnels and threads", () => {
+  const FIXTURE = `\
+
+
+scene A
+  First line in A.
+  -> B ->
+  Back in A after the tunnel.
+  <- C
+  After the thread in A.
+  Last line in A.
+end
+
+scene B
+  Inside B, the tunnel callee.
+  ->->
+end
+
+scene C
+  Inside C, the thread callee.
+  done
+end
+
+scene start
+  -> A
+end
+`;
+
+  test("route to a line after a tunnel return is found", () => {
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 5);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+
+  test("route to a line after a thread is found", () => {
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 7);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+
+  test("route to the last line of the scene is found", () => {
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 8);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+
+  test("route inside a tunnel callee is planned from the callee scene", () => {
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 12);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "B", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+
+  test("route inside a thread callee is planned from the callee scene", () => {
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 17);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "C", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+});
+
+describe("knot-exit guard prunes one-way diverts", () => {
+  const FIXTURE_ONEWAY = `\
+
+
+scene A
+  Line in A before the divert.
+  -> B
+end
+
+scene B
+  Line one in B.
+  Line two in B.
+  Line three in B.
+  Line four in B.
+  Line five in B.
+  Line six in B.
+  Line seven in B.
+  Line eight in B.
+  Line nine in B.
+  Line ten in B.
+end
+
+scene start
+  -> A
+end
+`;
+
+  test("unreachable target in a scene with a one-way exit reports exhausted quickly", () => {
+    const { story, root, program } = compile(FIXTURE_ONEWAY);
+    const functions = Object.keys(program.functionLocations || {});
+
+    const addresses = addressesForLine(root, 17);
+    expect(addresses.length).toBeGreaterThan(0);
+    expect(root.sceneAt(addresses[0]!)).toBe("B");
+
+    const result = plan(story, "A", addresses[0]!, functions);
+    expect(result).toBeNull();
+    expect(lastSearchStats.endReason).toBe("exhausted");
+    expect(lastSearchStats.stepsUsed).toBeLessThan(30);
+  });
+
+  test("reachable target before the one-way exit is found", () => {
+    const { story, root, program } = compile(FIXTURE_ONEWAY);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 3);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "A", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+});
+
+describe("exitedKnot guard unit behavior", () => {
+  test("guard returns true for a foreign knot with empty call stack (one-way divert)", () => {
+    const FIXTURE = `\
+
+
+scene X
+  Line in X.
+  -> Y
+end
+
+scene Y
+  Line in Y.
+end
+
+scene start
+  -> X
+end
+`;
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+
+    const addresses = addressesForLine(root, 8);
+    expect(addresses.length).toBeGreaterThan(0);
+    expect(root.sceneAt(addresses[0]!)).toBe("Y");
+
+    const result = plan(story, "X", addresses[0]!, functions);
+    expect(result).toBeNull();
+    expect(lastSearchStats.endReason).toBe("exhausted");
+    expect(lastSearchStats.stepsUsed).toBeLessThan(30);
+  });
+
+  test("guard returns false while the starting knot is on the call stack via tunnel", () => {
+    const FIXTURE = `\
+
+
+scene main
+  Before tunnel.
+  -> helper ->
+  After tunnel.
+end
+
+scene helper
+  Inside helper.
+  ->->
+end
+
+scene start
+  -> main
+end
+`;
+    const { story, root, program } = compile(FIXTURE);
+    const functions = Object.keys(program.functionLocations || {});
+    const addresses = addressesForLine(root, 5);
+    expect(addresses.length).toBeGreaterThan(0);
+    const result = plan(story, "main", addresses[0]!, functions);
+    expect(result).not.toBeNull();
+  });
+});

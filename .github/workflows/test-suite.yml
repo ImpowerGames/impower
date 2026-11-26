@@ -145,7 +145,7 @@ jobs:
           NO_COLOR: 1
         run: |
           set -o pipefail
-          npx vitest run --minWorkers=1 --maxWorkers=2 --reporter=default src/tests/compiler/luauCorpusGate.test.ts src/tests/compiler/luauSyntaxAgreement.test.ts 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+          npx vitest run --minWorkers=1 --maxWorkers=2 --reporter=default test/compiler/luauCorpusGate.test.ts test/compiler/luauSyntaxAgreement.test.ts 2>&1 | tee "$RUNNER_TEMP/vitest.log"
 
       - name: Require summary lines
         if: always()

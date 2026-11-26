@@ -155,7 +155,7 @@ name or a member of a stdlib namespace (`type(x)`, `math.abs(x)`)
 still calls the builtin whatever local takes its name, in a function
 as in a scene.
 
-> **Note on iteration variables**: numeric `for` (e.g. `for i = 1, 10 do`) drives a hidden index, and the user variable `i` is a fresh copy of it each iteration, so a body write to `i` does not change how the loop iterates (`src/tests/luau-conformance/LuaLoops.test.ts`). Loop variables are declared by the loop itself, so numeric and generic `for` loops compile inside anonymous functions and may shadow an outer local (`src/tests/luau-conformance/ForLoopVarCapture.test.ts`).
+> **Note on iteration variables**: numeric `for` (e.g. `for i = 1, 10 do`) drives a hidden index, and the user variable `i` is a fresh copy of it each iteration, so a body write to `i` does not change how the loop iterates (`test/luau-conformance/LuaLoops.test.ts`). Loop variables are declared by the loop itself, so numeric and generic `for` loops compile inside anonymous functions and may shadow an outer local (`test/luau-conformance/ForLoopVarCapture.test.ts`).
 
 ### Decision 2: Function value runtime representation — new `FunctionValue` ✅
 

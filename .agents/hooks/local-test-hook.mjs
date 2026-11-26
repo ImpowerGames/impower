@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const SINGLE_FILE =
-  "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600";
+  "node scripts/test-suite.mjs run packages/sparkdown test/compiler/constDeclarationValidity.test.ts --wait 600";
 
 export const TEST_REASON =
   "Run only the test files under work locally, through the runner that sets the heap and worker caps and queues behind other runs, for example: " +

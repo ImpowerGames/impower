@@ -1,6 +1,6 @@
 // Luau's type model, ported from `Analysis/include/Luau/Type.h`,
 // `TypePack.h` and their `.cpp` files at the commit pinned in
-// `src/tests/luau-conformance/upstream/typecheck-cases.json`. Luau is
+// `test/luau-conformance/upstream/typecheck-cases.json`. Luau is
 // MIT-licensed; see `LICENSE-luau.txt` in this directory.
 
 import type { AstExprCall, AstStatTypeFunction, DeprecatedInfo } from "./Ast";

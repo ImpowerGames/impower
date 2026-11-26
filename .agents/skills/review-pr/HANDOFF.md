@@ -48,7 +48,7 @@ A Claude reviewer and a full-access Codex reviewer (the default Codex route in [
 
 ```json
 "execution": [
-  { "id": "coordinator-run", "kind": "vitest", "package": "packages/sparkdown", "files": ["src/tests/compiler/constDeclarationValidity.test.ts"] },
+  { "id": "coordinator-run", "kind": "vitest", "package": "packages/sparkdown", "files": ["test/compiler/constDeclarationValidity.test.ts"] },
   { "id": "engine-program", "kind": "engine-bench", "mode": "program", "samples": 2, "warmup": 1 },
   { "id": "preview", "kind": "preview-bench", "mode": "both", "samples": 2, "warmup": 1 }
 ]

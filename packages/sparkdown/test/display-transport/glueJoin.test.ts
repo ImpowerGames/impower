@@ -1,0 +1,191 @@
+import { describe, expect, test } from "vitest";
+import { continueShowedSomething } from "../runtime/runtimeTestHarness";
+import { testCompiler, testStory } from "../engineUnderTest";
+import type { Simulator } from "../../src/runtime/Simulator";
+import { ObjectValue } from "../../src/runtime/Value";
+
+interface Step {
+  text: string;
+  tables: { target: unknown; character: unknown; text: unknown }[];
+}
+
+function field(obj: ObjectValue, key: string): unknown {
+  return (obj.value?.get(key) as { value?: unknown } | undefined)?.value;
+}
+
+const SILENT_SIMULATOR: Simulator = {
+  forceCondition: () => null,
+  forceChoice: () => null,
+  willForceCondition: () => false,
+  willForceChoice: () => false,
+  saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
+};
+
+function steps(source: string, simulator?: Simulator): Step[] {
+  const compiler = testCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({
+    textDocument: { uri: "inmemory:///main.sd" },
+  });
+  if (!result.program.chunks) {
+    throw new Error("glue-join fixture failed to compile");
+  }
+  const story = testStory(result.program.chunks);
+  const errors: string[] = [];
+  story.onError = (m) => errors.push(m);
+  story.simulator = simulator ?? null;
+  const out: Step[] = [];
+  while (story.canContinue) {
+    const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
+    out.push({
+      text,
+      tables: story.currentDisplayInstructions.map((t) => ({
+        target: field(t, "target"),
+        character: field(t, "character"),
+        text: field(t, "text"),
+      })),
+    });
+  }
+  expect(errors).toEqual([]);
+  return out;
+}
+
+function texts(source: string): string[] {
+  return steps(source).map((s) => s.text);
+}
+
+function inScene(body: string): string {
+  return `scene start\n${body.replace(/^(?=.)/gm, "  ")}end\n`;
+}
+
+const TOUCHING = inScene(`Some..\n..content..\n..with glue.\ndone\n`);
+const TRAILING = inScene(`Some ..\n.. content ..\n.. with glue.\ndone\n`);
+const DIALOGUE = inScene(`HERO: Wait ..\n.. right there.\ndone\n`);
+
+describe("glued display lines lower to display() calls", () => {
+  test("a touching-glue chain is one step of three tables", () => {
+    const [first] = steps(TOUCHING);
+    expect(first!.tables).toEqual([
+      { target: "action", character: undefined, text: "Some" },
+      { target: undefined, character: undefined, text: "content" },
+      { target: undefined, character: undefined, text: "with glue." },
+    ]);
+  });
+
+  test("a trailing-glue chain is one step of three tables", () => {
+    const [first] = steps(TRAILING);
+    expect(first!.tables).toEqual([
+      { target: "action", character: undefined, text: "Some " },
+      { target: undefined, character: undefined, text: "content " },
+      { target: undefined, character: undefined, text: "with glue." },
+    ]);
+  });
+
+  test("glued dialogue keeps the cue on the first table only", () => {
+    const [first] = steps(DIALOGUE);
+    expect(first!.tables).toEqual([
+      { target: "dialogue", character: "HERO", text: "Wait " },
+      { target: undefined, character: undefined, text: "right there." },
+    ]);
+  });
+});
+
+describe("currentText of a joined chain", () => {
+  test.each([
+    ["touching glue", TOUCHING, ["Somecontentwith glue.\n"]],
+    ["trailing glue", TRAILING, ["Some content with glue.\n"]],
+    ["glued dialogue", DIALOGUE, ["Wait right there.\n"]],
+    [
+      "continuation inside an if branch",
+      inScene(`You see a ..\nif true then\n  .. red door.\nend\ndone\n`),
+      ["You see a red door.\n"],
+    ],
+    [
+      "three trailing-glue dialogue lines",
+      inScene(`HERO: One ..\nHERO: .. two ..\nHERO: .. three.\ndone\n`),
+      ["One two three.\n"],
+    ],
+    [
+      "mid-body glue in a block dialogue",
+      inScene(`HERO:\n  First ..\n  .. second.\ndone\n`),
+      ["First second.\n"],
+    ],
+    [
+      "a trailing break on its own",
+      inScene(`First >\nLast.\ndone\n`),
+      ["First\n", "Last.\n"],
+    ],
+    [
+      "a trailing break the next line carries on after",
+      inScene(`First .. >\n.. second.\nLast.\ndone\n`),
+      ["First\n", "second.\n", "Last.\n"],
+    ],
+    [
+      "a bare interpolation line as the continuation",
+      `store count = 3\n${inScene(`You have ..\n.. {count}\ndone\n`)}`,
+      ["You have 3\n"],
+    ],
+  ])("%s reads as the flat text did", (_name, source, expected) => {
+    expect(texts(source)).toEqual(expected);
+  });
+});
+
+describe("step boundaries around glue", () => {
+  test("the line after a glued pair starts its own step", () => {
+    const result = steps(inScene(`You see a ..\n.. red door.\nIt is locked.\ndone\n`));
+    expect(result.map((s) => s.text)).toEqual([
+      "You see a red door.\n",
+      "It is locked.\n",
+    ]);
+    expect(result[1]!.tables).toEqual([
+      { target: "action", character: undefined, text: "It is locked." },
+    ]);
+  });
+
+  test("a simulator with no verdict leaves an if to its own value", () => {
+    const source = inScene(`You see a ..\nif true then\n  .. red door.\nend\nIt is locked.\n`);
+    expect(steps(source, SILENT_SIMULATOR).map((s) => s.text)).toEqual([
+      "You see a red door.\n",
+      "It is locked.\n",
+    ]);
+  });
+
+  test("an empty continuation keeps the step open for the next line only", () => {
+    const source = inScene(`You see ..\n.. {if true then "" else ""} ..\n.. The door.\nAfter.\n`);
+    expect(texts(source)).toEqual(["You see The door.\n", "After.\n"]);
+  });
+
+  test("a tag on an empty continuation does not move the step boundary", () => {
+    const source = inScene(`You see ..\nif true then\n  .. {if true then "" else ""} .. # marker\nend\n.. The door.\nAfter.\n`);
+    const result = steps(source);
+    expect(result.map((s) => s.text)).toEqual([
+      "You see The door.\n",
+      "After.\n",
+    ]);
+  });
+
+  test("a whitespace-only continuation keeps the step open", () => {
+    const source = `store x = ""\n${inScene(`First ..\n.. {x} ..\n.. Last ..\n.. word.\nAfter.\n`)}`;
+    expect(texts(source)).toEqual(["First Last word.\n", "After.\n"]);
+  });
+
+  test("a table with empty text still ends its own step", () => {
+    const result = steps(
+      inScene(`& display({ target = "action", text = "" })\n& display({ target = "action", text = "" })\nAfter.\n`),
+    );
+    expect(result.map((s) => s.tables.length)).toEqual([1, 1, 1]);
+  });
+});

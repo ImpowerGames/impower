@@ -3,18 +3,18 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBuiltinDefinitionSource, getTypeFunctionDefinitionSource } from "../src/compiler/typecheck/EmbeddedBuiltinDefinitions.ts";
-import { loadOfficialLuau } from "../src/tests/compiler/officialLuau.ts";
+import { loadOfficialLuau } from "../test/compiler/officialLuau.ts";
 
 const check = process.argv.slice(2);
 if (check.some((arg) => arg !== "--check") || check.length > 1)
   throw new Error("Usage: node packages/sparkdown/scripts/buildDefinitionAst.mjs [--check]");
 
-const upstream = JSON.parse(readFileSync(new URL("../src/tests/luau-conformance/upstream/ast/build.json", import.meta.url), "utf8")).upstream;
+const upstream = JSON.parse(readFileSync(new URL("../test/luau-conformance/upstream/ast/build.json", import.meta.url), "utf8")).upstream;
 const parse = await loadOfficialLuau();
 const inputs = [
   ["builtin", getBuiltinDefinitionSource(), "../src/compiler/typecheck/definitions/builtin.json"],
   ["type-functions", getTypeFunctionDefinitionSource(), "../src/compiler/typecheck/definitions/type-functions.json"],
-  ["checked-abs test fixture", readFileSync(new URL("../src/tests/compiler/definition-fixtures/checked-abs.luau", import.meta.url), "utf8"), "../src/tests/compiler/definition-fixtures/checked-abs.json"],
+  ["checked-abs test fixture", readFileSync(new URL("../test/compiler/definition-fixtures/checked-abs.luau", import.meta.url), "utf8"), "../test/compiler/definition-fixtures/checked-abs.json"],
 ];
 
 const outputs = inputs.map(([name, source, target]) => {

@@ -10,7 +10,7 @@ export default defineConfig({
     mainFields: ["module", "main"],
   },
   test: {
-    include: ["src/**/*.test.tsx", "test/**/*.test.tsx"],
+    include: ["test/**/*.test.tsx"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     environment: "jsdom",
     setupFiles: ["test/setup.ts"],
