@@ -75,6 +75,26 @@ describe("the time from Run to a sound's first sample (#2815)", () => {
     expect(measure!.duration).toBeCloseTo(started!.startTime - playStarted, 6);
   });
 
+  test("keeps the earliest first sample when a later start call plays the sound sooner", async () => {
+    const audio = await makeAudio();
+    markPlayStarted();
+    await audio.start("sound", "bell", 10);
+    const before = performance.now();
+    await audio.start("sound", "bell", 0);
+    const after = performance.now();
+
+    const marks = entries("audio started sound:bell");
+    expect(marks).toHaveLength(1);
+    expect(marks[0]!.startTime).toBeGreaterThanOrEqual(before);
+    expect(marks[0]!.startTime).toBeLessThanOrEqual(after);
+    const measures = entries("play to audio sound:bell");
+    expect(measures).toHaveLength(1);
+    expect(measures[0]!.startTime + measures[0]!.duration).toBeCloseTo(marks[0]!.startTime, 6);
+
+    await audio.start("sound", "bell", 5);
+    expect(entries("audio started sound:bell")[0]!.startTime).toBe(marks[0]!.startTime);
+  });
+
   test("records each sound once per play, skips voice beeps, and forgets the last play when the next starts", async () => {
     const audio = await makeAudio();
     markPlayStarted();

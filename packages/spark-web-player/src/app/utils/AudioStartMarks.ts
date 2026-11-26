@@ -9,16 +9,20 @@ const timeline = (): Performance | undefined =>
     ? performance
     : undefined;
 
-let started = new Set<string>();
+let started = new Map<string, number>();
 let playStartedAt: number | undefined;
 
+const clearSound = (perf: Performance, sound: string) => {
+  perf.clearMarks(`audio started ${sound}`);
+  perf.clearMeasures(`play to audio ${sound}`);
+};
+
 const forget = (perf: Performance) => {
-  for (const sound of started) {
-    perf.clearMarks(`audio started ${sound}`);
-    perf.clearMeasures(`play to audio ${sound}`);
+  for (const sound of started.keys()) {
+    clearSound(perf, sound);
   }
   perf.clearMarks(PLAY_STARTED);
-  started = new Set();
+  started = new Map();
 };
 
 export const markPlayStarted = (): void => {
@@ -32,11 +36,18 @@ export const markPlayStarted = (): void => {
 
 export const markAudioStarted = (sound: string, delayMs: number): void => {
   const perf = timeline();
-  if (!perf || started.has(sound)) {
+  if (!perf) {
     return;
   }
-  started.add(sound);
   const at = perf.now() + Math.max(0, delayMs);
+  const earlier = started.get(sound);
+  if (earlier !== undefined && earlier <= at) {
+    return;
+  }
+  if (earlier !== undefined) {
+    clearSound(perf, sound);
+  }
+  started.set(sound, at);
   perf.mark(`audio started ${sound}`, { startTime: at });
   if (playStartedAt !== undefined && playStartedAt <= at) {
     perf.measure(`play to audio ${sound}`, { start: playStartedAt, end: at });
