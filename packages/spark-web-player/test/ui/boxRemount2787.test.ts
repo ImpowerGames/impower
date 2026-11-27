@@ -348,3 +348,92 @@ describe("a box marked #clear stays cleared across a remount of its element (#27
     });
   });
 });
+
+describe("a line still typing keeps its reveal when the whole box is replaced (#2787)", () => {
+  const shown = (h: DOMHarness) =>
+    [...h.overlay.querySelectorAll<HTMLElement>(".main .dialogue .text_letter")]
+      .filter((el) => {
+        const reveal = (el as any).__sdReveal;
+        return reveal
+          ? reveal.currentTime != null &&
+              reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+          : el.style.opacity === "1";
+      })
+      .map((el) => el.textContent)
+      .join("");
+
+  test.each([
+    [
+      "an if branch",
+      source(`if expanded then
+    dialogue.first {
+      text
+    }
+  else
+    dialogue.second {
+      text
+    }
+  end`),
+    ],
+    [
+      "a screen slot",
+      source(`dialogue {
+    text
+  }`).replace(
+        "layout main {",
+        "screen shell {\n  if expanded then\n    panel.first { slot }\n  else\n    panel.second { slot }\n  end\n}\n\nlayout main in shell {",
+      ),
+    ],
+  ])("after a pause and resume, when %s replaces it", async (_name, story) => {
+    const h = createDOMHarness(story, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    timed(h);
+    await next(h);
+    await at(100);
+    const before = shown(h);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.length).toBeLessThan("slight problem".length);
+    h.ui.onPause();
+    await at(1100);
+    h.ui.onUnpause();
+    expect(shown(h)).toBe(before);
+    await toggle(h);
+    expect(shown(h)).toBe(before);
+  });
+
+  test("in a box limited to the line's speaker", async () => {
+    const h = createDOMHarness(
+      source(`dialogue #speaker=raffles {
+    if expanded then
+      text.first
+    else
+      text.second
+    end
+  }`),
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    timed(h);
+    const ui = h.game.module.ui;
+    ui.line({ speaker: { character: "raffles" }, text: { dialogue: [] } } as any);
+    void ui.text.change(
+      "line write",
+      "dialogue",
+      [..."slight problem"].map((text, i) => ({ text, after: i * 0.05 })),
+      false,
+      20,
+    );
+    await flushMicrotasks(40);
+    await at(100);
+    const before = shown(h);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.length).toBeLessThan("slight problem".length);
+    await toggle(h);
+    expect(h.overlay.querySelector(".main .dialogue .text.second")?.textContent).toBe(
+      "slight problem",
+    );
+    expect(shown(h)).toBe(before);
+  });
+});

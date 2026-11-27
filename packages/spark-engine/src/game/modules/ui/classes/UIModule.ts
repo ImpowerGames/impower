@@ -618,6 +618,9 @@ interface Presented {
 interface PresentedText extends Presented {
   sequence: TextInstruction[];
   shown: number;
+  current: TextInstruction[];
+  currentShown: number;
+  line?: LineLabels;
 }
 
 interface MountedStream {
@@ -2447,6 +2450,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (typeof params?.time === "number") {
         params.time += shift;
       }
+    }
+    if (shift !== 0) {
+      this.text.retime(line.time, time);
+      this.streams.retime(line.time, time);
     }
     this.endLine(line, time);
     if (line.held.length > 0) {
@@ -7061,7 +7068,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           time,
           shown: prior.length + shown,
           complete: instant,
+          current: sequence,
+          currentShown: shown,
+          line: $._state.line,
         });
+      }
+
+      retime(from: number, to: number) {
+        for (const presented of this.#presented.values()) {
+          if (presented.time === from) {
+            presented.time = to;
+          }
+        }
+      }
+
+      #typedFor(target: string, el: Element, presented: PresentedText): TextInstruction[] | undefined {
+        if (!$.admits(el, presented.line)) {
+          return undefined;
+        }
+        const states = ($.textFor(target, el) ?? []).map((s) => ({ ...s }));
+        let strip = presented.current.reduce((n, e) => n + (e.text?.length ?? 0), 0);
+        while (strip > 0 && states.length > 0) {
+          const last = states.at(-1)!;
+          const length = last.text?.length ?? 0;
+          if (length <= strip) {
+            states.pop();
+            strip -= length;
+          } else {
+            last.text = last.text!.slice(0, length - strip);
+            strip = 0;
+          }
+        }
+        return [...states, ...presented.current];
       }
 
       #save(target: string, sequence: TextInstruction[]) {
@@ -7149,9 +7187,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         await Promise.all([
           ...(open.length > 0 ? [writeOpen(true)] : []),
-          ...limited.map((el) =>
-            this.writeElements(target, [el], $.textFor(target, el) ?? null, true, undefined, 0, true),
-          ),
+          ...limited.map((el) => {
+            const typed =
+              presented && !presented.complete
+                ? this.#typedFor(target, el, presented)
+                : undefined;
+            return typed
+              ? this.writeElements(
+                  target,
+                  [el],
+                  typed,
+                  false,
+                  presented!.time,
+                  typed.length - presented!.current.length + presented!.currentShown,
+                  true,
+                )
+              : this.writeElements(target, [el], $.textFor(target, el) ?? null, true, undefined, 0, true);
+          }),
         ]);
       }
 
@@ -8791,6 +8843,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 this.mark(view, "");
               }
             });
+          }
+        }
+      }
+
+      retime(from: number, to: number): void {
+        for (const reveal of this._reveals.values()) {
+          if (reveal.time === from) {
+            reveal.time = to;
           }
         }
       }

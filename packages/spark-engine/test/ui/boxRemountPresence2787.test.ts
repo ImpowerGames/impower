@@ -157,3 +157,62 @@ describe("a box remounted with its line (#2787)", () => {
     ]);
   });
 });
+
+describe("a box remounted after its line waited for an arrival (#2787)", () => {
+  test("is rewritten with the start time the line wait chose", async () => {
+    const h = createHarness(
+      `store expanded = true
+
+function toggle()
+  expanded = not expanded
+end
+
+style dialogue {
+  opacity = 1
+  @initial { opacity = 0 }
+  @show { transition-duration = 280ms }
+}
+
+layout main {
+  if expanded then
+    dialogue.first {
+      text
+    }
+  else
+    dialogue.second {
+      text
+    }
+  end
+}
+`,
+      0,
+      { reactive: true, autoOpenAll: false, holdPresence: true, beforeConnect: playing },
+    );
+    await h.ready;
+    let now = 0;
+    h.game.context.system.now = () => now;
+    await play(h, {
+      text: { dialogue: [..."slow typing"].map((text, i) => ({ text, after: i * 0.05 })) },
+    });
+    expect(h.heldPresence().length).toBeGreaterThan(0);
+    now = 400;
+    h.releasePresence();
+    await flushMicrotasks(80);
+    const typed = () =>
+      wire(h.messages).filter(
+        (m: any) =>
+          m?.method === "ui/write-text" &&
+          m.params.instructions.length > 0 &&
+          !m.params.instant &&
+          !m.params.held,
+      );
+    const first = typed().at(-1);
+    expect(first?.params.time).toBeGreaterThanOrEqual(400);
+    h.reset();
+    (h.game.story as any).EvaluateFunction("toggle", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(40);
+    const again = typed().at(-1);
+    expect(again?.params.time).toBe(first.params.time);
+  });
+});
