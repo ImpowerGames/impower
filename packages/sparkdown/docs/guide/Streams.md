@@ -1,6 +1,6 @@
-# 20. Streams
+# 20. Streams and Casts
 
-A `text` element holds one line, and the next line replaces it. A `stream` keeps every line that goes to it: for each one, it adds a copy of the elements written inside it after the copies before. Each copy is an entry. A message thread, a log or a page of narration is a stream.
+A `text` element holds one line, and the next line replaces it. A `stream` keeps every line that goes to it: for each one, it adds a copy of the elements written inside it after the copies before. Each copy is an entry. A message thread, a log or a page of narration is a stream. A `cast` keeps one entry per character instead (see [A cast keeps one entry per character](#a-cast-keeps-one-entry-per-character)).
 
 ## A stream adds an entry for each line
 
@@ -78,3 +78,67 @@ style thread {
 Saves and checkpoints keep the entries. The preview on a line and a step back show the entries the game would have at that line.
 
 With the text box and a stream both open, a line shows in both.
+
+## A cast keeps one entry per character
+
+A stream keeps one copy of the elements inside it for each line; a `cast` keeps one for each character. Each copy is an entry, and it belongs to its character for as long as it stays:
+
+```sparkdown
+layout main {
+  stage {
+    backdrop { image }
+    cast {
+      actor {
+        portrait #clear { image }
+      }
+    }
+  }
+}
+```
+
+Every element written directly inside the cast is part of each entry, so `cast { portrait { image }; character_name { text } }` gives each character a picture and a name. A picture goes to the entry of the character it shows. The name before `@` already says whose picture it is, so `[[mia@happy]]` goes to Mia's entry, making one if she has none, and a later `[[mia@sad]]` changes her picture in place. A picture shown on a line nobody speaks makes an entry too. A name written to a text element inside the cast, such as a `character_name`, goes to the entry of the line's speaker. An element of the same name outside the cast shows the picture or the name as it would without one.
+
+`[[hide portrait]]` hides the picture in every entry and removes the entries.
+
+### What a style can tell about an entry
+
+- `#speaker=mia` selects the entry Mia's pictures go to, whether or not she has spoken. It takes the character's define name.
+- `#variant=left` selects an entry whose character's newest line is labelled `[left]` (see [Variants](./Variants.md)). It changes when that character next speaks.
+- `@latest` is true on the entry of whoever is speaking now, and on none during a line with no speaker or one whose speaker has no entry.
+
+```sparkdown
+style actor {
+  left = 62%
+  transition-property = left, translate
+  transition-duration = 0.18s
+  @initial { translate = 64px 0 }
+  #variant=left {
+    left = 24%
+    scale = -1 1
+    @initial { translate = -64px 0 }
+  }
+  #variant=right { left = 76% }
+  @latest { > portrait { filter = none } }
+}
+
+style portrait {
+  filter = brightness(55%) saturate(85%)
+  transition = filter 0.26s
+}
+```
+
+With this style a single speaker stands at one spot, the two speakers of an exchange stand left and right with the one not speaking dimmed, and a speaker who carries on after the exchange slides from their exchange spot to the single spot, because it is the same entry.
+
+### How long an entry stays
+
+An entry is on screen while it has content, and [`#clear`](./Structure.md#clear-content-that-lasts-one-line) on its picture says how long that is:
+
+- Without `#clear`, the picture stays until the script hides it. This suits a game that keeps several characters on screen.
+- With `#clear`, the picture lasts as long as the line that showed it is on screen: one line in a dialogue box, and as long as that line's entry stays in a stream, which keeps both speakers of an exchange up.
+- If the next line shows a picture of the same character, the picture is replaced, not emptied, so the entry stays and only its `#variant` changes.
+
+An emptied entry stays, unseen, until another character's entry arrives or the script hides it. With the two-level template above, a speaker who returns after a line of narration appears in place at once, as any picture does when it is shown, and a different speaker slides in, because the new entry's `@initial` plays. A property named in an `@initial` block moves only when the element's transition names it, as `translate` is named here. A one-level template, `cast { portrait #clear { image } }`, suits a game where every appearance should slide.
+
+Saves and checkpoints keep the entries. The preview on a line and a step back show the cast the game would have at that line.
+
+The built-in `main` layout keeps its plain `portrait` slot. Write a `layout main` of your own to use a cast.

@@ -246,6 +246,20 @@ exports[`style > authored style block content payload 1`] = `
       "padding": "1.5rem",
       "text-color": "slate_80",
     },
+    "cast": {
+      "$name": "cast",
+      "$type": "style",
+      "> *": {
+        "bottom": "0",
+        "left": "50%",
+        "margin_left": "-25%",
+        "position": "absolute",
+        "top": "0",
+        "width": "50%",
+      },
+      "inset": "0",
+      "position": "absolute",
+    },
     "cell": {
       "$name": "cell",
       "$type": "style",
@@ -3609,6 +3623,20 @@ exports[`style > style + variables construction stream 1`] = `
             "display": "flex",
             "padding": "1.5rem",
             "text-color": "slate_80",
+          },
+          "cast": {
+            "$name": "cast",
+            "$type": "style",
+            "> *": {
+              "bottom": "0",
+              "left": "50%",
+              "margin_left": "-25%",
+              "position": "absolute",
+              "top": "0",
+              "width": "50%",
+            },
+            "inset": "0",
+            "position": "absolute",
           },
           "cell": {
             "$name": "cell",

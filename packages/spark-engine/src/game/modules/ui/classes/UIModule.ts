@@ -62,7 +62,10 @@ import type {
   StreamNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import {
+  isCast,
   isStream,
+  isTemplated,
+  layoutCasts,
   layoutStreams,
 } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import {
@@ -113,6 +116,7 @@ import {
   type PageState,
 } from "../types/PageState";
 import type { StreamEntry, StreamState } from "../types/StreamState";
+import type { CastEntry, CastLine, CastState } from "../types/CastState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
 import builtinBreakpoints from "../builtinBreakpoints.json";
@@ -263,7 +267,7 @@ function nodeShape(
   components: Readonly<Record<string, ComponentNode | undefined>>,
   calls: readonly string[],
 ): unknown {
-  if (node.kind === "element" && isStream(node)) {
+  if (node.kind === "element" && isTemplated(node)) {
     return [node.kind, node.tag, node.classes];
   }
   const head = node.kind === "element" ? [node.tag, node.classes, marksClear(node)] : ["name" in node ? (node.name ?? null) : null];
@@ -483,6 +487,7 @@ export interface UIState {
   displayMode?: StartingDisplayMode;
   page?: PageState;
   streams?: Record<string, StreamState>;
+  casts?: Record<string, CastState>;
 }
 
 const PAGE_COLUMN = "textstream_column";
@@ -625,6 +630,7 @@ interface ReactiveScope {
   styles: ReactiveStyle[];
   sliderFills: ReactiveSliderFill[];
   streams: MountedStream[];
+  casts: MountedCast[];
   slots?: SlotMap;
   base?: string;
 }
@@ -645,6 +651,34 @@ interface PresentedText extends Presented {
   current: TextInstruction[];
   currentShown: number;
   line?: LineLabels;
+}
+
+interface CastEntryView {
+  group: ReactiveGroup;
+  scope: ReactiveScope;
+  written: Map<string, string>;
+  marks: string;
+}
+
+interface MountedCast {
+  key: string;
+  element: Element;
+  node: StreamNode;
+  scope: ReactiveScope;
+  views: Map<number, CastEntryView>;
+}
+
+interface CastWrite {
+  key: string;
+  only?: "marked" | "unmarked";
+  id: number;
+  kind: "image" | "text";
+  target: string;
+  image?: ImageInstruction[] | null;
+  text?: TextInstruction[] | null;
+  view?: PictureView;
+  exits?: boolean;
+  shown?: number;
 }
 
 interface MountedStream {
@@ -884,6 +918,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onStart(): void {
     this._refreshAll = true;
     this.page.started();
+    this.casts.forget();
+    this.casts.started();
     this.streams.started();
   }
 
@@ -952,6 +988,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearedPictures = undefined;
     this.page.loaded();
     this.streams.loaded();
+    this.casts.loaded();
   }
 
   override onPreview() {
@@ -1097,6 +1134,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    names.push(...this.casts.pictureNames());
     return names;
   }
 
@@ -1342,6 +1380,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._root = undefined;
     this.page.forget();
     this.streams.forget();
+    this.casts.unmount();
     this._root = this.getOrCreateRootElement();
     this._events = {};
     this._reactive = true;
@@ -1433,6 +1472,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this.page.restore();
     this.streams.restore();
+    this.casts.restore();
     await Promise.all(tasks);
   }
 
@@ -1736,7 +1776,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected displayTargetElements(root: Element, target: string): Element[] {
     if (target !== "choice") {
-      return this.findElements(target, true);
+      return [
+        ...this.findElements(target, true),
+        ...this.writeTargets(
+          this.searchForAll(root, target).filter((el) => this.insideCast(el)),
+          target,
+          true,
+        ),
+      ];
     }
     const indexes = new Set<string>();
     for (const element of this.searchForAll(root, target)) {
@@ -4141,6 +4188,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       styles: [],
       sliderFills: [],
       streams: [],
+      casts: [],
       ...(slots ? { slots } : {}),
       ...(base !== undefined ? { base } : {}),
     };
@@ -4155,6 +4203,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.kind === "element") {
       if (isStream(node)) {
         return this.mountStream(parent, node, scope, before);
+      }
+      if (isCast(node)) {
+        return this.mountCast(parent, node, scope, before);
       }
       if (this._game.program?.sparkle?.components?.[node.tag]) {
         return this.mountComponent(parent, node, scope, before);
@@ -4188,7 +4239,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (parent.parent) {
       this.updateElement(parent, { attributes: follow });
     }
-    const key = this.streamKeyOf(parent, node);
+    const key = this.templatedKeyOf(parent, node, layoutStreams);
     if (key) {
       const mounted: MountedStream = {
         key,
@@ -4204,11 +4255,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  protected streamKeyOf(parent: Element, node: StreamNode): string | undefined {
+  protected templatedKeyOf(
+    parent: Element,
+    node: StreamNode,
+    find: typeof layoutStreams,
+  ): string | undefined {
     for (const [name, { element }] of this._mountedLayouts) {
       for (let el: Element | null = parent; el; el = el.parent) {
         if (el === element) {
-          const index = layoutStreams(this._game.program?.sparkle, name).indexOf(node);
+          const index = find(this._game.program?.sparkle, name).indexOf(node);
           return index >= 0 ? streamKey(name, index) : undefined;
         }
       }
@@ -4216,13 +4271,54 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return undefined;
   }
 
-  protected insideStream(el: Element): boolean {
+  protected inside(el: Element, holders: WeakSet<Element>): boolean {
     for (let node = el.parent; node; node = node.parent) {
-      if (this._streamElements.has(node)) {
+      if (holders.has(node)) {
         return true;
       }
     }
     return false;
+  }
+
+  protected insideStream(el: Element): boolean {
+    return this.inside(el, this._streamElements);
+  }
+
+  protected _castElements = new WeakSet<Element>();
+
+  protected _clearMarked = new WeakSet<Element>();
+
+  protected mountCast(
+    parent: Element,
+    node: StreamNode,
+    scope: ReactiveScope,
+    before: Element | null,
+  ): Element {
+    const el = this.mountElement(parent, node, scope, before);
+    this._castElements.add(el);
+    const key = this.templatedKeyOf(parent, node, layoutCasts);
+    if (key) {
+      const mounted: MountedCast = { key, element: el, node, scope, views: new Map() };
+      scope.casts.push(mounted);
+      this.casts.mounted(mounted);
+    }
+    return el;
+  }
+
+  protected insideCast(el: Element): boolean {
+    return this.inside(el, this._castElements);
+  }
+
+  protected entryTargets(roots: Element[], target: string): Element[] {
+    return this.writeTargets(
+      roots.flatMap((root) =>
+        root.isMatch(target)
+          ? [root, ...this.searchForAll(root, target)]
+          : this.searchForAll(root, target),
+      ),
+      target,
+      true,
+    );
   }
 
   protected mountChildren(
@@ -4325,6 +4421,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       before,
     );
     this.limit(el, labels);
+    if (marksClear(node)) {
+      this._clearMarked.add(el);
+    }
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
     }
@@ -5412,6 +5511,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.refreshScope(entry.scope, changes);
       }
     }
+    for (const cast of scope.casts) {
+      for (const [id, view] of cast.views) {
+        const edits = this._screenEdits;
+        this.refreshScope(view.scope, changes);
+        if (this._screenEdits !== edits) {
+          this.casts.rewrite(cast, id, view);
+        }
+      }
+    }
     for (const region of scope.regions) {
       if (region.kind === "for") {
         this.refreshForRegion(region, scope.env, changes);
@@ -5680,7 +5788,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     (nodes ?? []).forEach((node, index) => {
       const here = `${path}/${index}`;
       if (node.kind === "element") {
-        if (isStream(node)) {
+        if (isTemplated(node)) {
           return;
         }
         this._nodePaths.set(node, here);
@@ -5710,7 +5818,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   initLayout(layout: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(layout)) {
-      if (key.startsWith("$") || !isStruct(value) || key.split(" ")[0] === "stream") {
+      if (key.startsWith("$") || !isStruct(value) || ["stream", "cast"].includes(key.split(" ")[0]!)) {
         continue;
       }
       if (
@@ -5818,7 +5926,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
+  protected treeHolds(children: unknown, wanted: Set<string>, outsideCasts = false): boolean {
     const components = this._game.program?.sparkle?.components ?? {};
     const expanded = new Set<string>();
     const visit = (value: unknown): boolean => {
@@ -5830,6 +5938,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const node = value as Record<string, any>;
       if (node["kind"] === "element") {
+        if (outsideCasts && isCast(node as ElementNode)) {
+          return false;
+        }
         const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
         if (names.some((n) => typeof n === "string" && wanted.has(n))) {
           return true;
@@ -5850,7 +5961,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return visit(children);
   }
 
-  layoutHolds(layoutName: string, elements: readonly string[]): boolean {
+  layoutHolds(layoutName: string, elements: readonly string[], outsideCasts = false): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
     if (sparkle?.layouts) {
@@ -5862,8 +5973,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ? sparkle.screens?.[layout.screen]
         : undefined;
       return (
-        this.treeHolds(layout.children, wanted) ||
-        this.treeHolds(screen?.children, wanted)
+        this.treeHolds(layout.children, wanted, outsideCasts) ||
+        this.treeHolds(screen?.children, wanted, outsideCasts)
       );
     }
     const layout = this.context.layout?.[layoutName];
@@ -6822,7 +6933,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._root && name) {
       const elements = this.writeTargets(
         this.searchForAll(this._root, name, found).filter(
-          (el) => !writes || !this.insideStream(el),
+          (el) => !writes || !(this.insideStream(el) || this.insideCast(el)),
         ),
         name,
         writes,
@@ -6937,6 +7048,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return (
       Boolean(this._compose) ||
       this.streams.active ||
+      this.casts.active ||
       elements.some((el) => el.name !== name) ||
       elements.length !== this.textElements(target).length
     );
@@ -7617,75 +7729,76 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Image {
       protected saveState(target: string, sequence: ImageInstruction[] | null) {
         if (sequence) {
-          $._state.image ??= {};
-          const existed = Boolean($._state.image[target]);
-          $._state.image[target] ??= [];
-          let state = $._state.image[target];
-          let travelStart = -Infinity;
-          for (const event of sequence) {
-            const targetingContent = Boolean(event.assets?.length);
-            if (!targetingContent && event.control === "animate" && event.to) {
-              const shown = state.findLast((e) => e.control === "show" && e.assets?.length);
-              const start = event.after ?? 0;
-              if (shown && start >= travelStart) {
-                shown.at = event.to;
-                travelStart = start;
-              }
-              if (!event.with) {
-                continue;
-              }
-            }
-            if (targetingContent) {
-              if (event.control === "show") {
-                travelStart = -Infinity;
-                state = state.filter(
-                  (e) => !(e.control === "hide" && !e.assets?.length),
-                );
-                state = state.filter((e) => !e.assets?.length);
-                $._state.image ??= {};
-                $._state.image[target] = state;
-              }
-              state.push({
-                control: event.control,
-                with: event.with,
-                assets: event.assets,
-                over: 0,
-                ...(event.control === "show" && event.at ? { at: event.at } : {}),
-                ...(event.morph ? { morph: event.morph } : {}),
-                ...(event.speaker !== undefined ? { speaker: event.speaker } : {}),
-                ...(event.loop ? { loop: true } : {}),
-                ...(event.once ? { once: true } : {}),
-                ...(event.mute ? { mute: true } : {}),
-              });
-            } else {
-              if (event.control === "hide") {
-                travelStart = -Infinity;
-                for (const e of state) {
-                  delete e.at;
-                }
-              }
-              const changingVisibility = event.control !== "animate";
-              const latestLayerVisibilityEvent = state.findLast(
-                (e) => !e.assets?.length && e.control !== "animate",
-              );
-              if (changingVisibility && latestLayerVisibilityEvent) {
-                latestLayerVisibilityEvent.control = event.control;
-                latestLayerVisibilityEvent.with = event.with;
-              } else {
-                state.push({
-                  control: event.control,
-                  with: event.with,
-                  over: 0,
-                });
-              }
-            }
-          }
-          if (!existed && !$._state.image[target]?.length) {
-            delete $._state.image[target];
+          const existed = Boolean($._state.image?.[target]);
+          const state = this.recorded($._state.image?.[target] ?? [], sequence);
+          if (existed || state.length > 0) {
+            ($._state.image ??= {})[target] = state;
           }
         } else {
           delete $._state.image?.[target];
         }
+      }
+
+      recorded(previous: ImageState[], sequence: ImageInstruction[]): ImageState[] {
+        let state = previous;
+        let travelStart = -Infinity;
+        for (const event of sequence) {
+          const targetingContent = Boolean(event.assets?.length);
+          if (!targetingContent && event.control === "animate" && event.to) {
+            const shown = state.findLast((e) => e.control === "show" && e.assets?.length);
+            const start = event.after ?? 0;
+            if (shown && start >= travelStart) {
+              shown.at = event.to;
+              travelStart = start;
+            }
+            if (!event.with) {
+              continue;
+            }
+          }
+          if (targetingContent) {
+            if (event.control === "show") {
+              travelStart = -Infinity;
+              state = state.filter(
+                (e) => !(e.control === "hide" && !e.assets?.length),
+              );
+              state = state.filter((e) => !e.assets?.length);
+            }
+            state.push({
+              control: event.control,
+              with: event.with,
+              assets: event.assets,
+              over: 0,
+              ...(event.control === "show" && event.at ? { at: event.at } : {}),
+              ...(event.morph ? { morph: event.morph } : {}),
+              ...(event.speaker !== undefined ? { speaker: event.speaker } : {}),
+              ...(event.loop ? { loop: true } : {}),
+              ...(event.once ? { once: true } : {}),
+              ...(event.mute ? { mute: true } : {}),
+            });
+          } else {
+            if (event.control === "hide") {
+              travelStart = -Infinity;
+              for (const e of state) {
+                delete e.at;
+              }
+            }
+            const changingVisibility = event.control !== "animate";
+            const latestLayerVisibilityEvent = state.findLast(
+              (e) => !e.assets?.length && e.control !== "animate",
+            );
+            if (changingVisibility && latestLayerVisibilityEvent) {
+              latestLayerVisibilityEvent.control = event.control;
+              latestLayerVisibilityEvent.with = event.with;
+            } else {
+              state.push({
+                control: event.control,
+                with: event.with,
+                over: 0,
+              });
+            }
+          }
+        }
+        return state;
       }
 
       async restore(target: string) {
@@ -7760,7 +7873,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return view;
       }
 
-      protected viewAfter(events: ImageInstruction[]): PictureView {
+      viewAfter(events: ImageInstruction[]): PictureView {
         let view: PictureView = { picture: false };
         for (const e of events) {
           view = this.nextView(e, view);
@@ -8073,6 +8186,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           );
         }
         await written;
+      }
+
+      writeTo(
+        target: string,
+        elements: Element[],
+        sequence: ImageInstruction[] | null,
+        instant: boolean,
+        time?: number,
+        view?: PictureView,
+        exits = false,
+      ) {
+        return this.applyChanges(target, sequence, instant, time, view, exits, elements);
       }
 
       protected hide(
@@ -9046,15 +9171,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const roots = $.collectNodes(mount.entries[index]!.group);
         let wrote = false;
         for (const [target, events] of Object.entries(entry.text)) {
-          const elements = $.writeTargets(
-            roots.flatMap((root) =>
-              root.isMatch(target)
-                ? [root, ...$.searchForAll(root, target)]
-                : $.searchForAll(root, target),
-            ),
-            target,
-            true,
-          );
+          const elements = $.entryTargets(roots, target);
           const first = elements[0];
           if (!first || (replaced && !elements.some(replaced))) {
             continue;
@@ -9078,11 +9195,581 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Streams;
   })(this);
 
+  Casts = (($) => {
+    class Casts {
+      protected _mounted = new Map<string, MountedCast[]>();
+
+      protected _pending = new Map<string, CastWrite>();
+
+      get active(): boolean {
+        return this._mounted.size > 0;
+      }
+
+      entries(layout: string, index = 0): readonly CastEntry[] {
+        return $._state.casts?.[streamKey(layout, index)]?.entries ?? [];
+      }
+
+      pictureNames(): string[] {
+        return Object.values($._state.casts ?? {}).flatMap((cast) =>
+          cast.entries.flatMap((entry) =>
+            Object.values(entry.image ?? {}).flatMap((events) =>
+              events.flatMap((e) => (e.control === "show" && e.assets?.length ? e.assets : [])),
+            ),
+          ),
+        );
+      }
+
+      forget(): void {
+        this._pending.clear();
+      }
+
+      unmount(): void {
+        this._mounted.clear();
+        this._pending.clear();
+      }
+
+      protected _before = new Map<string, { beat: number; key: string; state: string }>();
+
+      protected _loaded = false;
+
+      protected _resumed = false;
+
+      loaded(): void {
+        this._loaded = true;
+      }
+
+      started(): void {
+        this._resumed = this._loaded;
+        this._loaded = false;
+      }
+
+      shown(key: string): void {
+        const resumed = this._resumed;
+        this._resumed = false;
+        if (!resumed) {
+          return;
+        }
+        const beat = $.page.state.shown ?? 0;
+        for (const cast of Object.values($._state.casts ?? {})) {
+          if (cast.key === key && cast.beat === beat - 1) {
+            cast.beat = beat;
+          }
+        }
+      }
+
+      record(instructions: Instructions): void {
+        const sparkle = $._game.program?.sparkle;
+        const events = Object.values(instructions.layout ?? {}).flat();
+        const states = $._state.casts ?? {};
+        const live: Record<string, CastState> = {};
+        const beat = $.page.state.shown ?? 0;
+        const page = pageKey(instructions);
+        const opened = $.openedLayoutsAfter(events);
+        const showing = this.linesShowing(opened);
+        for (const layout of opened) {
+          const closed = events.some(
+            (event) => event.name === layout && event.control === LayoutVerb.close,
+          );
+          layoutCasts(sparkle, layout).forEach((node, index) => {
+            const key = streamKey(layout, index);
+            let cast: CastState = (!closed && states[key]) || { entries: [], next: 0 };
+            if ((cast.beat === beat && cast.key === page) || instructions.hold) {
+              const before = this._before.get(key);
+              if (!before || before.beat !== cast.beat || before.key !== cast.key) {
+                live[key] = cast;
+                return;
+              }
+              cast = JSON.parse(before.state) as CastState;
+            } else {
+              this._before.set(key, { beat, key: page, state: JSON.stringify(cast) });
+            }
+            this.recordCast(key, cast, node, instructions, showing, opened);
+            cast.beat = beat;
+            cast.key = page;
+            live[key] = cast;
+          });
+        }
+        if (Object.keys(live).length > 0) {
+          $._state.casts = live;
+        } else {
+          delete $._state.casts;
+        }
+      }
+
+      protected recordCast(
+        key: string,
+        cast: CastState,
+        node: StreamNode,
+        instructions: Instructions,
+        showing: CastLine[],
+        opened: readonly string[],
+      ): void {
+        const texts = Object.entries(instructions.text ?? {}).filter(
+          ([target]) => !instructions.choices?.includes(target),
+        );
+        const speaker = instructions.speaker?.character || undefined;
+        if (texts.length > 0) {
+          if (speaker) {
+            cast.latest = speaker;
+            if (instructions.variant) {
+              (cast.variants ??= {})[speaker] = instructions.variant;
+            } else {
+              delete cast.variants?.[speaker];
+            }
+          } else {
+            delete cast.latest;
+          }
+        }
+        const created = new Set<number>();
+        const hidden = new Set<number>();
+        const touched = new Set<string>();
+        const holds = (target: string) => node.templates.some((t) => this.holds(t, target));
+        const queue = (write: Omit<CastWrite, "key">) => this.queue({ key, ...write });
+        const entryOf = (owner: string): CastEntry => {
+          let entry = cast.entries.find((e) => e.speaker === owner);
+          if (!entry) {
+            entry = { id: cast.next, speaker: owner };
+            cast.next += 1;
+            cast.entries.push(entry);
+            created.add(entry.id);
+          }
+          return entry;
+        };
+        const wrote = (entry: CastEntry, kind: CastWrite["kind"], target: string) => {
+          touched.add(`${entry.id}|${kind}|${target}`);
+          const emptied = entry.emptied?.filter((written) => written !== `${kind}|${target}`);
+          if (emptied?.length) {
+            entry.emptied = emptied;
+          } else {
+            delete entry.emptied;
+          }
+          if (showing.length > 0) {
+            (entry.lines ??= {})[target] = showing;
+          } else {
+            delete entry.lines?.[target];
+          }
+        };
+        for (const [target, events] of Object.entries(instructions.image ?? {})) {
+          if (!holds(target)) {
+            continue;
+          }
+          const sequences = new Map<CastEntry, ImageInstruction[]>();
+          const add = (entry: CastEntry, event: ImageInstruction) => {
+            sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
+          };
+          for (const event of events) {
+            if (event.assets?.length) {
+              add(entryOf(this.ownerOf(event.assets[0]!)), {
+                ...event,
+                speaker: speaker ?? "",
+              });
+              continue;
+            }
+            for (const entry of cast.entries) {
+              add(entry, event);
+              if (event.control === "hide") {
+                hidden.add(entry.id);
+              }
+            }
+          }
+          for (const [entry, sequence] of sequences) {
+            const before = entry.image?.[target] ?? [];
+            const view = $.image.viewAfter(before);
+            const onScreen =
+              $.pictureShown(before) ||
+              sequence.some((e) => e.control === "show" && e.assets?.length);
+            const after = $.image.recorded(before, sequence);
+            (entry.image ??= {})[target] = after;
+            wrote(entry, "image", target);
+            queue({
+              id: entry.id,
+              kind: "image",
+              target,
+              image: sequence,
+              view,
+              exits: onScreen && !$.pictureShown(after),
+            });
+          }
+        }
+        if (speaker) {
+          for (const [target, events] of texts) {
+            if (!holds(target)) {
+              continue;
+            }
+            const entry = entryOf(speaker);
+            (entry.text ??= {})[target] = events;
+            wrote(entry, "text", target);
+            queue({
+              id: entry.id,
+              kind: "text",
+              target,
+              text: events,
+              shown: instructions.extended?.[target] ?? 0,
+            });
+          }
+        }
+        if (!instructions.extended) {
+          for (const entry of cast.entries) {
+            for (const kind of ["image", "text"] as const) {
+              const held = entry[kind] ?? {};
+              for (const target of Object.keys(held)) {
+                const written = `${kind}|${target}`;
+                if (
+                  touched.has(`${entry.id}|${written}`) ||
+                  entry.emptied?.includes(written) ||
+                  !node.templates.some((t) => this.clears(t, target)) ||
+                  !this.holdsContent(entry, kind, target) ||
+                  this.onScreen(entry.lines?.[target], opened)
+                ) {
+                  continue;
+                }
+                if (node.templates.some((t) => this.find(t, target, (n) => !marksClear(n)))) {
+                  (entry.emptied ??= []).push(written);
+                  queue({ id: entry.id, kind, target, [kind]: null, only: "marked" });
+                  continue;
+                }
+                delete held[target];
+                delete entry.lines?.[target];
+                queue({ id: entry.id, kind, target, [kind]: null });
+              }
+            }
+          }
+        }
+        cast.entries = cast.entries.filter((entry) =>
+          this.empty(entry)
+            ? !hidden.has(entry.id) && (created.size === 0 || created.has(entry.id))
+            : true,
+        );
+        for (const entry of cast.entries) {
+          const variant = cast.variants?.[entry.speaker];
+          if (variant) {
+            entry.variant = variant;
+          } else {
+            delete entry.variant;
+          }
+        }
+      }
+
+      protected queue(write: CastWrite): void {
+        if ($.context?.system?.simulating) {
+          return;
+        }
+        this._pending.set(`${write.key}|${write.id}|${write.kind}|${write.target}`, write);
+      }
+
+      protected ownerOf(asset: string): string {
+        return getImageOwner($.context, asset) ?? (asset.split("@")[0] || asset);
+      }
+
+      protected linesShowing(opened: readonly string[]): CastLine[] {
+        const lines: CastLine[] = Object.entries($._state.streams ?? {}).flatMap(
+          ([key, stream]) =>
+            stream.entries.length > stream.current
+              ? [{ key, cleared: stream.cleared ?? 0, index: stream.current }]
+              : [],
+        );
+        const page = $._state.page;
+        if (page && opened.includes(PAGE_SCROLLER)) {
+          page.entries.forEach((entry, index) => {
+            if (index >= page.current) {
+              const length = this.pageText(entry).length;
+              lines.push({ key: PAGE_SCROLLER, index, length, hash: this.pageLine(entry, length) });
+            }
+          });
+        }
+        return lines;
+      }
+
+      protected pageText(entry: PageEntry): string {
+        return (entry.text ?? []).map((t) => t.text).join("");
+      }
+
+      protected pageLine(entry: PageEntry, length: number): string {
+        return hashText(`${entry.kind}|${entry.speaker ?? ""}|${this.pageText(entry).slice(0, length)}`);
+      }
+
+      protected onScreen(lines: CastLine[] | undefined, opened: readonly string[]): boolean {
+        return (lines ?? []).some((line) => {
+          if (line.key === PAGE_SCROLLER) {
+            const entry = $._state.page?.entries[line.index];
+            return (
+              opened.includes(PAGE_SCROLLER) &&
+              entry !== undefined &&
+              line.hash === this.pageLine(entry, line.length ?? 0)
+            );
+          }
+          const stream = $._state.streams?.[line.key];
+          return (
+            stream !== undefined &&
+            (stream.cleared ?? 0) === line.cleared &&
+            stream.entries.length > line.index
+          );
+        });
+      }
+
+
+      protected holdsContent(entry: CastEntry, kind: CastWrite["kind"], target: string): boolean {
+        return kind === "image"
+          ? $.pictureShown(entry.image?.[target])
+          : (entry.text?.[target]?.length ?? 0) > 0;
+      }
+
+      protected empty(entry: CastEntry): boolean {
+        return (
+          !Object.keys(entry.image ?? {}).some((target) => this.holdsContent(entry, "image", target)) &&
+          !Object.keys(entry.text ?? {}).some((target) => this.holdsContent(entry, "text", target))
+        );
+      }
+
+      protected holds(template: BodyNode | undefined, target: string): boolean {
+        return this.find(template, target, () => true);
+      }
+
+      protected clears(template: BodyNode | undefined, target: string): boolean {
+        return this.find(template, target, marksClear);
+      }
+
+      protected find(
+        node: BodyNode | undefined,
+        target: string,
+        accept: (node: ElementNode) => boolean,
+        calls: readonly string[] = [],
+      ): boolean {
+        if (!node) {
+          return false;
+        }
+        if (node.kind === "element") {
+          const names = [node.tag, ...node.classes];
+          if (target.split(" ").every((word) => names.includes(word)) && accept(node)) {
+            return true;
+          }
+          const component = $._game.program?.sparkle?.components?.[node.tag];
+          if (
+            component &&
+            !calls.includes(component.name) &&
+            component.children.some((child) =>
+              this.find(child, target, accept, [...calls, component.name]),
+            )
+          ) {
+            return true;
+          }
+        }
+        return bodyChildLists(node).some(([, children]) =>
+          (children ?? []).some((child) => this.find(child, target, accept, calls)),
+        );
+      }
+
+      mounted(mount: MountedCast): void {
+        const mounts = (this._mounted.get(mount.key) ?? []).filter((m) =>
+          $.attached(m.element),
+        );
+        mounts.push(mount);
+        this._mounted.set(mount.key, mounts);
+        if (!$.context?.system?.simulating) {
+          this.render(mount, true);
+        }
+      }
+
+      show(instant: boolean, time?: number): void {
+        const pending = [...this._pending.values()];
+        this._pending.clear();
+        if ($.context?.system?.simulating) {
+          return;
+        }
+        for (const mount of this.live()) {
+          this.render(mount, instant, time, pending);
+        }
+      }
+
+      restore(): void {
+        this._pending.clear();
+        if ($.context?.system?.simulating) {
+          return;
+        }
+        for (const mount of this.live()) {
+          this.render(mount, true, undefined, [], true);
+        }
+      }
+
+      rewrite(mount: MountedCast, id: number, view: CastEntryView): void {
+        const cast = $._state.casts?.[mount.key];
+        const entry = cast?.entries.find((e) => e.id === id);
+        if (entry) {
+          this.mark(view, entry, cast);
+          this.sync(view, entry, [], true, undefined, true);
+        }
+      }
+
+      protected live(): MountedCast[] {
+        const all: MountedCast[] = [];
+        for (const [key, mounts] of [...this._mounted]) {
+          const live = mounts.filter((m) => $.attached(m.element));
+          if (live.length === 0) {
+            this._mounted.delete(key);
+            continue;
+          }
+          this._mounted.set(key, live);
+          all.push(...live);
+        }
+        return all;
+      }
+
+      protected render(
+        mount: MountedCast,
+        instant: boolean,
+        time?: number,
+        pending: CastWrite[] = [],
+        rewrite = false,
+      ): void {
+        const cast = $._state.casts?.[mount.key];
+        const entries = cast?.entries ?? [];
+        const ids = new Set(entries.map((entry) => entry.id));
+        for (const [id, view] of [...mount.views]) {
+          if (!ids.has(id)) {
+            $.removeGroup(view.group);
+            mount.views.delete(id);
+          }
+        }
+        for (const entry of entries) {
+          let view = mount.views.get(entry.id);
+          const built = !view;
+          if (!view) {
+            view = this.build(mount);
+            mount.views.set(entry.id, view);
+          }
+          this.mark(view, entry, cast);
+          this.sync(
+            view,
+            entry,
+            pending.filter((write) => write.key === mount.key && write.id === entry.id),
+            instant,
+            time,
+            rewrite,
+          );
+          if (built && !instant && $.moving() && $.styled("show")) {
+            $.arrive($.collectNodes(view.group));
+          }
+        }
+      }
+
+      protected build(mount: MountedCast): CastEntryView {
+        const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
+        const group = $.mountChildren(mount.element, mount.node.templates, scope, null);
+        return { group, scope, written: new Map(), marks: "" };
+      }
+
+      protected mark(view: CastEntryView, entry: CastEntry, cast: CastState | undefined): void {
+        const attributes = {
+          "data-speaker": entry.speaker,
+          "data-variant": entry.variant ?? null,
+          "data-latest": cast?.latest === entry.speaker ? "" : null,
+        };
+        const roots = $.collectNodes(view.group);
+        const marks = `${JSON.stringify(attributes)}|${roots.map((root) => root.id).join(" ")}`;
+        if (view.marks === marks) {
+          return;
+        }
+        view.marks = marks;
+        for (const root of roots) {
+          $.updateElement(root, { attributes });
+        }
+      }
+
+      protected sync(
+        view: CastEntryView,
+        entry: CastEntry,
+        writes: CastWrite[],
+        instant: boolean,
+        time?: number,
+        force = false,
+      ): void {
+        const signature = (key: string, held: unknown) =>
+          `${JSON.stringify(held)}${entry.emptied?.includes(key) ? "|emptied" : ""}`;
+        const now = new Set<string>();
+        for (const write of writes) {
+          const key = `${write.kind}|${write.target}`;
+          now.add(key);
+          this.apply(view, write, instant, time);
+          const held = entry[write.kind]?.[write.target];
+          if (held) {
+            view.written.set(key, signature(key, held));
+          } else {
+            view.written.delete(key);
+          }
+        }
+        for (const kind of ["image", "text"] as const) {
+          for (const [target, held] of Object.entries(entry[kind] ?? {})) {
+            const key = `${kind}|${target}`;
+            if (now.has(key)) {
+              continue;
+            }
+            now.add(key);
+            if (!force && view.written.get(key) === signature(key, held)) {
+              continue;
+            }
+            if (entry.emptied?.includes(key)) {
+              this.apply(view, { id: entry.id, kind, target, [kind]: held, only: "unmarked" }, true);
+              this.apply(view, { id: entry.id, kind, target, [kind]: null, only: "marked" }, true);
+            } else {
+              this.apply(view, { id: entry.id, kind, target, [kind]: held }, true);
+            }
+            view.written.set(key, signature(key, held));
+          }
+        }
+        for (const key of [...view.written.keys()]) {
+          if (!now.has(key)) {
+            const [kind, target] = key.split("|") as [CastWrite["kind"], string];
+            this.apply(view, { id: entry.id, kind, target, [kind]: null }, true);
+            view.written.delete(key);
+          }
+        }
+      }
+
+      protected apply(
+        view: CastEntryView,
+        write: Omit<CastWrite, "key">,
+        instant: boolean,
+        time?: number,
+      ): void {
+        const elements = $.entryTargets($.collectNodes(view.group), write.target).filter(
+          (el) => !write.only || $._clearMarked.has(el) === (write.only === "marked"),
+        );
+        const first = elements[0];
+        if (!first) {
+          return;
+        }
+        if (write.kind === "image") {
+          void $.image.writeTo(
+            write.target,
+            elements,
+            write.image ?? null,
+            instant,
+            time,
+            write.view,
+            write.exits,
+          );
+          return;
+        }
+        void $.text.writeElements(
+          first.id,
+          elements,
+          write.text ?? null,
+          instant,
+          time,
+          instant ? 0 : (write.shown ?? 0),
+        );
+      }
+    }
+    return Casts;
+  })(this);
+
   text = new this.Text();
 
   page = new this.Page();
 
   streams = new this.Streams();
+
+  casts = new this.Casts();
 
   image = new this.Image();
 
