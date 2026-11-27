@@ -26,7 +26,7 @@ const DIALOGUE_BOX_ELEMENTS: readonly string[] = ["textbox", "dialogue"];
 
 const MENU_ELEMENT = "choice";
 
-const MENU_LAYOUT = "choices";
+export const MENU_LAYOUT = "choices";
 
 type LayoutReader = Pick<Game["module"]["ui"], "layoutHolds">;
 
@@ -214,18 +214,49 @@ function opensByItself(
   );
 }
 
+function isMenu(instructions: Instructions): boolean {
+  return (
+    showsText(instructions) && lineKind(instructions)?.layout === MENU_LAYOUT
+  );
+}
+
+export function keptThroughMenu(
+  game: Game,
+  instructions: Instructions,
+  targets: readonly string[],
+): string[] {
+  if (!isMenu(instructions)) {
+    return [];
+  }
+  const ui = game.module.ui;
+  const open = ui.openedLayoutsAfter(layoutEvents(instructions));
+  if (open.includes(TEXTSTREAM_LAYOUT)) {
+    return [];
+  }
+  const menus = open.filter((name) => ui.layoutHolds(name, [MENU_ELEMENT]));
+  return targets.filter(
+    (target) =>
+      !menus.some((name) => ui.layoutHolds(name, [elementName(target)])),
+  );
+}
+
 export function routeLine(game: Game, instructions: Instructions): Instructions {
   const ui = game.module.ui;
   if (!game.program?.sparkle?.layouts) {
     return instructions;
   }
   const events = layoutEvents(instructions);
-  const auto = ui.autoLayoutAfter(events);
+  const autos = ui.autoLayoutsAfter(events);
   const kind = showsText(instructions) ? lineKind(instructions) : undefined;
   const routed: LayoutInstruction[] = [];
+  const close = (name: string) =>
+    routed.push({ control: LayoutVerb.close, name, auto: true });
   if (!kind) {
-    if (auto && !instructions.extended && takesTime(instructions)) {
-      routed.push({ control: LayoutVerb.close, name: auto, auto: true });
+    const closesBox = !instructions.extended && takesTime(instructions);
+    for (const auto of autos) {
+      if (closesBox || auto === MENU_LAYOUT) {
+        close(auto);
+      }
     }
   } else {
     const open = ui.openedLayoutsAfter(events);
@@ -233,8 +264,11 @@ export function routeLine(game: Game, instructions: Instructions): Instructions 
       (name) =>
         name === TEXTSTREAM_LAYOUT || ui.layoutHolds(name, [kind.element]),
     );
-    if (auto && !holders.includes(auto)) {
-      routed.push({ control: LayoutVerb.close, name: auto, auto: true });
+    const menu = kind.layout === MENU_LAYOUT;
+    for (const auto of autos) {
+      if (!holders.includes(auto) && (!menu || auto === MENU_LAYOUT)) {
+        close(auto);
+      }
     }
     if (
       holders.length === 0 &&

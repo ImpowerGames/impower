@@ -1,6 +1,7 @@
 import type { Game } from "../../src/game/core/classes/Game";
 import {
   holdsPresentedText,
+  MENU_LAYOUT,
   TEXTBOX_SCREEN,
 } from "../../src/game/core/classes/presenters/textLayouts";
 
@@ -16,7 +17,9 @@ export function openEveryLayout(game: Game): void {
       holdsPresentedText(game, "main") || Boolean(layouts[TEXTBOX_SCREEN]);
     return construct(
       ...Object.keys(layouts).filter(
-        (name) => !ownText || layouts[name]?.screen !== TEXTBOX_SCREEN,
+        (name) =>
+          !ownText ||
+          (layouts[name]?.screen !== TEXTBOX_SCREEN && name !== MENU_LAYOUT),
       ),
     );
   };

@@ -177,7 +177,11 @@ import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
 import { TEXTSTREAM_LAYOUT } from "./presenters/InteractiveFictionPresenter";
-import { initialLayouts, openInitialLayouts } from "./presenters/textLayouts";
+import {
+  initialLayouts,
+  keptThroughMenu,
+  openInitialLayouts,
+} from "./presenters/textLayouts";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -3096,7 +3100,12 @@ export class Game<T extends M = {}> {
     if (!this.load(saveJSON)) {
       return false;
     }
-    this._resumeShown = (JSON.parse(saveJSON) as SaveData).shown ?? null;
+    const shown = (JSON.parse(saveJSON) as SaveData).shown ?? null;
+    this._resumeShown = shown;
+    const ui = this.module.ui;
+    ui.keepThroughConnect(
+      shown ? keptThroughMenu(this, shown, ui.savedTargets()) : [],
+    );
     return true;
   }
 

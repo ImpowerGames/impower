@@ -23,7 +23,7 @@ layout main {
 
 ### A layout for each kind of text
 
-The built-in `main` layout holds the stage. The text boxes are built from a screen, `textbox`, whose body holds the box's background, the continue indicator and the option buttons, and a layout in that screen for each kind of text: `dialogue`, `action`, `title`, `heading` and `transitional`. A menu with no line of its own opens `choices`, a layout in the same screen that adds nothing to its option buttons.
+The built-in `main` layout holds the stage. The text boxes are built from a screen, `textbox`, whose body holds the box's background and the continue indicator, and a layout in that screen for each kind of text: `dialogue`, `action`, `title`, `heading` and `transitional`. A menu's option buttons are in a layout of their own, `choices` (see [Menus](#menus-the-choices-layout)).
 
 Three rules decide where a line shows:
 
@@ -59,6 +59,38 @@ layout note {
 With these, `@note: Buy milk` opens `note`. A dialogue line after it closes `note` and opens `dialogue` inside the shared `frame`, and an action line after that closes `dialogue` and opens `action` in the same `frame`, which stays on screen because a layout of its screen is open throughout. A layout that is in a screen shares that screen's elements, as [6.3](#63-screens-groups-you-navigate-between) describes.
 
 A layout that opened by itself is still a layout: `[[open dialogue]]` keeps it open until `[[close dialogue]]`, whatever kind the lines after it are.
+
+#### Menus: the `choices` layout
+
+A menu is a kind like any other, and its kind is the option buttons, the elements named `choice`. When a menu comes up and no open layout holds them, the built-in `choices` layout opens by itself. It is not in the `textbox` screen, so the line that asks the question stays in its box while the options show. It closes when an option is picked. Pick by clicking an option, by pressing its number, or with the arrow keys and Enter.
+
+A layout of your own named `choices` takes the built-in one's place, and since the options arrive and leave with the layout, `@initial` and `@hide` give them a motion of their own:
+
+```sparkdown
+layout choices {
+  choices {
+    choice.0 #clear { text }
+    choice.1 #clear { text }
+    choice.2 #clear { text }
+  }
+}
+
+style choices {
+  transition = opacity 0.2s
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+```
+
+The built-in `choices` layout holds six option buttons and has no motion. `@showing(choices)` is true while the menu is up, so any element can react to it:
+
+```sparkdown
+style textbox {
+  @showing(choices) { opacity = 0.6 }
+}
+```
+
+A project whose own open layout holds the option buttons, such as its own `layout main`, keeps its menus there and `choices` does not open. While the text page is open its menus are on the page.
 
 `ui.layouts_initial` names the layouts and screens that are open when a run or a preview starts, besides `main`. With `"textbox"` in it, as it is by default, text shows in the built-in boxes from the start:
 
@@ -117,7 +149,7 @@ Each beat becomes an entry below the last:
 - Dialogue is the speaker's name in small capitals above the line. The name is left out while the same speaker keeps talking.
 - A title, a scene heading or a transition is a centred heading.
 - A horizontal rule comes before the first entry of a new scene.
-- A menu is a list of option buttons. Pick one by clicking it, by pressing its number (1 to 9), or by moving to it with the arrow keys and pressing Enter. The picked option stays on the page as a muted line marked ▸, and the others are removed. The number and arrow keys work in the dialogue box's menus too.
+- A menu is a list of option buttons. Pick one by clicking it, by pressing its number (1 to 9), or by moving to it with the arrow keys and pressing Enter. The picked option stays on the page as a muted line marked ▸, and the others are removed. The number and arrow keys work in the `choices` layout's menus too.
 - When the story ends, a centred line in small capitals at the foot of the page says how: "End of story" after `fin`, "Story ran out" when nothing is left to run, or "Stopped by an error" in the alert colour. Stepping back past the end or playing again removes it, and a save taken at the end loads with it.
 
 Text is typed out with the same timing as the dialogue box, so pauses read as pauses, a click finishes the line, and bold, italic, underline, centring and the wavy and shaky effects all show. Set the typing speed to 0 to show each entry at once.

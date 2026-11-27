@@ -196,7 +196,7 @@ end
     expect(ids(h, "textbox")).toEqual(frame);
   });
 
-  test("a menu with no line of its own opens choices in the box, and a project's own choice slots keep it closed", async () => {
+  test("a menu with no line of its own opens choices, and a project's own choice slots keep it closed", async () => {
     const MENU = `scene start
   choose
     + [Stay.]
@@ -209,7 +209,7 @@ end
     const built = await play(MENU);
     expect(beat(built).choices).toHaveLength(2);
     expect(mounted(built)).toEqual(["choices"]);
-    expect(findAll(built, "textbox")).toHaveLength(1);
+    expect(findAll(built, "textbox")).toEqual([]);
     expect(built.game.module.ui.findIds("choice")).toHaveLength(6);
 
     const own = await play(`layout main {

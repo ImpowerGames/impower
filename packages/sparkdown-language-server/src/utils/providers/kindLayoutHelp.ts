@@ -14,8 +14,10 @@ const BUILT_IN_KINDS: ReadonlyMap<string, string> = new Map([
   ["title", "A title (`^:`)"],
   ["heading", "A scene heading (`$:`)"],
   ["transitional", "A transition (`%:`)"],
-  ["choices", "A menu with no line of its own"],
+  ["choices", "A menu"],
 ]);
+
+const MENU_LAYOUT = "choices";
 
 const holdsElement = (program: SparkProgram, children: unknown, name: string): boolean => {
   const components = program.sparkle?.components ?? {};
@@ -60,6 +62,13 @@ const namedAfterKind = (program: SparkProgram | undefined, name: string): boolea
 };
 
 export const kindLayoutDocumentation = (name: string): string => {
+  if (name === MENU_LAYOUT) {
+    return [
+      "`choices` opens by itself when a menu comes up and no open layout holds its option buttons, the elements named `choice`. The line that asks the question stays in its own layout.",
+      "It closes when an option is picked. `[[open choices]]` keeps it open until `[[close choices]]`.",
+      `[Screens](${SCREENS_GUIDE})`,
+    ].join("\n\n");
+  }
   const line = BUILT_IN_KINDS.get(name) ?? `A line written with \`@${name}:\``;
   return [
     `\`${name}\` is named after a kind of text, so it opens by itself. ${line} opens it when no open layout holds an element named \`${name}\`, and goes to every open layout that does.`,
