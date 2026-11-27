@@ -703,16 +703,20 @@ export class AssetModule extends Module<
           counted += 1;
         }
       }
-      if (counted < reach) {
-        ahead.push(
-          ...this.loadedSuccessorBeats(
-            flow,
-            reach - counted,
-            beats.length - 1 - at,
-          ),
-        );
+      const routes =
+        distance !== 0 && counted < reach
+          ? this.loadedSuccessorRoutes(
+              flow,
+              reach - counted,
+              beats.length - 1 - at,
+            )
+          : [];
+      if (routes.length === 0) {
+        runs.push(...pictureRuns(ahead, shown, fallback));
       }
-      runs.push(...pictureRuns(ahead, shown, fallback));
+      for (const route of routes) {
+        runs.push(...pictureRuns([...ahead, ...route], shown, fallback));
+      }
     }
     const merged = new Map<string, DrawAheadPicture>();
     for (const run of runs) {
@@ -750,61 +754,65 @@ export class AssetModule extends Module<
     return [...merged.values()].sort((a, b) => a.distance - b.distance);
   }
 
-  protected loadedSuccessorBeats(
+  protected loadedSuccessorRoutes(
     flow: string,
     remaining: number,
     from: number,
-  ): PredictedBeat[] {
+  ): PredictedBeat[][] {
     const sceneAssets = this._game.program.sceneAssets;
     const entry = sceneAssets?.[flow];
-    const found: PredictedBeat[] = [];
+    const routes: PredictedBeat[][] = [];
     if (!sceneAssets || !entry) {
-      return found;
+      return routes;
     }
     const limit = this.config.load_distance;
-    const visited = new Set<string>([flow]);
-    const queue = [...entry.loads, ...entry.successors].map((next) => ({
-      next,
-      from,
-      remaining,
-    }));
     let flowsVisited = 0;
-    while (queue.length > 0 && flowsVisited < MAX_PREDICTED_FLOWS) {
-      const { next, from, remaining } = queue.shift()!;
-      if (visited.has(next) || !this._loadPins.has(next)) {
-        continue;
-      }
-      visited.add(next);
-      flowsVisited++;
-      const nextEntry = sceneAssets[next];
-      if (!nextEntry) {
-        continue;
-      }
-      let left = remaining;
-      let covered = 0;
-      let distance = from;
-      for (const beat of nextEntry.beats) {
-        if (left <= 0 || (limit > 0 && covered >= limit)) {
+    const walk = (
+      scene: SceneAssets,
+      route: PredictedBeat[],
+      passed: ReadonlySet<string>,
+      left: number,
+      distance: number,
+    ) => {
+      let continued = false;
+      for (const next of new Set([...scene.loads, ...scene.successors])) {
+        const nextEntry = sceneAssets[next];
+        if (passed.has(next) || !this._loadPins.has(next) || !nextEntry) {
+          continue;
+        }
+        if (flowsVisited >= MAX_PREDICTED_FLOWS) {
           break;
         }
-        distance += 1;
-        found.push({ beat, distance });
-        if (loads(beat)) {
-          covered += 1;
-          left -= 1;
+        flowsVisited++;
+        continued = true;
+        const beats: PredictedBeat[] = [];
+        let rest = left;
+        let covered = 0;
+        let reached = distance;
+        for (const beat of nextEntry.beats) {
+          if (rest <= 0 || (limit > 0 && covered >= limit)) {
+            break;
+          }
+          reached += 1;
+          beats.push({ beat, distance: reached });
+          if (loads(beat)) {
+            covered += 1;
+            rest -= 1;
+          }
+        }
+        const through = [...route, ...beats];
+        if (rest > 0 && (limit === 0 || covered < limit)) {
+          walk(nextEntry, through, new Set([...passed, next]), rest, reached);
+        } else {
+          routes.push(through);
         }
       }
-      if (left > 0 && (limit === 0 || covered < limit)) {
-        queue.push(
-          ...[...nextEntry.loads, ...nextEntry.successors].map((after) => ({
-            next: after,
-            from: distance,
-            remaining: left,
-          })),
-        );
+      if (!continued && route.length > 0) {
+        routes.push(route);
       }
-    }
-    return found;
+    };
+    walk(entry, [], new Set([flow]), remaining, from);
+    return routes;
   }
 
   protected _effectScales?: { context: object; byWrite: Map<string, number> };

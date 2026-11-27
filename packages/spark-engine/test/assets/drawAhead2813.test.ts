@@ -414,3 +414,120 @@ end
     expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 1 }]);
   });
 });
+
+const ROUTE_ASSETS: File[] = [...ASSETS, asset("image", "one", "svg"), asset("image", "two", "svg"), asset("image", "three", "svg")];
+
+const loadedRoutes = async (story: string, loads: string[]) => {
+  const h = createHarness(story, at(story, "  Holding."), { assets: ROUTE_ASSETS, beforeConnect: playing });
+  await h.ready;
+  expect(h.errors).toEqual([]);
+  const id = h.game.module.assets.runLoad(loads.map((name) => ({ name })));
+  await flushMicrotasks(100);
+  expect(h.game.module.assets.isReady(id)).toBe(true);
+  return settle(h);
+};
+
+const routeConfig = (distance: number) => `define assets as config with
+  predict_distance = ${distance}
+  load_distance = 0
+  loading_min = 0
+end
+`;
+
+describe("the loaded scenes ahead, route by route (#2813, round 4)", () => {
+  it("gives a scene two routes reach the horizon the shorter route leaves, whichever route is listed first", async () => {
+    for (const shortFirst of [false, true]) {
+      const story = `${routeConfig(4)}
+scene start
+  Holding.
+  choose
+    + (a) First
+      -> ${shortFirst ? "Short" : "Long"}
+    + (b) Second
+      -> ${shortFirst ? "Long" : "Short"}
+  end
+end
+
+scene Long
+  [[show backdrop hall]]
+  Long one.
+  [[show portrait nova]]
+  Long two.
+  [[show sigil dusk]]
+  Long three.
+  -> Join
+end
+
+scene Short
+  [[show backdrop room]]
+  Short one.
+  -> Join
+end
+
+scene Join
+  [[show backdrop one]]
+  One.
+  [[show backdrop two]]
+  Two.
+  [[show backdrop three]]
+  Three.
+end
+`;
+      const names = (await loadedRoutes(story, ["Long", "Short", "Join"])).map((p: any) => p.name);
+      expect(names).toEqual(expect.arrayContaining(["hall", "nova", "dusk", "one", "two", "three"]));
+    }
+  });
+
+  it("sizes each alternative scene's picture for the zoom of the scene both lead to", async () => {
+    const story = `${routeConfig(4)}
+framing close {
+  zoom = 1.5
+}
+
+scene start
+  Holding.
+  choose
+    + (a) Left
+      -> Left
+    + (b) Right
+      -> Right
+  end
+end
+
+scene Left
+  [[show backdrop hall]]
+  Left picture.
+  -> Join
+end
+
+scene Right
+  [[show backdrop dusk]]
+  Right picture.
+  -> Join
+end
+
+scene Join
+  [[animate backdrop to close over 1s]] [[show portrait nova]]
+  Both zoom here.
+end
+`;
+    const pictures = await loadedRoutes(story, ["Left", "Right", "Join"]);
+    expect(pictures.find((p: any) => p.name === "hall")?.zoom).toBe(1.5);
+    expect(pictures.find((p: any) => p.name === "dusk")?.zoom).toBe(1.5);
+  });
+
+  it("keeps a predict_distance of zero to the current scene, though the next scene is loaded", async () => {
+    const story = `${routeConfig(0)}
+scene start
+  Holding.
+  -> Next
+end
+
+scene Next
+  [[show backdrop hall]]
+  Next picture.
+end
+`;
+    expect(await loadedRoutes(story, ["Next"])).toEqual([]);
+  });
+});
