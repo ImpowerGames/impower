@@ -71,9 +71,11 @@ import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdv
 import { Manager } from "../Manager";
 import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback, type MorphLayer } from "../morph/MorphPlayback";
-import { keyframeScale } from "../utils/keyframeScale";
+import { keyframeScale } from "@impower/spark-engine/src/game/modules/ui/utils/keyframeScale";
 import { keptScroll, outOfFlow } from "../utils/outOfFlow";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
+import { DrawAheadMessage, type DrawAheadPicture } from "../../../../spark-engine/src/game/modules/assets/classes/messages/DrawAheadMessage";
+import { DrawAhead } from "./DrawAhead";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -118,6 +120,21 @@ interface PendingBeat {
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+const HALTS_DRAWING_AHEAD = new Set([
+  "ui/beat",
+  "ui/batch",
+  "ui/reconcile-begin",
+  "ui/reconcile-sweep",
+  "ui/create",
+  "ui/destroy",
+  "ui/move",
+  "ui/layout",
+  "ui/theme",
+  "ui/write-image",
+]);
+
+const INTERRUPTS_DRAWING_AHEAD = new Set(["ui/update", "ui/animate", "ui/presence", "ui/write-text"]);
 
 type OverlayWithShowing = HTMLElement & { __sdShowing?: Map<string, number> };
 
@@ -352,6 +369,32 @@ export default class UIManager extends Manager {
   protected _beatMarks = new BeatMarks();
 
   protected _drawTimeouts = { beat: 8, restore: 2 };
+
+  protected _drawAhead = new DrawAhead({
+    overlay: () => this.app.overlay ?? undefined,
+    morphs: () => this.morphs,
+    busy: () =>
+      this._waitingBeats.length > 0 ||
+      this._applying > 0 ||
+      !!this._veil ||
+      !!(this.app.overlay as OverlayWithBeat | undefined)?.__sdBeat,
+    seconds: () => this.drawSeconds(),
+    box: (picture) =>
+      [
+        this.app.overlay?.ownerDocument.defaultView?.devicePixelRatio ?? 1,
+        ...this.findTargetElements(picture.target).flatMap((el) =>
+          [el, ...this.getContentElements(el, "image"), ...this.getContentElements(el, "mask")].map((box) => `${box.offsetWidth}x${box.offsetHeight}`),
+        ),
+      ].join(" "),
+    mount: (picture) => this.mountAhead(picture),
+    unmount: (layers) => {
+      for (const layer of layers) {
+        const span = layer.span;
+        layer.dispose();
+        span.remove();
+      }
+    },
+  });
 
   protected _prepared = new Map<WriteImageInstruction, Map<HTMLElement, HTMLElement>>();
 
@@ -589,6 +632,7 @@ export default class UIManager extends Manager {
   }
 
   override onDispose() {
+    this._drawAhead.dispose();
     this.endSpeech();
     this._layoutMotion.settle();
     this._presence.endAll();
@@ -926,6 +970,18 @@ export default class UIManager extends Manager {
               span.style.setProperty("visibility", "hidden");
               (span as any).__sdPrepared = true;
               placePicture(span, instruction.framing);
+              const measure = (layer: MorphLayer) => {
+                layer.presize();
+                this.presizeHidden(span, layer);
+              };
+              const ahead = this._drawAhead.reachOf(target, content.background);
+              const reach = {
+                zoom: Math.max(zoom, ahead?.zoom ?? 1),
+                scale: Math.max(
+                  around * keyframeScale(content.enterAnimations ?? []) * nested(span),
+                  ahead?.scale ?? 1,
+                ),
+              };
               const layer = morphs.mount(
                 span,
                 content.morph ?? { plays: [], epoch: 0 },
@@ -935,10 +991,9 @@ export default class UIManager extends Manager {
                 group,
                 content.pictures ?? [],
                 true,
+                { reach, measure },
               );
-              layer.size({ zoom, scale: around * keyframeScale(content.enterAnimations ?? []) * nested(span) });
-              layer.presize();
-              this.presizeHidden(span, layer);
+              measure(layer);
               let byContent = this._prepared.get(instruction);
               if (!byContent) {
                 byContent = new Map();
@@ -969,6 +1024,62 @@ export default class UIManager extends Manager {
       restore();
     }
     return { layers, unprepared };
+  }
+
+  protected mountAhead(picture: DrawAheadPicture): MorphLayer[] {
+    const morphs = this.morphs;
+    if (!morphs || !this.app.overlay) {
+      return [];
+    }
+    const { target, content } = picture;
+    const layers: MorphLayer[] = [];
+    const group = new MorphGroup();
+    for (const targetEl of this.findTargetElements(target)) {
+      if (!targetEl.isConnected) {
+        continue;
+      }
+      for (const [property, els] of [
+        ["background_image", this.getContentElements(targetEl, "image")],
+        ["mask_image", this.getContentElements(targetEl, "mask")],
+      ] as const) {
+        els.forEach((contentEl, index) => {
+          const span = createImageElement(
+            contentEl,
+            property,
+            content.background,
+            content.imageNames,
+            content.sources ?? (content.src ? [content.src] : []),
+            this.applyStyle.bind(this),
+          );
+          span.style.setProperty("visibility", "hidden");
+          const layer = morphs.mount(
+            span,
+            content.morph ?? { plays: [], epoch: 0 },
+            content.background,
+            property === "mask_image" ? "mask" : "background",
+            `ahead:${(targetEl as any).__sdId ?? target}:${property}:${index}`,
+            group,
+            content.pictures ?? [],
+            true,
+            {
+              forecast: picture.distance,
+              reach: { zoom: picture.zoom, scale: picture.scale },
+              measure: (made) => {
+                made.presize();
+                this.presizeHidden(span, made);
+              },
+            },
+          );
+          if (!layer.measured) {
+            layer.dispose();
+            span.remove();
+            return;
+          }
+          layers.push(layer);
+        });
+      }
+    }
+    return layers;
   }
 
   protected _precreated: { el: HTMLElement; value: string; priority: string }[] = [];
@@ -1305,14 +1416,24 @@ export default class UIManager extends Manager {
     if (pending.drawing) {
       return;
     }
-    const wait = this.dueAt(pending, this.documentNow()) - this.documentNow();
-    if (wait <= 0) {
+    const now = this.documentNow();
+    const due = this.dueAt(pending, now);
+    if (due - now <= 0) {
       this.flushPendingBeat();
       return;
     }
     if (this._heldAt == null) {
-      pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), wait);
+      pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), Math.max(0, due - this.preciseNow(now)));
     }
+  }
+
+  protected preciseNow(now: number): number {
+    const view = this.app.overlay?.ownerDocument.defaultView as (Window & typeof globalThis) | null | undefined;
+    const Timeline = view?.DocumentTimeline;
+    if (!view || typeof Timeline !== "function" || !(view.document.timeline instanceof Timeline)) {
+      return now;
+    }
+    return Math.max(now, view.performance.now());
   }
 
   protected commitWhenDue(pending: PendingBeat) {
@@ -1967,6 +2088,11 @@ export default class UIManager extends Manager {
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
+    if (HALTS_DRAWING_AHEAD.has(msg.method)) {
+      this._drawAhead.halt();
+    } else if (INTERRUPTS_DRAWING_AHEAD.has(msg.method)) {
+      this._drawAhead.interrupt();
+    }
     const decision = this._decision;
     this.endPreviewCutscene(msg);
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
@@ -2287,6 +2413,15 @@ export default class UIManager extends Manager {
   }
 
   override onReceiveNotification(msg: NotificationMessage) {
+    if (HALTS_DRAWING_AHEAD.has(msg.method)) {
+      this._drawAhead.halt();
+    } else if (INTERRUPTS_DRAWING_AHEAD.has(msg.method)) {
+      this._drawAhead.interrupt();
+    }
+    if (DrawAheadMessage.type.isNotification(msg)) {
+      this._drawAhead.receive(msg.params.pictures);
+      return;
+    }
     this.endPreviewCutscene(msg);
     if (ConfigureAssetsMessage.type.isNotification(msg)) {
       const { beatTimeout, restoreTimeout, morphFrameRate } = msg.params;
@@ -3290,6 +3425,7 @@ export default class UIManager extends Manager {
             if (preparedLayer) {
               preparedLayer.release();
             } else if (morph || pictures.length > 0) {
+              const ahead = this._drawAhead.reachOf(target, content.background);
               this.morphs?.mount(
                 newSpanEl,
                 morph ?? { plays: [], epoch: 0 },
@@ -3298,6 +3434,8 @@ export default class UIManager extends Manager {
                 `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
                 morphGroup,
                 pictures,
+                false,
+                ahead ? { reach: ahead } : {},
               );
             }
             if (instruction.control === "show") {

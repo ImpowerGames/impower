@@ -1,4 +1,4 @@
-import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
+import type { Animation } from "../types/Animation";
 
 const NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?$/i;
 

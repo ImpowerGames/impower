@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { resolveAnimationTargets } from "../../../spark-dom/src/utils/resolveAnimationTargets";
-import { keyframeScale } from "../../src/app/utils/keyframeScale";
+import { keyframeScale } from "@impower/spark-engine/src/game/modules/ui/utils/keyframeScale";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
 

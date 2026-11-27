@@ -103,6 +103,7 @@ import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
+import { keyframeScale } from "../utils/keyframeScale";
 import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
@@ -7816,6 +7817,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             $.textElements(target).filter((el) => !emptied.has($.elementPath(el) ?? "")),
           );
         }
+      }
+
+      predict(assets: string[]): WriteImageInstruction["content"] | undefined {
+        return this.resolve([{ control: "show", assets }], true)[0]?.content;
+      }
+
+      effectScale(event: ImageInstruction): number {
+        const out = this.resolve([event], true)[0];
+        return (out?.affected ?? []).reduce(
+          (product, affected) => product * keyframeScale(affected.animations),
+          keyframeScale(out?.content?.enterAnimations ?? []) *
+            keyframeScale(out?.targetAnimations),
+        );
+      }
+
+      shown(target: string): { assets: string[]; at?: string } | undefined {
+        let shown: ImageInstruction | undefined;
+        for (const event of $._state.image?.[target] ?? []) {
+          if (event.assets?.length) {
+            if (event.control === "show") {
+              shown = event;
+            }
+          } else if (event.control === "hide") {
+            shown = undefined;
+          }
+        }
+        return shown?.assets?.length
+          ? { assets: shown.assets, ...(shown.at ? { at: shown.at } : {}) }
+          : undefined;
       }
 
       async clearMarked(targets: readonly string[]) {

@@ -388,6 +388,10 @@ export class Coordinator<G extends Game> {
   }
 
   protected finishExecution(): void {
+    if (!this._finishedExecution) {
+      const game = this._game;
+      game.module.ui.afterCompose(() => game.module.assets.onBeatSettled());
+    }
     this._finishedExecution = true;
     if (this._reportsShown && !this._reportedFinished) {
       this._reportedFinished = true;
