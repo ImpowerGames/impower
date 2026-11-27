@@ -1945,6 +1945,7 @@ export default class UIManager extends Manager {
 
   override async onReceiveRequest(msg: RequestMessage) {
     const decision = this._decision;
+    const heldFor = this._applying === 0 && this._heldAt != null ? this.documentNow() - this._heldAt : 0;
     this.endPreviewCutscene(msg);
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
       this.flushPendingBeat(true);
@@ -2172,11 +2173,12 @@ export default class UIManager extends Manager {
     }
     if (WriteTextMessage.type.isRequest(msg)) {
       const params = msg.params;
+      const startTime = this.getDisplayTime(params.time);
       await this.writeText(
         params.target,
         params.instructions,
         params.instant,
-        this.getDisplayTime(params.time),
+        startTime != null && !params.instant && !params.held ? startTime + heldFor : startTime,
         params.shown,
         params.elements,
         decision,

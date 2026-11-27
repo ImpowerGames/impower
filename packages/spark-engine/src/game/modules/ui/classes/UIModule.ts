@@ -642,7 +642,7 @@ interface StreamEntryView {
 
 interface Presented {
   time?: number;
-  start?: number;
+  lag?: number;
   complete: boolean;
 }
 
@@ -2578,14 +2578,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected storyStart(time: number | undefined): number | undefined {
-    return time == null ? undefined : time - this._game.storyLag();
-  }
-
-  protected replayTime(presented: Presented): number | undefined {
-    return presented.start == null
-      ? presented.time
-      : presented.start + this._game.storyLag();
+  protected replayTime(presented: { time?: number; lag?: number }): number | undefined {
+    return presented.time == null
+      ? undefined
+      : presented.time + (this._game.storyLag() - (presented.lag ?? 0));
   }
 
   protected moving(): boolean {
@@ -7453,7 +7449,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.#presented.set(target, {
           sequence: [...prior, ...sequence],
           time,
-          start: $.storyStart(time),
+          lag: $._game.storyLag(),
           shown: prior.length + shown,
           complete: instant,
           current: sequence,
@@ -7466,7 +7462,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const presented of this.#presented.values()) {
           if (presented.time === from) {
             presented.time = to;
-            presented.start = $.storyStart(to);
+            presented.lag = $._game.storyLag();
           }
         }
       }
@@ -8433,7 +8429,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected _resumed = false;
 
-      protected _presented?: { instant: boolean; time?: number };
+      protected _presented?: { instant: boolean; time?: number; lag?: number };
 
       get state(): PageState {
         return ($._state.page ??= { entries: [], current: 0 });
@@ -8568,7 +8564,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       show(instant: boolean, time?: number): void {
-        this._presented = { instant, time };
+        this._presented = { instant, time, lag: $._game.storyLag() };
         this.sync(this._presented);
       }
 
@@ -8591,14 +8587,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected sync(
-        presented?: { instant: boolean; time?: number },
+        presented?: { instant: boolean; time?: number; lag?: number },
         rewriteFrom?: number,
       ): void {
         if ($.context?.system?.simulating) {
           return;
         }
         const instant = presented?.instant ?? true;
-        const time = presented?.time;
+        const time = presented && $.replayTime(presented);
         const column = $.findElements(PAGE_COLUMN)[0];
         if (!column) {
           this.forget();
@@ -8766,7 +8762,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return this._mounted.size > 0;
       }
 
-      protected _presented?: { instant: boolean; time?: number };
+      protected _presented?: { instant: boolean; time?: number; lag?: number };
 
       protected _loaded = false;
 
@@ -9002,7 +8998,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       show(instant: boolean, time?: number): void {
-        this._presented = { instant, time };
+        this._presented = { instant, time, lag: $._game.storyLag() };
         this.sync(this._presented, undefined, !instant);
       }
 
@@ -9012,7 +9008,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected sync(
-        presented: { instant: boolean; time?: number },
+        presented: { instant: boolean; time?: number; lag?: number },
         rewriteFrom?: number,
         arriving = false,
       ): void {
@@ -9034,7 +9030,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected render(
         mount: MountedStream,
-        presented?: { instant: boolean; time?: number },
+        presented?: { instant: boolean; time?: number; lag?: number },
         rewriteFrom?: number,
         arriving = false,
       ): void {
@@ -9094,7 +9090,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             entry,
             atOnce
               ? { complete: true }
-              : (reveal ?? { complete: false, time, start: $.storyStart(time) }),
+              : (reveal ?? { complete: false, time, lag: presented?.lag }),
           );
           if (
             !atOnce &&
@@ -9151,7 +9147,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const reveal of this._reveals.values()) {
           if (reveal.time === from) {
             reveal.time = to;
-            reveal.start = $.storyStart(to);
+            reveal.lag = $._game.storyLag();
           }
         }
       }
@@ -9182,9 +9178,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         reveal: Presented,
         replaced?: (el: Element) => boolean,
       ): boolean {
-        const key = this.revealKey(mount, index);
-        const time = this._reveals.get(key) === reveal ? $.replayTime(reveal) : reveal.time;
-        this._reveals.set(key, reveal);
+        this._reveals.set(this.revealKey(mount, index), reveal);
         const instant = reveal.complete;
         const roots = $.collectNodes(mount.entries[index]!.group);
         let wrote = false;
@@ -9203,7 +9197,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             elements,
             events,
             instant,
-            time,
+            $.replayTime(reveal),
             instant ? 0 : (entry.shown?.[target] ?? 0),
           );
         }

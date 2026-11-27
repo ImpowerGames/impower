@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import type { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
+import { Coordinator } from "../../../spark-engine/src/game/core/classes/Coordinator";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
 import { BEAT_LEAD_MS } from "../../../spark-engine/src/game/core/utils/sharedClock";
 import { advanceTo, timeline, useTimedAnimations } from "./timedAnimation";
@@ -43,8 +45,8 @@ afterEach(() => {
 
 const at = advanceTo;
 
-function harness(options: { loadCheckpoint?: string } = {}) {
-  const h = createDOMHarness(SOURCE, 0, { reactive: true, autoOpenAll: false, ...options });
+function harness(source = SOURCE) {
+  const h = createDOMHarness(source, 0, { reactive: true, autoOpenAll: false });
   restore?.();
   restore = useTimedAnimations(h);
   h.game.context.system.now = () => timeline.currentTime;
@@ -252,4 +254,108 @@ describe("a remounted line replays on the story clock (#2861)", () => {
     const first = writes.find((w) => w.time != null);
     expect(first?.time).toBe(clicked + BEAT_LEAD_MS);
   });
+});
+
+describe("a remounted line replays on the story clock, whatever path writes it (#2861)", () => {
+  const sourceWith = (layout: string, open: string) =>
+    SOURCE.replace(/layout main \{[\s\S]*?\n\}\n/, `${layout}\n`).replace("[[open main]]", `[[open ${open}]]`);
+
+  async function opened(source: string, compose = false) {
+    const h = harness(source);
+    await h.ready;
+    h.jumpTo("start");
+    (h.game.context.system as any).composeBeats = compose;
+    return h;
+  }
+
+  async function beat(h: DOMHarness) {
+    const instructions = h.nextBeat();
+    expect(instructions).toBeDefined();
+    const coordinator = new Coordinator(h.game, instructions!);
+    for (let i = 0; i < 10; i += 1) {
+      coordinator.onUpdate({ deltaMS: 0 } as Clock);
+      await flushMicrotasks(40);
+    }
+  }
+
+  const shown = (h: DOMHarness, selector: string) =>
+    [...h.overlay.querySelectorAll<HTMLElement>(`${selector} .text_letter`)].filter((el) => {
+      const reveal = (el as any).__sdReveal;
+      return reveal
+        ? reveal.currentTime != null &&
+            reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+        : el.style.opacity === "1";
+    }).length;
+
+  test.each([false, true])(
+    "a first line presented during a pause that began before it (beats composed: %s)",
+    async (compose) => {
+      const h = await opened(SOURCE, compose);
+      await at(50);
+      hold(h);
+      await at(100);
+      await beat(h);
+      await at(400);
+      release(h);
+      await at(550);
+      await sameAcrossRemount(h);
+    },
+  );
+
+  test("the textstream page reopened while its line types, after a pause", async () => {
+    const h = await opened(
+      sourceWith("layout textstream {\n  textstream.paper.ink {\n    textstream_column\n  }\n}", "textstream"),
+    );
+    await at(100);
+    await beat(h);
+    await pause(h, 200, 600);
+    await at(650);
+    const column = h.overlay.querySelector(".textstream_column");
+    const live = shown(h, ".textstream_column");
+    expect(live).toBeGreaterThan(0);
+    expect(live).toBeLessThan(LINES[0]!.length);
+    const ui = h.game.module.ui;
+    await ui.applyLayoutInstructions([{ control: "close", name: "textstream" }], true);
+    await flushMicrotasks(40);
+    await ui.applyLayoutInstructions([{ control: "open", name: "textstream" }], true);
+    await flushMicrotasks(40);
+    expect(h.overlay.querySelector(".textstream_column")).not.toBe(column);
+    expect(h.overlay.querySelector(".textstream_column")?.textContent).toContain(LINES[0]);
+    expect(shown(h, ".textstream_column")).toBe(live);
+  });
+
+  test.each([0, 50])(
+    "a replay sent during a pause and received %s ms later",
+    async (delay) => {
+      const h = await opened(SOURCE);
+      await beat(h);
+      await at(100);
+      hold(h);
+      const live = visible(h);
+      expect(live).toBeGreaterThan(0);
+      expect(live).toBeLessThan(letters(h).length);
+      const receive = h.router.receive.bind(h.router);
+      const queued: any[] = [];
+      (h.router as any).receive = (message: any) => {
+        if (message.method === "ui/write-text" && message.params.instructions.length > 0) {
+          queued.push(message);
+        } else {
+          receive(message);
+        }
+      };
+      await at(400);
+      await toggle(h);
+      expect(queued.length).toBeGreaterThan(0);
+      await at(400 + delay);
+      (h.router as any).receive = receive;
+      for (const message of queued) {
+        receive(message);
+      }
+      await flushMicrotasks(40);
+      expect(visible(h)).toBe(live);
+      release(h);
+      await at(500 + delay);
+      expect(visible(h)).toBeGreaterThan(live);
+    },
+  );
 });
