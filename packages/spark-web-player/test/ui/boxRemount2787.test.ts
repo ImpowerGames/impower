@@ -65,9 +65,20 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function timed(h: DOMHarness) {
+function timed(h: DOMHarness, origin = 0) {
   restore = useTimedAnimations(h);
+  h.game.context.system.now = () => origin + timeline.currentTime;
 }
+
+const hold = (h: DOMHarness) => {
+  h.game.pause();
+  h.ui.onPause();
+};
+
+const release = (h: DOMHarness) => {
+  h.game.unpause();
+  h.ui.onUnpause();
+};
 
 const at = advanceTo;
 
@@ -228,9 +239,9 @@ describe("a box's text across a remount of its content (#2787)", () => {
       const before = visible(h);
       expect(before).toBeGreaterThan(0);
       expect(before).toBeLessThan(letters(h).length);
-      h.ui.onPause();
+      hold(h);
       await at(1100);
-      h.ui.onUnpause();
+      release(h);
       expect(visible(h)).toBe(before);
       if (composed) {
         expect(h.game.module.ui.beginCompose()).toBe(true);
@@ -396,9 +407,9 @@ describe("a line still typing keeps its reveal when the whole box is replaced (#
     const before = shown(h);
     expect(before.length).toBeGreaterThan(0);
     expect(before.length).toBeLessThan("slight problem".length);
-    h.ui.onPause();
+    hold(h);
     await at(1100);
-    h.ui.onUnpause();
+    release(h);
     expect(shown(h)).toBe(before);
     await toggle(h);
     expect(shown(h)).toBe(before);
@@ -482,9 +493,9 @@ describe("a typing line's resume position in the cases round 3 left open (#2787)
     expect(dialogue.length).toBeGreaterThan(0);
     expect(dialogue.length).toBeLessThan("slight problem".length);
     expect(action).toBe(dialogue);
-    h.ui.onPause();
+    hold(h);
     await at(1100);
-    h.ui.onUnpause();
+    release(h);
     await toggle(h);
     expect(h.overlay.querySelector(".main .dialogue .text.second")?.textContent).toBe(
       "slight problem",
@@ -620,9 +631,9 @@ describe("a typing line keeps its reveal across a pause, however it is rewritten
     const before = shown(h);
     expect(before.length).toBeGreaterThan("prefix ".length);
     expect(before.length).toBeLessThan("prefix slight problem".length);
-    h.ui.onPause();
+    hold(h);
     await at(1100);
-    h.ui.onUnpause();
+    release(h);
     expect(shown(h)).toBe(before);
     await toggle(h);
     expect(shown(h)).toBe(mode === "loop" ? before + before : before);
@@ -642,7 +653,6 @@ describe("a typing line keeps its reveal across a pause, however it is rewritten
     await h.ready;
     h.jumpTo("start");
     timed(h);
-    h.game.context.system.now = () => timeline.currentTime;
     (h.game.context.system as any).composeBeats = true;
     await next(h);
     await at(400);
@@ -650,9 +660,9 @@ describe("a typing line keeps its reveal across a pause, however it is rewritten
     const before = shown(h);
     expect(before.length).toBeGreaterThan(0);
     expect(before.length).toBeLessThan("slight problem".length);
-    h.ui.onPause();
+    hold(h);
     await at(1500);
-    h.ui.onUnpause();
+    release(h);
     expect(shown(h)).toBe(before);
     await toggle(h);
     expect(shown(h)).toBe(before);
@@ -678,9 +688,9 @@ describe("a typing line keeps its reveal across a pause, however it is rewritten
     const before = shown(h);
     expect(before.length).toBeGreaterThan(0);
     expect(before.length).toBeLessThan("slight problem".length);
-    h.ui.onPause();
+    hold(h);
     await at(1100);
-    h.ui.onUnpause();
+    release(h);
     for (let i = 0; i < 100; i += 1) {
       void ui.text.change("line write", "action", typed(`message ${i}`), false, 1120 + i);
     }
@@ -733,7 +743,7 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
   async function opened(origin = 0, latencyMs = 0) {
     const h = createDOMHarness(PAIR, 0, { reactive: true });
     await h.ready;
-    timed(h);
+    timed(h, origin);
     if (origin !== 0 || latencyMs !== 0) {
       const clock = new AudioClock(origin, () => origin);
       if (latencyMs !== 0) {
@@ -746,9 +756,9 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
 
   const pause = async (h: DOMHarness, from: number, to: number) => {
     await at(from);
-    h.ui.onPause();
+    hold(h);
     await at(to);
-    h.ui.onUnpause();
+    release(h);
   };
 
   test("two pauses after the start", async () => {
@@ -793,7 +803,7 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     const h = await opened();
     await pair(h, 20);
     await at(100);
-    h.ui.onPause();
+    hold(h);
     await at(400);
     await toggle(h);
     const held = same(h);
@@ -801,7 +811,7 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     expect(held).toBeLessThan("slight problem".length);
     await at(900);
     expect(same(h)).toBe(held);
-    h.ui.onUnpause();
+    release(h);
     await at(1000);
     same(h);
   });
@@ -819,17 +829,7 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     expect(now).toBeLessThan("slight problem".length);
   });
 
-  const aheadByNoMoreThanTyped = (
-    replay: number,
-    live: number,
-    ms: number,
-    spacingMs: number,
-  ) => {
-    expect(replay).toBeGreaterThanOrEqual(live);
-    expect(replay).toBeLessThanOrEqual(live + Math.ceil(ms / spacingMs));
-  };
-
-  test("known limit, closed by #2861: with 50 ms letter spacing and no output latency, a pause that spans the line's start within the lead leaves a replay never behind and ahead by no more than the letters typed in the lead", async () => {
+  test("a pause that spans the line's start within the lead leaves a replay showing the letters of a box never replayed (#2861)", async () => {
     const h = await opened();
     await at(100);
     await pair(h, 100 + BEAT_LEAD_MS);
@@ -840,30 +840,29 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     expect(live).toBeLessThan("slight problem".length);
     await toggle(h);
     expect(shownIn(h, "action")).toBe(live);
-    aheadByNoMoreThanTyped(shownIn(h, "dialogue"), live, BEAT_LEAD_MS, 50);
+    expect(shownIn(h, "dialogue")).toBe(live);
   });
 
-  test("known limit, closed by #2861: with 50 ms letter spacing and no output latency, a pending beat shifted past the pause that held it leaves a replay never behind and ahead by no more than the letters typed in the lead", async () => {
+  test("a pending beat shifted past the pause that held it leaves a replay showing the letters of a box never replayed (#2861)", async () => {
     const h = createDOMHarness(source(BOX), 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpTo("start");
     timed(h);
-    h.game.context.system.now = () => timeline.currentTime;
     (h.game.context.system as any).composeBeats = true;
-    h.ui.onPause();
+    hold(h);
     await next(h);
     await at(500);
-    h.ui.onUnpause();
+    release(h);
     await at(500 + BEAT_LEAD_MS + 75);
     const live = visible(h);
     expect(live).toBeGreaterThan(0);
     expect(live).toBeLessThan("slight problem".length);
     await toggle(h);
     expect(texts(h)).toEqual(["second=slight problem"]);
-    aheadByNoMoreThanTyped(visible(h), live, BEAT_LEAD_MS, 50);
+    expect(visible(h)).toBe(live);
   });
 
-  test("known limit, closed by #2861: with 50 ms letter spacing and no output latency, a line the line wait releases after a pause during its box's arrival leaves a replay never behind and ahead by no more than the letters typed in the lead", async () => {
+  test("a line the line wait releases after a pause during its box's arrival leaves a replay showing the letters of a box never replayed (#2861)", async () => {
     const h = createDOMHarness(
       source(`dialogue {
     if expanded then
@@ -881,21 +880,20 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     await h.ready;
     h.jumpTo("start");
     timed(h);
-    h.game.context.system.now = () => timeline.currentTime;
     (h.game.context.system as any).composeBeats = true;
     await next(h);
     await at(100);
-    h.ui.onPause();
+    hold(h);
     await at(900);
-    h.ui.onUnpause();
+    release(h);
     await at(950);
     const live = visible(h);
     expect(live).toBeGreaterThan(0);
     expect(live).toBeLessThan("slight problem".length);
     await toggle(h);
-    aheadByNoMoreThanTyped(visible(h), live, BEAT_LEAD_MS, 50);
+    expect(visible(h)).toBe(live);
   });
-  test("known limit, closed by #2861: with an authored 5 ms letter spacing, a pause that spans the line's start within the lead leaves a replay never behind and ahead by no more than the letters typed in the lead", async () => {
+  test("with an authored 5 ms letter spacing, a pause that spans the line's start within the lead leaves a replay showing the letters of a box never replayed (#2861)", async () => {
     const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const h = createDOMHarness(
       source(`dialogue {
@@ -916,22 +914,21 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     await h.ready;
     h.jumpTo("start");
     timed(h);
-    h.game.context.system.now = () => timeline.currentTime;
     await at(100);
     await next(h);
     await at(110);
-    h.ui.onPause();
+    hold(h);
     await at(600);
-    h.ui.onUnpause();
+    release(h);
     await at(700);
     const live = visible(h);
     expect(live).toBeGreaterThan(0);
     expect(live).toBeLessThan(alphabet.length);
     await toggle(h);
-    aheadByNoMoreThanTyped(visible(h), live, BEAT_LEAD_MS, 5);
+    expect(visible(h)).toBe(live);
   });
 
-  test("known limit, closed by #2861: with 100 ms of audio output latency and 50 ms letter spacing, a pause that spans the line's display start leaves a replay never behind and ahead by no more than the letters typed in the lead and the latency", async () => {
+  test("with 100 ms of audio output latency, a pause that spans the line's display start leaves a replay showing the letters of a box never replayed (#2861)", async () => {
     const h = await opened(0, 100);
     await at(100);
     await pair(h, 100 + BEAT_LEAD_MS);
@@ -942,7 +939,7 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     expect(live).toBeLessThan("slight problem".length);
     await toggle(h);
     expect(shownIn(h, "action")).toBe(live);
-    aheadByNoMoreThanTyped(shownIn(h, "dialogue"), live, BEAT_LEAD_MS + 100, 50);
+    expect(shownIn(h, "dialogue")).toBe(live);
   });
   test("a reveal whose first letter waits, as a voiced line's does", async () => {
     const h = await opened();

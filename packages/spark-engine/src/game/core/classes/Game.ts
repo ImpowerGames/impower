@@ -693,6 +693,10 @@ export class Game<T extends M = {}> {
     return this._paused;
   }
 
+  protected _pausedAt?: number;
+
+  protected _pausedFor = 0;
+
   protected _plannedRoute: RoutePlan | null = null;
   get plannedRoute(): RoutePlan | null {
     return this._plannedRoute;
@@ -2641,6 +2645,7 @@ export class Game<T extends M = {}> {
 
   pause(): void {
     this._paused = true;
+    this._pausedAt ??= this.now();
     if (this._clock) {
       this._clock.speed = 0;
     }
@@ -2648,9 +2653,25 @@ export class Game<T extends M = {}> {
 
   unpause(): void {
     this._paused = false;
+    if (this._pausedAt != null) {
+      this._pausedFor += this.now() - this._pausedAt;
+      this._pausedAt = undefined;
+    }
     if (this._clock) {
       this._clock.speed = 1;
     }
+  }
+
+  storyLag(): number {
+    return this._pausedFor + (this._pausedAt != null ? this.now() - this._pausedAt : 0);
+  }
+
+  settledStoryLag(): number {
+    return this._pausedFor;
+  }
+
+  protected now(): number {
+    return this._context.system?.now?.() ?? 0;
   }
 
   resume(): boolean {

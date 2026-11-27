@@ -266,6 +266,29 @@ describe("stream entries across remounts (#2738)", () => {
     expect(visible(h, 1)).toBe(before);
   });
 
+  test("an entry whose start a pause spans within the lead shows the letters of an entry never replayed after a remount (#2861)", async () => {
+    const h = createDOMHarness(source(BRANCH), 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    timed(h);
+    h.game.context.system.now = () => timeline.currentTime;
+    await at(100);
+    await next(h);
+    await at(110);
+    h.game.pause();
+    h.ui.onPause();
+    await at(600);
+    h.game.unpause();
+    h.ui.onUnpause();
+    await at(700);
+    const live = visible(h, 1);
+    expect(live).toBeGreaterThan(0);
+    expect(live).toBeLessThan(letters(h, 1).length);
+    await toggle(h);
+    expect(visible(h, 1)).toBe(live);
+  });
+
   test("an unchanged text target keeps its letter nodes when a nested label remounts", async () => {
     const h = createDOMHarness(
       source(`text
