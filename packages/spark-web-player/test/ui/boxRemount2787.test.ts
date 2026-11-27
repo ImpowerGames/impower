@@ -815,6 +815,77 @@ describe("a replayed line resumes where a line never replayed has got to (#2787)
     expect(now).toBeLessThan("slight problem".length);
   });
 
+  const atMostOneAhead = (replay: number, live: number) => {
+    expect(replay).toBeGreaterThanOrEqual(live);
+    expect(replay).toBeLessThanOrEqual(live + 1);
+  };
+
+  test("limit: a pause that spans the line's start within the engine's lead leaves a replay at most one letter ahead, never behind", async () => {
+    const h = await opened();
+    await at(100);
+    await pair(h, 100 + BEAT_LEAD_MS);
+    await pause(h, 110, 600);
+    await at(700);
+    const live = shownIn(h, "action");
+    expect(live).toBeGreaterThan(0);
+    expect(live).toBeLessThan("slight problem".length);
+    await toggle(h);
+    expect(shownIn(h, "action")).toBe(live);
+    atMostOneAhead(shownIn(h, "dialogue"), live);
+  });
+
+  test("limit: a pending beat shifted past the pause that held it leaves a replay at most one letter ahead, never behind", async () => {
+    const h = createDOMHarness(source(BOX), 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    timed(h);
+    h.game.context.system.now = () => timeline.currentTime;
+    (h.game.context.system as any).composeBeats = true;
+    h.ui.onPause();
+    await next(h);
+    await at(500);
+    h.ui.onUnpause();
+    await at(500 + BEAT_LEAD_MS + 75);
+    const live = visible(h);
+    expect(live).toBeGreaterThan(0);
+    expect(live).toBeLessThan("slight problem".length);
+    await toggle(h);
+    expect(texts(h)).toEqual(["second=slight problem"]);
+    atMostOneAhead(visible(h), live);
+  });
+
+  test("limit: a line the line wait releases after a pause during its box's arrival leaves a replay at most one letter ahead, never behind", async () => {
+    const h = createDOMHarness(
+      source(`dialogue {
+    if expanded then
+      text.first
+    else
+      text.second
+    end
+  }`).replace(
+        "layout main {",
+        "style dialogue {\n  opacity = 1\n  @initial { opacity = 0 }\n  @show { transition-duration = 280ms }\n}\n\nlayout main {",
+      ),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    timed(h);
+    h.game.context.system.now = () => timeline.currentTime;
+    (h.game.context.system as any).composeBeats = true;
+    await next(h);
+    await at(100);
+    h.ui.onPause();
+    await at(900);
+    h.ui.onUnpause();
+    await at(950);
+    const live = visible(h);
+    expect(live).toBeGreaterThan(0);
+    expect(live).toBeLessThan("slight problem".length);
+    await toggle(h);
+    atMostOneAhead(visible(h), live);
+  });
   test("a reveal whose first letter waits, as a voiced line's does", async () => {
     const h = await opened();
     await pair(
