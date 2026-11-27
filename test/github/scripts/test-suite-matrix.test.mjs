@@ -20,7 +20,7 @@ assert.ok(jobs.length > 0, "the include matrix lists at least one job");
 
 const byPackage = new Map();
 for (const job of jobs) byPackage.set(job.package, [...(byPackage.get(job.package) ?? []), job]);
-const expectedShards = { "packages/sparkdown": 4, "packages/spark-engine": 2, "packages/spark-web-player": 2, "packages/sparkdown-document-views": 3 };
+const expectedShards = { "packages/sparkdown": 4, "packages/spark-engine": 3, "packages/spark-web-player": 2, "packages/sparkdown-document-views": 3 };
 for (const [pkg, list] of byPackage) {
   const n = list[0].shards;
   assert.ok(list.every((job) => job.shards === n), `${pkg} declares one shard count`);

@@ -42,8 +42,9 @@ jobs:
           - { package: packages/opfs-workspace, shard: 1, shards: 1 }
           - { package: packages/spark-debug-adapter, shard: 1, shards: 1 }
           - { package: packages/spark-editor-protocol, shard: 1, shards: 1 }
-          - { package: packages/spark-engine, shard: 1, shards: 2 }
-          - { package: packages/spark-engine, shard: 2, shards: 2 }
+          - { package: packages/spark-engine, shard: 1, shards: 3 }
+          - { package: packages/spark-engine, shard: 2, shards: 3 }
+          - { package: packages/spark-engine, shard: 3, shards: 3 }
           - { package: packages/spark-morph, shard: 1, shards: 1 }
           - { package: packages/spark-web-player, shard: 1, shards: 2 }
           - { package: packages/spark-web-player, shard: 2, shards: 2 }
