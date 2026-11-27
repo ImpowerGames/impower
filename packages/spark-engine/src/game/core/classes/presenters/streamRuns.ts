@@ -22,7 +22,7 @@ export interface StreamRun {
   gathering?: StreamGathering;
   ahead: Instructions[];
   open: boolean;
-  capped?: true;
+  ends?: true;
 }
 
 const BUILT_IN_PAUSE = 0.4;
@@ -82,7 +82,6 @@ const pending = (beat: Instructions): boolean =>
 
 const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
   Boolean(beat.hold) ||
-  Boolean(beat.closesRun) ||
   (beat.choices?.length ?? 0) > 0 ||
   (!gathering.opened && Boolean(beat.waits));
 
@@ -94,8 +93,15 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
   const routedFirst = routeLine(game, first);
   let events = layoutEvents(routedFirst);
   const gathering = gatheringOf(game, routedFirst, events);
-  if (!gathering || endsRun(first, gathering)) {
-    return { ...(gathering ? { gathering } : {}), ahead: [], open: false };
+  if (!gathering) {
+    return { ahead: [], open: false };
+  }
+  let position = game.module.ui.streams.runLines(gathering.layout) + 1;
+  if (endsRun(first, gathering)) {
+    return { gathering, ahead: [], open: false, ends: true };
+  }
+  if (position % RUN_LINE_LIMIT === 0) {
+    return { gathering, ahead: [], open: false };
   }
   const ahead: Instructions[] = [];
   for (const [index, beat] of rest.entries()) {
@@ -115,11 +121,9 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
     }
     ahead.push(routed);
     events = after;
-    if (endsRun(beat, gathering)) {
+    position += 1;
+    if (endsRun(beat, gathering) || position % RUN_LINE_LIMIT === 0) {
       return { gathering, ahead, open: false };
-    }
-    if (ahead.length + 1 >= RUN_LINE_LIMIT) {
-      return { gathering, ahead, open: false, capped: true };
     }
   }
   return { gathering, ahead, open: true };
@@ -136,7 +140,6 @@ export function markRun(
     run.gathering?.settings.advance === "auto" &&
     run.ahead.length > 0 &&
     !plain.waits &&
-    !plain.closesRun &&
     !plain.hold &&
     !(plain.choices?.length ?? 0);
   if (advances) {

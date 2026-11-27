@@ -8763,6 +8763,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return $._state.streams?.[streamKey(layout, index)]?.entries ?? [];
       }
 
+      runLines(layout: string): number {
+        const sparkle = $._game.program?.sparkle;
+        return Math.max(
+          0,
+          ...layoutStreams(sparkle, layout).map((_, index) => {
+            const stream = $._state.streams?.[streamKey(layout, index)];
+            return stream?.runEnds ? 0 : (stream?.run ?? 0);
+          }),
+        );
+      }
+
       loaded(): void {
         this._loaded = true;
         this._reveals.clear();
@@ -8806,14 +8817,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const id = streamKey(layout, index);
             const stream = states[id] ?? { entries: [], current: 0 };
             const repeat = stream.beat === beat || Boolean(instructions.hold);
-            const ahead =
-              run?.gathering?.layout === layout
-                ? run.ahead.flatMap((next) => {
+            const gathered = run?.gathering?.layout === layout;
+            const ahead = repeat
+              ? stream.entries.slice(stream.entries.length - (stream.reserved ?? 0))
+              : gathered
+                ? run!.ahead.flatMap((next) => {
                     const entry = this.entryFor(node, next);
                     return entry && !entry.shown ? [entry] : [];
                   })
                 : [];
-            this.recordStream(stream, node, instructions, { repeat, restarted }, ahead);
+            this.recordStream(
+              stream,
+              node,
+              instructions,
+              { repeat, restarted, ends: !gathered || Boolean(run?.ends) },
+              ahead,
+            );
             stream.beat = beat;
             stream.key = key;
             live[id] = stream;
@@ -8830,7 +8849,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         stream: StreamState,
         node: StreamNode,
         instructions: Instructions,
-        options: { repeat: boolean; restarted: boolean },
+        options: { repeat: boolean; restarted: boolean; ends: boolean },
         ahead: StreamEntry[],
       ): void {
         const started = stream.entries.slice(
@@ -8864,6 +8883,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           stream.reserved = ahead.length;
         } else {
           delete stream.reserved;
+        }
+        if (!options.repeat) {
+          if (entry) {
+            stream.run = (options.restarted || stream.runEnds ? 0 : (stream.run ?? 0)) + 1;
+            if (options.ends) {
+              stream.runEnds = true;
+            } else {
+              delete stream.runEnds;
+            }
+          } else {
+            delete stream.run;
+            delete stream.runEnds;
+          }
         }
         for (const index of Object.keys(stream.styles ?? {})) {
           if (Number(index) >= keep) {
@@ -9168,9 +9200,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               };
               if (this.write(mount, index, entry, reveal, replaced) && view === mount.latest) {
                 this.mark(view, "");
-              }
-              if (view.reserved) {
-                this.hideReserved(view);
               }
             });
           }

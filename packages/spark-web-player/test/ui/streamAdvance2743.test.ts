@@ -66,8 +66,8 @@ async function tick(h: DOMHarness, ms: number) {
   (h.ui as any).flushPendingBeat();
 }
 
-async function play(compose = false) {
-  const h = createDOMHarness(STORY, 0, { reactive: true, autoOpenAll: false, compose });
+async function play(compose = false, source = STORY) {
+  const h = createDOMHarness(source, 0, { reactive: true, autoOpenAll: false, compose });
   await h.ready;
   if (compose) {
     h.game.module.ui.sweepReconcile();
@@ -135,5 +135,76 @@ describe("the player makes room for a gathered run before its first line shows (
     expect(shown(h)).toBe(LINES[4]);
     expect(entriesOf(h)).toEqual(first);
     expect(hidden(h)).toEqual([false, false, false, false, false]);
+  });
+});
+
+const SHELL = `screen shell {
+  if expanded then
+    panel.first { slot }
+  else
+    panel.second { slot }
+  end
+}
+`;
+
+const REMOUNTED = (frame: boolean) => `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+store expanded = true
+
+function toggle()
+  expanded = not expanded
+end
+
+${frame ? SHELL : ""}
+layout phone${frame ? " in shell" : ""} {
+  thread {
+    stream {
+      dialogue.bubble {
+        if expanded then
+          text.first
+        else
+          text.second
+        end
+      }
+    }
+  }
+}
+
+stream phone {
+  advance = auto
+  pause = 0.6s
+}
+
+scene start
+  [[open phone]]
+  RAFFLES: first message
+  RAFFLES: second message
+  RAFFLES: third message >
+end
+`;
+
+describe("reserved entries through a remount while a line is typing (I-2743)", () => {
+  test.each([
+    ["an entry's own branch", false],
+    ["the layout moved by its screen's slot", true],
+  ])("%s keeps the reserved entries hidden and laid out", async (_name, frame) => {
+    const h = await play(false, REMOUNTED(frame));
+    expect(shown(h)).toBe("first message");
+    expect(coordinator(h)._finishedExecution).toBe(false);
+    expect(hidden(h)).toEqual([false, true, true]);
+    h.game.story.EvaluateFunction("toggle", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(40);
+    await settle(h);
+    expect(entriesOf(h).map(textOf)).toEqual(["first message", "second message", "third message"]);
+    expect(hidden(h)).toEqual([false, true, true]);
+    expect(entriesOf(h).every((entry) => entry.querySelector(":scope > .text.second"))).toBe(true);
+    await tickUntil(h, "second message");
+    expect(hidden(h)).toEqual([false, false, true]);
+    await tickUntil(h, "third message");
+    expect(hidden(h)).toEqual([false, false, false]);
+    expect(entriesOf(h).map(textOf)).toEqual(["first message", "second message", "third message"]);
   });
 });

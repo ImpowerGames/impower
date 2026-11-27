@@ -689,13 +689,6 @@ export class InterpreterModule extends Module<
     return this._state.buffer ?? [];
   }
 
-  closeRun(): void {
-    const last = this._state.buffer?.at(-1);
-    if (last) {
-      last.closesRun = true;
-    }
-  }
-
   get nextBeat(): Instructions | undefined {
     return this._state.buffer?.[0];
   }

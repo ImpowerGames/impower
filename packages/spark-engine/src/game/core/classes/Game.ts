@@ -3885,12 +3885,7 @@ export class Game<T extends M = {}> {
     if (traversal !== "continue" || this._simulation === "simulating") {
       return false;
     }
-    const interpreter = this.module.interpreter;
-    const run = streamRun(this, interpreter.queuedBeats);
-    if (run.capped) {
-      interpreter.closeRun();
-    }
-    return run.open;
+    return streamRun(this, this.module.interpreter.queuedBeats).open;
   }
 
   protected flushBeat(): Instructions | undefined {
