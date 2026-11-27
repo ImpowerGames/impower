@@ -122,27 +122,31 @@ const RESTART = "Restart";
 
 function RestartButton({
   state,
+  refusal,
   starting,
   onRestart,
 }: {
   state: PlayerBarState;
+  refusal?: string;
   starting?: boolean;
   onRestart?: () => void;
 }) {
   if (!restartShown(state)) {
     return null;
   }
+  const reason = starting ? GAME_STARTING_REASON : refusal;
+  const disabled = reason != null;
   return (
     <button
       type="button"
       id="restart-button"
       class="toolbar-button transport-button"
-      title={starting ? GAME_STARTING_REASON : RESTART}
-      aria-disabled={starting ? "true" : undefined}
-      aria-description={starting ? GAME_STARTING_REASON : undefined}
+      title={reason ?? RESTART}
+      aria-disabled={disabled ? "true" : undefined}
+      aria-description={reason}
       onPointerDown={stopPointer}
       onClick={() => {
-        if (!starting) {
+        if (!disabled) {
           onRestart?.();
         }
       }}
@@ -285,6 +289,7 @@ export default function PlayerBar({
       {controls.run ? (
         <RestartButton
           state={state}
+          refusal={runRefusal}
           starting={starting}
           onRestart={onRestart}
         />

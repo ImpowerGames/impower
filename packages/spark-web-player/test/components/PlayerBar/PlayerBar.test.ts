@@ -645,6 +645,31 @@ describe("PlayerBar Run button", () => {
     expect(onRun).not.toHaveBeenCalled();
   });
 
+  it("keeps Stop enabled and disables Restart with the refusal when an ended program can no longer run", () => {
+    const onStop = vi.fn();
+    const onRestart = vi.fn();
+    const refusal = "The story has no scene named start.";
+    const $ = mount({
+      state: runState({ launchState: "ended", run: 1 }),
+      controls: { run: true },
+      runRefusal: refusal,
+      onStop,
+      onRestart,
+    });
+    const restart = $("#restart-button")!;
+    expect([
+      restart.textContent,
+      restart.getAttribute("aria-disabled"),
+      restart.title,
+      restart.getAttribute("aria-description"),
+    ]).toEqual(["Restart", "true", refusal, refusal]);
+    act(() => restart.click());
+    expect(onRestart).not.toHaveBeenCalled();
+    expect(read($)).toMatchObject({ name: "Stop", disabled: null });
+    act(() => $("#run-button")!.click());
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
   it("stays Run and disabled while a start is pending", () => {
     const onRun = vi.fn();
     const $ = mount({
