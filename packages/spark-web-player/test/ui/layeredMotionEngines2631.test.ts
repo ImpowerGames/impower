@@ -298,7 +298,7 @@ describe.each(ENGINES)("in %s, a moved image-file layer drawn on the canvas matc
   });
 
   test.for(SVG_LAYER_CASES)(
-    "an SVG layer drawn as its own live view matches it drawn before it is live, and both match the browser at a uniform placement: %s",
+    "an SVG layer drawn on the picture's canvas from its poses matches it drawn before its morph is live, and both match the browser at a uniform placement: %s",
     { timeout: 30_000 },
     async ([label, outer, inner], context) => {
       if (!browser) return context.skip();

@@ -114,9 +114,9 @@ function inProcessHost(program: () => any): MorphHost {
 }
 
 function recordingCanvases() {
-  const canvases = new Map<HTMLCanvasElement, { frames: string[][] }>();
+  const canvases = new Map<HTMLCanvasElement, { frames: { src: string; text?: string; alpha: number }[][] }>();
   const factory = (element: HTMLCanvasElement) => {
-    const record = { frames: [] as string[][] };
+    const record = { frames: [] as { src: string; text?: string; alpha: number }[][] };
     canvases.set(element, record);
     const context: PictureCanvasContext = {
       globalAlpha: 1,
@@ -126,13 +126,17 @@ function recordingCanvases() {
         record.frames.push([]);
       },
       drawImage(image) {
-        record.frames.at(-1)!.push((image as unknown as { src: string }).src);
+        const drawn = image as unknown as { src: string; text?: string };
+        record.frames.at(-1)!.push({ src: drawn.src, ...(drawn.text !== undefined ? { text: drawn.text } : {}), alpha: context.globalAlpha });
       },
     };
     return context;
   };
   return { canvases, factory };
 }
+
+const textRasterizer = (source: { text: string; src?: string }) =>
+  Promise.resolve({ image: { src: source.src ?? "pose", ...(source.src ? {} : { text: source.text }) } as never, release: () => {} });
 
 async function until(check: () => boolean, what: string) {
   for (let i = 0; i < 2000; i++) {
@@ -162,72 +166,80 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
       cancelFrame: () => {},
       pictureCanvas: canvas.factory,
       loadPicture: async (src) => ({ image: { src } as never, width: widthOf(src), height: 140 }),
+      rasterizeSvgLayer: (source) => textRasterizer(source as never),
     });
     await h.ready;
     await h.preview(source.split("\n").findIndex((line) => line.includes("First line.")));
     await flushMicrotasks(10);
     const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
     const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
-    await until(
-      () => (!withCanvas || !!shadow()?.querySelector("canvas")) && !!shadow()?.querySelector("[data-morph]"),
-      "the SVG layer's view",
-    );
+    const layer = () => (span as unknown as { __sdMorph?: MorphLayer }).__sdMorph as unknown as { drawn: boolean; images: any[] } | undefined;
+    await until(() => (withCanvas ? !!shadow()?.querySelector("canvas") : !!shadow()?.querySelector("[data-morph]")), "the SVG layer's drawing");
+    if (withCanvas) {
+      for (const [name, value] of [["width", "520px"], ["height", "280px"], ["background-size", "100% 100%"], ["background-repeat", "no-repeat"]]) span.style.setProperty(name!, value!);
+      playback.requestRelayout();
+      await flushMicrotasks(5);
+      await until(() => !!layer()?.drawn && (layer()?.images[0]?.inner[0]?.poses?.sets.length ?? 0) > 0, "the SVG layer's poses");
+    }
     const write = writes.find((w) => w.params.target === "portrait" && w.params.instructions[0]?.content?.morph);
     const play = write.params.instructions[0].content.morph.plays[0];
     const own = play.picture.files.find((file: any) => file.plays)!.plays[0];
     const handle = await host.resolve(own.ref);
-    const box = () => shadow()!.querySelector("svg")!.parentElement!;
-    const painted = () =>
-      Array.from(shadow()!.querySelectorAll("canvas")).flatMap((element) => canvas.canvases.get(element as HTMLCanvasElement)?.frames.at(-1) ?? []);
-    return { playback, span, shadow, box, artifact: handle.artifact, painted, play };
+    const lastFrame = () => {
+      const canvases = Array.from(shadow()!.querySelectorAll("canvas")) as HTMLCanvasElement[];
+      expect(canvases).toHaveLength(1);
+      return canvas.canvases.get(canvases[0]!)!.frames.at(-1) ?? [];
+    };
+    const painted = () => lastFrame().map(({ src }) => src);
+    const face = () => lastFrame().filter(({ src }) => src !== "/src/base_file.png");
+    const faceAlpha = () => face()[0]?.alpha ?? 0;
+    const posed = () => {
+      const [drawn, ...more] = face();
+      expect(drawn).toBeDefined();
+      expect(more).toEqual([]);
+      return drawn!.text === undefined ? referenceStates(handle.artifact, {}) : leafStates(new DOMParser().parseFromString(drawn!.text, "image/svg+xml"));
+    };
+    return { playback, span, shadow, faceAlpha, posed, artifact: handle.artifact, painted, play };
   }
-
-  const opacityOf = (box: HTMLElement) => {
-    const style = box.getAttribute("style") ?? "";
-    if (/display:\s*none/.test(style)) return 0;
-    const match = /opacity:\s*([\d.]+)/.exec(style);
-    return match ? Number(match[1]) : 1;
-  };
 
   const chompAt = (seconds: number) => ({ chomp: (seconds % 0.7) / 0.7 });
 
-  test("the SVG layer's leaves keep taking poses while the picture's morph hides, fades and shows it, and a hidden layer draws nothing", async () => {
-    const { playback, shadow, box, artifact, painted, play } = await shown();
+  test("the SVG layer is drawn on the picture's canvas with its poses while the picture's morph hides, fades and shows it, and a hidden layer draws nothing", async () => {
+    const { playback, shadow, faceAlpha, posed, artifact, painted, play } = await shown();
     expect(play.morph).toBe("lids_blink");
-    expect(shadow()!.querySelectorAll("canvas")).toHaveLength(1);
+    expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
     let time = 0;
     const at = (seconds: number) => {
       playback.advance(seconds - time);
       time = seconds;
     };
     at(0.6);
-    expect(opacityOf(box())).toBe(0);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(0.6)));
+    expect(faceAlpha()).toBe(0);
     expect(painted()).toEqual(["/src/base_file.png"]);
     at(1.6);
-    expect(opacityOf(box())).toBeCloseTo(0.6, 5);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(1.6)));
+    expect(faceAlpha()).toBeCloseTo(0.6, 5);
+    expect(posed()).toEqual(referenceStates(artifact, chompAt(1.6)));
     at(2.5);
-    expect(opacityOf(box())).toBe(1);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(2.5)));
-    expect(referenceStates(artifact, chompAt(0.6))).not.toEqual(referenceStates(artifact, chompAt(1.6)));
-    expect(painted()).toEqual(["/src/base_file.png"]);
+    expect(faceAlpha()).toBe(1);
+    expect(posed()).toEqual(referenceStates(artifact, chompAt(2.5)));
+    expect(referenceStates(artifact, chompAt(1.6))).not.toEqual(referenceStates(artifact, chompAt(2.5)));
+    expect(painted()[0]).toBe("/src/base_file.png");
   });
 
   test("the SVG layer's morph keeps its phase across a hide and a show", async () => {
-    const { playback, shadow, box, artifact } = await shown();
+    const { playback, faceAlpha, posed, artifact } = await shown();
     let time = 0;
     const at = (seconds: number) => {
       playback.advance(seconds - time);
       time = seconds;
     };
     at(2.5);
-    expect(opacityOf(box())).toBe(1);
+    expect(faceAlpha()).toBe(1);
     at(4.6);
-    expect(opacityOf(box())).toBe(0);
+    expect(faceAlpha()).toBe(0);
     at(5.3);
-    expect(opacityOf(box())).toBeCloseTo(0.3, 5);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(5.3)));
+    expect(faceAlpha()).toBeCloseTo(0.3, 5);
+    expect(posed()).toEqual(referenceStates(artifact, chompAt(5.3)));
     expect(referenceStates(artifact, chompAt(5.3))).not.toEqual(referenceStates(artifact, chompAt(5.3 - 5)));
   });
 

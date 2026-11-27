@@ -409,20 +409,26 @@ async function svgLayer(outer: Record<string, string>, inner: Record<string, str
       "portrait:0",
     );
     const shadow = () => span.querySelector("span.morph")?.shadowRoot;
-    await until(() => !!shadow()?.querySelector("canvas") && (!live || !!shadow()?.querySelector("[data-morph]")));
+    const layer = () => (span as HTMLElement & { __sdMorph?: { drawn: boolean; images: { inner: { poses?: { sets: unknown[] } }[] }[] } }).__sdMorph;
+    const drawn = () => !!layer()?.drawn;
+    const posed = () => (layer()?.images[0]?.inner[0]?.poses?.sets.length ?? 0) > 0;
+    await until(() => !!shadow()?.querySelector("canvas") && (!live || posed()) && drawn());
     span.style.setProperty("width", `${width}px`);
     span.style.setProperty("height", `${height}px`);
     playback.requestRelayout();
     await nextFrame();
+    await until(drawn);
     playback.advance(1);
     await nextFrame();
     if (width !== 200 || height !== 200) {
       await new Promise((resolve) => setTimeout(resolve, 300));
       await until(() => [...(shadow()?.querySelectorAll("canvas") ?? [])].every((canvas) => Math.abs(canvas.width / canvas.height - width / height) < 0.02));
+      await until(drawn);
       await new Promise((resolve) => setTimeout(resolve, 100));
       playback.advance(1);
       await nextFrame();
     }
+    if (live && shadow()?.querySelector("[data-morph]")) throw new Error("the SVG layer was drawn as a live view");
   }
   const reference = holder.appendChild(document.createElementNS(SVG_NS, "svg"));
   reference.id = "reference";
