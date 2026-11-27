@@ -178,6 +178,7 @@ import { Coordinator } from "./Coordinator";
 import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
 import { TEXTSTREAM_LAYOUT } from "./presenters/InteractiveFictionPresenter";
 import {
+  closeMenuAtEnd,
   initialLayouts,
   keptThroughMenu,
   openInitialLayouts,
@@ -4161,6 +4162,7 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    closeMenuAtEnd(this, this.module.ui.still);
     this.showEndingOnPage(kind);
     if (kind === "fin") {
       this.module.ui.openEnding();
@@ -5402,6 +5404,7 @@ export class Game<T extends M = {}> {
       return;
     }
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    closeMenuAtEnd(this, true);
     if (ending.kind === "fin") {
       this.module.ui.openEnding();
     }

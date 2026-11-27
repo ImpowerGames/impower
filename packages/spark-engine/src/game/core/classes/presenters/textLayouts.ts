@@ -253,6 +253,19 @@ export function keptThroughMenu(
   );
 }
 
+export function menuLeavesWithItsLayout(game: Game): boolean {
+  return game.module.ui.autoLayoutsAfter([]).includes(MENU_LAYOUT);
+}
+
+export function closeMenuAtEnd(game: Game, instant: boolean): void {
+  if (menuLeavesWithItsLayout(game)) {
+    void game.module.ui.applyLayoutInstructions(
+      [{ control: LayoutVerb.close, name: MENU_LAYOUT, auto: true }],
+      instant,
+    );
+  }
+}
+
 export function routeLine(game: Game, instructions: Instructions): Instructions {
   const ui = game.module.ui;
   if (!game.program?.sparkle?.layouts) {

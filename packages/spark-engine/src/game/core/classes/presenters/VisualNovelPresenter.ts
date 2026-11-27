@@ -2,7 +2,12 @@ import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
 import { applyLayoutDirectives, clearStage, writeStage } from "./stage";
-import { keptThroughMenu, opensTextLayout, presentsText } from "./textLayouts";
+import {
+  keptThroughMenu,
+  menuLeavesWithItsLayout,
+  opensTextLayout,
+  presentsText,
+} from "./textLayouts";
 
 export function writeBeatText(
   ui: Game["module"]["ui"],
@@ -110,9 +115,12 @@ export class VisualNovelPresenter implements Presenter {
     if (!choiceTargets || !target) {
       return;
     }
+    ui.unobserve("click", target);
+    if (menuLeavesWithItsLayout(this._game)) {
+      return;
+    }
     ui.text.change("choose", choiceTargets);
     ui.image.clearAll(choiceTargets);
-    ui.unobserve("click", target);
     ui.hideAll(choiceTargets);
   }
 

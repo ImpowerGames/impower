@@ -163,6 +163,82 @@ ${CAPTIONED}`);
     expect(shownText(h, "choice 0")).toBe("Left");
   });
 
+  test("a pick leaves the option buttons on screen and written while choices plays its @hide", async () => {
+    const h = createHarness(
+      `${DEFS}
+layout choices {
+  choices {
+    choice.0 #clear { text }
+    choice.1 #clear { text }
+  }
+}
+
+style choices {
+  transition = opacity 0.2s
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+
+${QUESTION}`,
+      0,
+      { autoOpenAll: false, holdPresence: true },
+    );
+    await h.ready;
+    h.game.context.system.previewing = undefined;
+    h.game.start();
+    const settleReleasing = async () => {
+      for (let tick = 0; tick < 8; tick += 1) {
+        h.releasePresence();
+        await flushMicrotasks(10);
+        (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+      }
+      await flushMicrotasks(10);
+    };
+    await settleReleasing();
+    h.game.clickedToContinue();
+    await settleReleasing();
+    expect(mounted(h)).toEqual(["dialogue", "choices"]);
+    const options: string[] = ui(h).findIds("choice");
+    expect(options).toHaveLength(2);
+
+    h.reset();
+    await pickFirst(h);
+    const sent = (m: any): any[] => [m, ...(m.params?.messages ?? []).flatMap(sent)];
+    const touched = h.messages
+      .flatMap(sent)
+      .filter(
+        (m: any) =>
+          (m.method === "ui/update" &&
+            options.includes(m.params.element) &&
+            m.params.style?.display === "none") ||
+          (m.method === "ui/write-text" &&
+            options.some((id) => [m.params.element, m.params.target].includes(id))),
+      );
+    const departures = h
+      .heldPresence()
+      .flatMap((m: any) => m.params.effects ?? [])
+      .filter((effect: any) => effect.presence === "hide");
+    expect(departures.length).toBeGreaterThan(0);
+    expect(touched).toEqual([]);
+  });
+
+  test("a pick that ends the story closes choices", async () => {
+    const h = await play(`scene start
+  MARA: Stay or go?
+  choose
+    + [Stay.]
+      -> DONE
+    + [Go.]
+      -> DONE
+  end
+end
+`);
+    await click(h);
+    expect(mounted(h)).toEqual(["dialogue", "choices"]);
+    await pickFirst(h);
+    expect(mounted(h)).not.toContain("choices");
+  });
+
   test("an action line after the pick closes choices and the question's box, and opens action", async () => {
     const h = await play(`scene start
   MARA: Stay or go?
