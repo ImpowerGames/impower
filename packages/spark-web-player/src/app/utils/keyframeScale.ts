@@ -74,5 +74,19 @@ export const keyframeScale = (
       byElement.set(element, (byElement.get(element) ?? 1) * scale);
     }
   }
-  return Math.max(1, ...byElement.values());
+  const contains = (outer: unknown, inner: unknown) =>
+    outer !== inner &&
+    typeof (outer as Node | null)?.contains === "function" &&
+    (outer as Node).contains(inner as Node);
+  let reach = 1;
+  for (const [element, scale] of byElement) {
+    let chain = scale;
+    for (const [outer, outerScale] of byElement) {
+      if (contains(outer, element)) {
+        chain *= outerScale;
+      }
+    }
+    reach = Math.max(reach, chain);
+  }
+  return reach;
 };

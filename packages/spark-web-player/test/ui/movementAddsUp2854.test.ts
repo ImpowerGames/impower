@@ -191,15 +191,18 @@ describe("a layer is sized for the product of the animations that enlarge it (I-
     expect(keyframeScale([grow("scale(2)"), grow("scale(1.5)", "self")])).toBe(3);
   });
 
-  test("`self` and the layer's own name resolve to one element, so they multiply", () => {
+  test("`self` and the layer's own name resolve to one element, so they multiply, and so does an element nested inside it (I-2867)", () => {
     const layer = document.createElement("div");
     layer.className = "portrait";
     const child = document.createElement("div");
     child.className = "image";
-    layer.append(child);
+    const sibling = document.createElement("div");
+    sibling.className = "name";
+    layer.append(child, sibling);
     const resolve = (name: string | undefined) => resolveAnimationTargets(layer, name);
     expect(keyframeScale([grow("scale(2)", "self"), grow("scale(2)", "portrait")], resolve)).toBe(4);
-    expect(keyframeScale([grow("scale(2)", "self"), grow("scale(1.5)", "image")], resolve)).toBe(2);
+    expect(keyframeScale([grow("scale(2)", "self"), grow("scale(1.5)", "image")], resolve)).toBe(3);
+    expect(keyframeScale([grow("scale(2)", "image"), grow("scale(1.5)", "name")], resolve)).toBe(2);
     expect(keyframeScale([grow("scale(2)", "missing")], resolve)).toBe(1);
   });
 
