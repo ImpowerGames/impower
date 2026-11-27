@@ -551,4 +551,44 @@ end
     await tick(h, 0);
     expect(loops(h)).toEqual([["music", ["audio.beep"]]]);
   });
+
+  const CHANGED = (change: string) => `${DEFS}
+define other as audio with
+  src = "https://example.com/other.wav"
+end
+
+${AUTO}
+scene start
+  [[open phone]]
+  RAFFLES: one
+  ((play music beep loop))
+  RAFFLES: two
+  ${change}
+  RAFFLES: three >
+end
+`;
+
+  const playing = (h: Harness) =>
+    loops(h).filter(([, sounds]) => (sounds as string[]).length > 0);
+
+  test.each([
+    ["((stop music))", []],
+    ["((play music other loop))", [["music", ["audio.other"]]]],
+  ])("a click keeps story order when the wait line changes the same channel: %s", async (change, expected) => {
+    const clicked = await play(CHANGED(change));
+    await press(clicked);
+    clicked.releaseAssets();
+    for (let i = 0; i < 10; i += 1) {
+      await tick(clicked, 0);
+    }
+    expect(shown(clicked)).toBe("three");
+    const arrived = await play(CHANGED(change));
+    await tickUntil(arrived, "three");
+    arrived.releaseAssets();
+    for (let i = 0; i < 10; i += 1) {
+      await tick(arrived, 0);
+    }
+    expect(playing(arrived)).toEqual(expected);
+    expect(playing(clicked)).toEqual(expected);
+  });
 });

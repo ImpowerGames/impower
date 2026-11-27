@@ -485,7 +485,7 @@ export class Coordinator<G extends Game> {
 
     const audio = { ...instructions.audio };
     for (const [channel, events] of Object.entries(this._carriedAudio ?? {})) {
-      audio[channel] = [...(audio[channel] ?? []), ...events];
+      audio[channel] = [...events, ...(audio[channel] ?? [])];
     }
     const audioTriggerIds =
       instant || silent
