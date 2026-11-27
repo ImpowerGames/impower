@@ -69,8 +69,8 @@ const show = (key: string, epoch: number, duration: string | number = 0): WriteI
         srcs: [FILE],
         pictures: [{ layer: 0, span: 1, name: "nova", vector: true, files: [{ src: FILE, name: "nova.svg" }] }],
         morph: { plays: [play(key)], epoch },
-        enterAnimation: { ...SHOW, timing: { delay: 0, duration } } as never,
-        previousHideAnimation: { ...SHOW, $name: "hide", timing: { delay: 0, duration } } as never,
+        enterAnimations: [{ ...SHOW, timing: { delay: 0, duration } } as never],
+        previousHideAnimations: [{ ...SHOW, $name: "hide", timing: { delay: 0, duration } } as never],
       },
     },
   ],
@@ -305,7 +305,7 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     const faded = (key: string, opacity: string): WriteImageParams => {
       const write = show(key, 0);
       const content = write.instructions[0]!.content!;
-      content.enterAnimation = { ...(content.enterAnimation as object), keyframes: [{ opacity }], timing: { delay: 0, duration: 0, fill: "forwards" } } as never;
+      content.enterAnimations = [{ ...(content.enterAnimations![0] as object), keyframes: [{ opacity }], timing: { delay: 0, duration: 0, fill: "forwards" } } as never];
       return write;
     };
     t.beat([faded("nova-run", "0.2")]);

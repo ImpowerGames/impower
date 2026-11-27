@@ -283,7 +283,7 @@ layout elsewhere { other_page }
     await ui(h).navigateScreen(
       "elsewhere",
       undefined,
-      { with: "fade", over: 0.1 },
+      [{ with: "fade", over: 0.1 }],
       false,
     );
     await flushMicrotasks();
