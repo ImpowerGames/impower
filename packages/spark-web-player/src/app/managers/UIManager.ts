@@ -348,8 +348,6 @@ export default class UIManager extends Manager {
 
   protected _lag = 0;
 
-  protected _pauses: { from: number; to?: number }[] = [];
-
   protected _beatMarks = new BeatMarks();
 
   protected _drawTimeouts = { beat: 8, restore: 2 };
@@ -545,7 +543,6 @@ export default class UIManager extends Manager {
   override onPause() {
     if (this._heldAt == null) {
       this._heldAt = this.documentNow();
-      this._pauses.push({ from: this._heldAt });
     }
     this._hold.pause();
     this.scheduleCommit();
@@ -555,13 +552,8 @@ export default class UIManager extends Manager {
 
   override onUnpause() {
     if (this._heldAt != null) {
-      const now = this.documentNow();
-      this._lag += now - this._heldAt;
+      this._lag += this.documentNow() - this._heldAt;
       this._heldAt = undefined;
-      const open = this._pauses.at(-1);
-      if (open && open.to === undefined) {
-        open.to = now;
-      }
     }
     this._hold.resume();
     this.morphs?.setPaused(false);
@@ -579,14 +571,6 @@ export default class UIManager extends Manager {
 
   protected lag(now = this.documentNow()): number {
     return this._lag + (this._heldAt != null ? now - this._heldAt : 0);
-  }
-
-  protected pausedAfter(from: number, now = this.documentNow()): number {
-    let paused = 0;
-    for (const pause of this._pauses) {
-      paused += Math.max(0, Math.min(pause.to ?? now, now) - Math.max(pause.from, from));
-    }
-    return paused;
   }
 
   override onDispose() {
@@ -2677,9 +2661,6 @@ export default class UIManager extends Manager {
         this.startHeldReveal(targetEls, startTime);
       }
       return;
-    }
-    if (!instant && startTime != null && instructions.length > 0) {
-      startTime += this.pausedAfter(startTime);
     }
     for (const el of targetEls) {
       if (

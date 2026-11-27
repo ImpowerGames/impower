@@ -636,6 +636,7 @@ interface StreamEntryView {
 
 interface Presented {
   time?: number;
+  start?: number;
   complete: boolean;
 }
 
@@ -2528,6 +2529,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         BeatMessage.type.notification({ messages: line.held, time }),
       );
     }
+  }
+
+  protected storyStart(time: number | undefined): number | undefined {
+    return time == null ? undefined : time - this._game.storyLag();
+  }
+
+  protected replayTime(presented: Presented): number | undefined {
+    return presented.start == null
+      ? presented.time
+      : presented.start + this._game.storyLag();
   }
 
   protected moving(): boolean {
@@ -7330,6 +7341,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.#presented.set(target, {
           sequence: [...prior, ...sequence],
           time,
+          start: $.storyStart(time),
           shown: prior.length + shown,
           complete: instant,
           current: sequence,
@@ -7342,6 +7354,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const presented of this.#presented.values()) {
           if (presented.time === from) {
             presented.time = to;
+            presented.start = $.storyStart(to);
           }
         }
       }
@@ -7440,7 +7453,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 open,
                 presented.sequence,
                 false,
-                presented.time,
+                $.replayTime(presented),
                 presented.shown,
                 subset,
               )
@@ -7462,7 +7475,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   [el],
                   typed,
                   false,
-                  presented!.time,
+                  $.replayTime(presented!),
                   typed.length - presented!.current.length + presented!.currentShown,
                   true,
                 )
@@ -8954,7 +8967,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             mount,
             i,
             entry,
-            atOnce ? { complete: true } : { complete: false, time: reveal?.time ?? time },
+            atOnce
+              ? { complete: true }
+              : (reveal ?? { complete: false, time, start: $.storyStart(time) }),
           );
           if (
             !atOnce &&
@@ -9011,6 +9026,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const reveal of this._reveals.values()) {
           if (reveal.time === from) {
             reveal.time = to;
+            reveal.start = $.storyStart(to);
           }
         }
       }
@@ -9041,7 +9057,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         reveal: Presented,
         replaced?: (el: Element) => boolean,
       ): boolean {
-        this._reveals.set(this.revealKey(mount, index), reveal);
+        const key = this.revealKey(mount, index);
+        const time = this._reveals.get(key) === reveal ? $.replayTime(reveal) : reveal.time;
+        this._reveals.set(key, reveal);
         const instant = reveal.complete;
         const roots = $.collectNodes(mount.entries[index]!.group);
         let wrote = false;
@@ -9068,7 +9086,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             elements,
             events,
             instant,
-            reveal.time,
+            time,
             instant ? 0 : (entry.shown?.[target] ?? 0),
           );
         }
