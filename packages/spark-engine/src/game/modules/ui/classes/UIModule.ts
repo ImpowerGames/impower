@@ -8810,7 +8810,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 event.control === LayoutVerb.close),
           );
           const nodes = layoutStreams(sparkle, layout);
-          const gathered = run?.gathering?.layout === layout;
+          const lane = run?.lanes[layout];
+          const gathered = lane !== undefined;
           const member = nodes.some((node) => this.entryFor(node, instructions));
           const previous = $._state.streamRuns?.[layout];
           const repeated = nodes.some(
@@ -8832,8 +8833,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const repeat = stream.beat === beat || Boolean(instructions.hold);
             const ahead = repeat
               ? stream.entries.slice(stream.entries.length - (stream.reserved ?? 0))
-              : gathered
-                ? run!.ahead.flatMap((next) => {
+              : lane
+                ? lane.flatMap((next) => {
                     const entry = this.entryFor(node, next);
                     return entry && !entry.shown ? [entry] : [];
                   })

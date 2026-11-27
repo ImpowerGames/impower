@@ -21,6 +21,7 @@ export interface StreamGathering {
 export interface StreamRun {
   gathering?: StreamGathering;
   ahead: Instructions[];
+  lanes: Record<string, Instructions[]>;
   open: boolean;
   ends?: true;
 }
@@ -57,24 +58,23 @@ export function streamSettings(game: Game, layout: string): StreamSettings {
   };
 }
 
-function gatheringOf(
+function gatheringsOf(
   game: Game,
   routed: Instructions,
   events: LayoutInstruction[],
-): StreamGathering | undefined {
+): StreamGathering[] {
   const ui = game.module.ui;
   const sparkle = game.program?.sparkle;
   const opened = ui.autoLayoutsAfter(events);
-  for (const layout of ui.openedLayoutsAfter(events)) {
+  return ui.openedLayoutsAfter(events).flatMap((layout) => {
     const settings = streamSettings(game, layout);
     if (!opened.includes(layout) && settings.advance !== "auto") {
-      continue;
+      return [];
     }
-    if (layoutStreams(sparkle, layout).some((node) => streamTemplate(node, routed) >= 0)) {
-      return { layout, opened: opened.includes(layout), settings };
-    }
-  }
-  return undefined;
+    return layoutStreams(sparkle, layout).some((node) => streamTemplate(node, routed) >= 0)
+      ? [{ layout, opened: opened.includes(layout), settings }]
+      : [];
+  });
 }
 
 const pending = (beat: Instructions): boolean =>
@@ -88,46 +88,68 @@ const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
 export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun {
   const [first, ...rest] = beats;
   if (!first || !holdsStreams(game)) {
-    return { ahead: [], open: false };
+    return { ahead: [], lanes: {}, open: false };
   }
   const routedFirst = routeLine(game, first);
   let events = layoutEvents(routedFirst);
-  const gathering = gatheringOf(game, routedFirst, events);
+  const gatherings = gatheringsOf(game, routedFirst, events);
+  const gathering = gatherings[0];
   if (!gathering) {
-    return { ahead: [], open: false };
+    return { ahead: [], lanes: {}, open: false };
   }
-  const restarts = (own: LayoutInstruction[]) =>
+  const lanes: Record<string, Instructions[]> = Object.fromEntries(
+    gatherings.map((g) => [g.layout, []]),
+  );
+  const ahead = lanes[gathering.layout]!;
+  const run = (open: boolean): StreamRun => ({ gathering, ahead, lanes, open });
+  const restarts = (own: LayoutInstruction[], layout: string) =>
     own.some(
       (event) =>
-        event.name === gathering.layout &&
+        event.name === layout &&
         (event.control === LayoutVerb.clear || event.control === LayoutVerb.close),
     );
-  let position = restarts(events) ? 1 : game.module.ui.streams.runLines(gathering.layout) + 1;
+  let position = restarts(events, gathering.layout)
+    ? 1
+    : game.module.ui.streams.runLines(gathering.layout) + 1;
   if (endsRun(first, gathering)) {
-    return { gathering, ahead: [], open: false, ends: true };
+    return { ...run(false), ends: true };
   }
   if (position % RUN_LINE_LIMIT === 0) {
-    return { gathering, ahead: [], open: false };
+    return run(false);
   }
-  const ahead: Instructions[] = [];
+  const stopped = new Set<string>();
   for (const [index, beat] of rest.entries()) {
     if (index === rest.length - 1 && pending(beat)) {
-      return { gathering, ahead, open: true };
+      return run(true);
     }
     const routed = routeLine(game, beat, events);
     const own = layoutEvents(routed);
     const after = [...events, ...own];
-    if (restarts(own) || gatheringOf(game, routed, after)?.layout !== gathering.layout) {
-      return { gathering, ahead, open: false };
+    const receiving = new Set(
+      gatheringsOf(game, routed, after)
+        .map((g) => g.layout)
+        .filter((layout) => !restarts(own, layout)),
+    );
+    if (!receiving.has(gathering.layout)) {
+      return run(false);
     }
-    ahead.push(routed);
+    for (const [layout, lane] of Object.entries(lanes)) {
+      if (stopped.has(layout)) {
+        continue;
+      }
+      if (receiving.has(layout)) {
+        lane.push(routed);
+      } else {
+        stopped.add(layout);
+      }
+    }
     events = after;
     position += 1;
     if (endsRun(beat, gathering) || position % RUN_LINE_LIMIT === 0) {
-      return { gathering, ahead, open: false };
+      return run(false);
     }
   }
-  return { gathering, ahead, open: true };
+  return run(true);
 }
 
 export function markRun(

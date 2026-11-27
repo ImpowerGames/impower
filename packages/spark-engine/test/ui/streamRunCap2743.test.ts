@@ -221,6 +221,62 @@ const lineOf = (h: Harness): string =>
 const sizes = (h: Harness) =>
   [0, 1].map((index) => h.game.module.ui.streams.entries("phone", index).length);
 
+describe("a run that two open layouts receive (I-2743)", () => {
+  const twoLayouts = `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+layout phone {
+  thread { stream { dialogue { text } } }
+}
+
+layout log {
+  thread { stream { dialogue { text } } }
+}
+
+stream phone {
+  advance = auto
+  pause = 0.6s
+}
+
+stream log {
+  advance = auto
+  pause = 0.6s
+}
+
+scene start
+  [[open phone]]
+  [[open log]]
+  RAFFLES: one
+  RAFFLES: two
+  RAFFLES: three >
+end
+`;
+
+  const both = (h: Harness) =>
+    ["phone", "log"].map((name) => [
+      h.game.module.ui.streams.entries(name).length,
+      (h.game.module.ui as any)._state.streams?.[`${name}/0`]?.reserved ?? 0,
+    ]);
+
+  test("each layout makes room for the whole run before its first line", async () => {
+    const h = await play(twoLayouts);
+    expect(shown(h)).toBe("one");
+    expect(both(h)).toEqual([
+      [3, 2],
+      [3, 2],
+    ]);
+    for (let i = 0; i < 50 && shown(h) !== "two"; i += 1) {
+      await tick(h, 200);
+    }
+    expect(shown(h)).toBe("two");
+    expect(both(h)).toEqual([
+      [3, 1],
+      [3, 1],
+    ]);
+  });
+});
+
 describe("a run across the streams of one layout (I-2743)", () => {
   test("every stream reserves the lines it takes, whichever stream the current line goes to", async () => {
     const h = await play(alternating(101));
