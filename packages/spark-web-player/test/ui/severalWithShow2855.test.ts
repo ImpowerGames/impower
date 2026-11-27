@@ -8,6 +8,10 @@ end
 define Q as image with
   src = "https://example.com/q.png"
 end
+define uneven as transition with
+  on_hide = animation.shake
+  on_show = animation.fadein
+end
 layout main {
   stage {
     portrait { image }
@@ -89,6 +93,29 @@ describe("every `with` on a `show` or `hide` line plays on its picture (I-2855)"
     expect(before.every((el) => el.isConnected)).toBe(true);
     await advanceTo(h, 2200);
     expect(before.some((el) => el.isConnected)).toBe(false);
+  });
+
+  test("a replaced picture is removed when its own exits end, while a transition's screen arm still runs", async () => {
+    const { h, before, on } = await play("[[show portrait Q with screenfade over 1s with shake over 0.1s]]");
+    const screen = h.overlay.querySelector(".screen");
+    const longestExit = Math.max(...on(before).map((exit) => exit.duration));
+    const arm = animations.filter((a) => a.effect.target === screen && Number(a.effect.timing.duration) > 0);
+    expect(arm.map((a) => Number(a.effect.timing.duration))).toEqual([1000]);
+    expect(longestExit).toBeLessThan(1000);
+    await advanceTo(h, 100 + longestExit + 50);
+    expect(before.some((el) => el.isConnected)).toBe(false);
+    expect(arm[0]!.playState).toBe("running");
+  });
+
+  test("a replaced picture is removed when its own exits end, while the arriving picture's entrance still runs", async () => {
+    const { h, before, after, on } = await play("[[show portrait Q with uneven over 2s with spin over 0.1s once]]");
+    const arriving = after.filter((el) => !before.includes(el));
+    const longestExit = Math.max(...on(before).map((exit) => exit.duration));
+    const longestEntrance = Math.max(...on(arriving).map((enter) => enter.duration));
+    expect(longestExit).toBeLessThan(longestEntrance);
+    await advanceTo(h, 100 + longestExit + 50);
+    expect(before.some((el) => el.isConnected)).toBe(false);
+    expect(arriving[0]!.isConnected).toBe(true);
   });
 
   test("`[[hide portrait P with fade over 0.5s with spin over 2s once]]` plays both exits and removes the picture after the longer", async () => {

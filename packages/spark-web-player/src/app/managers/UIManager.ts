@@ -3264,9 +3264,18 @@ export default class UIManager extends Manager {
       void targetsPlayed.get(after)?.then(() => this.startMovie(video));
     }
     const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
+    const ended = new Set<globalThis.Animation>();
+    const endWaiters = new Set<() => void>();
+    const onExitEnd = (animation: globalThis.Animation) => {
+      ended.add(animation);
+      for (const check of [...endWaiters]) {
+        check();
+      }
+    };
     const playEffects = (
       effects: ImageEffect[],
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
+      onEnd?: (animation: globalThis.Animation) => void,
     ) => {
       const players = new Map<AnimationPlayer | undefined, AnimationPlayer>();
       for (const e of effects) {
@@ -3283,14 +3292,42 @@ export default class UIManager extends Manager {
           startTime == null
             ? undefined
             : startTime + (after?.endTimeUndelayed ?? 0),
+          onEnd,
         ),
       );
     };
     const played = Promise.all([
       ...targetsPlayed.values(),
       ...playEffects(enterEffects),
-      ...playEffects(exitEffects, exiting),
+      ...playEffects(exitEffects, exiting, onExitEnd),
     ]);
+    const exitsEnded = (el: HTMLElement): Promise<void> => {
+      const exits = [...exiting].flatMap(([target, animations]) =>
+        target === el || el.contains(target) ? animations : [],
+      );
+      if (exits.length === 0) {
+        return played.then(() => undefined);
+      }
+      return Promise.race([
+        played.then(() => undefined),
+        new Promise<void>((resolve) => {
+          const check = () => {
+            if (exits.every((exit) => ended.has(exit))) {
+              endWaiters.delete(check);
+              resolve();
+            }
+          };
+          endWaiters.add(check);
+          check();
+        }),
+      ]);
+    };
+    const destroy = (el: HTMLElement) => {
+      this.releaseMovies(el);
+      this.morphs?.releaseWithin(el);
+      endTravelsWithin(el);
+      el.remove();
+    };
     for (const el of outgoing) {
       this.freezeWhenExitStarts(el, exiting.get(el) ?? []);
     }
@@ -3300,13 +3337,8 @@ export default class UIManager extends Manager {
     for (const { pictureEl, animation, start } of starting) {
       this.whenExitStarts(pictureEl, [animation], start);
     }
-    const removed = played.then(() => {
-      for (const el of toDestroy) {
-        this.releaseMovies(el);
-        this.morphs?.releaseWithin(el);
-        endTravelsWithin(el);
-        el.remove();
-      }
+    const removals = toDestroy.map((el) => exitsEnded(el).then(() => destroy(el)));
+    const removed = Promise.all([played, ...removals]).then(() => {
       for (const video of hiddenMovies) {
         const span = video.closest("span.instance");
         this.releaseMovies(video);
