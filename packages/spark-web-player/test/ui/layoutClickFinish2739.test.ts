@@ -78,7 +78,7 @@ describe("one click during a layout's with-clause motion on the line (#2739)", (
     const c = new Coordinator(h.game, {
       end: 1,
       text: { action: typed },
-      layout: { menu: [{ control: "open", name: "menu", with: "fadein", over: 5 }] },
+      layout: { menu: [{ control: "open", name: "menu", with: [{ name: "fadein", over: 5 }], over: 5 }] },
     } as any);
     await pump(h, c);
     const menu = h.overlay.querySelector(".menu, .layout_menu");
@@ -108,7 +108,7 @@ describe("one click during a layout's with-clause motion on the line (#2739)", (
     const c = new Coordinator(h.game, {
       end: 1,
       text: { action: typed },
-      layout: { menu: [{ control: "close", name: "menu", with: "fadeout", over: 5 }] },
+      layout: { menu: [{ control: "close", name: "menu", with: [{ name: "fadeout", over: 5 }], over: 5 }] },
     } as any);
     await pump(h, c);
     expect(animations.find((a) => a.effect.target === menu)).toBeDefined();

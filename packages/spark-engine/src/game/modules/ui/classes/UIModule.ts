@@ -31,7 +31,6 @@ import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/
 import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
-import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
 import { pageKey } from "../../../core/utils/pageKey";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
@@ -93,6 +92,7 @@ CutsceneInstruction,
 ImageInstruction,
 LayoutInstruction,
 TextInstruction,
+WithInstruction,
 } from "../../../core/types/Instruction";
 import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import { endingStatusText } from "../../../core/utils/endingStatusText";
@@ -376,7 +376,7 @@ const pictureHide = (
     if (e.control === "show" && e.assets?.length) {
       hide = undefined;
     } else if (e.control === "hide" && !e.assets?.length) {
-      hide = e.with || e.after || e.over ? "timed" : "plain";
+      hide = e.with?.length || e.after || e.over ? "timed" : "plain";
     }
   }
   return hide;
@@ -453,6 +453,12 @@ export interface LineText extends LineLabels {
   text: TextState[];
 }
 
+export interface OpenLayout {
+  name: string;
+  screen?: string;
+  auto?: true;
+}
+
 export interface UIState {
   text?: Record<string, TextState[]>;
   lineText?: Record<string, LineText[]>;
@@ -464,7 +470,8 @@ export interface UIState {
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
-  layout?: { name: string; screen?: string }[];
+  layout?: OpenLayout[];
+  screensClosed?: string[];
   displayMode?: StartingDisplayMode;
   page?: PageState;
   streams?: Record<string, StreamState>;
@@ -587,6 +594,14 @@ interface ScreenFrame {
 const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
 
 const CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "stroke", "image", "mask"]);
+
+const isEmptyContent = (node: BodyNode): boolean =>
+  node.kind === "element" &&
+  CONTENT_TAGS.has(node.tag) &&
+  !node.content?.length &&
+  !node.params?.length &&
+  !node.children.length &&
+  Object.keys(node.props).length === 0;
 
 const isStruct = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -776,6 +791,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _contentSlots: Set<string> = new Set();
 
+  protected _slotPaths: Set<string> = new Set();
+
   protected _clearPaths: Map<string, string[]> = new Map();
 
   protected _unmarkedKeys: Set<string> = new Set();
@@ -821,6 +838,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _building?: UITree & { writes: boolean };
 
   protected _restoredEdits?: number;
+
+  protected _reconcileLayouts = false;
 
   protected _standing?: StandingScreen;
 
@@ -970,7 +989,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     delete this._state.image;
   }
 
+  protected reconcileRoutedLayouts(): void {
+    if (!this._reconcileLayouts) {
+      return;
+    }
+    this._reconcileLayouts = false;
+    const edits = this._screenEdits;
+    const open = new Set((this._state.layout ?? []).map((s) => s.name));
+    for (const name of [...this._mountedLayouts.keys()]) {
+      if (!UIModule.MANAGED_LAYOUTS.has(name) && !open.has(name)) {
+        void this.closeLayout(name, undefined, true, true);
+      }
+    }
+    const missing = [...open].filter((name) => !this._mountedLayouts.has(name));
+    if (missing.length > 0) {
+      const epoch = this._game.connection.epoch;
+      const presentation = this._presentation;
+      const mounted = this.applyLayoutInstructions(
+        missing.map((name) => ({ control: LayoutVerb.open, name, auto: true })),
+        true,
+      );
+      void mounted.then(() => {
+        if (!this.superseded(epoch) && this.isCurrentPresentation(presentation)) {
+          void Promise.all(this.restoreTexts());
+        }
+      });
+    }
+    this._screenEdits = edits;
+  }
+
   sweepReconcile() {
+    this.reconcileRoutedLayouts();
     const standing = this.standingScreen();
     if (this._compose) {
       this._compose.standing = standing;
@@ -1099,6 +1148,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (previewing != null && previewing !== false) {
       this.beginCompose("display");
     }
+    this._reconcileLayouts = true;
     const transient = this.getTransientTargets();
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
@@ -1238,6 +1288,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
+    this._reconcileLayouts = false;
     this._tree = undefined;
     this._building = {
       build: ++this._treeBuilds,
@@ -1302,11 +1353,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const epoch = this._game.connection.epoch;
     if (this._state.layout && this._reactive) {
       let remounted = false;
-      for (const { name } of this._state.layout) {
+      for (const { name, auto } of this._state.layout) {
         if (
           name &&
           !UIModule.MANAGED_LAYOUTS.has(name) &&
-          !this._mountedLayouts.has(name)
+          !this._mountedLayouts.has(name) &&
+          !(auto && this._reconcileLayouts)
         ) {
           const layout = this._game.program?.sparkle?.layouts?.[name];
           if (layout) {
@@ -3689,10 +3741,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructLayouts(...structNames: string[]): void {
     const targetAllStructs = !structNames || structNames.length === 0;
-    const skipped = skippedInitialLayouts(this._game, this);
     const validStructNames = targetAllStructs
       ? Object.keys(this.context?.layout || {}).filter(
-          (name) => !skipped.includes(name),
+          (name) => !this.context.layout?.[name]?.["$screen"],
         )
       : structNames;
     for (const structName of validStructNames) {
@@ -5510,10 +5561,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   initLayouts(): void {
-    const skipped = skippedInitialLayouts(this._game, this);
     this._contentSlots = new Set();
     for (const structName of Object.keys(this.context?.layout || {})) {
-      if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
+      if (structName && !structName.startsWith("$")) {
         const layout = this.context.layout?.[structName];
         if (layout) {
           this.initLayout(layout);
@@ -5529,6 +5579,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearOnContinue = new Set();
     this._clearPaths = new Map();
     this._unmarkedKeys = new Set();
+    this._slotPaths = new Set();
     this._roots = new Map();
     const sparkle = this._game.program?.sparkle;
     const components = sparkle?.components ?? {};
@@ -5538,7 +5589,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.collectMarks(nodes, root, "", []);
     };
     for (const [name, layout] of Object.entries(sparkle?.layouts ?? {})) {
-      if (layout && !skipped.includes(name)) {
+      if (layout) {
         collect("layout", name, layout.children);
       }
     }
@@ -5570,6 +5621,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         } else {
           const name = [node.tag, ...node.classes].join(" ");
+          if (node.children.some(isEmptyContent)) {
+            this._slotPaths.add(`${base}${here}`);
+          }
           if (marksClear(node)) {
             this._clearOnContinue.add(name);
             this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
@@ -5671,12 +5725,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     names: string[],
     settle: boolean,
     mode: StartingDisplayMode,
+    screensClosed: string[],
   ): void {
     this._state.layout ??= [];
     this._state.displayMode = mode;
+    if (screensClosed.length > 0) {
+      this._state.screensClosed = screensClosed;
+    }
     const closed = names.filter(
       (name) =>
-        !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),
+        !this.isScreen(name) &&
+        (!UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name)),
     );
     if (closed.length === 0) {
       return;
@@ -5748,7 +5807,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected resolveLayoutAnimation(
     direction: "enter" | "exit",
-    clauses: { with?: string; after?: number; over?: number; ease?: string },
+    clauses: { with?: string; after?: number; over?: number; ease?: string; loop?: boolean },
     instant: boolean,
   ): Animation | undefined {
     const withName = clauses.with || "";
@@ -5768,15 +5827,76 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         after: clauses.after,
         over: clauses.over,
         ease: clauses.ease,
+        ...(clauses.loop !== undefined ? { loop: clauses.loop } : {}),
       },
       instant,
     );
   }
 
+  withEntries(e: { with?: WithInstruction[] }): WithInstruction[] {
+    const written: unknown = e.with;
+    return Array.isArray(written)
+      ? written
+      : typeof written === "string" && written
+        ? [{ name: written }]
+        : [];
+  }
+
+  armEvent(
+    entry: WithInstruction,
+    arm: "on_show" | "on_hide",
+  ): {
+    name: string;
+    after?: number;
+    over?: number;
+    ease?: string;
+    loop?: boolean;
+  } {
+    const timing = this.withTiming(entry);
+    const transition = this.context?.transition?.[entry.name];
+    if (!transition) {
+      return { name: entry.name, ...timing };
+    }
+    const durationOf = (name: string | undefined) =>
+      getTimeValue(this.context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
+    const longest = Math.max(
+      0,
+      ...Object.entries(transition)
+        .filter(([k, v]) => !k.startsWith("$") && v)
+        .map(([, v]) => durationOf(typeof v === "string" ? v : v?.$name)),
+    );
+    const speed =
+      timing.over != null && timing.over > 0 ? longest / timing.over : 1;
+    const armed = transition[arm];
+    const name =
+      (typeof armed === "string" ? armed : armed?.$name) ||
+      (arm === "on_show" ? "show" : "hide");
+    return { name, ...timing, over: durationOf(name) / speed };
+  }
+
+  playedWith(e: { with?: WithInstruction[] }): WithInstruction | undefined {
+    return this.withEntries(e).at(-1);
+  }
+
+  withTiming(entry: WithInstruction): {
+    after?: number;
+    over?: number;
+    ease?: string;
+    loop?: boolean;
+  } {
+    return {
+      after: entry.after,
+      over: entry.over,
+      ease: entry.ease,
+      ...(entry.loop ? { loop: true } : entry.once ? { loop: false } : {}),
+    };
+  }
+
   async openLayout(
     name: string,
-    clauses?: { with?: string; after?: number; over?: number; ease?: string },
+    clauses?: { with?: string; after?: number; over?: number; ease?: string; loop?: boolean },
     instant = false,
+    routed = false,
   ): Promise<void> {
     if (!this._reactive) {
       this.showLayout(name);
@@ -5856,6 +5976,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const framed = layout.screen
       ? this._mountedScreens.get(layout.screen)
       : undefined;
+    const edits = this._screenEdits;
     try {
       const vs = this._game.story.variablesState;
       const pending = vs.takeReactiveChanges();
@@ -5867,6 +5988,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.reveal();
     } finally {
       mounted?.();
+      if (routed) {
+        this._screenEdits = edits;
+      }
     }
     if (!clauses?.with && !instant && this.moving() && this.styled("show")) {
       const frame = layout.screen
@@ -5875,7 +5999,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.arrive([frame && frame !== framed ? frame.element : element]);
       return;
     }
-    const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
+    const enter = routed
+      ? undefined
+      : this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
       const line = this.composingLine();
       if (line) {
@@ -5909,8 +6035,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   async closeLayout(
     name: string,
-    clauses?: { with?: string; after?: number; over?: number; ease?: string },
+    clauses?: { with?: string; after?: number; over?: number; ease?: string; loop?: boolean },
     instant = false,
+    routed = false,
   ): Promise<void> {
     if (!this._reactive) {
       this.hideLayout(name);
@@ -5952,7 +6079,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       );
       return;
     }
-    const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
+    const exit = routed
+      ? undefined
+      : this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
         name,
@@ -6292,7 +6421,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   async navigateScreen(
     name: string,
     screen?: string,
-    clauses?: { with?: string; after?: number; over?: number; ease?: string },
+    clauses?: { with?: string; after?: number; over?: number; ease?: string; loop?: boolean },
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
@@ -6321,52 +6450,46 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         (screen ? layouts?.[n]?.screen === screen : true),
     );
     const held = layouts?.[name]?.screen;
-    if (held) {
-      this._screenHolds.set(held, (this._screenHolds.get(held) ?? 0) + 1);
-    }
-    try {
-      await Promise.all([
+    await this.holdingScreens(held ? [held] : [], () =>
+      Promise.all([
         ...[...toClose, ...pending].map((n) =>
           this.closeLayout(n, clauses, instant),
         ),
         this.openLayout(name, clauses, instant),
-      ]);
-    } finally {
-      if (held) {
-        const holds = (this._screenHolds.get(held) ?? 1) - 1;
-        if (holds > 0) {
-          this._screenHolds.set(held, holds);
-        } else {
-          this._screenHolds.delete(held);
-        }
-        this.releaseIdleScreen(held);
-      }
-    }
+      ]),
+    );
+  }
+
+  isScreen(name: string): boolean {
+    const sparkle = this._game.program?.sparkle;
+    return Boolean(name && sparkle?.screens?.[name] && !sparkle.layouts?.[name]);
   }
 
   protected nextLayoutState(
-    state: { name: string; screen?: string }[] | undefined,
+    state: OpenLayout[] | undefined,
     e: LayoutInstruction,
-  ): { name: string; screen?: string }[] | undefined {
+  ): OpenLayout[] | undefined {
     const layouts = this._game.program?.sparkle?.layouts;
-    const recordOpen = (
-      list: { name: string; screen?: string }[] | undefined,
-      name: string,
-    ) => {
+    const recordOpen = (list: OpenLayout[] | undefined, name: string, auto?: true) => {
       if (!name || UIModule.MANAGED_LAYOUTS.has(name) || !layouts?.[name]) {
         return list;
       }
-      if (list?.some((s) => s.name === name)) {
-        return list;
+      const open = list?.find((s) => s.name === name);
+      if (open) {
+        return open.auto && !auto
+          ? list!.map((s) => (s === open ? { name: s.name, ...(s.screen ? { screen: s.screen } : {}) } : s))
+          : list;
       }
       const screen = layouts[name]?.screen;
-      return [...(list ?? []), { name, ...(screen ? { screen } : {}) }];
+      return [...(list ?? []), { name, ...(screen ? { screen } : {}), ...(auto ? { auto } : {}) }];
     };
     switch (e.control) {
       case LayoutVerb.clear:
         return state;
       case LayoutVerb.close:
-        return state?.filter((s) => s.name !== e.name);
+        return this.isScreen(e.name)
+          ? state?.filter((s) => s.screen !== e.name)
+          : state?.filter((s) => s.name !== e.name);
       case LayoutVerb.navigate:
         if (!e.name) {
           return state;
@@ -6378,11 +6501,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           e.name,
         );
       case LayoutVerb.open:
-        return recordOpen(state, e.name);
+        return recordOpen(state, e.name, e.auto);
       default:
         this.reportUnknownLayoutVerb(e.control);
         return state;
     }
+  }
+
+  protected nextScreensClosed(closed: string[] | undefined, e: LayoutInstruction): string[] | undefined {
+    const name = e.control === LayoutVerb.navigate ? e.screen : e.name;
+    if (!name || !this.isScreen(name)) {
+      return closed;
+    }
+    if (e.control === LayoutVerb.close) {
+      return closed?.includes(name) ? closed : [...(closed ?? []), name];
+    }
+    if (e.control === LayoutVerb.open || e.control === LayoutVerb.navigate) {
+      return closed?.filter((screen) => screen !== name);
+    }
+    return closed;
+  }
+
+  screensClosedAfter(instructions: LayoutInstruction[]): string[] {
+    let closed = this._state.screensClosed;
+    for (const e of instructions) {
+      closed = this.nextScreensClosed(closed, e);
+    }
+    return closed ?? [];
+  }
+
+  autoLayoutAfter(instructions: LayoutInstruction[]): string | undefined {
+    let state = this._state.layout;
+    for (const e of instructions) {
+      state = this.nextLayoutState(state, e);
+    }
+    return state?.find((s) => s.auto)?.name;
   }
 
   protected reportUnknownLayoutVerb(verb: never): void {
@@ -6402,6 +6555,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const next = this.nextLayoutState(this._state.layout, e);
     if (next) {
       this._state.layout = next;
+    }
+    const closed = this.nextScreensClosed(this._state.screensClosed, e);
+    if (closed?.length) {
+      this._state.screensClosed = closed;
+    } else {
+      delete this._state.screensClosed;
     }
   }
 
@@ -6456,21 +6615,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
-    if (instructions.length > 0) {
+    if (instructions.some((e) => !e.auto)) {
       this._screenEdits += 1;
     }
     const run = (e: LayoutInstruction): Promise<void> => {
-      const clauses = {
-        with: e.with,
-        after: e.after,
-        over: e.over,
-        ease: e.ease,
-      };
+      if (!e.auto) {
+        return runOwn(e);
+      }
+      const edits = this._screenEdits;
+      const done = runOwn(e);
+      this._screenEdits = edits;
+      return done;
+    };
+    const runOwn = (e: LayoutInstruction): Promise<void> => {
+      const played = this.playedWith(e);
+      const clauses = played
+        ? { with: played.name, ...this.withTiming(played) }
+        : { after: e.after, over: e.over, ease: e.ease };
       switch (e.control) {
         case LayoutVerb.open:
-          return this.openLayout(e.name, clauses, instant);
+          return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
         case LayoutVerb.close:
-          return this.closeLayout(e.name, clauses, instant);
+          return this.isScreen(e.name)
+            ? this.closeScreen(e.name, clauses, instant)
+            : this.closeLayout(e.name, clauses, instant, Boolean(e.auto));
         case LayoutVerb.navigate:
           return this.navigateScreen(e.name, e.screen, clauses, instant);
         case LayoutVerb.clear:
@@ -6480,10 +6648,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return Promise.resolve();
       }
     };
+    const layouts = this._game.program?.sparkle?.layouts;
+    const opened = (events: LayoutInstruction[]): string[] => [
+      ...new Set(
+        events.flatMap((e) => {
+          const screen = e.control === LayoutVerb.open ? layouts?.[e.name]?.screen : undefined;
+          return screen ? [screen] : [];
+        }),
+      ),
+    ];
     if (this._game.replaying && instant) {
-      for (const e of instructions) {
-        void run(e);
-      }
+      void this.holdingScreens(opened(instructions), () => Promise.all(instructions.map(run)));
       return;
     }
     const epoch = this._game.connection.epoch;
@@ -6516,17 +6691,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           byLayout.set(key, [e]);
         }
       }
-      await Promise.all(
-        [...byLayout.values()].map(async (group) => {
-          for (const e of group) {
-            if (this.superseded(epoch)) {
-              return;
+      await this.holdingScreens(opened(segment), () =>
+        Promise.all(
+          [...byLayout.values()].map(async (group) => {
+            for (const e of group) {
+              if (this.superseded(epoch)) {
+                return;
+              }
+              await run(e);
             }
-            await run(e);
-          }
-        }),
+          }),
+        ),
       );
     }
+  }
+
+  protected async holdingScreens<T>(screens: string[], work: () => Promise<T>): Promise<T> {
+    for (const screen of screens) {
+      this._screenHolds.set(screen, (this._screenHolds.get(screen) ?? 0) + 1);
+    }
+    try {
+      return await work();
+    } finally {
+      for (const screen of screens) {
+        const holds = (this._screenHolds.get(screen) ?? 1) - 1;
+        if (holds > 0) {
+          this._screenHolds.set(screen, holds);
+        } else {
+          this._screenHolds.delete(screen);
+        }
+        this.releaseIdleScreen(screen);
+      }
+    }
+  }
+
+  protected async closeScreen(
+    screen: string,
+    clauses: { with?: string; after?: number; over?: number; ease?: string; loop?: boolean },
+    instant: boolean,
+  ): Promise<void> {
+    const layouts = this._game.program?.sparkle?.layouts;
+    const names = new Set([
+      ...[...this._mountedLayouts].filter(([, entry]) => entry.screen === screen).map(([name]) => name),
+      ...[...this._pendingOpens.keys()].filter((name) => layouts?.[name]?.screen === screen),
+    ]);
+    await Promise.all([...names].map((name) => this.closeLayout(name, clauses, instant)));
   }
 
   protected findElements(target: string, writes = false): Element[] {
@@ -6675,6 +6884,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
+  protected isSlotElement(el: Element): boolean {
+    const path = this.elementPath(el);
+    return path === undefined || this._slotPaths.has(path);
+  }
+
   protected markedPaths(target: string): string[] {
     const words = target.split(" ");
     return [...this._clearPaths].flatMap(([key, paths]) =>
@@ -6695,7 +6909,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return elements;
     }
     const marked = new Set([...this._clearPaths.values()].flat());
-    return elements.filter((el) => marked.has(this.elementPath(el) ?? "") === (reach === "marked"));
+    return elements.filter(
+      (el) =>
+        marked.has(this.elementPath(el) ?? "") === (reach === "marked") &&
+        (reach === "marked" || this.isSlotElement(el)),
+    );
   }
 
   protected textRestorePlan(): Map<string, Element[]> {
@@ -6770,7 +6988,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       for (const el of this.textElements(target)) {
-        if (inLayout(el)) {
+        if (inLayout(el) && this.isSlotElement(el)) {
           this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
@@ -7411,98 +7629,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const isFirstContentReveal =
             e.control === "show" && e.assets && e.assets.length > 0;
           if (isFirstContentReveal) {
-            const showEvent = {
+            const revealEvent = {
               name: "show",
               after: e.after,
               over: 0,
               ease: e.ease,
             };
-            const animation = $.getAnimationDefinition(showEvent, instant);
+            const animation = $.getAnimationDefinition(revealEvent, instant);
             if (animation) {
               targetAnimations.push(animation);
             }
           }
-          const transitionWith = e.with || "";
-          const transition = $.context?.transition?.[transitionWith];
-          const transitionAnimations: Animation[] = [];
-          if (transition) {
-            for (const [k, v] of Object.entries(transition)) {
-              if (!k.startsWith("$") && v) {
-                if (typeof v === "string") {
-                  const transitionAnimation = $.context?.animation?.[v];
-                  if (transitionAnimation) {
-                    transitionAnimations.push(transitionAnimation);
-                  }
-                } else {
-                  const transitionAnimation = $.context?.animation?.[v?.$name];
-                  if (transitionAnimation) {
-                    transitionAnimations.push(transitionAnimation);
-                  }
-                }
-              }
+          const entries = $.withEntries(e);
+          const played = entries.at(-1);
+          const showEvent = played
+            ? $.armEvent(played, "on_show")
+            : { name: "show", after: e.after, over: e.over, ease: e.ease };
+          const hideEvent = played
+            ? $.armEvent(played, "on_hide")
+            : { name: "hide", after: e.after, over: e.over, ease: e.ease };
+          const assets = e.assets;
+          for (const entry of e.control === "animate" ? entries : played ? [played] : []) {
+            const entryTransition = $.context?.transition?.[entry.name];
+            if (!entryTransition) {
+              continue;
             }
-          }
-          const transitionDuration = Math.max(
-            ...transitionAnimations.map(
-              (a) => getTimeValue(a.timing.duration) ?? 0,
-            ),
-          );
-          const over = e.over;
-          const transitionSpeed =
-            transition && over != null && over > 0
-              ? transitionDuration / over
-              : 1;
-          const showWith =
-            (transition
-              ? typeof transition?.on_show === "string"
-                ? transition?.on_show
-                : transition?.on_show?.$name
-              : e.with) || "show";
-          const showAnimation = $.context?.animation?.[showWith];
-          const showAnimationDuration =
-            getTimeValue(showAnimation?.timing?.duration) ?? 0;
-          const showAfter = e.after;
-          const showOver = transition
-            ? showAnimationDuration / transitionSpeed
-            : over;
-          const showEase = e.ease;
-          const hideWith =
-            (transition
-              ? typeof transition?.on_hide === "string"
-                ? transition?.on_hide
-                : transition?.on_hide?.$name
-              : e.with) || "hide";
-          const hideAnimation = $.context?.animation?.[hideWith];
-          const hideAnimationDuration =
-            getTimeValue(hideAnimation?.timing?.duration) ?? 0;
-          const hideAfter = e.after;
-          const hideOver = transition
-            ? hideAnimationDuration / transitionSpeed
-            : over;
-          const hideEase = e.ease;
-          if (transition) {
-            for (const [k, v] of Object.entries(transition)) {
+            for (const [k, v] of Object.entries(entryTransition)) {
               if (!k.startsWith("$") && !k.startsWith("on_")) {
                 const animateWith = typeof v === "string" ? v : v?.$name;
                 if (animateWith) {
-                  const animateEvent = {
-                    name: animateWith,
-                    after: e.after,
-                    over: e.over,
-                    ease: e.ease,
-                  };
                   const animation = $.getAnimationDefinition(
-                    animateEvent,
+                    { name: animateWith, ...$.withTiming(entry) },
                     instant,
                   );
                   if (animation) {
-                    affected.push({ target: k, animations: [animation] });
+                    const arm = affected.find((a) => a.target === k);
+                    if (arm) {
+                      arm.animations.push(animation);
+                    } else {
+                      affected.push({ target: k, animations: [animation] });
+                    }
                   }
                 }
               }
             }
           }
-          const assets = e.assets;
           if (assets && assets.length > 0) {
             const content = $.withPictureLooks(() => {
               const imageNames = assets.join(" ");
@@ -7581,12 +7752,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               return content;
             });
             if (e.control === "show") {
-              const showEvent = {
-                name: showWith,
-                after: showAfter,
-                over: showOver,
-                ease: showEase,
-              };
               const enterAnimation = $.getAnimationDefinition(
                 showEvent,
                 instant,
@@ -7594,12 +7759,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (enterAnimation) {
                 content.enterAnimation = enterAnimation;
               }
-              const hideEvent = {
-                name: hideWith,
-                after: hideAfter,
-                over: hideOver,
-                ease: hideEase,
-              };
               const previousHideAnimation = $.getAnimationDefinition(
                 hideEvent,
                 instant,
@@ -7608,12 +7767,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 content.previousHideAnimation = previousHideAnimation;
               }
             } else if (e.control === "hide") {
-              const hideEvent = {
-                name: hideWith,
-                after: hideAfter,
-                over: hideOver,
-                ease: hideEase,
-              };
               const exitAnimation = $.getAnimationDefinition(
                 hideEvent,
                 instant,
@@ -7621,13 +7774,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (exitAnimation) {
                 content.exitAnimation = exitAnimation;
               }
+            } else if (e.control === "animate" && entries.length > 1) {
+              for (const entry of entries) {
+                const animation = $.getAnimationDefinition(
+                  $.armEvent(entry, "on_show"),
+                  instant,
+                );
+                if (animation) {
+                  targetAnimations.push(animation);
+                }
+              }
             } else if (e.control === "animate") {
-              const showEvent = {
-                name: showWith,
-                after: showAfter,
-                over: showOver,
-                ease: showEase,
-              };
               const enterAnimation = $.getAnimationDefinition(
                 showEvent,
                 instant,
@@ -7642,12 +7799,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           } else {
             if (e.control === "hide") {
-              const hideEvent = {
-                name: hideWith,
-                after: hideAfter,
-                over: hideOver,
-                ease: hideEase,
-              };
               const animation = $.getAnimationDefinition(hideEvent, instant);
               if (animation) {
                 targetAnimations.push(animation);
@@ -7656,26 +7807,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (framing) {
                 out.framing = framing;
               }
-              const showEvent = {
-                name: showWith,
-                after: showAfter,
-                over: showOver,
-                ease: showEase,
-              };
               const animation = $.getAnimationDefinition(showEvent, instant);
               if (animation) {
                 targetAnimations.push(animation);
               }
             } else if (e.control === "animate") {
-              if (e.with) {
-                const animateEvent = {
-                  name: e.with,
-                  after: e.after,
-                  over: e.over,
-                  ease: e.ease,
-                };
+              for (const entry of entries) {
                 const animation = $.getAnimationDefinition(
-                  animateEvent,
+                  { name: entry.name, ...$.withTiming(entry) },
                   instant,
                 );
                 if (animation) {

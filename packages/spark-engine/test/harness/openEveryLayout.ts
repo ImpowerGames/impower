@@ -1,5 +1,8 @@
 import type { Game } from "../../src/game/core/classes/Game";
-import { skippedInitialLayouts } from "../../src/game/core/classes/presenters/textLayouts";
+import {
+  holdsPresentedText,
+  TEXTBOX_SCREEN,
+} from "../../src/game/core/classes/presenters/textLayouts";
 
 export function openEveryLayout(game: Game): void {
   const ui = game.module.ui as any;
@@ -8,10 +11,12 @@ export function openEveryLayout(game: Game): void {
     if (names.length > 0) {
       return construct(...names);
     }
-    const skipped = skippedInitialLayouts(game);
+    const layouts = game.program?.sparkle?.layouts ?? {};
+    const ownText =
+      holdsPresentedText(game, "main") || Boolean(layouts[TEXTBOX_SCREEN]);
     return construct(
-      ...Object.keys(game.program?.sparkle?.layouts ?? {}).filter(
-        (name) => !skipped.includes(name),
+      ...Object.keys(layouts).filter(
+        (name) => !ownText || layouts[name]?.screen !== TEXTBOX_SCREEN,
       ),
     );
   };

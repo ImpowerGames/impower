@@ -150,6 +150,18 @@ describe("[[clear LAYOUT]] (#1991)", () => {
   });
 });
 
+describe("[[open]] and [[close]] on a screen (I-2740)", () => {
+  test("[[close textbox]] and [[open textbox]] name the built-in screen and produce no diagnostics", () => {
+    expect(diagnosticsFor(inStart("[[close textbox]]\n  Hidden.\n  [[open textbox]]\n  Shown."))).toEqual([]);
+  });
+
+  test("a name that is neither a layout nor a screen still warns", () => {
+    expect(diagnosticsFor(inStart("[[close textbax]]"))).toEqual([
+      expect.stringContaining("Cannot find layout named `textbax`"),
+    ]);
+  });
+});
+
 describe("[[clear]] with no layout (#1991)", () => {
   test("warns that clear names no layout", () => {
     expect(diagnosticsFor(inStart("[[clear]]"))).toEqual([

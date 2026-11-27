@@ -465,7 +465,7 @@ style layout_hud {
 }
 
 layout title {
-  column {
+  title {
     text "My Game"
   }
 }

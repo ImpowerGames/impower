@@ -3195,7 +3195,12 @@ export default class UIManager extends Manager {
         if (instruction.affected) {
           for (const a of instruction.affected) {
             for (const el of this.findTargetElements(a.target)) {
-              this.addAnimationEffects(enterEffects, el, a.animations, after);
+              this.addAnimationEffects(
+                enterEffects,
+                el,
+                a.animations,
+                instruction.control === "animate" ? undefined : after,
+              );
             }
           }
         }

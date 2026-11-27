@@ -984,7 +984,12 @@ describe("a beat-only display", () => {
     });
     expect(shows(a.menu.frame, "Go left")).toBe(true);
     expect(a.choice).toBe(true);
-    expectBeatOnly(a.edited);
+    expect(a.edited.path).toEqual({ beatOnly: true });
+    const created = ops(a.edited.sent)
+      .filter((m: any) => m?.method === "ui/create")
+      .map((m: any) => String(m.params.name));
+    expect(created).toContain("layout_action");
+    expect(created.filter((name) => /textbox|choice|dialogue/.test(name))).toEqual([]);
     expect(shows(a.edited.frame, "Go left")).toBe(false);
     expect(shows(a.edited.frame, "The end of the scene.")).toBe(true);
     expect(a.edited.frame).toEqual(full.edited.frame);

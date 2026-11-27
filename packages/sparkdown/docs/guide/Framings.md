@@ -151,6 +151,25 @@ scene start
 end
 ```
 
+A timing clause belongs to the side of the `with` it is written on. Written before the first `with`, it times the travel. Written after a `with`, it times that `with`'s animation. A `with` takes each timing word it lacks from the line. A line with no timing word of its own takes all of the first `with`'s, and a line with any of its own borrows none. So the line above and `[[animate backdrop to bottom_right with shake over 1s]]` both shake for a second while the picture travels for a second:
+
+| Line | What plays |
+| --- | --- |
+| `[[animate backdrop to left over 1s with shake]]` | The travel takes 1s. The shake has no `over` and takes the line's, 1s. |
+| `[[animate backdrop to left with shake over 1s]]` | The shake takes 1s. The line has no `over` and takes the `with`'s, so the travel takes 1s. |
+| `[[animate backdrop to left over 1s with shake over 2s]]` | The travel takes 1s and the shake 2s. |
+| `[[animate backdrop to left over 4s with shake after 3s over 1s]]` | The line has an `over` of its own, so it borrows nothing: the travel starts at once and takes 4s. The shake starts 3s in and takes 1s. |
+
+A line can name several `with` clauses, and each borrows only from the line, never from another `with` (see [Several animations at once](./AnimationTheme.md#several-animations-at-once)). `wait` holds the story until the travel and every `with` have ended, each counted as its `after` plus its length:
+
+```sparkdown
+scene start
+  [[show backdrop bg_apartment at right]]
+  [[animate backdrop to left over 4s with shake after 3s over 1s wait]]
+  The shake ends as the view arrives, four seconds in, and only then does this line type.
+end
+```
+
 Only the layer the line names moves. `[[animate backdrop to left over 5s]]` pans the backdrop and leaves the portrait layer, and every other layer, where it is.
 
 ---
