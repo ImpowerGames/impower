@@ -265,6 +265,30 @@ describe("the next beat's pictures are drawn while the current beat is settled, 
     expect(t.reports).not.toHaveBeenCalled();
   });
 
+  test("a picture already drawn ahead at the same size is kept, not drawn again, when the next line settles", async () => {
+    const t = await setup();
+    t.drawAhead([ahead("backdrop", "dusk", "/src/dusk.svg", 2, 1.5)]);
+    await until(() => t.asked.length === 1, "the drawing ahead");
+    await settledAhead(t, ["backdrop"]);
+    const paints = t.events.length;
+    const bytes = t.playback.drawnAheadBytes();
+    let mounted = 0;
+    const observer = new t.win.MutationObserver((records) => {
+      mounted += records.reduce((count, record) => count + Array.from(record.addedNodes).filter((node) => (node as HTMLElement).classList?.contains("instance")).length, 0);
+    });
+    observer.observe(t.h.overlay, { childList: true, subtree: true });
+    t.drawAhead([ahead("backdrop", "dusk", "/src/dusk.svg", 1, 1.5)]);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    observer.disconnect();
+    expect(mounted).toBe(0);
+    expect(t.asked).toHaveLength(1);
+    expect(t.events).toHaveLength(paints);
+    expect(t.playback.drawnAheadBytes()).toBe(bytes);
+    t.beat([show("backdrop", "dusk", "/src/dusk.svg")], 30);
+    await until(() => t.events.includes("applied"), "the beat");
+    expect(t.asked).toHaveLength(1);
+  });
+
   test("drawing ahead starts once the last letter is revealed and no move or transition runs, and a looping idle animation does not hold it back", async () => {
     const t = await setup();
     const letters = animation(2000);

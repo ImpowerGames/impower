@@ -6,6 +6,7 @@ export interface DrawAheadHost {
   morphs(): MorphPlayback | undefined;
   busy(): boolean;
   seconds(): number;
+  box(picture: DrawAheadPicture): string;
   mount(picture: DrawAheadPicture): MorphLayer[];
   unmount(layers: MorphLayer[]): void;
 }
@@ -19,6 +20,8 @@ const BUSY_RETRY_MS = 100;
 
 const reachKey = (target: string, background: string) => `${target}\n${background}`;
 
+const drawnKey = (picture: DrawAheadPicture) => `${reachKey(picture.target, picture.content.background)}\n${picture.zoom}\n${picture.scale}`;
+
 const moving = (animation: Animation): boolean => {
   if (animation.playState !== "running") return false;
   const end = animation.effect?.getComputedTiming?.().endTime;
@@ -28,6 +31,7 @@ const moving = (animation: Animation): boolean => {
 export class DrawAhead {
   protected queue: DrawAheadPicture[] = [];
   protected reaches = new Map<string, DrawAheadReach>();
+  protected drawn = new Map<string, { keys: string[]; box: string }>();
   protected run = 0;
   protected current?: MorphLayer[];
   protected abort?: { run: number; stopped: Promise<void>; stop: () => void };
@@ -38,6 +42,8 @@ export class DrawAhead {
   receive(pictures: DrawAheadPicture[]) {
     this.halt();
     this.reaches = new Map(pictures.map((picture) => [reachKey(picture.target, picture.content.background), { zoom: picture.zoom, scale: picture.scale }]));
+    const listed = new Set(pictures.map(drawnKey));
+    for (const key of [...this.drawn.keys()]) if (!listed.has(key)) this.drawn.delete(key);
     this.host.morphs()?.beginForecast();
     this.queue = [...pictures].sort((a, b) => a.distance - b.distance);
     if (this.queue.length === 0) {
@@ -60,6 +66,8 @@ export class DrawAhead {
     this.queue = [];
     this.abort?.stop();
     this.abort = undefined;
+    const morphs = this.host.morphs();
+    if (morphs) morphs.recording = undefined;
     if (this.current) {
       this.host.unmount(this.current);
       this.current = undefined;
@@ -71,6 +79,7 @@ export class DrawAhead {
   dispose() {
     this.halt();
     this.reaches.clear();
+    this.drawn.clear();
   }
 
   protected listen() {
@@ -122,8 +131,18 @@ export class DrawAhead {
       if (!(await this.settled(run)) || run !== this.run) return;
       const picture = this.queue.shift();
       if (!picture) break;
+      const key = drawnKey(picture);
+      const box = this.host.box(picture);
+      const morphs = this.host.morphs();
+      const known = this.drawn.get(key);
+      if (known && known.box === box && morphs?.retain(known.keys, picture.distance)) continue;
+      const recording = new Set<string>();
+      if (morphs) morphs.recording = recording;
       const layers = this.host.mount(picture);
-      if (layers.length === 0) continue;
+      if (layers.length === 0) {
+        if (morphs?.recording === recording) morphs.recording = undefined;
+        continue;
+      }
       this.current = layers;
       const seconds = this.host.seconds();
       const timer = seconds > 0 ? this.timer(seconds * 1000) : undefined;
@@ -134,8 +153,11 @@ export class DrawAhead {
       ]);
       timer?.cancel();
       if (run !== this.run) return;
+      const finished = layers.every((layer) => layer.drawn);
       this.current = undefined;
       this.host.unmount(layers);
+      if (morphs?.recording === recording) morphs.recording = undefined;
+      if (finished) this.drawn.set(key, { keys: [...recording], box });
       await this.wait(0, run);
     }
     if (run !== this.run) return;

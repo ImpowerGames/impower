@@ -338,6 +338,13 @@ export default class UIManager extends Manager {
       !!this._veil ||
       !!(this.app.overlay as OverlayWithBeat | undefined)?.__sdBeat,
     seconds: () => this.drawSeconds(),
+    box: (picture) =>
+      [
+        this.app.overlay?.ownerDocument.defaultView?.devicePixelRatio ?? 1,
+        ...this.findTargetElements(picture.target).flatMap((el) =>
+          [el, ...this.getContentElements(el, "image"), ...this.getContentElements(el, "mask")].map((box) => `${box.offsetWidth}x${box.offsetHeight}`),
+        ),
+      ].join(" "),
     mount: (picture) => this.mountAhead(picture),
     unmount: (layers) => {
       for (const layer of layers) {

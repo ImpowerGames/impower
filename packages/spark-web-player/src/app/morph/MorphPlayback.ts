@@ -843,6 +843,7 @@ export class MorphPlayback {
   }
 
   protected drawings = new Map<string, Drawing>();
+  recording?: Set<string>;
   protected sources = new WeakMap<SvgLayerSource, number>();
   protected sourceCount = 0;
 
@@ -880,6 +881,7 @@ export class MorphPlayback {
       drawing.stale = false;
     }
     const held = drawing;
+    if (forecast !== undefined) this.recording?.add(key);
     if (forecast !== undefined) held.forecasts += 1;
     else held.users += 1;
     return held.made.then((raster) => {
@@ -940,6 +942,16 @@ export class MorphPlayback {
     let bytes = 0;
     for (const drawing of this.drawings.values()) if (drawing.users === 0) bytes += drawing.bytes;
     return bytes;
+  }
+
+  retain(keys: readonly string[], distance: number): boolean {
+    const drawings = keys.map((key) => this.drawings.get(key));
+    if (drawings.some((drawing) => !drawing?.raster)) return false;
+    for (const drawing of drawings) {
+      drawing!.distance = drawing!.stale ? distance : Math.min(drawing!.distance ?? distance, distance);
+      drawing!.stale = false;
+    }
+    return true;
   }
 
   beginForecast() {
