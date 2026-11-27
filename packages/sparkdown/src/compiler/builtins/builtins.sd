@@ -1702,6 +1702,26 @@ style screen_textbox {
   z_index = -1
 }
 
+style layout_dialogue {
+  position = static
+}
+
+style layout_action {
+  position = static
+}
+
+style layout_title {
+  position = static
+}
+
+style layout_heading {
+  position = static
+}
+
+style layout_transitional {
+  position = static
+}
+
 style layout_textbox {
   z_index = -1
 }
