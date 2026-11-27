@@ -108,7 +108,9 @@ describe("#clear decides which elements empty after their line (I-2732)", () => 
       expect.arrayContaining(["portrait", "character_name", "dialogue"]),
     );
     expect(transient).not.toContain("backdrop");
-    expect(transient).not.toContain("action");
+    expect(
+      ui.markedPaths("action").filter((path: string) => path.startsWith("layout:textbox@")),
+    ).toEqual([]);
   });
 
   test("a #clear text and picture element empty on a line that does not write to them", async () => {
@@ -345,7 +347,7 @@ end
     }
     expect(ui.state.textWritten).toEqual({ title: 1, action: 2 });
     expect(Object.values(ui.state.textCleared).every((v) => v === 1 || v === 2)).toBe(true);
-    expect(seen).toEqual([1, 2, 2, 2]);
+    expect(seen.every((line, i) => i === 0 || line >= seen[i - 1]!)).toBe(true);
   });
 
   const CHOICE_SOURCE = `

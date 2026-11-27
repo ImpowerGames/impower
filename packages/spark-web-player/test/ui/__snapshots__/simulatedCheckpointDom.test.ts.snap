@@ -813,6 +813,24 @@ spark-web-player #game .stage {
   display: flex;
   flex-direction: column;
 }
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -2601,66 +2619,555 @@ spark-web-player #game .textstream_end {
                         {
                           "children": [
                             {
-                              "attrs": {
-                                "data-display-target": "character_name",
-                                "text": "HERO",
-                              },
                               "children": [
                                 {
+                                  "attrs": {
+                                    "data-display-target": "character_name",
+                                    "text": "HERO",
+                                  },
                                   "children": [
                                     {
                                       "children": [
                                         {
                                           "children": [
                                             {
-                                              "class": "text_letter",
-                                              "style": "opacity: 0;",
+                                              "children": [
+                                                {
+                                                  "class": "text_letter",
+                                                  "style": "opacity: 0;",
+                                                  "tag": "span",
+                                                  "text": "HERO",
+                                                },
+                                              ],
+                                              "class": "text_word",
                                               "tag": "span",
-                                              "text": "HERO",
                                             },
                                           ],
-                                          "class": "text_word",
-                                          "tag": "span",
+                                          "class": "text_line",
+                                          "tag": "div",
                                         },
                                       ],
-                                      "class": "text_line",
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "children": [
+                                                {
+                                                  "class": "text_letter",
+                                                  "style": "opacity: 0;",
+                                                  "tag": "span",
+                                                  "text": "HERO",
+                                                },
+                                              ],
+                                              "class": "text_word",
+                                              "tag": "span",
+                                            },
+                                          ],
+                                          "class": "text_line",
+                                          "tag": "div",
+                                        },
+                                      ],
+                                      "class": "text",
                                       "tag": "div",
                                     },
                                   ],
-                                  "class": "stroke",
+                                  "class": "character_name",
                                   "tag": "div",
                                 },
                                 {
+                                  "attrs": {
+                                    "data-display-target": "character_parenthetical",
+                                  },
                                   "children": [
                                     {
-                                      "children": [
-                                        {
-                                          "children": [
-                                            {
-                                              "class": "text_letter",
-                                              "style": "opacity: 0;",
-                                              "tag": "span",
-                                              "text": "HERO",
-                                            },
-                                          ],
-                                          "class": "text_word",
-                                          "tag": "span",
-                                        },
-                                      ],
-                                      "class": "text_line",
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
                                       "tag": "div",
                                     },
                                   ],
-                                  "class": "text",
+                                  "class": "character_parenthetical",
+                                  "style": "display: none;",
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_name",
+                              "class": "character_info",
                               "tag": "div",
                             },
                             {
                               "attrs": {
-                                "data-display-target": "character_parenthetical",
+                                "data-display-target": "dialogue",
+                                "text": "(quietly)The line being previewed.",
+                              },
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0; text-align: center;",
+                                              "tag": "span",
+                                              "text": "(quietly)",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "style": "text-align: center;",
+                                          "tag": "span",
+                                        },
+                                      ],
+                                      "class": "text_line",
+                                      "style": "text-align: center;",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "T",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "h",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "display: inline; opacity: 0;",
+                                              "tag": "span",
+                                              "text": " ",
+                                            },
+                                          ],
+                                          "class": "text_space",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "l",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "i",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "n",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "display: inline; opacity: 0;",
+                                              "tag": "span",
+                                              "text": " ",
+                                            },
+                                          ],
+                                          "class": "text_space",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "b",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "i",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "n",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "g",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "display: inline; opacity: 0;",
+                                              "tag": "span",
+                                              "text": " ",
+                                            },
+                                          ],
+                                          "class": "text_space",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "p",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "r",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "v",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "i",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "w",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "d",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": ".",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                      ],
+                                      "class": "text_line",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0; text-align: center;",
+                                              "tag": "span",
+                                              "text": "(quietly)",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "style": "text-align: center;",
+                                          "tag": "span",
+                                        },
+                                      ],
+                                      "class": "text_line",
+                                      "style": "text-align: center;",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "T",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "h",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "display: inline; opacity: 0;",
+                                              "tag": "span",
+                                              "text": " ",
+                                            },
+                                          ],
+                                          "class": "text_space",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "l",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "i",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "n",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "display: inline; opacity: 0;",
+                                              "tag": "span",
+                                              "text": " ",
+                                            },
+                                          ],
+                                          "class": "text_space",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "b",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "i",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "n",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "g",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "display: inline; opacity: 0;",
+                                              "tag": "span",
+                                              "text": " ",
+                                            },
+                                          ],
+                                          "class": "text_space",
+                                          "tag": "span",
+                                        },
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "p",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "r",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "v",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "i",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "w",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "d",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": ".",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                      ],
+                                      "class": "text_line",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "dialogue",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "layout_dialogue",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "action",
                               },
                               "children": [
                                 {
@@ -2672,542 +3179,93 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_parenthetical",
+                              "class": "action",
                               "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "character_info",
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "title",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "title",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "heading",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "heading",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "transitional",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "transitional",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "dialogue",
-                            "text": "(quietly)The line being previewed.",
-                          },
-                          "children": [
-                            {
+                              "attrs": {
+                                "data-display-target": "title",
+                              },
                               "children": [
                                 {
-                                  "children": [
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0; text-align: center;",
-                                          "tag": "span",
-                                          "text": "(quietly)",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "style": "text-align: center;",
-                                      "tag": "span",
-                                    },
-                                  ],
-                                  "class": "text_line",
-                                  "style": "text-align: center;",
+                                  "class": "stroke",
                                   "tag": "div",
                                 },
                                 {
-                                  "children": [
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "T",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "h",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "display: inline; opacity: 0;",
-                                          "tag": "span",
-                                          "text": " ",
-                                        },
-                                      ],
-                                      "class": "text_space",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "l",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "i",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "n",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "display: inline; opacity: 0;",
-                                          "tag": "span",
-                                          "text": " ",
-                                        },
-                                      ],
-                                      "class": "text_space",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "b",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "i",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "n",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "g",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "display: inline; opacity: 0;",
-                                          "tag": "span",
-                                          "text": " ",
-                                        },
-                                      ],
-                                      "class": "text_space",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "p",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "r",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "v",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "i",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "w",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "d",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": ".",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                  ],
-                                  "class": "text_line",
+                                  "class": "text",
                                   "tag": "div",
                                 },
                               ],
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "children": [
-                                {
-                                  "children": [
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0; text-align: center;",
-                                          "tag": "span",
-                                          "text": "(quietly)",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "style": "text-align: center;",
-                                      "tag": "span",
-                                    },
-                                  ],
-                                  "class": "text_line",
-                                  "style": "text-align: center;",
-                                  "tag": "div",
-                                },
-                                {
-                                  "children": [
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "T",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "h",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "display: inline; opacity: 0;",
-                                          "tag": "span",
-                                          "text": " ",
-                                        },
-                                      ],
-                                      "class": "text_space",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "l",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "i",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "n",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "display: inline; opacity: 0;",
-                                          "tag": "span",
-                                          "text": " ",
-                                        },
-                                      ],
-                                      "class": "text_space",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "b",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "i",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "n",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "g",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "display: inline; opacity: 0;",
-                                          "tag": "span",
-                                          "text": " ",
-                                        },
-                                      ],
-                                      "class": "text_space",
-                                      "tag": "span",
-                                    },
-                                    {
-                                      "children": [
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "p",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "r",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "v",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "i",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "w",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "e",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": "d",
-                                        },
-                                        {
-                                          "class": "text_letter",
-                                          "style": "opacity: 0;",
-                                          "tag": "span",
-                                          "text": ".",
-                                        },
-                                      ],
-                                      "class": "text_word",
-                                      "tag": "span",
-                                    },
-                                  ],
-                                  "class": "text_line",
-                                  "tag": "div",
-                                },
-                              ],
-                              "class": "text",
+                              "class": "title",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "dialogue",
+                          "class": "layout_title",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "action",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "heading",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "heading",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "action",
-                          "style": "display: none;",
+                          "class": "layout_heading",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "transitional",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "transitional",
+                              "style": "display: none;",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "class": "layout_choices",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                       ],
@@ -3237,7 +3295,7 @@ spark-web-player #game .textstream_end {
                   "tag": "div",
                 },
               ],
-              "class": "layout_textbox",
+              "class": "screen_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

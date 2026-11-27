@@ -813,6 +813,24 @@ spark-web-player #game .stage {
   display: flex;
   flex-direction: column;
 }
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -3386,6 +3404,24 @@ spark-web-player #game .stage {
   display: flex;
   flex-direction: column;
 }
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -5924,6 +5960,24 @@ spark-web-player #game .stage {
   z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
 }
 spark-web-player #game .layout_textbox {
   z-index: -1;
@@ -8582,6 +8636,24 @@ spark-web-player #game .stage {
   display: flex;
   flex-direction: column;
 }
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -11102,6 +11174,24 @@ spark-web-player #game .stage {
   display: flex;
   flex-direction: column;
 }
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -12780,6 +12870,250 @@ spark-web-player #game .textstream_end {
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+                {
+                  "children": [
+                    {
+                      "class": "textbox_background",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "attrs": {
+                                "data-display-target": "action",
+                                "text": "Apple",
+                              },
+                              "children": [
+                                {
+                                  "children": [
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "A",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "p",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "p",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "l",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                      ],
+                                      "class": "text_line",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "children": [
+                                    {
+                                      "children": [
+                                        {
+                                          "children": [
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "A",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "p",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "p",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "l",
+                                            },
+                                            {
+                                              "class": "text_letter",
+                                              "style": "opacity: 0;",
+                                              "tag": "span",
+                                              "text": "e",
+                                            },
+                                          ],
+                                          "class": "text_word",
+                                          "tag": "span",
+                                        },
+                                      ],
+                                      "class": "text_line",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "action",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "textbox_content",
+                      "tag": "div",
+                    },
+                    {
+                      "children": [
+                        {
+                          "children": [
+                            {
+                              "style": "display: inline;",
+                              "tag": "span",
+                              "text": "▼",
+                            },
+                          ],
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "continue_indicator",
+                      "style": "opacity: 1; animation-play-state: paused;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "textbox",
+                  "tag": "div",
+                },
+              ],
+              "class": "screen_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
           ],
           "class": "layouts",
           "style": "position: absolute; inset: 0px; font-size: 1em; opacity: 1;",
@@ -13605,6 +13939,24 @@ spark-web-player #game .stage {
   z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
 }
 spark-web-player #game .layout_textbox {
   z-index: -1;
@@ -16154,6 +16506,24 @@ spark-web-player #game .stage {
   display: flex;
   flex-direction: column;
 }
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -17923,8 +18293,50 @@ spark-web-player #game .textstream_end {
                         {
                           "children": [
                             {
+                              "children": [
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_name",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_parenthetical",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_parenthetical",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_info",
+                              "tag": "div",
+                            },
+                            {
                               "attrs": {
-                                "data-display-target": "character_name",
+                                "data-display-target": "dialogue",
                               },
                               "children": [
                                 {
@@ -17936,13 +18348,20 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_name",
+                              "class": "dialogue",
                               "style": "display: none;",
                               "tag": "div",
                             },
+                          ],
+                          "class": "layout_dialogue",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
                             {
                               "attrs": {
-                                "data-display-target": "character_parenthetical",
+                                "data-display-target": "action",
                               },
                               "children": [
                                 {
@@ -17954,102 +18373,93 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_parenthetical",
+                              "class": "action",
                               "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "character_info",
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "title",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "title",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "title",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "title",
-                          "style": "display: none;",
+                          "class": "layout_title",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "heading",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "heading",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "heading",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "heading",
-                          "style": "display: none;",
+                          "class": "layout_heading",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "transitional",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "transitional",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "transitional",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "transitional",
-                          "style": "display: none;",
+                          "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "dialogue",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "dialogue",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "action",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "action",
-                          "style": "display: none;",
+                          "class": "layout_choices",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                       ],
@@ -18078,7 +18488,7 @@ spark-web-player #game .textstream_end {
                   "tag": "div",
                 },
               ],
-              "class": "layout_textbox",
+              "class": "screen_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -18931,6 +19341,24 @@ spark-web-player #game .stage {
   z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
 }
 spark-web-player #game .layout_textbox {
   z-index: -1;
@@ -20701,8 +21129,50 @@ spark-web-player #game .textstream_end {
                         {
                           "children": [
                             {
+                              "children": [
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_name",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_parenthetical",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_parenthetical",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_info",
+                              "tag": "div",
+                            },
+                            {
                               "attrs": {
-                                "data-display-target": "character_name",
+                                "data-display-target": "dialogue",
                               },
                               "children": [
                                 {
@@ -20714,13 +21184,20 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_name",
+                              "class": "dialogue",
                               "style": "display: none;",
                               "tag": "div",
                             },
+                          ],
+                          "class": "layout_dialogue",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
                             {
                               "attrs": {
-                                "data-display-target": "character_parenthetical",
+                                "data-display-target": "action",
                               },
                               "children": [
                                 {
@@ -20732,102 +21209,93 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_parenthetical",
+                              "class": "action",
                               "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "character_info",
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "title",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "title",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "title",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "title",
-                          "style": "display: none;",
+                          "class": "layout_title",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "heading",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "heading",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "heading",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "heading",
-                          "style": "display: none;",
+                          "class": "layout_heading",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "transitional",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "transitional",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "transitional",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "transitional",
-                          "style": "display: none;",
+                          "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "dialogue",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "dialogue",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "action",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "action",
-                          "style": "display: none;",
+                          "class": "layout_choices",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                       ],
@@ -20856,7 +21324,7 @@ spark-web-player #game .textstream_end {
                   "tag": "div",
                 },
               ],
-              "class": "layout_textbox",
+              "class": "screen_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -21709,6 +22177,24 @@ spark-web-player #game .stage {
   z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
 }
 spark-web-player #game .layout_textbox {
   z-index: -1;
@@ -23479,8 +23965,50 @@ spark-web-player #game .textstream_end {
                         {
                           "children": [
                             {
+                              "children": [
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_name",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_parenthetical",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_parenthetical",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_info",
+                              "tag": "div",
+                            },
+                            {
                               "attrs": {
-                                "data-display-target": "character_name",
+                                "data-display-target": "dialogue",
                               },
                               "children": [
                                 {
@@ -23492,13 +24020,20 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_name",
+                              "class": "dialogue",
                               "style": "display: none;",
                               "tag": "div",
                             },
+                          ],
+                          "class": "layout_dialogue",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
                             {
                               "attrs": {
-                                "data-display-target": "character_parenthetical",
+                                "data-display-target": "action",
                               },
                               "children": [
                                 {
@@ -23510,102 +24045,93 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_parenthetical",
+                              "class": "action",
                               "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "character_info",
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "title",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "title",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "title",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "title",
-                          "style": "display: none;",
+                          "class": "layout_title",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "heading",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "heading",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "heading",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "heading",
-                          "style": "display: none;",
+                          "class": "layout_heading",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "transitional",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "transitional",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "transitional",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "transitional",
-                          "style": "display: none;",
+                          "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "dialogue",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "dialogue",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "action",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "action",
-                          "style": "display: none;",
+                          "class": "layout_choices",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                       ],
@@ -23634,7 +24160,7 @@ spark-web-player #game .textstream_end {
                   "tag": "div",
                 },
               ],
-              "class": "layout_textbox",
+              "class": "screen_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -24487,6 +25013,24 @@ spark-web-player #game .stage {
   z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
 }
 spark-web-player #game .layout_textbox {
   z-index: -1;
@@ -26257,8 +26801,50 @@ spark-web-player #game .textstream_end {
                         {
                           "children": [
                             {
+                              "children": [
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_name",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_parenthetical",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_parenthetical",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_info",
+                              "tag": "div",
+                            },
+                            {
                               "attrs": {
-                                "data-display-target": "character_name",
+                                "data-display-target": "dialogue",
                               },
                               "children": [
                                 {
@@ -26270,13 +26856,20 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_name",
+                              "class": "dialogue",
                               "style": "display: none;",
                               "tag": "div",
                             },
+                          ],
+                          "class": "layout_dialogue",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
                             {
                               "attrs": {
-                                "data-display-target": "character_parenthetical",
+                                "data-display-target": "action",
                               },
                               "children": [
                                 {
@@ -26288,102 +26881,93 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_parenthetical",
+                              "class": "action",
                               "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "character_info",
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "title",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "title",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "title",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "title",
-                          "style": "display: none;",
+                          "class": "layout_title",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "heading",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "heading",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "heading",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "heading",
-                          "style": "display: none;",
+                          "class": "layout_heading",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "transitional",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "transitional",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "transitional",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "transitional",
-                          "style": "display: none;",
+                          "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "dialogue",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "dialogue",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "action",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "action",
-                          "style": "display: none;",
+                          "class": "layout_choices",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                       ],
@@ -26412,7 +26996,7 @@ spark-web-player #game .textstream_end {
                   "tag": "div",
                 },
               ],
-              "class": "layout_textbox",
+              "class": "screen_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
@@ -27265,6 +27849,24 @@ spark-web-player #game .stage {
   z-index: -2;
   display: flex;
   flex-direction: column;
+}
+spark-web-player #game .screen_textbox {
+  z-index: -1;
+}
+spark-web-player #game .layout_dialogue {
+  position: static;
+}
+spark-web-player #game .layout_action {
+  position: static;
+}
+spark-web-player #game .layout_title {
+  position: static;
+}
+spark-web-player #game .layout_heading {
+  position: static;
+}
+spark-web-player #game .layout_transitional {
+  position: static;
 }
 spark-web-player #game .layout_textbox {
   z-index: -1;
@@ -29042,8 +29644,50 @@ spark-web-player #game .textstream_end {
                         {
                           "children": [
                             {
+                              "children": [
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_name",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                                {
+                                  "attrs": {
+                                    "data-display-target": "character_parenthetical",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_parenthetical",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "character_info",
+                              "tag": "div",
+                            },
+                            {
                               "attrs": {
-                                "data-display-target": "character_name",
+                                "data-display-target": "dialogue",
                               },
                               "children": [
                                 {
@@ -29055,13 +29699,20 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_name",
+                              "class": "dialogue",
                               "style": "display: none;",
                               "tag": "div",
                             },
+                          ],
+                          "class": "layout_dialogue",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "children": [
                             {
                               "attrs": {
-                                "data-display-target": "character_parenthetical",
+                                "data-display-target": "action",
                               },
                               "children": [
                                 {
@@ -29073,102 +29724,93 @@ spark-web-player #game .textstream_end {
                                   "tag": "div",
                                 },
                               ],
-                              "class": "character_parenthetical",
+                              "class": "action",
                               "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "character_info",
+                          "class": "layout_action",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "title",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "title",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "title",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "title",
-                          "style": "display: none;",
+                          "class": "layout_title",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "heading",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "heading",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "heading",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "heading",
-                          "style": "display: none;",
+                          "class": "layout_heading",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "transitional",
-                          },
                           "children": [
                             {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
+                              "attrs": {
+                                "data-display-target": "transitional",
+                              },
+                              "children": [
+                                {
+                                  "class": "stroke",
+                                  "tag": "div",
+                                },
+                                {
+                                  "class": "text",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "transitional",
+                              "style": "display: none;",
                               "tag": "div",
                             },
                           ],
-                          "class": "transitional",
-                          "style": "display: none;",
+                          "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                         {
-                          "attrs": {
-                            "data-display-target": "dialogue",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "dialogue",
-                          "style": "display: none;",
-                          "tag": "div",
-                        },
-                        {
-                          "attrs": {
-                            "data-display-target": "action",
-                          },
-                          "children": [
-                            {
-                              "class": "stroke",
-                              "tag": "div",
-                            },
-                            {
-                              "class": "text",
-                              "tag": "div",
-                            },
-                          ],
-                          "class": "action",
-                          "style": "display: none;",
+                          "class": "layout_choices",
+                          "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
                       ],
@@ -29197,7 +29839,7 @@ spark-web-player #game .textstream_end {
                   "tag": "div",
                 },
               ],
-              "class": "layout_textbox",
+              "class": "screen_textbox",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },

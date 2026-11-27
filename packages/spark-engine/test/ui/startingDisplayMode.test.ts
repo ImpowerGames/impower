@@ -94,13 +94,15 @@ function play(source: string, startingDisplayMode?: StartingDisplayMode) {
   const text = () => (game.story.currentText ?? "").trim();
   const page = () => game.module.ui.page.entries as PageEntry[];
   const open = () => game.module.ui.openedLayoutsAfter([]);
+  const textbox = () =>
+    game.module.ui.screensClosedAfter([]).includes("textbox") ? "closed" : "open";
   const tapTo = (shown: string) => {
     for (let i = 0; i < 12 && text() !== shown; i += 1) {
       game.clickedToContinue();
     }
     expect(text()).toBe(shown);
   };
-  return { game, text, page, open, tapTo };
+  return { game, text, page, open, textbox, tapTo };
 }
 
 const words = (entry: PageEntry | undefined) =>
@@ -129,7 +131,8 @@ describe("the starting display mode chooses the text layout a game opens with (#
   test("a game started in Visual Novel opens textbox, as the story configures", () => {
     const h = play(`${WITH_HUD}\n${HUD}\n${STORY}`);
     h.game.start();
-    expect(h.open()).toEqual(["main", "textbox", "hud"]);
+    expect(h.open()).toEqual(["main", "hud"]);
+    expect(h.textbox()).toBe("open");
     expect(h.page()).toEqual([]);
   });
 
@@ -137,6 +140,7 @@ describe("the starting display mode chooses the text layout a game opens with (#
     const h = play(`${WITH_HUD}\n${HUD}\n${STORY}`, "textstream");
     h.game.start();
     expect(h.open()).toEqual(["main", "textstream", "hud"]);
+    expect(h.textbox()).toBe("closed");
     h.tapTo("Did you hear that?");
     expect(h.page().map(words)).toEqual([
       "The train rattles on.",
@@ -147,9 +151,10 @@ describe("the starting display mode chooses the text layout a game opens with (#
   test("in Visual Novel, a script that opens textstream still switches to the page", () => {
     const h = play(OPENS_PAGE);
     h.game.start();
-    expect(h.open()).toEqual(["main", "textbox"]);
+    expect(h.open()).toEqual(["main"]);
+    expect(h.textbox()).toBe("open");
     h.tapTo("Now it reads as a page.");
-    expect(h.open()).toContain("textstream");
+    expect(h.open()).toEqual(["main", "textstream"]);
     expect(h.page().map(words)).toEqual(["Now it reads as a page."]);
   });
 
@@ -161,6 +166,7 @@ describe("the starting display mode chooses the text layout a game opens with (#
 
     h.game.setStartingDisplayMode("textstream");
     expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.textbox()).toBe("closed");
     expect(h.text()).toBe("Did you hear that?");
     expect(h.game.checkpoints.length).toBe(checkpoints);
     expect(h.page().map(words)).toEqual(["Did you hear that?"]);
@@ -172,7 +178,8 @@ describe("the starting display mode chooses the text layout a game opens with (#
     ]);
 
     h.game.setStartingDisplayMode("textbox");
-    expect(h.open()).toEqual(["main", "textbox"]);
+    expect(h.open()).toEqual(["main", "dialogue"]);
+    expect(h.textbox()).toBe("open");
     expect(h.text()).toBe("Something is wrong.");
     h.game.clickedToContinue();
     (h.game as any)._coordinator?.onUpdate({ deltaMS: 0 } as Clock);
@@ -198,7 +205,8 @@ describe("the starting display mode chooses the text layout a game opens with (#
     h.tapTo("Something is wrong.");
     const again = await h.game.rollBack("beat");
     expect(again.moved).toBe(true);
-    expect(h.open()).toEqual(["main", "textbox"]);
+    expect(h.open()).toEqual(["main", "dialogue"]);
+    expect(h.textbox()).toBe("open");
   });
 
   test("returning to Interactive Fiction after Visual Novel beats keeps every page entry", () => {
@@ -230,14 +238,17 @@ describe("the starting display mode chooses the text layout a game opens with (#
     const h = play(OPENS_PAGE);
     h.game.start();
     h.tapTo("Now it reads as a page.");
-    expect(h.open()).toEqual(["main", "textbox", "textstream"]);
+    expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.textbox()).toBe("open");
 
     h.game.setStartingDisplayMode("textstream");
     expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.textbox()).toBe("closed");
     expect(h.text()).toBe("Now it reads as a page.");
 
     h.game.setStartingDisplayMode("textbox");
-    expect(h.open()).toEqual(["main", "textbox"]);
+    expect(h.open()).toEqual(["main", "action"]);
+    expect(h.textbox()).toBe("open");
     expect(h.text()).toBe("Now it reads as a page.");
   });
 
@@ -343,10 +354,13 @@ describe("the starting display mode chooses the text layout a game opens with (#
     h.game.start();
     h.tapTo("Did you hear that?");
     expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.textbox()).toBe("closed");
     h.game.setStartingDisplayMode("textbox");
-    expect(h.open()).toEqual(["main", "textstream", "textbox"]);
+    expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.textbox()).toBe("open");
     h.game.setStartingDisplayMode("textstream");
     expect(h.open()).toEqual(["main", "textstream"]);
+    expect(h.textbox()).toBe("closed");
   });
 
   test("Skip back in Visual Novel keeps the page a script opened", async () => {

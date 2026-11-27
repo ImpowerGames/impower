@@ -69,6 +69,8 @@ const createGame = (previewing?: boolean) => {
     streams: { shown: () => {}, record: () => {}, show: () => {} },
     casts: { shown: () => {}, record: () => {}, show: () => {} },
     openedLayoutsAfter: () => ["main", "textbox"],
+    isScreen: () => false,
+    screensClosedAfter: () => [],
     layoutHolds: () => true,
     setMotion: () => {},
     beginLine: () => undefined,

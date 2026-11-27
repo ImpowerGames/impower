@@ -1927,6 +1927,23 @@ export class MorphLayer {
     return [...view.files.rasters.values()].every((raster) => !raster.busy);
   }
 
+  renew(epoch: number) {
+    if (this.content.epoch === epoch || !this.active) return;
+    this.content = { ...this.content, epoch };
+    for (const image of this.images) {
+      const keyed = [
+        ...image.plays.map((entry) => ({ entry, at: image.layer as number | string })),
+        ...image.inner.flatMap((inner) => inner.plays.map((entry) => ({ entry, at: `${image.layer}/${inner.file}` }))),
+      ];
+      for (const { entry, at } of keyed) {
+        if (!entry.occurrence) continue;
+        this.playback.letGo(entry.occurrence);
+        entry.occurrence = this.playback.occurrenceFor(this.occurrenceKey(entry.play, at), entry.play.timing, entry.play.owner);
+      }
+    }
+    this.render();
+  }
+
   protected occurrenceKey(play: MorphPlay, at: number | string): string {
     return [this.base, at, play.owner ?? getImageThing(play.ref.image), play.morph, play.definition, this.content.epoch].join("|");
   }

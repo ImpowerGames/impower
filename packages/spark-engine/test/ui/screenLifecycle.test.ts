@@ -176,7 +176,7 @@ end
     const ev = Object.values(beat!.layout ?? {})[0]?.[0] as any;
     expect(ev?.control).toBe("open");
     expect(ev?.name).toBe("hud");
-    expect(ev?.with).toBe("fade");
+    expect(ev?.with).toEqual([{ name: "fade", over: 1 }]);
     expect(ev?.over).toBe(1);
     expect(ev?.wait).toBe(true);
   });
@@ -431,6 +431,7 @@ describe("screen scrub/restore (reactive screens survive checkpoint restore)", (
     expect(g1.module.ui._reactive).toBe(false);
     expect(g1.module.ui._state.layout).toEqual([
       { name: "hud", screen: "overlay" },
+      { name: "action", screen: "textbox", auto: true },
       { name: "settings", screen: "menu" },
     ]);
     const cp = g1.save();

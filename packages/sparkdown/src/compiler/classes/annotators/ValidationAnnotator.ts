@@ -51,6 +51,7 @@ import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_FLAG_WORDS,
   DIRECTIVE_NODE_BRACKETS,
+  DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
   directiveClauseWords,
   directiveValueKind,
   readSourceDirective,
@@ -287,6 +288,18 @@ const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
   "LuauSparklePropParenAttribute",
   "StringFieldValueInterpolated",
   "LuauElementContentStringInterpolated",
+]);
+
+const LUAU_SPARKLE_PROP_ATTRIBUTES = nodeNameSet([
+  "LuauSparklePropAttribute",
+  "LuauSparklePropClosureAttribute",
+  "LuauSparklePropParenAttribute",
+]);
+const PROP_ATTRIBUTE_NAME = nodeNameSet(["StyleAttributeName"]);
+const BOUND_PROP_VALUE = nodeNameSet([
+  "LuauSparklePropClosure",
+  "LuauInterpolatedStringExpression",
+  "LuauFunctionCallShorthand",
 ]);
 
 function isInlineConditional(node: any): boolean {
@@ -688,6 +701,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           word.from,
           word.to,
         );
+      }
+    }
+    if (!DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(kind)) {
+      const example =
+        kind === "load"
+          ? ["A `load` line", "[[load chapter2 with fade]]"]
+          : kind === "cutscene"
+            ? ["A `play` line", "[[play intro with fade]]"]
+            : ["A sound line", "((play music theme with echo))"];
+      for (const { word } of directive.clauses.filter((clause) => clause.word.text === "with").slice(1)) {
+        issue(`${example[0]} takes one \`with\`\n> e.g. \`${example[1]}\``, word.from, word.to, "error");
       }
     }
     directive.clauses.forEach((clause, index) => {
@@ -1701,6 +1725,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
+      }
+    }
+    if (LUAU_SPARKLE_PROP_ATTRIBUTES.has(nodeRef.name)) {
+      const nameNode = firstDescendant(nodeRef.node, PROP_ATTRIBUTE_NAME);
+      const bound = firstDescendant(nodeRef.node, BOUND_PROP_VALUE);
+      if (
+        nameNode &&
+        bound &&
+        this.read(nameNode.from, nameNode.to).trim().replace(/^#/, "") === "clear"
+      ) {
+        this.error(
+          annotations,
+          "`#clear` takes no bound value; the mark is read once when the layout is built, so this element is never emptied after its line. Write `#clear` bare, or `#clear=true` or `#clear=false`.",
+          nodeRef.from,
+          nodeRef.to,
+        );
       }
     }
     if (

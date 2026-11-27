@@ -17,6 +17,7 @@ import { StagePresenter } from "./presenters/StagePresenter";
 import {
   openInitialLayouts,
   presentsText,
+  routeLine,
   textLayoutOpenAfter,
   UNSHOWN_TEXT_MESSAGE,
 } from "./presenters/textLayouts";
@@ -88,6 +89,8 @@ export class Coordinator<G extends Game> {
   protected _presenters: Presenter[] = [];
 
   protected _displayed = false;
+
+  protected _routed = false;
 
   protected _chosen = false;
 
@@ -399,7 +402,6 @@ export class Coordinator<G extends Game> {
   }): ((deltaMS: number) => void) | undefined {
     this._recheckReadiness = undefined;
     const game = this._game;
-    const instructions = this._instructions;
 
     const instant = options?.instant;
     const previewing = options?.preview;
@@ -410,6 +412,12 @@ export class Coordinator<G extends Game> {
       game,
       Boolean(instant) || Boolean(game.context.system.simulating),
     );
+
+    if (!this._routed) {
+      this._routed = true;
+      this._instructions = routeLine(game, this._instructions);
+    }
+    const instructions = this._instructions;
 
     if (!this._displayed) {
       game.module.ui.page.shown(pageKey(instructions));

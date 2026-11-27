@@ -38,7 +38,7 @@ const harness = async () => {
     ).map((el) => el.textContent?.trim() ?? "");
   const box = () =>
     Array.from(
-      h.overlay.querySelectorAll<HTMLElement>(".layout_textbox .text_letter"),
+      h.overlay.querySelectorAll<HTMLElement>(".screen_textbox .text_letter"),
     )
       .map((l) => l.textContent)
       .join("");

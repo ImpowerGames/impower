@@ -33,7 +33,7 @@ const HUD = `layout hud {
 `;
 
 describe("a layout and an element with the same name", () => {
-  test("the built-in textbox layout is kept apart from its textbox element", async () => {
+  test("the built-in textbox screen is kept apart from its textbox element", async () => {
     const h = createDOMHarness(`scene start\n  Hello there.\nend\n`, 1, {
       reactive: true,
       autoOpenAll: false,
@@ -45,7 +45,7 @@ describe("a layout and an element with the same name", () => {
     const roots = rootsOf(h);
     expect(roots.map((el) => el.className)).toEqual([
       "main",
-      "layout_textbox",
+      "screen_textbox",
     ]);
     const named = [...h.overlay.querySelectorAll<HTMLElement>(".textbox")];
     expect(named).toHaveLength(1);

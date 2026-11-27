@@ -65,16 +65,40 @@ export const getEffectTiming = (timing: AnimationTiming): EffectTiming => {
   return convertedTiming;
 };
 
+const MOVEMENT = new Set(["transform", "translate", "rotate", "scale"]);
+
+const KEYFRAME_TIMING = new Set(["offset", "easing", "composite"]);
+
+const keyframesWith = (
+  keyframes: Keyframe[],
+  keep: (prop: string) => boolean,
+): Keyframe[] =>
+  keyframes.map((keyframe) =>
+    Object.fromEntries(
+      Object.entries(keyframe).filter(
+        ([prop]) => KEYFRAME_TIMING.has(prop) || keep(prop),
+      ),
+    ),
+  );
+
+const setsProperties = (keyframes: Keyframe[]): boolean =>
+  keyframes.some((keyframe) =>
+    Object.keys(keyframe).some((prop) => !KEYFRAME_TIMING.has(prop)),
+  );
+
 export default class AnimationPlayer {
   protected _instances: AnimationInstance[] = [];
+
+  protected _moved: Map<Element, Set<string>>;
 
   protected _theme: ThemeVariables;
 
   protected _hold?: AnimationHold;
 
-  constructor(theme: ThemeVariables, hold?: AnimationHold) {
+  constructor(theme: ThemeVariables, hold?: AnimationHold, together?: AnimationPlayer) {
     this._theme = theme;
     this._hold = hold;
+    this._moved = together?._moved ?? new Map();
   }
 
   add(effect: AnimationEffect): Animation[] {
@@ -106,20 +130,60 @@ export default class AnimationPlayer {
           }
         });
         created.push(
-          this.addKeyframes(element, convertedKeyframes, animation.timing),
+          ...this.addCombined(element, convertedKeyframes, animation.timing),
         );
       });
     }
     return created;
   }
 
+  protected addCombined(
+    element: Element,
+    keyframes: Keyframe[],
+    timing: AnimationTiming,
+  ): Animation[] {
+    const moved = this._moved.get(element) ?? new Set<string>();
+    this._moved.set(element, moved);
+    const adding = new Set(
+      keyframes.flatMap((keyframe) =>
+        Object.keys(keyframe).filter((prop) => moved.has(prop)),
+      ),
+    );
+    for (const keyframe of keyframes) {
+      for (const prop of Object.keys(keyframe)) {
+        if (MOVEMENT.has(prop)) {
+          moved.add(prop);
+        }
+      }
+    }
+    if (adding.size === 0) {
+      return [this.addKeyframes(element, keyframes, timing)];
+    }
+    const replaced = keyframesWith(keyframes, (prop) => !adding.has(prop));
+    return [
+      ...(setsProperties(replaced)
+        ? [this.addKeyframes(element, replaced, timing)]
+        : []),
+      this.addKeyframes(
+        element,
+        keyframesWith(keyframes, (prop) => adding.has(prop)),
+        timing,
+        "add",
+      ),
+    ];
+  }
+
   addKeyframes(
     element: Element,
     keyframes: Keyframe[],
     timing: AnimationTiming,
+    composite?: CompositeOperation,
   ): Animation {
     const instance = new Animation(
-      new KeyframeEffect(element, keyframes, getEffectTiming(timing)),
+      new KeyframeEffect(element, keyframes, {
+        ...getEffectTiming(timing),
+        ...(composite ? { composite } : {}),
+      }),
     );
     this._instances.push({ element, animation: instance });
     return instance;

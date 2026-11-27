@@ -21,6 +21,7 @@ import {
 import { Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { LayoutVerb } from "../../../../language/sparkdown.layout-verbs";
+import { layoutDirectiveTargetTypes } from "../../utils/layoutDirectiveTargets";
 import type { SparkDeclaration } from "../../types/SparkDeclaration";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { SparkSelector } from "../../types/SparkSelector";
@@ -29,7 +30,9 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { isLuauName } from "../../utils/luauName";
 import {
+  DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
   DIRECTIVE_NODE_BRACKETS,
+  directiveOwners,
   directiveValueKind,
   readSourceDirective,
   type DirectiveWord,
@@ -222,8 +225,11 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           ...extra,
         }).range(word.from, word.to),
       );
+    const owned = DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(directive.kind)
+      ? directive.clauses
+      : directiveOwners(directive.kind, directive.clauses).line;
     const valueOf = (keyword: string) =>
-      directive.clauses.filter((clause) => clause.word.text === keyword && clause.value && directiveValueKind(clause.value.text) === "name").map((clause) => clause.value!);
+      owned.filter((clause) => clause.word.text === keyword && clause.value && directiveValueKind(clause.value.text) === "name").map((clause) => clause.value!);
     const { kind, target, names } = directive;
     if (directive.bracket === "audio") {
       if (target) shown(target, ["channel"]);
@@ -235,10 +241,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     const control = directive.control?.text;
     if (kind === "layout" && control === LayoutVerb.navigate) {
-      if (target) shown(target, ["screen"], "screen");
+      if (target) shown(target, [...layoutDirectiveTargetTypes(control)], "screen");
       if (directive.destination && directiveValueKind(directive.destination.text) === "name") shown(directive.destination, ["layout"], "layout");
     } else if (kind === "layout") {
-      if (target) shown(target, ["layout"], "layout");
+      if (target) shown(target, [...layoutDirectiveTargetTypes(control ?? "")], "layout");
     } else if (kind === "load") {
       if (target) references.push(this.loadTargetReference(target.text, target));
     } else if (kind === "cutscene") {

@@ -179,7 +179,7 @@ const sound = { sound: [{ control: "play", assets: ["beep"] }] };
 const dialogueLine = {
   text: { dialogue: typed("Hi there.") },
   audio: sound,
-  image: { portrait: [{ control: "animate", with: "shake" }] },
+  image: { portrait: [{ control: "animate", with: [{ name: "shake" }] }] },
 };
 
 describe("a line that makes an element arrive (#2739)", () => {
@@ -629,7 +629,15 @@ style bubble {
       beforeConnect: playing,
     });
     await h.ready;
-    const first = await play(h, said("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    const first = await play(
+      h,
+      said("slight problem", {
+        layout: {
+          phone: [{ control: "open", name: "phone" }],
+          dialogue: [{ control: "open", name: "dialogue" }],
+        },
+      }),
+    );
     h.releasePresence();
     await flushMicrotasks(40);
     await tick(first, 1);

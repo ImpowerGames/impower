@@ -254,6 +254,20 @@ layout main {
 
 A single `portrait` slot holds one picture, so two characters on screen at once need a slot each, and a character who moves from one slot to the other leaves one and appears in the other. Put the slot in a `cast` to keep one picture for each character and move it (see [A cast keeps one entry per character](./Streams.md#a-cast-keeps-one-entry-per-character)).
 
+## Bringing a portrait in and out
+
+A portrait line takes any number of `with` clauses, and they all play together. A `with` names a transition, such as `fade`, or an animation, such as `shake`:
+
+```sparkdown
+scene start
+  [[mia:happy with fade over 0.5s with shake over 2s]]
+  [[show portrait mia:sad with fade]]
+  [[hide portrait with fade over 1s with spin over 1s once]]
+end
+```
+
+The first line fades the happy face in over half a second while it shakes for two seconds; the portrait it replaces fades out and shakes too. The last line fades the portrait out while it makes one turn, and the portrait is removed when the longer of the two has ended. Each `with` takes its own `over`, `after`, `ease`, `loop` and `once`, as [several animations at once](./AnimationTheme.md#several-animations-at-once) describes.
+
 ## Choosing an expression
 
 The quickest way to choose between expressions is to look at them in the scene. With the Game Preview open and stopped, type the portrait's name and a colon, then move through the suggestions with the arrow keys: the preview shows the scene with each highlighted option in place, full size, with the character's other options and the order you wrote them in kept as they are. Highlighting `sad` while completing `[[mia:hat:|]]` shows exactly what `[[mia:hat:sad]]` would show.

@@ -73,7 +73,7 @@ const show = (
         imageNames: name,
         srcs,
         pictures: [picture(name, srcs, options.vector ?? true)],
-        ...(options.enter ? { enterAnimation: options.enter } : {}),
+        ...(options.enter ? { enterAnimations: [options.enter] } : {}),
       },
     },
   ],

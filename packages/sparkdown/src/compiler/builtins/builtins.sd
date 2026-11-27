@@ -1698,6 +1698,30 @@ style stage {
   flex_direction = column
 }
 
+style screen_textbox {
+  z_index = -1
+}
+
+style layout_dialogue {
+  position = static
+}
+
+style layout_action {
+  position = static
+}
+
+style layout_title {
+  position = static
+}
+
+style layout_heading {
+  position = static
+}
+
+style layout_transitional {
+  position = static
+}
+
 style layout_textbox {
   z_index = -1
 }
@@ -3915,7 +3939,7 @@ layout main {
   }
 }
 
-layout textbox {
+screen textbox {
   choices {
     choice.0 #clear {
       text
@@ -3939,41 +3963,60 @@ layout textbox {
   textbox {
     textbox_background
     textbox_content {
-      character_info {
-        character_name #clear {
-          stroke
-          text
-        }
-        character_parenthetical #clear {
-          stroke
-          text
-        }
-      }
-      title #clear {
-        stroke
-        text
-      }
-      heading #clear {
-        stroke
-        text
-      }
-      transitional #clear {
-        stroke
-        text
-      }
-      dialogue #clear {
-        stroke
-        text
-      }
-      action #clear {
-        stroke
-        text
-      }
+      slot
     }
     continue_indicator {
       text = ▼
     }
   }
+}
+
+layout dialogue in textbox {
+  character_info {
+    character_name #clear {
+      stroke
+      text
+    }
+    character_parenthetical #clear {
+      stroke
+      text
+    }
+  }
+  dialogue #clear {
+    stroke
+    text
+  }
+}
+
+layout action in textbox {
+  action #clear {
+    stroke
+    text
+  }
+}
+
+layout title in textbox {
+  title #clear {
+    stroke
+    text
+  }
+}
+
+layout heading in textbox {
+  heading #clear {
+    stroke
+    text
+  }
+}
+
+layout transitional in textbox {
+  transitional #clear {
+    stroke
+    text
+  }
+}
+
+layout choices in textbox {
 }
 
 layout textstream {

@@ -561,6 +561,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       if (isInStructBlockKey(nodeRef.node)) return annotations;
       if (nodeRef.name === "OptionalWhitespace" && inEventValueTop(nodeRef.node)) return annotations;
       if (
+        nodeRef.name === "OptionalWhitespace" &&
+        this.read(nodeRef.from - 1, nodeRef.from) === "@" &&
+        (ancestorNamed(nodeRef.node, "InlineWrite") ||
+          ancestorNamed(nodeRef.node, "BlockWrite"))
+      )
+        return annotations;
+      if (
         this.read(nodeRef.from - 1, nodeRef.from) === ":" &&
         precedesLeadingGlue(nodeRef.node)
       ) {

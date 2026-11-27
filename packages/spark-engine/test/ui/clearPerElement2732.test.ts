@@ -59,6 +59,13 @@ const outsideBanner = (id: string) => !id.includes("-banner-");
 
 describe("#clear empties the element it is written on, not others of its name (I-2732)", () => {
   const BANNER = `
+layout textbox {
+  textbox {
+    title #clear { text }
+    action #clear { text }
+  }
+}
+
 layout banner {
   banner { title { text } }
 }
@@ -70,7 +77,7 @@ scene start
 end
 `;
 
-  test("the banner: an unmarked title beside the built-in textbox's #clear title keeps its text through the next line", async () => {
+  test("the banner: an unmarked title beside the textbox's #clear title keeps its text through the next line", async () => {
     const { h, ui, beats } = await play(BANNER);
     const marked = idOf(ui, "title", outsideBanner);
     const banner = idOf(ui, "title", inBanner);
@@ -127,6 +134,13 @@ end
 
   test("two #clear elements of one name in two layouts both empty at the next line, and a restore puts back neither", async () => {
     const { h, ui, beats } = await play(`
+layout textbox {
+  textbox {
+    title #clear { text }
+    action #clear { text }
+  }
+}
+
 layout banner {
   banner { title #clear { text } }
 }
@@ -349,10 +363,11 @@ ${SCENE}`;
     const h = createHarness(PREFIX + layout(""));
     await h.ready;
     const ui: any = h.game.module.ui;
-    expect(ui.getTransientTargets()).not.toContain("title");
+    const ownMarks = () => ui.markedPaths("title").filter((path: string) => path.startsWith("layout:textbox@"));
+    expect(ownMarks()).toEqual([]);
     const { program, errors } = compileUI(PREFIX + layout(" #clear"));
     expect(errors).toEqual([]);
     h.game.updateProgram(program as never);
-    expect(ui.getTransientTargets()).toContain("title");
+    expect(ownMarks()).toHaveLength(1);
   });
 });

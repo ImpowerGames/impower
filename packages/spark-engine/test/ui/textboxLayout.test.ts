@@ -151,6 +151,11 @@ const FANCY_TEXTBOX = `style textbox {
 }
 `;
 
+const ACTION_FIRST = `define ui as config with
+  layouts_initial = { "textbox", "action" }
+end
+`;
+
 describe("the textbox layout and ui.layouts_initial", () => {
   test("an [[open textbox]] in a played beat shows that beat's own line", async () => {
     const h = createHarness(
@@ -221,7 +226,7 @@ end
     await release();
     await h.ready;
     await playLive(h, release);
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "action"]);
     expect(shown(h, "action")).toBe("First line.");
   });
 
@@ -242,7 +247,7 @@ end
     await release();
     await h.ready;
     await playLive(h, release);
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "action"]);
     expect(shown(h, "action")).toBe("First line.");
     const slots = h.game.module.ui.findIds("choice");
     expect(slots).toHaveLength(6);
@@ -273,7 +278,7 @@ end
       await flushMicrotasks(20);
     }
     await previewing;
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "action"]);
     expect(shown(h, "action")).toBe("First line.");
     const slots = h.game.module.ui.findIds("choice");
     expect(slots).toHaveLength(6);
@@ -294,7 +299,7 @@ end
     await h.ready;
     h.jumpToFlow("start");
     await displayLive(h, h.nextBeat()!);
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "action"]);
     expect(h.game.module.ui.findIds("choice").map((id) => displayOf(h, id))).toEqual(
       Array(6).fill("none"),
     );
@@ -385,7 +390,7 @@ end
     await release();
     await h.ready;
     await playLive(h, release);
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "choices"]);
     expect(h.observedElementIds().length).toBeGreaterThanOrEqual(2);
   });
 
@@ -466,7 +471,7 @@ end
     const ui = h.game.module.ui;
     await displayLive(h, {
       end: 0,
-      layout: { textbox: [{ control: "open", name: "textbox" }] },
+      layout: { action: [{ control: "open", name: "action" }] },
     });
     expect(ui.findIds("action")).toHaveLength(2);
     h.reset();
@@ -474,9 +479,9 @@ end
       end: 0,
       text: { action: [{ text: "After replacement." }] },
       layout: {
-        textbox: [
-          { control: "close", name: "textbox" },
-          { control: "open", name: "textbox" },
+        action: [
+          { control: "close", name: "action" },
+          { control: "open", name: "action" },
         ],
       },
     });
@@ -503,6 +508,7 @@ end
   test("a font cancelled by a navigate does not hold back the destination's line", async () => {
     const h = createHarness(
       `${FANCY_TEXTBOX}
+${ACTION_FIRST}
 layout panel {
   action #clear {
     text
@@ -581,6 +587,7 @@ end
   test("a navigate cancels an initial textbox still waiting for its font", async () => {
     const h = createHarness(
       `${FANCY_TEXTBOX}
+${ACTION_FIRST}
 layout panel {
   label {
     text "Menu"
@@ -633,7 +640,7 @@ end
     await h.ready;
     const ui = h.game.module.ui;
     const opening = ui.applyLayoutInstructions(
-      [{ control: "open", name: "textbox" }],
+      [{ control: "open", name: "choices" }],
       true,
     );
     await flushMicrotasks(20);
@@ -655,10 +662,14 @@ end
 
   test("a navigate that closes the only text layout reports the unshown text", async () => {
     const h = createHarness(
-      `screen menu {
+      `define ui as config with
+  layouts_initial = { "page" }
+end
+
+screen menu {
 }
 
-layout textbox in menu {
+layout page in menu {
   action #clear {
     text
   }
@@ -731,7 +742,7 @@ end
       `scene start\n  Hello there.\nend\n`,
       1,
     );
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "action"]);
     expect(shown(h, "action")).toBe("Hello there.");
     expect(unshown()).toBe(0);
   });
@@ -762,7 +773,7 @@ end
     expect(closed.unshown()).toBe(1);
 
     const reopened = await previewAt(source, 5);
-    expect(mounted(reopened.h)).toEqual(["main", "textbox"]);
+    expect(mounted(reopened.h)).toEqual(["main", "action"]);
     expect(shown(reopened.h, "action")).toBe("Shown.");
   });
 
@@ -772,7 +783,7 @@ end
       source,
       lineOf(source, "Hi there."),
     );
-    expect(initialLayouts(h.game)).toEqual(["main"]);
+    expect(initialLayouts(h.game)).toEqual(["main", "textbox"]);
     expect(mounted(h)).toEqual(["main"]);
     expect(shown(h, "character_name")).toBe("HERO");
     expect(shown(h, "dialogue")).toBe("Hi there.");
@@ -801,10 +812,10 @@ end
 `;
     const { h } = await previewAt(source, lineOf(source, "Hello."));
     expect(initialLayouts(h.game)).toEqual(["main", "textbox", "inventory"]);
-    expect(mounted(h)).toEqual(["main", "textbox", "inventory"]);
+    expect(mounted(h)).toEqual(["main", "inventory", "action"]);
   });
 
-  test("an overlay in layouts_initial opens beside a project's own main while the built-in textbox is skipped", async () => {
+  test("an overlay in layouts_initial opens beside a project's own main, and no built-in box opens", async () => {
     const source = `define ui as config with
   layouts_initial = { "textbox", "inventory" }
 end
@@ -821,15 +832,15 @@ scene start
 end
 `;
     const { h } = await previewAt(source, lineOf(source, "HERO: Hello."));
-    expect(initialLayouts(h.game)).toEqual(["main", "inventory"]);
+    expect(initialLayouts(h.game)).toEqual(["main", "textbox", "inventory"]);
     expect(mounted(h)).toEqual(["main", "inventory"]);
     expect(shown(h, "dialogue")).toBe("Hello.");
   });
 
-  test("an explicit [[open textbox]] still opens the built-in layout beside a project's own main", async () => {
-    const source = `${OWN_MAIN}\nscene start\n  HERO: Hi.\n  [[open textbox]]\n  HERO: Again.\nend\n`;
+  test("an explicit [[open dialogue]] still opens the built-in box beside a project's own main", async () => {
+    const source = `${OWN_MAIN}\nscene start\n  HERO: Hi.\n  [[open dialogue]]\n  HERO: Again.\nend\n`;
     const { h } = await previewAt(source, lineOf(source, "Again."));
-    expect(mounted(h)).toEqual(["main", "textbox"]);
+    expect(mounted(h)).toEqual(["main", "dialogue"]);
   });
 
   test("restoring a checkpoint taken after [[close textbox]] leaves it closed", async () => {

@@ -121,10 +121,17 @@ describe("the player draws a stream's entries (#2738)", () => {
   });
 
   test("a template named exactly like the box's element keeps every entry's text while the box changes line", async () => {
-    const h = createDOMHarness(STORY.replace("dialogue.bubble { text }", "dialogue { text }"), 0, {
-      reactive: true,
-      autoOpenAll: false,
-    });
+    const h = createDOMHarness(
+      STORY.replace("dialogue.bubble { text }", "dialogue { text }").replace(
+        "[[open phone]]",
+        "[[open phone]] [[open dialogue]]",
+      ),
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+      },
+    );
     await h.ready;
     h.jumpTo("start");
     await showNext(h);
@@ -216,8 +223,25 @@ end
     expect(entries().map((el) => el.hasAttribute("data-latest"))).toEqual([false, true]);
   });
 
-  test("with the textbox and a stream both open, a line shows in both", async () => {
+  test("a line goes to the open stream that holds its kind, and no box opens beside it", async () => {
     const h = createDOMHarness(STORY, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await showNext(h);
+    await showNext(h);
+    const box = [...h.overlay.querySelectorAll<HTMLElement>(".dialogue")].filter(
+      (el) => !el.closest(".stream"),
+    );
+    expect(box).toEqual([]);
+    expect(h.overlay.querySelector(".textbox")).toBeNull();
+    expect(entriesOf(h).map(textOf)).toEqual(["slight problem", "doors locked"]);
+  });
+
+  test("a line goes to both the stream and a box the author opened, since both hold its kind", async () => {
+    const h = createDOMHarness(STORY.replace("[[open phone]]", "[[open phone]] [[open dialogue]]"), 0, {
+      reactive: true,
+      autoOpenAll: false,
+    });
     await h.ready;
     h.jumpTo("start");
     await showNext(h);
