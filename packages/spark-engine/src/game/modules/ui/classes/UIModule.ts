@@ -31,7 +31,6 @@ import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/
 import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
-import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
 import { pageKey } from "../../../core/utils/pageKey";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
@@ -452,6 +451,12 @@ export interface LineText extends LineLabels {
   text: TextState[];
 }
 
+export interface OpenLayout {
+  name: string;
+  screen?: string;
+  auto?: true;
+}
+
 export interface UIState {
   text?: Record<string, TextState[]>;
   lineText?: Record<string, LineText[]>;
@@ -463,7 +468,8 @@ export interface UIState {
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
-  layout?: { name: string; screen?: string }[];
+  layout?: OpenLayout[];
+  screensClosed?: string[];
   displayMode?: StartingDisplayMode;
   page?: PageState;
   streams?: Record<string, StreamState>;
@@ -586,6 +592,14 @@ interface ScreenFrame {
 const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
 
 const CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "stroke", "image", "mask"]);
+
+const isEmptyContent = (node: BodyNode): boolean =>
+  node.kind === "element" &&
+  CONTENT_TAGS.has(node.tag) &&
+  !node.content?.length &&
+  !node.params?.length &&
+  !node.children.length &&
+  Object.keys(node.props).length === 0;
 
 const isStruct = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -774,6 +788,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _clearOnContinue: Set<string> = new Set();
 
   protected _contentSlots: Set<string> = new Set();
+
+  protected _slotPaths: Set<string> = new Set();
 
   protected _clearPaths: Map<string, string[]> = new Map();
 
@@ -3688,10 +3704,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructLayouts(...structNames: string[]): void {
     const targetAllStructs = !structNames || structNames.length === 0;
-    const skipped = skippedInitialLayouts(this._game, this);
     const validStructNames = targetAllStructs
       ? Object.keys(this.context?.layout || {}).filter(
-          (name) => !skipped.includes(name),
+          (name) => !this.context.layout?.[name]?.["$screen"],
         )
       : structNames;
     for (const structName of validStructNames) {
@@ -5509,10 +5524,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   initLayouts(): void {
-    const skipped = skippedInitialLayouts(this._game, this);
     this._contentSlots = new Set();
     for (const structName of Object.keys(this.context?.layout || {})) {
-      if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
+      if (structName && !structName.startsWith("$")) {
         const layout = this.context.layout?.[structName];
         if (layout) {
           this.initLayout(layout);
@@ -5528,6 +5542,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearOnContinue = new Set();
     this._clearPaths = new Map();
     this._unmarkedKeys = new Set();
+    this._slotPaths = new Set();
     this._roots = new Map();
     const sparkle = this._game.program?.sparkle;
     const components = sparkle?.components ?? {};
@@ -5537,7 +5552,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.collectMarks(nodes, root, "", []);
     };
     for (const [name, layout] of Object.entries(sparkle?.layouts ?? {})) {
-      if (layout && !skipped.includes(name)) {
+      if (layout) {
         collect("layout", name, layout.children);
       }
     }
@@ -5569,6 +5584,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         } else {
           const name = [node.tag, ...node.classes].join(" ");
+          if (node.children.some(isEmptyContent)) {
+            this._slotPaths.add(`${base}${here}`);
+          }
           if (marksClear(node)) {
             this._clearOnContinue.add(name);
             this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
@@ -5670,9 +5688,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     names: string[],
     settle: boolean,
     mode: StartingDisplayMode,
+    screensClosed: string[],
   ): void {
     this._state.layout ??= [];
     this._state.displayMode = mode;
+    if (screensClosed.length > 0) {
+      this._state.screensClosed = screensClosed;
+    }
     const closed = names.filter(
       (name) =>
         !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),
@@ -6320,52 +6342,46 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         (screen ? layouts?.[n]?.screen === screen : true),
     );
     const held = layouts?.[name]?.screen;
-    if (held) {
-      this._screenHolds.set(held, (this._screenHolds.get(held) ?? 0) + 1);
-    }
-    try {
-      await Promise.all([
+    await this.holdingScreens(held ? [held] : [], () =>
+      Promise.all([
         ...[...toClose, ...pending].map((n) =>
           this.closeLayout(n, clauses, instant),
         ),
         this.openLayout(name, clauses, instant),
-      ]);
-    } finally {
-      if (held) {
-        const holds = (this._screenHolds.get(held) ?? 1) - 1;
-        if (holds > 0) {
-          this._screenHolds.set(held, holds);
-        } else {
-          this._screenHolds.delete(held);
-        }
-        this.releaseIdleScreen(held);
-      }
-    }
+      ]),
+    );
+  }
+
+  isScreen(name: string): boolean {
+    const sparkle = this._game.program?.sparkle;
+    return Boolean(name && sparkle?.screens?.[name] && !sparkle.layouts?.[name]);
   }
 
   protected nextLayoutState(
-    state: { name: string; screen?: string }[] | undefined,
+    state: OpenLayout[] | undefined,
     e: LayoutInstruction,
-  ): { name: string; screen?: string }[] | undefined {
+  ): OpenLayout[] | undefined {
     const layouts = this._game.program?.sparkle?.layouts;
-    const recordOpen = (
-      list: { name: string; screen?: string }[] | undefined,
-      name: string,
-    ) => {
+    const recordOpen = (list: OpenLayout[] | undefined, name: string, auto?: true) => {
       if (!name || UIModule.MANAGED_LAYOUTS.has(name) || !layouts?.[name]) {
         return list;
       }
-      if (list?.some((s) => s.name === name)) {
-        return list;
+      const open = list?.find((s) => s.name === name);
+      if (open) {
+        return open.auto && !auto
+          ? list!.map((s) => (s === open ? { name: s.name, ...(s.screen ? { screen: s.screen } : {}) } : s))
+          : list;
       }
       const screen = layouts[name]?.screen;
-      return [...(list ?? []), { name, ...(screen ? { screen } : {}) }];
+      return [...(list ?? []), { name, ...(screen ? { screen } : {}), ...(auto ? { auto } : {}) }];
     };
     switch (e.control) {
       case LayoutVerb.clear:
         return state;
       case LayoutVerb.close:
-        return state?.filter((s) => s.name !== e.name);
+        return this.isScreen(e.name)
+          ? state?.filter((s) => s.screen !== e.name)
+          : state?.filter((s) => s.name !== e.name);
       case LayoutVerb.navigate:
         if (!e.name) {
           return state;
@@ -6377,11 +6393,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           e.name,
         );
       case LayoutVerb.open:
-        return recordOpen(state, e.name);
+        return recordOpen(state, e.name, e.auto);
       default:
         this.reportUnknownLayoutVerb(e.control);
         return state;
     }
+  }
+
+  protected nextScreensClosed(closed: string[] | undefined, e: LayoutInstruction): string[] | undefined {
+    const name = e.control === LayoutVerb.navigate ? e.screen : e.name;
+    if (!name || !this.isScreen(name)) {
+      return closed;
+    }
+    if (e.control === LayoutVerb.close) {
+      return closed?.includes(name) ? closed : [...(closed ?? []), name];
+    }
+    if (e.control === LayoutVerb.open || e.control === LayoutVerb.navigate) {
+      return closed?.filter((screen) => screen !== name);
+    }
+    return closed;
+  }
+
+  screensClosedAfter(instructions: LayoutInstruction[]): string[] {
+    let closed = this._state.screensClosed;
+    for (const e of instructions) {
+      closed = this.nextScreensClosed(closed, e);
+    }
+    return closed ?? [];
+  }
+
+  autoLayoutAfter(instructions: LayoutInstruction[]): string | undefined {
+    let state = this._state.layout;
+    for (const e of instructions) {
+      state = this.nextLayoutState(state, e);
+    }
+    return state?.find((s) => s.auto)?.name;
   }
 
   protected reportUnknownLayoutVerb(verb: never): void {
@@ -6401,6 +6447,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const next = this.nextLayoutState(this._state.layout, e);
     if (next) {
       this._state.layout = next;
+    }
+    const closed = this.nextScreensClosed(this._state.screensClosed, e);
+    if (closed?.length) {
+      this._state.screensClosed = closed;
+    } else {
+      delete this._state.screensClosed;
     }
   }
 
@@ -6469,7 +6521,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant);
         case LayoutVerb.close:
-          return this.closeLayout(e.name, clauses, instant);
+          return this.isScreen(e.name)
+            ? this.closeScreen(e.name, clauses, instant)
+            : this.closeLayout(e.name, clauses, instant);
         case LayoutVerb.navigate:
           return this.navigateScreen(e.name, e.screen, clauses, instant);
         case LayoutVerb.clear:
@@ -6479,10 +6533,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return Promise.resolve();
       }
     };
+    const layouts = this._game.program?.sparkle?.layouts;
+    const opened = (events: LayoutInstruction[]): string[] => [
+      ...new Set(
+        events.flatMap((e) => {
+          const screen = e.control === LayoutVerb.open ? layouts?.[e.name]?.screen : undefined;
+          return screen ? [screen] : [];
+        }),
+      ),
+    ];
     if (this._game.replaying && instant) {
-      for (const e of instructions) {
-        void run(e);
-      }
+      void this.holdingScreens(opened(instructions), () => Promise.all(instructions.map(run)));
       return;
     }
     const epoch = this._game.connection.epoch;
@@ -6515,17 +6576,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           byLayout.set(key, [e]);
         }
       }
-      await Promise.all(
-        [...byLayout.values()].map(async (group) => {
-          for (const e of group) {
-            if (this.superseded(epoch)) {
-              return;
+      await this.holdingScreens(opened(segment), () =>
+        Promise.all(
+          [...byLayout.values()].map(async (group) => {
+            for (const e of group) {
+              if (this.superseded(epoch)) {
+                return;
+              }
+              await run(e);
             }
-            await run(e);
-          }
-        }),
+          }),
+        ),
       );
     }
+  }
+
+  protected async holdingScreens<T>(screens: string[], work: () => Promise<T>): Promise<T> {
+    for (const screen of screens) {
+      this._screenHolds.set(screen, (this._screenHolds.get(screen) ?? 0) + 1);
+    }
+    try {
+      return await work();
+    } finally {
+      for (const screen of screens) {
+        const holds = (this._screenHolds.get(screen) ?? 1) - 1;
+        if (holds > 0) {
+          this._screenHolds.set(screen, holds);
+        } else {
+          this._screenHolds.delete(screen);
+        }
+        this.releaseIdleScreen(screen);
+      }
+    }
+  }
+
+  protected async closeScreen(
+    screen: string,
+    clauses: { with?: string; after?: number; over?: number; ease?: string },
+    instant: boolean,
+  ): Promise<void> {
+    const layouts = this._game.program?.sparkle?.layouts;
+    const names = new Set([
+      ...[...this._mountedLayouts].filter(([, entry]) => entry.screen === screen).map(([name]) => name),
+      ...[...this._pendingOpens.keys()].filter((name) => layouts?.[name]?.screen === screen),
+    ]);
+    await Promise.all([...names].map((name) => this.closeLayout(name, clauses, instant)));
   }
 
   protected findElements(target: string, writes = false): Element[] {
@@ -6674,6 +6769,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
+  protected isSlotElement(el: Element): boolean {
+    const path = this.elementPath(el);
+    return path === undefined || this._slotPaths.has(path);
+  }
+
   protected markedPaths(target: string): string[] {
     const words = target.split(" ");
     return [...this._clearPaths].flatMap(([key, paths]) =>
@@ -6694,7 +6794,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return elements;
     }
     const marked = new Set([...this._clearPaths.values()].flat());
-    return elements.filter((el) => marked.has(this.elementPath(el) ?? "") === (reach === "marked"));
+    return elements.filter(
+      (el) =>
+        marked.has(this.elementPath(el) ?? "") === (reach === "marked") &&
+        (reach === "marked" || this.isSlotElement(el)),
+    );
   }
 
   protected textRestorePlan(): Map<string, Element[]> {
@@ -6769,7 +6873,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       for (const el of this.textElements(target)) {
-        if (inLayout(el)) {
+        if (inLayout(el) && this.isSlotElement(el)) {
           this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }

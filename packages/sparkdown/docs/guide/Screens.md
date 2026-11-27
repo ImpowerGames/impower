@@ -21,9 +21,52 @@ layout main {
 }
 ```
 
-### The `textbox` layout and `ui.layouts_initial`
+### A layout for each kind of text
 
-The built-in `main` layout holds the stage. The dialogue box and the choices live in a built-in layout of their own, `textbox`, and `ui.layouts_initial` names the layouts that open when a run or a preview starts, besides `main`:
+The built-in `main` layout holds the stage. The text boxes are built from a screen, `textbox`, whose body holds the box's background, the continue indicator and the option buttons, and a layout in that screen for each kind of text: `dialogue`, `action`, `title`, `heading` and `transitional`. A menu with no line of its own opens `choices`, a layout in the same screen that adds nothing to its option buttons.
+
+Three rules decide where a line shows:
+
+1. A line goes to every open layout that holds its kind, which means an element named after it: `dialogue`, `action`, `title`, `heading`, `transitional`, or a name of your own written to with `@name:`.
+2. If no open layout holds it, the layout named after the kind opens by itself. It closes when the next line belongs in a different layout.
+3. A beat with no text (only a picture, a sound or a pause) closes a layout that opened by itself, because it has nothing to show. It opens again with the next line.
+
+A beat that only runs directives and moves on at once, such as a line holding only `[[open hud]]`, leaves the box where it is.
+
+```sparkdown
+screen textbox {
+  frame {
+    slot
+  }
+  continue_indicator
+}
+
+layout dialogue in textbox {
+  character_name #clear { text }
+  character_parenthetical #clear { text }
+  dialogue { text }
+}
+
+layout action in textbox {
+  action { text }
+}
+
+layout note {
+  paper { note { text } }
+}
+
+scene start
+  @note: Buy milk
+  MARA: I'll get it.
+  She grabs her coat.
+end
+```
+
+With these, `@note: Buy milk` opens `note`. The dialogue line after it closes `note` and opens `dialogue` inside the shared `frame`, and the action line closes `dialogue` and opens `action` in the same `frame`, which stays on screen because a layout of its screen is open throughout. A layout that is in a screen shares that screen's elements, as [6.3](#63-screens-groups-you-navigate-between) describes.
+
+A layout that opened by itself is still a layout: `[[open dialogue]]` keeps it open until `[[close dialogue]]`, whatever kind the lines after it are.
+
+`ui.layouts_initial` names the layouts and screens that are open when a run or a preview starts, besides `main`. With `"textbox"` in it, as it is by default, text shows in the built-in boxes from the start:
 
 ```sparkdown
 define ui as config with
@@ -31,9 +74,9 @@ define ui as config with
 end
 ```
 
-An initial layout with a dialogue box (a `textbox` or `dialogue` element) is skipped when `main` already holds text elements, so a project whose own `layout main` shows dialogue keeps one dialogue box. Any other layout in the list always opens. An explicit `[[open textbox]]` still opens the built-in layout.
+A project that keeps its text elements in a layout of its own, such as its own `layout main`, keeps them there: by the first rule a line goes to the open layout that holds its kind, and no box opens beside it. Only a kind that no open layout holds opens a built-in box.
 
-Each part of the built-in box is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so it shows only what the current line puts in it. A box of your own needs the same marks on every part a line can leave out, or the last speaker's name stays up through a line of action:
+Each part of the built-in boxes is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so it shows only what the current line puts in it. A box of your own needs the same marks on every part a line can leave out, or the last speaker's name stays up through a line of action:
 
 ```sparkdown
 layout main {
@@ -45,24 +88,28 @@ layout main {
 }
 ```
 
-To hide the dialogue box, use the ordinary directives, and checkpoints and saves remember the result:
+To hide the boxes, close the screen by its name. After `[[close textbox]]`, lines whose layout is in the `textbox` screen are not shown and do not open it. `[[open textbox]]` lets them show again. Checkpoints and saves remember which it is:
 
 ```sparkdown
-[[close textbox]]
-Nobody sees this line.
-[[open textbox]]
-Everybody sees this one.
+scene start
+  [[close textbox]]
+  Nobody sees this line.
+  [[open textbox]]
+  Everybody sees this one.
+end
 ```
+
+Leaving `"textbox"` out of `ui.layouts_initial` starts the run with the screen closed in the same way.
 
 Image cues and layout directives still apply while no open layout holds a beat's text. The text and choices are not shown, and the play log says once per run: "No open layout shows this text. Open textbox or textstream." A beat whose text has no open layout waits for a click like any other beat, and a beat whose choices have no open layout waits for a pick that cannot arrive, so open a layout before a menu.
 
-A layout's name styles its root unless the layout holds an element of that name, in which case the name reaches the element.
+A layout's name styles its root unless the layout holds an element of that name, in which case the name reaches the element. The same goes for a screen: the `textbox` screen's body holds an element named `textbox`, so its root is `screen_textbox`, and `style textbox { … }` styles the box itself.
 
-The `textbox` layout stacks above `main`'s `stage` and below `main`'s `screen`, so a `screen` animation such as a fade or flash covers the dialogue box. A layout opened later stacks above them both.
+The `textbox` screen stacks above `main`'s `stage` and below `main`'s `screen`, so a `screen` animation such as a fade or flash covers the boxes. A layout opened later stacks above them both.
 
 ### The `textstream` layout: Interactive Fiction
 
-The built-in `textstream` layout shows the story as a page of text and choices that keeps growing, the way interactive fiction reads. Open it at any point with `[[open textstream]]`, and the page covers the stage and the dialogue box. `[[close textstream]]` goes back to them. The run carries on either way. To start a game on the page, name it in `ui.layouts_initial`:
+The built-in `textstream` layout shows the story as a page of text and choices that keeps growing, the way interactive fiction reads. Open it at any point with `[[open textstream]]`, and the page covers the stage. While it is open it holds every kind of line, so no box opens. `[[close textstream]]` goes back to the stage and the boxes. The run carries on either way. To start a game on the page, name it in `ui.layouts_initial`:
 
 ```sparkdown
 define ui as config with
@@ -102,7 +149,7 @@ A clear after a menu is a good place for one, when the next part of the story re
 
 The page follows the newest entry. Scroll up to reread, and it stays where you are until you scroll back to the bottom. Under the reader's reduced-motion setting it jumps instead of scrolling smoothly.
 
-With both `textbox` and `textstream` open, each beat shows in both, and a choice can be picked from either.
+With both `textbox` and `textstream` in `ui.layouts_initial`, every beat goes to the page and no box opens until `[[close textstream]]`.
 
 The page draws every colour from five styles, so a game re-themes the whole page by redefining them:
 
