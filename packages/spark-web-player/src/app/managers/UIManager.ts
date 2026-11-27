@@ -950,6 +950,8 @@ export default class UIManager extends Manager {
 
   protected _precreated: { el: HTMLElement; value: string; priority: string }[] = [];
 
+  protected _precreatedArrivals = new WeakSet<Element>();
+
   protected revealPrecreated() {
     for (const { el, value, priority } of this._precreated.splice(0)) {
       if (el.style.getPropertyValue("visibility") !== "hidden" || el.style.getPropertyPriority("visibility") !== "important") {
@@ -1029,6 +1031,20 @@ export default class UIManager extends Manager {
       }
     } finally {
       this._applying -= 1;
+    }
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (
+        UpdateElementMessage.type.isRequest(msg) &&
+        needed.has(msg.params.element) &&
+        msg.params.attributes?.[PRESENCE_ATTRIBUTE] === "initial"
+      ) {
+        const el = this.getElement(msg.params.element);
+        if (el) {
+          el.setAttribute(PRESENCE_ATTRIBUTE, "initial");
+          this._precreatedArrivals.add(el);
+        }
+      }
     }
     const made: HTMLElement[] = [];
     for (const id of needed) {
@@ -1984,7 +2000,8 @@ export default class UIManager extends Manager {
       if (
         reused &&
         el.hasAttribute(PRESENCE_ATTRIBUTE) &&
-        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes)
+        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes) &&
+        !this._precreatedArrivals.delete(el)
       ) {
         this._presence.settle(el);
         el.removeAttribute(PRESENCE_ATTRIBUTE);
