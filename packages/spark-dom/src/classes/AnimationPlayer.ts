@@ -81,6 +81,11 @@ const keyframesWith = (
     ),
   );
 
+const moves = (keyframes: Keyframe[]): boolean =>
+  keyframes.some((keyframe) =>
+    Object.keys(keyframe).some((prop) => MOVEMENT.has(prop)),
+  );
+
 const setsProperties = (keyframes: Keyframe[]): boolean =>
   keyframes.some((keyframe) =>
     Object.keys(keyframe).some((prop) => !KEYFRAME_TIMING.has(prop)),
@@ -162,33 +167,39 @@ export default class AnimationPlayer {
     const movers = this._movers.get(element) ?? [];
     this._movers.set(element, movers);
     if (adding.size === 0) {
-      const instance = this.addKeyframes(element, keyframes, timing);
-      if (
-        keyframes.some((keyframe) =>
-          Object.keys(keyframe).some((prop) => MOVEMENT.has(prop)),
-        )
-      ) {
-        movers.push(instance);
-      }
-      return [instance];
+      return [this.addMover(movers, element, keyframes, timing)];
     }
     const replaced = keyframesWith(keyframes, (prop) => !adding.has(prop));
     const combined = [
       ...(setsProperties(replaced)
-        ? [this.addKeyframes(element, replaced, timing)]
+        ? [this.addMover(movers, element, replaced, timing)]
         : []),
-      this.addKeyframes(
+      this.addMover(
+        movers,
         element,
         keyframesWith(keyframes, (prop) => adding.has(prop)),
         timing,
         "add",
       ),
     ];
-    movers.push(...combined);
     for (const mover of movers) {
       mover.persist();
     }
     return combined;
+  }
+
+  protected addMover(
+    movers: Animation[],
+    element: Element,
+    keyframes: Keyframe[],
+    timing: AnimationTiming,
+    composite?: CompositeOperation,
+  ): Animation {
+    const instance = this.addKeyframes(element, keyframes, timing, composite);
+    if (moves(keyframes)) {
+      movers.push(instance);
+    }
+    return instance;
   }
 
   addKeyframes(

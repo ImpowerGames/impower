@@ -44,6 +44,28 @@ describe("combined movement on one element is kept once finished (I-2872)", () =
     ]);
   });
 
+  test("a split-off opacity animation beside combined movement keeps the browser's removal", () => {
+    const element = document.createElement("div");
+    new AnimationPlayer({} as any).add({
+      element: element as HTMLElement,
+      animations: [
+        { keyframes: [{ translate: "0px 0px" }, { translate: "30px 0px" }], timing },
+        {
+          keyframes: [
+            { translate: "0px 0px", opacity: "1" },
+            { translate: "10px 20px", opacity: "0" },
+          ],
+          timing,
+        },
+      ] as any,
+    });
+    expect(created(element)).toEqual([
+      { composite: "replace", replaceState: "persisted" },
+      { composite: "replace", replaceState: "active" },
+      { composite: "add", replaceState: "persisted" },
+    ]);
+  });
+
   test("a lone animation keeps the browser's removal of replaced animations", () => {
     const element = document.createElement("div");
     new AnimationPlayer({} as any).add({
