@@ -7827,10 +7827,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       effectScale(event: ImageInstruction): number {
         const out = this.resolve([event], true)[0];
-        return (out?.affected ?? []).reduce(
-          (product, affected) => product * keyframeScale(affected.animations),
+        const lineAnimations = out?.targetAnimations ?? [];
+        const arms = [...new Set(lineAnimations.flatMap(({ arm }) => (arm == null ? [] : [arm])))];
+        return arms.reduce(
+          (product, arm) => product * keyframeScale(lineAnimations.filter((a) => a.arm === arm)),
           keyframeScale(out?.content?.enterAnimations ?? []) *
-            keyframeScale(out?.targetAnimations),
+            keyframeScale(lineAnimations.filter(({ arm }) => arm == null)),
         );
       }
 

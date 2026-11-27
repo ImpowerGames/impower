@@ -283,6 +283,71 @@ end
     expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 3 }]);
   });
 
+  it("multiplies each transition arm's scale separately when the arms move differently named elements (#2874)", async () => {
+    const story = `animation swell {
+  target = layer.self
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "2"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+animation stage_swell {
+  target = layer.stage
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "1.5"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+animation screen_swell {
+  target = layer.screen
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "1.3"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+define grow as transition with
+  on_show = animation.swell
+  stage = animation.stage_swell
+  screen = animation.screen_swell
+end
+
+scene start
+  Current.
+  [[show backdrop hall with grow]]
+  Hall.
+end
+`;
+    const h = createHarness(story, at(story, "  Current."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    const [hall] = settle(h);
+    expect(hall.name).toBe("hall");
+    expect(hall.scale).toBeCloseTo(3.9);
+  });
+
   it("gives a picture the scale its hiding effect grows it to", async () => {
     const story = `animation swell {
   keyframes {
