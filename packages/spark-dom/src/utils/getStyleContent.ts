@@ -8,12 +8,23 @@ import { getCssPropertyName } from "../../../sparkle-style-transformer/src/utils
 import {
   anchorSelfTargeted,
   COLOR_SCHEME_ATTRIBUTE,
+  LINE_SPEAKER_ATTRIBUTE,
+  LINE_VARIANT_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
+  sparkleBlockPreludes,
   writeSparkleSelector,
+  writeSparkleSelectorChecked,
 } from "../../../sparkle-style-transformer/src/utils/sparkleSelector";
 import { escapeCssIdentifier } from "../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getCssTokenValue } from "./getCssTokenValue";
 
-export { anchorSelfTargeted, COLOR_SCHEME_ATTRIBUTE };
+export {
+  anchorSelfTargeted,
+  COLOR_SCHEME_ATTRIBUTE,
+  LINE_SPEAKER_ATTRIBUTE,
+  LINE_VARIANT_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
+};
 
 const attributeName = (name: string): string =>
   ARIA_ATTRIBUTE_ALIASES.get(name) ?? (DATA_ATTRIBUTE_PROPS.has(name) ? `data-${name}` : name);
@@ -39,19 +50,31 @@ export const getStyleContent = (
   Object.entries(styles).forEach(([name, style]) => {
     let styleContent = "";
     let level = 1;
-    const process = (k: string, v: unknown) => {
+    const process = (k: string, v: unknown, afterCombinator = false) => {
       const indent = "  ".repeat(level);
       if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
-          const elementSelector = getCSSSelector(k, options.breakpoints);
-          const selfTargetedSelector = anchorSelfTargeted(elementSelector);
-          styleContent += `\n${indent}${selfTargetedSelector} {`;
-          level++;
-          Object.entries(v).forEach(([nk, nv]) => {
-            process(nk, nv);
+          const written = writeSparkleSelectorChecked(k, {
+            breakpoints: options.breakpoints,
+            colorScheme: "attribute",
+            attributeName,
+            afterCombinator,
           });
-          level--;
-          styleContent += `\n${indent}}`;
+          if (written.refusals.length > 0) {
+            return;
+          }
+          const preludes = sparkleBlockPreludes(written);
+          for (const prelude of preludes) {
+            styleContent += `\n${"  ".repeat(level)}${prelude} {`;
+            level++;
+          }
+          Object.entries(v).forEach(([nk, nv]) => {
+            process(nk, nv, written.afterCombinator);
+          });
+          for (const _ of preludes) {
+            level--;
+            styleContent += `\n${"  ".repeat(level)}}`;
+          }
         } else {
           const value = getCssTokenValue(v);
           if (

@@ -306,53 +306,13 @@ export const getCssAnimation = (
   if (value.startsWith("var(")) {
     return escapeCssAnimationNames(value);
   }
-  const { words, separators } = splitTopLevelWhitespace(value);
-  const variables = words.map((v) =>
-    getThemeVar(theme, "animation", `${v}${suffix}`),
-  );
-  if (variables.every((v) => v === undefined)) {
-    return escapeCssAnimationNames(value);
-  }
-  const parts = words.map((v, i) => variables[i] ?? escapeCssAnimationNames(v));
-  if (variables.every((v) => v !== undefined)) {
-    return parts.join(", ");
-  }
-  return parts.map((part, i) => part + (separators[i] ?? "")).join("");
-};
-
-const splitTopLevelWhitespace = (
-  value: string,
-): { words: string[]; separators: string[] } => {
-  const words: string[] = [];
-  const separators: string[] = [];
-  let depth = 0;
-  let word = "";
-  let separator = "";
-  for (const char of value) {
-    const isSeparator = depth === 0 && /\s/.test(char);
-    if (isSeparator) {
-      separator += char;
-      continue;
-    }
-    if (separator) {
-      if (word) {
-        words.push(word);
-        separators.push(separator);
-      }
-      word = "";
-      separator = "";
-    }
-    if (char === "(") {
-      depth += 1;
-    } else if (char === ")" && depth > 0) {
-      depth -= 1;
-    }
-    word += char;
-  }
-  if (word) {
-    words.push(word);
-  }
-  return { words, separators };
+  const variables = value
+    .trim()
+    .split(/\s*,\s*|\s+/)
+    .map((v) => getThemeVar(theme, "animation", `${v}${suffix}`));
+  return variables.every((v) => v !== undefined)
+    ? variables.join(", ")
+    : escapeCssAnimationNames(value);
 };
 
 export const getCssBgAlign = (value: string): string => {
@@ -495,10 +455,11 @@ export const getCssValueWithUnit = (
 };
 
 export const getCssProperty = (value: string): string => {
-  return value
-    .split(",")
-    .map((part) => SPARKLE_TO_CSS_NAME_MAP[part] ?? part)
-    .join(",");
+  return value.replace(
+    /(^|[\s,])([a-zA-Z-][\w-]*)(?=[\s,]|$)/g,
+    (_, before: string, name: string) =>
+      before + (SPARKLE_TO_CSS_NAME_MAP[name] ?? name),
+  );
 };
 
 export const getCssTextWhitespace = (value: string): string => {

@@ -227,6 +227,7 @@ export const STYLE_TRANSFORMERS = keepCssWideKeywords({
   "transition-duration": duration,
   "transition-easing": getCssEase,
   "transition-property": getCssProperty,
+  transition: getCssProperty,
 
   animation: getCssAnimation,
   "animation-delay": duration,

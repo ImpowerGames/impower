@@ -14,7 +14,7 @@ Commands run from the worktree root unless a package directory is specified.
 
 ## 1. Write the test
 
-Copy a neighboring passing test's imports and fixture syntax. Compiler tests live in `packages/sparkdown/src/tests/compiler/`, runtime tests in `packages/sparkdown/src/tests/runtime/`, Luau tests in `packages/sparkdown/src/tests/luau-conformance/`; other packages use their existing `test/` or `src/tests/`, and the editor uses `impower-dev/test/`. Compiler helpers have a load-bearing import order that primes Container.
+Copy a neighboring passing test's imports and fixture syntax. Compiler tests live in `packages/sparkdown/test/compiler/`, runtime tests in `packages/sparkdown/test/runtime/`, Luau tests in `packages/sparkdown/test/luau-conformance/`; mirror individual modules under the owning package’s `test/` directory, use `impower-dev/test/` for the editor and `test/` at the repository root for tooling. Compiler helpers have a load-bearing import order that primes Container.
 
 Assert the ticket's behavior rather than patch shape. A file already failing wholesale is not a reproduction; compare its original failure set on the base. If a fixing task needs a package with no harness, read [package setup](references/setup.md) before creating one. A filing task uses a script or driver probe instead.
 

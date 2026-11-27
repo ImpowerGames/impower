@@ -109,12 +109,14 @@ import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { MorphArtifact, MorphRef } from "@impower/sparkdown/src/morph/types";
 import {
   CompilerRestartedError,
   SparkdownWorkspace,
 } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application, type GameEndpoint } from "./app/Application";
 import { MorphPlayback } from "./app/morph/MorphPlayback";
+import { markPlayStarted } from "./app/utils/AudioStartMarks";
 import type { WorkerGameLink } from "./main/workers/WorkerGameLink";
 import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseError";
@@ -396,12 +398,29 @@ export class GamePlayerController {
     position?: string,
   ) {
     const run = new RuntimeDiagnosticsRun(program, owner);
+    const previous = this._runtimeRun;
+    if (previous && previous.program === program) {
+      run.keepChangeBakes(previous);
+    }
     for (const error of errors) {
       run.add(error);
     }
     this._runtimeRun = run;
     this._runtimeRunPosition = position;
+    const morphs = this.morphs;
+    if (morphs) {
+      morphs.reportChangeBake = (ref, artifact) => this.recordChangeBake(run, ref, artifact);
+    }
     this.reportRuntimeDiagnostics();
+  }
+
+  protected recordChangeBake(run: RuntimeDiagnosticsRun, ref: MorphRef, artifact: MorphArtifact) {
+    if (this._runtimeRun !== run || this.displayingSpeculative) {
+      return;
+    }
+    if (run.addChangeBake(ref, artifact)) {
+      this.reportRuntimeDiagnostics();
+    }
   }
 
   protected beginPreviewRuntimeRun(
@@ -510,15 +529,18 @@ export class GamePlayerController {
 
   protected readonly _hosted: boolean;
 
+  protected readonly _placeholders: boolean;
+
   constructor(
     host: HTMLElement,
     refs: GamePlayerRefs,
-    options: { resizable?: boolean; hosted?: boolean } = {},
+    options: { resizable?: boolean; hosted?: boolean; placeholders?: boolean } = {},
   ) {
     this.host = host;
     this.refs = refs;
     this._resizable = options.resizable ?? true;
     this._hosted = options.hosted ?? false;
+    this._placeholders = options.placeholders ?? false;
   }
 
   setup(): void {
@@ -1443,6 +1465,7 @@ export class GamePlayerController {
   };
 
   protected async runOrRestart() {
+    markPlayStarted();
     const stops = this._stops;
     const clicked = this._plays;
     await this.ensureAudioContext();
@@ -2123,6 +2146,7 @@ export class GamePlayerController {
     if (this._workerPlay?.save !== undefined) {
       return StartGameMessage.type.response(message.id, { success: true });
     }
+    markPlayStarted();
     const { started: success, refusal } = await this.startPlay();
     this.updateLaunchStateIcon();
     return success
@@ -2143,6 +2167,7 @@ export class GamePlayerController {
   };
 
   protected handleRestartGame = async (message: RestartGameMessage.Request) => {
+    markPlayStarted();
     const { started, refusal } = await this.restartPlay(true);
     return started || !refusal
       ? RestartGameMessage.type.response(message.id, {})
@@ -3532,6 +3557,7 @@ export class GamePlayerController {
   protected createApp(game: GameEndpoint, previewing: boolean): Application {
     return new Application(game, this.refs.gameView, this.refs.gameUI, {
       previewing,
+      placeholders: this._placeholders,
       audioContext: this._audioContext,
       assetCache: getSharedAssetCache(),
     });

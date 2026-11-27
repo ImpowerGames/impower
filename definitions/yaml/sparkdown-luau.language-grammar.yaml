@@ -449,6 +449,8 @@ variables:
   # lookaround: LuauCompareOperator reads `==`.
   LUAU_SINGLE_EQUALS: =(?!=)
   LUAU_WORD: (?:[a-zA-Z_][a-zA-Z0-9_]*{{LUAU_NAME_AT_PART}}*{{LUAU_NAME_END}})
+  LUAU_SPARKLE_PROP_WORD_PART: (?:[-]{{LUAU_WORD}})
+  LUAU_SPARKLE_PROP_WORD: (?:(?:[-]{2})?{{LUAU_WORD}}{{LUAU_SPARKLE_PROP_WORD_PART}}*)
   LUAU_NAME_OR_CONSTANT: (?:(?:nil|true|false){{LUAU_NAME_END}}|{{LUAU_IDENTIFIER}})
   # lookaround: `LuauEscapeLine` refuses its `$` end at the spot where its
   # begin took the line break and the line's input ends. Both engines try the
@@ -2363,7 +2365,7 @@ repository:
           - { include: "#LuauSparkleElementInvalid" }
 
   LuauSparklePropAttribute:
-    match: ([#])((?:[-]{2})?{{LUAU_WORD}}(?:[-]{{LUAU_WORD}})*)({{WS}}*)([=])({{WS}}*)({{SPARKLE_ATTR_VALUE}}?)
+    match: ([#])({{LUAU_SPARKLE_PROP_WORD}})(?:({{WS}}*)([=])({{WS}}*)({{SPARKLE_ATTR_VALUE}}?)|{{SPARKLE_VALUE_END}})
     captures:
       1:
         patterns:

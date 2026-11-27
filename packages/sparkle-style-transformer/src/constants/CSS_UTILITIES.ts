@@ -436,6 +436,12 @@ export const CSS_UTILITIES = {
     "": { "transform-origin": "" },
   },
 
+  transition: {
+    "": { transition: "" },
+  },
+  "transition-property": {
+    "": { "transition-property": "" },
+  },
   "transition-delay": {
     "": { "transition-delay": "" },
   },

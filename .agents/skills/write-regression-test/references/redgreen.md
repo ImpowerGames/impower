@@ -11,7 +11,7 @@ Never use the shared Git stash: its stack belongs to the repository, not to this
 Run the whole cycle through the driver, from the repo root, naming the test invocation (under the caps in Running vitest safely) and every changed source file the test exercises:
 
 ```bash
-node .agents/skills/drive-web-editor/driver.mjs redgreen --test "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/FilterImageLayers.test.ts --wait 600" --files packages/sparkdown/src/compiler/utils/filterImage.ts
+node .agents/skills/drive-web-editor/driver.mjs redgreen --test "node scripts/test-suite.mjs run packages/sparkdown test/compiler/FilterImageLayers.test.ts --wait 600" --files packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
 `--test` is the test command, run twice from the repo root (it may `cd` into the package itself); `--files` takes every changed source the test exercises, one path or several, and never the test file; `--base` names where the pre-fix content comes from, `HEAD` by default and `origin/main` once the fix is committed. The driver reads the files at the merge base of that revision and HEAD, reported as `baseCommit`, because the pre-fix version of a file is its content at the branch point: once `origin/main` has moved past it, its tip can hold a newer file whose imports do not match the branch. It refuses, before touching the tree, when there is no single merge base: a shallow clone cut above the branch point (deepen it), unrelated histories, or a criss-cross merge with several candidates (pass the intended one as `--base`).

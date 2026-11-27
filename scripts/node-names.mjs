@@ -21,8 +21,8 @@ export const SKIPPED_PREFIXES = [
   "packages/sparkdown/src/inkjs/",
   "packages/textmate-grammar-tree/",
   "packages/codemirror-vscode-language/",
-  "packages/sparkdown/src/tests/incremental/crossChunkAssemblySpike.test.ts",
-  "packages/sparkdown-language-server/src/tests/types/nodeNameTyping.typecheck.ts",
+  "packages/sparkdown/test/incremental/crossChunkAssemblySpike.test.ts",
+  "packages/sparkdown-language-server/test/types/nodeNameTyping.typecheck.ts",
 ];
 
 export const GRAMMAR_FILE_MARKERS =

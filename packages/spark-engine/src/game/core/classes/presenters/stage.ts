@@ -7,7 +7,7 @@ export function clearStage(
   transientLayers: string[],
 ): void {
   if (!instructions.extended) {
-    game.module.ui.image.clearAll(
+    game.module.ui.image.clearMarked(
       transientLayers.filter((layer) => !instructions.image?.[layer]),
     );
   }
@@ -20,7 +20,8 @@ export function applyLayoutDirectives(
   instant?: boolean,
 ): void {
   if (instructions.layout) {
-    const settle = !!instant || Boolean(game.context.system.simulating);
+    const settle =
+      !!instant || game.module.ui.still || Boolean(game.context.system.simulating);
     Object.values(instructions.layout).forEach((events) =>
       game.module.ui.composeWait(
         game.module.ui.applyLayoutInstructions(events, settle),

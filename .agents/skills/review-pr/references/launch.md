@@ -28,7 +28,7 @@ git diff origin/main...HEAD --output="$JOB/review-diff-$(git rev-parse --short H
 If the change regenerates a large snapshot or other generated file, exclude it from the patch by path and tell the reviewers the command to inspect it separately; a multi-megabyte patch file wastes a reviewer's context before it reads a line of the actual change (one session's patch came out at 2.6 MB for this reason):
 
 ```bash
-git diff origin/main...HEAD --output="$JOB/review-diff-$(git rev-parse --short HEAD).patch" -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap'
+git diff origin/main...HEAD --output="$JOB/review-diff-$(git rev-parse --short HEAD).patch" -- . ':(exclude)packages/sparkdown/test/__snapshots__/big.snap'
 ```
 
 Never write it into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs, long enough to trip any hook or check that expects a clean tree. Give reviewers the absolute path.

@@ -447,6 +447,8 @@ export class Game<T extends M = {}> {
 
   protected _resumeShown?: Instructions | null;
 
+  protected _resumeStill = false;
+
   protected _savesSceneEntries = false;
 
   protected _runtimeErrorsReported = 0;
@@ -2584,12 +2586,14 @@ export class Game<T extends M = {}> {
     const resumed = this._resumeShown;
     this._resumeShown = undefined;
     if (resumed !== undefined) {
+      this._resumeStill = true;
       this.observeStanding();
       this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
       }
       this.continue(true);
+      this._resumeStill = false;
       this.endResumedEnding();
     } else if (this._simulation === "success") {
       this.observeStanding();
@@ -2598,7 +2602,7 @@ export class Game<T extends M = {}> {
     } else if (this._simulation === "fail") {
       this.module.interpreter.clearQueuedBeats();
       this.rewindStory();
-      this.clearChoices();
+      this.clearChoices("leave choices");
       if (this._startAddress != null) {
         this.jumpTo(this._startAddress, true);
       }
@@ -2650,6 +2654,12 @@ export class Game<T extends M = {}> {
         this.pause();
       }
       throw e;
+    }
+  }
+
+  recheckReadiness() {
+    if (!this._destroyed && !this.paused) {
+      this._coordinator?.recheckReadiness();
     }
   }
 
@@ -2812,7 +2822,7 @@ export class Game<T extends M = {}> {
     this._errorEnding = null;
     this._coordinator = null;
     ui.setMotion(false);
-    this.clearChoices();
+    this.clearChoices("rollback cleanup");
     this._run.moveTo(target);
     this._executingLocation =
       this.lastExecutedScriptLocation() ?? this._executingLocation;
@@ -2870,12 +2880,16 @@ export class Game<T extends M = {}> {
   protected clearStageBeyond(stage: Stage): Promise<void>[] {
     const ui = this.module.ui;
     const now = ui.state;
-    const cleared: Promise<void>[] = [];
-    for (const target of stage.text) {
-      if (!now.text?.[target]) {
-        cleared.push(ui.text.clear(target));
-      }
-    }
+    const saved = ui.heldTextElements();
+    const cleared: Promise<void>[] = [
+      ui.text.change(
+        "rollback cleanup",
+        stage.text.filter((target) => {
+          const elements = ui.textElements(target);
+          return elements.length === 0 || !elements.every((el) => saved.has(el));
+        }),
+      ),
+    ];
     for (const target of stage.image) {
       if (!now.image?.[target]) {
         cleared.push(ui.image.clear(target));
@@ -3848,7 +3862,9 @@ export class Game<T extends M = {}> {
       this._coordinator = new Coordinator(this, instructions, {
         settled: drawing === "settled" ? "presented" : undefined,
         held: drawing === "held",
+        still: this._resumeStill,
       });
+      this._resumeStill = false;
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
         this._shownBeatOnScreen = instructions;
@@ -3962,11 +3978,11 @@ export class Game<T extends M = {}> {
     this.continue();
   }
 
-  clearChoices() {
+  clearChoices(reason: "leave choices" | "rollback cleanup") {
     const targets = this._shownChoices;
     this._shownChoices = [];
+    void this.module.ui.text.change(reason, targets);
     for (const target of targets) {
-      this.module.ui.text.clear(target);
       this.module.ui.image.clear(target);
       this.module.ui.unobserve("click", target);
       this.module.ui.hide(target);
@@ -5273,7 +5289,7 @@ export class Game<T extends M = {}> {
     const gate = this.module.assets.gatePreviewBeat(
       held?.instructions ?? null,
     );
-    this.clearChoices();
+    this.clearChoices("leave choices");
     if (!held) {
       this.module.audio.settlePreview();
       this.finishPreview(previewAddress, executed);

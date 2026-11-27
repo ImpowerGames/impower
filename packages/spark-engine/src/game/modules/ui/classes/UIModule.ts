@@ -34,6 +34,7 @@ import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { skippedInitialLayouts } from "../../../core/classes/presenters/textLayouts";
 import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
 import { pageKey } from "../../../core/utils/pageKey";
+import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
   BOOLEAN_ATTRIBUTES,
   DISPLAY_TARGET_ATTRIBUTE,
@@ -75,10 +76,17 @@ import {
 } from "@impower/sparkdown/src/runtime/Value";
 import type { Game } from "../../../core/classes/Game";
 import type { BeatSpeech, Instructions } from "../../../core/types/Instructions";
+import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
 import type { Event } from "../../../core/types/Event";
+import {
+  TEXT_REASONS,
+  type TextClearReason,
+  type TextReason,
+  type TextWriteReason,
+} from "../types/TextReason";
 import type { EventMap } from "../../../core/types/EventMap";
 import type {
 CutsceneInstruction,
@@ -90,7 +98,9 @@ import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
+import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
 import type { ElementState } from "../types/ElementState";
@@ -116,6 +126,7 @@ import {
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
+import { bodyChildLists } from "../utils/bodyChildren";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -156,6 +167,10 @@ import {
   type ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
 import {
+  LayoutMotionMessage,
+  type LayoutMotionMessageMap,
+} from "./messages/LayoutMotionMessage";
+import {
   PresenceElementsMessage,
   type PresenceElementsMessageMap,
   type PresenceMotion,
@@ -174,6 +189,10 @@ import {
   type ColorSchemeSetting,
 } from "../../../core/classes/messages/SetSimulatedColorSchemeMessage";
 import {
+  ShowingMessage,
+  type ShowingMessageMap,
+} from "./messages/ShowingMessage";
+import {
   SkipCutsceneMessage,
   type SkipCutsceneMessageMap,
 } from "./messages/SkipCutsceneMessage";
@@ -191,6 +210,7 @@ import {
 } from "./messages/UpdateElementMessage";
 import {
   type MorphImageContent,
+  type MorphPictureStill,
   type MorphLayerPlay,
   type MorphPicture,
   type LayeredPicture,
@@ -200,10 +220,12 @@ import {
   type WriteImageInstruction,
   WriteImageMessage,
   type WriteImageMessageMap,
+  type WriteImageParams,
 } from "./messages/WriteImageMessage";
 import {
   WriteTextMessage,
   type WriteTextMessageMap,
+  type WriteTextParams,
 } from "./messages/WriteTextMessage";
 import { SpeechMessage, type SpeechMessageMap } from "./messages/SpeechMessage";
 
@@ -218,13 +240,54 @@ function pictureFileName(file: { src: string; uri?: string; name?: string }): st
   }
 }
 
+function isVectorFile(layer: ImageLayer): boolean {
+  const ext = typeof layer.struct?.ext === "string" ? layer.struct.ext.toLowerCase() : "";
+  return ext === "svg" || /^data:image\/svg\+xml/i.test(layer.src) || [layer.uri ?? "", layer.src].some((path) => /\.svg(?:[?#]|$)/i.test(path));
+}
+
+function isPictureFile(layer: ImageLayer): boolean {
+  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && isVectorFile(layer));
+}
+
 function isImageFile(layer: ImageLayer): boolean {
-  const struct = layer.struct;
-  if (struct?.$type !== "image") {
-    return false;
+  return layer.struct?.$type === "image" && !isVectorFile(layer);
+}
+
+function marksClear(node: ElementNode): boolean {
+  const clear = node.props["clear"];
+  return clear?.kind === "literal" && clear.value === true;
+}
+
+function nodeShape(
+  node: BodyNode,
+  components: Readonly<Record<string, ComponentNode | undefined>>,
+  calls: readonly string[],
+): unknown {
+  if (node.kind === "element" && isStream(node)) {
+    return [node.kind, node.tag, node.classes];
   }
-  const ext = typeof struct.ext === "string" ? struct.ext.toLowerCase() : "";
-  return ext !== "svg" && !/^data:image\/svg\+xml/i.test(layer.src) && !/\.svg(?:[?#]|$)/i.test(layer.uri ?? "");
+  const head = node.kind === "element" ? [node.tag, node.classes, marksClear(node)] : ["name" in node ? (node.name ?? null) : null];
+  const lists = bodyChildLists(node).map(([suffix, children]) => [
+    suffix,
+    (children ?? []).map((child) => nodeShape(child, components, calls)),
+  ]);
+  const comp = node.kind === "element" ? components[node.tag] : undefined;
+  const body =
+    comp && !calls.includes(comp.name)
+      ? comp.children.map((child) => nodeShape(child, components, [...calls, comp.name]))
+      : null;
+  return [node.kind, ...head, lists, body];
+}
+
+function callBase(base: string, path: string, component: string): string {
+  return `${base}${path}>${component}`;
+}
+
+function bodyShape(
+  nodes: readonly BodyNode[] | undefined,
+  components: Readonly<Record<string, ComponentNode | undefined>>,
+): string {
+  return JSON.stringify((nodes ?? []).map((node) => nodeShape(node, components, [])));
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -268,9 +331,16 @@ interface ShownPicture {
 }
 
 interface Retirement {
+  name?: string;
+  held: Set<string>;
   element: Element;
   epoch: number;
   pin?: string;
+}
+
+interface PictureExit {
+  elements: Element[];
+  epoch: number;
 }
 
 type ContentKind = "text" | "image";
@@ -311,8 +381,39 @@ const pictureHide = (
   return hide;
 };
 
+type MotionPhase = "leave" | "move" | "arrive";
+
+interface OwnedMotion {
+  phase: MotionPhase;
+  removes?: boolean;
+  started?: Promise<unknown>;
+  start: () => Promise<unknown>;
+  finish: () => void;
+  settle: () => void;
+}
+
+interface LineWait {
+  time: number;
+  presenting: boolean;
+  composition?: Composition;
+  held: IMessage[];
+  motions: OwnedMotion[];
+  resolve: (time: number | null) => void;
+}
+
+const namesLayout = (value: string): boolean =>
+  /(^|[\s,])layout([\s,]|$)/.test(value);
+
+const moved = (result: unknown): boolean =>
+  result instanceof Set
+    ? result.size > 0
+    : Array.isArray(result)
+      ? result.length > 0
+      : false;
+
 interface Composition {
   kind: "display" | "beat";
+  line?: LineWait;
   messages: IMessage[];
   realizing: { done: boolean }[];
   afterSent: (() => void)[];
@@ -320,6 +421,7 @@ interface Composition {
   ending?: boolean;
   time?: number;
   sweep?: boolean;
+  source?: ScriptLocation;
   standing?: StandingScreen;
   empty?: { text: Set<Element>; image: Set<Element> };
 }
@@ -341,8 +443,23 @@ export interface StandingScreen {
   holding: { text: string[]; image: string[] };
 }
 
+export interface LineLabels {
+  variant?: string;
+  speaker?: string;
+}
+
+export interface LineText extends LineLabels {
+  text: TextState[];
+}
+
 export interface UIState {
   text?: Record<string, TextState[]>;
+  lineText?: Record<string, LineText[]>;
+  line?: LineLabels;
+  textLine?: number;
+  textWritten?: Record<string, number>;
+  textCleared?: Record<string, number>;
+  pictureCleared?: string[];
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
@@ -425,6 +542,7 @@ interface ForRegion {
   elseScope?: ReactiveScope;
   elseContent?: ReactiveGroup;
   slots?: SlotMap;
+  base?: string;
   owner?: ReactiveRegion;
 }
 
@@ -465,6 +583,16 @@ interface ScreenFrame {
   fallback?: SlotRegion;
 }
 
+const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
+
+const CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "stroke", "image", "mask"]);
+
+const isStruct = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const renderedProps = (node: ElementNode) =>
+  Object.entries(node.props).filter(([prop]) => !ENGINE_PROPS.has(prop));
+
 interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
@@ -474,6 +602,7 @@ interface ReactiveScope {
   sliderFills: ReactiveSliderFill[];
   streams: MountedStream[];
   slots?: SlotMap;
+  base?: string;
 }
 
 interface StreamEntryView {
@@ -501,7 +630,7 @@ interface MountedStream {
   latest?: StreamEntryView;
 }
 
-const INPUT_WIDGETS: Record<
+export const INPUT_WIDGETS: Record<
   string,
   { inputType: string; attributes?: Record<string, string> }
 > = {
@@ -567,6 +696,11 @@ const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
 
 const CUTSCENE_MUSIC_FADE = 0.5;
 
+const SHOWING_CONDITION =
+  /@showing\(\s*([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)\s*\)/gu;
+
+const LINE_CONDITION = /@(variant|speaker)\(/gu;
+
 export const UNKNOWN_COLOR_SCHEME_MESSAGE =
   "ui.color_scheme must be system, light or dark. Using system.";
 
@@ -580,7 +714,9 @@ export type UIMessageMap = AnimateElementsMessageMap &
   ObserveElementMessageMap &
   PlayCutsceneMessageMap &
   PresenceElementsMessageMap &
+  LayoutMotionMessageMap &
   SetThemeMessageMap &
+  ShowingMessageMap &
   SkipCutsceneMessageMap &
   SpeechMessageMap &
   SweepReconcileMessageMap &
@@ -606,7 +742,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _retiring = new Set<Retirement>();
 
+  protected _exits = new Set<PictureExit>();
+
+  protected _exitReports = new WeakMap<IMessage, Promise<unknown>>();
+
   protected _motion = false;
+
+  protected _still = false;
 
   protected _contents = new WeakMap<Element, Set<ContentKind>>();
 
@@ -617,6 +759,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _leaving = new Map<Element, Leave>();
 
   protected _leavingScheduled = false;
+
+  protected _line?: LineWait;
+
+  protected _layoutStyles?: { styles: unknown; layout: boolean };
+
+  protected _inlineLayout = false;
+
+  protected _lineRemovals = false;
+
+  protected _lineTimed = new WeakSet<IMessage>();
 
   protected _presenceStyles?: {
     styles: unknown;
@@ -630,6 +782,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  protected _contentSlots: Set<string> = new Set();
+
+  protected _clearPaths: Map<string, string[]> = new Map();
+
+  protected _unmarkedKeys: Set<string> = new Set();
+
+  protected _nodePaths = new WeakMap<object, string>();
+
+  protected _elementPaths = new WeakMap<Element, string>();
+
+  protected _roots: Map<string, string> = new Map();
+
+  protected _showingStyles?: unknown;
+
+  protected _showingWatched: ReadonlySet<string> = new Set();
+
+  protected _showingSent?: Map<string, number>;
+
+  protected _showingHidden = new WeakSet<Element>();
+
+  protected _showingContent = new WeakSet<Element>();
+
+  protected _lineWatched: ReadonlySet<string> = new Set();
+
+  protected _lineSent?: string;
+
+  protected _limits = new WeakMap<Element, LineLabels>();
 
   protected _reactive = false;
 
@@ -661,6 +841,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructor(game: Game) {
     super(game);
+    this.initLayouts();
+  }
+
+  override onProgramUpdate(): void {
     this.initLayouts();
   }
 
@@ -720,6 +904,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override onReset() {
+    this.settleLine();
+    this._exits.clear();
+    this._inlineLayout = false;
     this._events = {};
     this._mountedLayouts = new Map();
     this._mountedScreens = new Map();
@@ -781,7 +968,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     this._clearedPictures = cleared;
-    return this.image.clearAll(targets);
+    return this.image.clearMarked(targets);
   }
 
   override onRestart() {
@@ -924,26 +1111,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const transient = this.getTransientTargets();
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
+    const heldText = this.savedElements({ text: holding.text, image: [] });
     if (c && standing) {
-      const elementsOf = (targets: string[]) =>
-        targets.flatMap((target) => this.findElements(target, true));
-      const held = new Set([
-        ...elementsOf(holding.text),
-        ...elementsOf(holding.image),
-      ]);
-      const emptyOf = (holds: string[]) =>
+      const held = this.savedElements(holding);
+      const emptyOf = (holds: (target: string) => boolean) =>
         new Set(
-          elementsOf(transient.filter((t) => !holds.includes(t))).filter(
-            (el) => !held.has(el),
-          ),
+          transient
+            .filter((t) => !holds(t))
+            .flatMap((t) => this.textElements(t))
+            .filter((el) => !held.has(el)),
         );
-      c.empty = { text: emptyOf(holding.text), image: emptyOf(holding.image) };
+      c.empty = {
+        text: emptyOf((t) => this.holdsSaved(t, heldText)),
+        image: emptyOf((t) => holding.image.includes(t)),
+      };
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({ content: true }));
     this._game.story.variablesState.takeReactiveChanges();
     await Promise.all([
-      this.text.clearAll(transient.filter((t) => holding.text.includes(t))),
+      this.text.change(
+        "redisplay",
+        transient.filter((t) => this.holdsSaved(t, heldText)),
+      ),
       this.clearTransientPictures(
         transient.filter((t) => holding.image.includes(t)),
       ),
@@ -1052,6 +1242,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._morphWritten.clear();
     this._morphBaking = new Set();
     this.discardCompose();
+    this._showingSent = undefined;
+    this._lineSent = undefined;
     this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
@@ -1078,6 +1270,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._game.module.assets?.releaseRetiredLayout(r.pin);
       }
     }
+    this._exits.clear();
     const epoch = this._game.connection.epoch;
     const themeVariables = this.getThemeVariables();
     this.loadTheme(themeVariables);
@@ -1102,9 +1295,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.constructLayouts();
     }
     const transientTargets = this.getTransientTargets();
+    const saved = this.savedElements();
+    const emptySlots = [...this._contentSlots].filter(
+      (target) => !this.holdsSaved(target, saved),
+    );
     await Promise.all([
-      this.text.clearAll(transientTargets),
+      this.text.change("connect reset", transientTargets),
+      this.text.change("unwritten slot", emptySlots),
       this.clearTransientPictures(transientTargets),
+      this.image.clearAll(emptySlots.filter((target) => !this._clearOnContinue.has(target))),
     ]);
   }
 
@@ -1146,9 +1345,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     this.text.settle();
-    const tasks: Promise<void>[] = this.restoredTargets().map(({ target, elements }) =>
-      this.text.restoreOnto(target, elements),
-    );
+    const tasks: Promise<void>[] = [...this.restoreTexts()];
     if (this._state.image) {
       for (const [target] of Object.entries(this._state.image)) {
         tasks.push(this.image.restore(target));
@@ -1196,12 +1393,275 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected flushUIBatch(): void {
     this._uiBatchScheduled = false;
     this.markDisplayTargets();
+    this.noteShowing();
+    this.noteLine();
     if (this._uiBatch.length === 0) {
       return;
     }
     const messages = this._uiBatch;
     this._uiBatch = [];
     this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
+  protected showingWatched(): ReadonlySet<string> {
+    const styles = this.context?.style;
+    if (styles !== this._showingStyles) {
+      this._showingStyles = styles;
+      const watched = new Set<string>();
+      const lineWatched = new Set<string>();
+      const scan = (value: unknown) => {
+        if (!value || typeof value !== "object") {
+          return;
+        }
+        for (const [key, inner] of Object.entries(value)) {
+          for (const match of key.matchAll(SHOWING_CONDITION)) {
+            watched.add(match[1]!);
+          }
+          for (const match of key.matchAll(LINE_CONDITION)) {
+            lineWatched.add(match[1]!);
+          }
+          scan(inner);
+        }
+      };
+      scan(styles);
+      this._showingWatched = watched;
+      this._lineWatched = lineWatched;
+    }
+    return this._showingWatched;
+  }
+
+  protected lineWatched(): ReadonlySet<string> {
+    this.showingWatched();
+    return this._lineWatched;
+  }
+
+  line(instructions: Instructions): void {
+    const targets = Object.keys(instructions.text ?? {});
+    if (!targets.some((target) => !instructions.choices?.includes(target))) {
+      return;
+    }
+    const line: LineLabels = {};
+    if (instructions.variant) line.variant = instructions.variant;
+    if (instructions.speaker?.character) line.speaker = instructions.speaker.character;
+    if (line.variant || line.speaker) {
+      this._state.line = line;
+    } else {
+      delete this._state.line;
+    }
+  }
+
+  protected limit(element: Element, props: Record<string, unknown>): void {
+    const labels: LineLabels = {};
+    for (const key of ["variant", "speaker"] as const) {
+      const value = props[key];
+      if (value != null && value !== "") labels[key] = String(value);
+    }
+    if (labels.variant || labels.speaker) {
+      this._limits.set(element, labels);
+    }
+  }
+
+  protected relimit(element: Element, attribute: string, value: string | null): void {
+    for (const key of ["variant", "speaker"] as const) {
+      if (attribute === toDataAttributeName(key)) {
+        const labels: LineLabels = { ...this._limits.get(element) };
+        if (value) {
+          labels[key] = value;
+        } else {
+          delete labels[key];
+        }
+        if (labels.variant || labels.speaker) {
+          this._limits.set(element, labels);
+        } else {
+          this._limits.delete(element);
+        }
+      }
+    }
+  }
+
+  protected admits(element: Element, line: LineLabels | undefined): boolean {
+    const limit = this._limits.get(element);
+    return (
+      !limit ||
+      ((!limit.variant || limit.variant === line?.variant) &&
+        (!limit.speaker || limit.speaker === line?.speaker))
+    );
+  }
+
+  protected limited(element: Element): boolean {
+    return this._limits.has(element);
+  }
+
+  protected textFor(target: string, element: Element): TextState[] | undefined {
+    if (!this.limited(element)) {
+      return ownEntry(this._state.text, target);
+    }
+    const admitted = (ownEntry(this._state.lineText, target) ?? []).filter((written) =>
+      this.admits(element, written),
+    );
+    return admitted.length > 0 ? admitted.flatMap((written) => written.text) : undefined;
+  }
+
+  protected noteLine(): void {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return;
+    }
+    const watched = this.lineWatched();
+    if (watched.size === 0 && this._lineSent === undefined) {
+      return;
+    }
+    const line = this._state.line;
+    const marks: LineLabels = {};
+    if (watched.has("variant") && line?.variant) marks.variant = line.variant;
+    if (watched.has("speaker") && line?.speaker) marks.speaker = line.speaker;
+    const key = JSON.stringify(marks);
+    if (key === this._lineSent) {
+      return;
+    }
+    this._lineSent = key;
+    this._uiBatch.push(ShowingMessage.type.notification({ changes: {}, line: marks }));
+  }
+
+  protected pictureShown(events: ImageState[] | undefined): boolean {
+    const picture = events?.findLast((e) => e.assets?.length);
+    const layer = events?.findLast(
+      (e) => !e.assets?.length && e.control !== "animate",
+    );
+    return picture?.control === "show" && layer?.control !== "hide";
+  }
+
+  showingNames(): string[] {
+    return [...this.showingClaims().keys()].sort();
+  }
+
+  protected showingClaims(): Map<string, number> {
+    const watched = this.showingWatched();
+    const claims = new Map<string, number>();
+    const claim = (names: Iterable<string>) => {
+      for (const name of new Set(names)) {
+        if (watched.has(name)) {
+          claims.set(name, (claims.get(name) ?? 0) + 1);
+        }
+      }
+    };
+    claim([
+      ...this._mountedLayouts.keys(),
+      ...(this._root ? this.heldNames(this._root) : []),
+    ]);
+    for (const retiring of this._retiring) {
+      claim(retiring.name ? [retiring.name, ...retiring.held] : [...retiring.held]);
+    }
+    return claims;
+  }
+
+  protected heldNames(root: Element): Set<string> {
+    const held = new Set<string>();
+    const written = new Set<Element>();
+    const writeElement = (el: Element, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      written.add(el);
+      for (const leaf of leaves) {
+        for (const child of this.getContentElements(el, leaf)) {
+          written.add(child);
+        }
+      }
+    };
+    const write = (elements: Element[], leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of elements) {
+        writeElement(el, leaves);
+      }
+    };
+    for (const exit of this._exits) {
+      if (this.superseded(exit.epoch)) {
+        this._exits.delete(exit);
+        continue;
+      }
+      for (const el of exit.elements) {
+        writeElement(el, ["image", "mask"]);
+      }
+    }
+    for (const [target, elements] of this.textRestorePlan()) {
+      if (ownEntry(this._state.text, target)?.length) {
+        write(elements, ["text", "stroke"]);
+      }
+    }
+    const emptied = new Set(this._state.pictureCleared ?? []);
+    for (const [target, events] of Object.entries(this._state.image ?? {})) {
+      if (this.pictureShown(events)) {
+        write(
+          this.textElements(target).filter((el) => !emptied.has(this.elementPath(el) ?? "")),
+          ["image", "mask"],
+        );
+      }
+    }
+    const visit = (el: Element): boolean => {
+      if (this._showingHidden.has(el)) {
+        return false;
+      }
+      let holds = this._showingContent.has(el) || written.has(el);
+      for (const child of el.children) {
+        if (visit(child)) {
+          holds = true;
+        }
+      }
+      const tag = el.name.split(" ")[0];
+      if (holds && tag) {
+        held.add(tag);
+      }
+      return holds;
+    };
+    visit(root);
+    return held;
+  }
+
+  protected noteHidden(element: Element, hidden: boolean): void {
+    if (hidden) {
+      this._showingHidden.add(element);
+    } else {
+      this._showingHidden.delete(element);
+    }
+  }
+
+  protected noteElementShowing(
+    element: Element,
+    state: ElementState | undefined,
+  ): void {
+    const content = state?.content;
+    if (content && "text" in content) {
+      if (content.text) {
+        this._showingContent.add(element);
+      } else {
+        this._showingContent.delete(element);
+      }
+    }
+  }
+
+  protected noteShowing(retired = false): void {
+    if (this._game.replaying || this.context?.system?.simulating) {
+      return;
+    }
+    const sent = this._showingSent;
+    if (this.showingWatched().size === 0 && !sent?.size) {
+      return;
+    }
+    const claims = this.showingClaims();
+    const changes: Record<string, number> = {};
+    for (const name of [...new Set([...claims.keys(), ...(sent?.keys() ?? [])])].sort()) {
+      const change = (claims.get(name) ?? 0) - (sent?.get(name) ?? 0);
+      if (change !== 0) {
+        changes[name] = change;
+      }
+    }
+    if (sent && Object.keys(changes).length === 0) {
+      return;
+    }
+    this._showingSent = claims;
+    this._uiBatch.push(
+      ShowingMessage.type.notification({
+        changes,
+        ...(sent ? {} : { reset: true }),
+        ...(retired ? { retired } : {}),
+      }),
+    );
   }
 
   protected displayTargetElements(root: Element, target: string): Element[] {
@@ -1277,7 +1737,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return false;
     }
     const open = this._compose;
-    if (open && (open.kind === "display" || !open.ending)) {
+    if (
+      open &&
+      (open.kind === "display" ||
+        !open.ending ||
+        (open.line === this._line && open.line?.presenting))
+    ) {
       return false;
     }
     this.flushUIBatch();
@@ -1288,6 +1753,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       afterSent: [],
       expected: [],
     };
+    const line = this._line;
+    if (kind === "beat" && line && !line.composition) {
+      line.composition = next;
+      next.line = line;
+    }
     if (open) {
       next.realizing.push(...open.realizing.filter((e) => !e.done));
       for (const [mount, owner] of this._mountOwners) {
@@ -1327,6 +1797,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  composeSource(source: ScriptLocation | undefined): void {
+    if (this._compose && source) {
+      this._compose.source = source;
+    }
+  }
+
   async endCompose(options: { time?: number; sweep?: boolean } = {}) {
     const c = this._compose;
     if (!c || c.ending) {
@@ -1339,6 +1815,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._compose !== c) {
       return;
     }
+    const line = this.lineOf(c);
+    if (line) {
+      if (this.transitionsLayout()) {
+        this.ownLayoutMotion(line, "leave");
+      }
+      if (!line.motions.some((m) => m.phase === "leave")) {
+        this.startPhase(line, "arrive");
+      }
+    }
     this.sendCompose(c);
   }
 
@@ -1347,11 +1832,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.flushUIBatch();
       this._compose = undefined;
     }
+    const line = this.lineOf(c);
+    const waits = line != null && line.motions.length > 0;
     void super.emit(
       BeatMessage.type.notification({
-        messages: c.messages,
+        messages: waits
+          ? c.messages.flatMap((m) =>
+              !line.held.includes(m)
+                ? [m]
+                : WriteTextMessage.type.isRequest(m as RequestMessage)
+                  ? [this.heldWrite(m as RequestMessage<string, WriteTextParams>)]
+                  : [],
+            )
+          : c.messages,
         ...(c.time != null ? { time: c.time } : {}),
         ...(c.sweep ? { sweep: true } : {}),
+        ...(c.source
+          ? { source: this._game.getDocumentLocation(c.source) }
+          : {}),
       }),
     );
     if (c.standing) {
@@ -1359,13 +1857,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._standingOps = this._uiOps;
     }
     this.runAfterSent(c);
+    if (waits) {
+      void this.playOut(line);
+    } else if (line) {
+      this.endLine(line, line.time);
+    }
+  }
+
+  protected heldWrite(
+    write: RequestMessage<string, WriteTextParams>,
+  ): RequestMessage<string, WriteTextParams> {
+    return { ...write, params: { ...write.params, held: true } };
   }
 
   protected discardCompose() {
     const c = this._compose;
     if (c) {
+      if (c.line) {
+        this.settleLine(c.line);
+      }
       this._compose = undefined;
       this._uiBatch = [];
+      this._showingSent = undefined;
+      this._lineSent = undefined;
       for (const id of c.expected.splice(0)) {
         this._game.connection.cancel(id, {
           code: SUPERSEDED,
@@ -1472,19 +1986,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       UnobserveElementMessage.type.isNotification(msg as any) ||
       SpeechMessage.type.isNotification(msg as any)
     ) {
-      c.messages.push(structuredClone(msg));
+      this.captureInto(c, msg);
       return { result: undefined };
     }
     if (
       WriteTextMessage.type.isRequest(msg as any) ||
       WriteImageMessage.type.isRequest(msg as any)
     ) {
-      c.messages.push(structuredClone(msg));
+      this.captureInto(c, msg);
+      if (params.reportsExit) {
+        c.expected.push((msg as RequestMessage).id);
+        this._exitReports.set(msg, this._game.connection.expect(msg as RequestMessage));
+      }
       return { result: params.target };
     }
     if (
       AnimateElementsMessage.type.isRequest(msg as any) ||
-      PresenceElementsMessage.type.isRequest(msg as any)
+      PresenceElementsMessage.type.isRequest(msg as any) ||
+      LayoutMotionMessage.type.isRequest(msg as any)
     ) {
       c.messages.push(structuredClone(msg));
       c.expected.push((msg as RequestMessage).id);
@@ -1493,6 +2012,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       };
     }
     return undefined;
+  }
+
+  protected captureInto(c: Composition, msg: IMessage): void {
+    const captured = structuredClone(msg);
+    c.messages.push(captured);
+    if (c.line && this._lineTimed.has(msg)) {
+      c.line.held.push(captured);
+    }
+  }
+
+  protected onLine<T extends IMessage>(msg: T, timed: boolean): T {
+    if (timed) {
+      this._lineTimed.add(msg);
+    }
+    return msg;
   }
 
   protected createElement(
@@ -1505,9 +2039,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const id = this.generateId(parent, name, type);
     const content = state?.content;
     const style = state?.style;
+    this.noteLayoutStyle(style);
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     const el = new Element(parent, id, type, name, before);
+    this.noteElementShowing(el, state);
     this._screenEdits += 1;
     if (this.carriesDisplayTarget(el)) {
       this._displayTargetsChanged = true;
@@ -1551,6 +2087,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ...state,
       style: { ...(state?.style || {}), [property]: background },
     });
+    if (background) {
+      this._showingContent.add(el);
+    }
     if (src) {
       this.createElement(el, {
         name: "object",
@@ -1568,8 +2107,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._root = undefined;
     }
     const subtree: string[] = [];
+    const destroyed = new Set<Element>();
     const collect = (el: Element) => {
       subtree.push(el.id);
+      destroyed.add(el);
       if (this.carriesDisplayTarget(el)) {
         this._displayTargetsChanged = true;
       }
@@ -1578,6 +2119,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     };
     collect(element);
+    if (this._exits.size > 0) {
+      this.dropExits((el) => destroyed.has(el));
+    }
     for (const [event, byId] of Object.entries(this._events)) {
       if (!byId) {
         continue;
@@ -1637,6 +2181,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected updateElement(element: Element, state?: ElementState): void {
     const content = state?.content;
     const style = state?.style;
+    this.noteLayoutStyle(style);
     const attributes = state?.attributes;
     const breakpoints = this.breakpoints;
     if (this._refreshing) {
@@ -1647,6 +2192,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       empty.text.delete(element);
       empty.image.delete(element);
     }
+    this.noteElementShowing(element, state);
     this.enqueueUI(
       UpdateElementMessage.type.request({
         element: element.id,
@@ -1666,7 +2212,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this._screenEdits += 1;
     this.flushUIBatch();
-    return this.emitSettled(
+    const played = this.emitSettled(
       AnimateElementsMessage.type.request({
         effects: effects.map((e) => ({
           element: e.element.id,
@@ -1674,13 +2220,240 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         })),
       }),
     );
+    return played;
   }
 
-  setMotion(motion: boolean): void {
+  setMotion(motion: boolean, still = false): void {
     if (!motion) {
+      this.settleLine();
       this.settlePresence();
     }
     this._motion = motion;
+    this._still = still;
+  }
+
+  get still(): boolean {
+    return this._still;
+  }
+
+  beginLine(time: number): Promise<number | null> | undefined {
+    this.abandonLine();
+    if (!this.context?.system?.composeBeats || !this.moving()) {
+      return undefined;
+    }
+    return new Promise<number | null>((resolve) => {
+      this._line = {
+        time,
+        presenting: true,
+        held: [],
+        motions: [],
+        resolve,
+      };
+    });
+  }
+
+  closeLine(): void {
+    const line = this._line;
+    if (line) {
+      line.presenting = false;
+    }
+    if (line && !line.composition) {
+      this.endLine(line, line.time);
+    }
+  }
+
+  protected lineOf(c: Composition): LineWait | undefined {
+    return c.line && c.line === this._line ? c.line : undefined;
+  }
+
+  protected composingLine(): LineWait | undefined {
+    const c = this._compose;
+    return c ? this.lineOf(c) : undefined;
+  }
+
+  protected endLine(line: LineWait, time: number | null): void {
+    if (this._line === line) {
+      this._line = undefined;
+    }
+    line.resolve(time);
+  }
+
+  protected own(line: LineWait, motion: OwnedMotion): void {
+    line.motions.push(motion);
+    if (motion.phase === "leave") {
+      motion.started = motion.start();
+    }
+  }
+
+  protected ownLayoutMotion(line: LineWait, phase: MotionPhase): void {
+    this.own(line, {
+      phase,
+      start: () => {
+        this.flushUIBatch();
+        return this.emitSettled(LayoutMotionMessage.type.request({}));
+      },
+      finish: () => {},
+      settle: () => {
+        this.flushUIBatch();
+        void this.emitSettled(
+          LayoutMotionMessage.type.request({ settle: true }),
+        );
+      },
+    });
+  }
+
+  protected noteLayoutStyle(
+    style: Record<string, unknown> | null | undefined,
+  ): void {
+    if (this._inlineLayout || !style) {
+      return;
+    }
+    for (const [key, value] of Object.entries(style)) {
+      if (
+        key.includes("transition") &&
+        typeof value === "string" &&
+        namesLayout(value)
+      ) {
+        this._inlineLayout = true;
+        return;
+      }
+    }
+  }
+
+  protected transitionsLayout(): boolean {
+    if (this._inlineLayout) {
+      return true;
+    }
+    const styles = this.context?.style;
+    let cached = this._layoutStyles;
+    if (!cached || cached.styles !== styles) {
+      let layout = false;
+      const visit = (value: unknown, key: string) => {
+        if (layout) {
+          return;
+        }
+        if (typeof value === "string") {
+          layout = key.includes("transition") && namesLayout(value);
+          return;
+        }
+        if (value != null && typeof value === "object") {
+          for (const [inner, child] of Object.entries(value)) {
+            visit(child, inner);
+          }
+        }
+      };
+      visit(styles, "");
+      cached = { styles, layout };
+      this._layoutStyles = cached;
+    }
+    return cached.layout;
+  }
+
+  protected startPhase(line: LineWait, phase: MotionPhase): OwnedMotion[] {
+    const due = line.motions.filter((m) => m.phase === phase);
+    for (const motion of due) {
+      motion.started ??= motion.start();
+    }
+    return due;
+  }
+
+  protected settleLine(line = this._line): void {
+    if (line && this._line === line) {
+      this.endLine(line, null);
+      for (const motion of line.motions) {
+        motion.settle();
+      }
+    }
+  }
+
+  protected abandonLine(line = this._line): void {
+    if (line && this._line === line) {
+      this.endLine(line, null);
+      for (const motion of line.motions) {
+        if (motion.started) {
+          void motion.started.then(() => motion.finish());
+        } else {
+          motion.settle();
+        }
+      }
+    }
+  }
+
+  protected dropHeld(line: LineWait): void {
+    for (const message of line.held) {
+      if ((message as { params?: WriteImageParams }).params?.reportsExit) {
+        this._game.connection.cancel((message as RequestMessage).id, {
+          code: SUPERSEDED,
+          message: "the line that held it was settled",
+        });
+      }
+    }
+  }
+
+  protected async playOut(line: LineWait): Promise<void> {
+    let anyMoved = false;
+    const play = async (phase: MotionPhase) => {
+      const due = this.startPhase(line, phase);
+      const results = await Promise.all(due.map((m) => m.started));
+      if (this._line !== line) {
+        this.dropHeld(line);
+        return false;
+      }
+      anyMoved = anyMoved || results.some(moved);
+      if (phase !== "leave") {
+        for (const motion of due) {
+          motion.finish();
+        }
+      }
+      return true;
+    };
+    if (!(await play("leave"))) {
+      return;
+    }
+    if (line.motions.some((m) => m.removes)) {
+      const composed = this.beginCompose();
+      this._lineRemovals = true;
+      try {
+        for (const motion of line.motions) {
+          if (motion.phase === "leave") {
+            motion.finish();
+          }
+        }
+      } finally {
+        this._lineRemovals = false;
+      }
+      if (this.transitionsLayout()) {
+        this.ownLayoutMotion(line, "move");
+        this.startPhase(line, "move");
+      }
+      if (composed) {
+        void this.endCompose({
+          time: this.context.system.now() + BEAT_LEAD_MS,
+        });
+      }
+      if (!(await play("move"))) {
+        return;
+      }
+    }
+    if (!(await play("arrive"))) {
+      return;
+    }
+    const time = anyMoved
+      ? this.context.system.now() + BEAT_LEAD_MS
+      : line.time;
+    const shift = time - line.time;
+    for (const message of line.held) {
+      const params = (message as { params?: { time?: unknown } }).params;
+      if (typeof params?.time === "number") {
+        params.time += shift;
+      }
+    }
+    this.endLine(line, time);
+    if (line.held.length > 0) {
+      void super.emit(
+        BeatMessage.type.notification({ messages: line.held, time }),
+      );
+    }
   }
 
   protected moving(): boolean {
@@ -1828,17 +2601,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     for (const [element, motion] of motions) {
-      if (motion.retiring) {
-        this.retire(motion.retiring);
-      } else if (!this.attached(element)) {
-        continue;
-      } else if (motion.leave) {
-        motion.leave.hide(false);
-      } else {
-        this.updateElement(element, {
-          attributes: { [PRESENCE_ATTRIBUTE]: null },
-        });
-      }
+      this.settleElement(element, motion);
+    }
+  }
+
+  protected settleElement(element: Element, motion: PresenceRecord): void {
+    if (this._presence.get(element) === motion) {
+      this._presence.delete(element);
+    }
+    if (motion.retiring) {
+      this.retire(motion.retiring);
+    } else if (!this.attached(element)) {
+      return;
+    } else if (motion.leave) {
+      motion.leave.hide(false);
+    } else {
+      this.updateElement(element, {
+        attributes: { [PRESENCE_ATTRIBUTE]: null },
+      });
     }
   }
 
@@ -1874,6 +2654,59 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       motions.set(element, motion);
       this._presence.set(element, motion);
     }
+    const line = this.composingLine();
+    if (!line) {
+      return this.emitPresence(elements, presence, motions);
+    }
+    let done = false;
+    const end = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      for (const [element, motion] of motions) {
+        if (this._presence.get(element) === motion) {
+          this.settleElement(element, motion);
+        }
+      }
+    };
+    if (presence === "show") {
+      return new Promise((resolve) => {
+        this.own(line, {
+          phase: "arrive",
+          start: () => this.emitPresence(elements, presence, motions),
+          finish: () => {
+            done = true;
+            resolve(new Set(elements));
+          },
+          settle: () => {
+            end();
+            resolve(new Set());
+          },
+        });
+      });
+    }
+    this.own(line, {
+      phase: "leave",
+      removes: true,
+      start: () =>
+        this.emitPresence(elements, presence, motions).then((ended) => {
+          for (const element of ended) {
+            this._presence.set(element, motions.get(element)!);
+          }
+          return ended;
+        }),
+      finish: end,
+      settle: end,
+    });
+    return Promise.resolve(new Set());
+  }
+
+  protected emitPresence(
+    elements: Element[],
+    presence: PresenceMotion,
+    motions: Map<Element, PresenceRecord>,
+  ): Promise<Set<Element>> {
     this.flushUIBatch();
     return this.emitSettled(
       PresenceElementsMessage.type.request({
@@ -1906,20 +2739,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     void this.present(elements, "show");
   }
 
-  protected retireElement(element: Element, pin?: string): void {
+  protected retireElement(element: Element, name?: string, pin?: string): void {
     const retiring: Retirement = {
+      ...(name ? { name } : {}),
+      held: this.heldNames(element),
       element,
       epoch: this._game.connection.epoch,
       ...(pin ? { pin } : {}),
     };
     element.remove();
     this._retiring.add(retiring);
-    void this.present([element], "hide", () => ({ retiring })).then(() =>
-      this.retire(retiring),
-    );
+    const owned = this.composingLine() != null;
+    const ended = this.present([element], "hide", () => ({ retiring }));
+    if (!owned) {
+      void ended.then(() => this.retire(retiring));
+    }
   }
 
   protected forgetPresence(): void {
+    this.settleLine();
     this._motion = false;
     this._presence.clear();
     this._leaving.clear();
@@ -1947,6 +2785,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   show(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, false);
       this.updateElement(targetEl, { style: { display: "flex" } });
     }
   }
@@ -1959,6 +2798,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   hide(target: string): void {
     for (const targetEl of this.findElements(target)) {
+      this.noteHidden(targetEl, true);
       this.updateElement(targetEl, {
         style: { display: "none" },
       });
@@ -1990,6 +2830,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getTimingFunction(ease: Ease) {
     return `${ease.function}(${ease.parameters.join(",")})`;
+  }
+
+  getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
+    const time = (value: number | string | undefined) =>
+      typeof value === "number" || (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value))
+        ? `${value}s`
+        : value || "0s";
+    const easing = timing?.easing;
+    const ease = easing ? this.context?.ease?.[easing] : undefined;
+    const iterations = timing?.iterations;
+    const fill = timing?.fill;
+    return [
+      time(timing?.duration),
+      (ease && !easing!.startsWith("$") ? this.getTimingFunction(ease) : easing) || "ease",
+      time(timing?.delay),
+      iterations === Infinity ? "infinite" : (iterations?.toString() ?? "1"),
+      timing?.direction || "normal",
+      !fill || fill === "auto" ? "none" : fill,
+      "running",
+      escapeCssIdentifier(name),
+    ].join(" ");
   }
 
   getImageAssets(type: string, name: string, poseOf?: (recipe: MorphRecipe) => Record<string, string>, pick?: ImagePick, from?: ShownPicture): Image[] {
@@ -2415,15 +3276,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return undefined;
     }
     const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const rests = assets.map((asset) => this.getBackgroundImageFromString(asset, undefined, pickOf(asset)));
-    const still = assets
-      .map((asset, index) => {
-        const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
-        return froms[index] !== undefined || cssList(start).length === cssList(rests[index]!).length ? start : rests[index]!;
-      })
-      .reverse()
-      .join(", ");
-    if (still !== [...rests].reverse().join(", ")) {
+    const still: MorphPictureStill[] = [];
+    let layer = 0;
+    for (const [index, asset] of assets.entries()) {
+      const rest = this.getBackgroundImageFromString(asset, undefined, pickOf(asset));
+      const span = cssList(rest).length;
+      const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
+      if (start !== rest && (froms[index] !== undefined || cssList(start).length === span)) {
+        still.push({ layer, span, image: start });
+      }
+      layer += span;
+    }
+    if (still.length) {
       content.still = still;
     }
     return content;
@@ -2432,6 +3296,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   layeredImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
     const layers = this.pictureLook("", name, pick)?.rest ?? [];
     return layers.length > 1 && layers.every(isImageFile) ? layers : undefined;
+  }
+
+  vectorImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
+    const layers = this.pictureLook("", name, pick)?.rest ?? [];
+    return layers.length > 0 && layers.every(isPictureFile) && layers.some(isVectorFile) ? layers : undefined;
   }
 
   getLayeredPictures(assets: string[], pickOf: (asset: string) => ImagePick | undefined): LayeredPicture[] {
@@ -2445,17 +3314,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (asset.at(0) === '"' && asset.at(-1) === '"') {
         continue;
       }
-      const layers = this.layeredImageFiles(asset, pick);
+      const vector = this.vectorImageFiles(asset, pick);
+      const layers = vector ?? this.layeredImageFiles(asset, pick);
       if (!layers || layers.length !== count) {
         continue;
       }
       pictures.push({
         layer: first,
         span: count,
+        name: sortFilteredName(asset),
         files: layers.map((layer) => ({
           src: layer.src,
           name: pictureFileName({ src: layer.src, ...(layer.uri ? { uri: layer.uri } : {}), name: layer.struct?.$name }),
         })),
+        ...(vector ? { vector: true as const } : {}),
       });
     }
     return pictures;
@@ -2464,7 +3336,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _morphStills = new Set<string>();
 
   reportMorphStill(params: MorphStillParams) {
-    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? ""]);
+    const key = JSON.stringify([params.image, params.file, params.reason, params.declaration ?? "", params.placeholder ?? false]);
     if (this._morphStills.has(key)) {
       return;
     }
@@ -2478,9 +3350,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? "is an SVG with neither a viewBox nor a width and height of its own, so it cannot be fitted to the picture"
             : params.reason === "undrawn"
               ? "is an SVG the browser would not draw at the picture's size"
-              : params.reason === "styled"
-                ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
-                : "could not be read to check that it is a still sRGB image";
+              : params.reason === "late"
+                ? "was not drawn before the line's wait for it ran out"
+                : params.reason === "styled"
+                  ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
+                  : "could not be read to check that it is a still sRGB image";
+    if (params.placeholder) {
+      this._game.log(`\`${params.image}\` is not drawn: its file \`${params.file}\` ${why}. The previews show a placeholder in its place, and an exported game shows nothing there.`, "warning");
+      return;
+    }
+    if (params.reason === "late") {
+      this._game.log(`\`${params.image}\` was drawn late: its morph's drawing was not ready before the line's wait for it ran out, so the line showed its still picture until it was.`, "warning");
+      return;
+    }
     this._game.log(`\`${params.image}\` stays still: its layer file \`${params.file}\` ${why}, and no morph plays on it.`, "warning");
   }
 
@@ -2513,14 +3395,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     this._speaking = speaking;
     void this.emit(
-      SpeechMessage.type.notification({
-        ...(speech?.character ? { character: speech.character } : {}),
-        spans,
-        ...(beeps ? { beeps } : {}),
-        ...(voiced ? { voiced: true as const } : {}),
-        ...(voiced && instant ? { revealed: true as const } : {}),
-        ...(time != null ? { time } : {}),
-      }),
+      this.onLine(
+        SpeechMessage.type.notification({
+          ...(speech?.character ? { character: speech.character } : {}),
+          spans,
+          ...(beeps ? { beeps } : {}),
+          ...(voiced ? { voiced: true as const } : {}),
+          ...(voiced && instant ? { revealed: true as const } : {}),
+          ...(time != null ? { time } : {}),
+        }),
+        !instant && time != null,
+      ),
     );
   }
 
@@ -2750,6 +3635,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    const animations = this.context?.animation;
+    if (animations) {
+      for (const [name, animation] of Object.entries(animations)) {
+        if (!name.startsWith("$")) {
+          variablesStyle[getVarName("animation", name)] =
+            this.getAnimationShorthand(name, animation.timing);
+        }
+      }
+    }
     const fonts = this.context?.font;
     if (fonts) {
       for (const [name, font] of Object.entries(fonts)) {
@@ -2835,9 +3729,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    for (const [k, v] of Object.entries(properties)) {
-      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
-      const isValidNode = !path.at(-1)?.startsWith("$");
+    for (const [k, value] of Object.entries(properties)) {
+      const fullPath = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
+      const marksClear = fullPath.at(-1) === "$clear";
+      const path = marksClear ? fullPath.slice(0, -1) : fullPath;
+      const v = marksClear ? {} : value;
+      const isValidNode = path.length > 0 && !path.at(-1)?.startsWith("$");
       if (isValidNode) {
         let stack: Element[] = [uiEl];
         for (let i = 0; i < path.length; i += 1) {
@@ -2956,7 +3853,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    const scope = this.makeScope({});
+    const scope = this.makeScope({}, undefined, this._roots.get(`screen:${screen.name}`));
     const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
     scope.slots = new Map([
       [
@@ -3147,7 +4044,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       slot ? this.anchorFor(slot) : null,
     );
     slot?.content.push({ el: uiEl });
-    const scope = this.makeScope({});
+    const scope = this.makeScope({}, undefined, this._roots.get(`layout:${layout.name}`));
     this._mountedLayouts.set(layout.name, {
       element: uiEl,
       scope,
@@ -3161,7 +4058,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  protected makeScope(env: ReactiveEnv, slots?: SlotMap): ReactiveScope {
+  protected makeScope(env: ReactiveEnv, slots: SlotMap | undefined, base: string | undefined): ReactiveScope {
     return {
       env,
       texts: [],
@@ -3171,6 +4068,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       sliderFills: [],
       streams: [],
       ...(slots ? { slots } : {}),
+      ...(base !== undefined ? { base } : {}),
     };
   }
 
@@ -3280,6 +4178,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     scope: ReactiveScope,
     before: Element | null,
   ): Element {
+    return this.notePath(this.createNodeElement(parent, node, scope, before), node, scope);
+  }
+
+  protected createNodeElement(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    before: Element | null,
+  ): Element {
     const name = [node.tag, ...node.classes].join(" ");
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
@@ -3298,13 +4205,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactiveAttrs: Omit<ReactiveAttr, "element">[] = [];
-    const propEntries = Object.entries(node.props);
+    const labels: Record<string, unknown> = {};
+    const propEntries = renderedProps(node);
     if (propEntries.length > 0) {
       const vs = this._game.story.variablesState;
       for (const [prop, propValue] of propEntries) {
         vs.beginReactiveRead();
         const resolved = this.resolveProp(propValue, scope.env);
         const deps = vs.endReactiveRead();
+        if (prop === "variant" || prop === "speaker") {
+          labels[prop] = resolved;
+        }
         if (isAttributeProp(prop)) {
           const boolean = BOOLEAN_ATTRIBUTES.has(prop);
           const attrVal = this.propToAttr(resolved, boolean);
@@ -3339,6 +4250,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
       before,
     );
+    this.limit(el, labels);
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
     }
@@ -3381,7 +4293,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const controlProps: ElementNode["props"] = {};
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       if (isAttributeProp(prop)) {
         controlProps[prop] = propValue;
         continue;
@@ -3444,7 +4356,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
@@ -3549,7 +4461,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactive: Omit<ReactiveAttr, "element">[] = [];
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -3603,7 +4515,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     let selected: { propValue?: PropValue; last: string | null; deps: ReactiveDeps } | null = null;
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -3682,7 +4594,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {};
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       if (isReservedAttribute(prop)) {
         continue;
       }
@@ -3906,7 +4818,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       parent,
       node,
       active: -2,
-      scope: this.makeScope(scope.env, scope.slots),
+      scope: this.makeScope(scope.env, scope.slots, scope.base),
       deps: { globals: new Set(), tables: new Set() },
       siblings: [],
       content: [],
@@ -3975,6 +4887,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       iterations: [],
       siblings: [],
       slots: scope.slots,
+      ...(scope.base !== undefined ? { base: scope.base } : {}),
     };
     scope.regions.push(region);
     this.populateFor(region, scope.env, before);
@@ -4007,7 +4920,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!elseChildren || elseChildren.length === 0) {
       return;
     }
-    region.elseScope = this.makeScope(parentEnv, region.slots);
+    region.elseScope = this.makeScope(parentEnv, region.slots, region.base);
     region.elseContent = this.mountChildren(
       region.parent,
       elseChildren,
@@ -4026,7 +4939,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): ForIteration {
     const env: ReactiveEnv = { ...parentEnv };
     this.bindLoopVars(region.node.bindings, env, entryKey, value);
-    const scope = this.makeScope(env, region.slots);
+    const scope = this.makeScope(env, region.slots, region.base);
     const content = this.mountChildren(
       region.parent,
       region.node.children,
@@ -4055,7 +4968,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const env: ReactiveEnv = {};
     this.applyComponentParams(comp, node, callerScope.env, env);
-    const scope = this.makeScope(env);
+    const call = this._nodePaths.get(node);
+    const scope = this.makeScope(
+      env,
+      undefined,
+      callerScope.base !== undefined && call !== undefined ? callBase(callerScope.base, call, comp.name) : undefined,
+    );
     scope.slots = this.buildSlotMap(node, callerScope);
     const region: ComponentRegion = {
       kind: "component",
@@ -4374,6 +5292,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const next = this.propToAttr(resolved, entry.boolean);
         if (this._refreshAll || next !== entry.last) {
           entry.last = next;
+          this.relimit(entry.element, entry.prop, next);
           this.updateElement(entry.element, {
             attributes: { [entry.prop]: next },
           });
@@ -4452,7 +5371,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       region.deps = vs.endReactiveRead();
       if (next !== region.active) {
         this.removeGroup(region.content);
-        region.scope = this.makeScope(region.scope.env, region.scope.slots);
+        region.scope = this.makeScope(region.scope.env, region.scope.slots, region.scope.base);
         region.active = next;
         region.content = this.mountChildren(
           region.parent,
@@ -4615,11 +5534,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const now = this.slotsOf(el);
       return now.length !== slots.length || now.some((slot) => !slots.includes(slot));
     };
-    for (const target of this.restoredTargets(replaced)) {
-      for (const el of target.elements) {
+    for (const [target, planned] of this.textRestorePlan()) {
+      const elements = planned.filter(replaced);
+      if (elements.length === 0) {
+        continue;
+      }
+      for (const el of elements) {
         this.contentsOf(el).add("text");
       }
-      void this.text.restoreOnto(target.target, target.elements);
+      void this.text.restoreOnto(target, elements);
     }
     this.streams.remounted(replaced);
   }
@@ -4632,19 +5555,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected restoredTargets(
-    within?: (el: Element) => boolean,
-  ): { target: string; elements: Element[] }[] {
-    return Object.keys(this._state.text ?? {}).flatMap((target) => {
-      const elements = this.findElements(target, true).filter(
-        (el) => !within || within(el),
-      );
-      return elements.length > 0 ? [{ target, elements }] : [];
-    });
-  }
 
   initLayouts(): void {
     const skipped = skippedInitialLayouts(this._game, this);
+    this._contentSlots = new Set();
     for (const structName of Object.keys(this.context?.layout || {})) {
       if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
         const layout = this.context.layout?.[structName];
@@ -4659,31 +5573,81 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.initLayout(screen as Record<string, any>);
       }
     }
+    this._clearOnContinue = new Set();
+    this._clearPaths = new Map();
+    this._unmarkedKeys = new Set();
+    this._roots = new Map();
+    const sparkle = this._game.program?.sparkle;
+    const components = sparkle?.components ?? {};
+    const collect = (kind: string, name: string, nodes: readonly BodyNode[] | undefined) => {
+      const root = `${kind}:${name}@${hashText(bodyShape(nodes, components))}`;
+      this._roots.set(`${kind}:${name}`, root);
+      this.collectMarks(nodes, root, "", []);
+    };
+    for (const [name, layout] of Object.entries(sparkle?.layouts ?? {})) {
+      if (layout && !skipped.includes(name)) {
+        collect("layout", name, layout.children);
+      }
+    }
+    for (const [name, screen] of Object.entries(sparkle?.screens ?? {})) {
+      if (screen) {
+        collect("screen", name, screen.children);
+      }
+    }
   }
 
-  initLayout(layout: Record<string, any>) {
-    const properties = getAllProperties(layout);
-    for (const [k, v] of Object.entries(properties)) {
-      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
-      const isValidNode = !path.at(-1)?.startsWith("$");
-      if (isValidNode) {
-        for (let i = 0; i < path.length; i += 1) {
-          const parent = path.at(-1);
-          const parentClasses = parent?.split(" ") || [];
-          const isText = parentClasses.includes("text");
-          const isStroke = parentClasses.includes("stroke");
-          const isImage = parentClasses.includes("image");
-          const isMask = parentClasses.includes("mask");
-          if (isText || isStroke || isImage || isMask) {
-            if (v && typeof v === "object" && Object.keys(v).length === 0) {
-              const grandParent = path.at(-2);
-              if (grandParent) {
-                this._clearOnContinue.add(grandParent);
-              }
-            }
+  protected collectMarks(
+    nodes: readonly BodyNode[] | undefined,
+    base: string,
+    path: string,
+    calls: readonly string[],
+  ): void {
+    const components = this._game.program?.sparkle?.components ?? {};
+    (nodes ?? []).forEach((node, index) => {
+      const here = `${path}/${index}`;
+      if (node.kind === "element") {
+        if (isStream(node)) {
+          return;
+        }
+        this._nodePaths.set(node, here);
+        const comp = components[node.tag];
+        if (comp) {
+          if (!calls.includes(comp.name)) {
+            this.collectMarks(comp.children, callBase(base, here, comp.name), "", [...calls, comp.name]);
+          }
+        } else {
+          const name = [node.tag, ...node.classes].join(" ");
+          if (marksClear(node)) {
+            this._clearOnContinue.add(name);
+            this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
+          } else {
+            this._unmarkedKeys.add(name);
           }
         }
       }
+      for (const [suffix, children] of bodyChildLists(node)) {
+        this.collectMarks(children, base, `${here}${suffix}`, calls);
+      }
+    });
+  }
+
+  initLayout(layout: Record<string, unknown>): void {
+    for (const [key, value] of Object.entries(layout)) {
+      if (key.startsWith("$") || !isStruct(value) || key.split(" ")[0] === "stream") {
+        continue;
+      }
+      if (
+        Object.entries(value).some(
+          ([child, content]) =>
+            !child.startsWith("$") &&
+            child.split(" ").some((word) => CONTENT_TAGS.has(word)) &&
+            isStruct(content) &&
+            Object.keys(content).every((k) => k.startsWith("$")),
+        )
+      ) {
+        this._contentSlots.add(key);
+      }
+      this.initLayout(value);
     }
   }
 
@@ -4960,6 +5924,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
+      const line = this.composingLine();
+      if (line) {
+        this.updateElement(element, { style: { visibility: "hidden" } });
+        let started = false;
+        this.own(line, {
+          phase: "arrive",
+          start: () => {
+            started = true;
+            this.updateElement(element, { style: { visibility: null } });
+            return this.animateElements([{ element, animations: [enter] }]);
+          },
+          finish: () => {},
+          settle: () => {
+            this.updateElement(element, {
+              style: { visibility: null },
+              ...(started ? { attributes: { [PRESENCE_ATTRIBUTE]: null } } : {}),
+            });
+          },
+        });
+        return;
+      }
       const entering = this.animateElements([{ element, animations: [enter] }]);
       if (this._compose) {
         void entering;
@@ -5007,12 +5992,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.styled("hide")
     ) {
       this._mountedLayouts.delete(name);
-      this.retireElement(element, this._game.module.assets?.retireLayout(name));
+      this.retireElement(
+        element,
+        name,
+        this._game.module.assets?.retireLayout(name),
+      );
       return;
     }
     const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
+        name,
+        held: this.heldNames(element),
         element,
         epoch: this._game.connection.epoch,
         pin: this._game.module.assets?.retireLayout(name),
@@ -5020,6 +6011,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._mountedLayouts.delete(name);
       element.remove();
       this._retiring.add(retiring);
+      const line = this.composingLine();
+      if (line) {
+        this.own(line, {
+          phase: "leave",
+          removes: true,
+          start: () => this.animateElements([{ element, animations: [exit] }]),
+          finish: () => this.retire(retiring),
+          settle: () => this.retire(retiring),
+        });
+        return;
+      }
       void this.animateElements([{ element, animations: [exit] }]).then(() =>
         this.retire(retiring),
       );
@@ -5037,21 +6039,75 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected retire(r: Retirement): void {
-    if (!this._retiring.delete(r)) {
+    if (!this._retiring.has(r)) {
       return;
     }
-    if (!this.superseded(r.epoch)) {
+    if (this.superseded(r.epoch)) {
+      this._retiring.delete(r);
+    } else {
       this.flushUIBatch();
+      this._retiring.delete(r);
       this.destroyElement(r.element, true);
-      const messages = this._uiBatch;
-      this._uiBatch = [];
-      if (messages.length > 0) {
-        this._uiOps += 1;
-        void super.emit(BatchElementsMessage.type.notification({ messages }));
-      }
+      this.sendRetired();
     }
     if (r.pin) {
       this._game.module.assets?.releaseRetiredLayout(r.pin);
+    }
+  }
+
+  protected exiting(target: string): boolean {
+    if (this._exits.size === 0) {
+      return false;
+    }
+    const elements = new Set(this.findElements(target, true));
+    return [...this._exits].some((exit) => exit.elements.some((el) => elements.has(el)));
+  }
+
+  protected dropExits(drops: (element: Element) => boolean): void {
+    let dropped = false;
+    for (const exit of this._exits) {
+      const kept = exit.elements.filter((el) => !drops(el));
+      if (kept.length === exit.elements.length) {
+        continue;
+      }
+      dropped = true;
+      if (kept.length === 0) {
+        this._exits.delete(exit);
+      } else {
+        exit.elements = kept;
+      }
+    }
+    if (dropped && !this._uiBatchScheduled) {
+      this._uiBatchScheduled = true;
+      queueMicrotask(() => this.flushUIBatch());
+    }
+  }
+
+  protected endExit(exit: PictureExit): void {
+    if (!this._exits.has(exit)) {
+      return;
+    }
+    if (this.superseded(exit.epoch)) {
+      this._exits.delete(exit);
+      return;
+    }
+    this.flushUIBatch();
+    this._exits.delete(exit);
+    this.sendRetired();
+  }
+
+  protected sendRetired(): void {
+    this.noteShowing(true);
+    const messages = this._uiBatch;
+    this._uiBatch = [];
+    if (messages.length > 0) {
+      const batch = BatchElementsMessage.type.notification({ messages });
+      if (this._lineRemovals) {
+        void this.emit(batch);
+      } else {
+        this._uiOps += 1;
+        void super.emit(batch);
+      }
     }
   }
 
@@ -5641,12 +6697,109 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return (
       Boolean(this._compose) ||
       this.streams.active ||
-      elements.some((el) => el.name !== name)
+      elements.some((el) => el.name !== name) ||
+      elements.length !== this.textElements(target).length
     );
   }
 
   getTransientTargets() {
     return Array.from(this._clearOnContinue.values());
+  }
+
+  textElements(target: string): Element[] {
+    return this.findElements(target, true);
+  }
+
+  elementPath(el: Element): string | undefined {
+    return this._elementPaths.get(el);
+  }
+
+  protected notePath(el: Element, node: ElementNode, scope: ReactiveScope): Element {
+    const path = this._nodePaths.get(node);
+    if (path !== undefined && scope.base !== undefined) {
+      this._elementPaths.set(el, `${scope.base}${path}`);
+    }
+    return el;
+  }
+
+  protected markedPaths(target: string): string[] {
+    const words = target.split(" ");
+    return [...this._clearPaths].flatMap(([key, paths]) =>
+      key === target || words.every((w) => key.split(" ").includes(w)) ? paths : [],
+    );
+  }
+
+  protected fullyMarked(target: string): boolean {
+    const words = target.split(" ");
+    return ![...this._unmarkedKeys].some(
+      (key) => key === target || words.every((w) => key.split(" ").includes(w)),
+    );
+  }
+
+  protected clearReach(target: string, reach: "marked" | "unmarked" | "name"): Element[] {
+    const elements = this.textElements(target);
+    if (reach === "name") {
+      return elements;
+    }
+    const marked = new Set([...this._clearPaths.values()].flat());
+    return elements.filter((el) => marked.has(this.elementPath(el) ?? "") === (reach === "marked"));
+  }
+
+  protected textRestorePlan(): Map<string, Element[]> {
+    const saved = Object.keys(this._state.text ?? {});
+    const written = this._state.textWritten ?? {};
+    const cleared = this._state.textCleared ?? {};
+    const elementsOf = new Map(saved.map((target) => [target, this.textElements(target)]));
+    const newest = new Map<Element, number>();
+    for (const target of saved) {
+      for (const el of elementsOf.get(target)!) {
+        newest.set(el, Math.max(newest.get(el) ?? -Infinity, ownEntry(written, target) ?? 0));
+      }
+    }
+    const emptiedAt = (el: Element) => ownEntry(cleared, this.elementPath(el) ?? "") ?? -Infinity;
+    return new Map(
+      saved.map((target) => {
+        const line = ownEntry(written, target) ?? 0;
+        return [
+          target,
+          elementsOf
+            .get(target)!
+            .filter(
+              (el) =>
+                line === newest.get(el) &&
+                line >= emptiedAt(el) &&
+                (!this.limited(el) || this.textFor(target, el) !== undefined),
+            ),
+        ];
+      }),
+    );
+  }
+
+  heldTextElements(): Set<Element> {
+    return new Set([...this.textRestorePlan().values()].flat());
+  }
+
+  protected savedElements(
+    names: { text: readonly string[]; image: readonly string[] } = {
+      text: Object.keys(this._state.text ?? {}),
+      image: Object.keys(this._state.image ?? {}),
+    },
+  ): Set<Element> {
+    const plan = this.textRestorePlan();
+    return new Set([
+      ...names.text.flatMap((target) => plan.get(target) ?? []),
+      ...names.image.flatMap((target) => this.textElements(target)),
+    ]);
+  }
+
+  protected holdsSaved(target: string, saved: ReadonlySet<Element>): boolean {
+    return this.textElements(target).some((el) => saved.has(el));
+  }
+
+  protected restoreTexts(): Promise<void>[] {
+    return [...this.textRestorePlan()].map(([target, elements]) =>
+      elements.length > 0 ? this.text.restoreOnto(target, elements) : Promise.resolve(),
+    );
   }
 
   protected hideUnwrittenTargets(layout: Element): void {
@@ -5658,12 +6811,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return false;
     };
-    for (const target of this.getTransientTargets()) {
-      if (this._state.text?.[target] || this._state.image?.[target]) {
+    const saved = this.savedElements();
+    for (const target of this._contentSlots) {
+      if (this.holdsSaved(target, saved)) {
         continue;
       }
-      for (const el of this.findElements(target, true)) {
+      for (const el of this.textElements(target)) {
         if (inLayout(el)) {
+          this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
       }
@@ -5806,59 +6961,198 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   Text = (($) => {
     class Text {
-      protected saveState(target: string, sequence: TextInstruction[] | null) {
-        if (sequence) {
-          $._state.text ??= {};
-          $._state.text[target] ??= [];
-          const state = $._state.text[target]!;
-          for (const e of sequence) {
-            const prev = state.at(-1);
-            if (
-              prev &&
-              JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
-            ) {
-              prev.text = (prev.text ?? "") + e.text;
-            } else {
-              const s: TextState = { text: e.text };
-              if (e.style) {
-                s.style = e.style;
-              }
-              state.push(s);
-            }
+      change(
+        reason: TextWriteReason,
+        target: string,
+        sequence: TextInstruction[],
+        instant?: boolean,
+        time?: number,
+        shown?: number,
+      ): Promise<void>;
+      change(reason: TextClearReason, targets: readonly string[]): Promise<void>;
+      async change(
+        reason: TextReason,
+        targets: string | readonly string[],
+        sequence?: TextInstruction[],
+        instant = false,
+        time?: number,
+        shown = 0,
+      ): Promise<void> {
+        const rule = TEXT_REASONS[reason];
+        if (rule.opensLine) {
+          this.#openLine();
+        }
+        const rendering = !$.context?.system?.simulating;
+        if (typeof targets === "string") {
+          if (rule.deletesSavedText) {
+            delete $._state.text?.[targets];
+            delete $._state.lineText?.[targets];
+            delete $._state.textWritten?.[targets];
+            this.#presented.delete(targets);
           }
-        } else {
-          delete $._state.text?.[target];
+          this.#present(targets, sequence!, instant, time, shown);
+          this.#save(targets, sequence!);
+          if (rule.recordsStamp) {
+            this.#mark("textWritten", targets);
+          }
+          if (rendering) {
+            await this.applyChanges(targets, sequence!, instant, time, shown);
+          }
+          return;
+        }
+        await Promise.all(
+          targets.map(async (target) => {
+            const elements = $.clearReach(target, rule.reach);
+            if (rule.deletesSavedText && (rule.reach === "name" || $.fullyMarked(target))) {
+              delete $._state.text?.[target];
+              delete $._state.lineText?.[target];
+              delete $._state.textWritten?.[target];
+              this.#presented.delete(target);
+            }
+            if (rule.recordsStamp) {
+              for (const path of $.markedPaths(target)) {
+                this.#mark("textCleared", path);
+              }
+            }
+            if (rendering) {
+              await this.writeElements(target, elements, null, true);
+            }
+          }),
+        );
+      }
+
+      #append(state: TextState[], sequence: TextInstruction[]) {
+        for (const e of sequence) {
+          const prev = state.at(-1);
+          if (
+            prev &&
+            JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
+          ) {
+            prev.text = (prev.text ?? "") + e.text;
+          } else {
+            const s: TextState = { text: e.text };
+            if (e.style) {
+              s.style = e.style;
+            }
+            state.push(s);
+          }
         }
       }
 
-      protected _presented = new Map<string, PresentedText>();
+      #presented = new Map<string, PresentedText>();
 
       settle(): void {
-        this._presented.clear();
+        this.#presented.clear();
+      }
+
+      #present(
+        target: string,
+        sequence: TextInstruction[],
+        instant: boolean,
+        time: number | undefined,
+        shown: number,
+      ) {
+        const saved = ownEntry($._state.text, target);
+        const prior = saved
+          ? (this.#presented.get(target)?.sequence ?? saved.map((s) => ({ ...s })))
+          : [];
+        this.#presented.set(target, {
+          sequence: [...prior, ...sequence],
+          time,
+          shown: prior.length + shown,
+          complete: instant,
+        });
+      }
+
+      #save(target: string, sequence: TextInstruction[]) {
+        $._state.text ??= {};
+        this.#append(ownList($._state.text, target), sequence);
+        const line = $._state.line;
+        if (line) {
+          $._state.lineText ??= {};
+          const written = ownList($._state.lineText, target);
+          const last = written.at(-1);
+          if (last && last.variant === line.variant && last.speaker === line.speaker) {
+            this.#append(last.text, sequence);
+          } else {
+            const entry: LineText = { ...line, text: [] };
+            this.#append(entry.text, sequence);
+            written.push(entry);
+          }
+        }
+      }
+
+      #stamps(): number[] {
+        return [
+          ...Object.values($._state.textWritten ?? {}),
+          ...Object.values($._state.textCleared ?? {}),
+        ];
+      }
+
+      #openLine() {
+        $._state.textLine = Math.max(0, ...this.#stamps()) + 1;
+      }
+
+      #mark(kind: "textWritten" | "textCleared", target: string) {
+        const line = $._state.textLine ?? 0;
+        Object.defineProperty(($._state[kind] ??= {}), target, {
+          value: line,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+        const rank = new Map(
+          [...new Set(this.#stamps())]
+            .filter((v) => v > 0)
+            .sort((a, b) => a - b)
+            .map((v, i) => [v, i + 1]),
+        );
+        for (const stamps of [$._state.textWritten, $._state.textCleared]) {
+          for (const key of Object.keys(stamps ?? {})) {
+            stamps![key] = rank.get(stamps![key]!) ?? stamps![key]!;
+          }
+        }
+        $._state.textLine = rank.get(line) ?? line;
       }
 
       async restore(target: string) {
-        await this.restoreOnto(target, $.findElements(target, true));
-      }
-
-      async restoreOnto(target: string, elements: Element[]) {
-        const state = $._state.text?.[target];
+        const state = ownEntry($._state.text, target);
         if (!state) {
           return;
         }
-        const presented = this._presented.get(target);
-        if (presented && !presented.complete) {
-          await this.writeElements(
-            target,
-            elements,
-            presented.sequence,
-            false,
-            presented.time,
-            presented.shown,
-          );
-        } else {
-          await this.writeElements(target, elements, presented?.sequence ?? state, true);
+        await this.restoreOnto(target, $.textElements(target));
+      }
+
+      async restoreOnto(target: string, elements: Element[]) {
+        const state = ownEntry($._state.text, target);
+        if (!state) {
+          return;
         }
+        const open = elements.filter((el) => !$.limited(el));
+        const limited = elements.filter((el) => $.limited(el));
+        const presented = this.#presented.get(target);
+        const writeOpen = (subset: boolean) =>
+          presented && !presented.complete
+            ? this.writeElements(
+                target,
+                open,
+                presented.sequence,
+                false,
+                presented.time,
+                presented.shown,
+                subset,
+              )
+            : this.writeElements(target, open, presented?.sequence ?? state, true, undefined, 0, subset);
+        if (limited.length === 0) {
+          await writeOpen(false);
+          return;
+        }
+        await Promise.all([
+          ...(open.length > 0 ? [writeOpen(true)] : []),
+          ...limited.map((el) =>
+            this.writeElements(target, [el], $.textFor(target, el) ?? null, true, undefined, 0, true),
+          ),
+        ]);
       }
 
       protected async applyChanges(
@@ -5868,13 +7162,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
+        const elements = $.textElements(target);
+        const admitted = sequence
+          ? elements.filter((el) => $.admits(el, $._state.line))
+          : elements;
+        if (admitted.length === 0 && elements.length > 0) {
+          return;
+        }
         await this.writeElements(
           target,
-          $.findElements(target, true),
+          admitted,
           sequence,
           instant,
           time,
           shown,
+          admitted.length < elements.length,
         );
       }
 
@@ -5885,6 +7187,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         shown = 0,
+        subset = false,
       ) {
         if (!sequence && $.knownEmpty("text", targetEls)) {
           return;
@@ -5898,9 +7201,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               this.hide(target, targetEl, keepShown),
             ),
         );
+        for (const targetEl of leaving) {
+          $.noteHidden(targetEl, true);
+        }
         const writing = targetEls.filter((el) => !leaving.includes(el));
         for (const targetEl of writing) {
           if (sequence) {
+            $.noteHidden(targetEl, false);
             const arrives = $.arrives(targetEl, "text", moving);
             if (arrives) {
               arriving.push(targetEl);
@@ -5915,6 +7222,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           } else if ($.contentsOf(targetEl).size > 0) {
             $.updateElement(targetEl, { attributes: { text: null } });
           } else {
+            $.noteHidden(targetEl, true);
             $.updateElement(targetEl, {
               style: { display: "none" },
               attributes: {
@@ -5946,16 +7254,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           void $.present(arriving, "show");
         }
         await $.emitSettled(
-          WriteTextMessage.type.request({
-            target,
-            instructions: sequence ?? [],
-            instant,
-            ...(time != null ? { time } : {}),
-            ...(shown > 0 ? { shown } : {}),
-            ...(leaving.length > 0 || $.namesWriteElements(target, writing)
-              ? { elements: writing.map((el) => el.id) }
-              : {}),
-          }),
+          $.onLine(
+            WriteTextMessage.type.request({
+              target,
+              instructions: sequence ?? [],
+              instant,
+              ...(time != null ? { time } : {}),
+              ...(shown > 0 ? { shown } : {}),
+              ...(subset || leaving.length > 0 || $.namesWriteElements(target, writing)
+                ? { elements: writing.map((el) => el.id) }
+                : {}),
+            }),
+            !instant &&
+              Boolean(sequence?.slice(shown).some((e) => (e.after ?? 0) > 0)),
+          ),
         );
       }
 
@@ -5981,40 +7293,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
-      async clear(target: string) {
-        this.saveState(target, null);
-        this._presented.delete(target);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, null, true);
-        }
-      }
-
-      async clearAll(targets: string[]) {
-        await Promise.all(targets.map((target) => this.clear(target)));
-      }
-
-      async write(
-        target: string,
-        sequence: TextInstruction[],
-        instant = false,
-        time?: number,
-        shown = 0,
-      ) {
-        const saved = $._state.text?.[target];
-        const prior = saved
-          ? (this._presented.get(target)?.sequence ?? saved.map((s) => ({ ...s })))
-          : [];
-        this.saveState(target, sequence);
-        this._presented.set(target, {
-          sequence: [...prior, ...sequence],
-          time,
-          shown: prior.length + shown,
-          complete: instant,
-        });
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, shown);
-        }
-      }
     }
     return Text;
   })(this);
@@ -6097,8 +7375,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async restore(target: string) {
         const state = $._state.image?.[target];
         if (state) {
-          await this.applyChanges(target, state, true);
+          const emptied = new Set($._state.pictureCleared ?? []);
+          await this.applyChanges(
+            target,
+            state,
+            true,
+            undefined,
+            undefined,
+            false,
+            $.textElements(target).filter((el) => !emptied.has($.elementPath(el) ?? "")),
+          );
         }
+      }
+
+      async clearMarked(targets: readonly string[]) {
+        await Promise.all(
+          targets.map(async (target) => {
+            const elements = $.clearReach(target, "marked");
+            if ($.fullyMarked(target)) {
+              delete $._state.image?.[target];
+            } else {
+              const paths = $.markedPaths(target);
+              if (paths.length > 0) {
+                $._state.pictureCleared = [
+                  ...new Set([...($._state.pictureCleared ?? []), ...paths]),
+                ];
+              }
+            }
+            if (!$.context?.system?.simulating) {
+              await this.applyChanges(target, null, true, undefined, undefined, false, elements);
+            }
+          }),
+        );
       }
 
       async restoreCleared(beat: Pick<Instructions, "image" | "extended">) {
@@ -6458,8 +7766,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
         view?: PictureView,
+        exits = false,
+        elements?: Element[],
       ) {
-        const targetEls = $.findElements(target, true);
+        const targetEls = elements ?? $.textElements(target);
+        if (instant) {
+          $.dropExits((el) => targetEls.includes(el));
+        }
         if (!sequence && $.knownEmpty("image", targetEls)) {
           return;
         }
@@ -6473,9 +7786,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               this.hide(target, targetEl, keepShown, sequence, view),
             ),
         );
+        for (const targetEl of leaving) {
+          $.noteHidden(targetEl, !sequence);
+        }
         const writing = targetEls.filter((el) => !leaving.includes(el));
         for (const targetEl of writing) {
           if (hides) {
+            $.noteHidden(targetEl, false);
             const contents = $.contentsOf(targetEl);
             contents.delete("image");
             $.updateElement(targetEl, {
@@ -6485,6 +7802,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               ),
             });
           } else if (sequence) {
+            $.noteHidden(targetEl, false);
             const arrives = $.arrives(targetEl, "image", moving);
             if (arrives) {
               arriving.push(targetEl);
@@ -6494,6 +7812,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               ...presenceAttributes($.presenceMark(targetEl, arrives)),
             });
           } else if ($.contentsOf(targetEl).size === 0) {
+            $.noteHidden(targetEl, true);
             $.updateElement(targetEl, {
               style: { display: "none" },
               ...presenceAttributes($.settleMark(targetEl)),
@@ -6504,11 +7823,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (writing.length === 0) {
           return;
         }
+        const exit: PictureExit | undefined =
+          exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
+            ? { elements: writing, epoch: $._game.connection.epoch }
+            : undefined;
+        if (exit) {
+          $._exits.add(exit);
+        }
         $.flushUIBatch();
         if (arriving.length > 0) {
           void $.present(arriving, "show");
         }
-        await $.emitSettled(
+        const request = $.onLine(
           WriteImageMessage.type.request({
             target,
             instructions: sequence ? this.resolve(sequence, instant, view) : [],
@@ -6517,8 +7843,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ...(leaving.length > 0 || $.namesWriteElements(target, writing)
               ? { elements: writing.map((el) => el.id) }
               : {}),
+            ...(exit ? { reportsExit: true } : {}),
           }),
+          !instant &&
+            (writing.some((el) => !arriving.includes(el)) ||
+              Boolean(
+                sequence?.some(
+                  (e) => e.control === "animate" || e.with || e.after || e.over,
+                ),
+              )),
         );
+        const written = $.emitSettled(request);
+        if (exit) {
+          const report = $._exitReports.get(request);
+          void (report ? $.settled(request.method, report) : written).then(() =>
+            $.endExit(exit),
+          );
+        }
+        await written;
       }
 
       protected hide(
@@ -6579,9 +7921,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (sequence.length === 0 && events.length > 0) {
           return;
         }
+        const onScreen =
+          $.pictureShown($._state.image?.[target]) ||
+          $.exiting(target) ||
+          sequence.some((e) => e.control === "show" && e.assets?.length);
         this.saveState(target, sequence);
+        if ($._state.pictureCleared) {
+          const refilled = new Set($.markedPaths(target));
+          $._state.pictureCleared = $._state.pictureCleared.filter((path) => !refilled.has(path));
+          if ($._state.pictureCleared.length === 0) {
+            delete $._state.pictureCleared;
+          }
+        }
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, view);
+          await this.applyChanges(
+            target,
+            sequence,
+            instant,
+            time,
+            view,
+            onScreen && !$.pictureShown($._state.image?.[target]),
+          );
         }
       }
     }
@@ -6620,9 +7980,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected async applyChanges(
         target: string,
         style: Record<string, string | null> | null,
+        waiting = false,
       ) {
         for (const targetEl of $.findElements(target)) {
-          if (targetEl) {
+          if (targetEl && (!waiting || $.streams.waits(targetEl))) {
             $.updateElement(targetEl, { style });
           }
         }
@@ -6633,8 +7994,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style: Record<string, string | null> | null,
       ) {
         this.saveState(target, style);
+        $.streams.saveEntryStyle(target, style, false);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, style);
+        }
+      }
+
+      async updateWaiting(
+        target: string,
+        style: Record<string, string | null> | null,
+      ) {
+        this.saveState(target, style);
+        $.streams.saveEntryStyle(target, style, true);
+        if (!$.context?.system?.simulating) {
+          await this.applyChanges(target, style, true);
         }
       }
     }
@@ -7134,6 +8507,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const absorbed = before.slice(keep);
         stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : [])];
         stream.current = keep;
+        for (const index of Object.keys(stream.styles ?? {})) {
+          if (Number(index) >= keep) {
+            delete stream.styles![Number(index)];
+          }
+        }
         if (absorbed.length > 0) {
           stream.absorbed = absorbed;
         } else {
@@ -7186,6 +8564,91 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       forget(): void {
         this._mounted.clear();
+      }
+
+      waits(el: Element): boolean {
+        if (!$.insideStream(el)) {
+          return true;
+        }
+        for (const mounts of this._mounted.values()) {
+          for (const mount of mounts) {
+            const view = this.waiting(mount);
+            if (
+              view &&
+              $.collectNodes(view.group).some((root) => {
+                for (let node: Element | null = el; node; node = node.parent) {
+                  if (node === root) {
+                    return true;
+                  }
+                }
+                return false;
+              })
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      protected waiting(mount: MountedStream): StreamEntryView | undefined {
+        const stream = $._state.streams?.[mount.key];
+        if (!stream || stream.entries.length <= stream.current) {
+          return undefined;
+        }
+        return mount.entries[stream.current];
+      }
+
+      saveEntryStyle(
+        target: string,
+        style: Record<string, string | null> | null,
+        waiting: boolean,
+      ): void {
+        for (const stream of Object.values($._state.streams ?? {})) {
+          const indices = waiting
+            ? stream.entries.length > stream.current
+              ? [stream.current]
+              : []
+            : Object.keys(stream.styles ?? {})
+                .map(Number)
+                .filter((index) => stream.styles?.[index]?.[target]);
+          for (const index of indices) {
+            stream.styles ??= {};
+            const styles = (stream.styles[index] ??= {});
+            if (!style) {
+              delete styles[target];
+              continue;
+            }
+            const state = (styles[target] ??= {});
+            for (const [k, v] of Object.entries(style)) {
+              state[k] = v ?? "";
+            }
+          }
+        }
+      }
+
+      protected applyStyles(
+        mount: MountedStream,
+        view: StreamEntryView,
+        index: number,
+      ): void {
+        const styles = $._state.streams?.[mount.key]?.styles?.[index];
+        if (!styles) {
+          return;
+        }
+        const roots = $.collectNodes(view.group);
+        for (const [target, saved] of Object.entries(styles)) {
+          const style = Object.fromEntries(
+            Object.entries(saved).map(([k, v]) => [k, v || null]),
+          );
+          for (const root of roots) {
+            for (const el of root.isMatch(target)
+              ? [root, ...$.searchForAll(root, target)]
+              : $.searchForAll(root, target)) {
+              $.updateElement(el, { style });
+            }
+          }
+        }
       }
 
       show(instant: boolean, time?: number): void {
@@ -7263,6 +8726,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (instant) {
           for (let i = rewriteFrom ?? current; i < kept; i += 1) {
             this.write(mount, i, entries[i]!, { complete: true });
+            this.applyStyles(mount, mount.entries[i]!, i);
           }
         }
         for (let i = kept; i < entries.length; i += 1) {
@@ -7270,6 +8734,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
+          this.applyStyles(mount, view, i);
           const reveal = this._reveals.get(this.revealKey(mount, i));
           const shownBefore = reveal ? reveal.complete : !presented || i < current;
           const atOnce = Boolean(presented?.instant) || shownBefore;
@@ -7341,7 +8806,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
-        const scope = $.makeScope(mount.scope.env, mount.scope.slots);
+        const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
         const template = mount.node.templates[entry.template];
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)

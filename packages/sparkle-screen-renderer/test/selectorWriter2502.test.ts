@@ -1,8 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { createScreenRenderContext } from "../../sparkle-screen-preview/src/utils/createScreenRenderContext";
-import { BREAKPOINTS, SHARED_CASES } from "../../spark-web-player/src/tests/ui/selectorWriterCases2502";
+import { BREAKPOINTS, SHARED_CASES } from "../../spark-web-player/test/ui/selectorWriterCases2502";
 import { getComponents, parseSparkle, renderCssVDOM } from "../src";
 import { sparkleSelectorToCssSelector } from "../src/runtime/css";
+
+const previewed = (source: string, breakpoints: Record<string, number>) => {
+  const written = sparkleSelectorToCssSelector(source, breakpoints);
+  return written && [...written.atRules, written.css].filter(Boolean).join(" ");
+};
 
 const renderStyle = (selector: string) => {
   const parsed = parseSparkle(`style card\n  ${selector}\n    color = red`);
@@ -11,7 +16,7 @@ const renderStyle = (selector: string) => {
 
 describe("the screen preview writes selectors as the game player does (#2502)", () => {
   test.each(SHARED_CASES)("writes %s as %s", (source, css) => {
-    expect(sparkleSelectorToCssSelector(source, { ...BREAKPOINTS })).toBe(css);
+    expect(previewed(source, { ...BREAKPOINTS })).toBe(css);
   });
 
   test.each([
@@ -22,14 +27,14 @@ describe("the screen preview writes selectors as the game player does (#2502)", 
     ["@indeterminate", ":indeterminate"],
     ["> #image^=bunny@", ">[image^=bunny\\@]"],
   ])("writes the player's own %s as %s", (source, css) => {
-    expect(sparkleSelectorToCssSelector(source, {})).toBe(css);
+    expect(previewed(source, {})).toBe(css);
   });
 
   test.each([
     ["@theme(dark)", "@media(prefers-color-scheme:dark)"],
     ["@theme( dark )", "@media(prefers-color-scheme:dark)"],
   ])("writes the color scheme state %s as the media query %s", (source, css) => {
-    expect(sparkleSelectorToCssSelector(source, {})).toBe(css);
+    expect(previewed(source, {})).toBe(css);
   });
 
   test("renders a standard state block into the preview's styles", () => {

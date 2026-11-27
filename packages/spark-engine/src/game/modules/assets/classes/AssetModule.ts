@@ -107,6 +107,7 @@ export class AssetModule extends Module<
       loading_min: seconds("loading_min"),
       loading_transition:
         typeof transition === "string" && transition ? transition : undefined,
+      morph_frame_rate: count("morph_frame_rate"),
     };
   }
 
@@ -743,6 +744,9 @@ export class AssetModule extends Module<
         predictBytes: Math.max(0, this.config.predict_cache_size) * MEGABYTE,
         loadBytes: Math.max(0, this.config.load_cache_size) * MEGABYTE,
         trimLayers: this.config.trim_layers,
+        beatTimeout: this.config.beat_timeout,
+        restoreTimeout: this.config.restore_timeout,
+        morphFrameRate: this.config.morph_frame_rate,
       }),
     );
     await this.gateRestore(this._game.module.ui.restoredPictureNames());

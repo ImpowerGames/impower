@@ -237,6 +237,21 @@ If a bare word is an option in two groups where choosing both would be a mistake
 
 The editor's autocomplete, after you type `:`, lists only the options this portrait actually has. A portrait with no `hat` layer does not offer `hat`.
 
+## How long a portrait stays
+
+A picture written with no layer, such as `[[mia:happy]]`, goes to the `portrait` element of the built-in `main` layout. That element is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so the portrait lasts as long as the line it came with: the next line that shows no portrait empties the slot, and a line that shows another portrait replaces it. The `backdrop` element has no `#clear`, so a backdrop stays until another one replaces it or the script hides it.
+
+In a `layout main` of your own, write `#clear` on each picture slot that should empty after its line, and leave it off a slot whose picture should stay:
+
+```sparkdown
+layout main {
+  stage {
+    backdrop { image }
+    portrait #clear { image }
+  }
+}
+```
+
 ## Choosing an expression
 
 The quickest way to choose between expressions is to look at them in the scene. With the Game Preview open and stopped, type the portrait's name and a colon, then move through the suggestions with the arrow keys: the preview shows the scene with each highlighted option in place, full size, with the character's other options and the order you wrote them in kept as they are. Highlighting `sad` while completing `[[mia:hat:|]]` shows exactly what `[[mia:hat:sad]]` would show.
@@ -443,16 +458,33 @@ A picture with layer files is still named `image.ava` in a define, so a named lo
 
 ## How layer files are drawn
 
-A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. A single image keeps its usual drawing, and so does a picture used as a `mask`, whose files count at their whole size.
+A picture made of layer files, from a portrait folder, from layer files beside a picture, or from a `layered_image`, is drawn by stacking its files on a canvas inside the element that shows it. So is a picture that is an SVG file, and a layered picture with an SVG layer file: its rest pose is drawn on a canvas inside its element, on a backdrop, a portrait or an element you lay out yourself. A single image file (PNG, WebP, JPEG, GIF) keeps its usual drawing. A picture used as a `mask` takes its outline from that drawing ([How a mask is drawn](#how-a-mask-is-drawn)).
 
 Export every layer at the size of the whole document, so the files line up. The empty part of a layer costs nothing: as the player loads a layer file it cuts it to the box of its painted pixels, plus a 2-pixel margin, and draws it back at its place. Only a pixel that is fully transparent counts as empty. A layer counts against the [loading budgets](./Loading.md#91-what-happens-on-its-own) at its cut size, so a prop that covers a tenth of the backdrop costs about a tenth of a whole file. The picture looks the same either way. `trim_layers = false` in `define assets as config` turns the cutting off.
 
 These pictures keep the usual CSS drawing, and their files count at their whole size once they are shown:
 
-- One of the layer files is animated: an animated GIF, an animated WebP, or an APNG.
-- The layer files are not all the same pixel size.
+- One of the layer files is animated: an animated GIF, an animated WebP, an APNG, or an SVG that animates itself with SMIL or a CSS animation inside the file.
+- The layer files are image files that are not all the same pixel size.
 - A layer file carries a colour profile other than sRGB.
-- The picture's size or position uses a percentage inside `round()`, `mod()`, `rem()`, `abs()` or a trigonometric function when it first appears.
+- The picture's layer files are image files, and its size or position uses a percentage inside `round()`, `mod()`, `rem()`, `abs()` or a trigonometric function when it first appears.
+
+### How pictures are drawn before a line shows
+
+A line waits, silently, until every picture it shows is drawn at the size it shows it. That size comes from the element's box, the screen's pixel density, the framing the line shows the picture at (both ends of a move), the scale the element's styles apply, and the scale keyframes of the line's animations on the picture or on the elements around it. A picture is never drawn larger than an image file's own pixels allow, unless it has an SVG layer, and never larger than 4096 by 4096 pixels. The wait counts under `beat_timeout` while the game plays and under `restore_timeout` in the stopped preview ([Loading](./Loading.md#91-what-happens-on-its-own)).
+
+A drawn portrait a morph plays on is drawn the same way, in every pose the line can show. Each pose of a morph that switches between states (each mouth shape of a talking morph, each state of a blink) is drawn before the line shows, and the portrait changes pose by showing a drawing already made. A morph that changes smoothly between its states, or moves or fades a labelled layer, is drawn ahead as frames: `morph_frame_rate` frames a second ([Loading](./Loading.md#91-what-happens-on-its-own)), 24 unless the assets config sets it, or one frame for each step of a `steps(...)` easing. A blink and a talking mouth playing together are drawn in every combination they can show. These drawings count against `predict_cache_size`: when a smooth morph's frames do not fit what prediction leaves, it is drawn with fewer frames, and with no room at all it holds the rest pose, without a warning. Each pose takes four bytes for each pixel of the portrait's drawn size. A portrait is drawn in at most 256 poses, so long smooth morphs playing together are drawn with fewer frames each, and when the switching morphs on one portrait alone would need more, the last of them listed hold the rest pose.
+
+A picture is not drawn again because a framing starts moving. When the preview or the window changes size, the picture is stretched until the resize ends, and then drawn again at its new size. A line that zooms a picture already shown further, or changes the size of its element, waits until the picture is drawn at its new size, and the picture keeps its current drawing until then. A few changes are not seen before the line shows: a picture that grows because an element before it is removed and a style depends on its position among its siblings, because text written on the line pushes it, or because the line both zooms it and resizes its element, keeps its drawing, is stretched as the line shows, and is drawn again once the change settles.
+
+A picture with an SVG file shows a placeholder in the web editor's preview and in VS Code's Game Preview when it cannot be drawn, or when it is not drawn by the time the wait runs out: a dashed box holding the picture's name and one line saying why. An exported game shows nothing in its place. The game warns once for each such picture. A picture drawn after its wait ran out replaces its placeholder. There is no fallback to the CSS drawing. A picture a morph plays on keeps its still drawing when the morph cannot play, and shows the placeholder when neither can draw it, unless one of its SVG layers plays a morph of its own, which keeps playing in the picture's CSS drawing. These SVG files cannot be drawn:
+
+- A file that does not parse as an SVG, or that does not load.
+- A file without a `viewBox` whose `width` and `height` are not both absolute lengths, or that the browser sizes differently from them.
+- A file whose root is styled with anything but its `width`, its `height`, and its fill, stroke, opacity and colour properties, or that uses a style sheet the player cannot read.
+- A file the browser will not draw at the size the picture is shown at.
+- A layer file whose size differs from the picture's other layer files.
+- A picture whose size or position uses a percentage inside `round()`, `mod()`, `rem()`, `abs()` or a trigonometric function when it first appears.
 
 A picture drawn on a canvas follows these rules:
 
@@ -461,6 +493,31 @@ A picture drawn on a canvas follows these rules:
 - A translucent background colour under a picture whose layers blend, where the picture has translucent pixels, is drawn in a different colour.
 - `background-clip: text` is ignored: the picture fills its box.
 - The canvas is drawn above the element's own content and its `::before` and `::after` decorations, unless they are positioned; positioned content is drawn above the canvas.
+
+### How a mask is drawn
+
+A `mask` element shows the outline of the picture written to its element, as a shadow behind a portrait does. The outline is cut from the `mask` element's child, so the fill goes on `> *`, while the opacity and offset go on the `mask` element itself. A fill set on the `mask` element itself shows as a full rectangle:
+
+```
+layout main {
+  portrait #clear {
+    mask.shadow
+    image
+  }
+}
+
+style shadow {
+  opacity = 0.3
+  translate = 10px -10px
+  > * {
+    background_color = black
+  }
+}
+```
+
+When the element's `image` shows that picture on a canvas, the outline comes from the picture's own drawing: it is made once, from the rest pose at the size the picture is drawn, and every `mask` of the element shows it. The line waits for the outline as it waits for the picture. A morph playing on the picture does not move the outline: a shadow keeps the resting outline while the mouth moves. The `mask`'s colour, opacity, offset, blur and animations apply as written.
+
+A `mask` whose picture shows the placeholder shows nothing, and so does one whose outline is not ready when the wait runs out, until the outline is made. A `mask` keeps the CSS drawing of the picture's files, which count at their whole size, when the picture keeps the CSS drawing, when it is a single image file, and when no `image` of the element shows it.
 
 ## When something looks wrong
 
@@ -502,7 +559,7 @@ Migrate the native artwork's layer names before re-exporting: export normalizati
 
 ## Making a portrait move
 
-A portrait can also move between its states on its own, such as blinking from `eyes.open` to `eyes.closed` and back. [Portrait Morphs](./PortraitMorphs.md) shows how to prepare the layers and declare the movement, and [Talking](./PortraitMorphs.md#talking) shows how to make a character's mouth move while they speak. A portrait made of image files blinks and talks by showing, hiding and fading whole layer files ([Portraits made of image files](./PortraitMorphs.md#portraits-made-of-image-files)). A still portrait may use any SVG styling, but a portrait that moves has to avoid style sheets and the styles and transforms listed in [Art the morph can read](./PortraitMorphs.md#art-the-morph-can-read), or it shows without the morph.
+A portrait can also move between its states on its own, such as blinking from `eyes.open` to `eyes.closed` and back. [Portrait Morphs](./PortraitMorphs.md) shows how to prepare the layers and declare the movement, and [Talking](./PortraitMorphs.md#talking) shows how to make a character's mouth move while they speak. A portrait made of image files blinks and talks by showing, hiding and fading whole layer files ([Portraits made of image files](./PortraitMorphs.md#portraits-made-of-image-files)). Inside the file, a still portrait may use any SVG styling, but its root may be styled only as [How pictures are drawn before a line shows](#how-pictures-are-drawn-before-a-line-shows) lists, or it shows a placeholder in the previews and nothing in an exported game. A portrait that moves also has to avoid style sheets and the styles and transforms listed in [Art the morph can read](./PortraitMorphs.md#art-the-morph-can-read), or it shows without the morph.
 
 ## Quick reference
 

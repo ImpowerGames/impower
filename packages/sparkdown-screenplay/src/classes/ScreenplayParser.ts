@@ -2,6 +2,7 @@ import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { readSkipping } from "../../../sparkdown/src/compiler/utils/readSkipping";
+import { cueVariant } from "../../../sparkdown/src/compiler/utils/readCue";
 import { isStyleCode, trimStyled, trimStyledBounds } from "../../../sparkdown/src/runtime/displayStyle";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { ScreenplayToken } from "../types/ScreenplayToken";
@@ -526,10 +527,10 @@ export const screenplayTokens = (tree: Tree, script: string, positions = false):
           character = join(character, readLine(nodeRef.node, characterSource));
         }
         if (name === "DialogueCharacterPositionContent") {
-          const text = read(from, to);
-          if (text === "<" || text === "left" || text === "l") {
+          const variant = cueVariant(read(from, to));
+          if (variant === "left") {
             position = "l";
-          } else if (text === ">" || text === "right" || text === "r") {
+          } else if (variant === "right") {
             position = "r";
           }
         }

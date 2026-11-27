@@ -53,7 +53,9 @@ import {
   type DirectiveClause,
   type DirectiveKind,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
-import { readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { ownList } from "../../../core/utils/ownEntry";
+import { cueVariant, readCue } from "@impower/sparkdown/src/compiler/utils/readCue";
 import {
   type CharacterNames,
   characterNames,
@@ -71,7 +73,7 @@ export interface InterpreterState {
 export interface Cue {
   name: string;
   parenthetical: string;
-  position: string;
+  variant?: string;
   character?: string;
 }
 
@@ -173,7 +175,7 @@ export class InterpreterModule extends Module<
       a.text ??= {};
       if (b.text) {
         for (const [k, v] of Object.entries(b.text)) {
-          a.text[k] ??= [];
+          ownList(a.text, k);
           if (prefix) {
             a.text[k]!.unshift(...v);
           } else {
@@ -186,7 +188,7 @@ export class InterpreterModule extends Module<
       a.audio ??= {};
       if (b.audio) {
         for (const [k, v] of Object.entries(b.audio)) {
-          a.audio[k] ??= [];
+          ownList(a.audio, k);
           if (prefix) {
             a.audio[k]!.unshift(...v);
           } else {
@@ -199,7 +201,7 @@ export class InterpreterModule extends Module<
       a.image ??= {};
       if (b.image) {
         for (const [k, v] of Object.entries(b.image)) {
-          a.image[k] ??= [];
+          ownList(a.image, k);
           if (prefix) {
             a.image[k]!.unshift(...v);
           } else {
@@ -212,7 +214,7 @@ export class InterpreterModule extends Module<
       a.layout ??= {};
       if (b.layout) {
         for (const [k, v] of Object.entries(b.layout)) {
-          a.layout[k] ??= [];
+          ownList(a.layout, k);
           if (prefix) {
             a.layout[k]!.unshift(...v);
           } else {
@@ -276,7 +278,7 @@ export class InterpreterModule extends Module<
   protected resolveCue(characterDeclaration: string): Cue {
     const cue = readCue(characterDeclaration);
     const characterNameMatch = cue.name.text;
-    const characterPositionMatch = cue.position?.text ?? "";
+
     const characterMap = this.context?.["character"] as any;
     const ownCharacter = (key: string) =>
       characterMap && Object.hasOwn(characterMap, key)
@@ -300,16 +302,11 @@ export class InterpreterModule extends Module<
       characterObj.name
         ? scanned(characterObj.name)
         : characterNameMatch;
-    const position =
-      characterPositionMatch === "<"
-        ? "left"
-        : characterPositionMatch === ">"
-          ? "right"
-          : characterPositionMatch;
+    const variant = cue.variant ? cueVariant(cue.variant.text) : undefined;
     return {
       name: characterName,
       parenthetical: cue.parenthetical?.text ?? "",
-      position,
+      ...(variant ? { variant } : {}),
       character: characterObj?.$name,
     };
   }
@@ -353,6 +350,11 @@ export class InterpreterModule extends Module<
     } else {
       delete beat.speaker;
     }
+    if (cue?.variant) {
+      beat.variant = cue.variant;
+    } else {
+      delete beat.variant;
+    }
     if (source) {
       beat.source = source;
     } else {
@@ -384,7 +386,7 @@ export class InterpreterModule extends Module<
       const speaks = Boolean(ownCue?.name);
       boxCue = {
         name: speaks ? ownCue!.name : box.cue.name,
-        position: speaks ? ownCue!.position : box.cue.position,
+        variant: speaks ? ownCue!.variant : box.cue.variant,
         character: speaks ? ownCue!.character : box.cue.character,
         parenthetical:
           ownCue?.parenthetical || lifted?.parenthetical || box.cue.parenthetical,
@@ -396,7 +398,7 @@ export class InterpreterModule extends Module<
       box && (boxContent || pause || lifted)
         ? this.parse(boxContent, boxTarget, {
             character: typedBy?.character,
-            position: typedBy?.position,
+            variant: typedBy?.variant,
             spoken: true,
           })
         : undefined;
@@ -415,7 +417,7 @@ export class InterpreterModule extends Module<
       undefined;
     if (cue) {
       options.character = cue.character;
-      options.position = cue.position;
+      options.variant = cue.variant;
       if (cue.name) {
         characterNameInstructions = this.parse(
           cue.name,
@@ -440,7 +442,7 @@ export class InterpreterModule extends Module<
       }
       if (carries && box) {
         const text = (contentInstructions.text ??= {});
-        text[textTarget] = [...box.text, ...(text[textTarget] ?? [])];
+        ownList(text, textTarget).unshift(...box.text);
         const extended: Record<string, number> = {
           [textTarget]: box.text.length,
         };
@@ -738,18 +740,19 @@ export class InterpreterModule extends Module<
     name: string,
     ...fallbacks: string[]
   ) {
-    const value = (this.context as any)?.[type]?.[name] as any;
-    if (value) {
-      return value;
-    }
-    for (let i = 0; i < fallbacks.length; i += 1) {
-      const fallbackName = fallbacks[i] || "";
-      const fallbackValue = (this.context as any)?.[type]?.[fallbackName];
-      if (fallbackValue) {
-        return fallbackValue;
-      }
-    }
-    return (this.context as any)?.[type]?.["$default"];
+    return getContextEntry(
+      this.context as any,
+      type,
+      this.lookupContextValueName(type, name, ...fallbacks),
+    );
+  }
+
+  protected typewriterFor(target: string, options?: InstructionOptions) {
+    const variant = options?.spoken ? options.variant : undefined;
+    const typewriter = variant
+      ? getContextEntry(this.context as any, "typewriter", variant)
+      : undefined;
+    return typewriter || this.lookupContextValue("typewriter", target);
   }
 
   protected lookupContextValueName(
@@ -757,15 +760,9 @@ export class InterpreterModule extends Module<
     name: string,
     ...fallbacks: string[]
   ) {
-    const value = (this.context as any)?.[type]?.[name];
-    if (value) {
-      return name;
-    }
-    for (let i = 0; i < fallbacks.length; i += 1) {
-      const fallbackName = fallbacks[i] || "";
-      const fallbackValue = (this.context as any)?.[type]?.[fallbackName];
-      if (fallbackValue) {
-        return fallbackName;
+    for (const candidate of [name, ...fallbacks]) {
+      if (getContextEntry(this.context as any, type, candidate || "")) {
+        return candidate || "";
       }
     }
     return "$default";
@@ -1045,7 +1042,7 @@ export class InterpreterModule extends Module<
     const processLine = (textLine: string, textTarget: string) => {
       const linePhrases: Phrase[] = [];
 
-      const typewriter = this.lookupContextValue("typewriter", textTarget);
+      const typewriter = this.typewriterFor(textTarget, options);
       const typewriterSynth = this.lookupContextValue(
         "synth",
         textTarget,
@@ -1563,7 +1560,7 @@ export class InterpreterModule extends Module<
     const debug = this.context?.system.debugging;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
-      const typewriter = this.lookupContextValue("typewriter", target);
+      const typewriter = this.typewriterFor(target, options);
       const letterPause = typewriter?.letter_pause ?? 0;
       const interjectionPause = typewriter?.punctuated_pause_scale ?? 1;
       const punctuatedMatcher = this.getMatcher(typewriter?.punctuated);
@@ -1627,7 +1624,7 @@ export class InterpreterModule extends Module<
     let voiced = false;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
-      const typewriter = this.lookupContextValue("typewriter", target);
+      const typewriter = this.typewriterFor(target, options);
       const fadeDuration = typewriter?.fade_duration ?? 0;
       const letterPause = typewriter?.letter_pause ?? 0;
       const animationOffset = typewriter?.animation_offset ?? 0;
@@ -1711,7 +1708,7 @@ export class InterpreterModule extends Module<
               }
             }
             result.text ??= {};
-            result.text[target] ??= [];
+            ownList(result.text, target);
             result.text[target]!.push(event);
             const spoken = c.voiced && c.speed > 0 ? letterPause / c.speed : 0;
             if (speaker && spoken > 0) {
@@ -1774,7 +1771,7 @@ export class InterpreterModule extends Module<
               }
             }
             result.image ??= {};
-            result.image[target] ??= [];
+            ownList(result.image, target);
             result.image[target]!.push(event);
           }
           if (c.tag === "load") {
@@ -1847,7 +1844,7 @@ export class InterpreterModule extends Module<
               }
               const key = layoutName || screen;
               result.layout ??= {};
-              result.layout[key] ??= [];
+              ownList(result.layout, key);
               result.layout[key]!.push(event);
             }
           }
@@ -1897,7 +1894,7 @@ export class InterpreterModule extends Module<
               }
             }
             result.audio ??= {};
-            result.audio[target] ??= [];
+            ownList(result.audio, target);
             result.audio[target]!.push(event);
           }
           if (c.duration) {
@@ -1906,7 +1903,7 @@ export class InterpreterModule extends Module<
                 "synth",
                 "typewriter",
               );
-              synthEvents[synthName] ??= [];
+              ownList(synthEvents, synthName);
               synthEvents[synthName]!.push({
                 time,
                 speed: c.speed ?? 1,
@@ -1920,7 +1917,7 @@ export class InterpreterModule extends Module<
                     target || "",
                     "typewriter",
                   );
-              synthEvents[synthName] ??= [];
+              ownList(synthEvents, synthName);
               synthEvents[synthName]!.push({
                 time,
                 speed: c.speed ?? 1,

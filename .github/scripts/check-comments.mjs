@@ -69,12 +69,18 @@ function git(root, args) {
   return spawnSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true, maxBuffer: 1 << 30 });
 }
 
-function baseText(root, mergeBase, file, state) {
-  if (!mergeBase) throw new Error(`${file} has no patch in the listing and no merge base was given to compare it with`);
-  if (!state.fetched && git(root, ["cat-file", "-e", `${mergeBase}^{commit}`]).status !== 0) {
-    state.fetched = true;
+function ensureMergeBase(root, mergeBase) {
+  if (git(root, ["cat-file", "-e", `${mergeBase}^{commit}`]).status !== 0) {
     const fetched = git(root, ["fetch", "--no-tags", "--depth=1", "origin", mergeBase]);
     if (fetched.status !== 0) throw new Error(`the merge base ${mergeBase} could not be fetched: ${fetched.stderr.trim()}`);
+  }
+}
+
+function baseText(root, mergeBase, file, state) {
+  if (!mergeBase) throw new Error(`${file} has no patch in the listing and no merge base was given to compare it with`);
+  if (!state.fetched) {
+    ensureMergeBase(root, mergeBase);
+    state.fetched = true;
   }
   const shown = git(root, ["show", `${mergeBase}:${file}`]);
   if (shown.status === 0) return shown.stdout;
@@ -125,6 +131,25 @@ export function judgedRecords(records) {
 
 export function needsCheck(records, limit = LISTING_LIMIT) {
   return records.length >= limit || judgedRecords(records).length > 0;
+}
+
+function completeListing(root, mergeBase, head) {
+  if (![mergeBase, head].every((sha) => /^[0-9a-f]{40}$/.test(sha))
+      || git(root, ["rev-parse", "HEAD"]).stdout.trim() !== head) {
+    throw new Error("The complete comment check requires the pull request's merge base and checked-out head");
+  }
+  ensureMergeBase(root, mergeBase);
+  const diff = git(root, ["diff", "--raw", "--no-abbrev", "--find-renames", "-z", mergeBase, head, "--"]);
+  if (diff.status !== 0) throw new Error(`Cannot list the complete pull request diff: ${diff.stderr}`);
+  const fields = diff.stdout.split("\0");
+  const records = [];
+  for (let i = 0; i < fields.length - 1;) {
+    const [, , before, after, status] = fields[i++].split(" ");
+    const previous = fields[i++];
+    const filename = status.startsWith("R") ? fields[i++] : previous;
+    if (status !== "D" && before !== after) records.push({ filename, previous_filename: previous });
+  }
+  return records;
 }
 
 export function checkComments({ root, records, mergeBase, limit = LISTING_LIMIT }) {
@@ -230,7 +255,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const judged = judgedRecords(records).map((r) => r.filename);
     console.log(`${records.length} changed file(s); ${judged.length} the comment rule judges`);
     for (const file of judged) console.log(`  ${file}`);
-    if (records.length >= limit) console.log(`The listing may be incomplete at ${limit} files; the check runs and fails on it`);
+    if (records.length >= limit) console.log(`The listing may be incomplete at ${limit} files; the check requires the complete Git diff`);
     const line = `relevant=${needsCheck(records, limit)}`;
     console.log(line);
     if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, line + "\n");
@@ -245,8 +270,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log(`COMMENT_POLICY_REQUIRE_YAML is set, but yaml does not resolve from ${root} or its main checkout, so the check refuses to judge YAML with the fallback scanner.`);
     process.exit(1);
   }
-  const records = JSON.parse(fs.readFileSync(filesPath, "utf8"));
-  const result = checkComments({ root, records, mergeBase: option("--merge-base"), limit });
+  let records = JSON.parse(fs.readFileSync(filesPath, "utf8"));
+  const mergeBase = option("--merge-base");
+  const useGit = records.length >= limit && option("--head");
+  if (useGit) records = completeListing(root, mergeBase, option("--head"));
+  const result = checkComments({ root, records, mergeBase, limit: useGit ? Infinity : limit });
   const report = formatReport(result);
   console.log(report);
   for (const f of result.findings) console.log(`::error file=${f.file},line=${f.line},endLine=${f.endLine}::${escapeAnnotation(f.reasons.join("; "))}`);

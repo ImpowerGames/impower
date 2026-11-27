@@ -1,5 +1,7 @@
 export const COLOR_SCHEME_ATTRIBUTE = "data-color-scheme";
 
+export const SHOWING_ATTRIBUTE = "data-showing";
+
 export const PRESENCE_ATTRIBUTE = "data-presence";
 
 export const PRESENCE_STATES = ["initial", "show", "hide"] as const;
@@ -7,6 +9,36 @@ export const PRESENCE_STATES = ["initial", "show", "hide"] as const;
 export type Presence = (typeof PRESENCE_STATES)[number];
 
 const COLOR_SCHEME_STATE = "theme";
+
+export const SHOWING_STATE = "showing";
+
+export const VARIANT_STATE = "variant";
+
+export const SPEAKER_STATE = "speaker";
+
+export const LINE_VARIANT_ATTRIBUTE = "data-line-variant";
+
+export const LINE_SPEAKER_ATTRIBUTE = "data-line-speaker";
+
+export const LINE_LABEL = /^[\p{L}\p{N}_]+$/u;
+
+const DEFINE_NAME = /^[_\p{L}][\p{L}\p{N}_]*(?:@[\p{L}\p{N}_]+)*$/u;
+
+const SHOWING_NAME = /^[_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*$/u;
+
+export const GAME_WIDE_STATES: ReadonlyMap<string, { name: RegExp; root: (name: string) => string }> = new Map([
+  [SHOWING_STATE, { name: SHOWING_NAME, root: (name: string) => `[${SHOWING_ATTRIBUTE}~="${name}"]` }],
+  [VARIANT_STATE, { name: LINE_LABEL, root: (name: string) => `[${LINE_VARIANT_ATTRIBUTE}="${name}"]` }],
+  [SPEAKER_STATE, { name: DEFINE_NAME, root: (name: string) => `[${LINE_SPEAKER_ATTRIBUTE}="${name}"]` }],
+]);
+
+export interface SelectorRefusal {
+  kind: "game-wide" | "at-rule-list" | "query-list" | "escape";
+  state: string;
+  where: string;
+  from: number;
+  to: number;
+}
 
 const table = (entries: Record<string, string>): ReadonlyMap<string, string> => new Map(Object.entries(entries));
 
@@ -67,7 +99,7 @@ const ARGUMENT_STATE_ALIASES: ReadonlyMap<string, string> = table({
   language: "lang",
 });
 
-const AT_RULE_STATES: ReadonlyMap<string, string> = table({
+export const AT_RULE_STATES: ReadonlyMap<string, string> = table({
   container: "@container",
   layer: "@layer",
   media: "@media",
@@ -84,9 +116,9 @@ const SIZE_STATES: ReadonlyMap<string, string> = table({
   screen_size: "@container screen (max-width:",
 });
 
-const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host-context"];
+export const SELECTOR_LIST_PSEUDO_CLASSES = ["has", "not", "is", "where", "host", "host-context"];
 
-const NTH_OF_PSEUDO_CLASSES = ["nth-child", "nth-last-child"];
+export const NTH_OF_PSEUDO_CLASSES = ["nth-child", "nth-last-child"];
 
 const VALUE_PSEUDO_CLASSES = ["nth-of-type", "nth-last-of-type", "dir", "lang", "state"];
 
@@ -142,6 +174,7 @@ const STANDARD_PSEUDO_CLASSES: ReadonlySet<string> = new Set([
 
 export const WRITTEN_SELECTOR_STATES: ReadonlySet<string> = new Set([
   COLOR_SCHEME_STATE,
+  ...GAME_WIDE_STATES.keys(),
   ...SELECTOR_STATE_ALIASES.keys(),
   ...ARGUMENT_STATE_ALIASES.keys(),
   ...AT_RULE_STATES.keys(),
@@ -149,10 +182,14 @@ export const WRITTEN_SELECTOR_STATES: ReadonlySet<string> = new Set([
   ...STANDARD_PSEUDO_CLASSES,
 ]);
 
+export const isAtRuleState = (name: string): boolean =>
+  name === COLOR_SCHEME_STATE || AT_RULE_STATES.has(name) || SIZE_STATES.has(name);
+
 export interface SparkleSelectorOptions {
   breakpoints: Record<string, number>;
   colorScheme: "attribute" | "media";
   attributeName?: (name: string) => string;
+  afterCombinator?: boolean;
 }
 
 type ArgumentKind = "selectors" | "nth" | "value";
@@ -168,7 +205,12 @@ const OPTIONAL_ARGUMENT_PSEUDO_CLASSES: ReadonlySet<string> = new Set(["host"]);
 export type SelectorStateArguments = "required" | "optional" | "none";
 
 export const selectorStateArguments = (name: string): SelectorStateArguments | undefined => {
-  if (name === COLOR_SCHEME_STATE || SIZE_STATES.has(name) || ARGUMENT_STATE_ALIASES.has(name)) {
+  if (
+    name === COLOR_SCHEME_STATE ||
+    GAME_WIDE_STATES.has(name) ||
+    SIZE_STATES.has(name) ||
+    ARGUMENT_STATE_ALIASES.has(name)
+  ) {
     return "required";
   }
   if (AT_RULE_STATES.has(name) || OPTIONAL_ARGUMENT_PSEUDO_CLASSES.has(name)) {
@@ -184,7 +226,12 @@ export const selectorStateArguments = (name: string): SelectorStateArguments | u
 };
 
 const WHITESPACE = /[ \t\r\n\f]+/y;
-const WORD = /[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/uy;
+const UNESCAPED_AFTER_BACKSLASH = /[\s{};"=[]/;
+const HEADER_READ = /[\s{};"=,[]/;
+const LONE_BACKSLASH_AT_END = /(?:^|[^\\])(?:\\\\)*\\$/;
+const escapeAt = (src: string, i: number): boolean =>
+  src[i] === "\\" && i + 1 < src.length && !UNESCAPED_AFTER_BACKSLASH.test(src[i + 1]!);
+const WORD =/[\p{L}\p{N}_-]+(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*/uy;
 const NAME_START = /^[_\p{L}]/u;
 const STATE = /@([_\p{L}][\p{L}\p{N}_-]*(?:@[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/uy;
 const PSEUDO = /::?[\p{L}\p{N}_-]*/uy;
@@ -196,13 +243,42 @@ const CLOSE_AHEAD = /[ \t\r\n\f]*[)]/y;
 const SELECTOR_FUNCTION_BEFORE = /(?:^|[^\p{L}\p{N}_-])selector$/u;
 const WIDTH_FEATURE_BEFORE = /(?:^|[^\p{L}\p{N}_-])(?:min-|max-)?width:$/u;
 const ESCAPE_OR_AT = /\\[^]|@/g;
-const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "="]);
+const PRELUDE_GLUE_BEFORE = new Set(["(", ":", ",", "<", ">", "=", " "]);
 const PRELUDE_GLUE_AFTER = new Set([")", ":", ",", "<", ">", "="]);
+const NEXT_STATE = /[ \t\r\n\f]*@[_\p{L}]/uy;
+const NESTED_AT_RULES: ReadonlySet<string> = new Set(["@layer", "@scope"]);
+const HELD_SELECTOR = /[^,\s]/;
+
+const LEADING_DIGIT = /^-?[0-9][\p{L}\p{N}_-]*$/u;
 
 const escapeAts = (text: string) => text.replace(ESCAPE_OR_AT, (match) => (match === "@" ? "\\@" : match));
 
 class SparkleSelectorWriter {
   private i = 0;
+
+  private positions: string[] = [];
+
+  private compound = 0;
+
+  leftFirstCompound = false;
+
+  private item = 0;
+
+  private seen = new Set<number>();
+
+  private preludes: { from: number; to: number; where: string }[] = [];
+
+  private itemAtRules: { state: string; rule: string; text: string; from: number; to: number }[][] = [];
+
+  private queryLists: { state: string; from: number; to: number }[] = [];
+
+  private heldState = false;
+
+  readonly roots: string[] = [];
+
+  atRules: string[] = [];
+
+  readonly refusals: SelectorRefusal[] = [];
 
   constructor(
     private readonly src: string,
@@ -211,13 +287,109 @@ class SparkleSelectorWriter {
 
   write(): string {
     let out = "";
+    this.compound = this.firstCompound();
     while (this.i < this.src.length) {
       out += this.list("selectors", true);
       if (this.i < this.src.length) {
         out += this.src[this.i++];
       }
     }
+    if (HELD_SELECTOR.test(out) || this.roots.length > 0 || this.heldState) {
+      for (const { state, from, to } of this.queryLists) {
+        this.refusals.push({
+          kind: "query-list",
+          state,
+          where: "in a style key whose at-rule lists queries with a comma beside a selector or state",
+          from,
+          to,
+        });
+      }
+      const backslash = headerReadBackslash(this.src);
+      if (backslash !== undefined) {
+        for (const { state, from, to } of this.itemAtRules.flat()) {
+          this.refusals.push({ kind: "escape", state, where: backslash, from, to });
+        }
+      }
+    }
+    const sets = Array.from({ length: this.item + 1 }, (_, item) => {
+      const rules = this.itemAtRules[item] ?? [];
+      const nested = rules.filter(({ rule }) => NESTED_AT_RULES.has(rule)).map(({ text }) => text);
+      const conditions = rules.filter(({ rule }) => !NESTED_AT_RULES.has(rule)).map(({ text }) => text);
+      return [...nested, ...[...new Set(conditions)].sort()];
+    });
+    const [first = []] = sets;
+    if (sets.every((set) => set.length === first.length && set.every((text, i) => text === first[i]))) {
+      this.atRules = first;
+    } else {
+      for (const { state, from, to } of this.itemAtRules.flat()) {
+        this.refusals.push({
+          kind: "at-rule-list",
+          state,
+          where: "in a comma list whose selectors hold different at-rule states",
+          from,
+          to,
+        });
+      }
+    }
+    const refusedLists = this.refusals.filter(({ kind }) => kind === "query-list");
+    for (const { state, from, to } of gameWideOccurrences(this.src)) {
+      const swallowed =
+        groupDepthAt(this.src, from) === 0 && refusedLists.some((list) => list.from <= from && from < list.to);
+      if (!this.seen.has(from) && !swallowed) {
+        this.refusals.push({ kind: "game-wide", state, where: this.positionAt(from), from, to });
+      }
+    }
     return out.trim();
+  }
+
+  private within<T>(position: string, write: () => T): T {
+    this.positions.push(position);
+    try {
+      return write();
+    } finally {
+      this.positions.pop();
+    }
+  }
+
+  private firstCompound(): number {
+    return this.options.afterCombinator ? 1 : 0;
+  }
+
+  private nextCompound(item = false): void {
+    if (this.positions.length === 0) {
+      if (item) {
+        this.item++;
+        this.compound = this.firstCompound();
+      } else {
+        this.compound++;
+        this.leftFirstCompound = true;
+      }
+    }
+  }
+
+  private positionAt(offset: number): string {
+    const prelude = this.preludes.find(({ from, to }) => from <= offset && offset < to);
+    return prelude?.where ?? "inside an argument";
+  }
+
+  private gameWide(state: string): string {
+    const rule = GAME_WIDE_STATES.get(state)!;
+    const from = this.i - state.length - 1;
+    this.seen.add(from);
+    const { text, close } = this.argument(() => this.value());
+    const written = `@${state}(${text}${close}`;
+    const where =
+      this.positions.at(-1) ?? (this.compound > 0 ? "in a compound after a combinator" : undefined);
+    if (where) {
+      this.refusals.push({ kind: "game-wide", state, where, from, to: this.i });
+      return written;
+    }
+    const name = text.trim();
+    if (!close || !rule.name.test(name)) {
+      return written;
+    }
+    this.roots[this.item] = (this.roots[this.item] ?? "") + rule.root(name);
+    return "";
   }
 
   private match(pattern: RegExp): RegExpExecArray | null {
@@ -254,6 +426,9 @@ class SparkleSelectorWriter {
       if (this.src.startsWith(">>", this.i)) {
         this.i += 2;
         this.match(WHITESPACE);
+        if (topLevel) {
+          this.nextCompound();
+        }
         if (!selectors) {
           out = out.trimEnd() + " ";
         } else if (!itemStart) {
@@ -267,6 +442,9 @@ class SparkleSelectorWriter {
       }
       if (char === ">" || char === "+" || char === "~" || char === ",") {
         this.i++;
+        if (topLevel) {
+          this.nextCompound(char === ",");
+        }
         out += char;
         classNext = selectors;
         itemStart = char === ",";
@@ -282,12 +460,35 @@ class SparkleSelectorWriter {
       }
       classNext = false;
       if (char === "@") {
+        const start = this.i;
         const state = this.match(STATE);
         if (state) {
-          const written = this.state(state[1]!);
-          out += written.text;
-          if (written.atRule) {
-            out += this.prelude(written.atRule);
+          const name = state[1]!;
+          if (GAME_WIDE_STATES.has(name) && this.src[this.i] === "(") {
+            out += this.gameWide(name);
+            continue;
+          }
+          const written = this.state(name);
+          if (!written.atRule) {
+            out += written.text;
+            continue;
+          }
+          const from = this.i;
+          const where = `inside an \`${written.atRule}\` prelude`;
+          const shorthand = !AT_RULE_STATES.has(name);
+          const prelude = this.within(where, () => this.prelude(written.atRule!, shorthand));
+          const text = written.text + prelude.text;
+          this.preludes.push({ from, to: this.i, where });
+          if (this.positions.length === 0) {
+            (this.itemAtRules[this.item] ??= []).push({ state: name, rule: written.atRule, text, from: start, to: this.i });
+            if (name === COLOR_SCHEME_STATE || prelude.stateAfter) {
+              this.heldState = true;
+            }
+            if (prelude.listed) {
+              this.queryLists.push({ state: name, from: start, to: this.i });
+            }
+          } else {
+            out += text;
           }
           continue;
         }
@@ -309,10 +510,10 @@ class SparkleSelectorWriter {
     }
     if (char === ":") {
       const pseudo = this.match(PSEUDO)![0];
-      return this.src[this.i] === "(" ? pseudo + this.raw() : pseudo;
+      return this.src[this.i] === "(" ? pseudo + this.within(`inside \`${pseudo}(…)\``, () => this.raw()) : pseudo;
     }
     if (char === "(") {
-      return this.raw();
+      return this.within("inside parentheses", () => this.raw());
     }
     this.i++;
     return char;
@@ -395,7 +596,8 @@ class SparkleSelectorWriter {
   private attribute(): string {
     const [, name = "", operator = "", value = ""] = this.match(ATTRIBUTE)!;
     const attribute = name ? (this.options.attributeName?.(name) ?? name) : "";
-    const written = value.startsWith('"') || value.startsWith("'") ? value : escapeAts(value);
+    const quoted = value.startsWith('"') || value.startsWith("'");
+    const written = quoted ? value : LEADING_DIGIT.test(value) ? JSON.stringify(value) : escapeAts(value);
     return `[${attribute}${operator}${written}]`;
   }
 
@@ -423,40 +625,54 @@ class SparkleSelectorWriter {
     }
     const alias = SELECTOR_STATE_ALIASES.get(name);
     if (alias) {
-      return { text: called ? alias + this.raw() : alias };
+      return { text: called ? alias + this.within(`inside \`@${name}(…)\``, () => this.raw()) : alias };
     }
     const pseudo = ARGUMENT_STATE_ALIASES.get(name) ?? (STANDARD_PSEUDO_CLASSES.has(name) ? name : undefined);
     if (pseudo && called) {
-      const kind = ARGUMENT_KINDS.get(pseudo);
-      const args =
-        kind === "selectors"
-          ? this.enclosed(() => this.list("selectors", false))
-          : kind === "nth"
-            ? this.enclosed(() => this.nth())
-            : kind === "value"
-              ? this.enclosed(() => this.value())
-              : this.raw();
-      return { text: `:${pseudo}${args}` };
+      return { text: `:${pseudo}${this.within(`inside \`@${name}(…)\``, () => this.pseudoArgument(pseudo))}` };
     }
     if (pseudo && STANDARD_PSEUDO_CLASSES.has(name)) {
       return { text: `:${pseudo}` };
     }
-    return { text: called ? `@${name}${this.raw()}` : `@${name}` };
+    return { text: called ? `@${name}${this.within(`inside \`@${name}(…)\``, () => this.raw())}` : `@${name}` };
   }
 
-  private prelude(atRule: string): string {
+  private pseudoArgument(pseudo: string): string {
+    const kind = ARGUMENT_KINDS.get(pseudo);
+    return kind === "selectors"
+      ? this.enclosed(() => this.list("selectors", false))
+      : kind === "nth"
+        ? this.enclosed(() => this.nth())
+        : kind === "value"
+          ? this.enclosed(() => this.value())
+          : this.raw();
+  }
+
+  private prelude(atRule: string, shorthand: boolean): { text: string; listed: boolean; stateAfter: boolean } {
     let out = "";
     const declarations: boolean[] = [false];
     let space = false;
     let atStart = true;
+    let listed = false;
+    let stateAfter = false;
     while (this.i < this.src.length) {
       const char = this.src[this.i]!;
       if (this.match(WHITESPACE)) {
         space = true;
         continue;
       }
-      if (char === ")" && declarations.length === 1) {
+      if (
+        declarations.length === 1 &&
+        (char === ")" || (char === "@" && !listed && this.stateAfter(0)) || (char === "," && shorthand))
+      ) {
         break;
+      }
+      if (char === "@" && listed && declarations.length === 1) {
+        STATE.lastIndex = this.i;
+        const name = STATE.exec(this.src)?.[1];
+        if (name && (name === COLOR_SCHEME_STATE || !isAtRuleState(name))) {
+          stateAfter = true;
+        }
       }
       if (space) {
         const previous = out[out.length - 1];
@@ -469,6 +685,11 @@ class SparkleSelectorWriter {
         space = false;
       }
       atStart = false;
+      if (escapeAt(this.src, this.i)) {
+        out += this.src.slice(this.i, this.i + 2);
+        this.i += 2;
+        continue;
+      }
       if (char === "(") {
         const scope = declarations.length === 1 && atRule === "@scope";
         const condition =
@@ -492,6 +713,12 @@ class SparkleSelectorWriter {
         out += char;
         continue;
       }
+      if (char === "," && declarations.length === 1 && !LONE_BACKSLASH_AT_END.test(out)) {
+        this.i++;
+        out += ", ";
+        listed = true;
+        continue;
+      }
       const word = this.match(WORD);
       if (word) {
         out += WIDTH_FEATURE_BEFORE.test(out) && this.closesNext() ? this.breakpoint(word[0]) : word[0];
@@ -499,7 +726,12 @@ class SparkleSelectorWriter {
       }
       out += this.token(char);
     }
-    return out;
+    return { text: out.trimEnd(), listed, stateAfter };
+  }
+
+  private stateAfter(skip: number): boolean {
+    NEXT_STATE.lastIndex = this.i + skip;
+    return NEXT_STATE.test(this.src);
   }
 
   private closesNext(): boolean {
@@ -573,10 +805,122 @@ const liftColorScheme = (selector: string): string => {
     .join(", ");
 };
 
-export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string => {
-  const css = new SparkleSelectorWriter(selector, options).write();
-  return options.colorScheme === "attribute" ? liftColorScheme(css) : css;
+const GAME_WIDE_CALL = new RegExp(`@(${[...GAME_WIDE_STATES.keys()].join("|")})[(][^()]*[)]?`, "g");
+
+const gameWideOccurrences = (selector: string): { state: string; from: number; to: number }[] => {
+  const found: { state: string; from: number; to: number }[] = [];
+  let offset = 0;
+  selector.split(QUOTED_PART).forEach((piece, i) => {
+    if (!(i & 1)) {
+      for (const match of piece.matchAll(GAME_WIDE_CALL)) {
+        found.push({ state: match[1]!, from: offset + match.index, to: offset + match.index + match[0].length });
+      }
+    }
+    offset += piece.length;
+  });
+  return found;
 };
+
+const HEADER_READ_NAMES: Readonly<Record<string, string>> = { " ": "a space", "\t": "a tab", "\r": "a line break", "\n": "a line break", "\f": "a form feed" };
+
+const headerReadBackslash = (selector: string): string | undefined => {
+  let quote = "";
+  for (let i = 0; i < selector.length; i++) {
+    const char = selector[i]!;
+    if (quote) {
+      if (char === "\\") i++;
+      else if (char === quote) quote = "";
+    } else if (char === "\\") {
+      const next = selector[i + 1];
+      if (next === undefined || HEADER_READ.test(next)) {
+        return next === undefined ? "at the end of the key" : `before ${HEADER_READ_NAMES[next] ?? `\`${next}\``}`;
+      }
+      i++;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    }
+  }
+  return undefined;
+};
+
+const groupDepthAt = (selector: string, offset: number): number => {
+  let depth = 0;
+  let quote = "";
+  for (let i = 0; i < offset; i++) {
+    const char = selector[i]!;
+    if (quote) {
+      if (char === "\\") i++;
+      else if (char === quote) quote = "";
+    } else if (escapeAt(selector, i)) {
+      i++;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === "(" || char === "[") {
+      depth++;
+    } else if ((char === ")" || char === "]") && depth > 0) {
+      depth--;
+    }
+  }
+  return depth;
+};
+
+const COLOR_SCHEME_ROOT = new RegExp(`^:where\\((\\[${COLOR_SCHEME_ATTRIBUTE}="(?:light|dark)"\\])\\) `);
+
+const liftShowing = (selector: string, roots: string[]): string =>
+  splitTopLevelCommas(selector)
+    .map((part, item) => {
+      const rest = part.trim();
+      const root = roots[item];
+      if (!root) {
+        return rest;
+      }
+      const scheme = COLOR_SCHEME_ROOT.exec(rest);
+      if (scheme) {
+        return `:where(${scheme[1]}${root}) ${rest.slice(scheme[0].length)}`;
+      }
+      const target = !rest ? "&" : hasNestingSelector(rest) ? rest : /^[:[]/.test(rest) ? `&${rest}` : `& ${rest}`;
+      return `:where(${root}) ${target}`;
+    })
+    .join(", ");
+
+export interface WrittenSparkleSelector {
+  css: string;
+  atRules: string[];
+  refusals: SelectorRefusal[];
+  afterCombinator: boolean;
+}
+
+export const writeSparkleSelectorChecked = (
+  selector: string,
+  options: SparkleSelectorOptions,
+): WrittenSparkleSelector => {
+  const writer = new SparkleSelectorWriter(selector, options);
+  const written = writer.write();
+  const afterCombinator = Boolean(options.afterCombinator) || writer.leftFirstCompound;
+  if (writer.refusals.length > 0) {
+    return { css: written, atRules: [], refusals: writer.refusals, afterCombinator };
+  }
+  const lifted = options.colorScheme === "attribute" ? liftColorScheme(written) : written;
+  const css = writer.roots.length > 0 ? liftShowing(lifted, writer.roots) : lifted;
+  const items = splitTopLevelCommas(css);
+  return {
+    css:
+      writer.atRules.length > 0 && items.length > 1
+        ? items.map((item) => item.trim() || "&").join(", ")
+        : css,
+    atRules: writer.atRules,
+    refusals: [],
+    afterCombinator,
+  };
+};
+
+export const writeSparkleSelector = (selector: string, options: SparkleSelectorOptions): string => {
+  const { css, atRules } = writeSparkleSelectorChecked(selector, options);
+  return [...atRules, css].filter(Boolean).join(" ");
+};
+
+export const sparkleBlockPreludes = ({ css, atRules }: Pick<WrittenSparkleSelector, "css" | "atRules">): string[] =>
+  atRules.length > 0 && !css ? atRules : [...atRules, anchorSelfTargeted(css)];
 
 export const anchorSelfTargeted = (selector: string): string =>
   splitTopLevelCommas(selector)

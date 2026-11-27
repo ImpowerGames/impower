@@ -3479,7 +3479,7 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   DialogueCharacterPosition:
-    tag: definition(escape)
+    tag: meta
     name: constant.character.escape.dialogue.character.position.sd
     match: ({{WS}})(\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
@@ -3503,6 +3503,8 @@ repository:
         name: punctuation.definition.position.sd
 
   DialogueCharacterPositionContent:
+    tag: labelName
+    name: entity.name.label.dialogue.character.variant.sd
     match: (.+$)
 
   Action:
@@ -4797,7 +4799,9 @@ repository:
     # lookaround: a longer state name that starts with the at-rule's name
     # (`@scope-x`, `@scope_x(a)`, `@scope²(a)`) stays `SimpleSelectorFunction`'s or
     # `UnassignedSelectorAttribute`'s, which must come after this rule since
-    # they also read `@scope(`.
+    # they also read `@scope(`. The `end:` closes the prelude before an `@`
+    # that `SelectorAtRulePreludeText` leaves, so the key reads the state
+    # that follows.
     begin: ([@])(scope)(?!{{SELECTOR_WORD_GOES_ON}})
     beginCaptures:
       1:
@@ -4808,14 +4812,15 @@ repository:
           - { include: "#SelectorStateName" }
     patterns:
       - { include: "#RecursiveSelectorFunctionParameters" }
-      - { include: "#SelectorCssText" }
+      - { include: "#SelectorAtRulePreludeText" }
     applyEndPatternLast: true
-    end: (?=[)])|$
+    end: (?=[)@])|$
 
   SelectorSupportsAtRule:
     # lookaround: as for `SelectorScopeAtRule`, a longer state name
     # (`@supports-x`) stays `SimpleSelectorFunction`'s or
-    # `UnassignedSelectorAttribute`'s.
+    # `UnassignedSelectorAttribute`'s, and the prelude ends where
+    # `SelectorScopeAtRule`'s does.
     begin: ([@])(supports)(?!{{SELECTOR_WORD_GOES_ON}})
     beginCaptures:
       1:
@@ -4827,9 +4832,9 @@ repository:
     patterns:
       - { include: "#SelectorSupportsAtRuleGroup" }
       - { include: "#SelectorSupportsSelectorFunction" }
-      - { include: "#SelectorCssText" }
+      - { include: "#SelectorAtRulePreludeText" }
     applyEndPatternLast: true
-    end: (?=[)])|$
+    end: (?=[)@])|$
 
   SelectorSupportsAtRuleGroup:
     brackets: true
@@ -4878,6 +4883,7 @@ repository:
     # lookaround: as for `SelectorScopeAtRule`, a longer state name
     # (`@container-size(sm)`, `@media-x`) stays `SimpleSelectorFunction`'s or
     # `UnassignedSelectorAttribute`'s. The list's own end lets a `-` go on.
+    # The prelude ends where `SelectorScopeAtRule`'s does.
     begin: ([@])({{SELECTOR_AT_RULE_NAMES}})(?!{{SELECTOR_WORD_GOES_ON}})
     beginCaptures:
       1:
@@ -4888,9 +4894,9 @@ repository:
           - { include: "#SelectorStateName" }
     patterns:
       - { include: "#SelectorAtRuleGroup" }
-      - { include: "#SelectorCssText" }
+      - { include: "#SelectorAtRulePreludeText" }
     applyEndPatternLast: true
-    end: (?=[)])|$
+    end: (?=[)@])|$
 
   SelectorAtRuleGroup:
     brackets: true
@@ -4923,12 +4929,36 @@ repository:
 
   SelectorCssText:
     patterns:
+      - { include: "#SelectorCssEscape" }
       - { include: "#LuauStructBlockKeyString" }
       - { include: "#StringLiteral" }
       - { include: "#Separator" }
       - { include: "#PunctuationComma" }
       - { include: "#SelectorCssWord" }
       - { include: "#SelectorCssPunctuation" }
+
+  SelectorAtRulePreludeText:
+    patterns:
+      - { include: "#SelectorCssEscape" }
+      - { include: "#LuauStructBlockKeyString" }
+      - { include: "#StringLiteral" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#SelectorCssWord" }
+      - { include: "#SelectorAtRulePunctuation" }
+
+  SelectorAtRulePunctuation:
+    # lookaround: an `@` before a name starts a state, which ends the prelude
+    # as in the writer, so the key's `SelectorAttribute` or
+    # `SimpleSelectorFunction` reads it; any other `@` is prelude text.
+    tag: operator
+    name: keyword.operator.css.sd
+    match: ([^\s(),@{{SELECTOR_WORD_CHAR}}]|[@](?![_\p{L}]))
+
+  SelectorCssEscape:
+    tag: escape
+    name: constant.character.escape.css.sd
+    match: ([\\][^\s{};"=\[])
 
   SelectorCssWord:
     tag: string

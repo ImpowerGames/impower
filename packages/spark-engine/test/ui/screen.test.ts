@@ -1,0 +1,50 @@
+import { describe, expect, test } from "vitest";
+import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+
+const SCREEN = `layout main {
+  stage {
+    backdrop #clear {
+      image
+    }
+    portrait #clear {
+      mask.shadow_1
+      image
+    }
+  }
+  textbox {
+    character_info {
+      character_name #clear {
+        text
+      }
+      character_parenthetical #clear {
+        text
+      }
+    }
+    dialogue #clear {
+      stroke
+      text
+    }
+    continue_indicator
+  }
+}
+`;
+
+const STORY = `${SCREEN}\n-> start\n\nscene start\n  Hi.\nend\n`;
+
+describe("screen", () => {
+  test("screen tree construction (full ui/create stream at connect)", async () => {
+    const harness = createHarness(STORY);
+    await harness.ready;
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
+  });
+
+  test("hide then show screen toggles hidden attribute", async () => {
+    const harness = createHarness(STORY);
+    await harness.ready;
+    harness.reset();
+    harness.game.module.ui.hideLayout("main");
+    harness.game.module.ui.showLayout("main");
+    await flushMicrotasks();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
+  });
+});

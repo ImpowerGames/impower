@@ -5,8 +5,9 @@ export type MorphStillMethod = typeof MorphStillMessage.method;
 export interface MorphStillParams {
   image: string;
   file: string;
-  reason: "animated" | "profile" | "unread" | "unsized" | "undrawn" | "styled";
+  reason: "animated" | "profile" | "unread" | "unsized" | "undrawn" | "styled" | "late";
   declaration?: string;
+  placeholder?: true;
 }
 
 export class MorphStillMessage {

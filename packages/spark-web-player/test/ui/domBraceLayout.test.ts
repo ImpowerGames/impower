@@ -1,0 +1,52 @@
+import { describe, expect, test } from "vitest";
+import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
+
+const STATE = `store items = { "a", "b" }
+store busy = true
+`;
+
+const BRACED = `${STATE}
+layout hud {
+  column.panel #child-gap=8 {
+    text.title "Inventory"
+    for item in items do
+      row.item { text "{item}"; button.primary "Use" }
+    end
+    if busy then
+      text.busy "Busy"
+    end
+    choice.0 #clear { text }
+    title #clear { stroke; text }
+  }
+  stage #clear {
+    mask.shadow_1
+  }
+}
+`;
+
+async function render(source: string) {
+  const h = createDOMHarness(source, 0, { reactive: true });
+  await h.ready;
+  await flushMicrotasks();
+  return h;
+}
+
+describe("a brace-form layout renders with its declared tree", () => {
+  test("same elements, names and classes", async () => {
+    const braced = await render(BRACED);
+    const hud = braced.overlay.querySelector(".hud");
+    expect(hud).not.toBeNull();
+    const panel = hud!.querySelector(":scope > .column.panel");
+    expect(panel).not.toBeNull();
+    expect(panel!.querySelectorAll(".row.item")).toHaveLength(2);
+    expect(panel!.querySelectorAll(".row.item > .button.primary")).toHaveLength(2);
+    expect(panel!.querySelector(".text.title")?.textContent).toBe("Inventory");
+    expect(panel!.querySelector(".text.busy")?.textContent).toBe("Busy");
+    const choice = panel!.querySelector(':scope > [class~="choice"][class~="0"]');
+    expect(choice?.outerHTML).toBeDefined();
+    expect(choice!.querySelector(":scope > .text")).not.toBeNull();
+    expect(panel!.querySelector(":scope > .title > .stroke")).not.toBeNull();
+    expect(panel!.querySelector(":scope > .title > .text")).not.toBeNull();
+    expect(hud!.querySelector(".stage > .mask.shadow_1")).not.toBeNull();
+  });
+});

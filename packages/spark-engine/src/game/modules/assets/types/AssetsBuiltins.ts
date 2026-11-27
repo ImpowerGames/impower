@@ -9,6 +9,7 @@ export interface AssetsConfig {
   load_timeout: number;
   loading_min: number;
   loading_transition?: string;
+  morph_frame_rate: number;
 }
 
 export interface AssetsBuiltins {

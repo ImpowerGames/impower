@@ -161,6 +161,11 @@ const UI_DECLARATION_NODES = nodeNameSet([
 ]);
 const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
 const UI_DEFINE_TYPES = new Set(["config", "color"]);
+const GAME_WIDE_EXAMPLES: Record<string, { name: string; otherwise: string }> = {
+  showing: { name: "action", otherwise: "the name is not showing" },
+  variant: { name: "shout", otherwise: "the newest line has another variant" },
+  speaker: { name: "bunny", otherwise: "someone else speaks the newest line" },
+};
 import {
   IDENTIFIER_FIELDS,
   NAME_STRING_FIELDS,
@@ -198,6 +203,10 @@ import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
+import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
+import { GAME_WIDE_STATES, isAtRuleState, SHOWING_STATE } from "../constants/selectorStates";
+import { selectorRefusalAt } from "../utils/selectorRefusal";
+import { cueVariant } from "../utils/readCue";
 import { missingAssetData, type MissingAssetData } from "../utils/missingAsset";
 import { resolveSelector } from "../utils/resolveSelector";
 import {
@@ -643,8 +652,6 @@ const nextCompilerOrdinal = (): number => {
   registry[CONTEXT_REVISION_ORDINAL] = next;
   return next;
 };
-
-const WRITE_CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "image", "stroke", "mask"]);
 
 export class SparkdownCompiler {
   protected _profilerId?: string;
@@ -1722,6 +1729,9 @@ export class SparkdownCompiler {
       this.validateImageAttributes(program);
       this.validateMorphs(program);
       this.validateWriteTargets(program);
+      this.validateShowingNames(program);
+      this.validateAtRuleLists(program);
+      this.validateCueVariants(program);
       this.validateClearTargets(program);
       this.validateLints(program);
       this.validateTypes(program);
@@ -5217,45 +5227,7 @@ export class SparkdownCompiler {
   validateWriteTargets(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateWriteTargets", uri);
-    const named = new Set<string>();
-    const classed = new Map<string, string>();
-    const visit = (value: unknown): void => {
-      if (Array.isArray(value)) {
-        value.forEach(visit);
-        return;
-      }
-      if (!value || typeof value !== "object") return;
-      const node = value as Record<string, unknown>;
-      if (node["kind"] === "element") {
-        for (const key of ["tag", "name"]) {
-          const name = node[key];
-          if (typeof name === "string" && !WRITE_CONTENT_TAGS.has(name)) named.add(name);
-        }
-        const classes = node["classes"];
-        if (Array.isArray(classes)) {
-          for (const c of classes) {
-            if (typeof c === "string" && !classed.has(c)) classed.set(c, `${node["tag"]}.${classes.join(".")}`);
-          }
-        }
-      }
-      for (const v of Object.values(node)) {
-        if (v !== null && typeof v === "object") visit(v);
-      }
-    };
-    for (const kind of ["layouts", "screens", "components"] as const) {
-      visit(Object.values(program.sparkle?.[kind] ?? {}));
-    }
-    for (const struct of Object.values(program.context?.["layout"] ?? {})) {
-      const walk = (value: unknown) => {
-        if (!value || typeof value !== "object") return;
-        for (const [key, v] of Object.entries(value)) {
-          const [name] = key.split(" ");
-          if (name && !WRITE_CONTENT_TAGS.has(name)) named.add(name);
-          walk(v);
-        }
-      };
-      walk(struct);
-    }
+    const { named, classed } = layoutElementNames(program);
     for (const scriptUri of Object.keys(program.scripts)) {
       const doc = this.documents.get(scriptUri);
       const tree = doc ? this.documents.tree(scriptUri) : undefined;
@@ -5292,6 +5264,145 @@ export class SparkdownCompiler {
       });
     }
     profile("end", this._profilerId, "validateWriteTargets", uri);
+  }
+
+  validateAtRuleLists(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateAtRuleLists", uri);
+    const breakpoints = program.context?.["config"]?.["ui"]?.["breakpoints"] ?? {};
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "SelectorStateName") {
+            return undefined;
+          }
+          const state = doc.read(node.from, node.to);
+          if (!isAtRuleState(state)) {
+            return false;
+          }
+          const read = (from: number, to: number) => doc.read(from, to);
+          const player = selectorRefusalAt(node.node, read, "attribute", breakpoints);
+          const refusal = player ?? selectorRefusalAt(node.node, read, "media", breakpoints);
+          if (refusal && refusal.kind !== "game-wide") {
+            const consequence = player ? "this block never applies" : "the screen preview drops this block";
+            const value =
+              refusal.kind === "query-list"
+                ? `\`@${state}\` lists queries with a comma beside a selector or state, so ${consequence}.\n> Nest the blocks, as in \`@${state} (…), (…) { @hovered { … } }\`, or write each query as its own key`
+                : refusal.kind === "escape"
+                  ? `\`@${state}\` sits beside a selector or state in a key with a backslash ${refusal.where}, which a block header does not read as an escape, so ${consequence}.\n> Nest the blocks, as in \`@${state} … { @hovered { … } }\`, or write the key without that backslash`
+                  : `\`@${state}\` is not on every selector of this comma list, so ${consequence}.\n> Write each selector of the list as its own key`;
+            const code =
+              refusal.kind === "query-list" ? "at-rule-query-list" : refusal.kind === "escape" ? "at-rule-escape" : "at-rule-list";
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(refusal.from, refusal.to),
+              code,
+              severity: DiagnosticSeverity.Warning,
+              message: { kind: "markdown", value },
+              source: LANGUAGE_NAME,
+            });
+          }
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateAtRuleLists", uri);
+  }
+
+  validateShowingNames(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateShowingNames", uri);
+    const known = showingNames(program);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "SelectorStateName") {
+            return undefined;
+          }
+          const state = doc.read(node.from, node.to);
+          if (!GAME_WIDE_STATES.has(state)) {
+            return undefined;
+          }
+          const refusal = selectorRefusalAt(node.node, (from, to) => doc.read(from, to));
+          if (refusal) {
+            const example = GAME_WIDE_EXAMPLES[state]!;
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(refusal.from, refusal.to),
+              code: "showing-position",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: `\`@${state}\` cannot be written ${refusal.where}, so this block never applies.\n> Write it as a state of the style's own selector, as in \`@${state}(${example.name}) @hovered\`; the style's own properties are its look while ${example.otherwise}`,
+              },
+              source: LANGUAGE_NAME,
+            });
+            return false;
+          }
+          if (state !== SHOWING_STATE) {
+            return false;
+          }
+          const parameters = /^\(([^()\r\n]*)\)/.exec(doc.read(node.to, node.to + 128));
+          const name = parameters?.[1]?.trim();
+          if (!parameters || !name || known.has(name)) return false;
+          const start = node.to + 1 + parameters[1]!.indexOf(name);
+          ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+            range: doc.range(start, start + name.length),
+            code: "showing-name",
+            severity: DiagnosticSeverity.Warning,
+            message: {
+              kind: "markdown",
+              value: `No layout or element is named \`${name}\`.`,
+            },
+            source: LANGUAGE_NAME,
+          });
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateShowingNames", uri);
+  }
+
+  validateCueVariants(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateCueVariants", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "DialogueCharacterPosition") {
+            return undefined;
+          }
+          const bracket = doc.read(node.from, node.to);
+          const open = bracket.indexOf("[");
+          const close = bracket.lastIndexOf("]");
+          const inside = bracket.slice(open + 1, close);
+          if (!cueVariant(inside)) {
+            const word = inside.trim();
+            const from = word ? node.from + open + 1 + inside.indexOf(word) : node.from + open;
+            const to = word ? from + word.length : node.from + close + 1;
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(from, to),
+              code: "cue-variant",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: "A variant uses letters, digits and `_`.",
+              },
+              source: LANGUAGE_NAME,
+            });
+          }
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateCueVariants", uri);
   }
 
   validateClearTargets(program: SparkProgram) {

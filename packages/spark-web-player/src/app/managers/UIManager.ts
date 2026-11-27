@@ -3,6 +3,7 @@ import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMe
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationHold from "../../../../spark-dom/src/classes/AnimationHold";
 import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/classes/AnimationPlayer";
+import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
 import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
 import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
@@ -15,6 +16,7 @@ import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenVal
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
 import { getHiddenUntilAnimation } from "../../../../spark-dom/src/utils/getHiddenUntilAnimation";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
+import { BeatMarks } from "../utils/BeatMarks";
 import type { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
@@ -25,11 +27,21 @@ import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { PresenceElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PresenceElementsMessage";
+import { LayoutMotionMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/LayoutMotionMessage";
 import {
   type PlayCutsceneParams,
   PlayCutsceneMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/PlayCutsceneMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
+import {
+  type ShowingParams,
+  ShowingMessage,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/ShowingMessage";
+import {
+  LINE_SPEAKER_ATTRIBUTE,
+  LINE_VARIANT_ATTRIBUTE,
+  SHOWING_ATTRIBUTE,
+} from "../../../../spark-dom/src/utils/getStyleContent";
 import { ColorSchemeHost } from "../ColorSchemeHost";
 import { SkipCutsceneMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SkipCutsceneMessage";
 import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SweepReconcileMessage";
@@ -57,7 +69,10 @@ import type { StreamMessage } from "../../../../spark-engine/src/game/core/class
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
 import type { LiveClip } from "./AudioManager";
-import { MorphGroup, MorphPlayback } from "../morph/MorphPlayback";
+import { MorphGroup, MorphPlayback, type MorphLayer } from "../morph/MorphPlayback";
+import { keyframeScale } from "../utils/keyframeScale";
+import { keptScroll, outOfFlow } from "../utils/outOfFlow";
+import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { getEventData } from "../utils/getEventData";
 import type { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import {
@@ -96,9 +111,14 @@ interface PendingBeat {
   lag: number;
   timer?: ReturnType<typeof setTimeout>;
   owner: UIManager;
+  drawing?: MorphLayer[];
+  drawTimer?: ReturnType<typeof setTimeout>;
+  veil?: boolean;
 }
 
 type OverlayWithBeat = HTMLElement & { __sdBeat?: PendingBeat };
+
+type OverlayWithShowing = HTMLElement & { __sdShowing?: Map<string, number> };
 
 interface Cutscene {
   element: HTMLElement;
@@ -115,6 +135,8 @@ interface ImageEffect {
 }
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
+
+const HELD_REVEAL_MS = 3_600_000;
 
 const UNENDED_SPEECH = 1e9;
 
@@ -158,6 +180,11 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
 }
 
 let travelWrites = 0;
+
+function drawsPicture(instruction: WriteImageInstruction): boolean {
+  const content = instruction.content;
+  return instruction.control !== "hide" && !!content && !content.video && (!!content.morph || (content.pictures?.length ?? 0) > 0);
+}
 
 function imageSignature(instructions: WriteImageInstruction[]): string {
   const sig = JSON.stringify(instructions);
@@ -269,6 +296,7 @@ export default class UIManager extends Manager {
 
   protected _hold = new AnimationHold();
 
+  protected _layoutMotion = new LayoutMotion(this._hold);
   protected _presence = new PresencePlayer(
     this._hold,
     () =>
@@ -280,6 +308,12 @@ export default class UIManager extends Manager {
   protected _heldAt?: number;
 
   protected _lag = 0;
+
+  protected _beatMarks = new BeatMarks();
+
+  protected _drawTimeouts = { beat: 8, restore: 2 };
+
+  protected _prepared = new Map<WriteImageInstruction, Map<HTMLElement, HTMLElement>>();
 
   protected _themeKey = getThemeKey([]);
 
@@ -307,6 +341,8 @@ export default class UIManager extends Manager {
       morphs.askGame = (key) => this.app.emit(MorphNeedMessage.type.notification({ key }));
       morphs.reportStill = (params) => this.app.emit(MorphStillMessage.type.notification(params));
       morphs.keepWhole = (srcs) => (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(srcs);
+      morphs.placeholders = this.app.placeholders === true;
+      morphs.frameBudget = () => (this.app.assets?.cache ?? this.app.assetCache)?.predictionRoom ?? Infinity;
       morphs.residentPicture = (src) => {
         const picture = (this.app.assets?.cache ?? this.app.assetCache)?.picture(src);
         return picture ? { ...picture, image: picture.image as unknown as CanvasImageSource } : undefined;
@@ -500,6 +536,7 @@ export default class UIManager extends Manager {
 
   override onDispose() {
     this.endSpeech();
+    this._layoutMotion.settle();
     this._presence.endAll();
     this._hold.release();
     for (const id of Object.keys(this._listeners)) {
@@ -524,10 +561,15 @@ export default class UIManager extends Manager {
     if (overlay && pending?.owner === this) {
       overlay.__sdBeat = undefined;
       clearTimeout(pending.timer);
+      clearTimeout(pending.drawTimer);
+      this._beatMarks.dropped(pending.params);
       for (const op of pending.ops) {
         if (
           AnimateElementsMessage.type.isRequest(op as RequestMessage) ||
-          PresenceElementsMessage.type.isRequest(op as RequestMessage)
+          PresenceElementsMessage.type.isRequest(op as RequestMessage) ||
+          LayoutMotionMessage.type.isRequest(op as RequestMessage) ||
+          (WriteImageMessage.type.isRequest(op as RequestMessage) &&
+            (op as ReturnType<typeof WriteImageMessage.type.request>).params.reportsExit)
         ) {
           this.app.answer(
             op as RequestMessage,
@@ -536,6 +578,13 @@ export default class UIManager extends Manager {
         }
       }
     }
+    this.liftVeil();
+    this.revealPrecreated();
+    for (const waiting of this._waitingBeats.splice(0)) {
+      this._beatMarks.dropped(waiting);
+    }
+    this._beatMarks.clear();
+    this.discardAllPrepared();
   }
 
   protected followEnd(el: HTMLElement) {
@@ -547,10 +596,7 @@ export default class UIManager extends Manager {
     const atEnd = () =>
       el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_END_SLACK_PX;
     const toEnd = () => {
-      const reduce =
-        el.ownerDocument.defaultView?.matchMedia?.(
-          "(prefers-reduced-motion: reduce)",
-        ).matches ?? false;
+      const reduce = this.reducesMotion();
       follow.moving = true;
       if (typeof el.scrollTo === "function") {
         el.scrollTo({ top: el.scrollHeight, behavior: reduce ? "auto" : "smooth" });
@@ -611,8 +657,44 @@ export default class UIManager extends Manager {
     return found;
   }
 
+  protected _waitingBeats: BeatParams[] = [];
+
+  protected _draining = false;
+
+  protected _applying = 0;
+
   protected receiveBeat(params: BeatParams) {
-    this.flushPendingBeat();
+    this._beatMarks.received(params);
+    this._waitingBeats.push(params);
+    this.drainWaiting();
+  }
+
+  protected drawingPending(): boolean {
+    const pending = (this.app.overlay as OverlayWithBeat | undefined)?.__sdBeat;
+    return !!this._veil || (!!pending && pending.owner === this && !!pending.drawing);
+  }
+
+  protected drainWaiting() {
+    if (this._draining || this._applying > 0) {
+      return;
+    }
+    this._draining = true;
+    try {
+      while (this._waitingBeats.length > 0 && !this.drawingPending()) {
+        const next = this._waitingBeats.shift()!;
+        this.flushPendingBeat();
+        if (this.drawingPending()) {
+          this._waitingBeats.unshift(next);
+          break;
+        }
+        this.processBeat(next);
+      }
+    } finally {
+      this._draining = false;
+    }
+  }
+
+  protected processBeat(params: BeatParams, force = false) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const ops = beatOps(params);
     const plan = this.planBeat(ops);
@@ -620,13 +702,492 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
-    if (!overlay || wait <= 0) {
+    const prepared = overlay ? this.prepareDrawing(ops, plan) : { layers: [], unprepared: false };
+    let drawing = prepared.layers.filter((layer) => !layer.drawn);
+    if (force) {
+      for (const layer of drawing) {
+        layer.overdue();
+      }
+      drawing = [];
+    }
+    const veil = prepared.unprepared;
+    if (drawing.length === 0 && !veil) {
+      this._beatMarks.ready(params);
+    }
+    if (!overlay || force || (wait <= 0 && drawing.length === 0)) {
       this.shiftBeat(params, ops, this.lag(now) - lag);
-      this.applyBeat(params, ops, plan);
+      this.applyBeat(params, ops, plan, veil);
+      if (force) {
+        this._veil?.overdue();
+      }
       return;
     }
-    overlay.__sdBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this };
+    const pending: PendingBeat = { params, ops, plan, at: storyNow + wait, lag, owner: this, ...(veil ? { veil } : {}) };
+    overlay.__sdBeat = pending;
+    if (drawing.length > 0) {
+      pending.drawing = drawing;
+      const landed = () => {
+        if (overlay.__sdBeat !== pending || !pending.drawing) {
+          return;
+        }
+        pending.drawing = undefined;
+        clearTimeout(pending.drawTimer);
+        pending.drawTimer = undefined;
+        if (!pending.veil) {
+          this._beatMarks.ready(params);
+        }
+        pending.owner.scheduleCommit();
+        pending.owner.drainWaiting();
+      };
+      void Promise.all(drawing.map((layer) => layer.whenDrawn())).then(landed);
+      const seconds = this.drawSeconds();
+      if (seconds > 0) {
+        pending.drawTimer = setTimeout(() => {
+          if (overlay.__sdBeat !== pending || !pending.drawing) {
+            return;
+          }
+          for (const layer of pending.drawing) {
+            if (!layer.drawn) {
+              layer.overdue();
+            }
+          }
+          landed();
+        }, seconds * 1000);
+      }
+    }
     this.scheduleCommit();
+  }
+
+  protected drawSeconds(): number {
+    return this.app.previewing === true ? this._drawTimeouts.restore : this._drawTimeouts.beat;
+  }
+
+  protected prepareDrawing(ops: IMessage[], plan: Map<IMessage, WriteDecision>): { layers: MorphLayer[]; unprepared: boolean } {
+    const morphs = this.morphs;
+    if (!morphs) {
+      return { layers: [], unprepared: false };
+    }
+    const layers: MorphLayer[] = [];
+    let unprepared = false;
+    const made = this.precreateTargets(ops);
+    const animated = this.beatAnimations(ops);
+    const { restore, changed } = this.applyBeatLayout(ops);
+    try {
+    const nested = (el: Element) =>
+      animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!WriteImageMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const decision = plan.get(op);
+      if (decision === "skip" || decision === "same") {
+        continue;
+      }
+      const { target, instructions, elements } = msg.params;
+      const targetEls = this.writeTargets(target, elements);
+      if (targetEls.length === 0) {
+        unprepared ||= instructions.some(drawsPicture);
+        continue;
+      }
+      const sig = JSON.stringify(instructions);
+      if (
+        decision == null &&
+        !instructions.some(movesPicture) &&
+        targetEls.every((el) => (el as any).__sdImg === sig && (el as any).__sdImgRev === ((el as any).__sdRev ?? 0))
+      ) {
+        continue;
+      }
+      for (const instruction of instructions) {
+        const zoom = Math.max(instruction.framing?.zoom ?? 1, instruction.travel?.framing?.zoom ?? 1);
+        const content = instruction.content;
+        for (const targetEl of targetEls) {
+          const around =
+            keyframeScale(instruction.targetAnimations) *
+            (instruction.affected ?? [])
+              .filter((a) => this.findTargetElements(a.target).some((el) => el === targetEl || el.contains(targetEl)))
+              .reduce((product, a) => product * keyframeScale(a.animations), 1);
+          const imageEls = this.getContentElements(targetEl, "image");
+          if (!content) {
+            for (const contentEl of imageEls) {
+              for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
+                const layer = (pictureEl as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
+                if (!layer) {
+                  continue;
+                }
+                layer.size({ zoom, scale: around * nested(pictureEl) });
+                layers.push(layer);
+              }
+            }
+            continue;
+          }
+          if (instruction.control === "hide" || content.video || (!content.morph && !(content.pictures?.length ?? 0))) {
+            continue;
+          }
+          const group = new MorphGroup();
+          const maskEls = this.getContentElements(targetEl, "mask");
+          for (const [els, property] of [
+            [imageEls, "background_image"],
+            [maskEls, "mask_image"],
+          ] as const) {
+            for (const contentEl of els) {
+              const span = createImageElement(
+                contentEl,
+                property,
+                content.background,
+                content.imageNames,
+                content.sources ?? (content.src ? [content.src] : []),
+                this.applyStyle.bind(this),
+              );
+              span.style.setProperty("visibility", "hidden");
+              (span as any).__sdPrepared = true;
+              placePicture(span, instruction.framing);
+              const layer = morphs.mount(
+                span,
+                content.morph ?? { plays: [], epoch: 0 },
+                content.background,
+                property === "mask_image" ? "mask" : "background",
+                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+                group,
+                content.pictures ?? [],
+                true,
+              );
+              layer.size({ zoom, scale: around * keyframeScale(content.enterAnimation ? [content.enterAnimation] : []) * nested(span) });
+              layer.presize();
+              this.presizeHidden(span, layer);
+              let byContent = this._prepared.get(instruction);
+              if (!byContent) {
+                byContent = new Map();
+                this._prepared.set(instruction, byContent);
+              }
+              byContent.set(contentEl, span);
+              layers.push(layer);
+            }
+          }
+        }
+      }
+    }
+    for (const { element, scale } of animated) {
+      for (const layer of morphs.layersIn(element)) {
+        if (layers.includes(layer)) {
+          continue;
+        }
+        layer.size({ scale: nested(layer.span) });
+        if (scale > 1 && !layer.drawn) {
+          layers.push(layer);
+        }
+      }
+    }
+    if (changed.length > 0 || made.length > 0) {
+      layers.push(...morphs.prepareLayouts(new Set(layers)));
+    }
+    } finally {
+      restore();
+    }
+    return { layers, unprepared };
+  }
+
+  protected _precreated: { el: HTMLElement; value: string; priority: string }[] = [];
+
+  protected revealPrecreated() {
+    for (const { el, value, priority } of this._precreated.splice(0)) {
+      if (el.style.getPropertyValue("visibility") !== "hidden" || el.style.getPropertyPriority("visibility") !== "important") {
+        continue;
+      }
+      if (value) {
+        el.style.setProperty("visibility", value, priority);
+      } else {
+        el.style.removeProperty("visibility");
+      }
+    }
+  }
+
+  protected precreateTargets(ops: IMessage[]): HTMLElement[] {
+    const creates = ops.filter((op) => CreateElementMessage.type.isRequest(op as RequestMessage)) as (RequestMessage & {
+      params: { element: string; parent: string | null; name: string };
+    })[];
+    if (creates.length === 0) {
+      return [];
+    }
+    const missing = (id: string) => !this.getElement(id);
+    const needed = new Set<string>();
+    const within = new Set<string>();
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!WriteImageMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const { target, elements, instructions } = msg.params;
+      if (!instructions.some(drawsPicture)) {
+        continue;
+      }
+      for (const el of this.writeTargets(target, elements)) {
+        const id = (el as HTMLElement & { __sdId?: string }).__sdId;
+        if (id) {
+          within.add(id);
+        }
+      }
+      const names = (target.split("#")[0] ?? "").split(" ").filter(Boolean);
+      for (const create of creates) {
+        const classes = (create.params.name || "").split(" ");
+        const named = elements ? elements.includes(create.params.element) : names.length > 0 && names.every((name) => classes.includes(name));
+        if (named && missing(create.params.element)) {
+          needed.add(create.params.element);
+        }
+      }
+    }
+    const byId = new Map(creates.map((create) => [create.params.element, create]));
+    for (const id of [...needed]) {
+      for (
+        let parent = byId.get(id)?.params.parent;
+        parent && byId.has(parent) && !needed.has(parent) && missing(parent);
+        parent = byId.get(parent)?.params.parent
+      ) {
+        needed.add(parent);
+      }
+    }
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const create of creates) {
+        const parent = create.params.parent;
+        if (!needed.has(create.params.element) && parent && (needed.has(parent) || within.has(parent)) && missing(create.params.element)) {
+          needed.add(create.params.element);
+          grew = true;
+        }
+      }
+    }
+    if (needed.size === 0) {
+      return [];
+    }
+    this._applying += 1;
+    try {
+      for (const create of creates) {
+        if (needed.has(create.params.element) && !this.getElement(create.params.element)) {
+          void this.onReceiveRequest(create);
+        }
+      }
+    } finally {
+      this._applying -= 1;
+    }
+    const made: HTMLElement[] = [];
+    for (const id of needed) {
+      const parent = byId.get(id)?.params.parent;
+      if (parent && needed.has(parent)) {
+        continue;
+      }
+      const el = this.getElement(id);
+      if (el) {
+        this._precreated.push({ el, value: el.style.getPropertyValue("visibility"), priority: el.style.getPropertyPriority("visibility") });
+        el.style.setProperty("visibility", "hidden", "important");
+        made.push(el);
+      }
+    }
+    return made;
+  }
+
+  protected applyBeatLayout(ops: IMessage[]): { restore: () => void; changed: HTMLElement[] } {
+    const undo: (() => void)[] = [];
+    const changed: HTMLElement[] = [];
+    const overlay = this.app.overlay;
+    const scroll =
+      overlay && ops.some((op) => DestroyElementMessage.type.isRequest(op as RequestMessage) || UpdateElementMessage.type.isRequest(op as RequestMessage))
+        ? keptScroll(overlay)
+        : undefined;
+    const put = (el: HTMLElement, name: string, value: string | null) => {
+      if (el.getAttribute(name) === value) {
+        return;
+      }
+      if (value == null) {
+        el.removeAttribute(name);
+      } else {
+        el.setAttribute(name, value);
+      }
+    };
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (DestroyElementMessage.type.isRequest(msg)) {
+        const el = this.getElement(msg.params.element);
+        const parent = el?.parentElement;
+        if (el && el !== this.app.overlay && el.isConnected && parent) {
+          undo.push(outOfFlow(el));
+          changed.push(parent);
+        }
+        continue;
+      }
+      if (!UpdateElementMessage.type.isRequest(msg)) {
+        continue;
+      }
+      const { element, style, attributes } = msg.params;
+      const el = this.getElement(element);
+      if (!el || !el.isConnected || (!style && !attributes)) {
+        continue;
+      }
+      const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked" && name !== PRESENCE_ATTRIBUTE);
+      const entry = { el, style: el.getAttribute("style"), attributes: names.map((name): [string, string | null] => [name, el.getAttribute(name)]) };
+      undo.push(() => {
+        put(el, "style", entry.style);
+        for (const [name, value] of entry.attributes) {
+          put(el, name, value);
+        }
+      });
+      if (style) {
+        this.applyStyle(el, style);
+      }
+      for (const name of names) {
+        put(el, name, attributes![name] ?? null);
+      }
+      if (el.getAttribute("style") !== entry.style || entry.attributes.some(([name, value]) => el.getAttribute(name) !== value)) {
+        changed.push(el);
+      }
+    }
+    const restore = () => {
+      for (const step of undo.reverse()) {
+        step();
+      }
+      scroll?.();
+    };
+    return { restore, changed };
+  }
+
+  protected _veil?: { lift: () => void; overdue: () => void };
+
+  protected liftVeil() {
+    this._veil?.lift();
+  }
+
+  protected veilMade(params: BeatParams, before: WeakSet<Element>) {
+    const overlay = this.app.overlay;
+    const layers = overlay ? (this.morphs?.undrawnWithin(overlay) ?? []) : [];
+    const roots: HTMLElement[] = [];
+    for (const layer of layers) {
+      let root: HTMLElement | undefined;
+      for (let el: HTMLElement | null = layer.span; el && el !== overlay; el = el.parentElement) {
+        if (!before.has(el)) {
+          root = el;
+        }
+      }
+      if (!root || roots.some((other) => other.contains(root!))) {
+        continue;
+      }
+      const kept = roots.filter((other) => !root!.contains(other));
+      roots.splice(0, roots.length, ...kept, root);
+    }
+    if (roots.length === 0) {
+      this._beatMarks.ready(params);
+      this._beatMarks.fired(params);
+      return;
+    }
+    const veiled = roots.map((el) => ({ el, value: el.style.getPropertyValue("visibility"), priority: el.style.getPropertyPriority("visibility") }));
+    for (const { el } of veiled) {
+      el.style.setProperty("visibility", "hidden", "important");
+    }
+    const waiting = layers.filter((layer) => roots.some((root) => root.contains(layer.span)));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const veil = {
+      lift: () => {
+        if (this._veil !== veil) {
+          return;
+        }
+        this._veil = undefined;
+        clearTimeout(timer);
+        for (const { el, value, priority } of veiled) {
+          if (value) {
+            el.style.setProperty("visibility", value, priority);
+          } else {
+            el.style.removeProperty("visibility");
+          }
+        }
+        this._beatMarks.ready(params);
+        this._beatMarks.fired(params);
+        this.drainWaiting();
+      },
+      overdue: () => {
+        for (const layer of waiting) {
+          if (!layer.drawn) {
+            layer.overdue();
+          }
+        }
+        veil.lift();
+      },
+    };
+    this._veil = veil;
+    void Promise.all(waiting.map((layer) => layer.whenDrawn())).then(() => veil.lift());
+    const seconds = this.drawSeconds();
+    if (seconds > 0) {
+      timer = setTimeout(() => veil.overdue(), seconds * 1000);
+    }
+  }
+
+  protected presizeHidden(span: HTMLElement, layer: MorphLayer) {
+    if (span.offsetWidth > 0 || span.offsetHeight > 0) {
+      return;
+    }
+    const lifted: { el: HTMLElement; priority: string }[] = [];
+    for (let el = span.parentElement; el && el !== this.app.overlay; el = el.parentElement) {
+      if (el.style.getPropertyValue("display") === "none") {
+        lifted.push({ el, priority: el.style.getPropertyPriority("display") });
+        el.style.removeProperty("display");
+      }
+    }
+    if (lifted.length === 0) {
+      return;
+    }
+    try {
+      layer.presize();
+    } finally {
+      for (const { el, priority } of lifted) {
+        el.style.setProperty("display", "none", priority);
+      }
+    }
+  }
+
+  protected beatAnimations(ops: IMessage[]): { element: Element; scale: number }[] {
+    const found: { element: Element; scale: number }[] = [];
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (!AnimateElementsMessage.type.isRequest(msg)) {
+        continue;
+      }
+      for (const effect of msg.params.effects) {
+        const element = this.getElement(effect.element);
+        const scale = keyframeScale(effect.animations);
+        if (element && scale > 1) {
+          found.push({ element, scale });
+        }
+      }
+    }
+    return found;
+  }
+
+  protected takePrepared(instruction: WriteImageInstruction, contentEl: HTMLElement): HTMLElement | undefined {
+    const byContent = this._prepared.get(instruction);
+    const span = byContent?.get(contentEl);
+    byContent?.delete(contentEl);
+    if (!span || !span.isConnected || span.parentElement !== contentEl) {
+      if (span) {
+        this.discardPrepared(span);
+      }
+      return undefined;
+    }
+    delete (span as any).__sdPrepared;
+    span.style.removeProperty("visibility");
+    contentEl.appendChild(span);
+    return span;
+  }
+
+  protected discardPrepared(span: HTMLElement) {
+    this.morphs?.releaseWithin(span);
+    endTravelsWithin(span);
+    span.remove();
+  }
+
+  protected discardAllPrepared() {
+    for (const byContent of this._prepared.values()) {
+      for (const span of byContent.values()) {
+        this.discardPrepared(span);
+      }
+    }
+    this._prepared.clear();
   }
 
   protected dueAt(pending: PendingBeat, now: number): number {
@@ -641,6 +1202,9 @@ export default class UIManager extends Manager {
     }
     clearTimeout(pending.timer);
     pending.timer = undefined;
+    if (pending.drawing) {
+      return;
+    }
     const wait = this.dueAt(pending, this.documentNow()) - this.documentNow();
     if (wait <= 0) {
       this.flushPendingBeat();
@@ -653,7 +1217,7 @@ export default class UIManager extends Manager {
 
   protected commitWhenDue(pending: PendingBeat) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
-    if (overlay?.__sdBeat !== pending || this._heldAt != null) {
+    if (overlay?.__sdBeat !== pending || this._heldAt != null || pending.drawing) {
       return;
     }
     const view = overlay.ownerDocument.defaultView;
@@ -665,16 +1229,69 @@ export default class UIManager extends Manager {
     this.flushPendingBeat();
   }
 
-  protected flushPendingBeat() {
+  protected flushPendingBeat(force = false) {
     const overlay = this.app.overlay as OverlayWithBeat | undefined;
     const pending = overlay?.__sdBeat;
-    if (!overlay || !pending) {
+    if (overlay && pending) {
+      overlay.__sdBeat = undefined;
+      clearTimeout(pending.timer);
+      clearTimeout(pending.drawTimer);
+      for (const layer of pending.drawing ?? []) {
+        if (!layer.drawn) {
+          layer.overdue();
+        }
+      }
+      pending.drawing = undefined;
+      this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
+      this.applyBeat(pending.params, pending.ops, pending.plan, pending.veil);
+    }
+    if (!force || this._applying > 0) {
+      this.drainWaiting();
       return;
     }
-    overlay.__sdBeat = undefined;
-    clearTimeout(pending.timer);
-    this.shiftBeat(pending.params, pending.ops, this.lag() - pending.lag);
-    this.applyBeat(pending.params, pending.ops, pending.plan);
+    this._veil?.overdue();
+    for (let next = this._waitingBeats.shift(); next; next = this._waitingBeats.shift()) {
+      this.processBeat(next, true);
+    }
+  }
+
+  protected applyShowing(params: ShowingParams) {
+    const overlay = this.app.overlay as OverlayWithShowing | undefined;
+    if (!overlay) {
+      return;
+    }
+    const counts = params.reset || !overlay.__sdShowing ? new Map<string, number>() : overlay.__sdShowing;
+    overlay.__sdShowing = counts;
+    for (const [name, change] of Object.entries(params.changes)) {
+      const count = (counts.get(name) ?? 0) + change;
+      if (count === 0) {
+        counts.delete(name);
+      } else {
+        counts.set(name, count);
+      }
+    }
+    const value = [...counts]
+      .filter(([, count]) => count > 0)
+      .map(([name]) => name)
+      .sort()
+      .join(" ");
+    if (value) {
+      overlay.setAttribute(SHOWING_ATTRIBUTE, value);
+    } else {
+      overlay.removeAttribute(SHOWING_ATTRIBUTE);
+    }
+    if (params.line) {
+      for (const [attribute, mark] of [
+        [LINE_VARIANT_ATTRIBUTE, params.line.variant],
+        [LINE_SPEAKER_ATTRIBUTE, params.line.speaker],
+      ] as const) {
+        if (mark) {
+          overlay.setAttribute(attribute, mark);
+        } else {
+          overlay.removeAttribute(attribute);
+        }
+      }
+    }
   }
 
   protected shiftBeat(params: BeatParams, ops: IMessage[], shift: number) {
@@ -713,7 +1330,11 @@ export default class UIManager extends Manager {
       }
       const decision = plan.get(op);
       const write = msg.params;
-      if (write.instructions.length === 0 || (decision !== "write" && decision !== "rebuild")) {
+      if (
+        write.held ||
+        write.instructions.length === 0 ||
+        (decision !== "write" && decision !== "rebuild")
+      ) {
         continue;
       }
       for (const instruction of write.instructions.slice(write.shown ?? 0)) {
@@ -728,20 +1349,64 @@ export default class UIManager extends Manager {
     return wait >= 1 ? wait : 0;
   }
 
+  protected reducesMotion(): boolean {
+    return (
+      this.app.overlay?.ownerDocument.defaultView?.matchMedia?.(
+        "(prefers-reduced-motion: reduce)",
+      ).matches ?? false
+    );
+  }
+
+  protected measureLayouts(params: BeatParams, ops: IMessage[]) {
+    const overlay = this.app.overlay;
+    if (!overlay || params.time == null || this.reducesMotion()) {
+      this._layoutMotion.settle();
+      return undefined;
+    }
+    return this._layoutMotion.measure(overlay, () =>
+      ops.some((op) =>
+        namesLayoutTransition(JSON.stringify((op as { params?: unknown }).params ?? null)),
+      ),
+    );
+  }
+
   protected applyBeat(
     params: BeatParams,
     ops: IMessage[],
     plan: Map<IMessage, WriteDecision>,
+    veil = false,
   ) {
+    this._applying += 1;
+    try {
+      this.applyBeatOps(params, ops, plan, veil);
+    } finally {
+      this._applying -= 1;
+    }
+  }
+
+  protected applyBeatOps(params: BeatParams, ops: IMessage[], plan: Map<IMessage, WriteDecision>, veil: boolean) {
+    const overlay = this.app.overlay;
+    const before = veil && overlay ? new WeakSet<Element>(Array.from(overlay.querySelectorAll("*"))) : undefined;
+    if (!before) {
+      this._beatMarks.fired(params);
+    }
+    const layouts = this.measureLayouts(params, ops);
     for (const op of ops) {
       const decision = plan.get(op);
       if (decision !== "skip") {
         this.applyBeatMessage(op, decision);
       }
     }
+    this.discardAllPrepared();
+    this.revealPrecreated();
+    this.morphs?.adoptPrepared();
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
       this.sweepReconcile();
+    }
+    this._layoutMotion.play(layouts);
+    if (before) {
+      this.veilMade(params, before);
     }
   }
 
@@ -757,7 +1422,9 @@ export default class UIManager extends Manager {
       }
       if (
         AnimateElementsMessage.type.isRequest(request) ||
-        PresenceElementsMessage.type.isRequest(request)
+        PresenceElementsMessage.type.isRequest(request) ||
+        LayoutMotionMessage.type.isRequest(request) ||
+        (WriteImageMessage.type.isRequest(request) && request.params.reportsExit)
       ) {
         this.app.answer(request, done);
       } else {
@@ -1183,7 +1850,7 @@ export default class UIManager extends Manager {
     const decision = this._decision;
     this.endPreviewCutscene(msg);
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
-      this.flushPendingBeat();
+      this.flushPendingBeat(true);
       this.morphs?.requestRelayout();
     }
     this.touch(this.touchesOf(msg));
@@ -1415,6 +2082,7 @@ export default class UIManager extends Manager {
         params.shown,
         params.elements,
         decision,
+        params.held,
       );
       return WriteTextMessage.type.result(params.target);
     }
@@ -1440,7 +2108,9 @@ export default class UIManager extends Manager {
           const element = this.getElement(effect.element);
           const animations = effect.animations;
           if (element) {
-            played.push(...player.add({ element, animations }));
+            const added = player.add({ element, animations });
+            this._presence.follow(element, added);
+            played.push(...added);
             validEffects.push(i);
           }
         }
@@ -1451,6 +2121,24 @@ export default class UIManager extends Manager {
       }
       return AnimateElementsMessage.type.result(validEffects);
     }
+    if (LayoutMotionMessage.type.isRequest(msg)) {
+      if (msg.params.settle) {
+        this._layoutMotion.settle();
+        return LayoutMotionMessage.type.result([]);
+      }
+      await Promise.resolve();
+      const overlay = this.app.overlay;
+      const moving = overlay ? this._layoutMotion.moving(overlay) : [];
+      if (overlay && moving.length > 0) {
+        await this._layoutMotion.finished(overlay);
+      }
+      return LayoutMotionMessage.type.result(
+        moving.flatMap((el) => {
+          const id = (el as any).__sdId;
+          return typeof id === "string" ? [id] : [];
+        }),
+      );
+    }
     if (PresenceElementsMessage.type.isRequest(msg)) {
       const played: string[] = [];
       const motions: Promise<void>[] = [];
@@ -1458,7 +2146,12 @@ export default class UIManager extends Manager {
         const element = effect.element ? this.getElement(effect.element) : undefined;
         if (element?.isConnected) {
           played.push(effect.element);
-          motions.push(this._presence.play(element, effect.presence));
+          const presence = this._presence.play(element, effect.presence);
+          motions.push(
+            effect.presence === "hide"
+              ? presence.then(() => this._layoutMotion.finished(element))
+              : presence,
+          );
         }
       }
       await Promise.all(motions);
@@ -1473,6 +2166,16 @@ export default class UIManager extends Manager {
 
   override onReceiveNotification(msg: NotificationMessage) {
     this.endPreviewCutscene(msg);
+    if (ConfigureAssetsMessage.type.isNotification(msg)) {
+      const { beatTimeout, restoreTimeout, morphFrameRate } = msg.params;
+      this._drawTimeouts = {
+        beat: Number.isFinite(beatTimeout) && beatTimeout >= 0 ? beatTimeout : this._drawTimeouts.beat,
+        restore: Number.isFinite(restoreTimeout) && restoreTimeout >= 0 ? restoreTimeout : this._drawTimeouts.restore,
+      };
+      const morphs = this.morphs;
+      if (morphs && Number.isFinite(morphFrameRate) && morphFrameRate >= 0) morphs.frameRate = morphFrameRate;
+      return;
+    }
     if (MorphArtifactMessage.type.isNotification(msg)) {
       this.morphs?.deliver(msg.params);
       return;
@@ -1494,7 +2197,11 @@ export default class UIManager extends Manager {
       this.morphs?.requestRelayout();
     }
     if (msg.method.startsWith("ui/") && !retiredOnly(msg)) {
-      this.flushPendingBeat();
+      this.flushPendingBeat(true);
+    }
+    if (ShowingMessage.type.isNotification(msg)) {
+      this.applyShowing(msg.params);
+      return;
     }
     if (BeginReconcileMessage.type.isNotification(msg)) {
       this.beginReconcilePass(msg.params?.content === true);
@@ -1824,6 +2531,7 @@ export default class UIManager extends Manager {
     shown = 0,
     elements?: string[],
     decision?: WriteDecision,
+    held = false,
   ) {
     const targetEls = this.writeTargets(target, elements);
     const stale = this._passBegun
@@ -1867,6 +2575,8 @@ export default class UIManager extends Manager {
           this.revealAtOnce(el);
           (el as any).__sdTxtAtOnce = true;
         }
+      } else if (!held) {
+        this.startHeldReveal(targetEls, startTime);
       }
       return;
     }
@@ -1924,7 +2634,7 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdWait?.cancel();
         delete (targetEl as any).__sdWait;
       }
-      if (!instant && !atOnce && instructions.length > 0 && empty) {
+      if (!instant && !atOnce && !held && instructions.length > 0 && empty) {
         waiting.push(targetEl);
       }
       if (instructions.length > 0) {
@@ -1975,9 +2685,29 @@ export default class UIManager extends Manager {
           animations: [getHiddenUntilAnimation(wait)],
         })[0];
       }
-      await player.play(startTime, settle);
+      for (const el of targetEls) {
+        if (held) {
+          (el as any).__sdHeldReveal = player;
+        } else {
+          delete (el as any).__sdHeldReveal;
+        }
+      }
+      await player.play(
+        held ? this.documentNow() + HELD_REVEAL_MS : startTime,
+        settle,
+      );
     }
     await showing;
+  }
+
+  protected startHeldReveal(targetEls: HTMLElement[], startTime?: number) {
+    for (const el of targetEls) {
+      const reveal: AnimationPlayer | undefined = (el as any).__sdHeldReveal;
+      if (reveal) {
+        delete (el as any).__sdHeldReveal;
+        reveal.retime(startTime ?? this.documentNow());
+      }
+    }
   }
 
   protected settleReveal(reveal: ReturnType<AnimationPlayer["add"]>[number]) {
@@ -2058,6 +2788,7 @@ export default class UIManager extends Manager {
   protected revealAtOnce(targetEl: HTMLElement) {
     (targetEl as any).__sdWait?.cancel();
     delete (targetEl as any).__sdWait;
+    delete (targetEl as any).__sdHeldReveal;
     for (const contentEl of [
       ...this.getContentElements(targetEl, "text"),
       ...this.getContentElements(targetEl, "stroke"),
@@ -2161,8 +2892,8 @@ export default class UIManager extends Manager {
         }
         const content = instruction.content;
         if (!content) {
-          const pictureEls = [...imageEls, ...maskEls].flatMap(
-            (contentEl) => Array.from(contentEl.children) as HTMLElement[],
+          const pictureEls = [...imageEls, ...maskEls].flatMap((contentEl) =>
+            (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared),
           );
           const travel = instruction.travel;
           if (travel) {
@@ -2220,12 +2951,13 @@ export default class UIManager extends Manager {
         const morphGroup = new MorphGroup();
         for (const { els, property } of contentTargets) {
           for (const contentEl of els) {
-            const prevSpanEls = Array.from(contentEl.children) as HTMLElement[];
+            const prevSpanEls = (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared);
             const video =
               content.video && property === "background_image"
                 ? content.video
                 : undefined;
-            const newSpanEl = video
+            const prepared = !video ? this.takePrepared(instruction, contentEl) : undefined;
+            const newSpanEl = prepared ?? (video
               ? createVideoElement(
                   contentEl,
                   property,
@@ -2247,7 +2979,7 @@ export default class UIManager extends Manager {
                   content.imageNames,
                   content.sources ?? (content.src ? [content.src] : []),
                   applyStyle,
-                );
+                ));
             placePicture(newSpanEl, instruction.framing);
             const videoEl = newSpanEl.querySelector("video");
             if (videoEl && video) {
@@ -2264,10 +2996,15 @@ export default class UIManager extends Manager {
                 ? content.srcs.filter((src) => src !== content.video?.src)
                 : content.srcs;
             const morph = instruction.control !== "hide" ? content.morph : undefined;
-            const pictures = property === "background_image" && !video ? (content.pictures ?? []) : [];
-            const composited = new Set(pictures.flatMap((picture) => picture.files.map((file) => file.src)));
+            const pictures = !video ? (content.pictures ?? []) : [];
+            const composited = new Set(
+              (property === "background_image" ? pictures : []).flatMap((picture) => picture.files.map((file) => file.src)),
+            );
             (this.app.assets?.cache ?? this.app.assetCache)?.keepWhole(content.srcs.filter((src) => !composited.has(src)));
-            if (morph || pictures.length > 0) {
+            const preparedLayer = prepared ? (prepared as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph : undefined;
+            if (preparedLayer) {
+              preparedLayer.release();
+            } else if (morph || pictures.length > 0) {
               this.morphs?.mount(
                 newSpanEl,
                 morph ?? { plays: [], epoch: 0 },
