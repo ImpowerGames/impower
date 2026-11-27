@@ -6,6 +6,8 @@ The engine loads a scene's images, fonts, sounds, and video before the story nee
 
 While the story runs, the engine keeps the assets of the next few beats loading in the background, through every branch, and follows the scene's diverts into the scenes it can reach next. Every line still waits for its own images and audio before it displays, so a slow connection delays a line rather than showing it without its portrait.
 
+Once a line has finished typing and no move or transition is running, the player also draws the pictures of the lines ahead, nearest first and through every branch, so the next line does not wait for them. Each picture is drawn at the largest size it reaches while it stays on screen over those lines, from its framings, its style scale and the scale keyframes of its effects, so a later zoom does not draw it again. A looping idle animation does not hold this back, a click that skips the typing starts it at once, and any click or key stops it. In the editor's preview the pictures of the lines on either side of the cursor are drawn the same way.
+
 In the editor's preview, the line under the cursor waits for its own images before it shows, the beats around the cursor load first, and the rest of the scene loads behind them, because the cursor can land anywhere inside it.
 
 Fonts load per layout. A font is loaded when a layout whose styles use it mounts, and released when that layout closes. The fonts `main` uses load at connect.
@@ -29,7 +31,7 @@ end
 | Key | Meaning |
 | --- | --- |
 | `predict_distance` | Beats ahead of the current one whose assets keep loading; in the editor's preview, beats on either side of the cursor. `0` means the rest of the current scene. |
-| `predict_cache_size` | Megabytes prediction may keep loaded. What is on screen, playing, mounted, or brought in by `load` does not count; beyond it the least recently used prediction assets are dropped. `0` means never drop any. |
+| `predict_cache_size` | Megabytes prediction may keep loaded. What is on screen, playing, mounted, or brought in by `load` does not count; beyond it the least recently used prediction assets are dropped. Pictures drawn ahead count too, each canvas and frame at its drawn width times height times four bytes: when they do not fit, the drawings for the lines furthest ahead are dropped first, and a drawing a shown line uses is never dropped. `0` means never drop any. |
 | `load_distance` | Beats of a scene a `load` waits for. `0` means the whole scene. |
 | `load_cache_size` | Megabytes `load` may keep pinned across the loaded scenes still on the callstack. A scene beyond it keeps what fits, in flow order, and streams the rest as it is reached. `0` means no cap: a `load` keeps its whole scene. |
 | `trim_layers` | Whether each layer file of a layered picture is cut to the box of its painted pixels as it loads, and counted at that size against `predict_cache_size` and `load_cache_size`. Pictures look the same either way; `false` only stops the cutting. Single images, SVG files and masks are never cut. |

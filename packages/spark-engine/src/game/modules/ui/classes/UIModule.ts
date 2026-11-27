@@ -6962,6 +6962,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      predict(assets: string[]): WriteImageInstruction["content"] | undefined {
+        return this.resolve([{ control: "show", assets }], true)[0]?.content;
+      }
+
+      shown(target: string): { assets: string[]; at?: string } | undefined {
+        let shown: ImageInstruction | undefined;
+        for (const event of $._state.image?.[target] ?? []) {
+          if (event.assets?.length) {
+            if (event.control === "show") {
+              shown = event;
+            }
+          } else if (event.control === "hide") {
+            shown = undefined;
+          }
+        }
+        return shown?.assets?.length
+          ? { assets: shown.assets, ...(shown.at ? { at: shown.at } : {}) }
+          : undefined;
+      }
+
       async restoreCleared(beat: Pick<Instructions, "image" | "extended">) {
         const cleared = $._clearedPictures;
         if (!cleared || $.context?.system?.simulating) {

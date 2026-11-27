@@ -30,6 +30,9 @@ const mergeBeat = (into: SceneBeat, from: SceneBeat): void => {
     }
     into[key] = merged;
   }
+  if (from.writes) {
+    into.writes = [...(into.writes ?? []), ...from.writes];
+  }
 };
 
 export const captureProgramAssets = (

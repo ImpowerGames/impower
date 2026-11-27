@@ -424,12 +424,14 @@ describe("a beat's created targets are made, measured and shown with the beat (#
       { method: "ui/create", params: { parent: stage.__sdId, element: "made-sigil", type: "div", name: "sigil", breakpoints: {} } },
       { method: "ui/create", params: { parent: "made-sigil", element: "made-sigil-image", type: "div", name: "image", breakpoints: {} } },
     ]);
-    await until(() => t.rasters.length === 2, "both rasters");
-    t.rasters[0]!.resolve(raster(t.rasters[0]!.src, t.rasters[0]!.width, t.rasters[0]!.height));
+    await until(() => t.rasters.length === 1, "the raster both pictures share");
+    await until(() => t.h.overlay.querySelectorAll(".sigil > .image > .instance").length === 2, "both pictures");
     await flushMicrotasks(20);
+    expect(t.rasters).toHaveLength(1);
     expect(t.events.includes("applied")).toBe(false);
-    t.rasters[1]!.resolve(raster(t.rasters[1]!.src, t.rasters[1]!.width, t.rasters[1]!.height));
+    t.rasters[0]!.resolve(raster(t.rasters[0]!.src, t.rasters[0]!.width, t.rasters[0]!.height));
     await until(() => t.events.includes("applied"), "the beat");
+    expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);
     expect(t.events.at(-1)).toBe("applied");
   });
 

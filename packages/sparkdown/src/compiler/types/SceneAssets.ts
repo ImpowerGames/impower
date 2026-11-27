@@ -1,8 +1,18 @@
 import type { ProgramAddress } from "./ProgramAddress";
 
+export interface SceneImageWrite {
+  target?: string;
+  image?: string[];
+  hide?: true;
+  at?: string;
+  to?: string;
+  with?: string;
+}
+
 export interface SceneBeat {
   address: ProgramAddress;
   image?: string[];
+  writes?: SceneImageWrite[];
   audio?: string[];
   layouts?: string[];
   loads?: string[];
