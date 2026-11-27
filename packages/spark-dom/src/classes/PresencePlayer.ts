@@ -16,6 +16,11 @@ interface Motion {
   end: () => void;
 }
 
+interface Unpinned {
+  show: Animation;
+  opacity: number;
+}
+
 const styleDriven = (animation: Animation) =>
   "transitionProperty" in animation || "animationName" in animation;
 
@@ -106,9 +111,7 @@ export default class PresencePlayer {
     ) {
       return;
     }
-    if (presence === "show") {
-      this.unpin(element);
-    }
+    const unpinned = presence === "show" ? this.unpin(element) : undefined;
     void element.ownerDocument.defaultView?.getComputedStyle(element).opacity;
     const current = this.animations(element);
     const before =
@@ -132,6 +135,9 @@ export default class PresencePlayer {
       ...after.filter((animation) => !before.has(animation)),
       ...carried,
     ];
+    if (unpinned) {
+      this.repin(element, unpinned, started);
+    }
     if (this.reducedMotion()) {
       for (const animation of started) {
         if (moves(animation)) {
@@ -178,32 +184,65 @@ export default class PresencePlayer {
     }
   }
 
-  protected unpin(element: Element): void {
+  protected unpin(element: Element): Unpinned | undefined {
     const animated = element as Animated;
-    if (typeof animated.getAnimations !== "function") {
-      return;
+    const view = element.ownerDocument.defaultView;
+    if (typeof animated.getAnimations !== "function" || !view) {
+      return undefined;
     }
-    const held = animated.getAnimations();
-    const shown = held.findLastIndex((animation) => this._shows.has(animation));
-    const outranked = held
-      .slice(0, shown + 1)
+    const pinning = animated
+      .getAnimations()
       .filter((animation) => !styleDriven(animation) && setsOpacity(animation));
+    const show = pinning.at(-1);
     const pinned = (animation: Animation) => {
       const effect = animation.effect as KeyframeEffect | null;
       const fill = effect?.getTiming?.().fill;
       return (
         effect?.target === element &&
+        effect.composite === "replace" &&
         animation.playState === "finished" &&
         (fill === "both" || fill === "forwards") &&
         setsOnlyOpacity(effect)
       );
     };
-    if (!outranked.every(pinned)) {
-      return;
+    if (!show || !this._shows.has(show) || !pinning.every(pinned)) {
+      return undefined;
     }
-    for (const animation of outranked) {
+    const opacity = Number(view.getComputedStyle(element).opacity);
+    for (const animation of pinning) {
       animation.cancel();
     }
+    return { show, opacity };
+  }
+
+  protected repin(
+    element: Element,
+    unpinned: Unpinned,
+    started: Animation[],
+  ): void {
+    const fades = started.filter(
+      (animation) =>
+        (animation as CSSTransition).transitionProperty === "opacity" &&
+        (animation.effect as KeyframeEffect | null)?.target === element,
+    );
+    const settled = fades.length
+      ? Number(
+          (fades[0]!.effect as KeyframeEffect).getKeyframes().at(-1)?.["opacity"],
+        )
+      : Number(
+          element.ownerDocument.defaultView?.getComputedStyle(element).opacity,
+        );
+    if (settled === unpinned.opacity) {
+      return;
+    }
+    for (const fade of fades) {
+      fade.finish();
+    }
+    const restored = carry(unpinned.show, null);
+    for (const animation of restored) {
+      animation.finish();
+    }
+    this.shows(restored);
   }
 
   protected release(

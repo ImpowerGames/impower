@@ -26,6 +26,7 @@ afterAll(async () => {
 
 const CSS = `
 .portrait { width: 200px; height: 200px; background: red; opacity: 1; transition: opacity 1000ms linear; }
+.portrait.faint { opacity: 0.6; }
 .portrait[data-presence="initial"] { opacity: 0; }
 `;
 
@@ -56,11 +57,16 @@ const DIM: Held = { keyframes: [{ opacity: "0.5" }], duration: 0 };
 const HALF: Held = { keyframes: [{ transform: "scale(0.5)" }], duration: 0 };
 const PULSE: Held = { keyframes: [{ opacity: "0.2" }, { opacity: "0.2" }], duration: 60_000, running: true };
 const SHRINK_FADE: Held = { keyframes: [{ opacity: "0.5", transform: "scale(0.5)" }], duration: 0 };
+const SHOW_HALF: Held = { ...HALF, show: true };
+const SHOW_DIM: Held = { ...DIM, show: true };
 
-const arrive = (page: Page, held: Held[], presence: "show" | "hide" = "show") =>
+const arrive = (page: Page, held: Held[], presence: "show" | "hide" = "show", className?: string) =>
   page.evaluate(
-    async ({ held, presence }) => {
+    async ({ held, presence, className }) => {
       const el = document.getElementById("portrait")!;
+      if (className) {
+        el.classList.add(className);
+      }
       const hold = { add: () => new Promise(() => {}) };
       const player = new (window as any).PresencePlayer(hold, () => false);
       for (const { keyframes, duration, show, running } of held) {
@@ -93,7 +99,7 @@ const arrive = (page: Page, held: Held[], presence: "show" | "hide" = "show") =>
         held: el.getAnimations().filter((animation) => !("transitionProperty" in animation)).length,
       };
     },
-    { held, presence },
+    { held, presence, className },
   );
 
 describe("an arriving picture takes its @initial look and fades to its settled look (#2746)", () => {
@@ -143,6 +149,31 @@ describe("an arriving picture takes its @initial look and fades to its settled l
     const page = await open();
     const result = await arrive(page, [SHOW_PIN, DIM]);
     expect(result.opacity).toEqual([0.5, 0.5, 0.5]);
+    expect(result.held).toBe(2);
+    await page.close();
+  });
+
+  test("an author's dim under a show that sets only a transform stays through the arrival", async () => {
+    const page = await open();
+    const result = await arrive(page, [DIM, SHOW_HALF]);
+    expect(result.opacity).toEqual([0.5, 0.5, 0.5]);
+    expect(result.transform).toBe("matrix(0.5, 0, 0, 0.5, 0, 0)");
+    expect(result.held).toBe(2);
+    await page.close();
+  });
+
+  test("a show that dims the picture keeps its dim through the arrival", async () => {
+    const page = await open();
+    const result = await arrive(page, [SHOW_DIM]);
+    expect(result.opacity).toEqual([0.5, 0.5, 0.5]);
+    expect(result.held).toBe(1);
+    await page.close();
+  });
+
+  test("a picture whose style settles at another opacity than its show keeps the show's opacity through the arrival", async () => {
+    const page = await open();
+    const result = await arrive(page, [SHOW_PIN], "show", "faint");
+    expect(result.opacity).toEqual([1, 1, 1]);
     expect(result.held).toBe(1);
     await page.close();
   });
