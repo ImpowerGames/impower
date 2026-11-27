@@ -133,6 +133,7 @@ interface ImageEffect {
   element: HTMLElement;
   animations: Animation[];
   after?: AnimationPlayer;
+  line?: AnimationPlayer;
 }
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
@@ -847,10 +848,15 @@ export default class UIManager extends Manager {
         const content = instruction.content;
         for (const targetEl of targetEls) {
           const around =
-            keyframeScale(instruction.targetAnimations) *
+            keyframeScale(instruction.targetAnimations, (name) => resolveAnimationTargets(targetEl, name)) *
             (instruction.affected ?? [])
-              .filter((a) => this.findTargetElements(a.target).some((el) => el === targetEl || el.contains(targetEl)))
-              .reduce((product, a) => product * keyframeScale(a.animations), 1);
+              .map((a) => ({ a, els: this.findTargetElements(a.target).filter((el) => el === targetEl || el.contains(targetEl)) }))
+              .filter(({ els }) => els.length > 0)
+              .reduce(
+                (product, { a, els }) =>
+                  product * keyframeScale(a.animations, (name) => els.flatMap((el) => resolveAnimationTargets(el, name))),
+                1,
+              );
           const imageEls = this.getContentElements(targetEl, "image");
           if (!content) {
             for (const contentEl of imageEls) {
@@ -1205,7 +1211,7 @@ export default class UIManager extends Manager {
       }
       for (const effect of msg.params.effects) {
         const element = this.getElement(effect.element);
-        const scale = keyframeScale(effect.animations);
+        const scale = keyframeScale(effect.animations, () => [effect.element]);
         if (element && scale > 1) {
           found.push({ element, scale });
         }
@@ -3068,6 +3074,7 @@ export default class UIManager extends Manager {
                 el,
                 a.animations,
                 instruction.control === "animate" ? undefined : after,
+                after,
               );
             }
           }
@@ -3275,17 +3282,25 @@ export default class UIManager extends Manager {
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
       onEnd?: (animation: globalThis.Animation) => void,
     ) => {
-      const players = new Map<AnimationPlayer | undefined, AnimationPlayer>();
+      const sequenced = new Map<AnimationPlayer | undefined, AnimationPlayer>();
+      const together = new Map<AnimationPlayer, AnimationPlayer>();
+      const players: { after?: AnimationPlayer; player: AnimationPlayer }[] = [];
       for (const e of effects) {
-        let player = players.get(e.after);
+        let player = !e.after && e.line ? together.get(e.line) : sequenced.get(e.after);
         if (!player) {
-          player = new AnimationPlayer(this._theme, this._hold);
-          players.set(e.after, player);
+          if (!e.after && e.line) {
+            player = new AnimationPlayer(this._theme, this._hold, e.line);
+            together.set(e.line, player);
+          } else {
+            player = new AnimationPlayer(this._theme, this._hold);
+            sequenced.set(e.after, player);
+          }
+          players.push({ after: e.after, player });
         }
         const animations = player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
       }
-      return Array.from(players, ([after, player]) =>
+      return players.map(({ after, player }) =>
         player.play(
           startTime == null
             ? undefined
@@ -3787,6 +3802,7 @@ export default class UIManager extends Manager {
     element: HTMLElement,
     animations: Animation[] | undefined,
     after?: AnimationPlayer,
+    line?: AnimationPlayer,
   ) {
     if (!animations?.length) {
       return;
@@ -3796,7 +3812,7 @@ export default class UIManager extends Manager {
         element,
         animation.target?.$name,
       )) {
-        effects.push({ element: el, animations: [animation], after });
+        effects.push({ element: el, animations: [animation], after, line });
       }
     }
   }
