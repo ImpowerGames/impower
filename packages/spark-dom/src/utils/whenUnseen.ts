@@ -78,6 +78,8 @@ const transparent = (el: Element): boolean => {
   return pinned && Number(styleOf(el)?.opacity) === 0;
 };
 
+const canChangeDisplay = (property: string) => property === "display" || property.startsWith("--");
+
 const namesDisplay = (el: Element): boolean => {
   const style = styleOf(el);
   if (!style || style.display === "contents") {
@@ -85,7 +87,7 @@ const namesDisplay = (el: Element): boolean => {
   }
   const transitioned = style.transitionProperty.split(",").map((property) => property.trim());
   if (
-    transitioned.includes("display") ||
+    transitioned.some(canChangeDisplay) ||
     (transitioned.includes("all") && String(style.getPropertyValue("transition-behavior")).includes("allow-discrete"))
   ) {
     return true;
@@ -93,8 +95,9 @@ const namesDisplay = (el: Element): boolean => {
   return el.getAnimations().some((animation) => {
     const effect = animation.effect as KeyframeEffect | null;
     return (
-      (animation as CSSTransition).transitionProperty === "display" ||
-      (typeof effect?.getKeyframes === "function" && effect.getKeyframes().some((frame) => frame["display"] != null))
+      canChangeDisplay(String((animation as CSSTransition).transitionProperty ?? "")) ||
+      (typeof effect?.getKeyframes === "function" &&
+        effect.getKeyframes().some((frame) => Object.keys(frame).some(canChangeDisplay)))
     );
   });
 };
@@ -111,6 +114,9 @@ const inTopLayer = (el: Element) =>
   });
 
 const chainTo = (el: Element, target: Element): Element[] | undefined => {
+  if (!target.contains(el)) {
+    return undefined;
+  }
   const els: Element[] = [];
   for (let at: Element | null = el; at; at = at.parentElement) {
     els.push(at);

@@ -110,6 +110,26 @@ describe("an authored hide whose display the classifier cannot resolve (#2845)",
     expect(moments.some((moment) => moment.seen)).toBe(true);
   });
 
+  test("a hide animating a custom property that feeds display is never answered while the picture shows", async () => {
+    const program = compile(`style portrait { display = "var(--box, block)" }
+animation unbox {
+  keyframes {
+    from { opacity = "0"; __box = "block" }
+    to { opacity = "0"; __box = "contents" }
+  }
+  timing { duration = "6s"; fill = "both"; easing = "linear" }
+}
+scene start
+  [[hide portrait with unbox]] Gone.
+end
+`);
+    const animation = (program.context as any).animation.unbox;
+    expect(Object.keys(animation.keyframes[1])).toContain("__box");
+    const moments = await playAuthored(animation, "#portrait { display: var(--box, block); }");
+    expect(moments.map((moment) => moment.answered)).toEqual([false, false, false]);
+    expect(moments.some((moment) => moment.seen)).toBe(true);
+  });
+
   test("a hide animating display to inherit under a parent without a box is never answered while the picture shows", async () => {
     const animation = authored("inherit");
     expect(animation.keyframes[1].display).toBe("inherit");
@@ -128,6 +148,7 @@ const DISPLAYS = {
   inherit: { from: "block", to: "inherit" },
   contents: { from: "block", to: "contents" },
   transition: { from: undefined, to: undefined },
+  custom: { from: undefined, to: undefined },
 } as const;
 
 const cross = async (place: string, display: keyof typeof DISPLAYS): Promise<Moment[]> => {
@@ -139,10 +160,19 @@ const cross = async (place: string, display: keyof typeof DISPLAYS): Promise<Mom
         const faded = document.getElementById(place)!;
         const picture = document.getElementById("picture")!;
         const portrait = document.getElementById("portrait")!;
-        const keyframes = [
-          frames.from ? { opacity: "0", display: frames.from } : { opacity: "0" },
-          frames.to ? { opacity: "0", display: frames.to } : { opacity: "0" },
-        ];
+        const keyframes: Keyframe[] =
+          display === "custom"
+            ? [
+                { opacity: "0", "--box": "block" },
+                { opacity: "0", "--box": "contents" },
+              ]
+            : [
+                frames.from ? { opacity: "0", display: frames.from } : { opacity: "0" },
+                frames.to ? { opacity: "0", display: frames.to } : { opacity: "0" },
+              ];
+        if (display === "custom") {
+          faded.style.display = "var(--box, block)";
+        }
         const fade = faded.animate(keyframes, { duration: 6000, fill: "both" });
         fade.pause();
         fade.currentTime = 1000;
@@ -248,4 +278,92 @@ test("the watch reads no element above the write's target (#2845)", async () => 
   } finally {
     await page.close();
   }
+});
+
+test("the watch reads nothing for a target that does not hold the picture and never answers for it (#2845)", async () => {
+  const page = await open();
+  try {
+    const result = await page.evaluate(async () => {
+      const w = window as any;
+      const stage = document.getElementById("stage")!;
+      const picture = document.getElementById("picture")!;
+      const elsewhere = document.createElement("div");
+      document.body.append(elsewhere);
+      elsewhere.animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+      stage.animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+      const read: Element[] = [];
+      const getAnimations = Element.prototype.getAnimations;
+      const matches = Element.prototype.matches;
+      Element.prototype.getAnimations = function (this: Element, options?: GetAnimationsOptions) {
+        read.push(this);
+        return getAnimations.call(this, options);
+      };
+      Element.prototype.matches = function (this: Element, selector: string) {
+        read.push(this);
+        return matches.call(this, selector);
+      };
+      let answered = false;
+      w.whenUnseen([{ element: picture, target: elsewhere }], new Promise(() => {})).then(() => {
+        answered = true;
+      });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      Element.prototype.getAnimations = getAnimations;
+      Element.prototype.matches = matches;
+      return { answered, read: [...new Set(read.map((el) => el.tagName + "#" + el.id))] };
+    });
+    expect(result).toEqual({ answered: false, read: [] });
+  } finally {
+    await page.close();
+  }
+});
+
+describe("limits the game cannot produce today, since the player creates no closed shadow roots and no top-layer elements (#2845)", () => {
+  const topLayerAfterFade = async (open: "closed-root" | "after-answer") => {
+    const page = await browser.newPage({ viewport: { width: 400, height: 200 } });
+    try {
+      await page.setContent(`<!doctype html><html><body>${PAGE}</body></html>`);
+      await page.addScriptTag({ content: script });
+      return await page.evaluate(async (open) => {
+        const w = window as any;
+        const portrait = document.getElementById("portrait")!;
+        const picture = document.getElementById("picture")!;
+        const layer = document.createElement("span");
+        layer.textContent = "shown";
+        layer.setAttribute("popover", "manual");
+        if (open === "closed-root") {
+          picture.attachShadow({ mode: "closed" }).append(layer);
+          layer.showPopover();
+        } else {
+          picture.append(layer);
+        }
+        portrait.animate([{ opacity: "0" }], { duration: 500, fill: "forwards" }).finish();
+        let answered = false;
+        w.whenUnseen([{ element: picture, target: portrait }], new Promise(() => {})).then(() => {
+          answered = true;
+        });
+        const tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        await tick();
+        if (open === "after-answer") {
+          layer.showPopover();
+          await tick();
+        }
+        return {
+          answered,
+          layerShown:
+            layer.matches(":popover-open") && Number(getComputedStyle(layer).opacity) === 1 && layer.getClientRects().length > 0,
+          targetOpacity: getComputedStyle(portrait).opacity,
+        };
+      }, open);
+    } finally {
+      await page.close();
+    }
+  };
+
+  test("a popover inside a closed shadow root of the picture is answered while it shows", async () => {
+    expect(await topLayerAfterFade("closed-root")).toEqual({ answered: true, layerShown: true, targetOpacity: "0" });
+  });
+
+  test("an element that enters the top layer after the answer shows after the picture was answered", async () => {
+    expect(await topLayerAfterFade("after-answer")).toEqual({ answered: true, layerShown: true, targetOpacity: "0" });
+  });
 });
