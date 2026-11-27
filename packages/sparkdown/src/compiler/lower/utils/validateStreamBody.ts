@@ -1,5 +1,6 @@
 import { ErrorType } from "../../../runtime/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import { directiveValueKind } from "../../utils/readDirective";
 import type { LowerContext } from "../context";
 import type { SourceSpan, StructSource } from "../lowerers/lowerStructBodyTyped";
 import { makeSource } from "./validateDefineStructure";
@@ -7,9 +8,6 @@ import { makeSource } from "./validateDefineStructure";
 export const STREAM_FIELDS: ReadonlySet<string> = new Set(["advance", "pause"]);
 
 export const STREAM_ADVANCES: ReadonlySet<string> = new Set(["click", "auto"]);
-
-// value-level: the shape of the already-read `pause` value
-const TIME = /^(?:\d+(?:[.]\d*)?|[.]\d+)(?:ms|s)$/;
 
 export function validateStreamBody(
   body: Record<string, unknown>,
@@ -39,8 +37,8 @@ export function validateStreamBody(
       !(typeof value === "number" && Number.isFinite(value) && value >= 0) &&
       !(
         typeof value === "string" &&
-        // value-level: the already-read value of the `pause` setting
-        TIME.test(value)
+        directiveValueKind(value) === "time" &&
+        Number.parseFloat(value) >= 0
       )
     ) {
       report(

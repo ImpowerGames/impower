@@ -124,6 +124,7 @@ A run is every line a stream shows from one wait to the next. The game reads a r
 - A stream in a layout you opened with `[[open NAME]]` is gathered to its next wait.
 - With `advance = click` in a layout you opened, each line is a run of its own, so a page of text still grows line by line.
 - Reading stops at a menu.
+- The game reads at most 100 lines ahead of the line on screen. In a longer run, such as lines written in an endless loop, the room made covers the next 100 lines.
 
 Pictures, sounds and directives written on a line happen when that line starts, not when it is read. Game logic between gathered lines runs before the first of them shows; to make a line wait for that logic, end the line before it with `>`.
 

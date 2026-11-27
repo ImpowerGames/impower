@@ -3921,7 +3921,7 @@ export class Game<T extends M = {}> {
     if (instructions || this._simulation !== "simulating") {
       this.checkpoint();
     }
-    if (instructions && !instructions.auto && this.recordsRun()) {
+    if (instructions && this.recordsRun()) {
       this.recordBeat(instructions);
     }
     if (

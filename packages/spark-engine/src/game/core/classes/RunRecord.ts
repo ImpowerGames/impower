@@ -40,7 +40,7 @@ export class RunRecord {
   }
 
   get canRollBack(): boolean {
-    return this._at > 0;
+    return this._beats.slice(0, this._at).some(isStep);
   }
 
   get canRollForward(): boolean {
@@ -88,7 +88,12 @@ export class RunRecord {
       }
       return 0;
     }
-    return this._at - 1;
+    for (let i = this._at - 1; i >= 0; i -= 1) {
+      if (isStep(this._beats[i]!)) {
+        return i;
+      }
+    }
+    return null;
   }
 
   get heldChoices(): number[] {
@@ -119,7 +124,12 @@ export class RunRecord {
       }
       return last;
     }
-    return this._at + 1;
+    for (let i = this._at + 1; i < last; i += 1) {
+      if (isStep(this._beats[i]!)) {
+        return i;
+      }
+    }
+    return last;
   }
 
   drop(checkpoints: ReadonlySet<number>): void {
@@ -132,6 +142,8 @@ export class RunRecord {
     }
   }
 }
+
+const isStep = (beat: RunBeat): boolean => !beat.shown.auto;
 
 const TARGETS: Record<
   Exclude<RollTarget, "beat">,

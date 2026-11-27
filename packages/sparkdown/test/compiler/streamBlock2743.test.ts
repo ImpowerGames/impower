@@ -97,7 +97,19 @@ describe("the stream block (I-2743)", () => {
   });
 
   test("a pause written as a number of seconds or in milliseconds compiles", () => {
-    expect(compiled(`${PHONE}\nstream phone {\n  pause = 1\n}\n${SCENE}`).found).toEqual([]);
-    expect(compiled(`${PHONE}\nstream phone {\n  pause = 600ms\n}\n${SCENE}`).found).toEqual([]);
+    for (const pause of ["1", "600ms", ".5s", "2.5s"]) {
+      expect(compiled(`${PHONE}\nstream phone {\n  pause = ${pause}\n}\n${SCENE}`).found, pause).toEqual([]);
+    }
+  });
+
+  test("a pause the game could not read as a time is reported at its value", () => {
+    for (const pause of ["1.s", "-1s", "-1"]) {
+      const source = `${PHONE}\nstream phone {\n  pause = ${pause}\n}\n${SCENE}`;
+      const line = source.split("\n").findIndex((text) => text.trim().startsWith("pause"));
+      expect(
+        compiled(source).found.map(({ line, word, severity }) => [line, word, severity]),
+        pause,
+      ).toEqual([[line, pause, 1]]);
+    }
   });
 });

@@ -27,6 +27,8 @@ export interface StreamRun {
 
 const BUILT_IN_PAUSE = 0.4;
 
+const RUN_LINE_LIMIT = 100;
+
 const streamLayouts = new WeakMap<object, boolean>();
 
 function holdsStreams(game: Game): boolean {
@@ -115,7 +117,7 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
     }
     ahead.push(routed);
     events = after;
-    if (endsRun(beat, gathering)) {
+    if (endsRun(beat, gathering) || ahead.length + 1 >= RUN_LINE_LIMIT) {
       return { gathering, ahead, open: false };
     }
   }

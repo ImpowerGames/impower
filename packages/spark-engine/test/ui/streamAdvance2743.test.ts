@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { EventMessage } from "../../src/game/core/classes/messages/EventMessage";
+import { streamSettings } from "../../src/game/core/classes/presenters/streamRuns";
 import type { Instructions } from "../../src/game/core/types/Instructions";
 import type { StreamEntry } from "../../src/game/modules/ui/types/StreamState";
 import {
@@ -334,6 +335,23 @@ describe("each wait is one step for stepping back and for saves (I-2743)", () =>
     expect(reserved(h)).toBe(0);
   });
 
+  test("a step back while a run's lines are still advancing returns to the wait before the run", async () => {
+    const h = await play(THREAD);
+    await tickUntil(h, "three");
+    await click(h);
+    expect(shown(h)).toBe("four");
+    expect(coordinator(h)._instructions.auto).toBe(true);
+    expect(h.game.history.canRollBack).toBe(true);
+    const back = await h.game.rollBack("beat");
+    expect(back.moved).toBe(true);
+    await flushMicrotasks(10);
+    expect(shown(h)).toBe("three");
+    expect(entries(h)).toEqual(["one", "two", "three"]);
+    await h.game.rollBack("beat");
+    await flushMicrotasks(10);
+    expect(["one", "two"]).not.toContain(shown(h));
+  });
+
   test("a save taken at a wait loads with the lines shown up to it", async () => {
     const h = await play(THREAD);
     await tickUntil(h, "three");
@@ -402,5 +420,44 @@ describe("the preview of a line inside a run (I-2743)", () => {
     expect(reserved(h)).toBe(1);
     const views = (h.game.module.ui.streams as any)._mounted.get("phone/0")[0].entries;
     expect(views.map((view: any) => Boolean(view.reserved))).toEqual([false, false, true]);
+  });
+});
+
+describe("the game reads every pause the compiler accepts as written (I-2743)", () => {
+  test.each([
+    ["0.6s", 0.6],
+    ["600ms", 0.6],
+    [".5s", 0.5],
+    ["2.5s", 2.5],
+    ["1", 1],
+    ["0", 0],
+  ])("pause = %s waits %d seconds", async (pause, seconds) => {
+    const h = createHarness(
+      `${DEFS}\nstream phone {\n  advance = auto\n  pause = ${pause}\n}\n\nscene start\n  RAFFLES: one\nend\n`,
+      0,
+      { autoOpenAll: false },
+    );
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    expect(streamSettings(h.game, "phone")).toEqual({ advance: "auto", pause: seconds });
+  });
+});
+
+describe("a stream whose lines never reach a wait (I-2743)", () => {
+  test("a layout that opened by itself and is written to in an endless loop reads at most 100 lines ahead", async () => {
+    const h = await play(`${DEFS}
+scene start
+  @note: tick
+  -> start
+end
+`);
+    expect(h.errors).toEqual([]);
+    expect(shown(h)).toBe("tick");
+    expect(entries(h, "note")).toHaveLength(100);
+    expect(reserved(h, "note")).toBe(99);
+    await click(h);
+    expect(shown(h)).toBe("tick");
+    expect(entries(h, "note")).toHaveLength(101);
+    expect(reserved(h, "note")).toBe(99);
   });
 });
