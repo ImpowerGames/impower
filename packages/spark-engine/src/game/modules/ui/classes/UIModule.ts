@@ -4148,7 +4148,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (parent.parent) {
       this.updateElement(parent, { attributes: follow });
     }
-    const key = this.streamKeyOf(parent, node);
+    const key = this.templatedKeyOf(parent, node, layoutStreams);
     if (key) {
       const mounted: MountedStream = {
         key,
@@ -4164,11 +4164,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  protected streamKeyOf(parent: Element, node: StreamNode): string | undefined {
+  protected templatedKeyOf(
+    parent: Element,
+    node: StreamNode,
+    find: typeof layoutStreams,
+  ): string | undefined {
     for (const [name, { element }] of this._mountedLayouts) {
       for (let el: Element | null = parent; el; el = el.parent) {
         if (el === element) {
-          const index = layoutStreams(this._game.program?.sparkle, name).indexOf(node);
+          const index = find(this._game.program?.sparkle, name).indexOf(node);
           return index >= 0 ? streamKey(name, index) : undefined;
         }
       }
@@ -4176,13 +4180,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return undefined;
   }
 
-  protected insideStream(el: Element): boolean {
+  protected inside(el: Element, holders: WeakSet<Element>): boolean {
     for (let node = el.parent; node; node = node.parent) {
-      if (this._streamElements.has(node)) {
+      if (holders.has(node)) {
         return true;
       }
     }
     return false;
+  }
+
+  protected insideStream(el: Element): boolean {
+    return this.inside(el, this._streamElements);
   }
 
   protected _castElements = new WeakSet<Element>();
@@ -4195,7 +4203,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): Element {
     const el = this.mountElement(parent, node, scope, before);
     this._castElements.add(el);
-    const key = this.castKeyOf(parent, node);
+    const key = this.templatedKeyOf(parent, node, layoutCasts);
     if (key) {
       const mounted: MountedCast = { key, element: el, node, scope, views: new Map() };
       scope.casts.push(mounted);
@@ -4204,25 +4212,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  protected castKeyOf(parent: Element, node: StreamNode): string | undefined {
-    for (const [name, { element }] of this._mountedLayouts) {
-      for (let el: Element | null = parent; el; el = el.parent) {
-        if (el === element) {
-          const index = layoutCasts(this._game.program?.sparkle, name).indexOf(node);
-          return index >= 0 ? streamKey(name, index) : undefined;
-        }
-      }
-    }
-    return undefined;
+  protected insideCast(el: Element): boolean {
+    return this.inside(el, this._castElements);
   }
 
-  protected insideCast(el: Element): boolean {
-    for (let node = el.parent; node; node = node.parent) {
-      if (this._castElements.has(node)) {
-        return true;
-      }
-    }
-    return false;
+  protected entryTargets(roots: Element[], target: string): Element[] {
+    return this.writeTargets(
+      roots.flatMap((root) =>
+        root.isMatch(target)
+          ? [root, ...this.searchForAll(root, target)]
+          : this.searchForAll(root, target),
+      ),
+      target,
+      true,
+    );
   }
 
   protected mountChildren(
@@ -8830,15 +8833,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           view.typed = !instant;
         }
         for (const [target, events] of Object.entries(entry.text)) {
-          const elements = $.writeTargets(
-            roots.flatMap((root) =>
-              root.isMatch(target)
-                ? [root, ...$.searchForAll(root, target)]
-                : $.searchForAll(root, target),
-            ),
-            target,
-            true,
-          );
+          const elements = $.entryTargets(roots, target);
           const first = elements[0];
           if (!first) {
             continue;
@@ -9327,16 +9322,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
       ): void {
-        const roots = $.collectNodes(view.group);
-        const elements = $.writeTargets(
-          roots.flatMap((root) =>
-            root.isMatch(write.target)
-              ? [root, ...$.searchForAll(root, write.target)]
-              : $.searchForAll(root, write.target),
-          ),
-          write.target,
-          true,
-        );
+        const elements = $.entryTargets($.collectNodes(view.group), write.target);
         const first = elements[0];
         if (!first) {
           return;
