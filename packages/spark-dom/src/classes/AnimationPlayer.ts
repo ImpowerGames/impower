@@ -91,6 +91,8 @@ export default class AnimationPlayer {
 
   protected _moved: Map<Element, Set<string>>;
 
+  protected _movers: Map<Element, Animation[]>;
+
   protected _theme: ThemeVariables;
 
   protected _hold?: AnimationHold;
@@ -99,6 +101,7 @@ export default class AnimationPlayer {
     this._theme = theme;
     this._hold = hold;
     this._moved = together?._moved ?? new Map();
+    this._movers = together?._movers ?? new Map();
   }
 
   add(effect: AnimationEffect): Animation[] {
@@ -156,11 +159,21 @@ export default class AnimationPlayer {
         }
       }
     }
+    const movers = this._movers.get(element) ?? [];
+    this._movers.set(element, movers);
     if (adding.size === 0) {
-      return [this.addKeyframes(element, keyframes, timing)];
+      const instance = this.addKeyframes(element, keyframes, timing);
+      if (
+        keyframes.some((keyframe) =>
+          Object.keys(keyframe).some((prop) => MOVEMENT.has(prop)),
+        )
+      ) {
+        movers.push(instance);
+      }
+      return [instance];
     }
     const replaced = keyframesWith(keyframes, (prop) => !adding.has(prop));
-    return [
+    const combined = [
       ...(setsProperties(replaced)
         ? [this.addKeyframes(element, replaced, timing)]
         : []),
@@ -171,6 +184,11 @@ export default class AnimationPlayer {
         "add",
       ),
     ];
+    movers.push(...combined);
+    for (const mover of movers) {
+      mover.persist();
+    }
+    return combined;
   }
 
   addKeyframes(

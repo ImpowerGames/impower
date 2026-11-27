@@ -114,6 +114,9 @@ export class TimedAnimation {
     this._hold = null;
     this.update(true);
   }
+  persist() {
+    this.replaceState = "persisted";
+  }
   pause() {
     const time = this.currentTime ?? 0;
     this._start = null;
