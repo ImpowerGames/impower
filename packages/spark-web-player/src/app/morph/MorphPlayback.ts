@@ -340,7 +340,7 @@ interface StillPicture {
   rasters: Map<number, StillRaster>;
   undrawn?: Undrawn;
   late?: boolean;
-  under?: ImageState;
+  unders: ImageState[];
   reported?: boolean;
   next?: { boxSize: string; rasters: Map<number, StillRaster>; refused?: Undrawn };
 }
@@ -426,35 +426,21 @@ interface StillCanvas {
   boxSize?: string;
 }
 
-interface CanvasRun {
-  canvas: HTMLCanvasElement;
-  context: PictureCanvasContext;
-  files: Set<number>;
-  painted?: string;
-}
-
 interface CanvasView {
   box: HTMLElement;
-  runs: CanvasRun[];
-  views: Map<number, LiveView>;
-  containers: Map<number, Container>;
+  canvas: HTMLCanvasElement;
+  context: PictureCanvasContext;
+  painted?: string;
   files: MorphPictureFiles;
   drawn: LayeredMorphDrawn[];
   standIns: Map<string, StandIn>;
   groups: { canvas: HTMLCanvasElement; context: PictureCanvasContext }[];
-  size?: { width: number; height: number };
+  backing?: { width: number; height: number };
   smooth?: boolean;
   last?: string;
   snap?: { x: number; y: number; width: number; height: number; rect: string };
   next?: { rect: string; w: number; h: number; rasters: Map<number, FileRaster>; pending: number; refused?: number };
 }
-
-interface Container {
-  element: HTMLElement;
-  label: string;
-}
-
-const CONTAINER_STYLE = "position:absolute;inset:0";
 
 interface PaintedLayer {
   file: number;
@@ -462,6 +448,7 @@ interface PaintedLayer {
   matrix?: Affine;
   wrappers: number[];
   fades: number[];
+  pose?: { id: string; image: CanvasImageSource };
 }
 
 interface StandIn {
@@ -614,6 +601,7 @@ interface FileState {
   plays: { play: MorphPlay; occurrence?: Occurrence }[];
   view?: LiveView;
   broken?: boolean;
+  poses?: PoseFrames;
 }
 
 interface ImageState {
@@ -659,12 +647,21 @@ interface PoseSet {
 
 interface PoseFrames {
   artifact: MorphArtifact;
-  still: StillPicture;
+  image: ImageState;
+  index: number;
+  still?: StillPicture;
   sets: PoseSet[];
   shown: string;
   showing?: PoseSet;
   last?: string;
   reported?: boolean;
+}
+
+interface PoseOwner {
+  slot: MorphArtifactSlot;
+  plays: { play: MorphPlay; occurrence?: Occurrence }[];
+  turned?: boolean;
+  poses?: PoseFrames;
 }
 
 const REST_POSE = "rest";
@@ -1710,7 +1707,7 @@ export class MorphLayer {
   }
 
   get live(): boolean {
-    return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas || image.poses || image.inner.some((inner) => inner.view));
+    return !this.frozen && !this.disposed && this.images.some((image) => image.view || image.canvas || image.poses || image.inner.some((inner) => inner.view || inner.poses));
   }
 
   get watched(): boolean {
@@ -1832,12 +1829,10 @@ export class MorphLayer {
       const end = picture.layer + picture.span;
       if (picture.span < (picture.vector ? 1 : 2) || picture.files.length !== picture.span || picture.layer < 0 || end > this.layers.length) continue;
       const covering = this.images.filter((image) => image.layer < end && picture.layer < image.layer + image.span);
-      const under =
-        covering.length === 1 && picture.vector && covering[0]!.layer === picture.layer && covering[0]!.span === picture.span
-          ? covering[0]
-          : undefined;
-      if (covering.length > 0 && !under) continue;
-      const still: StillPicture = { layer: picture.layer, span: picture.span, picture, rasters: new Map(), ...(under ? { under } : {}) };
+      const whole = covering.length === 1 && covering[0]!.layer === picture.layer && covering[0]!.span === picture.span;
+      const layered = covering.every((image) => !image.picture && image.span === 1 && image.inner.length === 0);
+      if (covering.length > 0 && !(picture.vector && (whole || layered))) continue;
+      const still: StillPicture = { layer: picture.layer, span: picture.span, picture, rasters: new Map(), unders: covering };
       this.stills.push(still);
       const ready = picture.files.map((file) => this.playback.pictureNow(file.src));
       if (ready.every((bitmap) => bitmap)) this.settleStill(still, ready);
@@ -1900,9 +1895,9 @@ export class MorphLayer {
     }
   }
 
-  protected fallBack(target: { broken?: boolean; under?: ImageState }, picture: { files: { src: string }[] } | undefined) {
+  protected fallBack(target: { broken?: boolean; unders?: ImageState[] }, picture: { files: { src: string }[] } | undefined) {
     target.broken = true;
-    this.flushMorphReports(target.under);
+    for (const under of target.unders ?? []) this.flushMorphReports(under);
     if (picture) this.playback.keepWhole?.(picture.files.map((file) => file.src));
   }
 
@@ -1910,8 +1905,8 @@ export class MorphLayer {
     still.undrawn = undrawn;
     still.late = false;
     this.releaseStill(still);
-    if (!still.under) this.report(still, undrawn);
-    this.flushMorphReports(still.under);
+    if (still.unders.length === 0) this.report(still, undrawn);
+    for (const under of still.unders) this.flushMorphReports(under);
   }
 
   protected report(still: StillPicture, undrawn: Undrawn) {
@@ -1927,7 +1922,7 @@ export class MorphLayer {
   }
 
   protected reportMorph(image: ImageState, report: MorphStillParams) {
-    if (image.inner.length === 0 && this.stills.some((still) => still.under === image && !still.broken)) {
+    if (image.inner.length === 0 && this.stills.some((still) => still.unders.includes(image) && !still.broken)) {
       (image.pendingReports ??= []).push(report);
       this.flushMorphReports(image);
       return;
@@ -1938,7 +1933,7 @@ export class MorphLayer {
   protected flushMorphReports(image: ImageState | undefined) {
     const pending = image?.pendingReports;
     if (!image || !pending?.length) return;
-    const rest = this.stills.find((still) => still.under === image && !still.broken);
+    const rest = this.stills.find((still) => still.unders.includes(image) && !still.broken);
     if (rest && !rest.undrawn && (rest.loading || !rest.files || [...rest.rasters.values()].some((raster) => raster.busy || !raster.image))) return;
     image.pendingReports = undefined;
     if (rest?.undrawn) return;
@@ -2001,7 +1996,7 @@ export class MorphLayer {
           });
         if (matches(still.rasters)) {
           this.dropNext(still);
-          if (still.under?.poses) this.wantPoses(still.under);
+          this.wantStillPoses(still);
           continue;
         }
         if (still.next?.boxSize === boxSize && matches(still.next.rasters)) continue;
@@ -2013,19 +2008,22 @@ export class MorphLayer {
           next.rasters.set(index, raster);
           this.rasterizeStill(still, index, raster);
         }
-        if (still.under?.poses) this.wantPoses(still.under);
+        this.wantStillPoses(still);
       }
       const area = this.areaOf(computed);
       for (const image of area.width > 0 && area.height > 0 ? this.images : []) {
         const view = image.canvas;
-        if (!view || !image.files || image.broken || !view.box.isConnected || !view.runs.some((run) => run.painted !== undefined) || view.files.rasters.size === 0) continue;
+        const posed = image.inner.some((inner) => inner.poses);
+        if (!view || !image.files || image.broken || !view.box.isConnected || view.painted === undefined || (view.files.rasters.size === 0 && !posed)) continue;
         const rect = this.pictureRect(image.files, image.layer, computed, area);
         if (!rect) continue;
         const rectKey = `${rect.x},${rect.y},${rect.width},${rect.height}`;
         const place = this.canvasPlacement(rect, dpr);
         const { w, h } = this.canvasBacking(view, place.width, place.height, dpr);
-        if ([...view.files.rasters.values()].every((raster) => raster.want?.width === w && raster.want.height === h)) {
+        const sized = !posed || (view.backing?.width === w && view.backing.height === h);
+        if (sized && [...view.files.rasters.values()].every((raster) => raster.want?.width === w && raster.want.height === h)) {
           this.dropCanvasNext(view);
+          this.wantInnerPoses(image);
           continue;
         }
         if (view.next && view.next.rect === rectKey && view.next.w === w && view.next.h === h) continue;
@@ -2033,6 +2031,7 @@ export class MorphLayer {
         const next: NonNullable<CanvasView["next"]> = { rect: rectKey, w, h, rasters: new Map(), pending: 0 };
         view.next = next;
         for (const file of view.files.rasters.keys()) this.rasterizeCanvasNext(view, file, next);
+        this.wantInnerPoses(image);
       }
     } finally {
       this.sizing.style = style;
@@ -2213,7 +2212,7 @@ export class MorphLayer {
     }
     for (const image of this.images) {
       if (!image.picture || image.reported || this.canvasDrawn(image)) continue;
-      if (this.stills.some((still) => still.under === image)) continue;
+      if (this.stills.some((still) => still.unders.includes(image))) continue;
       image.reported = true;
       this.reporter?.({ image: image.plays[0]!.play.ref.image, file: image.picture.files[0]?.name ?? "", reason: "late" });
     }
@@ -2222,7 +2221,7 @@ export class MorphLayer {
   }
 
   protected stillDrawn(still: StillPicture, ignoreLate = false): boolean {
-    if (still.broken || still.undrawn || this.arealess || (still.under && this.uncomposited(still.under) && still.under.inner.length > 0)) return true;
+    if (still.broken || still.undrawn || this.arealess || this.fallenUnder(still)) return true;
     if (still.late && !ignoreLate) return true;
     if (still.loading || !still.files) return !still.loading;
     const canvases = still.canvases;
@@ -2231,7 +2230,11 @@ export class MorphLayer {
     const ready = (raster: StillRaster) =>
       !raster.busy && !!raster.image && (!raster.want || (raster.width === raster.want.width && raster.height === raster.want.height));
     if (![...still.rasters.values()].every(ready) || (still.next && !still.next.refused && ![...still.next.rasters.values()].every(ready))) return false;
-    return !this.posing(still) || this.posesDrawn(still.under!);
+    return still.unders.every((image) => !this.posed(still, image) || this.posesDrawn(image));
+  }
+
+  protected fallenUnder(still: StillPicture): boolean {
+    return still.unders.some((image) => this.uncomposited(image) && image.inner.length > 0);
   }
 
   protected canvasDrawn(image: ImageState): boolean {
@@ -2242,8 +2245,9 @@ export class MorphLayer {
     if (image.loading && !image.files && !image.broken) return false;
     const view = image.canvas;
     if (!view) return !this.stale;
-    if (view.runs.some((run) => run.painted === undefined)) return false;
+    if (view.painted === undefined) return false;
     if (view.next && view.next.refused === undefined && view.next.pending > 0) return false;
+    if (!image.inner.every((inner) => this.posesDrawn(inner))) return false;
     return [...view.files.rasters.values()].every((raster) => !raster.busy);
   }
 
@@ -2490,7 +2494,7 @@ export class MorphLayer {
         entry.picture.files.every((file, index) => file.src === picture.files[index]!.src),
     );
     if (!still) return this.morphOutline(picture);
-    if (still.broken || this.arealess || (still.under && this.uncomposited(still.under) && still.under.inner.length > 0)) return { state: "css" };
+    if (still.broken || this.arealess || this.fallenUnder(still)) return { state: "css" };
     if (still.undrawn) return { state: "none" };
     const files = still.files;
     const unready = { state: still.late ? "none" : "waiting" } as const;
@@ -2612,8 +2616,12 @@ export class MorphLayer {
       if (image.canvas) this.dropCanvasNext(image.canvas);
       image.view = undefined;
       image.canvas = undefined;
-      for (const inner of image.inner) inner.view = undefined;
-      if (image.poses && (image.poses.artifact !== this.liveArtifact(image.slot) || !this.posing(image.poses.still))) this.releasePoses(image);
+      for (const inner of image.inner) {
+        inner.view = undefined;
+        if (inner.poses && inner.poses.artifact !== this.liveArtifact(inner.slot)) this.releasePoses(inner);
+      }
+      const still = image.poses?.still;
+      if (image.poses && (image.poses.artifact !== this.liveArtifact(image.slot) || !still || !this.posed(still, image))) this.releasePoses(image);
     }
     const ready = this.images.filter(
       (image) =>
@@ -2625,8 +2633,7 @@ export class MorphLayer {
       (still) =>
         (still.files || still.undrawn || still.late) &&
         !still.broken &&
-        (!still.under ||
-          (this.uncomposited(still.under) ? still.under.inner.length === 0 : this.posing(still))),
+        still.unders.every((image) => (this.uncomposited(image) ? image.inner.length === 0 : this.posed(still, image))),
     );
     const fallen = this.images.filter((image) => image.picture && this.uncomposited(image));
     for (const image of fallen) this.playback.keepWhole?.(image.picture!.files.map((file) => file.src));
@@ -2637,7 +2644,7 @@ export class MorphLayer {
     if (
       !ready.length &&
       !stills.length &&
-      !this.stills.some((rest) => rest.under && rest.files && !rest.broken && !rest.undrawn && !this.uncomposited(rest.under)) &&
+      !this.stills.some((rest) => this.composedUnder(rest)) &&
       !fallen.some((image) => image.inner.some((inner) => this.liveArtifact(inner.slot) && image.picture!.files[inner.file]?.layer !== undefined))
     ) {
       this.unbuild();
@@ -2709,7 +2716,7 @@ export class MorphLayer {
           this.fallBack(picture, picture.picture);
           for (let k = 0; k < span; k++) still(i + k);
         }
-        if (state && picture === rest) this.preparePoses(state, rest);
+        for (const image of picture.unders) if (this.posed(picture, image)) this.preparePoses(image, image, image.layer - picture.layer, picture);
         i += span - 1;
         continue;
       }
@@ -2737,8 +2744,10 @@ export class MorphLayer {
       still(i);
     }
     for (const rest of this.stills) {
-      if (rest.under && rest.files && !rest.broken && !rest.undrawn && !this.uncomposited(rest.under) && !rest.canvases?.some((view) => view.box.isConnected))
-        this.stillCanvases(rest, computed, doc);
+      if (this.composedUnder(rest) && !rest.canvases?.some((view) => view.box.isConnected)) this.stillCanvases(rest, computed, doc);
+    }
+    for (const image of this.images) {
+      if (!image.canvas) for (const inner of image.inner) this.releasePoses(inner);
     }
     this.span.style.setProperty("background-image", this.layers.map(() => "none").join(", "));
     this.layout();
@@ -2805,6 +2814,10 @@ export class MorphLayer {
       else segments.push({ blend: plan.blend, layers: [index] });
     });
     return segments;
+  }
+
+  protected composedUnder(still: StillPicture): boolean {
+    return still.unders.some((image) => !this.uncomposited(image)) && !!still.files && !still.broken && !still.undrawn;
   }
 
   protected cornerRadii(computed: CSSStyleDeclaration | undefined, boxes: LayerBoxes, box: Rect): number[] {
@@ -3000,7 +3013,7 @@ export class MorphLayer {
       raster.want = want;
       this.rasterizeStill(still, index, raster);
     });
-    if (still.under?.poses) this.wantPoses(still.under);
+    this.wantStillPoses(still);
   }
 
   protected rasterizeStill(still: StillPicture, index: number, raster: StillRaster) {
@@ -3041,7 +3054,7 @@ export class MorphLayer {
       return;
     }
     if (still.next!.refused || [...still.next!.rasters.values()].every((entry) => !entry.busy && !!entry.image)) this.layout();
-    if (still.under?.poses) this.wantPoses(still.under);
+    this.wantStillPoses(still);
     this.checkDrawn();
   }
 
@@ -3064,8 +3077,8 @@ export class MorphLayer {
     for (const view of still.canvases ?? []) {
       if (view.still && view.segment.layers.includes(index)) this.paintStill(view, view.still, still);
     }
-    if (still.under?.poses) this.wantPoses(still.under);
-    this.flushMorphReports(still.under);
+    this.wantStillPoses(still);
+    for (const under of still.unders) this.flushMorphReports(under);
     this.checkDrawn();
   }
 
@@ -3218,48 +3231,56 @@ export class MorphLayer {
 
   get poseBytes(): number {
     let bytes = 0;
-    for (const image of this.images) {
-      for (const set of image.poses?.sets ?? []) {
+    for (const owner of this.images.flatMap((image): PoseOwner[] => [image, ...image.inner])) {
+      for (const set of owner.poses?.sets ?? []) {
         for (const frame of set.frames.values()) if (!frame.refused) bytes += set.width * set.height * FRAME_BYTES_PER_PIXEL;
       }
     }
     return bytes;
   }
 
-  protected posing(still: StillPicture): boolean {
-    const under = still.under;
+  protected posed(still: StillPicture, image: ImageState): boolean {
     return (
-      !!under &&
-      !under.picture &&
-      under.inner.length === 0 &&
+      still.unders.includes(image) &&
+      !image.picture &&
+      image.inner.length === 0 &&
+      image.span === 1 &&
       !!still.picture.vector &&
-      still.span === 1 &&
       !still.broken &&
       !still.undrawn &&
-      !this.uncomposited(under)
+      !this.uncomposited(image)
     );
   }
 
   protected posingStill(image: ImageState): StillPicture | undefined {
-    return this.stills.find((still) => still.under === image && this.posing(still));
+    return this.stills.find((still) => this.posed(still, image));
   }
 
-  protected preparePoses(image: ImageState, still: StillPicture) {
-    const artifact = this.liveArtifact(image.slot);
-    if (!artifact || !still.files) {
-      this.releasePoses(image);
+  protected preparePoses(owner: PoseOwner, image: ImageState, index: number, still?: StillPicture) {
+    const artifact = this.liveArtifact(owner.slot);
+    if (!artifact || !(still ? still.files : image.files)) {
+      this.releasePoses(owner);
       return;
     }
-    if (image.poses?.artifact !== artifact || image.poses.still !== still) {
-      this.releasePoses(image);
-      image.poses = { artifact, still, sets: [], shown: REST_POSE };
+    const poses = owner.poses;
+    if (poses?.artifact !== artifact || poses.still !== still || poses.image !== image || poses.index !== index) {
+      this.releasePoses(owner);
+      owner.poses = { artifact, image, index, ...(still ? { still } : {}), sets: [], shown: REST_POSE };
     }
-    this.wantPoses(image);
+    this.wantPoses(owner);
   }
 
-  protected releasePoses(image: ImageState) {
-    for (const set of image.poses?.sets ?? []) this.releasePoseSet(set);
-    image.poses = undefined;
+  protected releasePoses(owner: PoseOwner) {
+    for (const set of owner.poses?.sets ?? []) this.releasePoseSet(set);
+    owner.poses = undefined;
+  }
+
+  protected wantStillPoses(still: StillPicture) {
+    for (const image of still.unders) if (image.poses?.still === still) this.wantPoses(image);
+  }
+
+  protected wantInnerPoses(image: ImageState) {
+    for (const inner of image.inner) if (inner.poses) this.wantPoses(inner);
   }
 
   protected releasePoseSet(set: PoseSet) {
@@ -3271,39 +3292,72 @@ export class MorphLayer {
     }
   }
 
-  protected poseSizes(still: StillPicture): { width: number; height: number }[] {
-    const sizes = [still.rasters.get(0)?.want, still.next && !still.next.refused ? still.next.rasters.get(0)?.want : undefined];
-    return sizes.filter((size): size is { width: number; height: number } => !!size);
+  protected poseSizes(poses: PoseFrames): { width: number; height: number }[] {
+    const still = poses.still;
+    if (still) {
+      const sizes = [still.rasters.get(poses.index)?.want, still.next && !still.next.refused ? still.next.rasters.get(poses.index)?.want : undefined];
+      return sizes.filter((size): size is { width: number; height: number } => !!size);
+    }
+    const view = poses.image.canvas;
+    if (!view?.backing) return [];
+    const next = view.next && view.next.refused === undefined ? { width: view.next.w, height: view.next.h } : undefined;
+    return next && (next.width !== view.backing.width || next.height !== view.backing.height) ? [view.backing, next] : [view.backing];
   }
 
-  protected wantPoses(image: ImageState) {
-    const poses = image.poses;
+  protected poseShown(poses: PoseFrames): { drawn?: { width: number; height: number }; want?: { width: number; height: number } } {
+    if (!poses.still) {
+      const backing = poses.image.canvas?.backing;
+      return backing ? { drawn: backing, want: backing } : {};
+    }
+    const raster = poses.still.rasters.get(poses.index);
+    return { ...(raster?.image ? { drawn: raster } : {}), ...(raster?.want ? { want: raster.want } : {}) };
+  }
+
+  protected posePicture(poses: PoseFrames): PictureFiles | undefined {
+    return poses.still ? poses.still.files : poses.image.files;
+  }
+
+  protected poseFile(poses: PoseFrames): string {
+    const files = poses.still ? poses.still.picture.files : poses.image.picture?.files;
+    return files?.[poses.index]?.name ?? "";
+  }
+
+  protected paintPoses(poses: PoseFrames) {
+    if (poses.still) {
+      for (const view of poses.still.canvases ?? []) if (view.still) this.paintStill(view, view.still, poses.still);
+      return;
+    }
+    if (poses.image.canvas) this.paint(poses.image.canvas);
+  }
+
+  protected wantPoses(owner: PoseOwner) {
+    const poses = owner.poses;
     if (!poses || !this.active) return;
-    const shown = poses.still.rasters.get(0);
-    const sizes = this.poseSizes(poses.still);
+    const { drawn } = this.poseShown(poses);
+    const sizes = this.poseSizes(poses);
     const sized = (set: PoseSet, size: { width: number; height: number } | undefined) => !!size && set.width === size.width && set.height === size.height;
-    const kept = (set: PoseSet) => sizes.some((size) => sized(set, size)) || (!!shown?.image && sized(set, shown));
+    const kept = (set: PoseSet) => sizes.some((size) => sized(set, size)) || sized(set, drawn);
     for (const set of poses.sets) if (!kept(set)) this.releasePoseSet(set);
     poses.sets = poses.sets.filter((set) => !set.released);
     for (const size of sizes) {
       if (poses.sets.some((set) => sized(set, size))) continue;
-      const set = this.planPoses(image, poses.artifact, size);
+      const set = this.planPoses(owner, poses.artifact, size);
       poses.sets.push(set);
       set.running = true;
       const view = this.span.ownerDocument.defaultView;
       const start = () => {
         set.running = false;
-        this.drawPoses(image, set);
+        this.drawPoses(owner, set);
       };
       if (view) view.setTimeout(start, 0);
       else start();
     }
     poses.last = undefined;
-    this.renderPoses(image);
+    this.renderPoses(owner);
   }
 
-  protected planPoses(image: ImageState, artifact: MorphArtifact, size: { width: number; height: number }): PoseSet {
-    const plays = image.plays.map(({ play }) => play);
+  protected planPoses(owner: PoseOwner, artifact: MorphArtifact, size: { width: number; height: number }): PoseSet {
+    const plays = owner.plays.map(({ play }) => play);
     const rate = Number.isFinite(this.playback.frameRate) && this.playback.frameRate > 0 ? this.playback.frameRate : 0;
     const cut = plays.map((play) => cutMorph(artifact, play));
     const full = plays.map((play, i) => {
@@ -3408,8 +3462,8 @@ export class MorphLayer {
     return set;
   }
 
-  protected drawPoses(image: ImageState, set: PoseSet) {
-    const poses = image.poses;
+  protected drawPoses(owner: PoseOwner, set: PoseSet) {
+    const poses = owner.poses;
     if (!poses || set.running || set.released || !this.active) return;
     const id = set.queue.shift();
     if (id === undefined) {
@@ -3417,8 +3471,8 @@ export class MorphLayer {
       return;
     }
     const frame = set.frames.get(id)!;
-    const files = poses.still.files;
-    const text = files ? this.poseMarkup(image, poses.artifact, frame) : undefined;
+    const files = this.posePicture(poses);
+    const text = files ? this.poseMarkup(owner, poses.artifact, frame) : undefined;
     set.running = true;
     const made =
       text && files
@@ -3428,7 +3482,7 @@ export class MorphLayer {
         : Promise.resolve(undefined);
     void made.then((raster) => {
       set.running = false;
-      if (set.released || !this.active || image.poses !== poses) {
+      if (set.released || !this.active || owner.poses !== poses) {
         raster?.release();
         return;
       }
@@ -3437,22 +3491,22 @@ export class MorphLayer {
         frame.refused = true;
         if (!poses.reported) {
           poses.reported = true;
-          this.reportMorph(image, { image: image.plays[0]!.play.ref.image, file: poses.still.picture.files[0]?.name ?? "", reason: "undrawn" });
+          this.reportMorph(poses.image, { image: poses.image.plays[0]!.play.ref.image, file: this.poseFile(poses), reason: "undrawn" });
         }
       }
       poses.last = undefined;
-      this.renderPoses(image);
-      this.drawPoses(image, set);
+      this.renderPoses(owner);
+      this.drawPoses(owner, set);
     });
   }
 
-  protected poseMarkup(image: ImageState, artifact: MorphArtifact, frame: PoseFrame): string | undefined {
+  protected poseMarkup(owner: PoseOwner, artifact: MorphArtifact, frame: PoseFrame): string | undefined {
     const markup = renderMorphAt(artifact, frame.offsets);
-    const files = image.poses?.still.files;
+    const files = owner.poses ? this.posePicture(owner.poses) : undefined;
     if (frame.motions.length === 0 || !files) return markup;
     const moves = (label: string) =>
       frame.motions.flatMap(({ play, offset }) => {
-        const motion = image.plays[play]?.play.motion;
+        const motion = owner.plays[play]?.play.motion;
         const track = motion ? own(motion, label) : undefined;
         return track ? [{ track, offset }] : [];
       });
@@ -3468,20 +3522,20 @@ export class MorphLayer {
   }
 
   protected shownPoseSet(poses: PoseFrames): PoseSet | undefined {
-    const raster = poses.still.rasters.get(0);
+    const { drawn, want } = this.poseShown(poses);
     const sized = (set: PoseSet, size: { width: number; height: number } | undefined) => !!size && set.width === size.width && set.height === size.height;
-    return poses.sets.find((set) => !!raster?.image && sized(set, raster)) ?? poses.sets.find((set) => sized(set, raster?.want));
+    return poses.sets.find((set) => sized(set, drawn)) ?? poses.sets.find((set) => sized(set, want));
   }
 
-  protected renderPoses(image: ImageState) {
-    const poses = image.poses;
+  protected renderPoses(owner: PoseOwner) {
+    const poses = owner.poses;
     if (!poses || this.frozen || this.disposed) return;
     const set = this.shownPoseSet(poses);
-    const heads = this.poseHeads(image.plays, image.turned);
+    const heads = this.poseHeads(owner.plays, owner.turned);
     const signature = `${set ? `${set.width}x${set.height}` : ""}|${heads.join(",")}`;
     if (poses.last === signature) return;
     poses.last = signature;
-    const plays = image.plays.map(({ play }) => play);
+    const plays = owner.plays.map(({ play }) => play);
     const key = set ? poseKey(poses.artifact, plays, heads.map((head, i) => quantizePose(head, set.grids[i])), set.cut) : REST_POSE;
     const id = set?.keys.get(key) ?? REST_POSE;
     const shown = id !== REST_POSE && set?.frames.get(id)?.raster ? id : REST_POSE;
@@ -3489,26 +3543,30 @@ export class MorphLayer {
     if (shown === poses.shown && showing === poses.showing) return;
     poses.shown = shown;
     poses.showing = showing;
-    for (const view of poses.still.canvases ?? []) if (view.still) this.paintStill(view, view.still, poses.still);
+    this.paintPoses(poses);
   }
 
-  protected poseRaster(picture: StillPicture, index: number): { id: string; image: CanvasImageSource; width: number; height: number } | undefined {
-    const poses = picture.under?.poses;
+  protected shownPose(poses: PoseFrames | undefined): { id: string; image: CanvasImageSource; width: number; height: number } | undefined {
     const set = poses?.showing;
-    if (!poses || poses.still !== picture || index !== 0 || !set || set.released) return undefined;
+    if (!poses || !set || set.released) return undefined;
     const raster = set.frames.get(poses.shown)?.raster;
     return raster ? { id: poses.shown, image: raster.image, width: set.width, height: set.height } : undefined;
   }
 
-  protected posesDrawn(image: ImageState): boolean {
-    const state = image.slot.state;
+  protected poseRaster(picture: StillPicture, index: number): { id: string; image: CanvasImageSource; width: number; height: number } | undefined {
+    const image = picture.unders.find((entry) => entry.poses?.still === picture && entry.poses.index === index);
+    return this.shownPose(image?.poses);
+  }
+
+  protected posesDrawn(owner: PoseOwner): boolean {
+    const state = owner.slot.state;
     if (state === "idle" || state === "pending") return false;
-    if (!this.liveArtifact(image.slot)) return true;
-    const poses = image.poses;
+    if (!this.liveArtifact(owner.slot)) return true;
+    const poses = owner.poses;
     if (!poses) return false;
-    return this.poseSizes(poses.still).every((size) =>
-      poses.sets.some((set) => set.width === size.width && set.height === size.height && !set.running && set.queue.length === 0),
-    );
+    const sizes = this.poseSizes(poses);
+    if (!poses.still && sizes.length === 0) return false;
+    return sizes.every((size) => poses.sets.some((set) => set.width === size.width && set.height === size.height && !set.running && set.queue.length === 0));
   }
 
   protected liveArtifact(slot: MorphArtifactSlot): MorphArtifact | undefined {
@@ -3658,54 +3716,13 @@ export class MorphLayer {
     const files = state.files!;
     const box = doc.createElement("div");
     box.setAttribute("style", "position:absolute;left:0;top:0;width:0;height:0;overflow:hidden");
-    const views = new Map<number, LiveView>();
-    for (const inner of state.inner) {
-      const artifact = this.liveArtifact(inner.slot);
-      const view = artifact ? this.liveView(artifact, doc) : undefined;
-      if (!view) continue;
-      inner.view = view;
-      views.set(inner.file, view);
-    }
+    const canvas = doc.createElement("canvas");
+    const context = this.playback.pictureCanvas(canvas);
+    if (!context) return undefined;
+    canvas.setAttribute("style", "position:absolute;inset:0;width:100%;height:100%;display:block");
+    box.appendChild(canvas);
+    for (const inner of state.inner) if (this.liveArtifact(inner.slot)) this.preparePoses(inner, state, inner.file);
     const motions = layeredMorphMotions(files.model);
-    const held = new Set<number>();
-    files.model.chains.forEach(({ file }, at) => {
-      if (views.has(file)) for (const { wrapper } of motions[at]!) held.add(wrapper);
-    });
-    const containers = new Map<number, Container>();
-    const runs: CanvasRun[] = [];
-    let current: CanvasRun | undefined;
-    let open: number[] = [];
-    const parent = () => (open.length ? containers.get(open[open.length - 1]!)!.element : box);
-    for (const [at, { file }] of files.model.chains.entries()) {
-      const path = motions[at]!.filter(({ wrapper }) => held.has(wrapper));
-      let kept = 0;
-      while (kept < open.length && kept < path.length && open[kept] === path[kept]!.wrapper) kept += 1;
-      if (kept < open.length || kept < path.length) current = undefined;
-      open = open.slice(0, kept);
-      for (const { wrapper, label } of path.slice(kept)) {
-        const element = doc.createElement("div");
-        element.setAttribute("style", CONTAINER_STYLE);
-        parent().appendChild(element);
-        containers.set(wrapper, { element, label });
-        open.push(wrapper);
-      }
-      const view = views.get(file);
-      if (view) {
-        current = undefined;
-        parent().appendChild(view.box);
-        continue;
-      }
-      if (!current) {
-        const canvas = doc.createElement("canvas");
-        const context = this.playback.pictureCanvas(canvas);
-        if (!context) return undefined;
-        canvas.setAttribute("style", "position:absolute;inset:0;width:100%;height:100%;display:block");
-        parent().appendChild(canvas);
-        current = { canvas, context, files: new Set() };
-        runs.push(current);
-      }
-      current.files.add(file);
-    }
     const standIns = new Map<string, StandIn>();
     const labels = new Set(motions.flatMap((chain) => chain.map(({ label }) => label)));
     if (labels.size) {
@@ -3719,7 +3736,7 @@ export class MorphLayer {
       }
       box.appendChild(stage);
     }
-    return { box, runs, views, containers, files, drawn: layeredMorphDrawn(files.model), standIns, groups: [] };
+    return { box, canvas, context, files, drawn: layeredMorphDrawn(files.model), standIns, groups: [] };
   }
 
   protected canvasBacking(view: CanvasView, width: number, height: number, dpr: number) {
@@ -3737,15 +3754,14 @@ export class MorphLayer {
     const snapped = view.snap;
     const next = view.next;
     const adopt = !!next && next.rect === rectKey && next.pending === 0 && snapped?.rect !== rectKey;
-    if (snapped && !this.settling && !adopt && view.runs.some((run) => run.painted !== undefined)) {
+    if (snapped && !this.settling && !adopt && view.painted !== undefined) {
       if (snapped.rect !== rectKey) {
         const style = `position:absolute;left:${rect.x}px;top:${rect.y}px;width:${rect.width}px;height:${rect.height}px;overflow:hidden`;
         if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-        view.size = { width: rect.width, height: rect.height };
         this.settleSoon();
       } else {
         const wanted = this.canvasBacking(view, snapped.width, snapped.height, dpr);
-        if (view.runs.some((run) => wanted.w > run.canvas.width || wanted.h > run.canvas.height)) this.settleSoon();
+        if (wanted.w > view.canvas.width || wanted.h > view.canvas.height) this.settleSoon();
       }
       this.paint(view);
       return;
@@ -3782,21 +3798,21 @@ export class MorphLayer {
     const { x, y, width, height } = this.canvasPlacement(rect, dpr);
     const style = `position:absolute;left:${x}px;top:${y}px;width:${width}px;height:${height}px;overflow:hidden`;
     if (view.box.getAttribute("style") !== style) view.box.setAttribute("style", style);
-    if (!view.runs.some((run) => run.painted !== undefined) || adopt) this.measureStyle();
+    if (view.painted === undefined || adopt) this.measureStyle();
     const { w, h } = this.canvasBacking(view, width, height, dpr);
     view.snap = { x, y, width, height, rect: rectKey };
-    for (const run of view.runs) {
-      if (run.canvas.width !== w || run.canvas.height !== h) {
-        run.canvas.width = w;
-        run.canvas.height = h;
-        run.painted = undefined;
-      }
+    if (view.canvas.width !== w || view.canvas.height !== h) {
+      view.canvas.width = w;
+      view.canvas.height = h;
+      view.painted = undefined;
     }
-    view.size = { width, height };
+    view.backing = { width: w, height: h };
     for (const [file, raster] of view.files.rasters) {
       raster.want = { width: w, height: h };
       this.refitRaster(view.files, file, raster);
     }
+    const image = this.images.find((entry) => entry.canvas === view);
+    if (image) this.wantInnerPoses(image);
     this.paint(view);
   }
 
@@ -3824,7 +3840,7 @@ export class MorphLayer {
           raster.height = want.height;
           const view = this.images.find((image) => image.files === files)?.canvas;
           if (view) {
-            for (const run of view.runs) run.painted = undefined;
+            view.painted = undefined;
             this.paint(view);
           }
           this.checkDrawn();
@@ -3845,54 +3861,33 @@ export class MorphLayer {
   }
 
   protected paint(view: CanvasView) {
+    const inner = this.images.find((entry) => entry.canvas === view)?.inner ?? [];
     const layers = view.drawn.map(({ file, opacity, motions }): PaintedLayer => {
-      const drawnHere = motions.filter(({ wrapper }) => !view.containers.has(wrapper));
       let matrix: Affine | undefined;
       for (const { label } of motions) {
         const pose = view.standIns.get(label)?.pose;
         if (pose) matrix = multiply(matrix ?? IDENTITY, pose.matrix);
       }
+      const pose = this.shownPose(inner.find((entry) => entry.file === file)?.poses);
       return {
         file,
         alpha: opacity,
         ...(matrix ? { matrix } : {}),
-        wrappers: drawnHere.map(({ wrapper }) => wrapper),
-        fades: drawnHere.map(({ label }) => view.standIns.get(label)?.pose?.opacity ?? 1),
+        wrappers: motions.map(({ wrapper }) => wrapper),
+        fades: motions.map(({ label }) => view.standIns.get(label)?.pose?.opacity ?? 1),
+        ...(pose ? { pose: { id: `${pose.id}@${pose.width}x${pose.height}`, image: pose.image } } : {}),
       };
     });
+    const { canvas, context } = view;
     const smooth = view.smooth !== false;
-    for (const run of view.runs) {
-      const { canvas, context } = run;
-      const own = layers.filter(({ file }) => run.files.has(file));
-      const key = `${canvas.width}x${canvas.height}|${smooth}|${own.map(({ file, alpha, matrix, fades }) => `${file}:${alpha}:${fades.join(" ")}${matrix ? `:${matrix.join(" ")}` : ""}`).join(",")}`;
-      if (run.painted === key) continue;
-      run.painted = key;
-      clearCanvas(context, canvas, smooth);
-      this.paintLayers(view, run, context, own, 0, 1);
-    }
-    for (const [file, live] of view.views) {
-      const layer = layers.find((entry) => entry.file === file);
-      const declarations = ["position:absolute;left:0;top:0;width:100%;height:100%"];
-      if (!layer) declarations.push("display:none");
-      else {
-        const opacity = layer.fades.reduce((product, fade) => product * fade, layer.alpha);
-        if (layer.matrix && view.size) {
-          const [a, b, c, d, e, f] = layer.matrix;
-          const sx = view.size.width / view.files.width;
-          const sy = view.size.height / view.files.height;
-          declarations.push("transform-origin:0 0", `transform:matrix(${a}, ${(b * sy) / sx}, ${(c * sx) / sy}, ${d}, ${e * sx}, ${f * sy})`);
-        }
-        if (opacity < 1) declarations.push(`opacity:${opacity}`);
-      }
-      write(live.box, "style", declarations.join(";"));
-    }
-    for (const { element, label } of view.containers.values()) {
-      const opacity = view.standIns.get(label)?.pose?.opacity ?? 1;
-      write(element, "style", opacity < 1 ? `${CONTAINER_STYLE};opacity:${opacity}` : CONTAINER_STYLE);
-    }
+    const key = `${canvas.width}x${canvas.height}|${smooth}|${layers.map(({ file, alpha, matrix, fades, pose }) => `${file}:${alpha}:${fades.join(" ")}${matrix ? `:${matrix.join(" ")}` : ""}${pose ? `:${pose.id}` : ""}`).join(",")}`;
+    if (view.painted === key) return;
+    view.painted = key;
+    clearCanvas(context, canvas, smooth);
+    this.paintLayers(view, context, layers, 0, 1);
   }
 
-  protected paintLayers(view: CanvasView, run: CanvasRun, context: PictureCanvasContext, layers: PaintedLayer[], depth: number, alpha: number) {
+  protected paintLayers(view: CanvasView, context: PictureCanvasContext, layers: PaintedLayer[], depth: number, alpha: number) {
     for (let start = 0; start < layers.length; ) {
       const first = layers[start]!;
       const wrapper = first.wrappers[depth];
@@ -3901,27 +3896,26 @@ export class MorphLayer {
       const span = layers.slice(start, end);
       start = end;
       if (span.length === 1) {
-        this.paintLayer(view, run, context, first, first.fades.slice(depth).reduce((product, fade) => product * fade, alpha));
+        this.paintLayer(view, context, first, first.fades.slice(depth).reduce((product, fade) => product * fade, alpha));
         continue;
       }
       const fade = first.fades[depth]!;
       if (fade <= 0) continue;
-      const group = fade < 1 ? this.groupCanvas(view, run, depth) : undefined;
+      const group = fade < 1 ? this.groupCanvas(view, depth) : undefined;
       if (!group) {
-        this.paintLayers(view, run, context, span, depth + 1, alpha * fade);
+        this.paintLayers(view, context, span, depth + 1, alpha * fade);
         continue;
       }
       clearCanvas(group.context, group.canvas, view.smooth !== false);
-      this.paintLayers(view, run, group.context, span, depth + 1, 1);
+      this.paintLayers(view, group.context, span, depth + 1, 1);
       context.globalAlpha = alpha * fade;
-      context.drawImage(group.canvas, 0, 0, run.canvas.width, run.canvas.height);
+      context.drawImage(group.canvas, 0, 0, view.canvas.width, view.canvas.height);
       context.globalAlpha = 1;
     }
   }
 
-  protected paintLayer(view: CanvasView, run: CanvasRun, context: PictureCanvasContext, layer: PaintedLayer, alpha: number) {
-    const { canvas } = run;
-    const { files } = view;
+  protected paintLayer(view: CanvasView, context: PictureCanvasContext, layer: PaintedLayer, alpha: number) {
+    const { canvas, files } = view;
     const bitmap = files.bitmaps.get(layer.file);
     const opacity = layer.alpha * alpha;
     if (!bitmap || opacity <= 0) return;
@@ -3932,25 +3926,25 @@ export class MorphLayer {
       const sy = canvas.height / files.height;
       context.setTransform(a, (b * sy) / sx, (c * sx) / sy, d, e * sx, f * sy);
     }
-    const raster = files.rasters.get(layer.file)?.image;
+    const raster = layer.pose?.image ?? files.rasters.get(layer.file)?.image;
     if (raster) context.drawImage(raster, 0, 0, canvas.width, canvas.height);
     else drawPicture(context, bitmap, 0, 0, canvas.width, canvas.height);
     if (layer.matrix) context.setTransform(1, 0, 0, 1, 0, 0);
     context.globalAlpha = 1;
   }
 
-  protected groupCanvas(view: CanvasView, run: CanvasRun, depth: number) {
+  protected groupCanvas(view: CanvasView, depth: number) {
     let group = view.groups[depth];
     if (!group) {
-      const canvas = run.canvas.ownerDocument.createElement("canvas");
+      const canvas = view.canvas.ownerDocument.createElement("canvas");
       const context = this.playback.pictureCanvas(canvas);
       if (!context) return undefined;
       group = { canvas, context };
       view.groups[depth] = group;
     }
-    if (group.canvas.width !== run.canvas.width || group.canvas.height !== run.canvas.height) {
-      group.canvas.width = run.canvas.width;
-      group.canvas.height = run.canvas.height;
+    if (group.canvas.width !== view.canvas.width || group.canvas.height !== view.canvas.height) {
+      group.canvas.width = view.canvas.width;
+      group.canvas.height = view.canvas.height;
     }
     return group;
   }
@@ -4070,7 +4064,10 @@ export class MorphLayer {
       }
       if (image.view) this.renderView(image.view, image.plays, image.turned);
       if (image.poses) this.renderPoses(image);
-      for (const inner of image.inner) if (inner.view) this.renderView(inner.view, inner.plays);
+      for (const inner of image.inner) {
+        if (inner.view) this.renderView(inner.view, inner.plays);
+        if (inner.poses) this.renderPoses(inner);
+      }
     }
   }
 
@@ -4179,6 +4176,7 @@ export class MorphLayer {
       for (const inner of image.inner) {
         inner.slot.dispose();
         inner.view = undefined;
+        this.releasePoses(inner);
       }
     }
     for (const still of this.stills) {

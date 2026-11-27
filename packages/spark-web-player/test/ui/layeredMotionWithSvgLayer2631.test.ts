@@ -122,7 +122,11 @@ interface Painted {
   src: string;
   alpha: number;
   transform: number[];
+  text?: string;
 }
+
+const textRasterizer = (source: { text: string; src?: string }) =>
+  Promise.resolve({ image: { src: source.src ?? "pose", ...(source.src ? {} : { text: source.text }) } as never, release: () => {} });
 
 function recordingCanvases() {
   const canvases = new Map<HTMLCanvasElement, { frames: Painted[][] }>();
@@ -140,7 +144,8 @@ function recordingCanvases() {
         record.frames.push([]);
       },
       drawImage(image) {
-        record.frames.at(-1)!.push({ src: (image as unknown as { src: string }).src, alpha: context.globalAlpha, transform });
+        const drawn = image as unknown as { src: string; text?: string };
+        record.frames.at(-1)!.push({ src: drawn.src, alpha: context.globalAlpha, transform, ...(drawn.text !== undefined ? { text: drawn.text } : {}) });
       },
     };
     return context;
@@ -182,18 +187,21 @@ async function shown(text: string, widthOf: (src: string) => number, withCanvas:
       return { sample: (offset) => effect.samples.push(offset), cancel: () => {} };
     },
     readPose: () => POSE,
+    rasterizeSvgLayer: (source) => textRasterizer(source as never),
   });
   await h.ready;
   await h.preview(text.split("\n").findIndex((line) => line.includes("First line.")));
   await flushMicrotasks(10);
   const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
   const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
-  await until(() => (!withCanvas || !!shadow()?.querySelector("canvas")) && !!shadow()?.querySelector("[data-morph]"), "the SVG layer's view");
+  const layer = () => (span as unknown as { __sdMorph?: { drawn: boolean; images: any[] } }).__sdMorph;
+  await until(() => (withCanvas ? !!shadow()?.querySelector("canvas") : !!shadow()?.querySelector("[data-morph]")), "the SVG layer's drawing");
   const resize = async (width: number, height: number) => {
     span.style.setProperty("width", `${width}px`);
     span.style.setProperty("height", `${height}px`);
     playback.requestRelayout();
     await flushMicrotasks(5);
+    if (withCanvas) await until(() => shadow()?.querySelector("canvas")?.width === width && !!layer()?.drawn && (layer()?.images[0]?.inner[0]?.poses?.sets.length ?? 0) > 0, "the SVG layer's poses at the new size");
   };
   span.style.setProperty("background-size", "100% 100%");
   span.style.setProperty("background-repeat", "no-repeat");
@@ -202,19 +210,23 @@ async function shown(text: string, widthOf: (src: string) => number, withCanvas:
   const play = write.params.instructions[0].content.morph.plays[0];
   const own = play.picture.files.find((file: any) => file.plays)!.plays[0];
   const handle = await host.resolve(own.ref);
-  const painted = () =>
-    Array.from(shadow()!.querySelectorAll("canvas")).flatMap((element) => canvas.canvases.get(element as HTMLCanvasElement)?.frames.at(-1) ?? []);
-  const box = () => shadow()!.querySelector("svg")!.parentElement!;
-  return { playback, shadow, box, artifact: handle.artifact, painted, play, effects, resize };
+  const painted = () => (Array.from(shadow()!.querySelectorAll("canvas")) as HTMLCanvasElement[]).flatMap((element) => canvas.canvases.get(element)?.frames.at(-1) ?? []);
+  const face = () => painted().filter(({ src }) => !src.startsWith("/src/"));
+  const posed = () => {
+    const [drawn, ...more] = face();
+    expect(drawn).toBeDefined();
+    expect(more).toEqual([]);
+    return drawn!.text === undefined ? referenceStates(handle.artifact, {}) : leafStates(new DOMParser().parseFromString(drawn!.text, "image/svg+xml"));
+  };
+  return { playback, shadow, face, posed, artifact: handle.artifact, painted, play, effects, resize };
 }
 
-const matrixOf = (style: string) => /transform:matrix\(([^)]*)\)/.exec(style)?.[1]!.split(",").map(Number);
-
 describe("a picture's morph moves its image-file layers while an SVG layer plays its own morph (#2631, #2632)", () => {
-  test("composited: the moved file is drawn with its pose on the canvas, the SVG layer's view takes the pose in placed pixels and its container the fade, and its own morph keeps playing", async () => {
-    const { playback, shadow, box, artifact, painted, play, effects, resize } = await shown(COMPOSITED, () => 260, true);
+  test("composited: the moved files, the SVG layer among them, are drawn with their pose and fade on the picture's canvas, and the SVG layer's own morph keeps playing", async () => {
+    const { playback, shadow, face, posed, artifact, painted, play, effects, resize } = await shown(COMPOSITED, () => 260, true);
     expect(play.morph).toBe("lift");
-    expect(shadow()!.querySelectorAll("canvas").length).toBeGreaterThanOrEqual(1);
+    expect(shadow()!.querySelectorAll("canvas")).toHaveLength(1);
+    expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
     playback.advance(1);
     expect(effects.map(({ keyframes }) => Object.keys(keyframes[1] ?? {}).filter((key) => key !== "offset"))).toEqual(
       expect.arrayContaining([["translate"], ["translate"]]),
@@ -223,22 +235,15 @@ describe("a picture's morph moves its image-file layers while an SVG layer plays
     expect(brows.transform).toEqual([1, 0.75, 0, 1, 8, 24]);
     expect(brows.alpha).toBeCloseTo(0.5, 6);
     expect(painted().find(({ src }) => src === "/src/base_file.png")!.transform).toEqual([1, 0, 0, 1, 0, 0]);
-    const container = box().parentElement!;
-    expect(container.getAttribute("style")).toBe("position:absolute;inset:0;opacity:0.5");
-    const style = box().getAttribute("style") ?? "";
-    expect(style).toContain("transform-origin:0 0");
-    expect(matrixOf(style)).toEqual([1, 0.75, 0, 1, 8, 24]);
-    expect(style).not.toMatch(/opacity/);
-    const parts = Array.from(box().querySelectorAll(":scope > svg > svg"));
-    expect(parts.length).toBeGreaterThan(0);
-    expect(parts.map((part) => part.getAttribute("preserveAspectRatio"))).toEqual(parts.map(() => null));
-    const picture = container.parentElement!;
+    expect(face()[0]!.transform).toEqual([1, 0.75, 0, 1, 8, 24]);
+    expect(face()[0]!.alpha).toBeCloseTo(0.5, 6);
+    const picture = shadow()!.querySelector("canvas")!.parentElement!;
     expect(picture.getAttribute("style")).toMatch(/^position:absolute;left:[\d.]+px;top:[\d.]+px;width:520px;height:420px;overflow:hidden$/);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(1)));
+    expect(posed()).toEqual(referenceStates(artifact, chompAt(1)));
     await resize(260, 210);
-    expect(matrixOf(box().getAttribute("style") ?? "")).toEqual([1, 0.75, 0, 1, 4, 12]);
     playback.advance(0.3);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(1.3)));
+    expect(face()[0]!.transform).toEqual([1, 0.75, 0, 1, 4, 12]);
+    expect(posed()).toEqual(referenceStates(artifact, chompAt(1.3)));
     expect(referenceStates(artifact, chompAt(1))).not.toEqual(referenceStates(artifact, chompAt(1.3)));
   });
 
@@ -265,7 +270,7 @@ describe("a faded label holding an image-file layer and an SVG layer is faded on
     '<image data-name="mask" data-layer="2" x="0" y="0" width="100" height="100"/></g></svg>';
   const timing = { duration: 1, delay: 0, easing: "linear", iterations: 1, direction: "normal" } as const;
 
-  test("the label's files and view sit in one container that carries the fade and the pose, and nothing inside is faded again", async () => {
+  test("the label's files, the SVG layer among them, are drawn together and faded once, and nothing inside is faded again", async () => {
     const env = installJSDOM();
     try {
       const chomp = serializeMorphRecipe(buildMorphRecipe("chomp", { blend: "cut", keyframes: [{ offset: 0, mouth: { state: "open" } }, { offset: 1, mouth: { state: "closed" } }] } as never));
@@ -285,6 +290,7 @@ describe("a faded label holding an image-file layer and an SVG layer is faded on
         loadPicture: async (src) => ({ image: { src } as never, width: 260, height: 140 }),
         animate: () => ({ sample: () => {}, cancel: () => {} }),
         readPose: () => ({ matrix: [1, 0, 0, 1, 0, 0], opacity: 0.5 }),
+        rasterizeSvgLayer: (source) => textRasterizer(source as never),
       });
       const span = env.overlay.ownerDocument.createElement("span");
       const background = 'url("/shade.png"), url("/base.png")';
@@ -317,17 +323,20 @@ describe("a faded label holding an image-file layer and an SVG layer is faded on
       };
       playback.mount(span, content, background, "background", "portrait:0");
       const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
-      await until(() => !!shadow()?.querySelector("canvas") && !!shadow()?.querySelector("[data-morph]"), "the picture and its SVG layer");
+      await until(() => !!shadow()?.querySelector("canvas"), "the picture and its SVG layer");
       playback.advance(1);
-      const view = shadow()!.querySelector("svg")!.parentElement!;
-      const container = view.parentElement!;
-      expect(container.getAttribute("style")).toMatch(/opacity:0\.5/);
-      expect(view.getAttribute("style") ?? "").not.toMatch(/opacity/);
-      const inside = Array.from(container.querySelectorAll("canvas")) as HTMLCanvasElement[];
-      expect(inside).toHaveLength(1);
-      expect(canvas.canvases.get(inside[0]!)!.frames.at(-1)).toEqual([{ src: "/shade.png", alpha: 1, transform: [1, 0, 0, 1, 0, 0] }]);
-      const outside = (Array.from(shadow()!.querySelectorAll("canvas")) as HTMLCanvasElement[]).filter((element) => !container.contains(element));
-      expect(outside.flatMap((element) => canvas.canvases.get(element)!.frames.at(-1)!.map(({ src }) => src))).toEqual(["/base.png"]);
+      expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
+      const shown = Array.from(shadow()!.querySelectorAll("canvas")) as HTMLCanvasElement[];
+      expect(shown).toHaveLength(1);
+      const group = [...canvas.canvases.keys()].find((element) => !element.isConnected)!;
+      expect(canvas.canvases.get(shown[0]!)!.frames.at(-1)!.map(({ src, alpha }) => [src, alpha])).toEqual([
+        ["/base.png", 1],
+        [undefined, 0.5],
+      ]);
+      expect(canvas.canvases.get(group)!.frames.at(-1)!.map(({ src, alpha }) => [src, alpha])).toEqual([
+        ["/shade.png", 1],
+        ["/mask.svg", 1],
+      ]);
     } finally {
       env.restore();
     }
@@ -371,6 +380,7 @@ describe("a faded label holding an image-file layer and an SVG layer is faded on
           return { sample: () => {}, cancel: () => {} };
         },
         readPose: (element) => ({ matrix: [1, 0, 0, 1, moves.get(element) ?? 0, 0], opacity: 1 }),
+        rasterizeSvgLayer: (source) => textRasterizer(source as never),
       });
       const span = env.overlay.ownerDocument.createElement("span");
       const background = 'url("/shade.png"), url("/base.png")';
@@ -411,17 +421,20 @@ describe("a faded label holding an image-file layer and an SVG layer is faded on
       };
       playback.mount(span, content, background, "background", "portrait:0");
       const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
-      await until(() => !!shadow()?.querySelector("canvas") && !!shadow()?.querySelector("[data-morph]"), "the picture and its SVG layer");
+      const layer = () => (span as unknown as { __sdMorph?: { drawn: boolean; images: any[] } }).__sdMorph;
+      await until(() => !!shadow()?.querySelector("canvas"), "the picture and its SVG layer");
       playback.requestRelayout();
       await flushMicrotasks(5);
+      await until(() => !!layer()?.drawn && (layer()?.images[0]?.inner[0]?.poses?.sets.length ?? 0) > 0, "the SVG layer's poses");
       playback.advance(1);
-      const view = shadow()!.querySelector("svg")!.parentElement!;
-      const container = view.parentElement!;
-      expect(container.getAttribute("style")).toBe("position:absolute;inset:0");
-      expect(matrixOf(view.getAttribute("style") ?? "")).toEqual([1, 0, 0, 1, -80, 0]);
-      const inside = Array.from(container.querySelectorAll("canvas")) as HTMLCanvasElement[];
-      expect(inside).toHaveLength(1);
-      expect(canvas.canvases.get(inside[0]!)!.frames.at(-1)).toEqual([{ src: "/shade.png", alpha: 1, transform: [1, 0, 0, 1, 0, 0] }]);
+      expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
+      const shown = Array.from(shadow()!.querySelectorAll("canvas")) as HTMLCanvasElement[];
+      expect(shown).toHaveLength(1);
+      expect(canvas.canvases.get(shown[0]!)!.frames.at(-1)!.map(({ alpha, transform }) => [alpha, transform])).toEqual([
+        [1, [1, 0, 0, 1, 0, 0]],
+        [1, [1, 0, 0, 1, 0, 0]],
+        [1, [1, 0, 0, 1, -80, 0]],
+      ]);
     } finally {
       env.restore();
     }
