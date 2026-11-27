@@ -10,7 +10,6 @@ export interface CastLine {
 export interface CastEntry {
   id: number;
   speaker: string;
-  template: number;
   variant?: string;
   image?: Record<string, ImageState[]>;
   text?: Record<string, TextInstruction[]>;

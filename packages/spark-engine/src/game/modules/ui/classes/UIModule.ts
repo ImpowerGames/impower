@@ -634,6 +634,7 @@ interface MountedCast {
 }
 
 interface CastWrite {
+  key: string;
   id: number;
   kind: "image" | "text";
   target: string;
@@ -8919,7 +8920,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           layoutCasts(sparkle, layout).forEach((node, index) => {
             const key = streamKey(layout, index);
             const cast = (!closed && states[key]) || { entries: [], next: 0 };
-            this.recordCast(cast, node, instructions);
+            this.recordCast(key, cast, node, instructions);
             live[key] = cast;
           });
         }
@@ -8931,6 +8932,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected recordCast(
+        key: string,
         cast: CastState,
         node: StreamNode,
         instructions: Instructions,
@@ -8955,10 +8957,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const hidden = new Set<number>();
         const touched = new Set<string>();
         const showing = this.linesShowing();
-        const entryOf = (owner: string, template: number): CastEntry => {
+        const holds = (target: string) => node.templates.some((t) => this.holds(t, target));
+        const queue = (write: Omit<CastWrite, "key">) => this.queue({ key, ...write });
+        const entryOf = (owner: string): CastEntry => {
           let entry = cast.entries.find((e) => e.speaker === owner);
           if (!entry) {
-            entry = { id: cast.next, speaker: owner, template };
+            entry = { id: cast.next, speaker: owner };
             cast.next += 1;
             cast.entries.push(entry);
             created.add(entry.id);
@@ -8974,8 +8978,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         };
         for (const [target, events] of Object.entries(instructions.image ?? {})) {
-          const template = node.templates.findIndex((t) => this.holds(t, target));
-          if (template < 0) {
+          if (!holds(target)) {
             continue;
           }
           const sequences = new Map<CastEntry, ImageInstruction[]>();
@@ -8984,18 +8987,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           };
           for (const event of events) {
             if (event.assets?.length) {
-              add(entryOf(this.ownerOf(event.assets[0]!), template), {
+              add(entryOf(this.ownerOf(event.assets[0]!)), {
                 ...event,
                 speaker: speaker ?? "",
               });
               continue;
             }
             for (const entry of cast.entries) {
-              if (this.holds(node.templates[entry.template], target)) {
-                add(entry, event);
-                if (event.control === "hide") {
-                  hidden.add(entry.id);
-                }
+              add(entry, event);
+              if (event.control === "hide") {
+                hidden.add(entry.id);
               }
             }
           }
@@ -9008,7 +9009,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const after = $.image.recorded(before, sequence);
             (entry.image ??= {})[target] = after;
             wrote(entry, "image", target);
-            this.queue({
+            queue({
               id: entry.id,
               kind: "image",
               target,
@@ -9020,17 +9021,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         if (speaker) {
           for (const [target, events] of texts) {
-            const template = node.templates.findIndex((t) => this.holds(t, target));
-            if (template < 0) {
+            if (!holds(target)) {
               continue;
             }
-            const entry = entryOf(speaker, template);
-            if (!this.holds(node.templates[entry.template], target)) {
-              continue;
-            }
+            const entry = entryOf(speaker);
             (entry.text ??= {})[target] = events;
             wrote(entry, "text", target);
-            this.queue({
+            queue({
               id: entry.id,
               kind: "text",
               target,
@@ -9041,13 +9038,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         if (!instructions.extended) {
           for (const entry of cast.entries) {
-            const template = node.templates[entry.template];
             for (const kind of ["image", "text"] as const) {
               const held = entry[kind] ?? {};
               for (const target of Object.keys(held)) {
                 if (
                   touched.has(`${entry.id}|${kind}|${target}`) ||
-                  !this.clears(template, target) ||
+                  !node.templates.some((t) => this.clears(t, target)) ||
                   !this.holdsContent(entry, kind, target) ||
                   this.onScreen(entry.lines?.[target])
                 ) {
@@ -9055,7 +9051,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 }
                 delete held[target];
                 delete entry.lines?.[target];
-                this.queue({ id: entry.id, kind, target, [kind]: null });
+                queue({ id: entry.id, kind, target, [kind]: null });
               }
             }
           }
@@ -9079,7 +9075,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if ($.context?.system?.simulating) {
           return;
         }
-        this._pending.set(`${write.id}|${write.kind}|${write.target}`, write);
+        this._pending.set(`${write.key}|${write.id}|${write.kind}|${write.target}`, write);
       }
 
       protected ownerOf(asset: string): string {
@@ -9230,7 +9226,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           let view = mount.views.get(entry.id);
           const built = !view;
           if (!view) {
-            view = this.build(mount, entry);
+            view = this.build(mount);
             mount.views.set(entry.id, view);
           }
           this.mark(view, entry, cast);
@@ -9240,7 +9236,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.sync(
             view,
             entry,
-            pending.filter((write) => write.id === entry.id),
+            pending.filter((write) => write.key === mount.key && write.id === entry.id),
             instant,
             time,
           );
@@ -9250,12 +9246,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      protected build(mount: MountedCast, entry: CastEntry): CastEntryView {
+      protected build(mount: MountedCast): CastEntryView {
         const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
-        const template = mount.node.templates[entry.template];
-        const group = template
-          ? $.mountChildren(mount.element, [template], scope, null)
-          : [];
+        const group = $.mountChildren(mount.element, mount.node.templates, scope, null);
         return { group, scope, written: new Map(), marks: "" };
       }
 
@@ -9318,7 +9311,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected apply(
         view: CastEntryView,
-        write: CastWrite,
+        write: Omit<CastWrite, "key">,
         instant: boolean,
         time?: number,
       ): void {

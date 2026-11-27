@@ -96,7 +96,7 @@ layout main {
 }
 ```
 
-A picture goes to the entry of the character it shows. The name before `@` already says whose picture it is, so `[[mia@happy]]` goes to Mia's entry, making one if she has none, and a later `[[mia@sad]]` changes her picture in place. A picture shown on a line nobody speaks makes an entry too. A name written to a text element inside the cast, such as a `character_name`, goes to the entry of the line's speaker. An element of the same name outside the cast shows the picture or the name as it would without one.
+Every element written directly inside the cast is part of each entry, so `cast { portrait { image }; character_name { text } }` gives each character a picture and a name. A picture goes to the entry of the character it shows. The name before `@` already says whose picture it is, so `[[mia@happy]]` goes to Mia's entry, making one if she has none, and a later `[[mia@sad]]` changes her picture in place. A picture shown on a line nobody speaks makes an entry too. A name written to a text element inside the cast, such as a `character_name`, goes to the entry of the line's speaker. An element of the same name outside the cast shows the picture or the name as it would without one.
 
 `[[hide portrait]]` hides the picture in every entry and removes the entries.
 

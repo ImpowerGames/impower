@@ -513,4 +513,96 @@ end
     expect(shown("mia@happy")).toEqual([portraitOf("mia")]);
     expect(shown("sam@calm")).toEqual([portraitOf("sam")]);
   });
+
+  async function playThrough(source: string) {
+    const h = createHarness(source, 0, { reactive: true, assets: PICTURES as never });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    h.jumpToFlow("start");
+    for (let beat = h.nextBeat(); beat; beat = h.nextBeat()) {
+      new Coordinator(h.game, beat);
+      await flushMicrotasks(20);
+    }
+    const lastPicture = (portrait: { id: string }) =>
+      (flattenMessages(h.messages) as any[])
+        .filter((m) => m?.method === "ui/write-image" && m.params?.elements?.includes(portrait.id))
+        .at(-1)
+        ?.params.instructions.at(-1)?.content?.imageNames ?? null;
+    const castsOn = () =>
+      (ui.findElements("cast") as any[]).map((cast) =>
+        cast.children.map((actor: any) => ({
+          speaker: attributesOf(h.messages, actor.id)["data-speaker"],
+          picture: lastPicture(actor.children.find((child: any) => child.name === "portrait")),
+        })),
+      );
+    return { h, ui, castsOn };
+  }
+
+  test("two casts keep their own entries, and a picture for one cast's entry changes no entry of the other", async () => {
+    const { castsOn } = await playThrough(`${CHARACTERS}
+${castLayout("portrait")}
+layout side {
+  cast {
+    actor {
+      portrait { image }
+    }
+  }
+}
+
+scene start
+  [[mia@happy]]
+  MIA: One.
+  [[open side]]
+  [[sam@calm]]
+  SAM: Two.
+  [[mia@sad]]
+  MIA: Three.
+end
+`);
+    expect(castsOn()).toEqual([
+      [
+        { speaker: "mia", picture: "mia@sad" },
+        { speaker: "sam", picture: "sam@calm" },
+      ],
+      [
+        { speaker: "sam", picture: "sam@calm" },
+        { speaker: "mia", picture: "mia@sad" },
+      ],
+    ]);
+  });
+
+  test("an entry copies every element written in the cast, so a name beside the picture goes to the speaker's entry", async () => {
+    const source = `${CHARACTERS}
+layout main {
+  stage {
+    cast {
+      portrait { image }
+      character_name { text }
+    }
+  }
+}
+
+scene start
+  [[mia@happy]]
+  MIA: Hello.
+end
+`;
+    const h = play(source);
+    h.tapTo("Hello.");
+    const [entry] = h.entries();
+    expect(entry).toMatchObject({ speaker: "mia" });
+    expect(pictureOf(entry!)).toEqual(["mia@happy"]);
+    expect(entry!.text?.["character_name"]?.map((e) => e.text).join("")).toBe("MIA");
+
+    const { h: shown, ui } = await playThrough(source);
+    const [cast] = ui.findElements("cast") as any[];
+    expect(cast.children.map((el: any) => el.name)).toEqual(["portrait", "character_name"]);
+    const name = cast.children[1];
+    const names = (flattenMessages(shown.messages) as any[])
+      .filter((m) => m?.method === "ui/write-text" && m.params?.elements?.includes(name.id))
+      .map((m) => m.params.instructions.map((e: any) => e.text).join(""));
+    expect(names).toContain("MIA");
+    expect(cast.children.map((el: any) => attributesOf(shown.messages, el.id)["data-speaker"])).toEqual(["mia", "mia"]);
+  });
 });

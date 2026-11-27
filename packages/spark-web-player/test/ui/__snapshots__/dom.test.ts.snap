@@ -843,6 +843,18 @@ spark-web-player #game .portrait {
     }
   }
 }
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
+  }
+}
 spark-web-player #game .choices {
   position: relative;
   flex: 1;
@@ -3404,6 +3416,18 @@ spark-web-player #game .portrait {
     }
   }
 }
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
+  }
+}
 spark-web-player #game .choices {
   position: relative;
   flex: 1;
@@ -5929,6 +5953,18 @@ spark-web-player #game .portrait {
     >.image * {
       mix-blend-mode: plus-lighter;
     }
+  }
+}
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
   }
 }
 spark-web-player #game .choices {
@@ -8576,6 +8612,18 @@ spark-web-player #game .portrait {
     }
   }
 }
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
+  }
+}
 spark-web-player #game .choices {
   position: relative;
   flex: 1;
@@ -11084,6 +11132,18 @@ spark-web-player #game .portrait {
     }
   }
 }
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
+  }
+}
 spark-web-player #game .choices {
   position: relative;
   flex: 1;
@@ -13574,6 +13634,18 @@ spark-web-player #game .portrait {
     >.image * {
       mix-blend-mode: plus-lighter;
     }
+  }
+}
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
   }
 }
 spark-web-player #game .choices {
@@ -16110,6 +16182,18 @@ spark-web-player #game .portrait {
     >.image * {
       mix-blend-mode: plus-lighter;
     }
+  }
+}
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
   }
 }
 spark-web-player #game .choices {
@@ -18878,6 +18962,18 @@ spark-web-player #game .portrait {
     }
   }
 }
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
+  }
+}
 spark-web-player #game .choices {
   position: relative;
   flex: 1;
@@ -21642,6 +21738,18 @@ spark-web-player #game .portrait {
     >.image * {
       mix-blend-mode: plus-lighter;
     }
+  }
+}
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
   }
 }
 spark-web-player #game .choices {
@@ -24410,6 +24518,18 @@ spark-web-player #game .portrait {
     }
   }
 }
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
+  }
+}
 spark-web-player #game .choices {
   position: relative;
   flex: 1;
@@ -27174,6 +27294,18 @@ spark-web-player #game .portrait {
     >.image * {
       mix-blend-mode: plus-lighter;
     }
+  }
+}
+spark-web-player #game .cast {
+  position: absolute;
+  inset: 0px;
+  >* {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    left: 50%;
+    width: 50%;
+    margin-left: -25%;
   }
 }
 spark-web-player #game .choices {
