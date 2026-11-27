@@ -238,6 +238,51 @@ end
     expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 1.25 }]);
   });
 
+  it("multiplies the picture's own scale by the scales of the elements a transition moves with it, as a beat prepares it", async () => {
+    const story = `animation swell {
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "2"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+animation stage_swell {
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "1.5"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+define grow as transition with
+  on_show = animation.swell
+  stage = animation.stage_swell
+end
+
+scene start
+  Current.
+  [[show backdrop hall with grow]]
+  Hall.
+end
+`;
+    const h = createHarness(story, at(story, "  Current."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 3 }]);
+  });
+
   it("counts only beats that load something against predict_distance in the stopped preview", async () => {
     const story = `define assets as config with
   predict_distance = 1

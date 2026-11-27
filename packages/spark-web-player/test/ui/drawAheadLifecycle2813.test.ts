@@ -30,9 +30,9 @@ const picture = (name: string) => ({
   pictures: [{ layer: 0, span: 1, name, vector: true as const, files: [{ src: `/${name}.svg`, name: `${name}.svg` }] }],
 });
 
-async function setup(options: { hold?: boolean; art?: string; host?: boolean } = {}) {
+async function setup(options: { hold?: boolean; art?: string; host?: boolean; shadow?: boolean } = {}) {
   const { overlay, win, restore } = installJSDOM();
-  overlay.innerHTML = '<div class="backdrop"><div class="image"></div></div>';
+  overlay.innerHTML = `<div class="backdrop">${options.shadow ? '<div class="mask"></div>' : ""}<div class="image"></div></div>`;
   (overlay.firstElementChild as HTMLElement & { __sdId?: string }).__sdId = "backdrop";
   const app = createStubApp(overlay, () => {});
   (app as unknown as { answer: () => void }).answer = () => {};
@@ -44,6 +44,7 @@ async function setup(options: { hold?: boolean; art?: string; host?: boolean } =
   const playback = MorphPlayback.for(overlay);
   const source = { text: options.art ?? '<svg viewBox="0 0 100 100"/>', viewBox: true };
   const requests: { text: string; resolve: (value: unknown) => void; release: ReturnType<typeof vi.fn> }[] = [];
+  const outlines: { width: number; height: number; release: ReturnType<typeof vi.fn> }[] = [];
   playback.configure({
     requestFrame: (callback) => win.setTimeout(() => callback(0), 16) as unknown as number,
     cancelFrame: (handle) => win.clearTimeout(handle),
@@ -55,6 +56,11 @@ async function setup(options: { hold?: boolean; art?: string; host?: boolean } =
         requests.push({ text: raster.text, resolve: resolve as (value: unknown) => void, release });
         if (!options.hold) resolve({ image: {} as never, release });
       }),
+    encodeOutline: async (canvas) => {
+      const release = vi.fn();
+      outlines.push({ width: canvas.width, height: canvas.height, release });
+      return { url: `blob:outline-${outlines.length}`, release };
+    },
     ...(options.host
       ? {
           host: createMorphHost({
@@ -74,7 +80,7 @@ async function setup(options: { hold?: boolean; art?: string; host?: boolean } =
     ui.onDispose();
     win.close();
   });
-  return { ui, playback, overlay, win, requests, draw, ahead, instances, layers };
+  return { ui, playback, overlay, win, requests, outlines, draw, ahead, instances, layers };
 }
 
 describe("drawing ahead keeps to its budget, its layout and its owner (#2813)", () => {
@@ -122,6 +128,27 @@ describe("drawing ahead keeps to its budget, its layout and its owner (#2813)", 
     t.playback.frameBudget = () => 1_000_000;
     t.draw([t.ahead("a")]);
     await until(() => t.requests.length === 1, "the picture drawn once there is room");
+  });
+
+  test("a shadow outline drawn ahead counts against the same room as the drawings, and goes when the player is disposed", async () => {
+    const t = await setup({ shadow: true });
+    t.playback.frameBudget = () => 100 * 100 * 4 * 2;
+    t.draw([t.ahead("a")]);
+    await until(() => t.outlines.length === 1 && t.instances().length === 0, "the picture and its outline drawn ahead");
+    expect(t.playback.drawnAheadBytes()).toBe(100 * 100 * 4 * 2);
+    t.playback.frameBudget = () => 100 * 100 * 4;
+    t.draw([t.ahead("a")]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(t.playback.drawnAheadBytes()).toBeLessThanOrEqual(100 * 100 * 4);
+    t.playback.frameBudget = () => 1_000_000;
+    const before = t.outlines.length;
+    t.draw([t.ahead("b")]);
+    await until(() => t.outlines.length === before + 1 && t.instances().length === 0, "a second picture drawn ahead");
+    const kept = t.outlines.at(-1)!;
+    expect(kept.release).not.toHaveBeenCalled();
+    t.ui.onDispose();
+    expect(kept.release).toHaveBeenCalledOnce();
+    expect(t.playback.drawnAheadBytes()).toBe(0);
   });
 
   test("a portrait's morph frames drawn ahead are the frames its beat plans and shows, with nothing drawn again", async () => {

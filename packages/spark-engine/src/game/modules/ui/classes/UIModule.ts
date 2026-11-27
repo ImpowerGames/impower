@@ -100,6 +100,7 @@ import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
+import { keyframeScale } from "../utils/keyframeScale";
 import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
@@ -7296,13 +7297,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return this.resolve([{ control: "show", assets }], true)[0]?.content;
       }
 
-      effects(event: ImageInstruction): Animation[] {
+      effectScale(event: ImageInstruction): number {
         const out = this.resolve([event], true)[0];
-        return [
-          ...(out?.content?.enterAnimation ? [out.content.enterAnimation] : []),
-          ...(out?.targetAnimations ?? []),
-          ...(out?.affected ?? []).flatMap((affected) => affected.animations),
-        ];
+        const enter = out?.content?.enterAnimation;
+        return (out?.affected ?? []).reduce(
+          (product, affected) => product * keyframeScale(affected.animations),
+          keyframeScale(enter ? [enter] : []) *
+            keyframeScale(out?.targetAnimations),
+        );
       }
 
       shown(target: string): { assets: string[]; at?: string } | undefined {

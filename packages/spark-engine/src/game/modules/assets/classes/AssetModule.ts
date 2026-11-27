@@ -12,7 +12,6 @@ import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { AssetsBuiltins, AssetsConfig } from "../types/AssetsBuiltins";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
-import { keyframeScale } from "../../ui/utils/keyframeScale";
 import { loadingBeats, loads } from "../utils/loadingBeats";
 import {
   pictureRuns,
@@ -753,13 +752,11 @@ export class AssetModule extends Module<
     const key = [control, write.with ?? "", names.join("+")].join("|");
     let scale = this._effectScales.byWrite.get(key);
     if (scale === undefined) {
-      scale = keyframeScale(
-        this._game.module.ui.image.effects({
-          control,
-          ...(names.length ? { assets: names } : {}),
-          ...(write.with ? { with: write.with } : {}),
-        }),
-      );
+      scale = this._game.module.ui.image.effectScale({
+        control,
+        ...(names.length ? { assets: names } : {}),
+        ...(write.with ? { with: write.with } : {}),
+      });
       this._effectScales.byWrite.set(key, scale);
     }
     return scale;

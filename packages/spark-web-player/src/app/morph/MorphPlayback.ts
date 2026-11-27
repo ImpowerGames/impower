@@ -234,6 +234,17 @@ interface Outline {
   ready: Promise<string | undefined>;
   url?: string;
   release?: () => void;
+  distance?: number;
+  stale?: boolean;
+}
+
+interface Kept {
+  bytes: number;
+  distance?: number;
+  stale?: boolean;
+  idle: boolean;
+  counted: boolean;
+  drop: () => void;
 }
 
 type OutlineSource =
@@ -764,15 +775,28 @@ export class MorphPlayback {
   protected outlines = new Map<string, Outline>();
   protected static readonly IDLE_OUTLINES = 8;
 
-  outline(source: Extract<OutlineSource, { state: "ready" }>): Outline {
+  outline(source: Extract<OutlineSource, { state: "ready" }>, forecast?: number): Outline {
     const known = this.outlines.get(source.key);
+    if (forecast !== undefined) this.recording?.add(`outline ${source.key}`);
     if (known) {
       this.outlines.delete(source.key);
       this.outlines.set(source.key, known);
       known.users += 1;
+      if (forecast !== undefined) {
+        known.distance = known.stale || known.distance === undefined ? forecast : Math.min(known.distance, forecast);
+        known.stale = false;
+      }
       return known;
     }
-    const outline: Outline = { key: source.key, width: source.width, height: source.height, users: 1, ready: Promise.resolve(undefined) };
+    this.makeRoom(source.width * source.height * FRAME_BYTES_PER_PIXEL, forecast ?? 0);
+    const outline: Outline = {
+      key: source.key,
+      width: source.width,
+      height: source.height,
+      users: 1,
+      ready: Promise.resolve(undefined),
+      ...(forecast !== undefined ? { distance: forecast } : {}),
+    };
     this.outlines.set(source.key, outline);
     const canvas = this.overlay.ownerDocument.createElement("canvas");
     canvas.width = source.width;
@@ -806,11 +830,19 @@ export class MorphPlayback {
 
   releaseOutline(outline: Outline) {
     outline.users -= 1;
+    if (outline.users <= 0 && outline.distance !== undefined) this.makeRoom(0, 0);
     this.trimOutlines();
   }
 
+  protected dropOutline(outline: Outline) {
+    if (this.outlines.get(outline.key) === outline) this.outlines.delete(outline.key);
+    outline.release?.();
+    outline.release = undefined;
+    outline.url = undefined;
+  }
+
   protected trimOutlines() {
-    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0);
+    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0 && outline.distance === undefined);
     for (const outline of idle.slice(0, Math.max(0, idle.length - MorphPlayback.IDLE_OUTLINES))) {
       this.outlines.delete(outline.key);
       outline.release?.();
@@ -929,34 +961,70 @@ export class MorphPlayback {
     drawing.raster = undefined;
   }
 
+  protected kept(): Kept[] {
+    const kept: Kept[] = [];
+    for (const drawing of this.drawings.values()) {
+      kept.push({
+        bytes: drawing.bytes,
+        ...(drawing.distance !== undefined ? { distance: drawing.distance } : {}),
+        ...(drawing.stale ? { stale: true } : {}),
+        idle: drawing.users === 0 && drawing.forecasts === 0,
+        counted: drawing.users === 0,
+        drop: () => this.dropDrawing(drawing),
+      });
+    }
+    for (const outline of this.outlines.values()) {
+      if (outline.distance === undefined) continue;
+      kept.push({
+        bytes: outline.width * outline.height * FRAME_BYTES_PER_PIXEL,
+        distance: outline.distance,
+        ...(outline.stale ? { stale: true } : {}),
+        idle: outline.users <= 0,
+        counted: outline.users <= 0,
+        drop: () => this.dropOutline(outline),
+      });
+    }
+    return kept;
+  }
+
   protected makeRoom(bytes: number, distance: number): boolean {
     const budget = this.frameBudget?.() ?? Infinity;
     let held = this.drawnAheadBytes();
     if (held + bytes <= budget) return true;
-    const rank = (drawing: Drawing) => (drawing.stale || drawing.distance === undefined ? Infinity : drawing.distance);
-    const idle = [...this.drawings.values()]
-      .filter((drawing) => drawing.users === 0 && drawing.forecasts === 0 && (bytes === 0 || rank(drawing) > distance))
+    const rank = (kept: Kept) => (kept.stale || kept.distance === undefined ? Infinity : kept.distance);
+    const idle = this.kept()
+      .filter((kept) => kept.idle && (bytes === 0 || rank(kept) > distance))
       .sort((a, b) => rank(b) - rank(a) || (b.distance ?? Infinity) - (a.distance ?? Infinity) || 0);
-    for (const drawing of idle) {
+    for (const kept of idle) {
       if (held + bytes <= budget) break;
-      this.dropDrawing(drawing);
-      held -= drawing.bytes;
+      kept.drop();
+      held -= kept.bytes;
     }
     return held + bytes <= budget;
   }
 
   drawnAheadBytes(): number {
     let bytes = 0;
-    for (const drawing of this.drawings.values()) if (drawing.users === 0) bytes += drawing.bytes;
+    for (const kept of this.kept()) if (kept.counted) bytes += kept.bytes;
     return bytes;
   }
 
   retain(keys: readonly string[], distance: number): boolean {
-    const drawings = keys.map((key) => this.drawings.get(key));
-    if (drawings.some((drawing) => !drawing?.raster)) return false;
-    for (const drawing of drawings) {
-      drawing!.distance = drawing!.stale ? distance : Math.min(drawing!.distance ?? distance, distance);
-      drawing!.stale = false;
+    const marks: { distance?: number; stale?: boolean }[] = [];
+    for (const key of keys) {
+      if (key.startsWith("outline ")) {
+        const outline = this.outlines.get(key.slice("outline ".length));
+        if (!outline) return false;
+        marks.push(outline);
+        continue;
+      }
+      const drawing = this.drawings.get(key);
+      if (!drawing?.raster) return false;
+      marks.push(drawing);
+    }
+    for (const mark of marks) {
+      mark.distance = mark.stale || mark.distance === undefined ? distance : Math.min(mark.distance, distance);
+      mark.stale = false;
     }
     this.makeRoom(0, 0);
     return true;
@@ -964,12 +1032,16 @@ export class MorphPlayback {
 
   beginForecast() {
     for (const drawing of this.drawings.values()) drawing.stale = true;
+    for (const outline of this.outlines.values()) if (outline.distance !== undefined) outline.stale = true;
     this.makeRoom(0, 0);
   }
 
   endForecast() {
     for (const drawing of [...this.drawings.values()]) {
       if ((drawing.stale || drawing.distance === undefined) && drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
+    }
+    for (const outline of [...this.outlines.values()]) {
+      if (outline.distance !== undefined && outline.stale && outline.users <= 0) this.dropOutline(outline);
     }
     this.makeRoom(0, 0);
   }
@@ -978,6 +1050,11 @@ export class MorphPlayback {
     for (const drawing of [...this.drawings.values()]) {
       if (drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
       else delete drawing.distance;
+    }
+    for (const outline of [...this.outlines.values()]) {
+      if (outline.distance === undefined) continue;
+      if (outline.users <= 0) this.dropOutline(outline);
+      else delete outline.distance;
     }
   }
 
@@ -2401,7 +2478,7 @@ export class MorphLayer {
         entry.natural = source.natural;
         if (held && (held.key === source.key || (held.width >= source.width && held.height >= source.height))) continue;
         if (entry.pending) this.playback.releaseOutline(entry.pending);
-        const outline = this.playback.outline(source);
+        const outline = this.playback.outline(source, this.forecast);
         entry.pending = outline;
         if (!entry.shown) entry.state = entry.late ? "none" : "waiting";
         void outline.ready.then((url) => this.landOutline(entry, outline, url));
