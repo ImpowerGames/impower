@@ -21,6 +21,7 @@ import {
   textLayoutOpenAfter,
   UNSHOWN_TEXT_MESSAGE,
 } from "./presenters/textLayouts";
+import { streamRun } from "./presenters/streamRuns";
 import { VisualNovelPresenter } from "./presenters/VisualNovelPresenter";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
@@ -203,6 +204,8 @@ export class Coordinator<G extends Game> {
       this._game.autoAdvancedToContinue();
     } else if (advance === 2) {
       this._game.clickedToContinue();
+    } else if (advance === 3) {
+      this._game.clickedToFinishRun();
     }
   }
 
@@ -329,6 +332,10 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (instructions.auto && this._interacted && !waitingForChoice) {
+      this._interacted = false;
+      return 3;
+    }
     if (this._lineStartedMS == null) {
       if (!this._interacted || waitingForChoice) {
         return 0;
@@ -355,6 +362,7 @@ export class Coordinator<G extends Game> {
     const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
     if (instructions.auto) {
       const autoAdvanceDelay =
+        instructions.pause ??
         game.context.preferences?.["flow"]?.["auto_advance_delay"];
       if (
         !waitingForChoice &&
@@ -433,7 +441,10 @@ export class Coordinator<G extends Game> {
     for (const presenter of presenters) {
       presenter.record?.();
     }
-    game.module.ui.streams.record(instructions);
+    game.module.ui.streams.record(
+      instructions,
+      streamRun(game, [instructions, ...game.module.interpreter.queuedBeats]),
+    );
     const presenter = {
       present: (time?: number) => {
         game.module.ui.line(instructions);

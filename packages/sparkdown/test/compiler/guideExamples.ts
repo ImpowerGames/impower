@@ -59,7 +59,7 @@ export function guideExamples(chapter: string): GuideExample[] {
 }
 
 const TOP_LEVEL =
-  /^(layout|component|style|animation|theme|screen|store|scene|function|define|morph|framing)\b/m;
+  /^(layout|component|style|animation|theme|screen|store|scene|function|define|morph|framing|stream(?=[ \t]+[A-Za-z_]))\b/m;
 
 export function isLayoutFragment(code: string): boolean {
   if (TOP_LEVEL.test(code)) return false;

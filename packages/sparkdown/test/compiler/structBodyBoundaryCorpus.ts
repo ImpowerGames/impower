@@ -25,6 +25,7 @@ const KEYWORDS: Record<string, string> = {
   LuauTheme: "theme",
   LuauFraming: "framing",
   LuauMorph: "morph",
+  LuauStream: "stream",
   LuauLayout: "layout",
   LuauComponent: "component",
   LuauScreen: "screen",

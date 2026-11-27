@@ -101,6 +101,7 @@ const createGame = (previewing?: boolean) => {
     },
     module: {
       ui,
+      interpreter: { queuedBeats: [] },
       audio: {
         stopChannel: () => {},
         schedule: () => 0,

@@ -242,6 +242,9 @@ export class InterpreterModule extends Module<
     if (b.speech) {
       a.speech = b.speech;
     }
+    if (b.waits) {
+      a.waits = true;
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -439,6 +442,9 @@ export class InterpreterModule extends Module<
         this.parse(content, textTarget, { ...options, spoken: true });
       if (pause && !contentInstructions.text) {
         contentInstructions.text = { [textTarget]: [] };
+      }
+      if (pause) {
+        contentInstructions.waits = true;
       }
       if (carries && box) {
         const text = (contentInstructions.text ??= {});
@@ -675,6 +681,10 @@ export class InterpreterModule extends Module<
 
   get hasQueuedBeats(): boolean {
     return (this._state.buffer?.length ?? 0) > 0;
+  }
+
+  get queuedBeats(): readonly Instructions[] {
+    return this._state.buffer ?? [];
   }
 
   get nextBeat(): Instructions | undefined {

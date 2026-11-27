@@ -30,6 +30,7 @@ describe("a header's block comments belong to its keyword's begin", () => {
     ["animation", "LuauAnimation", "animation --[=[ c ]=] fade {\n  keyframes {\n    from { opacity = 0 }\n  }\n}\n", "fade"],
     ["theme", "LuauTheme", "theme --[[ a]b ]] t {\n  colors { primary = red }\n}\n", "t"],
     ["framing", "LuauFraming", "framing --[[ c ]] sofa {\n  x = 60%\n}\n", "sofa"],
+    ["stream", "LuauStream", "stream --[[ c ]] phone {\n  advance = auto\n}\n", "phone"],
     ["morph", "LuauMorph", "morph --[[ c ]] --[[ d ]] m {\n  method = bend\n}\n", "m"],
     ["layout", "LuauLayout", "layout --[[ note ]] hud {\n  text \"hi\"\n}\n", "hud"],
     ["screen", "LuauScreen", "screen --[[ c ]] hud {\n}\n", "hud"],

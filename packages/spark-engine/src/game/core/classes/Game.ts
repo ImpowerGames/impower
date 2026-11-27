@@ -178,6 +178,7 @@ import { Coordinator } from "./Coordinator";
 import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
 import { TEXTSTREAM_LAYOUT } from "./presenters/InteractiveFictionPresenter";
 import { initialLayouts, openInitialLayouts } from "./presenters/textLayouts";
+import { markRun, streamRun } from "./presenters/streamRuns";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -369,6 +370,8 @@ export class Game<T extends M = {}> {
   protected _holdingFlush = false;
 
   protected _held: { instructions: Instructions | null } | null = null;
+
+  protected _finishingRun = false;
 
   protected _previewGeneration = 0;
 
@@ -3507,7 +3510,10 @@ export class Game<T extends M = {}> {
     if (this._run.behindLatest) {
       this.forkRun();
     }
-    if (!preserveExecutionInfo) {
+    if (
+      !preserveExecutionInfo &&
+      !(this.module.interpreter.shouldFlush() && !this.readsAhead("continue"))
+    ) {
       this._runtimeState = new RuntimeState();
     }
     this._awaiting = null;
@@ -3675,7 +3681,10 @@ export class Game<T extends M = {}> {
         }
       }
 
-      if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
+      if (
+        (this.module.interpreter.shouldFlush() && !this.readsAhead(traversal)) ||
+        !this._story.canContinue
+      ) {
         if (traversal !== "continue" && this.presentsAtStop()) {
           const next = this.module.interpreter.nextBeat;
           if (
@@ -3692,9 +3701,16 @@ export class Game<T extends M = {}> {
           this.notifyStepped();
           return true;
         }
-        const instructions = this.module.interpreter.flush();
+        const instructions = this.flushBeat();
         if (this._holdingFlush) {
           this._held = { instructions: instructions ?? null };
+          return true;
+        }
+        if (this._finishingRun && instructions) {
+          this.showBeat(instructions, "settled", Boolean(instructions.auto));
+          if (instructions.auto) {
+            continue;
+          }
           return true;
         }
         this.showBeat(instructions ?? null, "playing");
@@ -3841,6 +3857,20 @@ export class Game<T extends M = {}> {
     }
   }
 
+  protected readsAhead(traversal: "in" | "out" | "over" | "continue"): boolean {
+    return (
+      traversal === "continue" &&
+      this._simulation !== "simulating" &&
+      streamRun(this, this.module.interpreter.queuedBeats).open
+    );
+  }
+
+  protected flushBeat(): Instructions | undefined {
+    const interpreter = this.module.interpreter;
+    const beat = interpreter.flush();
+    return beat && markRun(this, beat, interpreter.queuedBeats);
+  }
+
   protected insideSteppedFrame(
     traversal: "in" | "out" | "over",
     initialCallstackDepth: number,
@@ -3877,6 +3907,7 @@ export class Game<T extends M = {}> {
       if (
         !passing &&
         !ending &&
+        !instructions.auto &&
         !this._coordinator.shouldContinue() &&
         this._simulation !== "simulating" &&
         (!(instructions.load || instructions.cutscene) ||
@@ -3890,7 +3921,7 @@ export class Game<T extends M = {}> {
     if (instructions || this._simulation !== "simulating") {
       this.checkpoint();
     }
-    if (instructions && this.recordsRun()) {
+    if (instructions && !instructions.auto && this.recordsRun()) {
       this.recordBeat(instructions);
     }
     if (
@@ -3934,6 +3965,23 @@ export class Game<T extends M = {}> {
     }
     this.notifyAutoAdvancedToContinue();
     this.continue();
+  }
+
+  clickedToFinishRun() {
+    if (this._ending) {
+      return;
+    }
+    if (this._run.behindLatest) {
+      this.rollForwardOnTap();
+      return;
+    }
+    this.notifyClickedToContinue();
+    this._finishingRun = true;
+    try {
+      this.continue();
+    } finally {
+      this._finishingRun = false;
+    }
   }
 
   clickedToContinue() {

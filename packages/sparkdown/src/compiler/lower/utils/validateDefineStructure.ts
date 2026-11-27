@@ -66,6 +66,7 @@ const STRUCT_KEYWORD_TYPES: ReadonlySet<string> = new Set([
   "theme",
   "framing",
   "morph",
+  "stream",
   "layout",
   "component",
   "screen",

@@ -31,8 +31,9 @@ import type { MorphRecipe, MorphRef, MorphTiming } from "@impower/sparkdown/src/
 import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
-import { SPEAKER_TARGETS } from "../../../core/classes/presenters/InteractiveFictionPresenter";
 import { pageKey } from "../../../core/utils/pageKey";
+import type { StreamRun } from "../../../core/classes/presenters/streamRuns";
+import { streamKey, streamTemplate } from "../utils/streamTemplate";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
   BOOLEAN_ATTRIBUTES,
@@ -479,8 +480,6 @@ const PAGE_COLUMN = "textstream_column";
 
 const PAGE_SCROLLER = "textstream";
 
-const streamKey = (layout: string, index: number) => `${layout}/${index}`;
-
 type ReactiveEnv = Record<string, unknown>;
 
 type ReactiveDeps = { globals: Set<string>; tables: Set<object> };
@@ -624,6 +623,7 @@ interface StreamEntryView {
   scope: ReactiveScope;
   written: Record<string, string>;
   typed: boolean;
+  reserved?: boolean;
 }
 
 interface MountedStream {
@@ -8512,7 +8512,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      record(instructions: Instructions): void {
+      record(instructions: Instructions, run?: StreamRun): void {
         this._presented = undefined;
         const sparkle = $._game.program?.sparkle;
         const events = Object.values(instructions.layout ?? {}).flat();
@@ -8531,7 +8531,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const id = streamKey(layout, index);
             const stream = states[id] ?? { entries: [], current: 0 };
             const repeat = stream.beat === beat || Boolean(instructions.hold);
-            this.recordStream(stream, node, instructions, { repeat, restarted });
+            const ahead =
+              run?.gathering?.key === id
+                ? run.ahead.flatMap((next) => {
+                    const entry = this.entryFor(node, next);
+                    return entry && !entry.shown ? [entry] : [];
+                  })
+                : [];
+            this.recordStream(stream, node, instructions, { repeat, restarted }, ahead);
             if (!repeat) {
               this._settled.set(id, stream.current);
             }
@@ -8552,10 +8559,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         node: StreamNode,
         instructions: Instructions,
         options: { repeat: boolean; restarted: boolean },
+        ahead: StreamEntry[],
       ): void {
+        const started = stream.entries.slice(
+          0,
+          stream.entries.length - (stream.reserved ?? 0),
+        );
         const before = options.repeat
-          ? [...stream.entries.slice(0, stream.current), ...(stream.absorbed ?? [])]
-          : stream.entries;
+          ? [...started.slice(0, stream.current), ...(stream.absorbed ?? [])]
+          : started;
         const entry = this.entryFor(node, instructions);
         if (options.restarted && !options.repeat) {
           stream.cleared = (stream.cleared ?? 0) + 1;
@@ -8570,8 +8582,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           keep -= 1;
         }
         const absorbed = before.slice(keep);
-        stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : [])];
+        stream.entries = [
+          ...before.slice(0, keep),
+          ...(entry ? [entry] : []),
+          ...(entry ? ahead : []),
+        ];
         stream.current = keep;
+        if (entry && ahead.length > 0) {
+          stream.reserved = ahead.length;
+        } else {
+          delete stream.reserved;
+        }
         for (const index of Object.keys(stream.styles ?? {})) {
           if (Number(index) >= keep) {
             delete stream.styles![Number(index)];
@@ -8593,14 +8614,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ([target]) => !target.startsWith("choice "),
           ),
         );
-        const lines = Object.keys(text).filter(
-          (target) => !SPEAKER_TARGETS.includes(target),
-        );
-        const template = node.templates.findIndex((child) =>
-          [child.tag, child.name, ...child.classes].some(
-            (name) => name !== undefined && lines.includes(name),
-          ),
-        );
+        const template = streamTemplate(node, instructions);
         if (template < 0) {
           return undefined;
         }
@@ -8788,13 +8802,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         mount.entries.length = kept;
         mount.rendered.length = kept;
-        let settled = this._settled.get(mount.key) ?? current;
+        const started = entries.length - (presented ? (stream?.reserved ?? 0) : 0);
+        let settled = Math.min(this._settled.get(mount.key) ?? current, started);
+        for (let i = 0; i < Math.min(kept, started); i += 1) {
+          const view = mount.entries[i]!;
+          if (!view.reserved) {
+            continue;
+          }
+          view.reserved = false;
+          this.reveal(view);
+          if (instant) {
+            continue;
+          }
+          const atOnce = i < current || i < settled;
+          this.write(view, entries[i]!, atOnce, atOnce ? undefined : time);
+          if (atOnce) {
+            settled = Math.max(settled, i + 1);
+          } else if (arriving && $.moving() && $.styled("show")) {
+            $.arrive($.collectNodes(view.group));
+          }
+        }
         if (instant) {
-          for (let i = rewriteFrom ?? current; i < kept; i += 1) {
+          for (let i = rewriteFrom ?? current; i < Math.min(kept, started); i += 1) {
             this.write(mount.entries[i]!, entries[i]!, true);
             this.applyStyles(mount, mount.entries[i]!, i);
           }
-          settled = Math.max(settled, kept);
+          settled = Math.max(settled, Math.min(kept, started));
         }
         for (let i = kept; i < entries.length; i += 1) {
           const entry = entries[i]!;
@@ -8802,6 +8835,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
           this.applyStyles(mount, view, i);
+          if (i >= started) {
+            view.reserved = true;
+            this.hide(view);
+            this.write(view, entry, true);
+            continue;
+          }
           const atOnce = instant || i < current || i < settled;
           this.write(view, entry, atOnce, atOnce ? undefined : time);
           if (atOnce) {
@@ -8816,7 +8855,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         this._settled.set(mount.key, settled);
-        const latest = mount.entries.at(-1);
+        const latest = mount.entries[Math.min(mount.entries.length, started) - 1];
         if (latest !== mount.latest) {
           if (mount.latest && mount.entries.includes(mount.latest)) {
             this.mark(mount.latest, null);
@@ -8846,10 +8885,42 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             typing ? presented?.time : undefined,
             true,
           );
+          if (view.reserved) {
+            this.hide(view);
+          }
           if (view === mount.latest) {
             this.mark(view, "");
           }
         }
+      }
+
+      protected hide(view: StreamEntryView): void {
+        for (const root of $.collectNodes(view.group)) {
+          $.updateElement(root, { style: { visibility: "hidden" } });
+        }
+      }
+
+      protected reveal(view: StreamEntryView): void {
+        const roots = $.collectNodes(view.group);
+        const show = () => {
+          for (const root of roots) {
+            $.updateElement(root, { style: { visibility: null } });
+          }
+        };
+        const line = $.composingLine();
+        if (!line) {
+          show();
+          return;
+        }
+        $.own(line, {
+          phase: "arrive",
+          start: () => {
+            show();
+            return Promise.resolve();
+          },
+          finish: () => {},
+          settle: show,
+        });
       }
 
       protected mark(view: StreamEntryView, latest: string | null): void {

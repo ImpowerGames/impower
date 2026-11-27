@@ -60,6 +60,7 @@ const DEFINES = new Map<string, string>([
   ["LuauTheme", "theme"],
   ["LuauFraming", "framing"],
   ["LuauMorph", "morph"],
+  ["LuauStream", "stream"],
 ]);
 const DEFINE_KEYWORDS = new Set(DEFINES.values());
 

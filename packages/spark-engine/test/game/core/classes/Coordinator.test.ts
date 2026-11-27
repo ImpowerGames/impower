@@ -59,6 +59,7 @@ const createGame = (
       },
     },
     module: {
+      interpreter: { queuedBeats: [] },
       world: {
         loadWorld: (name: string) => calls.loadedWorlds.push(name),
       },

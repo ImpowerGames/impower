@@ -14,6 +14,7 @@ export const STRUCT_KEYWORD_BLOCK_NAMES = nodeNameSet([
   "LuauTheme",
   "LuauFraming",
   "LuauMorph",
+  "LuauStream",
   "LuauLayout",
   "LuauComponent",
   "LuauScreen",

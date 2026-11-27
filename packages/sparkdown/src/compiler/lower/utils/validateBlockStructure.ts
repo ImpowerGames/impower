@@ -18,6 +18,7 @@ const BRACE_HEADER_FORMS: Readonly<Partial<Record<SparkdownNodeName, string>>> =
   LuauTheme: "`theme NAME [as PARENT] {`",
   LuauFraming: "`framing NAME [as PARENT] {`",
   LuauMorph: "`morph NAME [as PARENT] {`",
+  LuauStream: "`stream NAME [as PARENT] {`",
 };
 
 function skippedBefore(node: SyntaxNode, before: number): SyntaxNode | null {

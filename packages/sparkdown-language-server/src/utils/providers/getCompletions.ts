@@ -74,7 +74,11 @@ import { isLayoutVerb, LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdow
 import { layoutDirectiveTargetNames } from "@impower/sparkdown/src/compiler/utils/layoutDirectiveTargets";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
-import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
+import {
+  STREAM_ELEMENT,
+  streamBlockCompletion,
+  streamElementCompletion,
+} from "./streamElementHelp";
 import { presenceBlockDocumentation } from "./presenceBlockHelp";
 import {
   isValuelessAttribute,
@@ -175,6 +179,7 @@ const STRUCTURAL_DEFINE_TYPE: Partial<Record<SparkdownNodeName, string>> = {
   LuauTheme: "theme",
   LuauFraming: "framing",
   LuauMorph: "morph",
+  LuauStream: "stream",
 };
 
 const STRUCT_KEYWORD_HEADER_NAMES = nodeNameSet([
@@ -3121,6 +3126,10 @@ const completionsAt = (
             contentNode,
             read,
           );
+          const typed = contentNode ? read(contentNode.from, contentNode.to).trim() : "";
+          if (STREAM_ELEMENT.startsWith(typed) && !completions.has(STREAM_ELEMENT)) {
+            completions.set(STREAM_ELEMENT, streamBlockCompletion());
+          }
         }
       }
       return buildCompletions();

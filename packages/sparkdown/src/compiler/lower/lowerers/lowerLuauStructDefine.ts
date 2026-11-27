@@ -26,18 +26,20 @@ import {
 } from "./lowerStructBodyTyped";
 import { validateBlockStructure } from "../utils/validateBlockStructure";
 import { validateFramingBody } from "../utils/validateFramingBody";
+import { validateStreamBody } from "../utils/validateStreamBody";
 
 const CONTENT_NODE = {
   animation: "LuauAnimation_content",
   theme: "LuauTheme_content",
   framing: "LuauFraming_content",
   morph: "LuauMorph_content",
+  stream: "LuauStream_content",
 } as const;
 
 export function lowerLuauStructDefine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
-  type: "animation" | "theme" | "framing" | "morph",
+  type: "animation" | "theme" | "framing" | "morph" | "stream",
 ): CompiledBlock {
   ctx.diagnostics?.push(...validateBlockStructure(nodeRef.node, ctx, type));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
@@ -56,9 +58,12 @@ export function lowerLuauStructDefine(
   const body =
     type === "morph"
       ? readMorphBody(contentNode, ctx, diagnostics).struct
-      : parseStructBodyTyped(contentNode, ctx, diagnostics, type === "framing" ? { sources } : {});
+      : parseStructBodyTyped(contentNode, ctx, diagnostics, type === "framing" || type === "stream" ? { sources } : {});
   if (type === "framing") {
     diagnostics.push(...validateFramingBody(body, sources.get(body), nameNode, ctx));
+  }
+  if (type === "stream") {
+    diagnostics.push(...validateStreamBody(body, sources.get(body), nameNode, ctx));
   }
   if (type === "animation" && KEYFRAMES_KEY in body) {
     body[KEYFRAMES_KEY] = keyframesAsList(body[KEYFRAMES_KEY]);

@@ -125,7 +125,7 @@ function beatTargets(instructions: Instructions): string[] {
   ].map(elementName);
 }
 
-function layoutEvents(instructions: Instructions): LayoutInstruction[] {
+export function layoutEvents(instructions: Instructions): LayoutInstruction[] {
   return Object.values(instructions.layout ?? {}).flat();
 }
 
@@ -214,12 +214,16 @@ function opensByItself(
   );
 }
 
-export function routeLine(game: Game, instructions: Instructions): Instructions {
+export function routeLine(
+  game: Game,
+  instructions: Instructions,
+  prior: readonly LayoutInstruction[] = [],
+): Instructions {
   const ui = game.module.ui;
   if (!game.program?.sparkle?.layouts) {
     return instructions;
   }
-  const events = layoutEvents(instructions);
+  const events = [...prior, ...layoutEvents(instructions)];
   const auto = ui.autoLayoutAfter(events);
   const kind = showsText(instructions) ? lineKind(instructions) : undefined;
   const routed: LayoutInstruction[] = [];

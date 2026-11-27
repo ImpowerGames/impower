@@ -4800,6 +4800,11 @@ define morph with
   timing = { trigger = "appear", delay = 0, duration = 0.25, easing = "ease-out", iterations = 1, direction = "normal" }
 end
 
+define stream with
+  advance = "click"
+  pause = "0.4s"
+end
+
 define transition with
   on_hide = animation.hide
   on_show = animation.show
