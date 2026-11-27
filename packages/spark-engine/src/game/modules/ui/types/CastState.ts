@@ -3,8 +3,10 @@ import type { ImageState } from "./ImageState";
 
 export interface CastLine {
   key: string;
-  cleared: number;
   index: number;
+  cleared?: number;
+  length?: number;
+  hash?: string;
 }
 
 export interface CastEntry {
@@ -14,6 +16,7 @@ export interface CastEntry {
   image?: Record<string, ImageState[]>;
   text?: Record<string, TextInstruction[]>;
   lines?: Record<string, CastLine[]>;
+  emptied?: string[];
 }
 
 export interface CastState {
@@ -21,4 +24,6 @@ export interface CastState {
   next: number;
   latest?: string;
   variants?: Record<string, string>;
+  beat?: number;
+  key?: string;
 }

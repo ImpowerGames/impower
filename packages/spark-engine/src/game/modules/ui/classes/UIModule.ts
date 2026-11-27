@@ -635,6 +635,7 @@ interface MountedCast {
 
 interface CastWrite {
   key: string;
+  only?: "marked" | "unmarked";
   id: number;
   kind: "image" | "text";
   target: string;
@@ -875,6 +876,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._refreshAll = true;
     this.page.started();
     this.casts.forget();
+    this.casts.started();
     this.streams.started();
   }
 
@@ -943,6 +945,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._clearedPictures = undefined;
     this.page.loaded();
     this.streams.loaded();
+    this.casts.loaded();
   }
 
   override onPreview() {
@@ -4196,6 +4199,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _castElements = new WeakSet<Element>();
 
+  protected _clearMarked = new WeakSet<Element>();
+
   protected mountCast(
     parent: Element,
     node: StreamNode,
@@ -4329,6 +4334,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       before,
     );
     this.limit(el, labels);
+    if (marksClear(node)) {
+      this._clearMarked.add(el);
+    }
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
     }
@@ -8911,19 +8919,64 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._pending.clear();
       }
 
+      protected _before = new Map<string, { beat: number; key: string; state: string }>();
+
+      protected _loaded = false;
+
+      protected _resumed = false;
+
+      loaded(): void {
+        this._loaded = true;
+      }
+
+      started(): void {
+        this._resumed = this._loaded;
+        this._loaded = false;
+      }
+
+      shown(key: string): void {
+        const resumed = this._resumed;
+        this._resumed = false;
+        if (!resumed) {
+          return;
+        }
+        const beat = $.page.state.shown ?? 0;
+        for (const cast of Object.values($._state.casts ?? {})) {
+          if (cast.key === key && cast.beat === beat - 1) {
+            cast.beat = beat;
+          }
+        }
+      }
+
       record(instructions: Instructions): void {
         const sparkle = $._game.program?.sparkle;
         const events = Object.values(instructions.layout ?? {}).flat();
         const states = $._state.casts ?? {};
         const live: Record<string, CastState> = {};
-        for (const layout of $.openedLayoutsAfter(events)) {
+        const beat = $.page.state.shown ?? 0;
+        const page = pageKey(instructions);
+        const opened = $.openedLayoutsAfter(events);
+        const showing = this.linesShowing(opened);
+        for (const layout of opened) {
           const closed = events.some(
             (event) => event.name === layout && event.control === LayoutVerb.close,
           );
           layoutCasts(sparkle, layout).forEach((node, index) => {
             const key = streamKey(layout, index);
-            const cast = (!closed && states[key]) || { entries: [], next: 0 };
-            this.recordCast(key, cast, node, instructions);
+            let cast: CastState = (!closed && states[key]) || { entries: [], next: 0 };
+            if ((cast.beat === beat && cast.key === page) || instructions.hold) {
+              const before = this._before.get(key);
+              if (!before || before.beat !== cast.beat || before.key !== cast.key) {
+                live[key] = cast;
+                return;
+              }
+              cast = JSON.parse(before.state) as CastState;
+            } else {
+              this._before.set(key, { beat, key: page, state: JSON.stringify(cast) });
+            }
+            this.recordCast(key, cast, node, instructions, showing, opened);
+            cast.beat = beat;
+            cast.key = page;
             live[key] = cast;
           });
         }
@@ -8939,6 +8992,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         cast: CastState,
         node: StreamNode,
         instructions: Instructions,
+        showing: CastLine[],
+        opened: readonly string[],
       ): void {
         const texts = Object.entries(instructions.text ?? {}).filter(
           ([target]) => !instructions.choices?.includes(target),
@@ -8959,7 +9014,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const created = new Set<number>();
         const hidden = new Set<number>();
         const touched = new Set<string>();
-        const showing = this.linesShowing();
         const holds = (target: string) => node.templates.some((t) => this.holds(t, target));
         const queue = (write: Omit<CastWrite, "key">) => this.queue({ key, ...write });
         const entryOf = (owner: string): CastEntry => {
@@ -8974,6 +9028,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         };
         const wrote = (entry: CastEntry, kind: CastWrite["kind"], target: string) => {
           touched.add(`${entry.id}|${kind}|${target}`);
+          const emptied = entry.emptied?.filter((written) => written !== `${kind}|${target}`);
+          if (emptied?.length) {
+            entry.emptied = emptied;
+          } else {
+            delete entry.emptied;
+          }
           if (showing.length > 0) {
             (entry.lines ??= {})[target] = showing;
           } else {
@@ -9044,12 +9104,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             for (const kind of ["image", "text"] as const) {
               const held = entry[kind] ?? {};
               for (const target of Object.keys(held)) {
+                const written = `${kind}|${target}`;
                 if (
-                  touched.has(`${entry.id}|${kind}|${target}`) ||
+                  touched.has(`${entry.id}|${written}`) ||
+                  entry.emptied?.includes(written) ||
                   !node.templates.some((t) => this.clears(t, target)) ||
                   !this.holdsContent(entry, kind, target) ||
-                  this.onScreen(entry.lines?.[target])
+                  this.onScreen(entry.lines?.[target], opened)
                 ) {
+                  continue;
+                }
+                if (node.templates.some((t) => this.find(t, target, (n) => !marksClear(n)))) {
+                  (entry.emptied ??= []).push(written);
+                  queue({ id: entry.id, kind, target, [kind]: null, only: "marked" });
                   continue;
                 }
                 delete held[target];
@@ -9085,16 +9152,43 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return getImageOwner($.context, asset) ?? (asset.split("@")[0] || asset);
       }
 
-      protected linesShowing(): CastLine[] {
-        return Object.entries($._state.streams ?? {}).flatMap(([key, stream]) =>
-          stream.entries.length > stream.current
-            ? [{ key, cleared: stream.cleared ?? 0, index: stream.current }]
-            : [],
+      protected linesShowing(opened: readonly string[]): CastLine[] {
+        const lines: CastLine[] = Object.entries($._state.streams ?? {}).flatMap(
+          ([key, stream]) =>
+            stream.entries.length > stream.current
+              ? [{ key, cleared: stream.cleared ?? 0, index: stream.current }]
+              : [],
         );
+        const page = $._state.page;
+        if (page && opened.includes(PAGE_SCROLLER)) {
+          page.entries.forEach((entry, index) => {
+            if (index >= page.current) {
+              const length = this.pageText(entry).length;
+              lines.push({ key: PAGE_SCROLLER, index, length, hash: this.pageLine(entry, length) });
+            }
+          });
+        }
+        return lines;
       }
 
-      protected onScreen(lines: CastLine[] | undefined): boolean {
+      protected pageText(entry: PageEntry): string {
+        return (entry.text ?? []).map((t) => t.text).join("");
+      }
+
+      protected pageLine(entry: PageEntry, length: number): string {
+        return hashText(`${entry.kind}|${entry.speaker ?? ""}|${this.pageText(entry).slice(0, length)}`);
+      }
+
+      protected onScreen(lines: CastLine[] | undefined, opened: readonly string[]): boolean {
         return (lines ?? []).some((line) => {
+          if (line.key === PAGE_SCROLLER) {
+            const entry = $._state.page?.entries[line.index];
+            return (
+              opened.includes(PAGE_SCROLLER) &&
+              entry !== undefined &&
+              line.hash === this.pageLine(entry, line.length ?? 0)
+            );
+          }
           const stream = $._state.streams?.[line.key];
           return (
             stream !== undefined &&
@@ -9103,6 +9197,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           );
         });
       }
+
 
       protected holdsContent(entry: CastEntry, kind: CastWrite["kind"], target: string): boolean {
         return kind === "image"
@@ -9190,8 +9285,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       rewrite(mount: MountedCast, id: number, view: CastEntryView): void {
         const entry = $._state.casts?.[mount.key]?.entries.find((e) => e.id === id);
         if (entry) {
-          view.written.clear();
-          this.sync(view, entry, [], true);
+          this.sync(view, entry, [], true, undefined, true);
         }
       }
 
@@ -9233,15 +9327,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             mount.views.set(entry.id, view);
           }
           this.mark(view, entry, cast);
-          if (rewrite) {
-            view.written.clear();
-          }
           this.sync(
             view,
             entry,
             pending.filter((write) => write.key === mount.key && write.id === entry.id),
             instant,
             time,
+            rewrite,
           );
           if (built && !instant && $.moving() && $.styled("show")) {
             $.arrive($.collectNodes(view.group));
@@ -9277,7 +9369,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         writes: CastWrite[],
         instant: boolean,
         time?: number,
+        force = false,
       ): void {
+        const signature = (key: string, held: unknown) =>
+          `${JSON.stringify(held)}${entry.emptied?.includes(key) ? "|emptied" : ""}`;
         const now = new Set<string>();
         for (const write of writes) {
           const key = `${write.kind}|${write.target}`;
@@ -9285,7 +9380,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.apply(view, write, instant, time);
           const held = entry[write.kind]?.[write.target];
           if (held) {
-            view.written.set(key, JSON.stringify(held));
+            view.written.set(key, signature(key, held));
           } else {
             view.written.delete(key);
           }
@@ -9293,14 +9388,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const kind of ["image", "text"] as const) {
           for (const [target, held] of Object.entries(entry[kind] ?? {})) {
             const key = `${kind}|${target}`;
-            const signature = JSON.stringify(held);
-            if (now.has(key) || view.written.get(key) === signature) {
-              now.add(key);
+            if (now.has(key)) {
               continue;
             }
             now.add(key);
-            this.apply(view, { id: entry.id, kind, target, [kind]: held }, true);
-            view.written.set(key, signature);
+            if (!force && view.written.get(key) === signature(key, held)) {
+              continue;
+            }
+            if (entry.emptied?.includes(key)) {
+              this.apply(view, { id: entry.id, kind, target, [kind]: held, only: "unmarked" }, true);
+              this.apply(view, { id: entry.id, kind, target, [kind]: null, only: "marked" }, true);
+            } else {
+              this.apply(view, { id: entry.id, kind, target, [kind]: held }, true);
+            }
+            view.written.set(key, signature(key, held));
           }
         }
         for (const key of [...view.written.keys()]) {
@@ -9318,7 +9419,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         time?: number,
       ): void {
-        const elements = $.entryTargets($.collectNodes(view.group), write.target);
+        const elements = $.entryTargets($.collectNodes(view.group), write.target).filter(
+          (el) => !write.only || $._clearMarked.has(el) === (write.only === "marked"),
+        );
         const first = elements[0];
         if (!first) {
           return;

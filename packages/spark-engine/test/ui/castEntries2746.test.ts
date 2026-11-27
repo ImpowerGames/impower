@@ -635,3 +635,127 @@ end
     expect(said).toContain("Hello.");
   });
 });
+
+describe("a cast through step back, a repeated display, the text page and a partly cleared target (#2746)", () => {
+  const line = (speaker: string, text: string, picture?: string) => ({
+    end: 0,
+    speaker: { character: speaker },
+    text: { character_name: [{ text: speaker.toUpperCase() }], dialogue: [{ text }] },
+    ...(picture ? { image: { portrait: [{ control: "show", assets: [picture] }] } } : {}),
+  });
+
+  const narration = (text: string) => ({ end: 0, text: { action: [{ text }] } });
+
+  async function harness(source: string) {
+    const h = createHarness(source, 0, { reactive: true, assets: PICTURES as never });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const ui: any = h.game.module.ui;
+    const show = async (beat: object) => {
+      const coordinator = new Coordinator(h.game, beat as never);
+      await flushMicrotasks(50);
+      return coordinator;
+    };
+    const imageWrites = (id: string) =>
+      (flattenMessages(h.messages) as any[]).filter(
+        (m) => m?.method === "ui/write-image" && m.params?.elements?.includes(id),
+      );
+    return { h, ui, show, imageWrites };
+  }
+
+  const STORY = `${CHARACTERS}
+${castLayout("portrait #clear")}
+scene start
+  [[mia@happy]]
+  MIA: One.
+  Narration.
+  [[mia@sad]]
+  MIA: Three.
+end
+`;
+
+  test("a step back to a line that emptied a kept entry clears the picture it shows", async () => {
+    const { h, ui, imageWrites } = await harness(STORY);
+    h.game.context.system.previewing = undefined;
+    h.game.start();
+    const settle = async () => {
+      for (let i = 0; i < 5; i += 1) {
+        h.game.update({ deltaMS: 10000 } as never);
+        await flushMicrotasks(30);
+      }
+    };
+    const to = async (text: string) => {
+      await settle();
+      for (let i = 0; i < 16 && h.game.story.currentText?.trim() !== text; i += 1) {
+        h.game.clickedToContinue();
+        await settle();
+      }
+      expect(h.game.story.currentText?.trim()).toBe(text);
+    };
+    await to("Three.");
+    const [actor] = ui.findElements("actor") as any[];
+    const portrait = actor.children.find((child: any) => child.name === "portrait");
+    expect(imageWrites(portrait.id).at(-1).params.instructions.at(-1).content.imageNames).toBe("mia@sad");
+    h.reset();
+    const back = await h.game.rollBack("beat");
+    await flushMicrotasks(50);
+    expect(back.moved).toBe(true);
+    expect(ui.casts.entries("main")[0].image).toEqual({});
+    expect((ui.findElements("actor") as any[]).map((el) => el.id)).toEqual([actor.id]);
+    expect(imageWrites(portrait.id).some((m) => m.params.instructions.length === 0)).toBe(true);
+  });
+
+  test("displaying a beat again records it once", async () => {
+    const { ui, show } = await harness(`${CHARACTERS}
+${castLayout("portrait")}
+scene start
+  Begin.
+end
+`);
+    await show(line("mia", "One.", "mia@happy"));
+    const coordinator = await show({
+      ...line("mia", "Two."),
+      image: { portrait: [{ control: "animate", with: "shake" }] },
+    });
+    const before = structuredClone(ui.casts.entries("main"));
+    (coordinator as any).display({ instant: true });
+    await flushMicrotasks(50);
+    expect(ui.casts.entries("main")).toEqual(before);
+  });
+
+  test("a #clear picture stays while its line stays on the text page", async () => {
+    const { ui, show } = await harness(STORY);
+    await show({
+      ...line("mia", "Hello.", "mia@happy"),
+      layout: { textstream: [{ name: "textstream", control: "open" }] },
+    });
+    await show(line("sam", "Two.", "sam@calm"));
+    expect(
+      ui.state.page.entries.some((e: any) => e.text?.some((t: any) => t.text === "Hello.")),
+    ).toBe(true);
+    expect((ui.casts.entries("main") as CastEntry[]).map(pictureOf)).toEqual([
+      ["mia@happy"],
+      ["sam@calm"],
+    ]);
+  });
+
+  test("a #clear element empties while an unmarked element of the same name keeps the picture", async () => {
+    const { h, ui, show, imageWrites } = await harness(`${CHARACTERS}
+${castLayout("portrait.once #clear { image }; portrait.kept")}
+scene start
+  Begin.
+end
+`);
+    await show(line("mia", "One.", "mia@happy"));
+    const [actor] = ui.findElements("actor") as any[];
+    const once = actor.children.find((child: any) => child.name.includes("once"));
+    const kept = actor.children.find((child: any) => child.name.includes("kept"));
+    h.reset();
+    await show(narration("Narration."));
+    expect(imageWrites(once.id).some((m) => m.params.instructions.length === 0)).toBe(true);
+    expect(imageWrites(kept.id).some((m) => m.params.instructions.length === 0)).toBe(false);
+    const [entry] = ui.casts.entries("main") as CastEntry[];
+    expect(pictureOf(entry!)).toEqual(["mia@happy"]);
+    expect(entry!.emptied).toEqual(["image|portrait"]);
+  });
+});
