@@ -437,3 +437,111 @@ describe("a line still typing keeps its reveal when the whole box is replaced (#
     expect(shown(h)).toBe(before);
   });
 });
+
+describe("a typing line's resume position in the cases round 3 left open (#2787)", () => {
+  const typed = (text: string) => [...text].map((t, i) => ({ text: t, after: i * 0.05 }));
+
+  const shownIn = (h: DOMHarness, box: string) =>
+    [...h.overlay.querySelectorAll<HTMLElement>(`.main .${box} .text_letter`)]
+      .filter((el) => {
+        const reveal = (el as any).__sdReveal;
+        return reveal
+          ? reveal.currentTime != null &&
+              reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+          : el.style.opacity === "1";
+      })
+      .map((el) => el.textContent)
+      .join("");
+
+  test("two boxes written the same line at the same time each keep their reveal across a pause and a remount of one", async () => {
+    const h = createDOMHarness(
+      source(`dialogue {
+    if expanded then
+      text.first
+    else
+      text.second
+    end
+  }
+  action {
+    text
+  }`),
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    timed(h);
+    const ui = h.game.module.ui;
+    void ui.text.change("line write", "dialogue", typed("slight problem"), false, 20);
+    void ui.text.change("line write", "action", typed("slight problem"), false, 20);
+    await flushMicrotasks(40);
+    await at(100);
+    const dialogue = shownIn(h, "dialogue");
+    const action = shownIn(h, "action");
+    expect(dialogue.length).toBeGreaterThan(0);
+    expect(dialogue.length).toBeLessThan("slight problem".length);
+    expect(action).toBe(dialogue);
+    h.ui.onPause();
+    await at(1100);
+    h.ui.onUnpause();
+    await toggle(h);
+    expect(h.overlay.querySelector(".main .dialogue .text.second")?.textContent).toBe(
+      "slight problem",
+    );
+    expect(shownIn(h, "dialogue")).toBe(dialogue);
+    expect(shownIn(h, "action")).toBe(action);
+    await at(1200);
+    expect(shownIn(h, "dialogue")).toBe(shownIn(h, "action"));
+  });
+
+  test.each([
+    ["ends with", "ab", "ab"],
+    ["contains", "xaby", "ab"],
+  ])(
+    "a box limited to the speaker whose earlier text %s the typing write's characters resumes after them",
+    async (_name, earlier, current) => {
+      const h = createDOMHarness(
+        source(`dialogue #speaker=raffles {
+    if expanded then
+      text.first
+    else
+      text.second
+    end
+  }`),
+        0,
+        { reactive: true },
+      );
+      await h.ready;
+      timed(h);
+      const ui = h.game.module.ui;
+      ui.line({ speaker: { character: "raffles" }, text: { dialogue: [] } } as any);
+      await ui.text.change("line write", "dialogue", [{ text: earlier }], true);
+      void ui.text.change("line write", "dialogue", typed(current), false, 20);
+      await flushMicrotasks(40);
+      await at(40);
+      const before = shownIn(h, "dialogue");
+      expect(before.startsWith(earlier)).toBe(true);
+      expect(before.length).toBeLessThan(earlier.length + current.length);
+      await toggle(h);
+      expect(h.overlay.querySelector(".main .dialogue .text.second")?.textContent).toBe(
+        earlier + current,
+      );
+      expect(shownIn(h, "dialogue")).toBe(before);
+    },
+  );
+
+  test("in a composed beat, a box that has accumulated two writes shows both after its slot is replaced", async () => {
+    const h = createDOMHarness(source(BOX), 0, { reactive: true });
+    await h.ready;
+    const ui = h.game.module.ui;
+    await ui.text.change("line write", "dialogue", [{ text: "A" }], true);
+    await ui.text.change("line write", "dialogue", [{ text: "B" }], true);
+    expect(texts(h)).toEqual(["first=AB"]);
+    (h.game.context.system as any).composeBeats = true;
+    expect(ui.beginCompose()).toBe(true);
+    h.game.story.EvaluateFunction("toggle", []);
+    ui.refreshLayouts();
+    void ui.endCompose({});
+    await flushMicrotasks(40);
+    expect(texts(h)).toEqual(["second=AB"]);
+  });
+});
