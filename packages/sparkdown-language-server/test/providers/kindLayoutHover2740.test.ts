@@ -65,6 +65,15 @@ describe("hover on a layout named after a kind of text (I-2740)", () => {
     expect(hover?.value).toContain("opens by itself");
   });
 
+  it("says choices opens with a menu and closes on a pick (I-2742)", async () => {
+    const text = "layout choices {\n  choices {\n    choice.0 { text }\n  }\n}\n";
+    const hover = await hoverAt(text, "choices {");
+    expect(hover?.marked).toBe("choices");
+    expect(hover?.value).toContain("opens by itself when a menu comes up");
+    expect(hover?.value).toContain("It closes when an option is picked.");
+    expect(hover?.value).not.toContain("next line belongs");
+  });
+
   it("says nothing on a layout that holds no element of its own name", async () => {
     const text = "layout hud {\n  meter { text \"HP\" }\n}\n";
     const hover = await hoverAt(text, "hud");
