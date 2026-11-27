@@ -8781,8 +8781,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       runLines(layout: string): number {
-        const run = $._state.streamRuns?.[layout];
+        const run = this.runOf(layout);
         return !run || run.ends ? 0 : run.lines;
+      }
+
+      protected runOf(layout: string): StreamRunState | undefined {
+        const runs = $._state.streamRuns;
+        return runs && Object.hasOwn(runs, layout) ? runs[layout] : undefined;
       }
 
       loaded(): void {
@@ -8826,10 +8831,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 event.control === LayoutVerb.close),
           );
           const nodes = layoutStreams(sparkle, layout);
-          const lane = run?.lanes[layout];
+          const lane = run?.lanes.get(layout);
           const gathered = lane !== undefined;
           const member = nodes.some((node) => this.entryFor(node, instructions));
-          const previous = $._state.streamRuns?.[layout];
+          const previous = this.runOf(layout);
           const repeated = nodes.some(
             (_, index) => states[streamKey(layout, index)]?.beat === beat,
           );
@@ -8840,7 +8845,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           } else if (member) {
             runs[layout] = {
               lines: (restarted || !previous || previous.ends ? 0 : previous.lines) + 1,
-              ...(!gathered || run?.ends ? { ends: true as const } : {}),
+              ...(!gathered || lane.ends ? { ends: true as const } : {}),
             };
           }
           nodes.forEach((node, index) => {
@@ -8850,7 +8855,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const ahead = repeat
               ? stream.entries.slice(stream.entries.length - (stream.reserved ?? 0))
               : lane
-                ? lane.flatMap((next) => {
+                ? lane.ahead.flatMap((next) => {
                     const entry = this.entryFor(node, next);
                     return entry && !entry.shown ? [entry] : [];
                   })
