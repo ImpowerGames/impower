@@ -3027,7 +3027,7 @@ export default class UIManager extends Manager {
     const hiding: { pictureEl: HTMLElement; exits: ReturnType<AnimationPlayer["add"]> }[] = [];
     const starting: { pictureEl: HTMLElement; animation: globalThis.Animation; start: () => void }[] = [];
     const newMovies: { video: HTMLVideoElement; after: AnimationPlayer }[] = [];
-    const hiddenMovies: HTMLVideoElement[] = [];
+    const hiddenMovies = new Map<HTMLVideoElement, ReturnType<AnimationPlayer["add"]>>();
 
     const applyStyle = this.applyStyle.bind(this);
 
@@ -3122,9 +3122,7 @@ export default class UIManager extends Manager {
             }
             for (const imageEl of imageEls) {
               for (const video of Array.from(imageEl.querySelectorAll("video"))) {
-                if (!hiddenMovies.includes(video)) {
-                  hiddenMovies.push(video);
-                }
+                hiddenMovies.set(video, [...(hiddenMovies.get(video) ?? []), ...targetAnimations]);
               }
             }
           }
@@ -3257,13 +3255,6 @@ export default class UIManager extends Manager {
     if (targetPlayers.some((player) => player.endTimeUndelayed > 0)) {
       startTime ??= Number(document.timeline.currentTime);
     }
-    const targetsPlayed = new Map(
-      targetPlayers.map((player) => [player, player.play(startTime)]),
-    );
-    for (const { video, after } of newMovies) {
-      void targetsPlayed.get(after)?.then(() => this.startMovie(video));
-    }
-    const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
     const ended = new Set<globalThis.Animation>();
     const endWaiters = new Set<() => void>();
     const onExitEnd = (animation: globalThis.Animation) => {
@@ -3272,6 +3263,13 @@ export default class UIManager extends Manager {
         check();
       }
     };
+    const targetsPlayed = new Map(
+      targetPlayers.map((player) => [player, player.play(startTime, onExitEnd)]),
+    );
+    for (const { video, after } of newMovies) {
+      void targetsPlayed.get(after)?.then(() => this.startMovie(video));
+    }
+    const exiting = new Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>();
     const playEffects = (
       effects: ImageEffect[],
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
@@ -3301,10 +3299,11 @@ export default class UIManager extends Manager {
       ...playEffects(enterEffects),
       ...playEffects(exitEffects, exiting, onExitEnd),
     ]);
-    const exitsEnded = (el: HTMLElement): Promise<void> => {
-      const exits = [...exiting].flatMap(([target, animations]) =>
+    const exitsOf = (el: HTMLElement) =>
+      [...exiting].flatMap(([target, animations]) =>
         target === el || el.contains(target) ? animations : [],
       );
+    const exitsEnded = (exits: globalThis.Animation[]): Promise<void> => {
       if (exits.length === 0) {
         return played.then(() => undefined);
       }
@@ -3337,15 +3336,18 @@ export default class UIManager extends Manager {
     for (const { pictureEl, animation, start } of starting) {
       this.whenExitStarts(pictureEl, [animation], start);
     }
-    const removals = toDestroy.map((el) => exitsEnded(el).then(() => destroy(el)));
-    const removed = Promise.all([played, ...removals]).then(() => {
-      for (const video of hiddenMovies) {
-        const span = video.closest("span.instance");
-        this.releaseMovies(video);
-        endTravelsWithin(span ?? video);
-        (span ?? video).remove();
-      }
-    });
+    const removals = [
+      ...toDestroy.map((el) => exitsEnded(exitsOf(el)).then(() => destroy(el))),
+      ...[...hiddenMovies].map(([video, exits]) =>
+        exitsEnded(exits).then(() => {
+          const span = video.closest("span.instance");
+          this.releaseMovies(video);
+          endTravelsWithin(span ?? video);
+          (span ?? video).remove();
+        }),
+      ),
+    ];
+    const removed = Promise.all([played, ...removals]);
     if (!reportsExit) {
       await removed;
       return;

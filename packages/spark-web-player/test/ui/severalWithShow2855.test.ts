@@ -1,9 +1,13 @@
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
+import { stubMedia } from "./mediaStubs";
 import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
 
 const source = `define P as image with
   src = "https://example.com/p.png"
+end
+define movie as video with
+  src = "/file:/proj/movie.webm?v=1"
 end
 define Q as image with
   src = "https://example.com/q.png"
@@ -24,8 +28,9 @@ scene start
 end
 `;
 
-async function setup() {
-  const h = createDOMHarness(source, 0, { reactive: true });
+async function setup(shown = "P") {
+  const h = createDOMHarness(source.replace("[[show portrait P]]", `[[show portrait ${shown}]]`), 0, { reactive: true });
+  stubMedia(h.overlay);
   await h.ready;
   h.jumpTo("start");
   await h.display(h.nextBeat()!, true);
@@ -157,6 +162,24 @@ describe("every `with` on a `show` or `hide` line plays on its picture (I-2855)"
     await advanceTo(h, 2200);
     expect(before[0]!.isConnected).toBe(false);
     expect(arriving[0]!.isConnected).toBe(true);
+  });
+
+  test("a movie hidden by a bare `hide` is removed when the layer's exits end, while a transition's screen arm still runs", async () => {
+    const h = await setup("movie");
+    const movie = h.overlay.querySelector(".portrait .image video");
+    expect(movie).toBeTruthy();
+    const beat = h.game.module.interpreter.parse("[[hide portrait with screenfade over 1s with shake over 0.1s]]", "main", {} as any);
+    void h.game.module.ui.image.write("portrait", beat.image!["portrait"]!, false);
+    await settle(h);
+    const layer = h.overlay.querySelector(".portrait");
+    const screen = h.overlay.querySelector(".screen");
+    const exitsEnd = Math.max(...animations.filter((a) => a.effect.target === layer).map((a) => Number(a.startTime) + a.end));
+    const arm = animations.filter((a) => a.effect.target === screen && Number(a.effect.timing.duration) > 0);
+    expect(arm.map((a) => Number(a.effect.timing.duration))).toEqual([1000]);
+    expect(exitsEnd).toBeLessThan(1100);
+    await advanceTo(h, exitsEnd + 50);
+    expect(arm[0]!.playState).toBe("running");
+    expect(movie!.isConnected).toBe(false);
   });
 
   test("`[[hide portrait P with fade over 0.5s with spin over 2s once]]` plays both exits and removes the picture after the longer", async () => {
