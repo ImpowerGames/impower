@@ -32,7 +32,9 @@ describe("scanAssetDirectives", () => {
 
   it("ignores verbs that need nothing loaded", () => {
     const { beat } = scan("[[hide portrait bunny]] ((stop music theme))");
-    expect(beat).toBeUndefined();
+    expect(beat?.image).toBeUndefined();
+    expect(beat?.audio).toBeUndefined();
+    expect(beat?.writes).toEqual([{ target: "portrait", hide: true }]);
   });
 
   it("records audio played or queued on a channel", () => {

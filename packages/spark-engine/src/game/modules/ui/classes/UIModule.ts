@@ -104,6 +104,7 @@ import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
+import { keyframeScale } from "../utils/keyframeScale";
 import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
@@ -219,6 +220,7 @@ import {
   type MorphLayerPlay,
   type MorphPicture,
   type LayeredPicture,
+  type LineAnimation,
   type MorphPlay,
   type PictureFraming,
   type PictureTravel,
@@ -7818,6 +7820,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      predict(assets: string[]): WriteImageInstruction["content"] | undefined {
+        return this.resolve([{ control: "show", assets }], true)[0]?.content;
+      }
+
+      effectScale(event: ImageInstruction): number {
+        const out = this.resolve([event], true)[0];
+        const lineAnimations = out?.targetAnimations ?? [];
+        const arms = [...new Set(lineAnimations.flatMap(({ arm }) => (arm == null ? [] : [arm])))];
+        return arms.reduce(
+          (product, arm) => product * keyframeScale(lineAnimations.filter((a) => a.arm === arm)),
+          keyframeScale(out?.content?.enterAnimations ?? []) *
+            keyframeScale(lineAnimations.filter(({ arm }) => arm == null)),
+        );
+      }
+
+      shown(target: string): { assets: string[]; at?: string } | undefined {
+        let shown: ImageInstruction | undefined;
+        for (const event of $._state.image?.[target] ?? []) {
+          if (event.assets?.length) {
+            if (event.control === "show") {
+              shown = event;
+            }
+          } else if (event.control === "hide") {
+            shown = undefined;
+          }
+        }
+        return shown?.assets?.length
+          ? { assets: shown.assets, ...(shown.at ? { at: shown.at } : {}) }
+          : undefined;
+      }
+
       async clearMarked(targets: readonly string[]) {
         await Promise.all(
           targets.map(async (target) => {
@@ -7901,8 +7934,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               timing: $.getTravelTiming(e, instant),
             };
           }
-          const targetAnimations: Animation[] = [];
-          const affected: { target: string; animations: Animation[] }[] = [];
+          const targetAnimations: LineAnimation[] = [];
           const isFirstContentReveal =
             e.control === "show" && e.assets && e.assets.length > 0;
           if (isFirstContentReveal) {
@@ -7926,32 +7958,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : [{ name: "hide", after: e.after, over: e.over, ease: e.ease }];
           const definitions = (events: typeof showEvents) =>
             events.flatMap((event) => $.getAnimationDefinition(event, instant) ?? []);
-          const assets = e.assets;
-          for (const entry of entries) {
-            const entryTransition = $.context?.transition?.[entry.name];
-            if (!entryTransition) {
-              continue;
-            }
-            for (const [k, v] of Object.entries(entryTransition)) {
-              if (!k.startsWith("$") && !k.startsWith("on_")) {
-                const animateWith = typeof v === "string" ? v : v?.$name;
-                if (animateWith) {
-                  const animation = $.getAnimationDefinition(
-                    { name: animateWith, ...$.withTiming(entry) },
-                    instant,
-                  );
-                  if (animation) {
-                    const arm = affected.find((a) => a.target === k);
-                    if (arm) {
-                      arm.animations.push(animation);
-                    } else {
-                      affected.push({ target: k, animations: [animation] });
-                    }
-                  }
-                }
+          const armsOf = (entry: WithInstruction): LineAnimation[] =>
+            Object.entries($.context?.transition?.[entry.name] ?? {}).flatMap(([k, v]) => {
+              if (k.startsWith("$") || k.startsWith("on_")) {
+                return [];
               }
-            }
-          }
+              const animateWith = typeof v === "string" ? v : v?.$name;
+              const animation = animateWith
+                ? $.getAnimationDefinition({ name: animateWith, ...$.withTiming(entry) }, instant)
+                : undefined;
+              return animation ? [{ ...animation, arm: k }] : [];
+            });
+          const inWrittenOrder = (eventOf: (entry: WithInstruction) => typeof showEvents[number]) =>
+            entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
+          const assets = e.assets;
           if (assets && assets.length > 0) {
             const content = $.withPictureLooks(() => {
               const imageNames = assets.join(" ");
@@ -8044,12 +8064,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 content.exitAnimations = exitAnimations;
               }
             } else if (e.control === "animate" && entries.length > 1) {
-              targetAnimations.push(...definitions(showEvents));
+              targetAnimations.push(...inWrittenOrder((entry) => $.armEvent(entry, "on_show")));
             } else if (e.control === "animate") {
               const enterAnimations = definitions(showEvents);
               if (enterAnimations.length > 0) {
                 content.enterAnimations = enterAnimations;
               }
+            }
+            if (e.control !== "animate" || entries.length <= 1) {
+              targetAnimations.push(...entries.flatMap(armsOf));
             }
             out.content = content;
             if (framing) {
@@ -8057,29 +8080,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           } else {
             if (e.control === "hide") {
-              targetAnimations.push(...definitions(hideEvents));
+              targetAnimations.push(
+                ...(entries.length ? inWrittenOrder((entry) => $.armEvent(entry, "on_hide")) : definitions(hideEvents)),
+              );
             } else if (e.control === "show") {
               if (framing) {
                 out.framing = framing;
               }
-              targetAnimations.push(...definitions(showEvents));
+              targetAnimations.push(
+                ...(entries.length ? inWrittenOrder((entry) => $.armEvent(entry, "on_show")) : definitions(showEvents)),
+              );
             } else if (e.control === "animate") {
-              for (const entry of entries) {
-                const animation = $.getAnimationDefinition(
-                  { name: entry.name, ...$.withTiming(entry) },
-                  instant,
-                );
-                if (animation) {
-                  targetAnimations.push(animation);
-                }
-              }
+              targetAnimations.push(...inWrittenOrder((entry) => ({ name: entry.name, ...$.withTiming(entry) })));
             }
           }
           if (targetAnimations.length > 0) {
             out.targetAnimations = targetAnimations;
-          }
-          if (affected.length > 0) {
-            out.affected = affected;
           }
           instructions.push(out);
         }

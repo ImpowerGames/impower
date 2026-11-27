@@ -221,6 +221,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
     "beat",
     1,
   ],
@@ -627,6 +631,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
     "ui.style.updateWaiting",
     "continue_indicator",
     {
@@ -800,6 +808,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "opacity": "1",
       "transition": null,
     },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
   ],
   [
     "pick",
@@ -1065,6 +1077,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "opacity": "1",
       "transition": null,
     },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
   ],
   [
     "beat",
@@ -1463,6 +1479,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
     "ui.style.updateWaiting",
     "continue_indicator",
     {
@@ -1630,6 +1650,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "opacity": "1",
       "transition": null,
     },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
   ],
   [
     "pick",
@@ -1897,6 +1921,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     "[function]",
   ],
   [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
     "beat",
     1,
   ],
@@ -2102,6 +2130,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     "[function]",
   ],
   [
+    "ui.afterCompose",
+    "[function]",
+  ],
+  [
     "beat",
     2,
   ],
@@ -2256,6 +2288,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "opacity": "1",
       "transition": null,
     },
+  ],
+  [
+    "ui.afterCompose",
+    "[function]",
   ],
   [
     "ui.afterCompose",
