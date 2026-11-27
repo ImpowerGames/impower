@@ -1,4 +1,5 @@
 import { type AssetItem } from "@impower/spark-engine/src/game/modules/assets/types/AssetItem";
+import { loadingBeats } from "@impower/spark-engine/src/game/modules/assets/utils/loadingBeats";
 import {
   beatIndexIn,
   previewWindow,
@@ -61,7 +62,8 @@ export function planPreviewHint(
   const locator = programLocator(program);
   const address = locator.addressAt(uri, line, { beat: "last" });
   const scene = locator.sceneAt(address);
-  const entry = scene === undefined ? undefined : sceneAssets[scene];
+  const listed = scene === undefined ? undefined : sceneAssets[scene];
+  const entry = listed && { ...listed, beats: loadingBeats(listed) };
   const known = locator.locationOf(address) !== undefined;
   const beat =
     entry && known

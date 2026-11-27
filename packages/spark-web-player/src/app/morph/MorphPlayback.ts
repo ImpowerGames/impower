@@ -226,14 +226,59 @@ export const browserOutlineEncoder: OutlineEncoder = async (canvas) => {
   return { url, release: () => urls.revokeObjectURL(url) };
 };
 
+export interface Hold {
+  readonly ahead: boolean;
+  release(): boolean;
+}
+
+export class Holders {
+  protected shownHolds = 0;
+  protected aheadHolds = 0;
+
+  hold(ahead: boolean): Hold {
+    if (ahead) this.aheadHolds += 1;
+    else this.shownHolds += 1;
+    let held = true;
+    return {
+      ahead,
+      release: () => {
+        if (!held) return false;
+        held = false;
+        if (ahead) this.aheadHolds -= 1;
+        else this.shownHolds -= 1;
+        return true;
+      },
+    };
+  }
+
+  get idle(): boolean {
+    return this.shownHolds === 0 && this.aheadHolds === 0;
+  }
+
+  get shown(): boolean {
+    return this.shownHolds > 0;
+  }
+}
+
 interface Outline {
   key: string;
   width: number;
   height: number;
-  users: number;
+  holders: Holders;
   ready: Promise<string | undefined>;
   url?: string;
   release?: () => void;
+  distance?: number;
+  stale?: boolean;
+}
+
+interface Kept {
+  bytes: number;
+  distance?: number;
+  stale?: boolean;
+  idle: boolean;
+  counted: boolean;
+  drop: () => void;
 }
 
 type OutlineSource =
@@ -245,11 +290,16 @@ interface OutlineLayer {
   raster?: { image?: CanvasImageSource; width: number; height: number };
 }
 
+interface OutlineHold {
+  readonly outline: Outline;
+  release(): void;
+}
+
 interface MaskOutline {
   picture: LayeredPicture;
   state: "waiting" | "none" | "css" | "shown";
-  shown?: Outline;
-  pending?: Outline;
+  shown?: OutlineHold;
+  pending?: OutlineHold;
   natural?: { width: number; height: number };
   late?: boolean;
 }
@@ -647,6 +697,16 @@ const HOST_STYLE = "position:absolute;inset:0;overflow:hidden;pointer-events:non
 
 let occurrencePrefixes = 0;
 
+interface Drawing {
+  key: string;
+  bytes: number;
+  holders: Holders;
+  distance?: number;
+  stale?: boolean;
+  made: Promise<SvgLayerRaster | undefined>;
+  raster?: SvgLayerRaster;
+}
+
 export interface MorphPlaybackOptions {
   host?: MorphHost;
   seed?: string;
@@ -743,22 +803,45 @@ export class MorphPlayback {
     }
     if (options.pictureCanvas) this.pictureCanvas = options.pictureCanvas;
     if (options.readPose) this.readPose = options.readPose;
-    if (options.rasterizeSvgLayer) this.rasterizeSvgLayer = options.rasterizeSvgLayer;
+    if (options.rasterizeSvgLayer) {
+      this.rasterizeSvgLayer = options.rasterizeSvgLayer;
+      this.clearDrawings();
+    }
     if (options.encodeOutline) this.encodeOutline = options.encodeOutline;
   }
 
   protected outlines = new Map<string, Outline>();
   protected static readonly IDLE_OUTLINES = 8;
 
-  outline(source: Extract<OutlineSource, { state: "ready" }>): Outline {
+  outline(source: Extract<OutlineSource, { state: "ready" }>, forecast?: number): OutlineHold {
     const known = this.outlines.get(source.key);
+    if (forecast !== undefined) this.recording?.add(`outline ${source.key}`);
     if (known) {
       this.outlines.delete(source.key);
       this.outlines.set(source.key, known);
-      known.users += 1;
-      return known;
+      if (forecast !== undefined) {
+        known.distance = known.stale || known.distance === undefined ? forecast : Math.min(known.distance, forecast);
+        known.stale = false;
+      }
+      return this.holdOutline(known, forecast);
     }
-    const outline: Outline = { key: source.key, width: source.width, height: source.height, users: 1, ready: Promise.resolve(undefined) };
+    const bytes = source.width * source.height * FRAME_BYTES_PER_PIXEL;
+    if (forecast !== undefined && !this.makeRoom(bytes, forecast)) {
+      this.refuse(`outline ${source.key}`, bytes, forecast);
+      const refused: Outline = { key: source.key, width: source.width, height: source.height, holders: new Holders(), ready: Promise.resolve(undefined) };
+      return this.holdOutline(refused, forecast);
+    }
+    if (forecast === undefined) this.makeRoom(bytes, 0);
+    this.refused.delete(`outline ${source.key}`);
+    const outline: Outline = {
+      key: source.key,
+      width: source.width,
+      height: source.height,
+      holders: new Holders(),
+      ready: Promise.resolve(undefined),
+      ...(forecast !== undefined ? { distance: forecast } : {}),
+    };
+    const hold = this.holdOutline(outline, forecast);
     this.outlines.set(source.key, outline);
     const canvas = this.overlay.ownerDocument.createElement("canvas");
     canvas.width = source.width;
@@ -787,16 +870,34 @@ export class MorphPlayback {
         });
     }
     this.trimOutlines();
-    return outline;
+    return hold;
   }
 
-  releaseOutline(outline: Outline) {
-    outline.users -= 1;
+  protected holdOutline(outline: Outline, forecast?: number): OutlineHold {
+    const hold = outline.holders.hold(forecast !== undefined);
+    return {
+      outline,
+      release: () => {
+        if (hold.release()) this.settleOutline(outline);
+      },
+    };
+  }
+
+  protected settleOutline(outline: Outline) {
+    if (this.outlines.get(outline.key) !== outline) return;
+    if (outline.holders.idle && outline.distance !== undefined) this.makeRoom(0, 0);
     this.trimOutlines();
   }
 
+  protected dropOutline(outline: Outline) {
+    if (this.outlines.get(outline.key) === outline) this.outlines.delete(outline.key);
+    outline.release?.();
+    outline.release = undefined;
+    outline.url = undefined;
+  }
+
   protected trimOutlines() {
-    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0);
+    const idle = [...this.outlines.values()].filter((outline) => outline.holders.idle && outline.distance === undefined);
     for (const outline of idle.slice(0, Math.max(0, idle.length - MorphPlayback.IDLE_OUTLINES))) {
       this.outlines.delete(outline.key);
       outline.release?.();
@@ -826,6 +927,209 @@ export class MorphPlayback {
       });
     }
     return loading;
+  }
+
+  protected drawings = new Map<string, Drawing>();
+  recording?: Set<string>;
+  protected sources = new WeakMap<SvgLayerSource, number>();
+  protected sourceCount = 0;
+
+  raster(
+    source: SvgLayerSource,
+    natural: { width: number; height: number },
+    width: number,
+    height: number,
+    doc: Document,
+    forecast?: number,
+    byText = false,
+  ): Promise<SvgLayerRaster | undefined> {
+    const drawn = byText ? `${source.viewBox ? 1 : 0} ${source.text}` : `file ${this.sourceId(source)}`;
+    const key = `${width}x${height} ${natural.width}x${natural.height} ${drawn}`;
+    let drawing = this.drawings.get(key);
+    if (!drawing) {
+      const bytes = width * height * FRAME_BYTES_PER_PIXEL;
+      if (forecast !== undefined) {
+        if (!this.makeRoom(bytes, forecast)) {
+          this.refuse(key, bytes, forecast);
+          return Promise.resolve(undefined);
+        }
+      } else {
+        this.makeRoom(bytes, 0);
+      }
+      this.refused.delete(key);
+      const made: Drawing = { key, bytes, holders: new Holders(), made: Promise.resolve(undefined), ...(forecast !== undefined ? { distance: forecast } : {}) };
+      made.made = this.rasterizeSvgLayer(source, natural, width, height, doc)
+        .catch(() => undefined)
+        .then((raster) => {
+          if (this.drawings.get(key) !== made) {
+            raster?.release();
+            return undefined;
+          }
+          if (!raster) this.drawings.delete(key);
+          else made.raster = raster;
+          return raster;
+        });
+      this.drawings.set(key, made);
+      drawing = made;
+    } else if (forecast !== undefined) {
+      drawing.distance = drawing.stale ? forecast : Math.min(drawing.distance ?? forecast, forecast);
+      drawing.stale = false;
+    }
+    const held = drawing;
+    if (forecast !== undefined) this.recording?.add(key);
+    const hold = held.holders.hold(forecast !== undefined);
+    return held.made.then((raster) => {
+      const release = () => {
+        if (hold.release()) this.settleDrawing(held);
+      };
+      if (!raster) {
+        release();
+        return undefined;
+      }
+      return { image: raster.image, release };
+    });
+  }
+
+  protected sourceId(source: SvgLayerSource): number {
+    let id = this.sources.get(source);
+    if (id === undefined) {
+      id = ++this.sourceCount;
+      this.sources.set(source, id);
+    }
+    return id;
+  }
+
+  protected settleDrawing(drawing: Drawing) {
+    if (!drawing.holders.idle || this.drawings.get(drawing.key) !== drawing) return;
+    if (drawing.distance === undefined) this.dropDrawing(drawing);
+    else this.makeRoom(0, 0);
+  }
+
+  protected dropDrawing(drawing: Drawing) {
+    if (this.drawings.get(drawing.key) === drawing) this.drawings.delete(drawing.key);
+    drawing.raster?.release();
+    drawing.raster = undefined;
+  }
+
+  protected refused = new Map<string, { bytes: number; distance: number }>();
+  protected static readonly REFUSALS = 256;
+
+  protected refuse(key: string, bytes: number, distance: number) {
+    this.recording?.add(key);
+    this.refused.delete(key);
+    this.refused.set(key, { bytes, distance });
+    if (this.refused.size > MorphPlayback.REFUSALS) this.refused.delete(this.refused.keys().next().value!);
+  }
+
+  protected fits(bytes: number, distance: number): boolean {
+    const budget = this.frameBudget?.() ?? Infinity;
+    let room = budget - this.drawnAheadBytes();
+    for (const kept of this.kept()) {
+      if (kept.idle && (kept.stale || kept.distance === undefined ? Infinity : kept.distance) > distance) room += kept.bytes;
+    }
+    return bytes <= room;
+  }
+
+  protected kept(): Kept[] {
+    const kept: Kept[] = [];
+    for (const drawing of this.drawings.values()) {
+      kept.push({
+        bytes: drawing.bytes,
+        ...(drawing.distance !== undefined ? { distance: drawing.distance } : {}),
+        ...(drawing.stale ? { stale: true } : {}),
+        idle: drawing.holders.idle,
+        counted: !drawing.holders.shown,
+        drop: () => this.dropDrawing(drawing),
+      });
+    }
+    for (const outline of this.outlines.values()) {
+      if (outline.distance === undefined) continue;
+      kept.push({
+        bytes: outline.width * outline.height * FRAME_BYTES_PER_PIXEL,
+        distance: outline.distance,
+        ...(outline.stale ? { stale: true } : {}),
+        idle: outline.holders.idle,
+        counted: !outline.holders.shown,
+        drop: () => this.dropOutline(outline),
+      });
+    }
+    return kept;
+  }
+
+  protected makeRoom(bytes: number, distance: number): boolean {
+    const budget = this.frameBudget?.() ?? Infinity;
+    let held = this.drawnAheadBytes();
+    if (held + bytes <= budget) return true;
+    const rank = (kept: Kept) => (kept.stale || kept.distance === undefined ? Infinity : kept.distance);
+    const idle = this.kept()
+      .filter((kept) => kept.idle && (bytes === 0 || rank(kept) > distance))
+      .sort((a, b) => rank(b) - rank(a) || (b.distance ?? Infinity) - (a.distance ?? Infinity) || 0);
+    for (const kept of idle) {
+      if (held + bytes <= budget) break;
+      kept.drop();
+      held -= kept.bytes;
+    }
+    return held + bytes <= budget;
+  }
+
+  drawnAheadBytes(): number {
+    let bytes = 0;
+    for (const kept of this.kept()) if (kept.counted) bytes += kept.bytes;
+    return bytes;
+  }
+
+  retain(keys: readonly string[], distance: number): boolean {
+    const marks: { distance?: number; stale?: boolean }[] = [];
+    const refusals: { bytes: number }[] = [];
+    for (const key of keys) {
+      const outline = key.startsWith("outline ") ? this.outlines.get(key.slice("outline ".length)) : undefined;
+      const drawing = outline ? undefined : this.drawings.get(key);
+      const mark = outline ?? (drawing?.raster ? drawing : undefined);
+      const refused = mark ? undefined : this.refused.get(key);
+      if (mark) marks.push(mark);
+      else if (refused) refusals.push(refused);
+      else return false;
+    }
+    for (const mark of marks) {
+      mark.distance = mark.stale || mark.distance === undefined ? distance : Math.min(mark.distance, distance);
+      mark.stale = false;
+    }
+    if (refusals.some((refused) => this.fits(refused.bytes, distance))) return false;
+    this.makeRoom(0, 0);
+    return true;
+  }
+
+  beginForecast() {
+    for (const drawing of this.drawings.values()) drawing.stale = true;
+    for (const outline of this.outlines.values()) if (outline.distance !== undefined) outline.stale = true;
+    this.makeRoom(0, 0);
+  }
+
+  endForecast() {
+    for (const drawing of [...this.drawings.values()]) {
+      if ((drawing.stale || drawing.distance === undefined) && drawing.holders.idle) this.dropDrawing(drawing);
+    }
+    for (const outline of [...this.outlines.values()]) {
+      if (outline.distance !== undefined && outline.stale && outline.holders.idle) this.dropOutline(outline);
+    }
+    this.makeRoom(0, 0);
+  }
+
+  dropForecasts() {
+    this.refused.clear();
+    for (const drawing of [...this.drawings.values()]) {
+      if (drawing.holders.idle) this.dropDrawing(drawing);
+      else delete drawing.distance;
+    }
+    for (const outline of [...this.outlines.values()]) {
+      if (outline.distance === undefined) continue;
+      if (outline.holders.idle) this.dropOutline(outline);
+      else delete outline.distance;
+    }
+  }
+
+  protected clearDrawings() {
+    for (const drawing of [...this.drawings.values()]) this.dropDrawing(drawing);
   }
 
   protected reporting: MorphHost = {
@@ -1106,11 +1410,14 @@ export class MorphPlayback {
     group: MorphGroup = new MorphGroup(),
     pictures: LayeredPicture[] = [],
     held = false,
+    ahead: { forecast?: number; reach?: { zoom?: number; scale?: number }; measure?: (layer: MorphLayer) => void } = {},
   ): MorphLayer {
-    const layer = new MorphLayer(this, span, content, background, kind, base, group, pictures);
+    const layer = new MorphLayer(this, span, content, background, kind, base, group, pictures, ahead.forecast);
+    if (ahead.reach) layer.widen(ahead.reach);
     if (held) layer.hold();
     this.layers.add(layer);
     (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph = layer;
+    ahead.measure?.(layer);
     layer.start();
     return layer;
   }
@@ -1179,7 +1486,7 @@ export class MorphPlayback {
 
   frameBytes(): number {
     let bytes = 0;
-    for (const layer of this.layers) bytes += layer.poseBytes;
+    for (const layer of this.layers) if (layer.forecast === undefined) bytes += layer.poseBytes;
     return bytes;
   }
 
@@ -1319,6 +1626,7 @@ export class MorphLayer {
     protected base: string,
     protected group: MorphGroup,
     protected pictures: LayeredPicture[] = [],
+    readonly forecast?: number,
   ) {
     this.layers = cssList(background).reverse();
     group.add(this);
@@ -1331,6 +1639,10 @@ export class MorphLayer {
 
   get active(): boolean {
     return !this.frozen && !this.disposed;
+  }
+
+  protected get reporter(): ((params: MorphStillParams) => void) | undefined {
+    return this.forecast === undefined ? this.playback.reportStill : undefined;
   }
 
   get pending(): boolean {
@@ -1605,7 +1917,7 @@ export class MorphLayer {
   protected report(still: StillPicture, undrawn: Undrawn) {
     if (still.reported) return;
     still.reported = true;
-    this.playback.reportStill?.({
+    this.reporter?.({
       image: still.picture.name ?? still.picture.files[0]?.name ?? "",
       file: undrawn.file,
       reason: undrawn.reason,
@@ -1620,7 +1932,7 @@ export class MorphLayer {
       this.flushMorphReports(image);
       return;
     }
-    this.playback.reportStill?.(report);
+    this.reporter?.(report);
   }
 
   protected flushMorphReports(image: ImageState | undefined) {
@@ -1630,7 +1942,7 @@ export class MorphLayer {
     if (rest && !rest.undrawn && (rest.loading || !rest.files || [...rest.rasters.values()].some((raster) => raster.busy || !raster.image))) return;
     image.pendingReports = undefined;
     if (rest?.undrawn) return;
-    for (const report of pending) this.playback.reportStill?.(report);
+    for (const report of pending) this.reporter?.(report);
   }
 
   protected releaseStill(still: StillPicture) {
@@ -1737,7 +2049,7 @@ export class MorphLayer {
     if (!bitmap?.vector) return;
     next.pending += 1;
     void this.playback
-      .rasterizeSvgLayer(bitmap.vector, { width: bitmap.width, height: bitmap.height }, next.w, next.h, this.span.ownerDocument)
+      .raster(bitmap.vector, { width: bitmap.width, height: bitmap.height }, next.w, next.h, this.span.ownerDocument, this.forecast)
       .catch(() => undefined)
       .then((made) => {
         if (view.next !== next || view.files.released || !this.active) {
@@ -1775,11 +2087,15 @@ export class MorphLayer {
   protected settling = false;
 
   size(reach: { zoom?: number; scale?: number }) {
+    if (this.widen(reach)) this.relayout();
+  }
+
+  widen(reach: { zoom?: number; scale?: number }): boolean {
     const zoom = Math.max(this.sizing.zoom, reach.zoom !== undefined && Number.isFinite(reach.zoom) ? reach.zoom : 1);
     const scale = Math.max(this.sizing.scale, reach.scale !== undefined && Number.isFinite(reach.scale) ? reach.scale : 1);
-    if (zoom === this.sizing.zoom && scale === this.sizing.scale) return;
+    if (zoom === this.sizing.zoom && scale === this.sizing.scale) return false;
     this.sizing = { ...this.sizing, zoom, scale };
-    this.relayout();
+    return true;
   }
 
   protected relayout() {
@@ -1811,6 +2127,10 @@ export class MorphLayer {
   }
 
   protected presized?: { width: number; height: number };
+
+  get measured(): boolean {
+    return this.presized !== undefined;
+  }
 
   presize() {
     const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
@@ -1895,7 +2215,7 @@ export class MorphLayer {
       if (!image.picture || image.reported || this.canvasDrawn(image)) continue;
       if (this.stills.some((still) => still.under === image)) continue;
       image.reported = true;
-      this.playback.reportStill?.({ image: image.plays[0]!.play.ref.image, file: image.picture.files[0]?.name ?? "", reason: "late" });
+      this.reporter?.({ image: image.plays[0]!.play.ref.image, file: image.picture.files[0]?.name ?? "", reason: "late" });
     }
     if (changed) this.build();
     for (const resolve of this.drawnWaiters.splice(0)) resolve();
@@ -2046,7 +2366,7 @@ export class MorphLayer {
         .filter(([, bitmap]) => bitmap.vector)
         .map(async ([index, bitmap]) => {
           const raster = await this.playback
-            .rasterizeSvgLayer(bitmap.vector!, { width: bitmap.width, height: bitmap.height }, first.width, first.height, doc)
+            .raster(bitmap.vector!, { width: bitmap.width, height: bitmap.height }, first.width, first.height, doc, this.forecast)
             .catch(() => undefined);
           return [index, raster] as const;
         }),
@@ -2127,8 +2447,8 @@ export class MorphLayer {
       if (entry.state === "css") continue;
       const { layer, span } = entry.picture;
       for (let k = 0; k < span; k++) layers[layer + k] = "none";
-      layers[layer] = entry.shown?.url ? `url("${entry.shown.url}")` : HIDDEN_MASK;
-      if (entry.shown?.url && entry.natural) sized.push({ cssIndex: this.layers.length - 1 - layer, natural: entry.natural });
+      layers[layer] = entry.shown?.outline.url ? `url("${entry.shown.outline.url}")` : HIDDEN_MASK;
+      if (entry.shown?.outline.url && entry.natural) sized.push({ cssIndex: this.layers.length - 1 - layer, natural: entry.natural });
     }
     const value = [...layers].reverse().join(", ");
     if (this.span.style.getPropertyValue("mask-image") === value) return;
@@ -2243,12 +2563,12 @@ export class MorphLayer {
       }
       if (source.state === "ready") {
         entry.natural = source.natural;
-        if (held && (held.key === source.key || (held.width >= source.width && held.height >= source.height))) continue;
-        if (entry.pending) this.playback.releaseOutline(entry.pending);
-        const outline = this.playback.outline(source);
+        if (held && (held.outline.key === source.key || (held.outline.width >= source.width && held.outline.height >= source.height))) continue;
+        entry.pending?.release();
+        const outline = this.playback.outline(source, this.forecast);
         entry.pending = outline;
         if (!entry.shown) entry.state = entry.late ? "none" : "waiting";
-        void outline.ready.then((url) => this.landOutline(entry, outline, url));
+        void outline.outline.ready.then((url) => this.landOutline(entry, outline, url));
         continue;
       }
       if (source.state === "waiting") {
@@ -2262,14 +2582,14 @@ export class MorphLayer {
     this.checkDrawn();
   }
 
-  protected landOutline(entry: MaskOutline, outline: Outline, url: string | undefined) {
+  protected landOutline(entry: MaskOutline, outline: OutlineHold, url: string | undefined) {
     if (entry.pending !== outline) return;
     entry.pending = undefined;
     if (!this.active || !url) {
-      this.playback.releaseOutline(outline);
+      outline.release();
       if (this.active && !entry.shown) entry.state = "css";
     } else {
-      if (entry.shown) this.playback.releaseOutline(entry.shown);
+      entry.shown?.release();
       entry.shown = outline;
       entry.state = "shown";
     }
@@ -2279,8 +2599,8 @@ export class MorphLayer {
   }
 
   protected dropOutline(entry: MaskOutline) {
-    if (entry.pending) this.playback.releaseOutline(entry.pending);
-    if (entry.shown) this.playback.releaseOutline(entry.shown);
+    entry.pending?.release();
+    entry.shown?.release();
     entry.pending = undefined;
     entry.shown = undefined;
   }
@@ -2690,7 +3010,7 @@ export class MorphLayer {
     if (raster.image && raster.width === want.width && raster.height === want.height) return;
     raster.busy = true;
     void this.playback
-      .rasterizeSvgLayer(bitmap.vector, { width: bitmap.width, height: bitmap.height }, want.width, want.height, this.span.ownerDocument)
+      .raster(bitmap.vector, { width: bitmap.width, height: bitmap.height }, want.width, want.height, this.span.ownerDocument, this.forecast)
       .catch(() => undefined)
       .then((made) => {
         raster.busy = false;
@@ -3103,7 +3423,7 @@ export class MorphLayer {
     const made =
       text && files
         ? this.playback
-            .rasterizeSvgLayer({ text, viewBox: !!poses.artifact.viewBox }, { width: files.width, height: files.height }, set.width, set.height, this.span.ownerDocument)
+            .raster({ text, viewBox: !!poses.artifact.viewBox }, { width: files.width, height: files.height }, set.width, set.height, this.span.ownerDocument, this.forecast, true)
             .catch(() => undefined)
         : Promise.resolve(undefined);
     void made.then((raster) => {
@@ -3488,7 +3808,7 @@ export class MorphLayer {
     if ((raster.width === want.width && raster.height === want.height) || raster.refused === key) return;
     raster.busy = true;
     void this.playback
-      .rasterizeSvgLayer(bitmap.vector, { width: bitmap.width, height: bitmap.height }, want.width, want.height, this.span.ownerDocument)
+      .raster(bitmap.vector, { width: bitmap.width, height: bitmap.height }, want.width, want.height, this.span.ownerDocument, this.forecast)
       .catch(() => undefined)
       .then((made) => {
         raster.busy = false;

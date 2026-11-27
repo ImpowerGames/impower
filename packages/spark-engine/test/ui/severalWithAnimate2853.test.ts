@@ -177,3 +177,27 @@ describe("every `with` plays wherever an `animate` line's instruction is read (I
     expect(firstLetter.after).toBe(2);
   });
 });
+
+describe("a line's animations travel in one list in written `with` order (I-2870)", () => {
+  const sent = (animations: any[]) => animations.map((a: any) => ({ name: a.$name, arm: a.arm }));
+
+  it.each([
+    ["animate portrait with shake over 1s with screenfade over 1s", ["shake", "blackpulse"]],
+    ["animate portrait with screenfade over 1s with shake over 1s", ["blackpulse", "shake"]],
+  ])("`%s` sends the transition's arm in its written place", async (line, order) => {
+    const { instruction } = await played(line);
+    expect(instruction.affected).toBeUndefined();
+    expect(sent(instruction.targetAnimations)).toEqual(
+      order.map((name) => ({ name, arm: name === "blackpulse" ? "screen" : undefined })),
+    );
+  });
+
+  it("a `hide` with a transition and an animation sends both in written order", async () => {
+    const { instruction } = await played("hide portrait with screenfade over 1s with spin over 1s");
+    expect(sent(instruction.targetAnimations)).toEqual([
+      { name: "waitout", arm: undefined },
+      { name: "blackpulse", arm: "screen" },
+      { name: "spin", arm: undefined },
+    ]);
+  });
+});
