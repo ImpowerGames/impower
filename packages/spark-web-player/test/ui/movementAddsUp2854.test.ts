@@ -20,6 +20,9 @@ animation grow {
 define portraitgrow as transition with
   portrait = animation.grow
 end
+define portraitspin as transition with
+  portrait = animation.spin
+end
 layout main {
   stage {
     portrait { image }
@@ -131,6 +134,18 @@ describe("the movement of one line's animations on one element adds up (I-2854)"
       { sets: ["transform"], composite: "replace", start: 100 },
       { sets: ["transform"], composite: "add", start: 100 },
     ]);
+  });
+
+  test.each([
+    ["[[animate portrait with shake over 2s with portraitspin over 2s]]", ["translate(", "rotate("]],
+    ["[[animate portrait with portraitspin over 2s with shake over 2s]]", ["rotate(", "translate("]],
+  ])("%s: a direct animation and a transition arm on the layer combine in written order (I-2870)", async (line, order) => {
+    const { effects } = await play(line);
+    expect(effects.map(({ sets, composite, start }) => ({ sets, composite, start }))).toEqual([
+      { sets: ["transform"], composite: "replace", start: 100 },
+      { sets: ["transform"], composite: "add", start: 100 },
+    ]);
+    expect(effects.map(({ keyframes }) => order.find((fn) => JSON.stringify(keyframes).includes(fn)))).toEqual(order);
   });
 
   test("pausing freezes both combined animations and resuming continues both", async () => {

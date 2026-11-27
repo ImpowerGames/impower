@@ -82,8 +82,9 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
 
   it("`screenfade` beside a plain animation plays its `screen` arm on the screen and both `with` clauses on the picture", async () => {
     const { instruction } = await played("show portrait hero with screenfade over 1s with shake over 2s");
-    expect(instruction.affected).toEqual([
-      { target: "screen", animations: [expect.objectContaining({ $name: "blackpulse" })] },
+    expect(instruction.targetAnimations).toEqual([
+      expect.objectContaining({ $name: "show" }),
+      expect.objectContaining({ $name: "blackpulse", arm: "screen" }),
     ]);
     expect(names(instruction.content.enterAnimations)).toEqual([
       expect.objectContaining({ name: "waitin" }),

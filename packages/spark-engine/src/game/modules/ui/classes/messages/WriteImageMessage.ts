@@ -14,12 +14,13 @@ export interface PictureTravel {
   timing: { delay: string; duration: string; easing: string };
 }
 
+export type LineAnimation = Animation & { arm?: string };
+
 export interface WriteImageInstruction {
   control: "show" | "hide" | "animate";
   framing?: PictureFraming;
   travel?: PictureTravel;
-  targetAnimations?: Animation[];
-  affected?: { target: string; animations: Animation[] }[];
+  targetAnimations?: LineAnimation[];
   content?: {
     background: string;
     imageNames: string;

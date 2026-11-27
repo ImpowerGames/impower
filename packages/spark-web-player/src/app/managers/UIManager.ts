@@ -133,7 +133,6 @@ interface ImageEffect {
   element: HTMLElement;
   animations: Animation[];
   after?: AnimationPlayer;
-  line?: AnimationPlayer;
 }
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
@@ -862,15 +861,23 @@ export default class UIManager extends Manager {
       for (const instruction of instructions) {
         const zoom = Math.max(instruction.framing?.zoom ?? 1, instruction.travel?.framing?.zoom ?? 1);
         const content = instruction.content;
+        const lineAnimations = instruction.targetAnimations ?? [];
+        const arms = [...new Set(lineAnimations.flatMap(({ arm }) => (arm == null ? [] : [arm])))];
         for (const targetEl of targetEls) {
           const around =
-            keyframeScale(instruction.targetAnimations, (name) => resolveAnimationTargets(targetEl, name)) *
-            (instruction.affected ?? [])
-              .map((a) => ({ a, els: this.findTargetElements(a.target).filter((el) => el === targetEl || el.contains(targetEl)) }))
+            keyframeScale(
+              lineAnimations.filter(({ arm }) => arm == null),
+              (name) => resolveAnimationTargets(targetEl, name),
+            ) *
+            arms
+              .map((arm) => ({
+                animations: lineAnimations.filter((a) => a.arm === arm),
+                els: this.findTargetElements(arm).filter((el) => el === targetEl || el.contains(targetEl)),
+              }))
               .filter(({ els }) => els.length > 0)
               .reduce(
-                (product, { a, els }) =>
-                  product * keyframeScale(a.animations, (name) => els.flatMap((el) => resolveAnimationTargets(el, name))),
+                (product, { animations, els }) =>
+                  product * keyframeScale(animations, (name) => els.flatMap((el) => resolveAnimationTargets(el, name))),
                 1,
               );
           const imageEls = this.getContentElements(targetEl, "image");
@@ -3105,24 +3112,28 @@ export default class UIManager extends Manager {
       for (const instruction of instructions) {
         const after = new AnimationPlayer(this._theme, this._hold);
         targetPlayers.push(after);
-        const targetEffects: ImageEffect[] = [];
-        this.addAnimationEffects(
-          targetEffects,
-          targetEl,
-          instruction.targetAnimations,
-        );
-        const targetAnimations = targetEffects.flatMap((e) => after.add(e));
-        if (instruction.affected) {
-          for (const a of instruction.affected) {
-            for (const el of this.findTargetElements(a.target)) {
-              this.addAnimationEffects(
-                enterEffects,
-                el,
-                a.animations,
-                instruction.control === "animate" ? undefined : after,
-                after,
-              );
+        const together =
+          instruction.control === "animate" ? new AnimationPlayer(this._theme, this._hold, after) : undefined;
+        if (together) {
+          targetPlayers.push(together);
+        }
+        const targetAnimations: globalThis.Animation[] = [];
+        for (const animation of instruction.targetAnimations ?? []) {
+          const els = animation.arm == null ? [targetEl] : this.findTargetElements(animation.arm);
+          const player = animation.arm == null ? after : together;
+          if (!player) {
+            for (const el of els) {
+              this.addAnimationEffects(enterEffects, el, [animation], after);
             }
+            continue;
+          }
+          const effects: ImageEffect[] = [];
+          for (const el of els) {
+            this.addAnimationEffects(effects, el, [animation]);
+          }
+          const created = effects.flatMap((e) => player.add(e));
+          if (player === after) {
+            targetAnimations.push(...created);
           }
         }
         const content = instruction.content;
@@ -3329,18 +3340,12 @@ export default class UIManager extends Manager {
       onEnd?: (animation: globalThis.Animation) => void,
     ) => {
       const sequenced = new Map<AnimationPlayer | undefined, AnimationPlayer>();
-      const together = new Map<AnimationPlayer, AnimationPlayer>();
       const players: { after?: AnimationPlayer; player: AnimationPlayer }[] = [];
       for (const e of effects) {
-        let player = !e.after && e.line ? together.get(e.line) : sequenced.get(e.after);
+        let player = sequenced.get(e.after);
         if (!player) {
-          if (!e.after && e.line) {
-            player = new AnimationPlayer(this._theme, this._hold, e.line);
-            together.set(e.line, player);
-          } else {
-            player = new AnimationPlayer(this._theme, this._hold);
-            sequenced.set(e.after, player);
-          }
+          player = new AnimationPlayer(this._theme, this._hold);
+          sequenced.set(e.after, player);
           players.push({ after: e.after, player });
         }
         const animations = player.add(e);
@@ -3848,7 +3853,6 @@ export default class UIManager extends Manager {
     element: HTMLElement,
     animations: Animation[] | undefined,
     after?: AnimationPlayer,
-    line?: AnimationPlayer,
   ) {
     if (!animations?.length) {
       return;
@@ -3858,7 +3862,7 @@ export default class UIManager extends Manager {
         element,
         animation.target?.$name,
       )) {
-        effects.push({ element: el, animations: [animation], after, line });
+        effects.push({ element: el, animations: [animation], after });
       }
     }
   }
