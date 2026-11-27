@@ -181,6 +181,37 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
 
 let travelWrites = 0;
 
+function instantAnimation(animation: Animation | undefined): boolean {
+  if (!animation) {
+    return true;
+  }
+  const { delay = 0, duration = 0, endDelay = 0 } = getEffectTiming(animation.timing ?? {});
+  return Number(delay) <= 0 && Number(duration) <= 0 && Number(endDelay) <= 0;
+}
+
+function shownPicture(property: string, content: NonNullable<WriteImageInstruction["content"]>): string {
+  const { enterAnimation: _enter, exitAnimation: _exit, previousHideAnimation: _hide, morph, ...drawn } = content;
+  return JSON.stringify([property, drawn, morph ? { ...morph, epoch: undefined } : null]);
+}
+
+interface ShownPicture {
+  key: string;
+  write: { count: number };
+}
+
+function shownOf(el: Element): ShownPicture | undefined {
+  return (el as Element & { __sdShows?: ShownPicture }).__sdShows;
+}
+
+function setShown(el: Element, shown: ShownPicture | undefined) {
+  const holder = el as Element & { __sdShows?: ShownPicture };
+  if (shown) {
+    holder.__sdShows = shown;
+  } else {
+    delete holder.__sdShows;
+  }
+}
+
 function drawsPicture(instruction: WriteImageInstruction): boolean {
   const content = instruction.content;
   return instruction.control !== "hide" && !!content && !content.video && (!!content.morph || (content.pictures?.length ?? 0) > 0);
@@ -585,6 +616,7 @@ export default class UIManager extends Manager {
     }
     this._beatMarks.clear();
     this.discardAllPrepared();
+    this.settleClears();
   }
 
   protected followEnd(el: HTMLElement) {
@@ -824,8 +856,19 @@ export default class UIManager extends Manager {
           if (instruction.control === "hide" || content.video || (!content.morph && !(content.pictures?.length ?? 0))) {
             continue;
           }
-          const group = new MorphGroup();
           const maskEls = this.getContentElements(targetEl, "mask");
+          const kept = this.keptPictures(instruction, this.pictureTargets(targetEl));
+          if (kept) {
+            for (const span of kept.values()) {
+              const layer = (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
+              if (layer) {
+                layer.size({ zoom, scale: around * nested(span) });
+                layers.push(layer);
+              }
+            }
+            continue;
+          }
+          const group = new MorphGroup();
           for (const [els, property] of [
             [imageEls, "background_image"],
             [maskEls, "mask_image"],
@@ -1397,6 +1440,7 @@ export default class UIManager extends Manager {
         this.applyBeatMessage(op, decision);
       }
     }
+    this.settleClears();
     this.discardAllPrepared();
     this.revealPrecreated();
     this.morphs?.adoptPrepared();
@@ -1708,12 +1752,30 @@ export default class UIManager extends Manager {
                 : h.img === sig && h.imgRev === at.rev)
             );
           });
-        if (undone) {
+        const kept =
+          !undone &&
+          same &&
+          kind === WriteImageMessage.type &&
+          shows &&
+          els.every((el) => {
+            const at = w.at.get(el)!;
+            return (
+              !making.has(el) &&
+              rev(el) === at.rev &&
+              at.held.img === (el as any).__sdImg &&
+              (p.instructions as WriteImageInstruction[]).every(
+                (instruction) => !instruction.content || !!this.keptPictures(instruction, this.pictureTargets(el)),
+              )
+            );
+          });
+        if (undone || kept) {
           for (const clear of w.clears) {
             plan.set(clear, "skip");
           }
+        }
+        if (undone) {
           plan.set(op, "same");
-        } else {
+        } else if (!kept) {
           applyClear(w);
         }
       }
@@ -2777,6 +2839,79 @@ export default class UIManager extends Manager {
     }
   }
 
+  protected _clearing = new Set<HTMLElement>();
+
+  protected holdClear(contentEl: HTMLElement): boolean {
+    const children = Array.from(contentEl.children) as HTMLElement[];
+    const shown = children.filter((el) => shownOf(el) && !(el as any).__sdPrepared);
+    if (shown.length === 0) {
+      return false;
+    }
+    for (const el of children) {
+      if (shown.includes(el)) {
+        this._clearing.add(el);
+      } else {
+        this.releaseMovies(el);
+        this.morphs?.releaseWithin(el);
+        endTravelsWithin(el);
+        el.remove();
+      }
+    }
+    return true;
+  }
+
+  protected settleClears() {
+    for (const el of this._clearing) {
+      if (el.isConnected) {
+        this.releaseMovies(el);
+        this.morphs?.releaseWithin(el);
+        endTravelsWithin(el);
+        el.remove();
+      }
+    }
+    this._clearing.clear();
+  }
+
+  protected pictureTargets(targetEl: HTMLElement): { els: HTMLElement[]; property: string }[] {
+    return [
+      { els: this.getContentElements(targetEl, "image"), property: "background_image" },
+      { els: this.getContentElements(targetEl, "mask"), property: "mask_image" },
+    ];
+  }
+
+  protected keptPictures(
+    instruction: WriteImageInstruction,
+    contentTargets: { els: HTMLElement[]; property: string }[],
+  ): Map<HTMLElement, HTMLElement> | undefined {
+    const content = instruction.content;
+    if (
+      instruction.control !== "show" ||
+      !content ||
+      content.video ||
+      !instantAnimation(content.enterAnimation) ||
+      !instantAnimation(content.previousHideAnimation)
+    ) {
+      return undefined;
+    }
+    const kept = new Map<HTMLElement, HTMLElement>();
+    let write: ShownPicture["write"] | undefined;
+    for (const { els, property } of contentTargets) {
+      const key = shownPicture(property, content);
+      for (const contentEl of els) {
+        const shown = (Array.from(contentEl.children) as HTMLElement[])
+          .filter((el) => !(el as any).__sdPrepared && shownOf(el))
+          .at(-1);
+        const marker = shown ? shownOf(shown) : undefined;
+        if (!shown || !marker || marker.key !== key || (write && marker.write !== write)) {
+          return undefined;
+        }
+        write = marker.write;
+        kept.set(contentEl, shown);
+      }
+    }
+    return write && kept.size === write.count ? kept : undefined;
+  }
+
   protected async writeImage(
     target: string,
     instructions: WriteImageInstruction[],
@@ -2838,6 +2973,9 @@ export default class UIManager extends Manager {
       const maskEls = this.getContentElements(targetEl, "mask");
       if (instructions.length === 0) {
         for (const contentEl of [...imageEls, ...maskEls]) {
+          if (decision == null && this.holdClear(contentEl)) {
+            continue;
+          }
           this.releaseMovies(contentEl);
           this.morphs?.releaseWithin(contentEl);
           endTravelsWithin(contentEl);
@@ -2925,9 +3063,48 @@ export default class UIManager extends Manager {
           continue;
         }
         const morphGroup = new MorphGroup();
+        const kept = this.keptPictures(instruction, contentTargets);
+        const write =
+          instruction.control === "show" && !content.video
+            ? { count: contentTargets.reduce((count, { els }) => count + els.length, 0) }
+            : undefined;
+        const previousHideAnimation = content.previousHideAnimation;
+        const retire = (prevSpanEls: HTMLElement[]) => {
+          for (const prevSpanEl of prevSpanEls) {
+            if (!previousHideAnimation) {
+              haltPicture(prevSpanEl);
+              continue;
+            }
+            if (!outgoing.includes(prevSpanEl)) {
+              outgoing.push(prevSpanEl);
+            }
+            this.addAnimationEffects(
+              exitEffects,
+              prevSpanEl,
+              [previousHideAnimation],
+              after,
+            );
+            if (!toDestroy.includes(prevSpanEl)) {
+              toDestroy.push(prevSpanEl);
+            }
+          }
+        };
         for (const { els, property } of contentTargets) {
           for (const contentEl of els) {
-            const prevSpanEls = (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared);
+            const keptSpanEl = kept?.get(contentEl);
+            const prevSpanEls = (Array.from(contentEl.children) as HTMLElement[]).filter(
+              (el) => !(el as any).__sdPrepared && el !== keptSpanEl,
+            );
+            for (const prevSpanEl of prevSpanEls) {
+              setShown(prevSpanEl, undefined);
+            }
+            if (keptSpanEl) {
+              this._clearing.delete(keptSpanEl);
+              placePicture(keptSpanEl, instruction.framing);
+              setShown(keptSpanEl, { key: shownPicture(property, content), write: write! });
+              retire(prevSpanEls);
+              continue;
+            }
             const video =
               content.video && property === "background_image"
                 ? content.video
@@ -2957,6 +3134,7 @@ export default class UIManager extends Manager {
                   applyStyle,
                 ));
             placePicture(newSpanEl, instruction.framing);
+            setShown(newSpanEl, write && { key: shownPicture(property, content), write });
             const videoEl = newSpanEl.querySelector("video");
             if (videoEl && video) {
               (videoEl as any).__sdMixer = {
@@ -2992,27 +3170,7 @@ export default class UIManager extends Manager {
               );
             }
             if (instruction.control === "show") {
-              if (!content.previousHideAnimation) {
-                for (const prevSpanEl of prevSpanEls) {
-                  haltPicture(prevSpanEl);
-                }
-              }
-              if (content.previousHideAnimation) {
-                for (const prevSpanEl of prevSpanEls) {
-                  if (!outgoing.includes(prevSpanEl)) {
-                    outgoing.push(prevSpanEl);
-                  }
-                  this.addAnimationEffects(
-                    exitEffects,
-                    prevSpanEl,
-                    [content.previousHideAnimation],
-                    after,
-                  );
-                  if (!toDestroy.includes(prevSpanEl)) {
-                    toDestroy.push(prevSpanEl);
-                  }
-                }
-              }
+              retire(prevSpanEls);
               if (content.enterAnimation) {
                 this.addAnimationEffects(
                   enterEffects,
