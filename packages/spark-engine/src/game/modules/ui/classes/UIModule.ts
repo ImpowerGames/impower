@@ -9283,8 +9283,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       rewrite(mount: MountedCast, id: number, view: CastEntryView): void {
-        const entry = $._state.casts?.[mount.key]?.entries.find((e) => e.id === id);
+        const cast = $._state.casts?.[mount.key];
+        const entry = cast?.entries.find((e) => e.id === id);
         if (entry) {
+          this.mark(view, entry, cast);
           this.sync(view, entry, [], true, undefined, true);
         }
       }
@@ -9353,12 +9355,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           "data-variant": entry.variant ?? null,
           "data-latest": cast?.latest === entry.speaker ? "" : null,
         };
-        const marks = JSON.stringify(attributes);
+        const roots = $.collectNodes(view.group);
+        const marks = `${JSON.stringify(attributes)}|${roots.map((root) => root.id).join(" ")}`;
         if (view.marks === marks) {
           return;
         }
         view.marks = marks;
-        for (const root of $.collectNodes(view.group)) {
+        for (const root of roots) {
           $.updateElement(root, { attributes });
         }
       }

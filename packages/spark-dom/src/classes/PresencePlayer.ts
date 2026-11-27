@@ -87,6 +87,9 @@ export default class PresencePlayer {
     ) {
       return;
     }
+    if (presence === "show") {
+      this.unpin(element);
+    }
     void element.ownerDocument.defaultView?.getComputedStyle(element).opacity;
     const current = this.animations(element);
     const before =
@@ -148,6 +151,26 @@ export default class PresencePlayer {
       }
     }
     this.release(element, carried);
+  }
+
+  protected unpin(element: Element): void {
+    const animated = element as Animated;
+    if (typeof animated.getAnimations !== "function") {
+      return;
+    }
+    for (const animation of animated.getAnimations()) {
+      const effect = animation.effect as KeyframeEffect | null;
+      const timing = effect?.getTiming?.();
+      if (
+        !styleDriven(animation) &&
+        effect?.target === element &&
+        animation.playState === "finished" &&
+        Number(timing?.duration ?? 0) === 0 &&
+        (timing?.fill === "both" || timing?.fill === "forwards")
+      ) {
+        animation.cancel();
+      }
+    }
   }
 
   protected release(

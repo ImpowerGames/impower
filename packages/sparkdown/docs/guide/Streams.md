@@ -139,7 +139,7 @@ An entry is on screen while it has content, and [`#clear`](./Structure.md#clear-
 - With `#clear`, the picture lasts as long as the line that showed it is on screen: one line in a dialogue box, and as long as that line's entry stays in a stream, which keeps both speakers of an exchange up.
 - If the next line shows a picture of the same character, the picture is replaced, not emptied, so the entry stays and only its `#variant` changes.
 
-An emptied entry stays, unseen, until another character's entry arrives or the script hides it. With the two-level template above, a speaker who returns after a line of narration comes back in place, because only the picture's `@initial` applies, and a different speaker slides in, because the new entry's `@initial` applies as well. A property named in an `@initial` block moves only when the element's transition names it, as `translate` is named here. A one-level template, `cast { portrait #clear { image } }`, suits a game where every appearance should slide.
+An emptied entry stays, unseen, until another character's entry arrives or the script hides it. With the two-level template above, a speaker who returns after a line of narration fades back in place, because only the picture's `@initial` plays, and a different speaker slides in, because the new entry's `@initial` plays as well. A property named in an `@initial` block moves only when the element's transition names it, as `translate` is named here. A one-level template, `cast { portrait #clear { image } }`, suits a game where every appearance should slide.
 
 Saves and checkpoints keep the entries. The preview on a line and a step back show the cast the game would have at that line.
 

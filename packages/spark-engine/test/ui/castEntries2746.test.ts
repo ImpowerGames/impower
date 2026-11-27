@@ -758,4 +758,52 @@ end
     expect(pictureOf(entry!)).toEqual(["mia@happy"]);
     expect(entry!.emptied).toEqual(["image|portrait"]);
   });
+
+  test("an entry whose root a store replaces keeps its #speaker, #variant and @latest", async () => {
+    const { h, ui, show, imageWrites } = await harness(`${CHARACTERS}
+store swapped = false
+
+component actor_template {
+  if swapped then
+    actor.replaced { portrait { image } }
+  else
+    actor.original { portrait { image } }
+  end
+}
+
+layout main {
+  stage {
+    cast { actor_template }
+  }
+}
+
+scene start
+  Begin.
+end
+`);
+    const marksOf = (id: string) => {
+      const marks: Record<string, string | null> = {};
+      for (const m of flattenMessages(h.messages) as any[]) {
+        if ((m?.method === "ui/create" || m?.method === "ui/update") && m.params?.element === id) {
+          for (const name of ["data-speaker", "data-variant", "data-latest"]) {
+            if (m.params.attributes && name in m.params.attributes) {
+              marks[name] = m.params.attributes[name];
+            }
+          }
+        }
+      }
+      return marks;
+    };
+    await show({ ...line("mia", "One.", "mia@happy"), variant: "left" });
+    const [before] = ui.findElements("actor") as any[];
+    expect(marksOf(before.id)).toEqual({ "data-speaker": "mia", "data-variant": "left", "data-latest": "" });
+    (h.game.story as any).variablesState.$("swapped", true);
+    ui.refreshLayouts();
+    await flushMicrotasks(60);
+    const [after] = ui.findElements("actor") as any[];
+    expect(after.id).not.toBe(before.id);
+    const portrait = after.children.find((child: any) => child.name === "portrait");
+    expect(imageWrites(portrait.id).at(-1)?.params.instructions.at(-1)?.content?.imageNames).toBe("mia@happy");
+    expect(marksOf(after.id)).toEqual({ "data-speaker": "mia", "data-variant": "left", "data-latest": "" });
+  });
 });
