@@ -695,12 +695,22 @@ export class AssetModule extends Module<
       let counted = 0;
       for (let i = at + 1; i < beats.length && counted < reach; i++) {
         const beat = beats[i]!;
-        if (!scope || reachable(beat.scope ?? [], scope)) {
-          ahead.push({ beat, distance: i - at });
+        if (scope && !reachable(beat.scope ?? [], scope)) {
+          continue;
         }
+        ahead.push({ beat, distance: i - at });
         if (loads(beat)) {
           counted += 1;
         }
+      }
+      if (counted < reach) {
+        ahead.push(
+          ...this.loadedSuccessorBeats(
+            flow,
+            reach - counted,
+            beats.length - 1 - at,
+          ),
+        );
       }
       runs.push(...pictureRuns(ahead, shown, fallback));
     }
@@ -738,6 +748,63 @@ export class AssetModule extends Module<
       }
     }
     return [...merged.values()].sort((a, b) => a.distance - b.distance);
+  }
+
+  protected loadedSuccessorBeats(
+    flow: string,
+    remaining: number,
+    from: number,
+  ): PredictedBeat[] {
+    const sceneAssets = this._game.program.sceneAssets;
+    const entry = sceneAssets?.[flow];
+    const found: PredictedBeat[] = [];
+    if (!sceneAssets || !entry) {
+      return found;
+    }
+    const limit = this.config.load_distance;
+    const visited = new Set<string>([flow]);
+    const queue = [...entry.loads, ...entry.successors].map((next) => ({
+      next,
+      from,
+      remaining,
+    }));
+    let flowsVisited = 0;
+    while (queue.length > 0 && flowsVisited < MAX_PREDICTED_FLOWS) {
+      const { next, from, remaining } = queue.shift()!;
+      if (visited.has(next) || !this._loadPins.has(next)) {
+        continue;
+      }
+      visited.add(next);
+      flowsVisited++;
+      const nextEntry = sceneAssets[next];
+      if (!nextEntry) {
+        continue;
+      }
+      let left = remaining;
+      let covered = 0;
+      let distance = from;
+      for (const beat of nextEntry.beats) {
+        if (left <= 0 || (limit > 0 && covered >= limit)) {
+          break;
+        }
+        distance += 1;
+        found.push({ beat, distance });
+        if (loads(beat)) {
+          covered += 1;
+          left -= 1;
+        }
+      }
+      if (left > 0 && (limit === 0 || covered < limit)) {
+        queue.push(
+          ...[...nextEntry.loads, ...nextEntry.successors].map((after) => ({
+            next: after,
+            from: distance,
+            remaining: left,
+          })),
+        );
+      }
+    }
+    return found;
   }
 
   protected _effectScales?: { context: object; byWrite: Map<string, number> };

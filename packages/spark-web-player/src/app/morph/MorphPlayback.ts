@@ -231,6 +231,7 @@ interface Outline {
   width: number;
   height: number;
   users: number;
+  forecasts: number;
   ready: Promise<string | undefined>;
   url?: string;
   release?: () => void;
@@ -781,7 +782,8 @@ export class MorphPlayback {
     if (known) {
       this.outlines.delete(source.key);
       this.outlines.set(source.key, known);
-      known.users += 1;
+      if (forecast !== undefined) known.forecasts += 1;
+      else known.users += 1;
       if (forecast !== undefined) {
         known.distance = known.stale || known.distance === undefined ? forecast : Math.min(known.distance, forecast);
         known.stale = false;
@@ -791,7 +793,7 @@ export class MorphPlayback {
     const bytes = source.width * source.height * FRAME_BYTES_PER_PIXEL;
     if (forecast !== undefined && !this.makeRoom(bytes, forecast)) {
       this.refuse(`outline ${source.key}`, bytes, forecast);
-      return { key: source.key, width: source.width, height: source.height, users: 1, ready: Promise.resolve(undefined) };
+      return { key: source.key, width: source.width, height: source.height, users: 0, forecasts: 1, ready: Promise.resolve(undefined) };
     }
     if (forecast === undefined) this.makeRoom(bytes, 0);
     this.refused.delete(`outline ${source.key}`);
@@ -799,7 +801,8 @@ export class MorphPlayback {
       key: source.key,
       width: source.width,
       height: source.height,
-      users: 1,
+      users: forecast === undefined ? 1 : 0,
+      forecasts: forecast === undefined ? 0 : 1,
       ready: Promise.resolve(undefined),
       ...(forecast !== undefined ? { distance: forecast } : {}),
     };
@@ -834,10 +837,11 @@ export class MorphPlayback {
     return outline;
   }
 
-  releaseOutline(outline: Outline) {
-    outline.users -= 1;
+  releaseOutline(outline: Outline, forecast?: number) {
+    if (forecast !== undefined) outline.forecasts -= 1;
+    else outline.users -= 1;
     if (this.outlines.get(outline.key) !== outline) return;
-    if (outline.users <= 0 && outline.distance !== undefined) this.makeRoom(0, 0);
+    if (outline.users <= 0 && outline.forecasts <= 0 && outline.distance !== undefined) this.makeRoom(0, 0);
     this.trimOutlines();
   }
 
@@ -849,7 +853,7 @@ export class MorphPlayback {
   }
 
   protected trimOutlines() {
-    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0 && outline.distance === undefined);
+    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0 && outline.forecasts <= 0 && outline.distance === undefined);
     for (const outline of idle.slice(0, Math.max(0, idle.length - MorphPlayback.IDLE_OUTLINES))) {
       this.outlines.delete(outline.key);
       outline.release?.();
@@ -1006,7 +1010,7 @@ export class MorphPlayback {
         bytes: outline.width * outline.height * FRAME_BYTES_PER_PIXEL,
         distance: outline.distance,
         ...(outline.stale ? { stale: true } : {}),
-        idle: outline.users <= 0,
+        idle: outline.users <= 0 && outline.forecasts <= 0,
         counted: outline.users <= 0,
         drop: () => this.dropOutline(outline),
       });
@@ -1068,7 +1072,7 @@ export class MorphPlayback {
       if ((drawing.stale || drawing.distance === undefined) && drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
     }
     for (const outline of [...this.outlines.values()]) {
-      if (outline.distance !== undefined && outline.stale && outline.users <= 0) this.dropOutline(outline);
+      if (outline.distance !== undefined && outline.stale && outline.users <= 0 && outline.forecasts <= 0) this.dropOutline(outline);
     }
     this.makeRoom(0, 0);
   }
@@ -1081,7 +1085,7 @@ export class MorphPlayback {
     }
     for (const outline of [...this.outlines.values()]) {
       if (outline.distance === undefined) continue;
-      if (outline.users <= 0) this.dropOutline(outline);
+      if (outline.users <= 0 && outline.forecasts <= 0) this.dropOutline(outline);
       else delete outline.distance;
     }
   }
@@ -2522,7 +2526,7 @@ export class MorphLayer {
       if (source.state === "ready") {
         entry.natural = source.natural;
         if (held && (held.key === source.key || (held.width >= source.width && held.height >= source.height))) continue;
-        if (entry.pending) this.playback.releaseOutline(entry.pending);
+        if (entry.pending) this.playback.releaseOutline(entry.pending, this.forecast);
         const outline = this.playback.outline(source, this.forecast);
         entry.pending = outline;
         if (!entry.shown) entry.state = entry.late ? "none" : "waiting";
@@ -2544,10 +2548,10 @@ export class MorphLayer {
     if (entry.pending !== outline) return;
     entry.pending = undefined;
     if (!this.active || !url) {
-      this.playback.releaseOutline(outline);
+      this.playback.releaseOutline(outline, this.forecast);
       if (this.active && !entry.shown) entry.state = "css";
     } else {
-      if (entry.shown) this.playback.releaseOutline(entry.shown);
+      if (entry.shown) this.playback.releaseOutline(entry.shown, this.forecast);
       entry.shown = outline;
       entry.state = "shown";
     }
@@ -2557,8 +2561,8 @@ export class MorphLayer {
   }
 
   protected dropOutline(entry: MaskOutline) {
-    if (entry.pending) this.playback.releaseOutline(entry.pending);
-    if (entry.shown) this.playback.releaseOutline(entry.shown);
+    if (entry.pending) this.playback.releaseOutline(entry.pending, this.forecast);
+    if (entry.shown) this.playback.releaseOutline(entry.shown, this.forecast);
     entry.pending = undefined;
     entry.shown = undefined;
   }

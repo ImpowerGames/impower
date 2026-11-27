@@ -315,14 +315,14 @@ end
     const story = `store open = true
 
 scene start
-  if open
+  if open then
     [[show backdrop hall]]
     Open.
   else
     [[show backdrop dusk]]
     Shut.
   end
-  if open
+  if open then
     [[show portrait nova]]
     Nova.
   end
@@ -330,6 +330,7 @@ end
 `;
     const h = createHarness(story, at(story, "    Open."), { assets: ASSETS, beforeConnect: playing });
     await h.ready;
+    expect(h.errors).toEqual([]);
     const beats = h.game.program.sceneAssets!["start"]!.beats;
     (h.game as any)._executingAddress = beats[0]!.address;
     expect(settle(h).map((p: any) => p.name)).toEqual(["nova"]);
@@ -353,5 +354,63 @@ end
     await h.ready;
     await h.preview(at(story, "  Current."));
     expect(settle(h).map((p: any) => p.name)).toContain("nova");
+  });
+});
+
+describe("how far the beats ahead reach (#2813, round 3)", () => {
+  it("counts only the beats the current line can reach against predict_distance", async () => {
+    const story = `define assets as config with
+  predict_distance = 1
+end
+
+store open = true
+
+scene start
+  if open then
+    [[show backdrop hall]]
+    Open.
+  else
+    [[show backdrop dusk]]
+    Shut.
+  end
+  [[show portrait nova]]
+  Nova.
+end
+`;
+    const h = createHarness(story, at(story, "    Open."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const beats = h.game.program.sceneAssets!["start"]!.beats;
+    (h.game as any)._executingAddress = beats[0]!.address;
+    expect(settle(h).map((p: any) => p.name)).toEqual(["nova"]);
+  });
+
+  it("draws the next scene's pictures that a load has brought in, and not those of a scene no load covers", async () => {
+    const story = `define assets as config with
+  predict_distance = 2
+  load_distance = 1
+  loading_min = 0
+end
+
+scene start
+  Holding.
+  -> Next
+end
+
+scene Next
+  [[show backdrop hall]]
+  Next picture.
+  [[show backdrop dusk]]
+  Past the load.
+end
+`;
+    const h = createHarness(story, at(story, "  Holding."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    expect(settle(h)).toEqual([]);
+    const id = h.game.module.assets.runLoad([{ name: "Next" }]);
+    await flushMicrotasks(40);
+    expect(h.game.module.assets.isReady(id)).toBe(true);
+    expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 1 }]);
   });
 });

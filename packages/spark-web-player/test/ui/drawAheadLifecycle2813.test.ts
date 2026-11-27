@@ -30,7 +30,7 @@ const picture = (name: string) => ({
   pictures: [{ layer: 0, span: 1, name, vector: true as const, files: [{ src: `/${name}.svg`, name: `${name}.svg` }] }],
 });
 
-async function setup(options: { hold?: boolean; art?: string; host?: boolean; shadow?: boolean } = {}) {
+async function setup(options: { hold?: boolean; art?: string; host?: boolean; shadow?: boolean; perFile?: boolean } = {}) {
   const { overlay, win, restore } = installJSDOM();
   overlay.innerHTML = `<div class="backdrop">${options.shadow ? '<div class="mask"></div>' : ""}<div class="image"></div></div>`;
   (overlay.firstElementChild as HTMLElement & { __sdId?: string }).__sdId = "backdrop";
@@ -39,16 +39,25 @@ async function setup(options: { hold?: boolean; art?: string; host?: boolean; sh
   const ui = new UIManager(app);
   await ui.onInit();
   const style = win.document.createElement("style");
-  style.textContent = ".instance { width: 100px; height: 100px; background-size: 100% 100%; background-position: 0% 0%; background-repeat: no-repeat; }";
+  style.textContent = options.perFile
+    ? ".instance { width: 100px; height: 100px; background-size: 100% 100%, 100% 100%; background-position: 0% 0%, 0% 0%; background-repeat: no-repeat, no-repeat; }"
+    : ".instance { width: 100px; height: 100px; background-size: 100% 100%; background-position: 0% 0%; background-repeat: no-repeat; }";
   win.document.head.appendChild(style);
   const playback = MorphPlayback.for(overlay);
   const source = { text: options.art ?? '<svg viewBox="0 0 100 100"/>', viewBox: true };
+  const sources = new Map<string, typeof source>();
+  const sourceOf = (src: string) => {
+    if (!options.perFile) return source;
+    let own = sources.get(src);
+    if (!own) sources.set(src, (own = { text: `<svg viewBox="0 0 100 100"><path id="${src}"/></svg>`, viewBox: true }));
+    return own;
+  };
   const requests: { text: string; resolve: (value: unknown) => void; release: ReturnType<typeof vi.fn> }[] = [];
   const outlines: { width: number; height: number; release: ReturnType<typeof vi.fn> }[] = [];
   playback.configure({
     requestFrame: (callback) => win.setTimeout(() => callback(0), 16) as unknown as number,
     cancelFrame: (handle) => win.clearTimeout(handle),
-    loadPicture: async () => ({ image: {} as never, width: 100, height: 100, vector: source }),
+    loadPicture: async (src) => ({ image: {} as never, width: 100, height: 100, vector: sourceOf(src) }),
     pictureCanvas: () => ({ globalAlpha: 1, imageSmoothingEnabled: true, setTransform() {}, clearRect() {}, drawImage() {} }),
     rasterizeSvgLayer: (raster) =>
       new Promise((resolve) => {
@@ -176,6 +185,30 @@ describe("drawing ahead keeps to its budget, its layout and its owner (#2813)", 
     await until(() => t.outlines.length === 1 && t.instances().length === 0, "the outline once there is room");
     expect(t.requests).toHaveLength(1);
     expect(t.playback.drawnAheadBytes()).toBe(100 * 100 * 4 * 2);
+  });
+
+  test("a shadow outline counts while a picture drawn ahead still holds it, so one that does not fit is not made and the beat finds every drawing made ahead", async () => {
+    const t = await setup({ shadow: true, perFile: true });
+    t.playback.frameBudget = () => 100 * 100 * 4 * 3;
+    const both = {
+      background: 'url("/a.svg"), url("/b.svg")',
+      imageNames: "a b",
+      srcs: ["/a.svg", "/b.svg"],
+      pictures: ["a", "b"].map((name, layer) => ({ layer, span: 1, name, vector: true as const, files: [{ src: `/${name}.svg`, name: `${name}.svg` }] })),
+    };
+    t.draw([t.ahead("a", 1, both)]);
+    await until(() => t.requests.length === 2 && t.instances().length === 0, "both drawings made ahead");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(t.outlines).toHaveLength(1);
+    expect(t.requests.filter((request) => request.release.mock.calls.length > 0)).toHaveLength(0);
+    expect(t.playback.drawnAheadBytes()).toBe(100 * 100 * 4 * 3);
+    t.ui.onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "ui/beat",
+      params: { messages: [{ jsonrpc: "2.0", id: "show", method: "ui/write-image", params: { target: "backdrop", instructions: [{ control: "show", content: both }], instant: true } }] },
+    } as never);
+    await until(() => t.layers().some((layer) => layer.forecast === undefined && layer.drawn), "the beat's picture");
+    expect(t.requests).toHaveLength(2);
   });
 
   test("a portrait's morph frames drawn ahead are the frames its beat plans and shows, with nothing drawn again", async () => {

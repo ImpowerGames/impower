@@ -101,14 +101,14 @@ describe("the scene table carries the blocks each beat sits in (#2813)", () => {
 const STATEMENTS = `store open = true
 
 scene start
-  if open
+  if open then
     [[show backdrop hall]]
     Open.
   else
     [[show backdrop dusk]]
     Shut.
   end
-  if open
+  if open then
     [[show portrait nova]]
     Nova.
   end
@@ -119,7 +119,9 @@ describe("the scene table tells the arms of one decision from separate decisions
   it("gives the arms of an if the same decision and separate arms, and a later if another decision", () => {
     const compiler = new SparkdownCompiler();
     compiler.configure({ files: [script(STATEMENTS), asset("image", "hall", "png"), asset("image", "dusk", "svg"), asset("image", "nova", "svg")] });
-    const beats = compiler.compile({ textDocument: { uri: URI } }).program.sceneAssets!["start"]!.beats;
+    const { program } = compiler.compile({ textDocument: { uri: URI } });
+    expect(Object.values(program.diagnostics ?? {}).flat().filter((diagnostic) => diagnostic.severity === 1)).toEqual([]);
+    const beats = program.sceneAssets!["start"]!.beats;
     const [open, shut, later] = beats.map((beat) => beat.scope![0]!) as [[number, number], [number, number], [number, number]];
     expect(open[0]).toBe(shut[0]);
     expect(open[1]).not.toBe(shut[1]);
