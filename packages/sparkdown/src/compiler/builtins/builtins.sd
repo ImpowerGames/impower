@@ -1771,6 +1771,19 @@ style portrait {
   }
 }
 
+style cast {
+  position = absolute
+  inset = 0
+  > * {
+    position = absolute
+    top = 0
+    bottom = 0
+    left = 50%
+    width = 50%
+    margin_left = -25%
+  }
+}
+
 style choices {
   position = relative
   flex = 1

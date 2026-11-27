@@ -84,7 +84,7 @@ import { getStyleValueDescription } from "./styleValueDescriptions";
 import {
   STREAM_ELEMENT,
   streamBlockCompletion,
-  streamElementCompletion,
+  templatedElementCompletions,
 } from "./streamElementHelp";
 import { presenceBlockDocumentation } from "./presenceBlockHelp";
 import {
@@ -1122,7 +1122,9 @@ const addSparkleBodyCompletions = (
       labelDetails: { description: "where the open layout goes" },
     });
   } else {
-    completions.set(STREAM_ELEMENT, streamElementCompletion());
+    for (const item of templatedElementCompletions()) {
+      completions.set(item.label, item);
+    }
   }
   const components = program?.sparkle?.components ?? {};
   for (const name of Object.keys(components)) {

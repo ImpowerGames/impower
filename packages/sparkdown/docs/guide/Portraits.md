@@ -252,6 +252,8 @@ layout main {
 }
 ```
 
+A single `portrait` slot holds one picture, so two characters on screen at once need a slot each, and a character who moves from one slot to the other leaves one and appears in the other. Put the slot in a `cast` to keep one picture for each character and move it (see [A cast keeps one entry per character](./Streams.md#a-cast-keeps-one-entry-per-character)).
+
 ## Bringing a portrait in and out
 
 A portrait line takes any number of `with` clauses, and they all play together. A `with` names a transition, such as `fade`, or an animation, such as `shake`:

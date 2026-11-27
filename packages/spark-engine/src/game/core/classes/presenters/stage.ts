@@ -56,6 +56,7 @@ export function writeStage(
   }
 
   game.module.ui.streams.show(Boolean(instant), time);
+  game.module.ui.casts.show(Boolean(instant), time);
 
   game.module.ui.refreshLayouts();
 }

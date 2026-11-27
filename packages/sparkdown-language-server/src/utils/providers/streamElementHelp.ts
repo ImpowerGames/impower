@@ -16,6 +16,11 @@ export const STREAM_ELEMENT = "stream";
 export const STREAM_ELEMENT_DESCRIPTION =
   "Adds a copy of the elements inside it for each line that goes to it, after the copies before. A line goes to the stream when an element inside is named after the line's kind, such as `dialogue { text }`. The copies stay until `[[clear LAYOUT]]` or `[[close LAYOUT]]`, the newest is `@latest`, and the stream scrolls to keep it in view.";
 
+export const CAST_ELEMENT = "cast";
+
+export const CAST_ELEMENT_DESCRIPTION =
+  "Keeps one copy of the elements inside it for each character, such as `actor { portrait #clear { image } }`. A picture goes to the copy of the character it shows (`mia@happy` goes to Mia's), and a name to its speaker's. Each copy carries `#speaker` and the `#variant` of its character's newest line, and the one whose character is speaking now is `@latest`. A copy stays while it has content, and an emptied copy stays, unseen, until another character's copy arrives or the script hides it.";
+
 export const STREAM_BLOCK_DESCRIPTION = [
   "`stream NAME { … }` sets the streams in the layout of that name.",
   "",
@@ -39,27 +44,24 @@ export const STREAM_SETTING_DOCS: Readonly<Record<string, string>> = {
     "A time, such as `0.6s` or `600ms`. With `advance = auto`, how long after a line finishes typing the next one starts. The built-in value is `0.4s`.",
 };
 
+const TEMPLATED_ELEMENTS: ReadonlyMap<string, string> = new Map([
+  [STREAM_ELEMENT, STREAM_ELEMENT_DESCRIPTION],
+  [CAST_ELEMENT, CAST_ELEMENT_DESCRIPTION],
+]);
+
 const LAYOUT_BODIES = new Set<string>(["LuauLayout", "LuauComponent"]);
 
-export const streamElementCompletion = (): CompletionItem => ({
-  label: STREAM_ELEMENT,
-  insertText: `${STREAM_ELEMENT} {\n\t$0\n}`,
-  insertTextFormat: InsertTextFormat.Snippet,
-  kind: CompletionItemKind.Keyword,
-  labelDetails: { description: "element" },
-  documentation: { kind: MarkupKind.Markdown, value: STREAM_ELEMENT_DESCRIPTION },
-});
+export const templatedElementCompletions = (): CompletionItem[] =>
+  [...TEMPLATED_ELEMENTS].map(([label, value]) => ({
+    label,
+    insertText: `${label} {\n\t$0\n}`,
+    insertTextFormat: InsertTextFormat.Snippet,
+    kind: CompletionItemKind.Keyword,
+    labelDetails: { description: "element" },
+    documentation: { kind: MarkupKind.Markdown, value },
+  }));
 
-export const streamBlockCompletion = (): CompletionItem => ({
-  label: STREAM_ELEMENT,
-  insertText: `${STREAM_ELEMENT} \${1:layout} {\n\tadvance = \${2|auto,click|}\n}`,
-  insertTextFormat: InsertTextFormat.Snippet,
-  kind: CompletionItemKind.Keyword,
-  labelDetails: { description: "settings" },
-  documentation: { kind: MarkupKind.Markdown, value: STREAM_BLOCK_DESCRIPTION },
-});
-
-export const getStreamElementHover = (
+export const getTemplatedElementHover = (
   document: SparkdownDocument,
   tree: Tree,
   position: Position,
@@ -70,14 +72,24 @@ export const getStreamElementHover = (
   if (!name || !stack.some((node) => LAYOUT_BODIES.has(node.name))) {
     return null;
   }
-  if (document.getText(document.range(name.from, name.to)).trim() !== STREAM_ELEMENT) {
+  const value = TEMPLATED_ELEMENTS.get(document.getText(document.range(name.from, name.to)).trim());
+  if (!value) {
     return null;
   }
   return {
-    contents: { kind: MarkupKind.Markdown, value: STREAM_ELEMENT_DESCRIPTION },
+    contents: { kind: MarkupKind.Markdown, value },
     range: document.range(name.from, name.to),
   };
 };
+
+export const streamBlockCompletion = (): CompletionItem => ({
+  label: STREAM_ELEMENT,
+  insertText: `${STREAM_ELEMENT} \${1:layout} {\n\tadvance = \${2|auto,click|}\n}`,
+  insertTextFormat: InsertTextFormat.Snippet,
+  kind: CompletionItemKind.Keyword,
+  labelDetails: { description: "settings" },
+  documentation: { kind: MarkupKind.Markdown, value: STREAM_BLOCK_DESCRIPTION },
+});
 
 export const getStreamBlockHover = (
   document: SparkdownDocument,

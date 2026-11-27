@@ -23,7 +23,7 @@ import { type SyntaxNode, type Tree } from "@lezer/common";
 import { isLayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
-import { getStreamBlockHover, getStreamElementHover } from "./streamElementHelp";
+import { getStreamBlockHover, getTemplatedElementHover } from "./streamElementHelp";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
 import { getClearPropHover } from "./clearPropHelp";
 import { getKindLayoutHover } from "./kindLayoutHelp";
@@ -417,7 +417,7 @@ export const getHover = async (
     if (clearPropHover) {
       return clearPropHover;
     }
-    const streamHover = getStreamElementHover(document, tree, position);
+    const streamHover = getTemplatedElementHover(document, tree, position);
     if (streamHover) {
       return streamHover;
     }
