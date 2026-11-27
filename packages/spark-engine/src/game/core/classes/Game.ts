@@ -2663,6 +2663,10 @@ export class Game<T extends M = {}> {
   }
 
   storyLag(): number {
+    return this._pausedFor + (this._pausedAt != null ? this.now() - this._pausedAt : 0);
+  }
+
+  settledStoryLag(): number {
     return this._pausedFor;
   }
 

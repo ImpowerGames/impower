@@ -7449,7 +7449,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.#presented.set(target, {
           sequence: [...prior, ...sequence],
           time,
-          lag: $._game.storyLag(),
+          lag: $._game.settledStoryLag(),
           shown: prior.length + shown,
           complete: instant,
           current: sequence,
@@ -7462,7 +7462,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const presented of this.#presented.values()) {
           if (presented.time === from) {
             presented.time = to;
-            presented.lag = $._game.storyLag();
+            presented.lag = $._game.settledStoryLag();
           }
         }
       }
@@ -8564,7 +8564,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       show(instant: boolean, time?: number): void {
-        this._presented = { instant, time, lag: $._game.storyLag() };
+        this._presented = { instant, time, lag: $._game.settledStoryLag() };
         this.sync(this._presented);
       }
 
@@ -8998,7 +8998,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       show(instant: boolean, time?: number): void {
-        this._presented = { instant, time, lag: $._game.storyLag() };
+        this._presented = { instant, time, lag: $._game.settledStoryLag() };
         this.sync(this._presented, undefined, !instant);
       }
 
@@ -9147,7 +9147,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const reveal of this._reveals.values()) {
           if (reveal.time === from) {
             reveal.time = to;
-            reveal.lag = $._game.storyLag();
+            reveal.lag = $._game.settledStoryLag();
           }
         }
       }

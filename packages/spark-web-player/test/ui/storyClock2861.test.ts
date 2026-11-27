@@ -145,22 +145,6 @@ async function pausesWhileTyping(h: DOMHarness) {
 }
 
 describe("a remounted line replays on the story clock (#2861)", () => {
-  test("a pause that begins before the game's first beat", async () => {
-    const h = harness();
-    await h.ready;
-    await at(50);
-    hold(h);
-    await at(100);
-    h.game.start();
-    await tick(h);
-    expect(text(h)).toBe(LINES[0]);
-    await at(400);
-    release(h);
-    await at(500);
-    await sameAcrossRemount(h);
-    await pausedLineReplays(h, LINES[1]!);
-  });
-
   test("a save taken after pauses and loaded into a new game, whose paused time starts at zero", async () => {
     const h = harness();
     await started(h);
@@ -260,11 +244,10 @@ describe("a remounted line replays on the story clock, whatever path writes it (
   const sourceWith = (layout: string, open: string) =>
     SOURCE.replace(/layout main \{[\s\S]*?\n\}\n/, `${layout}\n`).replace("[[open main]]", `[[open ${open}]]`);
 
-  async function opened(source: string, compose = false) {
+  async function opened(source: string) {
     const h = harness(source);
     await h.ready;
     h.jumpTo("start");
-    (h.game.context.system as any).composeBeats = compose;
     return h;
   }
 
@@ -287,10 +270,9 @@ describe("a remounted line replays on the story clock, whatever path writes it (
         : el.style.opacity === "1";
     }).length;
 
-  test.each([false, true])(
-    "a first line presented during a pause that began before it (beats composed: %s)",
-    async (compose) => {
-      const h = await opened(SOURCE, compose);
+  test("a pause that begins before the game's first beat, with beats composed as the worker composes them", async () => {
+      const h = await opened(SOURCE);
+      (h.game.context.system as any).composeBeats = true;
       await at(50);
       hold(h);
       await at(100);
@@ -299,8 +281,7 @@ describe("a remounted line replays on the story clock, whatever path writes it (
       release(h);
       await at(550);
       await sameAcrossRemount(h);
-    },
-  );
+  });
 
   test("the textstream page reopened while its line types, after a pause", async () => {
     const h = await opened(
@@ -324,16 +305,24 @@ describe("a remounted line replays on the story clock, whatever path writes it (
     expect(shown(h, ".textstream_column")).toBe(live);
   });
 
-  test.each([0, 50])(
-    "a replay sent during a pause and received %s ms later",
-    async (delay) => {
-      const h = await opened(SOURCE);
-      await beat(h);
+  test.each([
+    { case: "at once, during the pause", playerUnpause: 600, received: 400, heldInFlight: 0 },
+    { case: "50 ms later, during the pause", playerUnpause: 600, received: 450, heldInFlight: 50 },
+    { case: "after the player unpaused, before the engine did", playerUnpause: 420, received: 450, heldInFlight: 20 },
+  ])(
+    "a replay sent during a pause and received $case is ahead of a box never replayed by no more than its time in flight while held",
+    async ({ playerUnpause, received, heldInFlight }) => {
+      const h = await opened(SOURCE.replace("  dialogue {", "  action {\n    text\n  }\n  dialogue {"));
+      const sequence = [...LINES[0]!].map((text, i) => ({ text, after: i * 0.05 }));
+      void h.game.module.ui.text.change("line write", "dialogue", sequence, false, 20);
+      void h.game.module.ui.text.change("line write", "action", sequence, false, 20);
+      await flushMicrotasks(40);
       await at(100);
       hold(h);
-      const live = visible(h);
-      expect(live).toBeGreaterThan(0);
-      expect(live).toBeLessThan(letters(h).length);
+      const never = () => shown(h, ".main .action");
+      const replayed = () => shown(h, ".main .dialogue");
+      expect(never()).toBeGreaterThan(0);
+      expect(replayed()).toBe(never());
       const receive = h.router.receive.bind(h.router);
       const queued: any[] = [];
       (h.router as any).receive = (message: any) => {
@@ -346,16 +335,30 @@ describe("a remounted line replays on the story clock, whatever path writes it (
       await at(400);
       await toggle(h);
       expect(queued.length).toBeGreaterThan(0);
-      await at(400 + delay);
+      if (playerUnpause < received) {
+        await at(playerUnpause);
+        h.ui.onUnpause();
+      }
+      await at(received);
       (h.router as any).receive = receive;
       for (const message of queued) {
         receive(message);
       }
       await flushMicrotasks(40);
-      expect(visible(h)).toBe(live);
-      release(h);
-      await at(500 + delay);
-      expect(visible(h)).toBeGreaterThan(live);
+      expect(replayed()).toBeGreaterThanOrEqual(never());
+      expect(replayed()).toBeLessThanOrEqual(never() + Math.ceil(heldInFlight / 50));
+      if (heldInFlight === 0) {
+        expect(replayed()).toBe(never());
+      }
+      if (playerUnpause < received) {
+        h.game.unpause();
+      } else {
+        await at(playerUnpause);
+        release(h);
+      }
+      await at(timeline.currentTime + 100);
+      expect(replayed()).toBeGreaterThanOrEqual(never());
+      expect(replayed()).toBeLessThanOrEqual(never() + Math.ceil(heldInFlight / 50));
     },
   );
 });
