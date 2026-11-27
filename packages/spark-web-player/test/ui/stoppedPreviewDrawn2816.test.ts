@@ -283,6 +283,64 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(t.pictureOf("mask")).toBeUndefined();
   });
 
+  test("a new game replaced before its first beat leaves the inherited picture for the next game to keep", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    const canvas = picture.querySelector(":scope > .morph")!.shadowRoot!.querySelector("canvas");
+    const painted = t.paints.length;
+    await t.fresh();
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-5", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    expect(picture.isConnected).toBe(true);
+    await t.switchGame(2, "cleared");
+    expect(t.pictureOf("image")).toBe(picture);
+    expect(picture.querySelector(":scope > .morph")!.shadowRoot!.querySelector("canvas")).toBe(canvas);
+    expect(t.paints.length).toBe(painted);
+  });
+
+  test("a show of the same picture whose instant entrance ends in a different state replaces it", async () => {
+    const t = await setup();
+    const faded = (key: string, opacity: string): WriteImageParams => {
+      const write = show(key, 0);
+      const content = write.instructions[0]!.content!;
+      content.enterAnimation = { ...(content.enterAnimation as object), keyframes: [{ opacity }], timing: { delay: 0, duration: 0, fill: "forwards" } } as never;
+      return write;
+    };
+    t.beat([faded("nova-run", "0.2")]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    t.beat([faded("nova-run", "1")], 31);
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the second beat");
+    await untilShown(t.h.overlay);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(t.pictureOf("image")).toBeDefined();
+    expect(t.pictureOf("image")).not.toBe(picture);
+  });
+
+  test("a kept picture written with a new morph epoch restarts its morph from the start", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    const layer = picture.__sdMorph;
+    expect(layer.occurrenceKeys.every((key: string) => key.endsWith("|0"))).toBe(true);
+    const before = layer.occurrenceKeys.length;
+    t.playback.advance(0.2);
+    t.beat([{ target: "portrait", instant: false, instructions: [] }, show("nova-run", 1)], 31);
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the second beat");
+    await flushMicrotasks(10);
+    expect(t.pictureOf("image")).toBe(picture);
+    expect(picture.__sdMorph).toBe(layer);
+    expect(layer.occurrenceKeys).toHaveLength(before);
+    expect(layer.occurrenceKeys.every((key: string) => key.endsWith("|1"))).toBe(true);
+    const occurrences = (t.playback as unknown as { occurrences: Map<string, { start: number }> }).occurrences;
+    expect(layer.occurrenceKeys.every((key: string) => occurrences.get(key)!.start === t.playback.now)).toBe(true);
+  });
+
   test("a new game that writes the shown picture unchanged owns it, so its own later clear takes it away at once", async () => {
     const t = await setup();
     t.beat([show("nova-run", 0)]);

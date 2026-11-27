@@ -191,8 +191,11 @@ function instantAnimation(animation: Animation | undefined): boolean {
 }
 
 function shownPicture(property: string, content: NonNullable<WriteImageInstruction["content"]>): string {
-  const { enterAnimation: _enter, exitAnimation: _exit, previousHideAnimation: _hide, morph, ...drawn } = content;
-  return JSON.stringify([property, drawn, morph ? { ...morph, epoch: undefined } : null]);
+  const { enterAnimation, exitAnimation: _exit, previousHideAnimation: _hide, morph, ...drawn } = content;
+  const entrance = enterAnimation
+    ? { ...enterAnimation, timing: { ...enterAnimation.timing, delay: undefined, duration: undefined } }
+    : null;
+  return JSON.stringify([property, drawn, morph ? { ...morph, epoch: undefined } : null, entrance]);
 }
 
 interface ShownPicture {
@@ -617,7 +620,9 @@ export default class UIManager extends Manager {
     }
     this._beatMarks.clear();
     this.discardAllPrepared();
-    this.settleClears();
+    clearTimeout(this._clearingTimer);
+    this._clearingTimer = undefined;
+    this._clearing.clear();
   }
 
   protected followEnd(el: HTMLElement) {
@@ -2920,7 +2925,13 @@ export default class UIManager extends Manager {
           .filter((el) => !(el as any).__sdPrepared && shownOf(el))
           .at(-1);
         const marker = shown ? shownOf(shown) : undefined;
-        if (!shown || !marker || marker.key !== key || (write && marker.write !== write)) {
+        if (
+          !shown ||
+          !marker ||
+          marker.key !== key ||
+          (write && marker.write !== write) ||
+          shown.getAnimations?.().some((animation) => animation.playState === "running" || animation.pending)
+        ) {
           return undefined;
         }
         write = marker.write;
@@ -3131,6 +3142,7 @@ export default class UIManager extends Manager {
             }
             if (keptSpanEl) {
               this._clearing.delete(keptSpanEl);
+              (keptSpanEl as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph?.renew(content.morph?.epoch ?? 0);
               placePicture(keptSpanEl, instruction.framing);
               setShown(keptSpanEl, { key: shownPicture(property, content), write: write! });
               retire(prevSpanEls);
