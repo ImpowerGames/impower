@@ -702,6 +702,9 @@ export default class UIManager extends Manager {
   protected _applying = 0;
 
   protected receiveBeat(params: BeatParams) {
+    this._beatReceived = true;
+    clearTimeout(this._clearingTimer);
+    this._clearingTimer = undefined;
     this._beatMarks.received(params);
     this._waitingBeats.push(params);
     this.drainWaiting();
@@ -2851,6 +2854,8 @@ export default class UIManager extends Manager {
 
   protected _beatApplied = false;
 
+  protected _beatReceived = false;
+
   protected holdClear(contentEl: HTMLElement): boolean {
     if (this._beatApplied) {
       return false;
@@ -2870,7 +2875,12 @@ export default class UIManager extends Manager {
         el.remove();
       }
     }
-    if (this._clearingTimer === undefined && this._drawTimeouts.beat > 0 && this._drawTimeouts.restore > 0) {
+    if (
+      this._clearingTimer === undefined &&
+      !this._beatReceived &&
+      this._drawTimeouts.beat > 0 &&
+      this._drawTimeouts.restore > 0
+    ) {
       this._clearingTimer = setTimeout(
         () => this.settleClears(),
         Math.max(this._drawTimeouts.beat, this._drawTimeouts.restore) * 1000,

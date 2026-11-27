@@ -397,6 +397,37 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(picture.querySelector(":scope > .morph")!.shadowRoot!.querySelector("canvas")).toBe(canvas);
   });
 
+  test("a new game's held clear stays until its first beat applies, even when that beat arrives and is still drawing at the fallback time", async () => {
+    const OTHER = "/src/other.svg";
+    const t = await setup({ load: (src) => (src === OTHER ? new Promise<PictureBitmap>(() => {}) : Promise.resolve(vector(src))) });
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    await t.fresh();
+    t.ui().onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0.4, restoreTimeout: 0.4 },
+    } as never);
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-7", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const other = show("other-run", 1);
+    const content = other.instructions[0]!.content!;
+    content.background = `url("${OTHER}")`;
+    content.imageNames = "other";
+    content.srcs = [OTHER];
+    content.pictures = [{ layer: 0, span: 1, name: "other", vector: true, files: [{ src: OTHER, name: "other.svg" }] }];
+    content.morph = undefined;
+    t.beat([other], 33);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(t.events.filter((event) => event === "applied")).toHaveLength(1);
+    expect(picture.isConnected).toBe(true);
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the first beat after its drawing wait");
+    await flushMicrotasks(10);
+    expect(picture.isConnected).toBe(false);
+  });
+
   test("a clear outside a beat once the game has applied a beat takes the picture away at once", async () => {
     const t = await setup();
     t.beat([show("nova-run", 0)]);
