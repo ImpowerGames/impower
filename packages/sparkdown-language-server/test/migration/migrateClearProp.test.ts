@@ -300,6 +300,15 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(migrated.migrated).toBe(2);
   });
 
+  test("marks an element in a script literal that holds only a component, by a shared name", () => {
+    const script = "export const CARD = `component card {\n  frame {\n    title { title_background }\n  }\n}\n`;\n";
+    expect(migrateScriptClearProp(script, ts, "card.ts", new Set(["title"]))).toEqual({
+      text: script.replace("title {", "title #clear {"),
+      migrated: 1,
+    });
+    expect(migrateScriptClearProp(script, ts, "card.ts")).toEqual({ text: script, migrated: 0 });
+  });
+
   test("marks an element by a name the built-in layouts empty, and keeps each target's names to itself", { timeout: 120_000 }, () => {
     const first = mkdtempSync(join(tmpdir(), "migrate-clear-prop-test-"));
     const second = mkdtempSync(join(tmpdir(), "migrate-clear-prop-test-"));

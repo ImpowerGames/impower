@@ -206,7 +206,7 @@ export function migrateMarkdownClearProp(source: string, shared: ReadonlySet<str
   return { text: lines.join("\n"), migrated };
 }
 
-const BODY_HEADER = /(^|\n)[ \t]*(?:layout|screen)[ \t]+[A-Za-z_]/;
+const BODY_HEADER = /(^|\n)[ \t]*(?:layout|screen|component)[ \t]+[A-Za-z_]/;
 
 function maskedTemplate(
   typescript: typeof ts,
