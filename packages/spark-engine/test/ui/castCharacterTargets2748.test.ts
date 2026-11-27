@@ -133,10 +133,46 @@ end
     expect(h.framings()).toEqual({ mia: center, sam: right });
   });
 
-  test("a new picture with no at returns the entry to the default framing", () => {
-    const h = play(STORY);
+  test("a new picture with no at returns only that entry to the default framing", () => {
+    const h = play(`scene start
+  [[mia@happy at left]]
+  [[sam@calm at right]]
+  MIA: You came.
+  [[mia@sad]]
+  MIA: Oh.
+end
+`);
+    const left = h.ui.getFraming("left");
+    const right = h.ui.getFraming("right");
+    h.tapTo("You came.");
+    expect(left).not.toBeUndefined();
+    expect(h.framings()).toEqual({ mia: left, sam: right });
     h.tapTo("Oh.");
-    expect(h.framings()).toEqual({ mia: h.ui.getFraming(undefined) ?? null, sam: h.ui.getFraming("right") });
+    expect(h.ui.getFraming(undefined)).toBeUndefined();
+    expect(h.framings()).toEqual({ mia: null, sam: right });
+  });
+});
+
+describe("a name that is both a layer and a character (#2748)", () => {
+  test("hide and animate use the layer and leave the character's entry", () => {
+    const h = play(`layout mia {
+  image
+}
+
+scene start
+  [[mia@happy at left]]
+  [[sam@calm at right]]
+  MIA: You came.
+  [[animate mia to right over 1s]]
+  [[hide mia]]
+  SAM: Still here.
+end
+`);
+    h.tapTo("You came.");
+    expect(speakers(h.entries())).toEqual(["mia", "sam"]);
+    h.tapTo("Still here.");
+    expect(speakers(h.entries())).toEqual(["mia", "sam"]);
+    expect(h.framings()).toEqual({ mia: h.ui.getFraming("left"), sam: h.ui.getFraming("right") });
   });
 });
 

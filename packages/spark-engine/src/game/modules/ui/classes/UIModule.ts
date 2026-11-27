@@ -132,6 +132,7 @@ import {
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
 import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { collectLayerNames } from "@impower/sparkdown/src/compiler/utils/collectLayerNames";
 import { bodyChildLists } from "../utils/bodyChildren";
 import { getVarName } from "../utils/getVarName";
 import {
@@ -9503,24 +9504,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      protected _layers = new WeakMap<object, Map<string, boolean>>();
+      protected _layers = new WeakMap<object, Set<string>>();
 
       protected namesCharacter(target: string): boolean {
         const sparkle = $._game.program?.sparkle;
         if (!sparkle || !getContextEntry($.context, "character", target)) {
           return false;
         }
-        const layers = this._layers.get(sparkle) ?? new Map<string, boolean>();
-        this._layers.set(sparkle, layers);
-        let layer = layers.get(target);
-        if (layer === undefined) {
-          const wanted = new Set([target]);
-          layer =
-            Object.values(sparkle.layouts ?? {}).some((l) => $.treeHolds(l.children, wanted)) ||
-            Object.values(sparkle.screens ?? {}).some((s) => $.treeHolds(s.children, wanted));
-          layers.set(target, layer);
+        let layers = this._layers.get(sparkle);
+        if (!layers) {
+          layers = collectLayerNames({ context: $.context, sparkle });
+          this._layers.set(sparkle, layers);
         }
-        return !layer;
+        return !layers.has(target);
       }
 
       protected queue(write: CastWrite): void {
