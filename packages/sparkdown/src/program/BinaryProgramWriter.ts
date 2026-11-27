@@ -624,6 +624,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   emitObjects(objects: readonly ParsedObject[]): void {
+    let afterClick = false;
     for (let i = 0; i < objects.length; i += 1) {
       const obj = objects[i]!;
       if (obj instanceof Choice) {
@@ -675,12 +676,15 @@ export class BinaryProgramWriter implements ProgramEmitter {
         i += objectsOfBody.length;
         continue;
       }
+      const display = obj instanceof FunctionCall && obj.name === "display";
       this.emitObject(
         obj,
-        obj instanceof FunctionCall &&
-          obj.name === "display" &&
-          !displayTableFlag(obj.args, "continues"),
+        display &&
+          (afterClick || !displayTableFlag(obj.args, "continues")),
       );
+      if (display) {
+        afterClick = displayTableFlag(obj.args, "pause");
+      }
     }
   }
 
