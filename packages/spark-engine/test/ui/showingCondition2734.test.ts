@@ -191,7 +191,7 @@ end
     await flushMicrotasks(10);
     expect(ui.showingNames()).toEqual(["hud"]);
     expect(ui.beginCompose()).toBe(true);
-    void ui.closeLayout("hud", { with: "fadeout", over: 0.5 });
+    void ui.closeLayout("hud", [{ with: "fadeout", over: 0.5 }]);
     await flushMicrotasks(10);
     expect(ui._mountedLayouts.has("hud")).toBe(false);
     expect(ui._retiring.size).toBe(1);
@@ -386,7 +386,7 @@ end
     await flushMicrotasks(10);
     expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);
     expect(ui.beginCompose()).toBe(true);
-    void ui.closeLayout("overlay", { with: "fadeout", over: 0.5 });
+    void ui.closeLayout("overlay", [{ with: "fadeout", over: 0.5 }]);
     await flushMicrotasks(10);
     expect(ui._retiring.size).toBe(1);
     expect(ui.showingNames()).toEqual(["badge", "overlay", "text"]);

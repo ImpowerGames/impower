@@ -474,7 +474,7 @@ describe("composition, round 2 of PR #1865", () => {
     h.reset();
 
     expect(ui.beginCompose()).toBe(true);
-    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    ui.composeWait(ui.closeLayout("hud", [{ with: "fade", over: 0.5 }]));
     expect(ui._mountedLayouts.has("hud")).toBe(false);
     void ui.text.change("line write", "dialogue", [{ text: "Next" }], true);
     void ui.endCompose({ time: 100 });
@@ -540,7 +540,7 @@ describe("the retirement path, round 3 of PR #1865", () => {
   test("an exit that finishes after a connect leaves the screen that connect built alone", async () => {
     const { h, ui, hudId } = await hudShown();
     expect(ui.beginCompose()).toBe(true);
-    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    ui.composeWait(ui.closeLayout("hud", [{ with: "fade", over: 0.5 }]));
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
     const exit = exitOf(h, hudId);
@@ -561,7 +561,7 @@ describe("the retirement path, round 3 of PR #1865", () => {
   test("a layout closed and reopened in one beat keeps its fonts pinned once the old element has gone", async () => {
     const { h, ui, hudId } = await hudShown();
     expect(ui.beginCompose()).toBe(true);
-    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    ui.composeWait(ui.closeLayout("hud", [{ with: "fade", over: 0.5 }]));
     ui.composeWait(ui.openLayout("hud"));
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(30);
@@ -615,7 +615,7 @@ describe("the retirement path, round 3 of PR #1865", () => {
     const { h, ui, hudId } = await hudShown();
     expect(ui.beginCompose()).toBe(true);
     let closed = false;
-    void ui.closeLayout("hud", { with: "fade", over: 0.5 }).then(() => (closed = true));
+    void ui.closeLayout("hud", [{ with: "fade", over: 0.5 }]).then(() => (closed = true));
     ui.composeWait(new Promise(() => {}));
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
@@ -638,7 +638,7 @@ describe("the retirement path, round 3 of PR #1865", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       expect(ui.beginCompose()).toBe(true);
-      ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+      ui.composeWait(ui.closeLayout("hud", [{ with: "fade", over: 0.5 }]));
       void ui.endCompose({ time: 100 });
       await flushMicrotasks(20);
 
@@ -701,7 +701,7 @@ describe("round 5 of PR #1865", () => {
     const hudId = ui._mountedLayouts.get("hud").element.id;
     h.reset();
     expect(ui.beginCompose()).toBe(true);
-    ui.composeWait(ui.closeLayout("hud", { with: "fade", over: 0.5 }));
+    ui.composeWait(ui.closeLayout("hud", [{ with: "fade", over: 0.5 }]));
     void ui.endCompose({ time: 100 });
     await flushMicrotasks(20);
     const exit = beats(h.messages)
