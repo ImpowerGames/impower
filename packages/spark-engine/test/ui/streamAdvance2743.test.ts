@@ -129,7 +129,7 @@ async function click(h: Harness) {
   await press(h);
 }
 
-async function tickUntil(h: Harness, line: string, limit = 20000, step = 10) {
+async function tickUntil(h: Harness, line: string, limit = 20000, step = 50) {
   for (let elapsed = 0; elapsed < limit && shown(h) !== line; elapsed += step) {
     await tick(h, step);
   }
@@ -424,22 +424,29 @@ describe("the preview of a line inside a run (I-2743)", () => {
 });
 
 describe("the game reads every pause the compiler accepts as written (I-2743)", () => {
-  test.each([
-    ["0.6s", 0.6],
-    ["600ms", 0.6],
-    [".5s", 0.5],
-    ["2.5s", 2.5],
-    ["1", 1],
-    ["0", 0],
-  ])("pause = %s waits %d seconds", async (pause, seconds) => {
-    const h = createHarness(
-      `${DEFS}\nstream phone {\n  advance = auto\n  pause = ${pause}\n}\n\nscene start\n  RAFFLES: one\nend\n`,
-      0,
-      { autoOpenAll: false },
-    );
+  test("0.6s, 600ms, .5s, 2.5s, 1 and 0 are read as those numbers of seconds", async () => {
+    const pauses: [string, number][] = [
+      ["0.6s", 0.6],
+      ["600ms", 0.6],
+      [".5s", 0.5],
+      ["2.5s", 2.5],
+      ["1", 1],
+      ["0", 0],
+    ];
+    const blocks = pauses
+      .map(
+        ([pause], i) =>
+          `layout log${i} {\n  stream {\n    dialogue { text }\n  }\n}\n\nstream log${i} {\n  advance = auto\n  pause = ${pause}\n}\n`,
+      )
+      .join("\n");
+    const h = createHarness(`${DEFS}\n${blocks}\nscene start\n  RAFFLES: one\nend\n`, 0, {
+      autoOpenAll: false,
+    });
     await h.ready;
     expect(h.errors).toEqual([]);
-    expect(streamSettings(h.game, "phone")).toEqual({ advance: "auto", pause: seconds });
+    expect(pauses.map((_, i) => streamSettings(h.game, `log${i}`))).toEqual(
+      pauses.map(([, seconds]) => ({ advance: "auto", pause: seconds })),
+    );
   });
 });
 
