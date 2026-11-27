@@ -151,6 +151,33 @@ describe("drawing ahead keeps to its budget, its layout and its owner (#2813)", 
     expect(t.playback.drawnAheadBytes()).toBe(0);
   });
 
+  test("a shadow outline that does not fit is not made, keeps the drawing that fits, and is not tried again until there is room", async () => {
+    const t = await setup({ shadow: true });
+    t.playback.frameBudget = () => 100 * 100 * 4;
+    t.draw([t.ahead("a")]);
+    await until(() => t.requests.length === 1 && t.instances().length === 0, "the drawing that fits");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(t.outlines).toHaveLength(0);
+    expect(t.playback.drawnAheadBytes()).toBe(100 * 100 * 4);
+    let mounted = 0;
+    const observer = new t.win.MutationObserver((records) => {
+      for (const record of records) mounted += Array.from(record.addedNodes).filter((node) => (node as HTMLElement).classList?.contains("instance")).length;
+    });
+    observer.observe(t.overlay, { childList: true, subtree: true });
+    t.draw([t.ahead("a")]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    observer.disconnect();
+    expect(mounted).toBe(0);
+    expect(t.requests).toHaveLength(1);
+    expect(t.outlines).toHaveLength(0);
+    expect(t.requests[0]!.release).not.toHaveBeenCalled();
+    t.playback.frameBudget = () => 100 * 100 * 4 * 2;
+    t.draw([t.ahead("a")]);
+    await until(() => t.outlines.length === 1 && t.instances().length === 0, "the outline once there is room");
+    expect(t.requests).toHaveLength(1);
+    expect(t.playback.drawnAheadBytes()).toBe(100 * 100 * 4 * 2);
+  });
+
   test("a portrait's morph frames drawn ahead are the frames its beat plans and shows, with nothing drawn again", async () => {
     const art = talkingPortrait();
     const t = await setup({ art, host: true });

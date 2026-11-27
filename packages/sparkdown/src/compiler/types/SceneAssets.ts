@@ -14,7 +14,7 @@ export interface SceneBeat {
   address: ProgramAddress;
   image?: string[];
   writes?: SceneImageWrite[];
-  scope?: number[];
+  scope?: [number, number][];
   audio?: string[];
   layouts?: string[];
   loads?: string[];

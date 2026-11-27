@@ -788,7 +788,13 @@ export class MorphPlayback {
       }
       return known;
     }
-    this.makeRoom(source.width * source.height * FRAME_BYTES_PER_PIXEL, forecast ?? 0);
+    const bytes = source.width * source.height * FRAME_BYTES_PER_PIXEL;
+    if (forecast !== undefined && !this.makeRoom(bytes, forecast)) {
+      this.refuse(`outline ${source.key}`, bytes, forecast);
+      return { key: source.key, width: source.width, height: source.height, users: 1, ready: Promise.resolve(undefined) };
+    }
+    if (forecast === undefined) this.makeRoom(bytes, 0);
+    this.refused.delete(`outline ${source.key}`);
     const outline: Outline = {
       key: source.key,
       width: source.width,
@@ -830,6 +836,7 @@ export class MorphPlayback {
 
   releaseOutline(outline: Outline) {
     outline.users -= 1;
+    if (this.outlines.get(outline.key) !== outline) return;
     if (outline.users <= 0 && outline.distance !== undefined) this.makeRoom(0, 0);
     this.trimOutlines();
   }
@@ -895,12 +902,13 @@ export class MorphPlayback {
       const bytes = width * height * FRAME_BYTES_PER_PIXEL;
       if (forecast !== undefined) {
         if (!this.makeRoom(bytes, forecast)) {
-          this.recording?.add(key);
+          this.refuse(key, bytes, forecast);
           return Promise.resolve(undefined);
         }
       } else {
         this.makeRoom(bytes, 0);
       }
+      this.refused.delete(key);
       const made: Drawing = { key, bytes, users: 0, forecasts: 0, made: Promise.resolve(undefined), ...(forecast !== undefined ? { distance: forecast } : {}) };
       made.made = this.rasterizeSvgLayer(source, natural, width, height, doc)
         .catch(() => undefined)
@@ -961,6 +969,25 @@ export class MorphPlayback {
     drawing.raster = undefined;
   }
 
+  protected refused = new Map<string, { bytes: number; distance: number }>();
+  protected static readonly REFUSALS = 256;
+
+  protected refuse(key: string, bytes: number, distance: number) {
+    this.recording?.add(key);
+    this.refused.delete(key);
+    this.refused.set(key, { bytes, distance });
+    if (this.refused.size > MorphPlayback.REFUSALS) this.refused.delete(this.refused.keys().next().value!);
+  }
+
+  protected fits(bytes: number, distance: number): boolean {
+    const budget = this.frameBudget?.() ?? Infinity;
+    let room = budget - this.drawnAheadBytes();
+    for (const kept of this.kept()) {
+      if (kept.idle && (kept.stale || kept.distance === undefined ? Infinity : kept.distance) > distance) room += kept.bytes;
+    }
+    return bytes <= room;
+  }
+
   protected kept(): Kept[] {
     const kept: Kept[] = [];
     for (const drawing of this.drawings.values()) {
@@ -1011,21 +1038,21 @@ export class MorphPlayback {
 
   retain(keys: readonly string[], distance: number): boolean {
     const marks: { distance?: number; stale?: boolean }[] = [];
+    const refusals: { bytes: number }[] = [];
     for (const key of keys) {
-      if (key.startsWith("outline ")) {
-        const outline = this.outlines.get(key.slice("outline ".length));
-        if (!outline) return false;
-        marks.push(outline);
-        continue;
-      }
-      const drawing = this.drawings.get(key);
-      if (!drawing?.raster) return false;
-      marks.push(drawing);
+      const outline = key.startsWith("outline ") ? this.outlines.get(key.slice("outline ".length)) : undefined;
+      const drawing = outline ? undefined : this.drawings.get(key);
+      const mark = outline ?? (drawing?.raster ? drawing : undefined);
+      const refused = mark ? undefined : this.refused.get(key);
+      if (mark) marks.push(mark);
+      else if (refused) refusals.push(refused);
+      else return false;
     }
     for (const mark of marks) {
       mark.distance = mark.stale || mark.distance === undefined ? distance : Math.min(mark.distance, distance);
       mark.stale = false;
     }
+    if (refusals.some((refused) => this.fits(refused.bytes, distance))) return false;
     this.makeRoom(0, 0);
     return true;
   }
@@ -1047,6 +1074,7 @@ export class MorphPlayback {
   }
 
   dropForecasts() {
+    this.refused.clear();
     for (const drawing of [...this.drawings.values()]) {
       if (drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
       else delete drawing.distance;

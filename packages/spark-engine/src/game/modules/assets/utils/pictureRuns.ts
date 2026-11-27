@@ -7,7 +7,7 @@ export interface PictureRun {
   target: string;
   assets: string[];
   distance: number;
-  scope: readonly number[];
+  scope: Scope;
   framings: string[];
   effects: SceneImageWrite[];
 }
@@ -20,17 +20,28 @@ export interface PredictedBeat {
 const same = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((name, index) => name === b[index]);
 
-export const within = (
-  inner: readonly number[],
-  outer: readonly number[],
-): boolean =>
-  outer.length <= inner.length &&
-  outer.every((scope, index) => inner[index] === scope);
+type Scope = readonly (readonly [number, number])[];
 
-export const reachable = (
-  a: readonly number[],
-  b: readonly number[],
-): boolean => within(a, b) || within(b, a);
+export const within = (inner: Scope, outer: Scope): boolean =>
+  outer.length <= inner.length &&
+  outer.every(
+    ([decision, arm], index) =>
+      inner[index]![0] === decision && inner[index]![1] === arm,
+  );
+
+export const reachable = (a: Scope, b: Scope): boolean => {
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    const [decisionA, armA] = a[index]!;
+    const [decisionB, armB] = b[index]!;
+    if (decisionA !== decisionB) {
+      return true;
+    }
+    if (armA !== armB) {
+      return false;
+    }
+  }
+  return true;
+};
 
 export function pictureRuns(
   beats: readonly PredictedBeat[],
@@ -69,6 +80,13 @@ export function pictureRuns(
       seed(target);
       const standing = open.get(target) ?? [];
       if (write.hide) {
+        if (write.with) {
+          for (const run of standing) {
+            if (reachable(run.scope, scope)) {
+              run.effects.push(write);
+            }
+          }
+        }
         open.set(
           target,
           standing.filter((run) => !within(run.scope, scope)),

@@ -152,6 +152,10 @@ const imageWrite = (body: string): SceneImageWrite => {
   if (target) {
     write.target = target;
   }
+  const effect = reading.values["with"];
+  if (typeof effect === "string" && effect) {
+    write.with = effect;
+  }
   if (reading.control?.text === "hide") {
     write.hide = true;
     return write;
@@ -173,10 +177,6 @@ const imageWrite = (body: string): SceneImageWrite => {
     ?.value?.text;
   if (to) {
     write.to = to;
-  }
-  const effect = reading.values["with"];
-  if (typeof effect === "string" && effect) {
-    write.with = effect;
   }
   return write;
 };

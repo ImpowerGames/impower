@@ -747,8 +747,18 @@ export class AssetModule extends Module<
     if (this._effectScales?.context !== context) {
       this._effectScales = { context, byWrite: new Map() };
     }
-    const names = write.image?.length ? write.image : write.animate ? [] : assets;
-    const control = write.animate || names.length === 0 ? "animate" : "show";
+    const names = write.hide
+      ? []
+      : write.image?.length
+        ? write.image
+        : write.animate
+          ? []
+          : assets;
+    const control = write.hide
+      ? "hide"
+      : write.animate || names.length === 0
+        ? "animate"
+        : "show";
     const key = [control, write.with ?? "", names.join("+")].join("|");
     let scale = this._effectScales.byWrite.get(key);
     if (scale === undefined) {

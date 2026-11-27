@@ -283,6 +283,58 @@ end
     expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 3 }]);
   });
 
+  it("gives a picture the scale its hiding effect grows it to", async () => {
+    const story = `animation swell {
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "2"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+scene start
+  Current.
+  [[show backdrop hall]]
+  Hall.
+  [[hide backdrop with swell]]
+  Gone.
+end
+`;
+    const h = createHarness(story, at(story, "  Current."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 2 }]);
+  });
+
+  it("keeps a later decision reachable from inside an earlier one", async () => {
+    const story = `store open = true
+
+scene start
+  if open
+    [[show backdrop hall]]
+    Open.
+  else
+    [[show backdrop dusk]]
+    Shut.
+  end
+  if open
+    [[show portrait nova]]
+    Nova.
+  end
+end
+`;
+    const h = createHarness(story, at(story, "    Open."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    const beats = h.game.program.sceneAssets!["start"]!.beats;
+    (h.game as any)._executingAddress = beats[0]!.address;
+    expect(settle(h).map((p: any) => p.name)).toEqual(["nova"]);
+  });
+
   it("counts only beats that load something against predict_distance in the stopped preview", async () => {
     const story = `define assets as config with
   predict_distance = 1
