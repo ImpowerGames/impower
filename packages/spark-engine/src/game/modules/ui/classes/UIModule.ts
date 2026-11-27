@@ -837,6 +837,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _restoredEdits?: number;
 
+  protected _reconcileLayouts = false;
+
   protected _standing?: StandingScreen;
 
   protected _clearedPictures?: Record<string, ImageState[]>;
@@ -985,7 +987,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     delete this._state.image;
   }
 
+  protected reconcileRoutedLayouts(): void {
+    if (!this._reconcileLayouts) {
+      return;
+    }
+    this._reconcileLayouts = false;
+    const edits = this._screenEdits;
+    const open = new Set((this._state.layout ?? []).map((s) => s.name));
+    for (const name of [...this._mountedLayouts.keys()]) {
+      if (!UIModule.MANAGED_LAYOUTS.has(name) && !open.has(name)) {
+        void this.closeLayout(name, undefined, true, true);
+      }
+    }
+    const missing = [...open].filter((name) => !this._mountedLayouts.has(name));
+    for (const name of missing) {
+      void this.openLayout(name, undefined, true, true);
+    }
+    if (missing.length > 0) {
+      void Promise.all(this.restoreTexts());
+    }
+    this._screenEdits = edits;
+  }
+
   sweepReconcile() {
+    this.reconcileRoutedLayouts();
     const standing = this.standingScreen();
     if (this._compose) {
       this._compose.standing = standing;
@@ -1114,12 +1139,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (previewing != null && previewing !== false) {
       this.beginCompose("display");
     }
-    const restored = new Set((this._state.layout ?? []).map((s) => s.name));
-    for (const name of [...this._mountedLayouts.keys()]) {
-      if (!UIModule.MANAGED_LAYOUTS.has(name) && !restored.has(name)) {
-        void this.closeLayout(name, undefined, true);
-      }
-    }
+    this._reconcileLayouts = true;
     const transient = this.getTransientTargets();
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
@@ -1259,6 +1279,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.forgetPresence();
     this._standing = undefined;
     this._restoredEdits = undefined;
+    this._reconcileLayouts = false;
     this._tree = undefined;
     this._building = {
       build: ++this._treeBuilds,
@@ -1323,11 +1344,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const epoch = this._game.connection.epoch;
     if (this._state.layout && this._reactive) {
       let remounted = false;
-      for (const { name } of this._state.layout) {
+      for (const { name, auto } of this._state.layout) {
         if (
           name &&
           !UIModule.MANAGED_LAYOUTS.has(name) &&
-          !this._mountedLayouts.has(name)
+          !this._mountedLayouts.has(name) &&
+          !(auto && this._reconcileLayouts)
         ) {
           const layout = this._game.program?.sparkle?.layouts?.[name];
           if (layout) {
@@ -5703,7 +5725,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const closed = names.filter(
       (name) =>
-        !UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name),
+        !this.isScreen(name) &&
+        (!UIModule.MANAGED_LAYOUTS.has(name) || !this._mountedLayouts.has(name)),
     );
     if (closed.length === 0) {
       return;

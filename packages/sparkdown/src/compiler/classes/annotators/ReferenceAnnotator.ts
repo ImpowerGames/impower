@@ -238,7 +238,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       if (target) shown(target, ["screen"], "screen");
       if (directive.destination && directiveValueKind(directive.destination.text) === "name") shown(directive.destination, ["layout"], "layout");
     } else if (kind === "layout") {
-      if (target) shown(target, ["layout"], "layout");
+      if (target) shown(target, ["layout", "screen"], "layout");
     } else if (kind === "load") {
       if (target) references.push(this.loadTargetReference(target.text, target));
     } else if (kind === "cutscene") {

@@ -7,20 +7,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.applyLayoutInstructions",
-    [
-      {
-        "control": "open",
-        "name": "textbox",
-      },
-    ],
-    false,
-  ],
-  [
-    "ui.composeWait",
-    {},
-  ],
-  [
     "ui.beginCompose",
   ],
   [
@@ -869,20 +855,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.applyLayoutInstructions",
-    [
-      {
-        "control": "open",
-        "name": "textbox",
-      },
-    ],
-    false,
-  ],
-  [
-    "ui.composeWait",
-    {},
-  ],
-  [
     "ui.beginCompose",
   ],
   [
@@ -1707,20 +1679,6 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
   [
     "beat",
     0,
-  ],
-  [
-    "ui.applyLayoutInstructions",
-    [
-      {
-        "control": "open",
-        "name": "textbox",
-      },
-    ],
-    true,
-  ],
-  [
-    "ui.composeWait",
-    {},
   ],
   [
     "ui.beginCompose",
