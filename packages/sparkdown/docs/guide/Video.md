@@ -39,8 +39,12 @@ The video plays on the `portrait` layer and loops. Everything you can write afte
 | `[[show portrait bunny_idle loop]]` | Loops, which is what a layer movie does anyway. |
 | `[[show backdrop rain mute]]` | Plays it with no sound. |
 | `[[show backdrop rain with fade]]` | Fades it in, as an image would. |
+| `[[show backdrop rain once with fade with shake]]` | Plays it through once while it fades in and shakes. |
+| `[[show backdrop rain with fade once]]` | Fades it in once and leaves the video looping. |
 | `[[animate portrait with shake]]` | Shakes the layer the movie is on, as it would an image. |
 | `[[hide portrait]]` | Stops the movie and clears the layer. |
+
+`loop` and `once` belong to the video when they come before the first `with`, and to the `with` they follow otherwise. A line can carry any number of `with` clauses, and all of them play together, as [several animations at once](./AnimationTheme.md#several-animations-at-once) describes.
 
 A movie on a layer does not hold up the story. The next line shows when it would after an image, whether or not the movie has finished.
 
