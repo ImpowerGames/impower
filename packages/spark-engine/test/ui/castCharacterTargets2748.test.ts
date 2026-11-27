@@ -244,6 +244,71 @@ end
   });
 });
 
+describe("a character's name keeps its place among the line's pictures (#2748)", () => {
+  const pictureOf = (h: ReturnType<typeof play>, speaker: string) => {
+    const events = h.entries().find((e) => e.speaker === speaker)?.image?.["portrait"] ?? [];
+    return h.ui.pictureShown(events) ? events.findLast((e) => e.assets?.length)?.assets ?? [] : [];
+  };
+
+  test("a hide written before a new picture of the same character leaves the new picture on screen", () => {
+    const h = play(`scene start
+  [[mia@happy]]
+  MIA: One.
+  [[sam@calm]]
+  [[hide mia]]
+  [[mia@sad at left]]
+  Narration.
+end
+`);
+    h.tapTo("Narration.");
+    expect(pictureOf(h, "mia")).toEqual(["mia@sad"]);
+    expect(pictureOf(h, "sam")).toEqual(["sam@calm"]);
+    expect(h.framings()).toEqual({ mia: h.ui.getFraming("left"), sam: null });
+  });
+
+  test("a travel written before a new picture with no at gives way to the default framing", () => {
+    const h = play(`scene start
+  [[mia@happy]]
+  MIA: One.
+  [[sam@calm]]
+  [[animate mia to left over 1s]]
+  [[mia@sad]]
+  Narration.
+end
+`);
+    h.tapTo("Narration.");
+    expect(pictureOf(h, "mia")).toEqual(["mia@sad"]);
+    expect(h.framings()).toEqual({ mia: null, sam: null });
+  });
+
+  test("a hide written before a character's first picture leaves that picture on screen", () => {
+    const h = play(`scene start
+  [[sam@calm]]
+  [[hide mia]]
+  [[mia@happy]]
+  Narration.
+end
+`);
+    h.tapTo("Narration.");
+    expect(speakers(h.entries())).toEqual(["sam", "mia"]);
+    expect(pictureOf(h, "mia")).toEqual(["mia@happy"]);
+  });
+
+  test("the line's image events carry their written order only when a target names a character", () => {
+    const h = play(`scene start
+  [[mia@happy]]
+  [[hide mia]]
+  Narration.
+end
+`);
+    const interpreter: any = h.game.module.interpreter;
+    const withCharacter = interpreter.parse("[[mia@happy]] [[hide mia]]", "action");
+    expect(withCharacter.imageOrder).toEqual(["portrait", "mia"]);
+    const withoutCharacter = interpreter.parse("[[mia@happy]] [[hide portrait]]", "action");
+    expect(withoutCharacter.imageOrder).toBeUndefined();
+  });
+});
+
 describe("hiding removes entries that also hold a name (#2748)", () => {
   const ACTOR = "        portrait { image }\n        character_name { text }";
 

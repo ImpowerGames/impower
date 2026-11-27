@@ -9371,34 +9371,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           writes.set(target, sequences);
           sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
         };
-        const characters: [string, ImageInstruction[]][] = [];
-        for (const [target, events] of Object.entries(instructions.image ?? {})) {
+        for (const [target, event] of this.imageEvents(instructions)) {
           if (!holds(target)) {
-            if (this.namesCharacter(target)) {
-              characters.push([target, events]);
+            const entry = this.namesCharacter(target)
+              ? cast.entries.find((e) => e.speaker === target)
+              : undefined;
+            if (entry) {
+              this.writeCharacter(entry, event, writes, add, hidden);
             }
             continue;
           }
-          for (const event of events) {
-            if (event.assets?.length) {
-              add(target, entryOf(this.ownerOf(event.assets[0]!)), {
-                ...event,
-                speaker: speaker ?? "",
-              });
-              continue;
-            }
-            for (const entry of cast.entries) {
-              add(target, entry, event);
-              if (event.control === "hide") {
-                hidden.add(entry.id);
-              }
-            }
+          if (event.assets?.length) {
+            add(target, entryOf(this.ownerOf(event.assets[0]!)), {
+              ...event,
+              speaker: speaker ?? "",
+            });
+            continue;
           }
-        }
-        for (const [name, events] of characters) {
-          const entry = cast.entries.find((e) => e.speaker === name);
-          if (entry) {
-            this.writeCharacter(entry, events, writes, add, hidden);
+          for (const entry of cast.entries) {
+            add(target, entry, event);
+            if (event.control === "hide") {
+              hidden.add(entry.id);
+            }
           }
         }
         for (const [target, sequences] of writes) {
@@ -9482,9 +9476,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      protected imageEvents(instructions: Instructions): [string, ImageInstruction][] {
+        const image = instructions.image ?? {};
+        const next = new Map<string, number>();
+        const ordered: [string, ImageInstruction][] = [];
+        for (const target of instructions.imageOrder ?? []) {
+          const index = next.get(target) ?? 0;
+          const event = image[target]?.[index];
+          if (event) {
+            ordered.push([target, event]);
+            next.set(target, index + 1);
+          }
+        }
+        for (const [target, events] of Object.entries(image)) {
+          for (const event of events.slice(next.get(target) ?? 0)) {
+            ordered.push([target, event]);
+          }
+        }
+        return ordered;
+      }
+
       protected writeCharacter(
         entry: CastEntry,
-        events: ImageInstruction[],
+        event: ImageInstruction,
         writes: ReadonlyMap<string, ReadonlyMap<CastEntry, ImageInstruction[]>>,
         add: (target: string, entry: CastEntry, event: ImageInstruction) => void,
         hidden: Set<number>,
@@ -9497,13 +9511,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             targets.add(target);
           }
         }
-        for (const event of events) {
-          for (const target of targets) {
-            add(target, entry, event);
-          }
-          if (event.control === "hide") {
-            hidden.add(entry.id);
-          }
+        for (const target of targets) {
+          add(target, entry, event);
+        }
+        if (event.control === "hide") {
+          hidden.add(entry.id);
         }
       }
 
