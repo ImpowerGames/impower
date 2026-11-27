@@ -187,6 +187,7 @@ import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { layoutStreams } from "../utils/layoutStreams";
 import { LayoutVerb } from "../../../language/sparkdown.layout-verbs";
+import { layoutDirectiveTargetNames } from "../utils/layoutDirectiveTargets";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { DefineScopeRecord, type DefineScopeStats } from "../utils/DefineScopeRecord";
 import { formatList } from "../utils/formatList";
@@ -5416,7 +5417,7 @@ export class SparkdownCompiler {
         const { control, target } = directive;
         if (directive.kind !== "layout" || control?.text !== LayoutVerb.clear) continue;
         const name = target?.text;
-        if (name === "textstream" || (name && !program.sparkle?.layouts?.[name] && !program.sparkle?.screens?.[name])) continue;
+        if (name === "textstream" || (name && !layoutDirectiveTargetNames(program, LayoutVerb.clear).has(name))) continue;
         if (name && layoutStreams(program.sparkle, name).length > 0) continue;
         const at = target ?? control;
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
