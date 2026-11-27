@@ -25,6 +25,7 @@ import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
 import { getStreamElementHover } from "./streamElementHelp";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
+import { getClearPropHover } from "./clearPropHelp";
 import { getPresenceBlockHover } from "./presenceBlockHelp";
 import { getSelectorAttributeHover } from "./selectorAttributeHelp";
 import {
@@ -410,6 +411,10 @@ export const getHover = async (
     const layoutControlHover = getLayoutControlHover(document, tree, position);
     if (layoutControlHover) {
       return layoutControlHover;
+    }
+    const clearPropHover = getClearPropHover(document, tree, position);
+    if (clearPropHover) {
+      return clearPropHover;
     }
     const streamHover = getStreamElementHover(document, tree, position);
     if (streamHover) {

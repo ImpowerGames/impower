@@ -19,10 +19,10 @@ const lines = (style: string) => `${NO_BOX}
 ${style}
 
 layout main {
-  dialogue {
+  dialogue #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
 }
@@ -250,7 +250,7 @@ style portrait {
 }
 
 layout main {
-  portrait {
+  portrait #clear {
     image
   }
 }
@@ -298,7 +298,7 @@ style portrait {
 }
 
 layout main {
-  portrait {
+  portrait #clear {
     image
   }
 }
@@ -378,7 +378,7 @@ end
 ${FADING}
 
 layout main {
-  dialogue {
+  dialogue #clear {
     text
     image
   }
@@ -395,7 +395,7 @@ end
     const picture = h.nextBeat()!.image!["dialogue"]!;
     ui.setMotion(true);
     h.reset();
-    void ui.text.write("dialogue", [{ text: "A caption." }] as any, false);
+    void ui.text.change("line write", "dialogue", [{ text: "A caption." }] as any, false);
     void ui.image.write("dialogue", picture as any, false);
     await flushMicrotasks(10);
     expect(motions(h)).toEqual([{ element: dialogue, presence: "show" }]);
@@ -411,7 +411,7 @@ end
 ${FADING}
 
 layout main {
-  dialogue {
+  dialogue #clear {
     text
     image
   }
@@ -427,10 +427,10 @@ end
     ui.setMotion(true);
     h.jumpToFlow("picture");
     await ui.image.write("dialogue", h.nextBeat()!.image!["dialogue"]! as any, false);
-    await ui.text.write("dialogue", [{ text: "A caption." }] as any, false);
+    await ui.text.change("line write", "dialogue", [{ text: "A caption." }] as any, false);
     await settle(h);
     h.reset();
-    await ui.text.clear("dialogue");
+    await ui.text.change("line replace", ["dialogue"]);
     await flushMicrotasks(10);
     expect(displayOf(h, dialogue!)).toBeUndefined();
     expect(motions(h)).toEqual([]);
@@ -446,7 +446,7 @@ end
 ${FADING}
 
 layout main {
-  dialogue {
+  dialogue #clear {
     text
     image
   }
@@ -806,8 +806,8 @@ layout options in menu {
 ${FADING}
 
 screen stage {
-  dialogue { text }
-  action { text }
+  dialogue #clear { text }
+  action #clear { text }
   slot
 }
 

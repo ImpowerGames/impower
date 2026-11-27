@@ -171,9 +171,9 @@ end
 
 layout main {
   column.panel {
-    title { text }
-    row.dialogue.title { text }
-    row.dialogue.control { text }
+    title #clear { text }
+    row.dialogue.title #clear { text }
+    row.dialogue.control #clear { text }
     text "Rope"
   }
 }

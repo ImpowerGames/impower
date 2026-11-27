@@ -18,7 +18,10 @@ import AssetManager from "../../src/app/managers/AssetManager";
 import UIManager from "../../src/app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../src/GamePlayerController";
 import { mountPlayerBar } from "../playerBarHarness";
-import { runButtonState } from "../../src/components/PlayerBar/playerBarState";
+import {
+  restartShown,
+  runButtonState,
+} from "../../src/components/PlayerBar/playerBarState";
 import { installPlayerWorker } from "../../src/main/workers/installPlayerWorker";
 import { ProgramHeldMessage } from "../../src/main/workers/messages/ProgramHeldMessage";
 import type { WorkerBusyParams } from "../../src/main/workers/messages/WorkerBusyMessage";
@@ -113,10 +116,16 @@ function loopbackBroadcastChannel(onPost: (message: any) => void) {
 }
 
 export const runButton = (h: { controller: GamePlayerController }) => {
-  let read!: { mode: string; refusal: string | null; starting: boolean };
+  let read!: {
+    mode: string;
+    restart: boolean;
+    refusal: string | null;
+    starting: boolean;
+  };
   h.controller.subscribeBar((state, view) => {
     read = {
       mode: runButtonState(state),
+      restart: restartShown(state),
       refusal: view.runRefusal ?? null,
       starting: view.starting,
     };

@@ -23,7 +23,7 @@ async function chunksOf(line: string): Promise<{ audio: string[]; image: string[
 
 const LAYOUT = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

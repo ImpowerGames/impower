@@ -29,16 +29,16 @@ framing sofa {
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
-    portrait {
+    portrait #clear {
       mask.shade
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

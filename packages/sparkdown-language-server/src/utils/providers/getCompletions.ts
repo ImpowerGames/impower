@@ -63,6 +63,7 @@ import {
   type DeclarationScopes,
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
+import { getClearPropCompletion } from "./clearPropHelp";
 import { getMorphCompletions } from "./getMorphCompletions";
 import {
   ALTERNATOR_KEYWORDS,
@@ -1849,6 +1850,17 @@ const completionsAt = (
       }
       return buildCompletions();
     }
+  }
+
+  const clearProp = getClearPropCompletion(
+    leftStack,
+    read(document.offsetAt({ line: position.line, character: 0 }), documentCursorOffset),
+    documentCursorOffset,
+    (from, to) => document.range(from, to),
+  );
+  if (clearProp) {
+    completions.set(clearProp.label, clearProp);
+    return buildCompletions();
   }
 
   const side = -1;

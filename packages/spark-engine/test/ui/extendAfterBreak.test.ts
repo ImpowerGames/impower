@@ -32,23 +32,23 @@ end
 
 layout main {
   stage {
-    portrait {
+    portrait #clear {
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
-    action {
+    action #clear {
       text
     }
   }
@@ -356,18 +356,22 @@ function coordinated(harness: UIHarness) {
       return 0;
     },
   );
-  vi.spyOn(game.module.ui.image, "clearAll").mockImplementation(
-    async (targets: string[]) => {
-      out.clearedImages.push(targets);
+  vi.spyOn(game.module.ui.image, "clearMarked").mockImplementation(
+    async (targets: readonly string[]) => {
+      out.clearedImages.push([...targets]);
     },
   );
-  const clearText = game.module.ui.text.clearAll.bind(game.module.ui.text);
-  vi.spyOn(game.module.ui.text, "clearAll").mockImplementation(
-    async (targets: string[]) => {
-      out.clearedText.push(targets);
-      await clearText(targets);
-    },
-  );
+  const changeText = game.module.ui.text.change.bind(game.module.ui.text) as (
+    ...args: unknown[]
+  ) => Promise<void>;
+  vi.spyOn(game.module.ui.text, "change").mockImplementation((async (
+    ...args: unknown[]
+  ) => {
+    if (Array.isArray(args[1])) {
+      out.clearedText.push(args[1] as string[]);
+    }
+    await changeText(...args);
+  }) as never);
   return out;
 }
 

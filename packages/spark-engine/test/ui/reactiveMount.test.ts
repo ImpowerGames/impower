@@ -3,24 +3,24 @@ import { createHarness } from "./harness/uiTestHarness";
 
 const LAYOUT = `layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
-    portrait {
+    portrait #clear {
       mask.shadow_1
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       stroke
       text
     }

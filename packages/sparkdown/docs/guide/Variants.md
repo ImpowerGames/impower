@@ -27,9 +27,9 @@ In a layout, `#variant=left` on a text element limits it to lines of that varian
 ```sparkdown
 layout main {
   box {
-    character_name #variant=left { text }
-    character_name #variant=right { text }
-    dialogue { text }
+    character_name #variant=left #clear { text }
+    character_name #variant=right #clear { text }
+    dialogue #clear { text }
   }
 }
 ```

@@ -7,7 +7,7 @@ end
 
 layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

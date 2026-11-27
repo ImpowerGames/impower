@@ -15,36 +15,36 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
-    action {
+    action #clear {
       text
     }
   }
-  continue_indicator {
+  continue_indicator #clear {
     text
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  choice.1 {
+  choice.1 #clear {
     text
   }
-  choice.2 {
+  choice.2 #clear {
     text
   }
 }
@@ -125,8 +125,8 @@ const recordUiWrites = (game: Game): unknown[] => {
   const log: unknown[] = [];
   const ui = game.module.ui as unknown as Record<string, any>;
   recordCalls(log, ui, "ui.", UI_WRITES);
-  recordCalls(log, ui["text"], "ui.text.", ["clearAll", "write"]);
-  recordCalls(log, ui["image"], "ui.image.", ["clearAll", "write"]);
+  recordCalls(log, ui["text"], "ui.text.", ["change"]);
+  recordCalls(log, ui["image"], "ui.image.", ["clearAll", "clearMarked", "write"]);
   recordCalls(
     log,
     ui["image"],

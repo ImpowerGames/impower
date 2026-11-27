@@ -66,10 +66,10 @@ style dialogue {
 }
 
 layout main {
-  dialogue {
+  dialogue #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
 }
@@ -371,7 +371,7 @@ layout main {
       text "Badge"
     }
   end
-  dialogue {
+  dialogue #clear {
     text
   }
 }
@@ -424,7 +424,7 @@ style dialogue {
 }
 
 layout main {
-  dialogue {
+  dialogue #clear {
     text
     image
   }

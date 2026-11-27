@@ -19,10 +19,10 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
-    portrait {
+    portrait #clear {
       image
     }
   }

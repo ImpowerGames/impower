@@ -9,11 +9,11 @@ end
 layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -38,7 +38,7 @@ async function shownAfterClick(body: string) {
   const first = harness.nextBeat()!;
   await harness.display(first, false);
   const ui = harness.game.module.ui;
-  await ui.text.clearAll(ui.getTransientTargets());
+  await ui.text.change("line clear", ui.getTransientTargets());
   const second = harness.nextBeat()!;
   expect(second.extended).toBeDefined();
   await harness.display(second, false);
@@ -62,7 +62,7 @@ describe("a box carried on after a click", () => {
     harness.jumpTo("start");
     await harness.display(harness.nextBeat()!, false);
     const ui = harness.game.module.ui;
-    await ui.text.clearAll(ui.getTransientTargets());
+    await ui.text.change("line clear", ui.getTransientTargets());
     const second = harness.nextBeat()!;
     await Promise.all(writeBeatText(ui, second, false, 5000));
     await flushMicrotasks();
@@ -100,7 +100,7 @@ describe("a box carried on after a click", () => {
     const harness = await shownAfterClick(extended);
     if (extended.includes("three")) {
       const ui = harness.game.module.ui;
-      await ui.text.clearAll(ui.getTransientTargets());
+      await ui.text.change("line clear", ui.getTransientTargets());
       await harness.display(harness.nextBeat()!, false);
       await flushMicrotasks();
     }

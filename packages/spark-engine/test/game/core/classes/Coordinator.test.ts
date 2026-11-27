@@ -89,21 +89,25 @@ const createGame = (
         observe: () => {},
         unobserve: () => {},
         text: {
-          clearAll: () => {},
-          write: (
-            target: string,
-            _events: unknown,
+          change: (
+            reason: string,
+            target: string | string[],
+            _events?: unknown,
             instant?: boolean,
             time?: number,
-          ) =>
-            calls.textWrites.push({
-              target,
-              instant: Boolean(instant),
-              ...(time != null ? { time } : {}),
-            }),
+          ) => {
+            if (reason === "line write" && typeof target === "string") {
+              calls.textWrites.push({
+                target,
+                instant: Boolean(instant),
+                ...(time != null ? { time } : {}),
+              });
+            }
+          },
         },
         image: {
           clearAll: () => {},
+          clearMarked: () => {},
           restoreCleared: () => {},
           write: () => {},
         },

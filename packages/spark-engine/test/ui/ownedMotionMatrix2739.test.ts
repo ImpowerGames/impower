@@ -41,16 +41,16 @@ style action {
 }
 
 layout main {
-  portrait {
+  portrait #clear {
     image
   }
-  dialogue {
+  dialogue #clear {
     text
   }
-  caption {
+  caption #clear {
     text
   }
-  action {
+  action #clear {
     text
   }
 }
@@ -67,8 +67,8 @@ end
 `;
 
 const INLINE = SOURCE.replace(/style action \{[^}]*\}/, "").replace(
-  "  action {",
-  "  action #transition-property=layout #transition-duration=0.5s {",
+  "  action #clear {",
+  "  action #clear #transition-property=layout #transition-duration=0.5s {",
 );
 
 const LEAD = 20;
@@ -709,7 +709,7 @@ const MENU = `define ui as config with
 end
 
 layout main {
-  action { text }
+  action #clear { text }
 }
 
 layout menu {

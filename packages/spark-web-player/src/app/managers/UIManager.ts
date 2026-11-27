@@ -16,6 +16,7 @@ import { getCssTokenValue } from "../../../../spark-dom/src/utils/getCssTokenVal
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
 import { getHiddenUntilAnimation } from "../../../../spark-dom/src/utils/getHiddenUntilAnimation";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
+import { whenUnseen } from "../../../../spark-dom/src/utils/whenUnseen";
 import { BeatMarks } from "../utils/BeatMarks";
 import type { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
@@ -2156,6 +2157,7 @@ export default class UIManager extends Manager {
         this.getDisplayTime(params.time),
         params.elements,
         decision,
+        params.reportsExit,
       );
       return WriteImageMessage.type.result(params.target);
     }
@@ -2918,6 +2920,7 @@ export default class UIManager extends Manager {
     startTime?: number,
     elements?: string[],
     decision?: WriteDecision,
+    reportsExit?: boolean,
   ) {
     const targetEls = this.writeTargets(target, elements);
     for (const el of targetEls) {
@@ -3252,19 +3255,36 @@ export default class UIManager extends Manager {
     for (const { pictureEl, animation, start } of starting) {
       this.whenExitStarts(pictureEl, [animation], start);
     }
-    await played;
-    for (const el of toDestroy) {
-      this.releaseMovies(el);
-      this.morphs?.releaseWithin(el);
-      endTravelsWithin(el);
-      el.remove();
+    const removed = played.then(() => {
+      for (const el of toDestroy) {
+        this.releaseMovies(el);
+        this.morphs?.releaseWithin(el);
+        endTravelsWithin(el);
+        el.remove();
+      }
+      for (const video of hiddenMovies) {
+        const span = video.closest("span.instance");
+        this.releaseMovies(video);
+        endTravelsWithin(span ?? video);
+        (span ?? video).remove();
+      }
+    });
+    if (!reportsExit) {
+      await removed;
+      return;
     }
-    for (const video of hiddenMovies) {
-      const span = video.closest("span.instance");
-      this.releaseMovies(video);
-      endTravelsWithin(span ?? video);
-      (span ?? video).remove();
-    }
+    const shown = targetEls.flatMap((targetEl) =>
+      [...this.getContentElements(targetEl, "image"), ...this.getContentElements(targetEl, "mask")].flatMap(
+        (contentEl) =>
+          (Array.from(contentEl.children) as HTMLElement[])
+            .filter((el) => !(el as any).__sdPrepared)
+            .map((element) => ({ element, target: targetEl })),
+      ),
+    );
+    removed.catch((error) => {
+      console.error("a hidden picture could not be removed", error);
+    });
+    await Promise.race([removed, whenUnseen(shown, removed)]);
   }
 
   protected freezeWhenExitStarts(

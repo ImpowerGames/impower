@@ -368,11 +368,11 @@ describe("a composed beat on the page, round 1 of PR #1865", () => {
 const HUD = `layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -458,11 +458,11 @@ describe("a composed beat applies its ops in order, round 2 of PR #1865", () => 
 layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
       if alternate then
         text "NEW"
@@ -486,10 +486,10 @@ end
   test("a clear under one selector removes a write under another that reached the same element", async () => {
     const h = await playing(SOURCE);
     await composeBeat(h, (ui) => {
-      void ui.text.clear("dialogue");
-      void ui.text.write("dialogue#0", [{ text: "A" }], true);
-      void ui.text.clear("dialogue");
-      void ui.text.write("dialogue", [{ text: "B" }], true);
+      void ui.text.change("line replace", ["dialogue"]);
+      void ui.text.change("line write", "dialogue#0", [{ text: "A" }], true);
+      void ui.text.change("line replace", ["dialogue"]);
+      void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     });
 
     expect(texts(h, ".dialogue > .text")).toEqual(["B"]);
@@ -498,10 +498,10 @@ end
   test("a write to an indexed target reaches the element it named, though the beat moves it after", async () => {
     const h = await playing(`layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -515,7 +515,7 @@ end
 `);
     await composeBeat(h, (ui) => {
       const [first] = ui.findElements("dialogue");
-      void ui.text.write("dialogue#0", [{ text: "A" }], true);
+      void ui.text.change("line write", "dialogue#0", [{ text: "A" }], true);
       ui.moveElement(first, null);
     });
 
@@ -526,15 +526,15 @@ end
     const h = await playing(SOURCE);
     await playNext(h);
     await composeBeat(h, (ui) => {
-      void ui.text.write("dialogue", [{ text: "B" }], true);
+      void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     });
     const before = texts(h, ".dialogue > .text")[0];
     expect(before?.endsWith("B")).toBe(true);
     expect(before).not.toBe("B");
 
     await composeBeat(h, (ui) => {
-      void ui.text.clear("dialogue");
-      void ui.text.write("dialogue", [{ text: "B" }], true);
+      void ui.text.change("line replace", ["dialogue"]);
+      void ui.text.change("line write", "dialogue", [{ text: "B" }], true);
     });
 
     expect(texts(h, ".dialogue > .text")).toEqual(["B"]);
@@ -544,11 +544,11 @@ end
 const TRANSITIONS = `layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -1047,7 +1047,7 @@ const NAMED = `layout main {
     character_name {
       text "Name:"
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }
