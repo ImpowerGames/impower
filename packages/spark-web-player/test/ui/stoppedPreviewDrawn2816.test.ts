@@ -374,6 +374,29 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(t.pictureOf("mask")).toBeUndefined();
   });
 
+  test("with a drawing timeout turned off, a new game's held clear waits for its first beat however long it takes", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    const canvas = picture.querySelector(":scope > .morph")!.shadowRoot!.querySelector("canvas");
+    await t.fresh();
+    t.ui().onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0, restoreTimeout: 0 },
+    } as never);
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-6", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(picture.isConnected).toBe(true);
+    t.beat([show("nova-run", 1)], 32);
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the first beat");
+    await flushMicrotasks(10);
+    expect(t.pictureOf("image")).toBe(picture);
+    expect(picture.querySelector(":scope > .morph")!.shadowRoot!.querySelector("canvas")).toBe(canvas);
+  });
+
   test("a clear outside a beat once the game has applied a beat takes the picture away at once", async () => {
     const t = await setup();
     t.beat([show("nova-run", 0)]);

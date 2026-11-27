@@ -2870,7 +2870,7 @@ export default class UIManager extends Manager {
         el.remove();
       }
     }
-    if (this._clearingTimer === undefined) {
+    if (this._clearingTimer === undefined && this._drawTimeouts.beat > 0 && this._drawTimeouts.restore > 0) {
       this._clearingTimer = setTimeout(
         () => this.settleClears(),
         Math.max(this._drawTimeouts.beat, this._drawTimeouts.restore) * 1000,
