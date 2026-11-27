@@ -179,7 +179,7 @@ const sound = { sound: [{ control: "play", assets: ["beep"] }] };
 const dialogueLine = {
   text: { dialogue: typed("Hi there.") },
   audio: sound,
-  image: { portrait: [{ control: "animate", with: "shake" }] },
+  image: { portrait: [{ control: "animate", with: [{ name: "shake" }] }] },
 };
 
 describe("a line that makes an element arrive (#2739)", () => {

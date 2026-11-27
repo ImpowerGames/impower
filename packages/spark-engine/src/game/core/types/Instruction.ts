@@ -49,10 +49,19 @@ export interface TextInstruction extends IInstruction {
   };
 }
 
+export interface WithInstruction {
+  name: string;
+  after?: number;
+  over?: number;
+  ease?: string;
+  loop?: boolean;
+  once?: boolean;
+}
+
 export interface ImageInstruction extends IInstruction {
   control: "show" | "hide" | "animate";
   assets?: string[];
-  with?: string;
+  with?: WithInstruction[];
   morph?: string;
   at?: string;
   to?: string;
@@ -83,8 +92,7 @@ export interface LayoutInstruction extends IInstruction {
    *  within. Closing is scoped to open layouts in this screen; layouts in other
    *  screens (and uncategorized layouts) are left untouched. */
   screen?: string;
-  /** The enter/exit animation/transition name (`with` clause). */
-  with?: string;
+  with?: WithInstruction[];
   auto?: true;
 }
 

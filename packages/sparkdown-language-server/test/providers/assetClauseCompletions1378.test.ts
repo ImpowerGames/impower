@@ -13,10 +13,9 @@ const labels = (source: string) =>
 
 describe("clauses already written are not offered again (I-1378)", () => {
   it.each([
-    ["[[show backdrop bunny_idle with fade |]]", "with", "loop"],
     ["[[show backdrop bunny_idle loop |]]", "loop", "once"],
     ["[[show backdrop bunny_idle loop lo|]]", "loop", "once"],
-    ["[[show backdrop bunny_idle with fade lo|]]", "with", "mute"],
+    ["[[show backdrop bunny_idle mute with fade lo|]]", "mute", "loop"],
     ["((play music theme loop |))", "loop", "once"],
     ["((play music theme loop lo|))", "loop", "mute"],
     ["[[show foreground trailer |loop]]", "loop", "once"],
@@ -24,7 +23,7 @@ describe("clauses already written are not offered again (I-1378)", () => {
     ["((play music theme |loop))", "loop", "once"],
     ["[[show portrait bunny over 1s |]]", "over", "after"],
     ["[[show portrait bunny over 1s | with shake]]", "over", "after"],
-    ["[[show portrait bunny over 1s | with shake]]", "with", "wait"],
+    ["[[show portrait bunny wait | with shake]]", "wait", "over"],
     ["((play music theme loop | over 1s))", "loop", "once"],
     ["((play music theme loop | over 1s))", "over", "after"],
   ])("%s offers no %s, still %s", (source, written, other) => {

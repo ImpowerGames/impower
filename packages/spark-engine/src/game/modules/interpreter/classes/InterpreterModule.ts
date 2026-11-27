@@ -31,6 +31,7 @@ ImageInstruction,
 LoadInstruction,
 LayoutInstruction,
 TextInstruction,
+WithInstruction,
 } from "../../../core/types/Instruction";
 import type {
   BeatKind,
@@ -48,6 +49,7 @@ import { stressPhrases } from "../utils/stressPhrases";
 import { Matcher } from "./helpers/Matcher";
 import {
   directiveKind,
+  directiveOwners,
   parseDirectiveClauses,
   readDirective,
   type DirectiveClause,
@@ -800,44 +802,13 @@ export class InterpreterModule extends Module<
     if (imageChunk.control !== "hide" && imageChunk.assets?.length) {
       this._game.module?.assets?.notice("image", imageChunk.assets);
     }
-    const withEffectName =
-      imageChunk.clauses?.["with"] || imageChunk.target || "";
-    const afterDuration = imageChunk.clauses?.["after"];
-    const overDuration = imageChunk.clauses?.["over"];
-    const transition = (this.context as any)?.["transition"]?.[withEffectName];
-    const animation = (this.context as any)?.["animation"]?.[withEffectName];
-    const animationNames: string[] = [];
-    if (transition) {
-      for (const [k, v] of Object.entries(transition)) {
-        if (!k.startsWith("$") && v) {
-          if (typeof v === "string") {
-            animationNames.push(v);
-          } else if (
-            typeof v === "object" &&
-            "$name" in v &&
-            typeof v?.$name === "string"
-          ) {
-            animationNames.push(v?.$name);
-          }
-        }
-      }
-    } else if (animation) {
-      animationNames.push(animation.$name);
-    } else if (imageChunk.control === "show") {
-      animationNames.push("show");
-    } else if (imageChunk.control === "hide") {
-      animationNames.push("hide");
-    }
-    const allAnimations = animationNames.map(
-      (name) => (this.context as any)?.["animation"]?.[name],
-    );
-    const maxAnimationDuration = Math.max(
-      0,
-      ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
-    );
     if (imageChunk.clauses?.wait) {
-      imageChunk.duration += afterDuration ?? 0;
-      imageChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
+      imageChunk.duration += this.waitDuration(
+        imageChunk,
+        imageChunk.control === "show" || imageChunk.control === "hide"
+          ? imageChunk.control
+          : undefined,
+      );
     }
     return imageChunk;
   }
@@ -864,7 +835,7 @@ export class InterpreterModule extends Module<
       control: LayoutVerb.navigate,
       target: reading.target?.text ?? "",
       assets: reading.destination ? [reading.destination.text] : [],
-      clauses: this.assetClauseValues(reading.clauses),
+      ...this.assetClauses("layout", reading.clauses),
       duration: 0,
       speed: 1,
     };
@@ -888,12 +859,31 @@ export class InterpreterModule extends Module<
   }
 
   protected applyScreenWaitDuration(screenChunk: Chunk): void {
-    const withEffectName =
-      screenChunk.clauses?.["with"] || screenChunk.target || "";
-    const afterDuration = screenChunk.clauses?.["after"];
-    const overDuration = screenChunk.clauses?.["over"];
-    const transition = (this.context as any)?.["transition"]?.[withEffectName];
-    const animation = (this.context as any)?.["animation"]?.[withEffectName];
+    if (screenChunk.clauses?.wait) {
+      screenChunk.duration += this.waitDuration(screenChunk);
+    }
+  }
+
+  protected waitDuration(chunk: Chunk, fallback?: string): number {
+    const line = chunk.clauses;
+    const entries = chunk.with ?? [];
+    const spans = entries.map(
+      (entry) => (entry.after ?? 0) + (entry.over ?? this.effectDuration(entry.name)),
+    );
+    if (entries.length === 0) {
+      spans.push(
+        (line?.after ?? 0) +
+          (line?.over ?? this.effectDuration(chunk.target ?? "", fallback)),
+      );
+    } else if (chunk.tag === "image" && line?.to) {
+      spans.push((line.after ?? 0) + (line.over ?? 0));
+    }
+    return Math.max(0, ...spans);
+  }
+
+  protected effectDuration(name: string, fallback?: string): number {
+    const transition = (this.context as any)?.["transition"]?.[name];
+    const animation = (this.context as any)?.["animation"]?.[name];
     const animationNames: string[] = [];
     if (transition) {
       for (const [k, v] of Object.entries(transition)) {
@@ -911,19 +901,18 @@ export class InterpreterModule extends Module<
       }
     } else if (animation) {
       animationNames.push(animation.$name);
+    } else if (fallback) {
+      animationNames.push(fallback);
     }
-    const allAnimations = animationNames.map(
-      (name) => (this.context as any)?.["animation"]?.[name],
+    return Math.max(
+      0,
+      ...animationNames.map(
+        (n) =>
+          getTimeValue(
+            (this.context as any)?.["animation"]?.[n]?.timing?.duration,
+          ) ?? 0,
+      ),
     );
-    const maxAnimationDuration = allAnimations.length
-      ? Math.max(
-          ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
-        )
-      : 0;
-    if (screenChunk.clauses?.wait) {
-      screenChunk.duration += afterDuration ?? 0;
-      screenChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
-    }
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
@@ -958,7 +947,7 @@ export class InterpreterModule extends Module<
   ): Chunk {
     const kind = tag as DirectiveKind;
     const reading = readDirective(kind === "audio" ? "audio" : "image", assetTagContent, kind);
-    const clauses = this.assetClauseValues(reading.clauses);
+    const { clauses, ...owned } = this.assetClauses(kind, reading.clauses);
     const framing = kind === "image" ? reading.clauses.findLast((clause) => clause.word.text === "to") : undefined;
     if (framing) {
       clauses["to"] = framing.value?.text;
@@ -969,8 +958,25 @@ export class InterpreterModule extends Module<
       target: reading.target?.text ?? defaultTarget,
       assets: reading.names.map((name) => name.text),
       clauses,
+      ...owned,
       duration: 0,
       speed: 1,
+    };
+  }
+
+  protected assetClauses(
+    kind: DirectiveKind,
+    parsed: readonly DirectiveClause<{ text: string }>[],
+  ): { clauses: Record<string, unknown>; with?: WithInstruction[] } {
+    const owners = directiveOwners(kind, parsed);
+    const entries = owners.withs.flatMap((entry): WithInstruction[] =>
+      entry.name
+        ? [{ name: entry.name.text, ...this.assetClauseValues(entry.clauses) }]
+        : [],
+    );
+    return {
+      clauses: this.assetClauseValues(owners.line),
+      ...(entries.length > 0 ? { with: entries } : {}),
     };
   }
 
@@ -991,6 +997,17 @@ export class InterpreterModule extends Module<
             : value?.text;
     }
     return clauses;
+  }
+
+  protected timedEntries(
+    entries: readonly WithInstruction[],
+    time: number,
+  ): WithInstruction[] {
+    return entries.map((entry) =>
+      time || entry.after != null
+        ? { ...entry, after: time + (entry.after ?? 0) }
+        : { ...entry },
+    );
   }
 
   plainText(content: string): string {
@@ -1741,11 +1758,10 @@ export class InterpreterModule extends Module<
             if (fadeDuration) {
               event.over = fadeDuration;
             }
+            if (c.with) {
+              event.with = this.timedEntries(c.with, time);
+            }
             if (c.clauses) {
-              const withValue = c.clauses?.with;
-              if (withValue != null) {
-                event.with = withValue;
-              }
               const afterValue = c.clauses?.after;
               if (afterValue != null) {
                 event.after = (event.after ?? 0) + afterValue;
@@ -1830,11 +1846,10 @@ export class InterpreterModule extends Module<
               if (time) {
                 event.after = time;
               }
+              if (c.with) {
+                event.with = this.timedEntries(c.with, time);
+              }
               if (c.clauses) {
-                const withValue = c.clauses?.with;
-                if (withValue != null) {
-                  event.with = withValue;
-                }
                 const afterValue = c.clauses?.after;
                 if (afterValue != null) {
                   event.after = (event.after ?? 0) + afterValue;

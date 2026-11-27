@@ -340,7 +340,7 @@ end
     const ui = h.game.module.ui;
     await ui.image.write(target, [{ control: "show", assets: ["SPRITE"] }] as any, true);
     await flushMicrotasks(20);
-    void ui.image.write(target, [{ control: "hide", with: "fadeout", over: 5 }] as any, false);
+    void ui.image.write(target, [{ control: "hide", with: [{ name: "fadeout", over: 5 }], over: 5 }] as any, false);
     await flushMicrotasks(20);
     expect(h.heldExits()).toHaveLength(1);
   }
@@ -446,7 +446,7 @@ end
     const ui2 = h.game.module.ui;
     await ui2.image.write("face", [{ control: "show", assets: ["SPRITE"] }] as any, true);
     await flushMicrotasks(20);
-    void ui2.image.write("face", [{ control: "hide", with: "fadeout", over: 5 }] as any, false);
+    void ui2.image.write("face", [{ control: "hide", with: [{ name: "fadeout", over: 5 }], over: 5 }] as any, false);
     await flushMicrotasks(20);
     expect(h.heldExits()).toEqual([]);
     expect(claims(h)).toBe(0);
