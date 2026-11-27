@@ -226,12 +226,45 @@ export const browserOutlineEncoder: OutlineEncoder = async (canvas) => {
   return { url, release: () => urls.revokeObjectURL(url) };
 };
 
+export interface Hold {
+  readonly ahead: boolean;
+  release(): boolean;
+}
+
+export class Holders {
+  protected shownHolds = 0;
+  protected aheadHolds = 0;
+
+  hold(ahead: boolean): Hold {
+    if (ahead) this.aheadHolds += 1;
+    else this.shownHolds += 1;
+    let held = true;
+    return {
+      ahead,
+      release: () => {
+        if (!held) return false;
+        held = false;
+        if (ahead) this.aheadHolds -= 1;
+        else this.shownHolds -= 1;
+        return true;
+      },
+    };
+  }
+
+  get idle(): boolean {
+    return this.shownHolds === 0 && this.aheadHolds === 0;
+  }
+
+  get shown(): boolean {
+    return this.shownHolds > 0;
+  }
+}
+
 interface Outline {
   key: string;
   width: number;
   height: number;
-  users: number;
-  forecasts: number;
+  holders: Holders;
   ready: Promise<string | undefined>;
   url?: string;
   release?: () => void;
@@ -257,11 +290,16 @@ interface OutlineLayer {
   raster?: { image?: CanvasImageSource; width: number; height: number };
 }
 
+interface OutlineHold {
+  readonly outline: Outline;
+  release(): void;
+}
+
 interface MaskOutline {
   picture: LayeredPicture;
   state: "waiting" | "none" | "css" | "shown";
-  shown?: Outline;
-  pending?: Outline;
+  shown?: OutlineHold;
+  pending?: OutlineHold;
   natural?: { width: number; height: number };
   late?: boolean;
 }
@@ -662,8 +700,7 @@ let occurrencePrefixes = 0;
 interface Drawing {
   key: string;
   bytes: number;
-  users: number;
-  forecasts: number;
+  holders: Holders;
   distance?: number;
   stale?: boolean;
   made: Promise<SvgLayerRaster | undefined>;
@@ -776,24 +813,23 @@ export class MorphPlayback {
   protected outlines = new Map<string, Outline>();
   protected static readonly IDLE_OUTLINES = 8;
 
-  outline(source: Extract<OutlineSource, { state: "ready" }>, forecast?: number): Outline {
+  outline(source: Extract<OutlineSource, { state: "ready" }>, forecast?: number): OutlineHold {
     const known = this.outlines.get(source.key);
     if (forecast !== undefined) this.recording?.add(`outline ${source.key}`);
     if (known) {
       this.outlines.delete(source.key);
       this.outlines.set(source.key, known);
-      if (forecast !== undefined) known.forecasts += 1;
-      else known.users += 1;
       if (forecast !== undefined) {
         known.distance = known.stale || known.distance === undefined ? forecast : Math.min(known.distance, forecast);
         known.stale = false;
       }
-      return known;
+      return this.holdOutline(known, forecast);
     }
     const bytes = source.width * source.height * FRAME_BYTES_PER_PIXEL;
     if (forecast !== undefined && !this.makeRoom(bytes, forecast)) {
       this.refuse(`outline ${source.key}`, bytes, forecast);
-      return { key: source.key, width: source.width, height: source.height, users: 0, forecasts: 1, ready: Promise.resolve(undefined) };
+      const refused: Outline = { key: source.key, width: source.width, height: source.height, holders: new Holders(), ready: Promise.resolve(undefined) };
+      return this.holdOutline(refused, forecast);
     }
     if (forecast === undefined) this.makeRoom(bytes, 0);
     this.refused.delete(`outline ${source.key}`);
@@ -801,11 +837,11 @@ export class MorphPlayback {
       key: source.key,
       width: source.width,
       height: source.height,
-      users: forecast === undefined ? 1 : 0,
-      forecasts: forecast === undefined ? 0 : 1,
+      holders: new Holders(),
       ready: Promise.resolve(undefined),
       ...(forecast !== undefined ? { distance: forecast } : {}),
     };
+    const hold = this.holdOutline(outline, forecast);
     this.outlines.set(source.key, outline);
     const canvas = this.overlay.ownerDocument.createElement("canvas");
     canvas.width = source.width;
@@ -834,14 +870,22 @@ export class MorphPlayback {
         });
     }
     this.trimOutlines();
-    return outline;
+    return hold;
   }
 
-  releaseOutline(outline: Outline, forecast?: number) {
-    if (forecast !== undefined) outline.forecasts -= 1;
-    else outline.users -= 1;
+  protected holdOutline(outline: Outline, forecast?: number): OutlineHold {
+    const hold = outline.holders.hold(forecast !== undefined);
+    return {
+      outline,
+      release: () => {
+        if (hold.release()) this.settleOutline(outline);
+      },
+    };
+  }
+
+  protected settleOutline(outline: Outline) {
     if (this.outlines.get(outline.key) !== outline) return;
-    if (outline.users <= 0 && outline.forecasts <= 0 && outline.distance !== undefined) this.makeRoom(0, 0);
+    if (outline.holders.idle && outline.distance !== undefined) this.makeRoom(0, 0);
     this.trimOutlines();
   }
 
@@ -853,7 +897,7 @@ export class MorphPlayback {
   }
 
   protected trimOutlines() {
-    const idle = [...this.outlines.values()].filter((outline) => outline.users <= 0 && outline.forecasts <= 0 && outline.distance === undefined);
+    const idle = [...this.outlines.values()].filter((outline) => outline.holders.idle && outline.distance === undefined);
     for (const outline of idle.slice(0, Math.max(0, idle.length - MorphPlayback.IDLE_OUTLINES))) {
       this.outlines.delete(outline.key);
       outline.release?.();
@@ -913,7 +957,7 @@ export class MorphPlayback {
         this.makeRoom(bytes, 0);
       }
       this.refused.delete(key);
-      const made: Drawing = { key, bytes, users: 0, forecasts: 0, made: Promise.resolve(undefined), ...(forecast !== undefined ? { distance: forecast } : {}) };
+      const made: Drawing = { key, bytes, holders: new Holders(), made: Promise.resolve(undefined), ...(forecast !== undefined ? { distance: forecast } : {}) };
       made.made = this.rasterizeSvgLayer(source, natural, width, height, doc)
         .catch(() => undefined)
         .then((raster) => {
@@ -933,16 +977,10 @@ export class MorphPlayback {
     }
     const held = drawing;
     if (forecast !== undefined) this.recording?.add(key);
-    if (forecast !== undefined) held.forecasts += 1;
-    else held.users += 1;
+    const hold = held.holders.hold(forecast !== undefined);
     return held.made.then((raster) => {
-      let released = false;
       const release = () => {
-        if (released) return;
-        released = true;
-        if (forecast !== undefined) held.forecasts -= 1;
-        else held.users -= 1;
-        this.settleDrawing(held);
+        if (hold.release()) this.settleDrawing(held);
       };
       if (!raster) {
         release();
@@ -962,7 +1000,7 @@ export class MorphPlayback {
   }
 
   protected settleDrawing(drawing: Drawing) {
-    if (drawing.users > 0 || drawing.forecasts > 0 || this.drawings.get(drawing.key) !== drawing) return;
+    if (!drawing.holders.idle || this.drawings.get(drawing.key) !== drawing) return;
     if (drawing.distance === undefined) this.dropDrawing(drawing);
     else this.makeRoom(0, 0);
   }
@@ -999,8 +1037,8 @@ export class MorphPlayback {
         bytes: drawing.bytes,
         ...(drawing.distance !== undefined ? { distance: drawing.distance } : {}),
         ...(drawing.stale ? { stale: true } : {}),
-        idle: drawing.users === 0 && drawing.forecasts === 0,
-        counted: drawing.users === 0,
+        idle: drawing.holders.idle,
+        counted: !drawing.holders.shown,
         drop: () => this.dropDrawing(drawing),
       });
     }
@@ -1010,8 +1048,8 @@ export class MorphPlayback {
         bytes: outline.width * outline.height * FRAME_BYTES_PER_PIXEL,
         distance: outline.distance,
         ...(outline.stale ? { stale: true } : {}),
-        idle: outline.users <= 0 && outline.forecasts <= 0,
-        counted: outline.users <= 0,
+        idle: outline.holders.idle,
+        counted: !outline.holders.shown,
         drop: () => this.dropOutline(outline),
       });
     }
@@ -1069,10 +1107,10 @@ export class MorphPlayback {
 
   endForecast() {
     for (const drawing of [...this.drawings.values()]) {
-      if ((drawing.stale || drawing.distance === undefined) && drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
+      if ((drawing.stale || drawing.distance === undefined) && drawing.holders.idle) this.dropDrawing(drawing);
     }
     for (const outline of [...this.outlines.values()]) {
-      if (outline.distance !== undefined && outline.stale && outline.users <= 0 && outline.forecasts <= 0) this.dropOutline(outline);
+      if (outline.distance !== undefined && outline.stale && outline.holders.idle) this.dropOutline(outline);
     }
     this.makeRoom(0, 0);
   }
@@ -1080,12 +1118,12 @@ export class MorphPlayback {
   dropForecasts() {
     this.refused.clear();
     for (const drawing of [...this.drawings.values()]) {
-      if (drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
+      if (drawing.holders.idle) this.dropDrawing(drawing);
       else delete drawing.distance;
     }
     for (const outline of [...this.outlines.values()]) {
       if (outline.distance === undefined) continue;
-      if (outline.users <= 0 && outline.forecasts <= 0) this.dropOutline(outline);
+      if (outline.holders.idle) this.dropOutline(outline);
       else delete outline.distance;
     }
   }
@@ -2409,8 +2447,8 @@ export class MorphLayer {
       if (entry.state === "css") continue;
       const { layer, span } = entry.picture;
       for (let k = 0; k < span; k++) layers[layer + k] = "none";
-      layers[layer] = entry.shown?.url ? `url("${entry.shown.url}")` : HIDDEN_MASK;
-      if (entry.shown?.url && entry.natural) sized.push({ cssIndex: this.layers.length - 1 - layer, natural: entry.natural });
+      layers[layer] = entry.shown?.outline.url ? `url("${entry.shown.outline.url}")` : HIDDEN_MASK;
+      if (entry.shown?.outline.url && entry.natural) sized.push({ cssIndex: this.layers.length - 1 - layer, natural: entry.natural });
     }
     const value = [...layers].reverse().join(", ");
     if (this.span.style.getPropertyValue("mask-image") === value) return;
@@ -2525,12 +2563,12 @@ export class MorphLayer {
       }
       if (source.state === "ready") {
         entry.natural = source.natural;
-        if (held && (held.key === source.key || (held.width >= source.width && held.height >= source.height))) continue;
-        if (entry.pending) this.playback.releaseOutline(entry.pending, this.forecast);
+        if (held && (held.outline.key === source.key || (held.outline.width >= source.width && held.outline.height >= source.height))) continue;
+        entry.pending?.release();
         const outline = this.playback.outline(source, this.forecast);
         entry.pending = outline;
         if (!entry.shown) entry.state = entry.late ? "none" : "waiting";
-        void outline.ready.then((url) => this.landOutline(entry, outline, url));
+        void outline.outline.ready.then((url) => this.landOutline(entry, outline, url));
         continue;
       }
       if (source.state === "waiting") {
@@ -2544,14 +2582,14 @@ export class MorphLayer {
     this.checkDrawn();
   }
 
-  protected landOutline(entry: MaskOutline, outline: Outline, url: string | undefined) {
+  protected landOutline(entry: MaskOutline, outline: OutlineHold, url: string | undefined) {
     if (entry.pending !== outline) return;
     entry.pending = undefined;
     if (!this.active || !url) {
-      this.playback.releaseOutline(outline, this.forecast);
+      outline.release();
       if (this.active && !entry.shown) entry.state = "css";
     } else {
-      if (entry.shown) this.playback.releaseOutline(entry.shown, this.forecast);
+      entry.shown?.release();
       entry.shown = outline;
       entry.state = "shown";
     }
@@ -2561,8 +2599,8 @@ export class MorphLayer {
   }
 
   protected dropOutline(entry: MaskOutline) {
-    if (entry.pending) this.playback.releaseOutline(entry.pending, this.forecast);
-    if (entry.shown) this.playback.releaseOutline(entry.shown, this.forecast);
+    entry.pending?.release();
+    entry.shown?.release();
     entry.pending = undefined;
     entry.shown = undefined;
   }
