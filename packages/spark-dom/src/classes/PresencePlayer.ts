@@ -36,6 +36,17 @@ const moves = (animation: Animation): boolean => {
   );
 };
 
+const KEYFRAME_TIMING = new Set(["offset", "computedOffset", "easing", "composite"]);
+
+const setsOnlyOpacity = (effect: KeyframeEffect): boolean => {
+  const properties = new Set(
+    (effect.getKeyframes?.() ?? []).flatMap((keyframe) =>
+      Object.keys(keyframe).filter((key) => !KEYFRAME_TIMING.has(key)),
+    ),
+  );
+  return properties.size === 1 && properties.has("opacity");
+};
+
 const carry = (
   animation: Animation,
   time: CSSNumberish | null,
@@ -160,13 +171,13 @@ export default class PresencePlayer {
     }
     for (const animation of animated.getAnimations()) {
       const effect = animation.effect as KeyframeEffect | null;
-      const timing = effect?.getTiming?.();
+      const fill = effect?.getTiming?.().fill;
       if (
         !styleDriven(animation) &&
         effect?.target === element &&
         animation.playState === "finished" &&
-        Number(timing?.duration ?? 0) === 0 &&
-        (timing?.fill === "both" || timing?.fill === "forwards")
+        (fill === "both" || fill === "forwards") &&
+        setsOnlyOpacity(effect)
       ) {
         animation.cancel();
       }

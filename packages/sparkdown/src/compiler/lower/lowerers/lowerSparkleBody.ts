@@ -723,7 +723,7 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
     for (const word of blockContent ? streamIgnoredEntries(blockContent, ctx) : []) {
       warnAt(word.from, word.to, entryIgnored(tag, word.text), ctx);
     }
-    for (const prop of blockContent ? streamClearProps(blockContent, ctx) : []) {
+    for (const prop of blockContent && tag === "stream" ? streamClearProps(blockContent, ctx) : []) {
       warnAt(prop.from, prop.to, STREAM_CLEAR_IGNORED, ctx);
     }
     return {
@@ -780,7 +780,7 @@ function streamClearProps(container: SyntaxNode, ctx: LowerContext): SyntaxNode[
     }
     if (n.name === "LuauSparkleElement") {
       const name = sparkleElementParts(n).name;
-      if (name && ctx.read(name.from, name.to).trim() === "stream") return;
+      if (name && TEMPLATED_TAGS.has(ctx.read(name.from, name.to).trim())) return;
     }
     for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
   };
