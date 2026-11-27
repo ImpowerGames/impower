@@ -342,6 +342,17 @@ scene start
 end
 ```
 
+A line can name several `with` clauses, and they all play at once. Each `with` takes the `over`, `after` and `ease` written after it, and plays as it would if it were the line's only `with`: a transition plays its show half on a layout that opens and its hide half on one that closes, and an animation plays as written. On `navigate`, the layout that opens and every layout that closes each play every clause.
+
+```sparkdown
+scene start
+  [[open inventory with fade over 0.3s with shake over 0.5s]]
+  [[close inventory with fade over 0.2s with shake over 0.2s wait]]
+end
+```
+
+`wait` holds the story until the longest clause has finished, counting its `after`, and a layout that closes is removed once its last clause ends. Any `with` on the line replaces the layout's `@show` and `@hide` style blocks for that change.
+
 ---
 
 ## 6.5 The ending screen
