@@ -5783,6 +5783,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         : [];
   }
 
+  enterEvent(entry: WithInstruction): {
+    name: string;
+    after?: number;
+    over?: number;
+    ease?: string;
+    loop?: boolean;
+  } {
+    const timing = this.withTiming(entry);
+    const transition = this.context?.transition?.[entry.name];
+    if (!transition) {
+      return { name: entry.name, ...timing };
+    }
+    const durationOf = (name: string | undefined) =>
+      getTimeValue(this.context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
+    const longest = Math.max(
+      0,
+      ...Object.entries(transition)
+        .filter(([k, v]) => !k.startsWith("$") && v)
+        .map(([, v]) => durationOf(typeof v === "string" ? v : v?.$name)),
+    );
+    const speed =
+      timing.over != null && timing.over > 0 ? longest / timing.over : 1;
+    const arm = transition.on_show;
+    const name = (typeof arm === "string" ? arm : arm?.$name) || "show";
+    return { name, ...timing, over: durationOf(name) / speed };
+  }
+
   playedWith(e: { with?: WithInstruction[] }): WithInstruction | undefined {
     return this.withEntries(e).at(-1);
   }
@@ -7631,7 +7658,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             } else if (e.control === "animate" && entries.length > 1) {
               for (const entry of entries) {
                 const animation = $.getAnimationDefinition(
-                  { name: entry.name, ...$.withTiming(entry) },
+                  $.enterEvent(entry),
                   instant,
                 );
                 if (animation) {

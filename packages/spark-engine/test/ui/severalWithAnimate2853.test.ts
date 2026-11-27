@@ -128,6 +128,16 @@ describe("every `with` plays wherever an `animate` line's instruction is read (I
     ]);
   });
 
+  it("a transition among several `with` clauses on an `animate` line that names a picture plays the animation it plays alone", async () => {
+    const alone = (await played("animate portrait bunny with fade over 1s")).instruction.content.enterAnimation;
+    expect(alone).toBeTruthy();
+    const { instruction } = await played("animate portrait bunny with fade over 1s with shake over 2s");
+    expect(instruction.targetAnimations.map(timing)).toEqual([
+      timing(alone),
+      expect.objectContaining({ name: "shake", duration: "2s" }),
+    ]);
+  });
+
   it("an `animate` line that names a picture and one `with` still plays it on the picture", async () => {
     const { instruction } = await played("animate portrait bunny with spin over 5s");
     expect(timing(instruction.content.enterAnimation)).toEqual(expect.objectContaining({ name: "spin", duration: "5s" }));
