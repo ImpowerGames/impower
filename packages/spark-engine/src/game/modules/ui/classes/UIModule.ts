@@ -5783,7 +5783,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         : [];
   }
 
-  enterEvent(entry: WithInstruction): {
+  armEvent(
+    entry: WithInstruction,
+    arm: "on_show" | "on_hide",
+  ): {
     name: string;
     after?: number;
     over?: number;
@@ -5805,8 +5808,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
     const speed =
       timing.over != null && timing.over > 0 ? longest / timing.over : 1;
-    const arm = transition.on_show;
-    const name = (typeof arm === "string" ? arm : arm?.$name) || "show";
+    const armed = transition[arm];
+    const name =
+      (typeof armed === "string" ? armed : armed?.$name) ||
+      (arm === "on_show" ? "show" : "hide");
     return { name, ...timing, over: durationOf(name) / speed };
   }
 
@@ -7434,80 +7439,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const isFirstContentReveal =
             e.control === "show" && e.assets && e.assets.length > 0;
           if (isFirstContentReveal) {
-            const showEvent = {
+            const revealEvent = {
               name: "show",
               after: e.after,
               over: 0,
               ease: e.ease,
             };
-            const animation = $.getAnimationDefinition(showEvent, instant);
+            const animation = $.getAnimationDefinition(revealEvent, instant);
             if (animation) {
               targetAnimations.push(animation);
             }
           }
           const entries = $.withEntries(e);
           const played = entries.at(-1);
-          const timing = played
-            ? $.withTiming(played)
-            : { after: e.after, over: e.over, ease: e.ease };
-          const transition = $.context?.transition?.[played?.name ?? ""];
-          const transitionAnimations: Animation[] = [];
-          if (transition) {
-            for (const [k, v] of Object.entries(transition)) {
-              if (!k.startsWith("$") && v) {
-                if (typeof v === "string") {
-                  const transitionAnimation = $.context?.animation?.[v];
-                  if (transitionAnimation) {
-                    transitionAnimations.push(transitionAnimation);
-                  }
-                } else {
-                  const transitionAnimation = $.context?.animation?.[v?.$name];
-                  if (transitionAnimation) {
-                    transitionAnimations.push(transitionAnimation);
-                  }
-                }
-              }
-            }
-          }
-          const transitionDuration = Math.max(
-            ...transitionAnimations.map(
-              (a) => getTimeValue(a.timing.duration) ?? 0,
-            ),
-          );
-          const over = timing.over;
-          const transitionSpeed =
-            transition && over != null && over > 0
-              ? transitionDuration / over
-              : 1;
-          const showWith =
-            (transition
-              ? typeof transition?.on_show === "string"
-                ? transition?.on_show
-                : transition?.on_show?.$name
-              : played?.name) || "show";
-          const showAnimation = $.context?.animation?.[showWith];
-          const showAnimationDuration =
-            getTimeValue(showAnimation?.timing?.duration) ?? 0;
-          const showAfter = timing.after;
-          const showOver = transition
-            ? showAnimationDuration / transitionSpeed
-            : over;
-          const showEase = timing.ease;
-          const loop = timing.loop !== undefined ? { loop: timing.loop } : {};
-          const hideWith =
-            (transition
-              ? typeof transition?.on_hide === "string"
-                ? transition?.on_hide
-                : transition?.on_hide?.$name
-              : played?.name) || "hide";
-          const hideAnimation = $.context?.animation?.[hideWith];
-          const hideAnimationDuration =
-            getTimeValue(hideAnimation?.timing?.duration) ?? 0;
-          const hideAfter = timing.after;
-          const hideOver = transition
-            ? hideAnimationDuration / transitionSpeed
-            : over;
-          const hideEase = timing.ease;
+          const showEvent = played
+            ? $.armEvent(played, "on_show")
+            : { name: "show", after: e.after, over: e.over, ease: e.ease };
+          const hideEvent = played
+            ? $.armEvent(played, "on_hide")
+            : { name: "hide", after: e.after, over: e.over, ease: e.ease };
           const assets = e.assets;
           for (const entry of e.control === "animate" ? entries : played ? [played] : []) {
             const entryTransition = $.context?.transition?.[entry.name];
@@ -7612,13 +7562,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               return content;
             });
             if (e.control === "show") {
-              const showEvent = {
-                name: showWith,
-                after: showAfter,
-                over: showOver,
-                ease: showEase,
-                ...loop,
-              };
               const enterAnimation = $.getAnimationDefinition(
                 showEvent,
                 instant,
@@ -7626,13 +7569,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (enterAnimation) {
                 content.enterAnimation = enterAnimation;
               }
-              const hideEvent = {
-                name: hideWith,
-                after: hideAfter,
-                over: hideOver,
-                ease: hideEase,
-                ...loop,
-              };
               const previousHideAnimation = $.getAnimationDefinition(
                 hideEvent,
                 instant,
@@ -7641,13 +7577,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 content.previousHideAnimation = previousHideAnimation;
               }
             } else if (e.control === "hide") {
-              const hideEvent = {
-                name: hideWith,
-                after: hideAfter,
-                over: hideOver,
-                ease: hideEase,
-                ...loop,
-              };
               const exitAnimation = $.getAnimationDefinition(
                 hideEvent,
                 instant,
@@ -7658,7 +7587,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             } else if (e.control === "animate" && entries.length > 1) {
               for (const entry of entries) {
                 const animation = $.getAnimationDefinition(
-                  $.enterEvent(entry),
+                  $.armEvent(entry, "on_show"),
                   instant,
                 );
                 if (animation) {
@@ -7666,13 +7595,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 }
               }
             } else if (e.control === "animate") {
-              const showEvent = {
-                name: showWith,
-                after: showAfter,
-                over: showOver,
-                ease: showEase,
-                ...loop,
-              };
               const enterAnimation = $.getAnimationDefinition(
                 showEvent,
                 instant,
@@ -7687,13 +7609,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           } else {
             if (e.control === "hide") {
-              const hideEvent = {
-                name: hideWith,
-                after: hideAfter,
-                over: hideOver,
-                ease: hideEase,
-                ...loop,
-              };
               const animation = $.getAnimationDefinition(hideEvent, instant);
               if (animation) {
                 targetAnimations.push(animation);
@@ -7702,13 +7617,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (framing) {
                 out.framing = framing;
               }
-              const showEvent = {
-                name: showWith,
-                after: showAfter,
-                over: showOver,
-                ease: showEase,
-                ...loop,
-              };
               const animation = $.getAnimationDefinition(showEvent, instant);
               if (animation) {
                 targetAnimations.push(animation);
