@@ -42,6 +42,7 @@ export interface Instructions {
   cutscene?: CutsceneInstruction[];
   text?: Record<string, TextInstruction[]>;
   image?: Record<string, ImageInstruction[]>;
+  imageOrder?: string[];
   audio?: Record<string, AudioInstruction[]>;
   /** `[[open LAYOUT]]` / `[[close LAYOUT]]` / `[[navigate SCREEN to LAYOUT]]`
    *  layout-lifecycle directives, in source order. Keyed by layout name so

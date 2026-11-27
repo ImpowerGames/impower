@@ -4,7 +4,9 @@ const MAX_DEPTH = 32;
 
 const IMPLICIT_ELEMENT_NAMES = ["foldout_label"];
 
-export const collectLayerNames = (program: SparkProgram): Set<string> => {
+export const collectLayerNames = (
+  program: Pick<SparkProgram, "context" | "sparkle">,
+): Set<string> => {
   const names = new Set<string>(IMPLICIT_ELEMENT_NAMES);
   const seenStructs = new WeakSet<object>();
   const seenNodes = new WeakSet<object>();
