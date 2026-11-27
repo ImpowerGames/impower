@@ -49,6 +49,22 @@ describe("hover on a layout named after a kind of text (I-2740)", () => {
     expect(hover?.value).toContain("A line written with `@note:` opens it");
   });
 
+  it("finds the element of the kind's name inside a component the layout calls", async () => {
+    const text =
+      "component paper_note {\n  paper {\n    note { text }\n  }\n}\n\nlayout note {\n  paper_note\n}\n\nscene start\n  @note: Buy milk\nend\n";
+    const hover = await hoverAt(text, "note {", text.indexOf("layout note"));
+    expect(hover?.marked).toBe("note");
+    expect(hover?.value).toContain("A line written with `@note:` opens it");
+  });
+
+  it("finds the element of the kind's name in the body of the layout's screen", async () => {
+    const text =
+      "screen paper {\n  note { text }\n  slot\n}\n\nlayout note in paper {\n}\n\nscene start\n  @note: Buy milk\nend\n";
+    const hover = await hoverAt(text, "note in", text.indexOf("layout note"));
+    expect(hover?.marked).toBe("note");
+    expect(hover?.value).toContain("opens by itself");
+  });
+
   it("says nothing on a layout that holds no element of its own name", async () => {
     const text = "layout hud {\n  meter { text \"HP\" }\n}\n";
     const hover = await hoverAt(text, "hud");

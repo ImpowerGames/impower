@@ -17,18 +17,34 @@ const BUILT_IN_KINDS: ReadonlyMap<string, string> = new Map([
   ["choices", "A menu with no line of its own"],
 ]);
 
-const holdsElement = (value: unknown, name: string): boolean => {
-  if (Array.isArray(value)) {
-    return value.some((item) => holdsElement(item, name));
-  }
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const node = value as Record<string, unknown>;
-  if (node["kind"] === "element" && (node["tag"] === name || node["name"] === name)) {
-    return true;
-  }
-  return Object.values(node).some((child) => child !== null && typeof child === "object" && holdsElement(child, name));
+const holdsElement = (program: SparkProgram, children: unknown, name: string): boolean => {
+  const components = program.sparkle?.components ?? {};
+  const expanded = new Set<string>();
+  const visit = (value: unknown): boolean => {
+    if (Array.isArray(value)) {
+      return value.some(visit);
+    }
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    const node = value as Record<string, unknown>;
+    if (node["kind"] === "element") {
+      const classes = Array.isArray(node["classes"]) ? node["classes"] : [];
+      if ([node["tag"], node["name"], ...classes].includes(name)) {
+        return true;
+      }
+      const tag = node["tag"];
+      const component = typeof tag === "string" ? components[tag] : undefined;
+      if (component && !expanded.has(tag as string)) {
+        expanded.add(tag as string);
+        if (visit(component.children)) {
+          return true;
+        }
+      }
+    }
+    return Object.values(node).some((child) => child !== null && typeof child === "object" && visit(child));
+  };
+  return visit(children);
 };
 
 const namedAfterKind = (program: SparkProgram | undefined, name: string): boolean => {
@@ -36,7 +52,11 @@ const namedAfterKind = (program: SparkProgram | undefined, name: string): boolea
     return true;
   }
   const layout = program?.sparkle?.layouts?.[name];
-  return Boolean(layout && name !== "main" && holdsElement(layout.children, name));
+  if (!program || !layout || name === "main") {
+    return false;
+  }
+  const screen = layout.screen ? program.sparkle?.screens?.[layout.screen] : undefined;
+  return holdsElement(program, layout.children, name) || holdsElement(program, screen?.children, name);
 };
 
 export const kindLayoutDocumentation = (name: string): string => {
