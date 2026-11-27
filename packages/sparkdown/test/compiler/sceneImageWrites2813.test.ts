@@ -53,7 +53,7 @@ describe("the scene table carries each image write's framing (#2813)", () => {
 
   it("lists the framing a write shows its picture at, and the framing a move ends at", () => {
     expect(beats[0]!.writes).toEqual([{ target: "backdrop", image: ["hall"], at: "right" }]);
-    expect(beats[1]!.writes).toEqual([{ target: "backdrop", to: "close" }]);
+    expect(beats[1]!.writes).toEqual([{ target: "backdrop", animate: true, to: "close" }]);
   });
 
   it("carries no framing for a write with none, and records a write's target, its pictures, a hide and its effect", () => {
@@ -65,5 +65,34 @@ describe("the scene table carries each image write's framing (#2813)", () => {
 
   it("keeps the names each beat loads as they were", () => {
     expect(beats.map((beat) => beat.image)).toEqual([["hall"], undefined, ["nova", "nova"], undefined, ["dusk"]]);
+  });
+});
+
+const BRANCHES = `scene start
+  Pick a door:
+  choose
+    + (a) Left
+      [[show backdrop dusk]]
+      The left door opens.
+    + (b) Right
+      [[show backdrop hall]]
+      The right door opens.
+  end
+  [[animate backdrop to close over 1s]]
+  Both doors lead here.
+end
+`;
+
+describe("the scene table carries the blocks each beat sits in (#2813)", () => {
+  it("gives each branch of a choice its own scope, and the beat where they join none", () => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({ files: [script(BRANCHES), asset("image", "hall", "png"), asset("image", "dusk", "svg")] });
+    const beats = compiler.compile({ textDocument: { uri: URI } }).program.sceneAssets!["start"]!.beats;
+    expect(beats.map((beat) => beat.writes?.[0]?.image?.[0] ?? beat.writes?.[0]?.to)).toEqual(["dusk", "hall", "close"]);
+    const [left, right, join] = beats.map((beat) => beat.scope);
+    expect(left).toHaveLength(1);
+    expect(right).toHaveLength(1);
+    expect(left).not.toEqual(right);
+    expect(join).toBeUndefined();
   });
 });

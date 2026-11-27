@@ -33,7 +33,7 @@ export class DrawAhead {
   protected reaches = new Map<string, DrawAheadReach>();
   protected drawn = new Map<string, { keys: string[]; box: string }>();
   protected run = 0;
-  protected current?: MorphLayer[];
+  protected current?: { picture: DrawAheadPicture; layers: MorphLayer[] };
   protected abort?: { run: number; stopped: Promise<void>; stop: () => void };
   protected unlisten?: () => void;
 
@@ -45,11 +45,23 @@ export class DrawAhead {
     const listed = new Set(pictures.map(drawnKey));
     for (const key of [...this.drawn.keys()]) if (!listed.has(key)) this.drawn.delete(key);
     this.host.morphs()?.beginForecast();
-    this.queue = [...pictures].sort((a, b) => a.distance - b.distance);
-    if (this.queue.length === 0) {
+    const queue = [...pictures].sort((a, b) => a.distance - b.distance);
+    if (queue.length === 0) {
       this.host.morphs()?.endForecast();
       return;
     }
+    this.start(queue);
+  }
+
+  interrupt() {
+    if (!this.current) return;
+    const queue = [this.current.picture, ...this.queue];
+    this.halt();
+    this.start(queue);
+  }
+
+  protected start(queue: DrawAheadPicture[]) {
+    this.queue = queue;
     let stop = () => {};
     const stopped = new Promise<void>((resolve) => (stop = resolve));
     this.abort = { run: this.run, stopped, stop };
@@ -69,7 +81,7 @@ export class DrawAhead {
     const morphs = this.host.morphs();
     if (morphs) morphs.recording = undefined;
     if (this.current) {
-      this.host.unmount(this.current);
+      this.host.unmount(this.current.layers);
       this.current = undefined;
     }
     this.unlisten?.();
@@ -80,6 +92,7 @@ export class DrawAhead {
     this.halt();
     this.reaches.clear();
     this.drawn.clear();
+    this.host.morphs()?.dropForecasts();
   }
 
   protected listen() {
@@ -143,7 +156,7 @@ export class DrawAhead {
         if (morphs?.recording === recording) morphs.recording = undefined;
         continue;
       }
-      this.current = layers;
+      this.current = { picture, layers };
       const seconds = this.host.seconds();
       const timer = seconds > 0 ? this.timer(seconds * 1000) : undefined;
       await Promise.race([

@@ -4,6 +4,7 @@ export interface SceneImageWrite {
   target?: string;
   image?: string[];
   hide?: true;
+  animate?: true;
   at?: string;
   to?: string;
   with?: string;
@@ -13,6 +14,7 @@ export interface SceneBeat {
   address: ProgramAddress;
   image?: string[];
   writes?: SceneImageWrite[];
+  scope?: number[];
   audio?: string[];
   layouts?: string[];
   loads?: string[];

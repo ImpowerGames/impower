@@ -134,6 +134,8 @@ const HALTS_DRAWING_AHEAD = new Set([
   "ui/write-image",
 ]);
 
+const INTERRUPTS_DRAWING_AHEAD = new Set(["ui/update", "ui/animate", "ui/presence", "ui/write-text"]);
+
 type OverlayWithShowing = HTMLElement & { __sdShowing?: Map<string, number> };
 
 interface Cutscene {
@@ -1959,6 +1961,8 @@ export default class UIManager extends Manager {
   override async onReceiveRequest(msg: RequestMessage) {
     if (HALTS_DRAWING_AHEAD.has(msg.method)) {
       this._drawAhead.halt();
+    } else if (INTERRUPTS_DRAWING_AHEAD.has(msg.method)) {
+      this._drawAhead.interrupt();
     }
     const decision = this._decision;
     this.endPreviewCutscene(msg);
@@ -2281,6 +2285,8 @@ export default class UIManager extends Manager {
   override onReceiveNotification(msg: NotificationMessage) {
     if (HALTS_DRAWING_AHEAD.has(msg.method)) {
       this._drawAhead.halt();
+    } else if (INTERRUPTS_DRAWING_AHEAD.has(msg.method)) {
+      this._drawAhead.interrupt();
     }
     if (DrawAheadMessage.type.isNotification(msg)) {
       this._drawAhead.receive(msg.params.pictures);

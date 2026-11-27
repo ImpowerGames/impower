@@ -47,6 +47,8 @@ export const captureProgramAssets = (
     }
     return name.split(".")[0] || undefined;
   };
+  const scopes: number[] = [];
+  let scopeCount = 0;
   const visitChunk = (chunk: ProgramChunk, capture: SceneAssetCapture) => {
     const id = chunkId(chunk);
     const words = codeWords(chunk);
@@ -58,7 +60,9 @@ export const captureProgramAssets = (
       visited.add(k);
       const body = root.body(chunk, k);
       if (body) {
+        scopes.push((scopeCount += 1));
         visitSequence(body, capture);
+        scopes.pop();
       }
     };
     let beat = -1;
@@ -79,6 +83,9 @@ export const captureProgramAssets = (
             const address = addressOf(id, beat >= 0 ? beat : offset);
             const before = capture.beats.at(-1);
             const scanned = scanAssetDirectives(text, address, capture);
+            if (scanned && scopes.length > 0) {
+              scanned.scope = [...scopes];
+            }
             if (scanned && before?.address === address) {
               capture.beats.pop();
               mergeBeat(before, scanned);

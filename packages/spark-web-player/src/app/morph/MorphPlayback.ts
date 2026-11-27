@@ -861,7 +861,14 @@ export class MorphPlayback {
     let drawing = this.drawings.get(key);
     if (!drawing) {
       const bytes = width * height * FRAME_BYTES_PER_PIXEL;
-      if (forecast !== undefined && !this.makeRoom(bytes, forecast)) return Promise.resolve(undefined);
+      if (forecast !== undefined) {
+        if (!this.makeRoom(bytes, forecast)) {
+          this.recording?.add(key);
+          return Promise.resolve(undefined);
+        }
+      } else {
+        this.makeRoom(bytes, 0);
+      }
       const made: Drawing = { key, bytes, users: 0, forecasts: 0, made: Promise.resolve(undefined), ...(forecast !== undefined ? { distance: forecast } : {}) };
       made.made = this.rasterizeSvgLayer(source, natural, width, height, doc)
         .catch(() => undefined)
@@ -951,16 +958,26 @@ export class MorphPlayback {
       drawing!.distance = drawing!.stale ? distance : Math.min(drawing!.distance ?? distance, distance);
       drawing!.stale = false;
     }
+    this.makeRoom(0, 0);
     return true;
   }
 
   beginForecast() {
     for (const drawing of this.drawings.values()) drawing.stale = true;
+    this.makeRoom(0, 0);
   }
 
   endForecast() {
     for (const drawing of [...this.drawings.values()]) {
       if ((drawing.stale || drawing.distance === undefined) && drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
+    }
+    this.makeRoom(0, 0);
+  }
+
+  dropForecasts() {
+    for (const drawing of [...this.drawings.values()]) {
+      if (drawing.users === 0 && drawing.forecasts === 0) this.dropDrawing(drawing);
+      else delete drawing.distance;
     }
   }
 
@@ -1323,7 +1340,7 @@ export class MorphPlayback {
   frameBytes(): number {
     let bytes = 0;
     for (const layer of this.layers) if (layer.forecast === undefined) bytes += layer.poseBytes;
-    return bytes + this.drawnAheadBytes();
+    return bytes;
   }
 
   get stats() {

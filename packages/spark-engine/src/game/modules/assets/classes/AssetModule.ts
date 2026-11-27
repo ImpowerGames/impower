@@ -2,6 +2,7 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import {
   type SceneAssets,
   type SceneBeat,
+  type SceneImageWrite,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
@@ -15,6 +16,7 @@ import { keyframeScale } from "../../ui/utils/keyframeScale";
 import { loadingBeats, loads } from "../utils/loadingBeats";
 import {
   pictureRuns,
+  reachable,
   type PictureRun,
   type PredictedBeat,
 } from "../utils/pictureRuns";
@@ -653,8 +655,19 @@ export class AssetModule extends Module<
         0,
         beatIndexIn(beats, this._game.locator, this.previewAnchorIn(flow)),
       );
-      const from = Math.max(0, at - reach);
-      const to = Math.min(beats.length, at + reach + 1);
+      let from = at;
+      for (let counted = 0; from > 0 && counted < reach; ) {
+        from -= 1;
+        if (loads(beats[from]!)) {
+          counted += 1;
+        }
+      }
+      let to = at + 1;
+      for (let counted = 0; to < beats.length && counted < reach; to += 1) {
+        if (loads(beats[to]!)) {
+          counted += 1;
+        }
+      }
       const around = (start: number, end: number) =>
         beats
           .slice(start, end)
@@ -665,19 +678,33 @@ export class AssetModule extends Module<
       runs.push(...pictureRuns(around(from, at), () => undefined, fallback));
       runs.push(...pictureRuns(around(at, to), shown, fallback));
     } else {
-      const at = beatIndexIn(beats, this._game.locator, this._game.executingAddress);
+      const address = this._game.executingAddress;
+      const at = beatIndexIn(beats, this._game.locator, address);
+      const here = beats[at];
+      const locator = this._game.locator;
+      const line = address == null ? undefined : locator.locationOf(address);
+      const beatLine = here ? locator.locationOf(here.address) : undefined;
+      const scope =
+        here &&
+        line &&
+        beatLine &&
+        line.uri === beatLine.uri &&
+        line.startLine === beatLine.startLine
+          ? (here.scope ?? [])
+          : undefined;
       const ahead: PredictedBeat[] = [];
       let counted = 0;
       for (let i = at + 1; i < beats.length && counted < reach; i++) {
         const beat = beats[i]!;
-        ahead.push({ beat, distance: i - at });
+        if (!scope || reachable(beat.scope ?? [], scope)) {
+          ahead.push({ beat, distance: i - at });
+        }
         if (loads(beat)) {
           counted += 1;
         }
       }
       runs.push(...pictureRuns(ahead, shown, fallback));
     }
-    const animations = (this.context as Record<string, any>)?.["animation"];
     const merged = new Map<string, DrawAheadPicture>();
     for (const run of runs) {
       if (run.distance <= 0) {
@@ -691,8 +718,9 @@ export class AssetModule extends Module<
         1,
         ...run.framings.map((name) => ui.getFraming(name)?.zoom ?? 1),
       );
-      const scale = keyframeScale(
-        run.effects.map((name) => animations?.[name]),
+      const scale = Math.max(
+        1,
+        ...run.effects.map((write) => this.effectScale(write, run.assets)),
       );
       const key = `${run.target}\n${run.assets.join("+")}`;
       const known = merged.get(key);
@@ -711,6 +739,30 @@ export class AssetModule extends Module<
       }
     }
     return [...merged.values()].sort((a, b) => a.distance - b.distance);
+  }
+
+  protected _effectScales?: { context: object; byWrite: Map<string, number> };
+
+  protected effectScale(write: SceneImageWrite, assets: string[]): number {
+    const context = this.context as object;
+    if (this._effectScales?.context !== context) {
+      this._effectScales = { context, byWrite: new Map() };
+    }
+    const names = write.image?.length ? write.image : write.animate ? [] : assets;
+    const control = write.animate || names.length === 0 ? "animate" : "show";
+    const key = [control, write.with ?? "", names.join("+")].join("|");
+    let scale = this._effectScales.byWrite.get(key);
+    if (scale === undefined) {
+      scale = keyframeScale(
+        this._game.module.ui.image.effects({
+          control,
+          ...(names.length ? { assets: names } : {}),
+          ...(write.with ? { with: write.with } : {}),
+        }),
+      );
+      this._effectScales.byWrite.set(key, scale);
+    }
+    return scale;
   }
 
   protected _drawContent?: {

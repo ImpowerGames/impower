@@ -156,6 +156,9 @@ const imageWrite = (body: string): SceneImageWrite => {
     write.hide = true;
     return write;
   }
+  if (reading.control?.text === "animate") {
+    write.animate = true;
+  }
   const image = reading.names
     .map((name) => name.text)
     .filter((name) => name !== "none");

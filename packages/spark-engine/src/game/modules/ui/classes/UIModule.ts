@@ -7296,6 +7296,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return this.resolve([{ control: "show", assets }], true)[0]?.content;
       }
 
+      effects(event: ImageInstruction): Animation[] {
+        const out = this.resolve([event], true)[0];
+        return [
+          ...(out?.content?.enterAnimation ? [out.content.enterAnimation] : []),
+          ...(out?.targetAnimations ?? []),
+          ...(out?.affected ?? []).flatMap((affected) => affected.animations),
+        ];
+      }
+
       shown(target: string): { assets: string[]; at?: string } | undefined {
         let shown: ImageInstruction | undefined;
         for (const event of $._state.image?.[target] ?? []) {

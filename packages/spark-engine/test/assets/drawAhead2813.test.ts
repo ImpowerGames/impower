@@ -148,3 +148,113 @@ end
     expect(draws(h.messages)).toHaveLength(1);
   });
 });
+
+const settle = (h: any) => {
+  h.reset();
+  h.game.module.assets.onBeatSettled();
+  return draws(h.messages)[0].params.pictures.map((p: any) => ({ name: p.content.imageNames, zoom: p.zoom, scale: p.scale }));
+};
+
+const at = (story: string, line: string) => story.split("\n").indexOf(line);
+
+describe("what the beats ahead are walked through (#2813, round 1)", () => {
+  it("gives the zoom after a choice joins to the picture of every branch, and skips a branch the current line cannot reach", async () => {
+    const story = `framing close {
+  zoom = 1.5
+}
+
+scene start
+  Choose.
+  choose
+    + (a) Left
+      [[show backdrop hall]]
+      Left.
+    + (b) Right
+      [[show backdrop dusk]]
+      Right.
+  end
+  [[animate backdrop to close over 1s]]
+  Zoom.
+end
+`;
+    const h = createHarness(story, at(story, "  Choose."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(settle(h)).toEqual([
+      { name: "hall", zoom: 1.5, scale: 1 },
+      { name: "dusk", zoom: 1.5, scale: 1 },
+    ]);
+    const beats = h.game.program.sceneAssets!["start"]!.beats;
+    (h.game as any)._executingAddress = beats[0]!.address;
+    expect(settle(h).map((p: any) => p.name)).not.toContain("dusk");
+  });
+
+  it("keeps a picture on screen through an animate that adds another, so the later zoom reaches it", async () => {
+    const story = `framing close {
+  zoom = 1.5
+}
+
+scene start
+  Current.
+  [[show backdrop hall]]
+  Hall.
+  [[animate backdrop dusk]]
+  Effect.
+  [[animate backdrop to close over 1s]]
+  Zoom.
+end
+`;
+    const h = createHarness(story, at(story, "  Current."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(settle(h).find((p: any) => p.name === "hall")?.zoom).toBe(1.5);
+  });
+
+  it("takes the scale keyframes of a transition's show animation, as the write resolves it", async () => {
+    const story = `animation swell {
+  keyframes {
+    {
+      scale = "1"
+    }
+    {
+      scale = "1.25"
+    }
+  }
+  timing {
+    duration = 0.5
+  }
+}
+
+define grow as transition with
+  on_show = animation.swell
+end
+
+scene start
+  Current.
+  [[show backdrop hall with grow]]
+  Hall.
+end
+`;
+    const h = createHarness(story, at(story, "  Current."), { assets: ASSETS, beforeConnect: playing });
+    await h.ready;
+    expect(settle(h)).toEqual([{ name: "hall", zoom: 1, scale: 1.25 }]);
+  });
+
+  it("counts only beats that load something against predict_distance in the stopped preview", async () => {
+    const story = `define assets as config with
+  predict_distance = 1
+end
+
+scene start
+  [[show backdrop hall]]
+  Current.
+  [[hide portrait]]
+  Hidden.
+  [[show portrait nova]]
+  Next picture.
+end
+`;
+    const h = createHarness(story, at(story, "  Current."), { assets: ASSETS });
+    await h.ready;
+    await h.preview(at(story, "  Current."));
+    expect(settle(h).map((p: any) => p.name)).toContain("nova");
+  });
+});
