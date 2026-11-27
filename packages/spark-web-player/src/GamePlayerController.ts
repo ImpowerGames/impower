@@ -1484,6 +1484,20 @@ export class GamePlayerController {
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
   }
 
+  restart = async () => {
+    if (this._barView.starting) {
+      return;
+    }
+    this.updateBarView({ starting: true });
+    try {
+      markPlayStarted();
+      await this.ensureAudioContext();
+      await this.restartPlay(true);
+    } finally {
+      this.updateBarView({ starting: false });
+    }
+  };
+
   stop = () => {
     const ended = this._workerPlay?.ended;
     return this.stopGame(

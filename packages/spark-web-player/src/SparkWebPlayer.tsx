@@ -153,6 +153,7 @@ export default function SparkWebPlayer({
           replayShortcut={replayShortcut || undefined}
           onRun={() => void controllerRef.current?.run()}
           onStop={() => void controllerRef.current?.stop()}
+          onRestart={() => void controllerRef.current?.restart()}
           onReplayBeat={requestReplayBeat}
           onSkip={(direction) => void controllerRef.current?.skipBeat(direction)}
           onPause={() => void controllerRef.current?.pauseGame()}
