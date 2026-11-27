@@ -3371,11 +3371,10 @@ export class MorphLayer {
       return rate > 0 ? Math.min(MAX_POSE_FRAMES, Math.max(1, Math.round(duration * rate))) : 0;
     });
     const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
-    const wanted = owner.poses ? this.poseSizes(owner.poses) : [];
-    const retiring = (this.forecast === undefined ? (owner.poses?.sets ?? []) : [])
-      .filter((set) => !set.released && !wanted.some((want) => want.width === set.width && want.height === set.height))
+    const own = (this.forecast === undefined ? (owner.poses?.sets ?? []) : [])
+      .filter((set) => !set.released)
       .reduce((sum, set) => sum + [...set.frames.values()].filter((frame) => !frame.refused).length * set.width * set.height * FRAME_BYTES_PER_PIXEL, 0);
-    const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes() + retiring;
+    const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes() + own;
     const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
     const cutOptions = plays.map((play, i) => (cut[i] ? cutOffsets(artifact, play.morph) : []));
     const cutLooks = plays.map((play, i) =>

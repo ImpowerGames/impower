@@ -544,7 +544,7 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
     }
   });
 
-  test("a resized picture's tween keeps the frames its budget allows at the new size, the poses being replaced not counted against them", async () => {
+  test("a resized picture's tween keeps the frames its budget allows at the new size, the poses being replaced not counted against them, whether the resize is direct or prepared for a beat", async () => {
     const tween = (key: string): MorphPlay[] => [
       {
         ref: { morphs: ["blink"], key, image: "nova", selection: "{}", groups: ["eyes"] },
@@ -555,9 +555,11 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
       },
     ];
     const frame = BOX.width * BOX.height * 4;
-    for (const [write, key] of [
-      [pictureShow, "nova-inner-budget"],
-      [layeredShow, "nova-layered-budget"],
+    for (const [write, key, prepared] of [
+      [pictureShow, "nova-inner-budget", false],
+      [layeredShow, "nova-layered-budget", false],
+      [pictureShow, "nova-inner-budget-prepared", true],
+      [layeredShow, "nova-layered-budget-prepared", true],
     ] as const) {
       const t = await setup({ ...RECIPES, blink: blink({ clips: [] }) });
       t.playback.frameBudget = () => 16 * frame;
@@ -567,8 +569,16 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
       const owner = () => (layer.images[0].picture ? layer.images[0].inner[0] : layer.images[0]);
       const before = owner().poses.sets[0];
       expect(before.frames.size).toBeGreaterThan(8);
-      layer.size({ zoom: 2 });
       const doubled = `${BOX.width * 2}x${BOX.height * 2}`;
+      if (prepared) {
+        layer.widen({ zoom: 2 });
+        layer.prepareLayout();
+        await until(() => owner().poses.sets.some((set: any) => `${set.width}x${set.height}` === doubled && set.queue.length === 0 && !set.running), "the prepared size's poses");
+        expect(owner().poses.sets).toHaveLength(2);
+        layer.adoptNext();
+      } else {
+        layer.size({ zoom: 2 });
+      }
       await until(() => owner().poses.sets.length === 1 && `${owner().poses.sets[0].width}x${owner().poses.sets[0].height}` === doubled && owner().poses.sets[0].queue.length === 0, "only the larger poses kept");
       const after = owner().poses.sets[0];
       expect(after.grids[0]).toBeGreaterThan(0);
