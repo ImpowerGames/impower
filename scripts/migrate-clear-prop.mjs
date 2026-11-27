@@ -10,6 +10,10 @@ const SKIP_DIRS = new Set(["node_modules", ".git"]);
 const SCRIPT_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
 const BUILTINS = path.join(HERE, "..", "packages", "sparkdown", "src", "compiler", "builtins", "builtins.sd");
 
+function isSparkdown(file) {
+  return !file.endsWith(".md") && !SCRIPT_FILE.test(file);
+}
+
 function usage() {
   return "usage: node scripts/migrate-clear-prop.mjs <project directory or file> [...] [--check]";
 }
@@ -48,40 +52,38 @@ export async function migrateClearProps(targets, { check = false, log = console.
   const changed = [];
   const failed = [];
   const relativeOf = (file) => path.relative(process.cwd(), file).split(path.sep).join("/");
-  const seen = new Set();
-  for (const target of targets) {
-    const files = walk(path.resolve(target), [])
-      .filter((file) => !seen.has(file))
-      .sort();
-    files.forEach((file) => seen.add(file));
-    const names = new Set(builtins);
-    const unparsed = new Set();
-    for (const file of files.filter((f) => f.endsWith(".sd"))) {
-      try {
-        for (const name of codemod.emptiedNames(fs.readFileSync(file, "utf8"))) names.add(name);
-      } catch (error) {
-        unparsed.add(file);
-        failed.push(`${relativeOf(file)}: ${error.message}`);
-      }
+  const projects = targets.map((target) => walk(path.resolve(target), []));
+  const files = [...new Set(projects.flat())].sort();
+  const fileNames = new Map();
+  for (const file of files.filter(isSparkdown)) {
+    try {
+      fileNames.set(file, codemod.emptiedNames(fs.readFileSync(file, "utf8")));
+    } catch (error) {
+      failed.push(`${relativeOf(file)}: ${error.message}`);
     }
-    for (const file of files.filter((f) => !unparsed.has(f))) {
-      const source = fs.readFileSync(file, "utf8");
-      const relative = relativeOf(file);
-      let result;
-      try {
-        result = file.endsWith(".md")
-          ? codemod.migrateMarkdownClearProp(source, builtins)
-          : SCRIPT_FILE.test(file)
-            ? codemod.migrateScriptClearProp(source, typescript, file, builtins)
-            : codemod.migrateClearProp(source, names);
-      } catch (error) {
-        failed.push(`${relative}: ${error.message}`);
-        continue;
-      }
-      if (result.text !== source) {
-        changed.push({ relative, migrated: result.migrated });
-        if (!check) fs.writeFileSync(file, result.text);
-      }
+  }
+  const projectNames = new Map(files.map((file) => [file, new Set(builtins)]));
+  for (const project of projects) {
+    const names = project.flatMap((file) => [...(fileNames.get(file) ?? [])]);
+    for (const file of project) names.forEach((name) => projectNames.get(file).add(name));
+  }
+  for (const file of files.filter((f) => !isSparkdown(f) || fileNames.has(f))) {
+    const source = fs.readFileSync(file, "utf8");
+    const relative = relativeOf(file);
+    let result;
+    try {
+      result = file.endsWith(".md")
+        ? codemod.migrateMarkdownClearProp(source, builtins)
+        : SCRIPT_FILE.test(file)
+          ? codemod.migrateScriptClearProp(source, typescript, file, builtins)
+          : codemod.migrateClearProp(source, projectNames.get(file));
+    } catch (error) {
+      failed.push(`${relative}: ${error.message}`);
+      continue;
+    }
+    if (result.text !== source) {
+      changed.push({ relative, migrated: result.migrated });
+      if (!check) fs.writeFileSync(file, result.text);
     }
   }
   for (const { relative, migrated } of changed) {

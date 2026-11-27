@@ -151,7 +151,10 @@ describe("scripts/migrate-clear-prop.mjs", () => {
   });
 
   test.each([
-    ["the fixture layouts and screens", readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8")],
+    [
+      "the fixture layouts and screens",
+      readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8").replace(/^component card[\s\S]*?\n}\n/, ""),
+    ],
     ["the built-in layouts", BUILTINS.replace(/ #clear\b/g, "")],
   ])("adds #clear exactly where the unwritten rule empties outside streams, in %s", { timeout: 300_000 }, (_, source) => {
     const before = compile(source);
@@ -173,11 +176,11 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(compared).toBe(migrated.migrated);
   });
 
-  test("leaves an element inside a component definition as written, since the unwritten rule never emptied one there", () => {
+  test("marks an element inside a component definition only by a name a layout or screen empties", () => {
     const source = readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8");
     const component = source.slice(source.indexOf("component card"), source.indexOf("screen menu"));
     expect(component).toContain("heading {\n    text\n  }");
-    expect(migrateClearProp(source).text).toContain(component);
+    expect(migrateClearProp(source).text).toContain(component.replace("heading {", "heading #clear {"));
     const lone = `${component}\nlayout box {\n  card("A")\n}\n`;
     expect(migrateClearProp(lone)).toMatchObject({ text: lone, migrated: 0 });
   });
@@ -257,17 +260,44 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(migrated.migrated).toBe(3);
   });
 
-  test("marks an element in one project file by a name emptied in another", { timeout: 120_000 }, () => {
+  test.each([
+    ["the project directory", (dir: string) => [dir]],
+    ["one of its files before the directory", (dir: string) => [join(dir, "frame.sd"), dir]],
+    ["the other file before the directory", (dir: string) => [join(dir, "main.sd"), dir]],
+  ])("marks an element in one project file by a name emptied in another, given %s", { timeout: 120_000 }, (_, targets) => {
     const dir = mkdtempSync(join(tmpdir(), "migrate-clear-prop-test-"));
     scratch.push(dir);
-    writeFileSync(join(dir, "main.sd"), "layout main {\n  dialogue { text }\n}\n");
-    writeFileSync(join(dir, "frame.sd"), "layout frame {\n  dialogue { dialogue_background }\n}\n");
-    const result = run(dir);
+    writeFileSync(join(dir, "main.sd"), "layout main {\n  banner { text }\n}\n");
+    writeFileSync(join(dir, "frame.sd"), "layout frame {\n  banner { banner_background }\n}\n");
+    const result = run(...targets(dir));
     expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("2 files migrated, 0 errors");
     expect(readFileSync(join(dir, "frame.sd"), "utf8")).toBe(
-      "layout frame {\n  dialogue #clear { dialogue_background }\n}\n",
+      "layout frame {\n  banner #clear { banner_background }\n}\n",
     );
-    expect(readFileSync(join(dir, "main.sd"), "utf8")).toBe("layout main {\n  dialogue #clear { text }\n}\n");
+    expect(readFileSync(join(dir, "main.sd"), "utf8")).toBe("layout main {\n  banner #clear { text }\n}\n");
+  });
+
+  test("marks an element inside a component by a name a layout empties", () => {
+    const source = [
+      "component banner {",
+      "  frame {",
+      "    title { title_background }",
+      "    action { text }",
+      "  }",
+      "}",
+      "",
+      "layout main {",
+      "  title { text }",
+      "  banner",
+      "}",
+      "",
+    ].join("\n");
+    const migrated = migrateClearProp(source);
+    expect(migrated.text).toContain("    title #clear { title_background }");
+    expect(migrated.text).toContain("    action { text }");
+    expect(migrated.text).toContain("  title #clear { text }");
+    expect(migrated.migrated).toBe(2);
   });
 
   test("marks an element by a name the built-in layouts empty, and keeps each target's names to itself", { timeout: 120_000 }, () => {

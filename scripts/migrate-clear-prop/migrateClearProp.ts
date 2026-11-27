@@ -116,7 +116,11 @@ function clearEdit(element: SyntaxNode, text: string): Edit {
   return { from: at, to: at, insert: " #clear" };
 }
 
-function eachElement(text: string, visit: (entry: StructEntry, key: string) => void): void {
+function eachElement(
+  text: string,
+  bodyTypes: readonly string[],
+  visit: (entry: StructEntry, key: string) => void,
+): void {
   const walk = (entries: StructEntry[]) => {
     for (const entry of entries) {
       if (!entry.element || isStream(entry, text)) continue;
@@ -125,7 +129,7 @@ function eachElement(text: string, visit: (entry: StructEntry, key: string) => v
     }
   };
   const tree = parser.parse(text);
-  for (const name of ["LuauLayout", "LuauScreen"]) {
+  for (const name of bodyTypes) {
     for (const body of descendants(tree.topNode, name)) {
       walk(readStructBodyEntries(body, undefined as never));
     }
@@ -134,7 +138,7 @@ function eachElement(text: string, visit: (entry: StructEntry, key: string) => v
 
 export function emptiedNames(text: string): Set<string> {
   const names = new Set<string>();
-  eachElement(text, (entry, key) => {
+  eachElement(text, ["LuauLayout", "LuauScreen"], (entry, key) => {
     if (key && entry.children?.some((child) => isEmptiedContent(child, text))) names.add(key);
   });
   return names;
@@ -142,7 +146,7 @@ export function emptiedNames(text: string): Set<string> {
 
 export function clearEdits(text: string, names: ReadonlySet<string> = emptiedNames(text)): Edit[] {
   const edits = new Map<number, Edit>();
-  eachElement(text, (entry, key) => {
+  eachElement(text, ["LuauLayout", "LuauScreen", "LuauComponent"], (entry, key) => {
     if (names.has(key) && !hasClearProp(entry, text)) {
       const edit = clearEdit(entry.shape, text);
       edits.set(edit.from, edit);
