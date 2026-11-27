@@ -17,6 +17,7 @@ import {
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { layoutNames, showingNames } from "@impower/sparkdown/src/compiler/utils/layoutElementNames";
+import { picturedCharacters } from "@impower/sparkdown/src/compiler/utils/picturedCharacters";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import {
   luauFileName,
@@ -2181,6 +2182,17 @@ const completionsAt = (
           program,
           control === "animate" ? ["animation", "image"] : ["image"],
         );
+        if (control === "hide" || control === "animate") {
+          for (const name of picturedCharacters(program?.context)) {
+            if (!completions.has(name)) {
+              completions.set(name, {
+                label: name,
+                labelDetails: { description: "character" },
+                kind: CompletionItemKind.Constant,
+              });
+            }
+          }
+        }
       }
       return buildCompletions();
     }

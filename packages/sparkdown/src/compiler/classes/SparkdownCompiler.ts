@@ -216,6 +216,7 @@ import {
   characterAliasOwners,
 } from "../utils/characterAliasOwners";
 import { getContextEntry } from "../utils/getContextEntry";
+import { PICTURE_OWNER_TYPES, picturedCharacters } from "../utils/picturedCharacters";
 import { getTypedImageEntry, typedImageTypes } from "../utils/resolveImageReference";
 import { setContextEntry } from "../utils/setContextEntry";
 import type { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
@@ -5777,6 +5778,15 @@ export class SparkdownCompiler {
       layerNames ??= collectLayerNames(program);
       return Boolean(name) && layerNames.has(name!);
     };
+    let pictured: Set<string> | undefined;
+    const namesPicturedCharacter = (name: string, reads: Reads) => {
+      readType(reads, "character");
+      for (const type of PICTURE_OWNER_TYPES) {
+        readType(reads, type);
+      }
+      pictured ??= picturedCharacters(program.context);
+      return pictured.has(name);
+    };
     const possibleStringIdentifiersFor = (
       declaration: SparkDeclaration | undefined,
     ) => {
@@ -6070,6 +6080,17 @@ export class SparkdownCompiler {
             )} to say who speaks`,
           );
         } else if (readsLayout(reads) && namesLayoutElement(selector)) {
+          if (reference.castTarget && namesPicturedCharacter(selector!.name!, reads)) {
+            report(
+              DiagnosticSeverity.Warning,
+              `\`${selector!.name}\` names a layer and a character. \`hide\` and \`animate\` use the layer.`,
+            );
+          }
+        } else if (
+          reference.castTarget &&
+          selector?.name &&
+          namesPicturedCharacter(selector.name, reads)
+        ) {
         } else if (
           reference.declaration === "define_type_name" &&
           selector?.types?.some((type) => declaredParentTypes.has(type))

@@ -81,6 +81,17 @@ const keyframesWith = (
     ),
   );
 
+const movement = (keyframes: Keyframe[]): Set<string> =>
+  new Set(
+    keyframes.flatMap((keyframe) =>
+      Object.keys(keyframe).filter((prop) => MOVEMENT.has(prop)),
+    ),
+  );
+
+const persisted = new WeakMap<Element, Map<Animation, Set<string>>>();
+
+const moverProps = new WeakMap<Animation, Set<string>>();
+
 const setsProperties = (keyframes: Keyframe[]): boolean =>
   keyframes.some((keyframe) =>
     Object.keys(keyframe).some((prop) => !KEYFRAME_TIMING.has(prop)),
@@ -91,6 +102,10 @@ export default class AnimationPlayer {
 
   protected _moved: Map<Element, Set<string>>;
 
+  protected _movers: Map<Element, Animation[]>;
+
+  protected _supersedes = new Map<Animation, Animation[]>();
+
   protected _theme: ThemeVariables;
 
   protected _hold?: AnimationHold;
@@ -99,6 +114,7 @@ export default class AnimationPlayer {
     this._theme = theme;
     this._hold = hold;
     this._moved = together?._moved ?? new Map();
+    this._movers = together?._movers ?? new Map();
   }
 
   add(effect: AnimationEffect): Animation[] {
@@ -156,21 +172,64 @@ export default class AnimationPlayer {
         }
       }
     }
+    const movers = this._movers.get(element) ?? [];
+    this._movers.set(element, movers);
     if (adding.size === 0) {
-      return [this.addKeyframes(element, keyframes, timing)];
+      return [this.addMover(movers, element, keyframes, timing)];
     }
     const replaced = keyframesWith(keyframes, (prop) => !adding.has(prop));
-    return [
+    const combined = [
       ...(setsProperties(replaced)
-        ? [this.addKeyframes(element, replaced, timing)]
+        ? [this.addMover(movers, element, replaced, timing)]
         : []),
-      this.addKeyframes(
+      this.addMover(
+        movers,
         element,
         keyframesWith(keyframes, (prop) => adding.has(prop)),
         timing,
         "add",
       ),
     ];
+    const kept = persisted.get(element) ?? new Map<Animation, Set<string>>();
+    persisted.set(element, kept);
+    for (const mover of movers) {
+      mover.persist();
+      kept.set(mover, moverProps.get(mover)!);
+    }
+    return combined;
+  }
+
+  protected addMover(
+    movers: Animation[],
+    element: Element,
+    keyframes: Keyframe[],
+    timing: AnimationTiming,
+    composite?: CompositeOperation,
+  ): Animation {
+    const instance = this.addKeyframes(element, keyframes, timing, composite);
+    const props = movement(keyframes);
+    if (props.size > 0) {
+      movers.push(instance);
+      moverProps.set(instance, props);
+      if (!composite) {
+        this._supersedes.set(
+          instance,
+          [...(persisted.get(element) ?? [])]
+            .filter(([, earlier]) => [...earlier].every((prop) => props.has(prop)))
+            .map(([animation]) => animation),
+        );
+      }
+    }
+    return instance;
+  }
+
+  protected release(animation: Animation, element: Element): void {
+    const kept = persisted.get(element);
+    for (const earlier of this._supersedes.get(animation) ?? []) {
+      if (kept?.delete(earlier)) {
+        earlier.cancel();
+      }
+    }
   }
 
   addKeyframes(
@@ -221,6 +280,7 @@ export default class AnimationPlayer {
         await (this._hold
           ? this._hold.add(instance.animation)
           : instance.animation.finished);
+        this.release(instance.animation, instance.element);
         onEnd?.(instance.animation);
       }),
     );

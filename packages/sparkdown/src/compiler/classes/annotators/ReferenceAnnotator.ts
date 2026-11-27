@@ -66,6 +66,7 @@ export interface Reference {
   prop?: boolean;
   linkable?: boolean;
   stylingStringIdentifier?: boolean;
+  castTarget?: boolean;
   asset?: { types: string[]; name: string; typed?: boolean };
   root?: number;
 }
@@ -251,7 +252,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     } else if (kind === "cutscene") {
       if (target && !target.text.includes("+")) shown(target, ["video"], "video");
     } else if (target) {
-      shown(target, ["layer"], "layer", target.text, { interdependentIds: [`style.${target.text}`] });
+      shown(target, ["layer"], "layer", target.text, {
+        interdependentIds: [`style.${target.text}`],
+        ...(control === "hide" || control === "animate" ? { castTarget: true } : {}),
+      });
     }
     if (kind !== "cutscene") {
       for (const name of names) {

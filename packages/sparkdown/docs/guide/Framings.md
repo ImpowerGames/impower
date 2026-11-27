@@ -105,6 +105,8 @@ end
 
 Hiding the layer, or clearing it, also puts it back at the default.
 
+In a [cast](./Streams.md#a-cast-keeps-one-entry-per-character), each character's entry is its own layer for framings. `[[mia@happy at left]]` frames only Mia's picture, so two characters can hold different framings at once, and a new picture of Mia with no `at` puts only her entry back at the default. A framing moves the picture inside its own element, and the style places the element, so the two add up.
+
 The editor reports `at` on `animate` or `hide`, and `at` on a `show` that names no picture, such as `[[show backdrop at right]]`. A name after `at` that is not a framing is reported as an unknown name after `with` is.
 
 ---
@@ -171,6 +173,8 @@ end
 ```
 
 Only the layer the line names moves. `[[animate backdrop to left over 5s]]` pans the backdrop and leaves the portrait layer, and every other layer, where it is.
+
+In a cast, `animate` also takes a character's name: `[[animate mia to center over 1s]]` moves Mia's picture and leaves every other entry where it is, while `[[animate portrait to center over 1s]]` moves every entry's picture. See [Hiding and animating one character](./Streams.md#hiding-and-animating-one-character).
 
 ---
 
