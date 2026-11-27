@@ -414,7 +414,7 @@ describe("keys pick and focus options in both modes (#1990)", () => {
 });
 
 describe("with textbox and textstream both open (#1990)", () => {
-  test("a beat shows in both, and a pick on the page continues the story and updates both", async () => {
+  test("the page holds every line and no box opens, and a pick on the page continues the story", async () => {
     const h = createHarness(`${OPEN_BOTH}\n${ASSETS}\n${STORY}`, 0, {
       reactive: true,
       autoOpenAll: false,
@@ -425,8 +425,8 @@ describe("with textbox and textstream both open (#1990)", () => {
     const writes = flattenMessages(h.messages).filter(
       (m: any) => m.method === "ui/write-text",
     );
-    const said = (m: any) => m.params.instructions.map((e: any) => e.text).join("");
-    expect(writes.some((m: any) => m.params.target === "dialogue" && said(m) === "I am calm.")).toBe(true);
+    expect(writes.some((m: any) => m.params.target === "dialogue")).toBe(false);
+    expect(h.game.module.ui.findIds("textbox")).toEqual([]);
     const dialogueEntries = created(h, "textstream_dialogue");
     expect(dialogueEntries.length).toBeGreaterThanOrEqual(4);
     const options = created(h, "textstream_option");
@@ -438,11 +438,6 @@ describe("with textbox and textstream both open (#1990)", () => {
     expect(h.game.story.currentChoices).toHaveLength(0);
     const flat = flattenMessages(h.messages);
     expect(flat.some((m: any) => m.method === "ui/create" && m.params.name === "textstream_chosen muted")).toBe(true);
-    expect(
-      flat.some(
-        (m: any) => m.method === "ui/write-text" && m.params.target === "choice 0" && m.params.instructions.length === 0,
-      ),
-    ).toBe(true);
   });
 });
 
@@ -657,7 +652,23 @@ end
         (m) => m.method === "ui/create" && m.params?.name === "layout_textstream",
       );
       expect(at).toBeGreaterThanOrEqual(0);
-      return flat.slice(at, at + 4);
+      const slice = flat.slice(at, at + 4);
+      const ids = new Map<string, string>();
+      const own = (id: string) => {
+        if (!ids.has(id)) {
+          ids.set(id, `page-${ids.size}`);
+        }
+        return ids.get(id)!;
+      };
+      return slice.map((m) => ({
+        ...m,
+        id: undefined,
+        params: {
+          ...m.params,
+          element: own(m.params.element),
+          parent: m.params.parent === slice[0].params.parent ? "root" : own(m.params.parent),
+        },
+      }));
     };
     expect(page(astH)).toEqual(page(staticH));
     for (const h of [astH, staticH]) {

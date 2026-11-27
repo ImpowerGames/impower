@@ -290,6 +290,18 @@ const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
   "LuauElementContentStringInterpolated",
 ]);
 
+const LUAU_SPARKLE_PROP_ATTRIBUTES = nodeNameSet([
+  "LuauSparklePropAttribute",
+  "LuauSparklePropClosureAttribute",
+  "LuauSparklePropParenAttribute",
+]);
+const PROP_ATTRIBUTE_NAME = nodeNameSet(["StyleAttributeName"]);
+const BOUND_PROP_VALUE = nodeNameSet([
+  "LuauSparklePropClosure",
+  "LuauInterpolatedStringExpression",
+  "LuauFunctionCallShorthand",
+]);
+
 function isInlineConditional(node: any): boolean {
   return (
     isExplicitRuleName(node.parent?.name, "LuauInterpolatedStringExpression_content") &&
@@ -1713,6 +1725,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
+      }
+    }
+    if (LUAU_SPARKLE_PROP_ATTRIBUTES.has(nodeRef.name)) {
+      const nameNode = firstDescendant(nodeRef.node, PROP_ATTRIBUTE_NAME);
+      const bound = firstDescendant(nodeRef.node, BOUND_PROP_VALUE);
+      if (
+        nameNode &&
+        bound &&
+        this.read(nameNode.from, nameNode.to).trim().replace(/^#/, "") === "clear"
+      ) {
+        this.error(
+          annotations,
+          "`#clear` takes no bound value; the mark is read once when the layout is built, so this element is never emptied after its line. Write `#clear` bare, or `#clear=true` or `#clear=false`.",
+          nodeRef.from,
+          nodeRef.to,
+        );
       }
     }
     if (

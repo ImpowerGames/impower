@@ -177,6 +177,24 @@ export const writtenText = (sent: any[]): string => {
   return texts.join("");
 };
 
+export type SnapshotNode = { class?: string; text?: string; children?: SnapshotNode[] };
+
+export const lettersIn = (root: SnapshotNode, cls: string): string => {
+  let out = "";
+  const walk = (n: SnapshotNode, inside: boolean) => {
+    const classes = (n.class ?? "").split(/\s+/);
+    const now = inside || classes.includes(cls);
+    if (now && classes.includes("text_letter")) {
+      out += n.text ?? "";
+    }
+    for (const c of n.children ?? []) {
+      walk(c, now);
+    }
+  };
+  walk(root, false);
+  return out;
+};
+
 export interface PlayerHarnessOptions {
   files: { uri: string; text?: string; type?: string; name?: string; ext?: string; data?: string }[];
   startFrom: { file: string; line: number };

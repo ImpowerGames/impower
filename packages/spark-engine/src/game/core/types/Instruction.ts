@@ -93,6 +93,7 @@ export interface LayoutInstruction extends IInstruction {
    *  screens (and uncategorized layouts) are left untouched. */
   screen?: string;
   with?: WithInstruction[];
+  auto?: true;
 }
 
 export type Instruction =

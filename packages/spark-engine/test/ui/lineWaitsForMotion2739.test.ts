@@ -629,7 +629,15 @@ style bubble {
       beforeConnect: playing,
     });
     await h.ready;
-    const first = await play(h, said("slight problem", { layout: { phone: [{ control: "open", name: "phone" }] } }));
+    const first = await play(
+      h,
+      said("slight problem", {
+        layout: {
+          phone: [{ control: "open", name: "phone" }],
+          dialogue: [{ control: "open", name: "dialogue" }],
+        },
+      }),
+    );
     h.releasePresence();
     await flushMicrotasks(40);
     await tick(first, 1);

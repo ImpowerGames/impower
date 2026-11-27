@@ -91,7 +91,9 @@ describe("#clear on an element inside a component (I-2732)", () => {
     let recorded: string[] = [];
     const h = createHarness(source("title", "text", "^: Chapter One", " #clear", 2), 0, {
       beforeConnect: (game) => {
-        recorded = [...((game.module.ui as any)._clearPaths.get("title") ?? [])];
+        recorded = [...((game.module.ui as any)._clearPaths.get("title") ?? [])].filter((path: string) =>
+          path.startsWith("layout:textbox@"),
+        );
       },
     });
     await h.ready;
