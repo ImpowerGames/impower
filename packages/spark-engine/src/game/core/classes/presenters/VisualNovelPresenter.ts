@@ -115,7 +115,9 @@ export class VisualNovelPresenter implements Presenter {
     if (!choiceTargets || !target) {
       return;
     }
-    ui.unobserve("click", target);
+    for (const option of choiceTargets) {
+      ui.unobserve("click", option);
+    }
     if (menuLeavesWithItsLayout(this._game)) {
       return;
     }

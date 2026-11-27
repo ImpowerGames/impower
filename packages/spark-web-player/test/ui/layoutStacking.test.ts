@@ -83,6 +83,11 @@ end
     await h.preview(1);
     await flushMicrotasks(20);
     await h.game.module.ui.applyLayoutInstructions(
+      [{ control: "open", name: "choices" }],
+      true,
+    );
+    await flushMicrotasks(20);
+    await h.game.module.ui.applyLayoutInstructions(
       [{ control: "open", name: "hud" }],
       true,
     );
@@ -96,7 +101,7 @@ end
     const stage = h.overlay.querySelector(".main > .stage")!;
     const textboxRoot = h.overlay.querySelector(".layouts > .screen_textbox")!;
     const dialogueBox = textboxRoot.querySelector(":scope > .textbox")!;
-    const choices = textboxRoot.querySelector(":scope > .choices")!;
+    const choices = h.overlay.querySelector(".layouts > .layout_choices > .choices")!;
     const hud = h.overlay.querySelector(".layouts > .hud")!;
     for (const el of [screen, stage, textboxRoot, dialogueBox, choices, hud]) {
       expect(el, h.overlay.innerHTML).toBeTruthy();

@@ -127,7 +127,7 @@ end
 
 Leaving `"textbox"` out of `ui.layouts_initial` starts the run with the screen closed in the same way.
 
-Image cues and layout directives still apply while no open layout holds a beat's text. The text and choices are not shown, and the play log says once per run: "No open layout shows this text. Open textbox or textstream." A beat whose text has no open layout waits for a click like any other beat, and a beat whose choices have no open layout waits for a pick that cannot arrive, so open a layout before a menu.
+Image cues and layout directives still apply while no open layout holds a beat's text. The text and choices are not shown, and the play log says once per run: "No open layout shows this text. Open textbox or textstream." A beat whose text has no open layout waits for a click like any other beat. A menu still shows while the `textbox` screen is closed, because `choices` is not in that screen; only a menu that no layout can show, such as one whose own `layout choices` is placed in a closed screen, waits for a pick that cannot arrive.
 
 A layout's name styles its root unless the layout holds an element of that name, in which case the name reaches the element. The same goes for a screen: the `textbox` screen's body holds an element named `textbox`, so its root is `screen_textbox`, and `style textbox { … }` styles the box itself.
 

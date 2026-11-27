@@ -477,7 +477,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
           "method": "ui/update",
           "params": {
             "attributes": {
-              "data-ui-handler": "",
+              "data-ui-handler": null,
             },
             "breakpoints": {
               "lg": 1024,

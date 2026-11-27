@@ -15,11 +15,12 @@ export function openEveryLayout(game: Game): void {
     const layouts = game.program?.sparkle?.layouts ?? {};
     const ownText =
       holdsPresentedText(game, "main") || Boolean(layouts[TEXTBOX_SCREEN]);
+    const ownMenu = game.module.ui.layoutHolds("main", ["choice"]);
     return construct(
       ...Object.keys(layouts).filter(
         (name) =>
-          !ownText ||
-          (layouts[name]?.screen !== TEXTBOX_SCREEN && name !== MENU_LAYOUT),
+          !(ownText && layouts[name]?.screen === TEXTBOX_SCREEN) &&
+          !(ownMenu && name === MENU_LAYOUT),
       ),
     );
   };

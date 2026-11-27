@@ -155,12 +155,12 @@ export function opensTextLayout(
     return false;
   }
   const ui = game.module.ui;
-  const targets = beatTargets(instructions);
-  const holds = (names: string[]) =>
-    names.some((name) => ui.layoutHolds(name, targets));
-  return (
-    !holds(ui.openedLayoutsAfter([])) &&
-    holds(ui.openedLayoutsAfter(layoutEvents(instructions)))
+  const before = ui.openedLayoutsAfter([]);
+  const after = ui.openedLayoutsAfter(layoutEvents(instructions));
+  const holds = (names: string[], target: string) =>
+    names.some((name) => ui.layoutHolds(name, [target]));
+  return beatTargets(instructions).some(
+    (target) => !holds(before, target) && holds(after, target),
   );
 }
 

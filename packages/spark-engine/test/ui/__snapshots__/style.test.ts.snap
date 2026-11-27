@@ -1047,6 +1047,11 @@ exports[`style > authored style block content payload 1`] = `
       "$type": "style",
       "position": "static",
     },
+    "layout_choices": {
+      "$name": "layout_choices",
+      "$type": "style",
+      "z_index": "-1",
+    },
     "layout_dialogue": {
       "$name": "layout_dialogue",
       "$type": "style",
@@ -4405,6 +4410,11 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "layout_action",
             "$type": "style",
             "position": "static",
+          },
+          "layout_choices": {
+            "$name": "layout_choices",
+            "$type": "style",
+            "z_index": "-1",
           },
           "layout_dialogue": {
             "$name": "layout_dialogue",

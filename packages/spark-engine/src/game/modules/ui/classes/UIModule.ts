@@ -7044,8 +7044,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
-      this.markHandler(targetEl);
       if (callback) {
+        this.markHandler(targetEl);
         this.enqueueUI(
           ObserveElementMessage.type.notification({
             element: targetEl.id,
@@ -7058,6 +7058,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._events[event]![targetEl.id] = callback as (event: Event) => any;
       } else {
         delete this._events[event]?.[targetEl.id];
+        if (
+          !Object.values(this._events).some(
+            (handlers) => handlers && Object.hasOwn(handlers, targetEl.id),
+          )
+        ) {
+          this.updateElement(targetEl, {
+            attributes: { [HANDLER_ATTRIBUTE]: null },
+          });
+        }
         this.enqueueUI(
           UnobserveElementMessage.type.notification({
             element: targetEl.id,

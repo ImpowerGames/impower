@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { EventMessage } from "../../src/game/core/classes/messages/EventMessage";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const DEFS = `define MARA as character with
@@ -67,6 +68,22 @@ async function click(h: Harness) {
   h.game.clickedToContinue();
   await settle(h);
 }
+
+const written = (h: Harness): string[] =>
+  Object.keys(ui(h)._state.text ?? {})
+    .filter((target) => target.startsWith("choice "))
+    .sort()
+    .map((target) => shownText(h, target));
+
+const pressable = (h: Harness): string[] => {
+  const handlers = ui(h)._events.click ?? {};
+  return (ui(h).findIds("choice") as string[]).filter((id) =>
+    Object.hasOwn(handlers, id),
+  );
+};
+
+const keydown = (key: string) =>
+  EventMessage.type.notification({ type: "keydown", key } as never);
 
 async function pickFirst(h: Harness) {
   const [first] = ui(h).findIds("choice 0");
@@ -239,6 +256,211 @@ end
     expect(mounted(h)).not.toContain("choices");
   });
 
+  test("two menus in a row keep choices open with only the second menu's buttons, under the first menu's question", async () => {
+    const h = await play(`scene start
+  MARA: Stay or go?
+  choose
+    + [Stay.]
+      choose
+        + [Sit.]
+          MARA: Sat.
+        + [Stand.]
+          MARA: Stood.
+      end
+    + [Go.]
+      MARA: Gone.
+    + [Wait.]
+      MARA: Waited.
+  end
+end
+`);
+    await click(h);
+    expect(written(h)).toEqual(["Stay.", "Go.", "Wait."]);
+    await pickFirst(h);
+    expect(beat(h).choices).toEqual(["choice 0", "choice 1"]);
+    expect(mounted(h)).toEqual(["dialogue", "choices"]);
+    expect(shownText(h, "dialogue")).toBe("Stay or go?");
+    expect(written(h)).toEqual(["Sit.", "Stand."]);
+    expect(pressable(h)).toHaveLength(2);
+
+    h.emitEvent("click", ui(h).findIds("choice 1")[0], { button: 0 });
+    await settle(h);
+    expect(mounted(h)).toEqual(["dialogue"]);
+    expect(shownText(h, "dialogue")).toBe("Stood.");
+    expect(findAll(h, "choice")).toEqual([]);
+  });
+
+  test("a pick that jumps into another scene's menu shows only that menu's buttons", async () => {
+    const h = await play(`scene start
+  MARA: Stay or go?
+  choose
+    + [Stay.]
+      -> porch
+    + [Go.]
+      MARA: Gone.
+  end
+end
+
+scene porch
+  choose
+    + [Knock.]
+      MARA: Knocked.
+  end
+end
+`);
+    await click(h);
+    await pickFirst(h);
+    expect(beat(h).choices).toEqual(["choice 0"]);
+    expect(mounted(h)).toContain("choices");
+    expect(written(h)).toEqual(["Knock."]);
+    expect(pressable(h)).toHaveLength(1);
+  });
+
+  test("a pick followed by a beat that shows only a picture closes choices and leaves no buttons", async () => {
+    const h = await play(`define sky as image with
+  src = "https://example.com/sky.png"
+end
+
+scene start
+  MARA: Stay or go?
+  choose
+    + [Stay.]
+      [[show backdrop sky]]
+      >
+      MARA: Stayed.
+    + [Go.]
+      MARA: Gone.
+  end
+end
+`);
+    await click(h);
+    await pickFirst(h);
+    expect(Object.keys(beat(h).image ?? {})).toEqual(["backdrop"]);
+    expect(mounted(h)).not.toContain("choices");
+    expect(findAll(h, "choice")).toEqual([]);
+    expect(pressable(h)).toEqual([]);
+    await click(h);
+    expect(shownText(h, "dialogue")).toBe("Stayed.");
+    expect(findAll(h, "choice")).toEqual([]);
+  });
+
+  test("stepping back across a pick shows the menu again with its buttons pressable", async () => {
+    const h = await play(QUESTION);
+    await click(h);
+    await pickFirst(h);
+    expect(shownText(h, "dialogue")).toBe("Stayed.");
+    const back = await h.game.rollBack("beat");
+    await settle(h);
+    expect(back.moved).toBe(true);
+    expect(beat(h).choices).toEqual(["choice 0", "choice 1"]);
+    expect(mounted(h)).toEqual(["dialogue", "choices"]);
+    expect(written(h)).toEqual(["Stay.", "Go."]);
+    expect(pressable(h)).toHaveLength(2);
+
+    h.emitEvent("click", ui(h).findIds("choice 1")[0], { button: 0 });
+    await settle(h);
+    expect(shownText(h, "dialogue")).toBe("Gone.");
+    expect(findAll(h, "choice")).toEqual([]);
+  });
+
+  test("a preview onto the menu line shows its buttons, and a preview off it shows none", async () => {
+    const source = `${DEFS}\n${QUESTION}`;
+    const lineOf = (text: string) =>
+      source.split("\n").findIndex((line) => line.includes(text));
+    const h = createHarness(source, 0, { autoOpenAll: false });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+
+    await h.preview(lineOf("  choose"));
+    await settle(h);
+    expect(mounted(h)).toContain("choices");
+    expect(written(h)).toEqual(["Stay.", "Go."]);
+    expect(pressable(h)).toHaveLength(2);
+
+    await h.preview(lineOf("Stay or go?"));
+    await settle(h);
+    expect(mounted(h)).toEqual(["dialogue"]);
+    expect(findAll(h, "choice")).toEqual([]);
+
+    await h.preview(lineOf("  choose"));
+    await settle(h);
+    expect(written(h)).toEqual(["Stay.", "Go."]);
+
+    await h.preview(lineOf("Stayed."));
+    await settle(h);
+    expect(mounted(h)).toEqual(["dialogue"]);
+    expect(shownText(h, "dialogue")).toBe("Stayed.");
+    expect(findAll(h, "choice")).toEqual([]);
+  });
+
+  test("a button kept after the pick cannot be picked again or focused, by pointer or by keyboard", async () => {
+    const h = createHarness(
+      `${DEFS}
+${QUESTION.replace("    + [Go.]", "    + [Wait.]\n      MARA: Waited.\n    + [Go.]")}`,
+      0,
+      { autoOpenAll: false, holdPresence: true },
+    );
+    await h.ready;
+    h.game.context.system.previewing = undefined;
+    h.game.start();
+    const advance = async (release: boolean) => {
+      for (let tick = 0; tick < 8; tick += 1) {
+        if (release) {
+          h.releasePresence();
+        }
+        await flushMicrotasks(10);
+        (h.game as any)._coordinator?.onUpdate({ deltaMS: 1000 });
+      }
+      await flushMicrotasks(10);
+    };
+    await advance(true);
+    h.game.clickedToContinue();
+    await advance(true);
+    expect(written(h)).toEqual(["Stay.", "Wait.", "Go."]);
+    const menu = (h.game as any)._coordinator;
+    const options: string[] = beat(h).choices.flatMap((target: string) => ui(h).findIds(target));
+
+    h.reset();
+    h.emitEvent("click", ui(h).findIds("choice 0")[0], { button: 0 });
+    await advance(false);
+    expect(pressable(h)).toEqual([]);
+    const sentSoFar = (m: any): any[] => [m, ...(m.params?.messages ?? []).flatMap(sentSoFar)];
+    const unmarked = new Set(
+      h.messages
+        .flatMap(sentSoFar)
+        .filter(
+          (m: any) =>
+            m.method === "ui/update" &&
+            m.params.attributes?.["data-ui-handler"] === null,
+        )
+        .map((m: any) => m.params.element),
+    );
+    expect(options.filter((id) => !unmarked.has(id))).toEqual([]);
+    h.emitEvent("click", ui(h).findIds("choice 1")[0], { button: 0 });
+    for (const coordinator of new Set([menu, (h.game as any)._coordinator])) {
+      coordinator?.onMessage(keydown("2"));
+      coordinator?.onMessage(keydown("ArrowDown"));
+      coordinator?.onMessage(keydown("Enter"));
+    }
+    await advance(false);
+    const sent = (m: any): any[] => [m, ...(m.params?.messages ?? []).flatMap(sent)];
+    const all = h.messages.flatMap(sent);
+    expect(
+      all.filter((m: any) => m.method === "game/chosePathToContinue"),
+    ).toHaveLength(1);
+    expect(
+      all.filter(
+        (m: any) =>
+          m.method === "ui/update" &&
+          options.includes(m.params.element) &&
+          m.params.attributes &&
+          "data-focused" in m.params.attributes,
+      ),
+    ).toEqual([]);
+    await advance(true);
+    expect(shownText(h, "dialogue")).toBe("Stayed.");
+  });
+
   test("an action line after the pick closes choices and the question's box, and opens action", async () => {
     const h = await play(`scene start
   MARA: Stay or go?
@@ -320,7 +542,8 @@ ${QUESTION}`);
     expect(beat(h).choices).toEqual(["choice 0", "choice 1"]);
     expect(mounted(h)).toEqual(["dialogue", "choices"]);
     expect(shownText(h, "dialogue")).toBe("Stay or go?");
-    expect(shownText(h, "choice 1")).toBe("Go.");
+    expect(written(h)).toEqual(["Stay.", "Go."]);
+    expect(pressable(h)).toHaveLength(2);
 
     await pickFirst(h);
     expect(mounted(h)).toEqual(["dialogue"]);
