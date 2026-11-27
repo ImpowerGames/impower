@@ -78,7 +78,7 @@ const typed = (text: string) =>
 
 const sound = { sound: [{ control: "play", assets: ["beep"] }] };
 
-const shake = { portrait: [{ control: "animate", with: "shake" }] };
+const shake = { portrait: [{ control: "animate", with: [{ name: "shake" }] }] };
 
 const wire = (messages: any[]): any[] =>
   messages.flatMap((m: any) =>
@@ -302,7 +302,7 @@ const kinds: Kind[] = [
     words: "Menu.",
     beat: (words) => ({
       text: { dialogue: typed("Hi."), action: typed(words) },
-      layout: { menu: [{ control: "open", name: "menu", with: "fadein" }] },
+      layout: { menu: [{ control: "open", name: "menu", with: [{ name: "fadein" }] }] },
       audio: sound,
       image: shake,
     }),
@@ -363,7 +363,7 @@ const kinds: Kind[] = [
     words: "Closing.",
     beat: (words) => ({
       text: { dialogue: typed("Hi."), action: typed(words) },
-      layout: { menu: [{ control: "close", name: "menu", with: "fadeout" }] },
+      layout: { menu: [{ control: "close", name: "menu", with: [{ name: "fadeout" }] }] },
       audio: sound,
       image: shake,
     }),
