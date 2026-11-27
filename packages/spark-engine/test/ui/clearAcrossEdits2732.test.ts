@@ -274,7 +274,7 @@ describe("where an element's #clear identity comes from (I-2732)", () => {
     const { start, end } = diagnostic.range;
     expect(start.line).toBe(line);
     expect(end.line).toBe(line);
-    expect(lines[line].slice(start.character, end.character)).toBe(prop);
+    expect(lines[line]?.slice(start.character, end.character)).toBe(prop);
   });
 
   test.each(["#clear", "#clear=true", "#clear=false"])("a literal %s compiles without a diagnostic", (prop) => {
