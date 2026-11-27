@@ -124,9 +124,16 @@ export function textLayoutOpenAfter(
   instructions: Instructions,
 ): boolean {
   const ui = game.module.ui;
+  const events = layoutEvents(instructions);
+  if (
+    ui.isScreen(TEXTBOX_SCREEN) &&
+    !ui.screensClosedAfter(events).includes(TEXTBOX_SCREEN)
+  ) {
+    return true;
+  }
   const targets = [...PRESENTED_TEXT_ELEMENTS, ...beatTargets(instructions)];
   return ui
-    .openedLayoutsAfter(layoutEvents(instructions))
+    .openedLayoutsAfter(events)
     .some((name) => ui.layoutHolds(name, targets));
 }
 

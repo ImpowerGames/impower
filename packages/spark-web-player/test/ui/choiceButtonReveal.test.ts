@@ -296,25 +296,22 @@ describe("an instant write", () => {
   });
 });
 
-describe("the empty box of a lone `>` break", () => {
-  test("shows as the beat is written, with no letter to wait for", async () => {
-    const h = createDOMHarness(SOURCE);
-    recordAnimations();
+describe("a lone `>` break", () => {
+  test("closes the box the line before it opened, since it shows no text", async () => {
+    const h = createDOMHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpTo("pause");
-    h.nextBeat();
+    const line = h.nextBeat()!;
     const pause = h.nextBeat()!;
-    const targets = Object.keys(pause.text ?? {});
-    expect(targets.length).toBeGreaterThan(0);
+    expect(Object.keys(pause.text ?? {}).length).toBeGreaterThan(0);
     expect(Object.values(pause.text!).flat()).toEqual([]);
 
-    await play(h, pause);
+    await play(h, line);
+    expect(h.overlay.querySelector(".action")).not.toBeNull();
+    expect(h.overlay.querySelector(".textbox")).not.toBeNull();
 
-    const now = Number(document.timeline.currentTime);
-    for (const target of targets) {
-      const box = h.overlay.querySelector<HTMLElement>(`.${target}`);
-      expect(box).toBeTruthy();
-      expect(shownAt(box!, now)).toBe(true);
-    }
+    await play(h, pause);
+    expect(h.overlay.querySelector(".action")).toBeNull();
+    expect(h.overlay.querySelector(".textbox")).toBeNull();
   });
 });

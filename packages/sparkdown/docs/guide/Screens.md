@@ -54,15 +54,9 @@ layout action in textbox {
 layout note {
   paper { note { text } }
 }
-
-scene start
-  @note: Buy milk
-  MARA: I'll get it.
-  She grabs her coat.
-end
 ```
 
-With these, `@note: Buy milk` opens `note`. The dialogue line after it closes `note` and opens `dialogue` inside the shared `frame`, and the action line closes `dialogue` and opens `action` in the same `frame`, which stays on screen because a layout of its screen is open throughout. A layout that is in a screen shares that screen's elements, as [6.3](#63-screens-groups-you-navigate-between) describes.
+With these, `@note: Buy milk` opens `note`. A dialogue line after it closes `note` and opens `dialogue` inside the shared `frame`, and an action line after that closes `dialogue` and opens `action` in the same `frame`, which stays on screen because a layout of its screen is open throughout. A layout that is in a screen shares that screen's elements, as [6.3](#63-screens-groups-you-navigate-between) describes.
 
 A layout that opened by itself is still a layout: `[[open dialogue]]` keeps it open until `[[close dialogue]]`, whatever kind the lines after it are.
 

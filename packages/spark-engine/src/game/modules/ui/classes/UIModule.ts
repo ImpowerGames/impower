@@ -1114,6 +1114,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (previewing != null && previewing !== false) {
       this.beginCompose("display");
     }
+    const restored = new Set((this._state.layout ?? []).map((s) => s.name));
+    for (const name of [...this._mountedLayouts.keys()]) {
+      if (!UIModule.MANAGED_LAYOUTS.has(name) && !restored.has(name)) {
+        void this.closeLayout(name, undefined, true);
+      }
+    }
     const transient = this.getTransientTargets();
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
@@ -5798,6 +5804,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
     instant = false,
+    routed = false,
   ): Promise<void> {
     if (!this._reactive) {
       this.showLayout(name);
@@ -5877,6 +5884,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const framed = layout.screen
       ? this._mountedScreens.get(layout.screen)
       : undefined;
+    const edits = this._screenEdits;
     try {
       const vs = this._game.story.variablesState;
       const pending = vs.takeReactiveChanges();
@@ -5888,6 +5896,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.reveal();
     } finally {
       mounted?.();
+      if (routed) {
+        this._screenEdits = edits;
+      }
     }
     if (!clauses?.with && !instant && this.moving() && this.styled("show")) {
       const frame = layout.screen
@@ -5896,7 +5907,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.arrive([frame && frame !== framed ? frame.element : element]);
       return;
     }
-    const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
+    const enter = routed
+      ? undefined
+      : this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
       const line = this.composingLine();
       if (line) {
@@ -5932,6 +5945,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     name: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
     instant = false,
+    routed = false,
   ): Promise<void> {
     if (!this._reactive) {
       this.hideLayout(name);
@@ -5973,7 +5987,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       );
       return;
     }
-    const exit = this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
+    const exit = routed
+      ? undefined
+      : this.resolveLayoutAnimation("exit", clauses ?? {}, instant);
     if (exit && !instant && this._compose) {
       const retiring: Retirement = {
         name,
@@ -6507,10 +6523,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
-    if (instructions.length > 0) {
+    if (instructions.some((e) => !e.auto)) {
       this._screenEdits += 1;
     }
     const run = (e: LayoutInstruction): Promise<void> => {
+      if (!e.auto) {
+        return runOwn(e);
+      }
+      const edits = this._screenEdits;
+      const done = runOwn(e);
+      this._screenEdits = edits;
+      return done;
+    };
+    const runOwn = (e: LayoutInstruction): Promise<void> => {
       const clauses = {
         with: e.with,
         after: e.after,
@@ -6519,11 +6544,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       };
       switch (e.control) {
         case LayoutVerb.open:
-          return this.openLayout(e.name, clauses, instant);
+          return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
         case LayoutVerb.close:
           return this.isScreen(e.name)
             ? this.closeScreen(e.name, clauses, instant)
-            : this.closeLayout(e.name, clauses, instant);
+            : this.closeLayout(e.name, clauses, instant, Boolean(e.auto));
         case LayoutVerb.navigate:
           return this.navigateScreen(e.name, e.screen, clauses, instant);
         case LayoutVerb.clear:

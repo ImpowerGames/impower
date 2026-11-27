@@ -5416,7 +5416,7 @@ export class SparkdownCompiler {
         const { control, target } = directive;
         if (directive.kind !== "layout" || control?.text !== LayoutVerb.clear) continue;
         const name = target?.text;
-        if (name === "textstream" || (name && !program.sparkle?.layouts?.[name])) continue;
+        if (name === "textstream" || (name && !program.sparkle?.layouts?.[name] && !program.sparkle?.screens?.[name])) continue;
         if (name && layoutStreams(program.sparkle, name).length > 0) continue;
         const at = target ?? control;
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({

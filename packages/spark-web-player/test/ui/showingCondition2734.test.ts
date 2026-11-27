@@ -236,15 +236,15 @@ describe("a style under @showing(action) applies in another layout (#2734)", () 
     h.jumpTo("start");
     await showBeat(h);
     const frame = h.overlay.querySelector(".hud .frame");
-    const action = h.overlay.querySelector(".textbox .action");
     expect(frame).not.toBeNull();
-    expect(action).not.toBeNull();
-    expect(frame!.closest(".hud")).not.toBe(action!.closest(".textbox"));
     expect(stylesheet(h)).toContain(`${ACTION} {`);
     expect(h.overlay.hasAttribute("data-showing")).toBe(false);
     expect(h.overlay.querySelector(FRAME_UNDER_ACTION)).toBeNull();
 
     await showBeat(h);
+    const action = h.overlay.querySelector(".textbox .action");
+    expect(action).not.toBeNull();
+    expect(frame!.closest(".hud")).not.toBe(action!.closest(".textbox"));
     expect(action!.textContent).toContain("The door opens.");
     expect(h.overlay.getAttribute("data-showing")).toBe("action");
     expect(h.overlay.querySelector(FRAME_UNDER_ACTION)).toBe(frame);
@@ -340,8 +340,20 @@ const RETIRING = `define HERO as character with
 end
 
 define ui as config with
-  layouts_initial = { "textbox", "notice" }
+  layouts_initial = { "box", "notice" }
 end
+
+layout box {
+  character_name #clear {
+    text
+  }
+  dialogue #clear {
+    text
+  }
+  action #clear {
+    text
+  }
+}
 
 layout notice {
   text "Leaving"
