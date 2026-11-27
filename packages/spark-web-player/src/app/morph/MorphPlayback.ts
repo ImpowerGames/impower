@@ -653,6 +653,7 @@ interface PoseFrames {
   sets: PoseSet[];
   shown: string;
   showing?: PoseSet;
+  source?: PoseSet;
   last?: string;
   reported?: boolean;
 }
@@ -3338,7 +3339,7 @@ export class MorphLayer {
     const sized = (set: PoseSet, size: { width: number; height: number } | undefined) => !!size && set.width === size.width && set.height === size.height;
     const replaced = !!this.readyPoseSet(poses, want);
     const kept = (set: PoseSet) =>
-      sizes.length === 0 || sizes.some((size) => sized(set, size)) || sized(set, drawn) || (set === poses.showing && !replaced);
+      sizes.length === 0 || sizes.some((size) => sized(set, size)) || sized(set, drawn) || (set === poses.source && !replaced);
     for (const set of poses.sets) if (!kept(set)) this.releasePoseSet(set);
     poses.sets = poses.sets.filter((set) => !set.released);
     for (const size of sizes) {
@@ -3370,7 +3371,11 @@ export class MorphLayer {
       return rate > 0 ? Math.min(MAX_POSE_FRAMES, Math.max(1, Math.round(duration * rate))) : 0;
     });
     const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
-    const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes();
+    const wanted = owner.poses ? this.poseSizes(owner.poses) : [];
+    const retiring = (this.forecast === undefined ? (owner.poses?.sets ?? []) : [])
+      .filter((set) => !set.released && !wanted.some((want) => want.width === set.width && want.height === set.height))
+      .reduce((sum, set) => sum + [...set.frames.values()].filter((frame) => !frame.refused).length * set.width * set.height * FRAME_BYTES_PER_PIXEL, 0);
+    const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes() + retiring;
     const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
     const cutOptions = plays.map((play, i) => (cut[i] ? cutOffsets(artifact, play.morph) : []));
     const cutLooks = plays.map((play, i) =>
@@ -3538,8 +3543,10 @@ export class MorphLayer {
   protected renderPoses(owner: PoseOwner) {
     const poses = owner.poses;
     if (!poses || this.frozen || this.disposed) return;
-    const held = poses.showing && !poses.showing.released ? poses.showing : undefined;
-    const sets = [this.readyPoseSet(poses, this.poseShown(poses).want), held, this.shownPoseSet(poses)];
+    const ready = this.readyPoseSet(poses, this.poseShown(poses).want);
+    if (ready) poses.source = ready;
+    const source = poses.source && !poses.source.released ? poses.source : undefined;
+    const sets = [ready, source, this.shownPoseSet(poses)];
     const candidates = sets.filter((set, i): set is PoseSet => !!set && sets.indexOf(set) === i);
     const heads = this.poseHeads(owner.plays, owner.turned);
     const signature = `${candidates.map((set) => `${set.width}x${set.height}`).join(";")}|${heads.join(",")}`;

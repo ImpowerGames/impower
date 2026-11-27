@@ -64,7 +64,7 @@ const facePlays = (key: string): MorphPlay[] => [
   { ref: { morphs: ["talk", "blink"], key, image: "nova", selection: "{}", groups: ["mouth", "eyes"] }, morph: "blink", owner: "nova", timing: loop(), definition: "b" },
 ];
 
-const layeredShow = (key: string): WriteImageParams => ({
+const layeredShow = (key: string, plays: MorphPlay[] = facePlays(key)): WriteImageParams => ({
   target: "portrait",
   instant: false,
   instructions: [
@@ -75,7 +75,7 @@ const layeredShow = (key: string): WriteImageParams => ({
         imageNames: "kit",
         srcs: [BODY, FACE],
         pictures: [{ layer: 0, span: 2, name: "kit", vector: true, files: [{ src: BODY, name: "body.svg" }, { src: FACE, name: "nova.svg" }] }],
-        morph: { plays: facePlays(key).map((play): MorphLayerPlay => ({ layer: 1, ...play })), epoch: 0 },
+        morph: { plays: plays.map((play): MorphLayerPlay => ({ layer: 1, ...play })), epoch: 0 },
       },
     },
   ],
@@ -106,7 +106,7 @@ const twinShow = (key: string): WriteImageParams => ({
   ],
 });
 
-const pictureShow = (key: string): WriteImageParams => ({
+const pictureShow = (key: string, plays: MorphPlay[] = facePlays(key)): WriteImageParams => ({
   target: "portrait",
   instant: false,
   instructions: [
@@ -121,7 +121,7 @@ const pictureShow = (key: string): WriteImageParams => ({
           plays: [
             {
               layer: 0,
-              picture: { span: 2, files: [{ src: BASE, name: "base.png", layer: 0 }, { src: FACE, name: "nova.svg", layer: 1, plays: facePlays(key) }] },
+              picture: { span: 2, files: [{ src: BASE, name: "base.png", layer: 0 }, { src: FACE, name: "nova.svg", layer: 1, plays }] },
               ref: { morphs: ["sway"], key: `${key}-picture`, image: "kit", selection: "{}", groups: [] },
               morph: "sway",
               owner: "kit",
@@ -175,7 +175,7 @@ function liveOffsets(playback: MorphPlayback): Record<string, number> {
   return offsets;
 }
 
-async function setup() {
+async function setup(recipes: Record<string, MorphRecipe> = RECIPES) {
   const h = createDOMHarness(SOURCE, 0, { compose: true });
   await h.ready;
   await h.rerender(SOURCE, 0);
@@ -214,7 +214,7 @@ async function setup() {
     cancelFrame: (handle) => win.clearTimeout(handle),
     host: createMorphHost({
       service: new MorphBakeService(),
-      channel: () => ({ recipes: Object.fromEntries(Object.entries(RECIPES).map(([name, recipe]) => [name, serializeMorphRecipe(recipe)])), variants: {} }),
+      channel: () => ({ recipes: Object.fromEntries(Object.entries(recipes).map(([name, recipe]) => [name, serializeMorphRecipe(recipe)])), variants: {} }),
       readSource: async (ref) => ({ text: ref.key.endsWith("-picture") ? GROUPED : ART }),
     }),
     pictureCanvas: (canvas) => {
@@ -480,7 +480,7 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
     }
   });
 
-  test("enlarging a shown picture keeps the SVG layer's current pose on screen until its larger poses are drawn", async () => {
+  test("enlarging a shown picture keeps drawing the SVG layer's poses from the drawn set, through rest and back, until its larger poses are drawn", async () => {
     for (const [write, key] of [
       [pictureShow, "nova-inner-grow"],
       [layeredShow, "nova-layered-grow"],
@@ -490,9 +490,16 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
       await until(() => t.events.includes("applied"), "the beat");
       const layer = t.layer();
       const owner = () => (layer.images[0].picture ? layer.images[0].inner[0] : layer.images[0]);
+      const artifact = () => owner().slot.artifact as MorphArtifact;
       const canvas = (): HTMLCanvasElement => layer.images[0].canvas?.canvas ?? layer.stills[0].canvases[0].canvas;
       const face = () => t.last(canvas())!.draws.find((draw) => draw.src !== BASE && draw.src !== BODY)!;
-      t.playback.speak("nova", [[0, 5]]);
+      const restLeaves = leafStates(renderMorphAt(artifact(), {}));
+      const matchesPlayheads = () => {
+        const offsets = liveOffsets(t.playback);
+        const expected = Object.keys(offsets).length ? leafStates(renderMorphAt(artifact(), offsets)) : restLeaves;
+        expect(face().text === undefined ? restLeaves : leafStates(face().text!)).toBe(expected);
+      };
+      t.playback.speak("nova", [[0, 30]]);
       for (let i = 0; i < 60 && face().text === undefined; i++) {
         t.playback.advance(0.017);
         await flushMicrotasks(2);
@@ -501,22 +508,72 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
       expect(posed.text).toBeDefined();
       const held: (() => void)[] = [];
       const rasterize = t.playback.rasterizeSvgLayer;
-      t.playback.rasterizeSvgLayer = (source, natural, w, h, doc) => new Promise((resolve) => held.push(() => void rasterize(source, natural, w, h, doc).then(resolve)));
+      t.playback.rasterizeSvgLayer = (source, natural, w, h, doc) =>
+        (source as unknown as { src?: string }).src ? rasterize(source, natural, w, h, doc) : new Promise((resolve) => held.push(() => void rasterize(source, natural, w, h, doc).then(resolve)));
       layer.size({ zoom: 2 });
       await flushMicrotasks(10);
       await new Promise((resolve) => setTimeout(resolve, 30));
       expect(held.length).toBeGreaterThan(0);
       expect(face()).toBe(posed);
+      const seen = new Set<string>();
+      for (let i = 0; i < 120; i++) {
+        t.playback.advance(0.03);
+        await flushMicrotasks(2);
+        matchesPlayheads();
+        seen.add(face().src);
+      }
+      expect(seen.size).toBeGreaterThan(2);
       const doubled = `${BOX.width * 2}x${BOX.height * 2}`;
       for (let i = 0; i < 400 && held.length; i++) {
         held.shift()!();
         await flushMicrotasks(5);
         await new Promise((resolve) => setTimeout(resolve, 2));
-        expect(face().text).toBeDefined();
+        t.playback.advance(0.03);
+        await flushMicrotasks(2);
+        matchesPlayheads();
       }
       await until(() => owner().poses.sets.length === 1 && `${owner().poses.sets[0].width}x${owner().poses.sets[0].height}` === doubled, "only the larger poses kept");
-      await until(() => t.rasterized.some((entry) => entry.image === face() && entry.size === doubled), "the larger pose shown");
-      expect(leafStates(face().text!)).toBe(leafStates(posed.text!));
+      for (let i = 0; i < 60; i++) {
+        t.playback.advance(0.03);
+        await flushMicrotasks(2);
+        matchesPlayheads();
+      }
+      expect(t.rasterized.some((entry) => entry.image === face() && entry.size === doubled) || face().text === undefined).toBe(true);
+      cleanup?.();
+      cleanup = undefined;
+    }
+  });
+
+  test("a resized picture's tween keeps the frames its budget allows at the new size, the poses being replaced not counted against them", async () => {
+    const tween = (key: string): MorphPlay[] => [
+      {
+        ref: { morphs: ["blink"], key, image: "nova", selection: "{}", groups: ["eyes"] },
+        morph: "blink",
+        owner: "nova",
+        timing: { ...loop(), duration: 1, iteration_delay_min: 0, iteration_delay_max: 0 } as MorphTiming,
+        definition: "glide",
+      },
+    ];
+    const frame = BOX.width * BOX.height * 4;
+    for (const [write, key] of [
+      [pictureShow, "nova-inner-budget"],
+      [layeredShow, "nova-layered-budget"],
+    ] as const) {
+      const t = await setup({ ...RECIPES, blink: blink({ clips: [] }) });
+      t.playback.frameBudget = () => 16 * frame;
+      t.beat([write(key, tween(key))], 49);
+      await until(() => t.events.includes("applied"), "the beat");
+      const layer = t.layer();
+      const owner = () => (layer.images[0].picture ? layer.images[0].inner[0] : layer.images[0]);
+      const before = owner().poses.sets[0];
+      expect(before.frames.size).toBeGreaterThan(8);
+      layer.size({ zoom: 2 });
+      const doubled = `${BOX.width * 2}x${BOX.height * 2}`;
+      await until(() => owner().poses.sets.length === 1 && `${owner().poses.sets[0].width}x${owner().poses.sets[0].height}` === doubled && owner().poses.sets[0].queue.length === 0, "only the larger poses kept");
+      const after = owner().poses.sets[0];
+      expect(after.grids[0]).toBeGreaterThan(0);
+      expect(after.frames.size).toBeGreaterThan(1);
+      expect(after.frames.size * frame * 4).toBeLessThanOrEqual(16 * frame);
       cleanup?.();
       cleanup = undefined;
     }
