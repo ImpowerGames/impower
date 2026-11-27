@@ -309,7 +309,7 @@ export default class UIManager extends Manager {
 
   protected _lag = 0;
 
-  protected _carried = new Map<string, { start: number; lag: number }>();
+  protected _pauses: { from: number; to?: number }[] = [];
 
   protected _beatMarks = new BeatMarks();
 
@@ -506,6 +506,7 @@ export default class UIManager extends Manager {
   override onPause() {
     if (this._heldAt == null) {
       this._heldAt = this.documentNow();
+      this._pauses.push({ from: this._heldAt });
     }
     this._hold.pause();
     this.scheduleCommit();
@@ -515,8 +516,13 @@ export default class UIManager extends Manager {
 
   override onUnpause() {
     if (this._heldAt != null) {
-      this._lag += this.documentNow() - this._heldAt;
+      const now = this.documentNow();
+      this._lag += now - this._heldAt;
       this._heldAt = undefined;
+      const open = this._pauses.at(-1);
+      if (open && open.to === undefined) {
+        open.to = now;
+      }
     }
     this._hold.resume();
     this.morphs?.setPaused(false);
@@ -534,6 +540,14 @@ export default class UIManager extends Manager {
 
   protected lag(now = this.documentNow()): number {
     return this._lag + (this._heldAt != null ? now - this._heldAt : 0);
+  }
+
+  protected pausedAfter(from: number, now = this.documentNow()): number {
+    let paused = 0;
+    for (const pause of this._pauses) {
+      paused += Math.max(0, Math.min(pause.to ?? now, now) - Math.max(pause.from, from));
+    }
+    return paused;
   }
 
   override onDispose() {
@@ -2583,16 +2597,7 @@ export default class UIManager extends Manager {
       return;
     }
     if (!instant && startTime != null && instructions.length > 0) {
-      const key = `${startTime}\n${sig}`;
-      const carried = this._carried.get(key);
-      if (carried) {
-        startTime = carried.start + (this.lag() - carried.lag);
-      } else {
-        this._carried.set(key, { start: startTime, lag: this.lag() });
-        if (this._carried.size > 64) {
-          this._carried.delete(this._carried.keys().next().value!);
-        }
-      }
+      startTime += this.pausedAfter(this.getDisplayTime(startTime)!);
     }
     for (const el of targetEls) {
       if (

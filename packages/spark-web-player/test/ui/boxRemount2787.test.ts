@@ -545,3 +545,145 @@ describe("a typing line's resume position in the cases round 3 left open (#2787)
     expect(texts(h)).toEqual(["second=AB"]);
   });
 });
+
+describe("a typing line keeps its reveal across a pause, however it is rewritten (#2787)", () => {
+  const typed = (text: string) => [...text].map((t, i) => ({ text: t, after: i * 0.05 }));
+
+  const BRANCH = `if expanded then
+      text.first
+    else
+      text.second
+    end`;
+
+  const SCREEN =
+    "screen shell {\n  if expanded then\n    panel.first { slot }\n  else\n    panel.second { slot }\n  end\n}\n\nlayout main in shell {";
+
+  const story = (mode: string, limit: string) => {
+    if (mode === "box") {
+      return source(`if expanded then
+    dialogue.first${limit} {
+      text
+    }
+  else
+    dialogue.second${limit} {
+      text
+    }
+  end`);
+    }
+    if (mode === "screen") {
+      return source(`dialogue${limit} {
+    text
+  }`).replace("layout main {", SCREEN);
+    }
+    if (mode === "loop") {
+      return source(`dialogue${limit} {
+    for row in rows do
+      text
+    end
+  }`)
+        .replace("store expanded = true", "store expanded = true\n\nstore rows = { 1 }")
+        .replace("  expanded = not expanded", "  expanded = not expanded\n  rows = { 1, 2 }");
+    }
+    return source(`dialogue${limit} {
+    ${BRANCH}
+  }`);
+  };
+
+  const shown = (h: DOMHarness) =>
+    [...h.overlay.querySelectorAll<HTMLElement>(".main .dialogue .text_letter")]
+      .filter((el) => {
+        const reveal = (el as any).__sdReveal;
+        return reveal
+          ? reveal.currentTime != null &&
+              reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+          : el.style.opacity === "1";
+      })
+      .map((el) => el.textContent)
+      .join("");
+
+  test.each(
+    ["slot", "box", "screen", "loop"].flatMap((mode) =>
+      ["", " #speaker=raffles", " #variant=aside"].map((limit) => [mode, limit]),
+    ),
+  )("after an earlier complete write, when the %s is replaced (limit:%s)", async (mode, limit) => {
+    const h = createDOMHarness(story(mode, limit), 0, { reactive: true });
+    await h.ready;
+    timed(h);
+    const ui = h.game.module.ui;
+    ui.line({ speaker: { character: "raffles" }, variant: "aside", text: { dialogue: [] } } as any);
+    await ui.text.change("line write", "dialogue", [{ text: "prefix " }], true);
+    void ui.text.change("line write", "dialogue", typed("slight problem"), false, 20);
+    await flushMicrotasks(40);
+    await at(100);
+    const before = shown(h);
+    expect(before.length).toBeGreaterThan("prefix ".length);
+    expect(before.length).toBeLessThan("prefix slight problem".length);
+    h.ui.onPause();
+    await at(1100);
+    h.ui.onUnpause();
+    expect(shown(h)).toBe(before);
+    await toggle(h);
+    expect(shown(h)).toBe(mode === "loop" ? before + before : before);
+  });
+
+  test("after the line waited for its box to arrive", async () => {
+    const h = createDOMHarness(
+      source(`dialogue {
+    ${BRANCH}
+  }`).replace(
+        "layout main {",
+        "style dialogue {\n  opacity = 1\n  @initial { opacity = 0 }\n  @show { transition-duration = 280ms }\n}\n\nlayout main {",
+      ),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    timed(h);
+    h.game.context.system.now = () => timeline.currentTime;
+    (h.game.context.system as any).composeBeats = true;
+    await next(h);
+    await at(400);
+    await at(500);
+    const before = shown(h);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.length).toBeLessThan("slight problem".length);
+    h.ui.onPause();
+    await at(1500);
+    h.ui.onUnpause();
+    expect(shown(h)).toBe(before);
+    await toggle(h);
+    expect(shown(h)).toBe(before);
+  });
+
+  test("after many other typed writes", async () => {
+    const h = createDOMHarness(
+      source(`dialogue {
+    ${BRANCH}
+  }
+  action {
+    text
+  }`),
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    timed(h);
+    const ui = h.game.module.ui;
+    void ui.text.change("line write", "dialogue", typed("slight problem"), false, 20);
+    await flushMicrotasks(40);
+    await at(100);
+    const before = shown(h);
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.length).toBeLessThan("slight problem".length);
+    h.ui.onPause();
+    await at(1100);
+    h.ui.onUnpause();
+    for (let i = 0; i < 100; i += 1) {
+      void ui.text.change("line write", "action", typed(`message ${i}`), false, 1120 + i);
+    }
+    await flushMicrotasks(40);
+    await toggle(h);
+    expect(shown(h)).toBe(before);
+  });
+});
