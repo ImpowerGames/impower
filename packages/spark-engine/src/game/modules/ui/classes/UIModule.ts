@@ -1000,11 +1000,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     const missing = [...open].filter((name) => !this._mountedLayouts.has(name));
-    for (const name of missing) {
-      void this.openLayout(name, undefined, true, true);
-    }
     if (missing.length > 0) {
-      void Promise.all(this.restoreTexts());
+      const epoch = this._game.connection.epoch;
+      const presentation = this._presentation;
+      const mounted = this.applyLayoutInstructions(
+        missing.map((name) => ({ control: LayoutVerb.open, name, auto: true })),
+        true,
+      );
+      void mounted.then(() => {
+        if (!this.superseded(epoch) && this.isCurrentPresentation(presentation)) {
+          void Promise.all(this.restoreTexts());
+        }
+      });
     }
     this._screenEdits = edits;
   }

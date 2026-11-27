@@ -22,6 +22,8 @@ export const PRESENTED_TEXT_ELEMENTS: readonly string[] = [
 export const UNSHOWN_TEXT_MESSAGE =
   "No open layout shows this text. Open textbox or textstream.";
 
+const DIALOGUE_BOX_ELEMENTS: readonly string[] = ["textbox", "dialogue"];
+
 const MENU_ELEMENT = "choice";
 
 const MENU_LAYOUT = "choices";
@@ -72,11 +74,19 @@ export function initialLayouts(
   game: Game,
   mode: StartingDisplayMode = game.startingDisplayMode,
 ): string[] {
+  const ui = game.module.ui;
   const opened = ["main"];
   for (const name of configuredInitialLayouts(game, mode)) {
-    if (typeof name === "string" && name && !opened.includes(name)) {
-      opened.push(name);
+    if (typeof name !== "string" || !name || opened.includes(name)) {
+      continue;
     }
+    if (
+      ui.layoutHolds(name, DIALOGUE_BOX_ELEMENTS) &&
+      holdsPresentedText(game, "main", ui)
+    ) {
+      continue;
+    }
+    opened.push(name);
   }
   return opened;
 }

@@ -224,6 +224,29 @@ ${MENU}`);
     expect(own.game.module.ui.findIds("choice")).toHaveLength(2);
   });
 
+  test("a project whose own main holds dialogue keeps its own textbox layout closed at the start, so a line shows once", async () => {
+    const h = await play(`layout main {
+  textbox {
+    dialogue #clear { text }
+  }
+}
+
+layout textbox {
+  textbox {
+    dialogue #clear { text }
+  }
+}
+
+scene start
+  MARA: Only in main.
+end
+`);
+    expect(beat(h).kind).toBe("dialogue");
+    expect(mounted(h)).toEqual([]);
+    expect(h.game.module.ui.findIds("dialogue")).toHaveLength(1);
+    expect(shownText(h, "dialogue")).toBe("Only in main.");
+  });
+
   test("no box opens while textstream is open", async () => {
     const h = await play(`scene start
   [[open textstream]]

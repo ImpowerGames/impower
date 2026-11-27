@@ -68,7 +68,7 @@ define ui as config with
 end
 ```
 
-A project that keeps its text elements in a layout of its own, such as its own `layout main`, keeps them there: by the first rule a line goes to the open layout that holds its kind, and no box opens beside it. Only a kind that no open layout holds opens a built-in box.
+A project that keeps its text elements in a layout of its own, such as its own `layout main`, keeps them there: by the first rule a line goes to the open layout that holds its kind, and no box opens beside it. Only a kind that no open layout holds opens a built-in box. A layout in `ui.layouts_initial` that holds a dialogue box (a `textbox` or `dialogue` element) is not opened at the start when `main` already holds text elements, so a project with its own `layout main` and its own `layout textbox` shows each line once.
 
 Each part of the built-in boxes is marked [`#clear`](./Structure.md#clear-content-that-lasts-one-line), so it shows only what the current line puts in it. A box of your own needs the same marks on every part a line can leave out, or the last speaker's name stays up through a line of action:
 
