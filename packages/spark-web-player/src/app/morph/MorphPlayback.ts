@@ -3741,7 +3741,9 @@ export class MorphLayer {
 
   protected canvasBacking(view: CanvasView, width: number, height: number, dpr: number) {
     const resolution = Math.max(view.files.width / Math.max(1, width * dpr), view.files.height / Math.max(1, height * dpr));
-    const scale = Math.max(1, Math.min(this.reach(), resolution));
+    const inner = this.images.find((entry) => entry.canvas === view)?.inner ?? [];
+    const vector = [...view.files.bitmaps.values()].some((bitmap) => bitmap.vector) || inner.some((entry) => entry.poses);
+    const scale = Math.max(1, vector ? this.reach() : Math.min(this.reach(), resolution));
     const pixels = Math.max(1, width * dpr * scale) * Math.max(1, height * dpr * scale);
     const shrink = pixels > MAX_CANVAS_PIXELS ? Math.sqrt(MAX_CANVAS_PIXELS / pixels) : 1;
     return { w: Math.max(1, Math.round(width * dpr * scale * shrink)), h: Math.max(1, Math.round(height * dpr * scale * shrink)) };

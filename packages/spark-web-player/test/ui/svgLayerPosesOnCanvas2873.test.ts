@@ -399,6 +399,28 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
     expect(t.layer().images[0].inner[0].poses.sets[0].queue).toEqual([]);
   });
 
+  test("a picture zoomed to twice its size draws the SVG layer's poses and its canvas at twice the size, as the live view drew its vectors", async () => {
+    for (const [write, key] of [
+      [pictureShow, "nova-inner-zoom"],
+      [layeredShow, "nova-layered-zoom"],
+    ] as const) {
+      const t = await setup();
+      t.beat([write(key)], 47);
+      await until(() => t.events.includes("applied"), "the beat");
+      const layer = t.layer();
+      const owner = () => (layer.images[0].picture ? layer.images[0].inner[0] : layer.images[0]);
+      const canvas = (): HTMLCanvasElement => layer.images[0].canvas?.canvas ?? layer.stills[0].canvases[0].canvas;
+      expect([canvas().width, canvas().height]).toEqual([BOX.width, BOX.height]);
+      layer.size({ zoom: 2 });
+      const doubled = `${BOX.width * 2}x${BOX.height * 2}`;
+      await until(() => owner().poses?.sets.some((set: any) => `${set.width}x${set.height}` === doubled && set.queue.length === 0 && !set.running), `poses at ${doubled}`);
+      await until(() => canvas().width === BOX.width * 2 && canvas().height === BOX.height * 2, `the canvas at ${doubled}`);
+      expect(t.rasterized.filter((entry) => entry.text !== undefined && entry.size === doubled).length).toBeGreaterThan(0);
+      cleanup?.();
+      cleanup = undefined;
+    }
+  });
+
   test("rebuilding the picture keeps the SVG layer's drawn poses, so nothing is drawn again", async () => {
     const t = await setup();
     t.beat([pictureShow("nova-inner-rebuild")], 45);
