@@ -365,6 +365,8 @@ export default class UIManager extends Manager {
 
   protected _lag = 0;
 
+  protected _pauses: { from: number; to?: number }[] = [];
+
   protected _beatMarks = new BeatMarks();
 
   protected _drawTimeouts = { beat: 8, restore: 2 };
@@ -586,6 +588,7 @@ export default class UIManager extends Manager {
   override onPause() {
     if (this._heldAt == null) {
       this._heldAt = this.documentNow();
+      this._pauses.push({ from: this._heldAt });
     }
     this._hold.pause();
     this.scheduleCommit();
@@ -595,8 +598,13 @@ export default class UIManager extends Manager {
 
   override onUnpause() {
     if (this._heldAt != null) {
-      this._lag += this.documentNow() - this._heldAt;
+      const now = this.documentNow();
+      this._lag += now - this._heldAt;
       this._heldAt = undefined;
+      const open = this._pauses.at(-1);
+      if (open && open.to === undefined) {
+        open.to = now;
+      }
     }
     this._hold.resume();
     this.morphs?.setPaused(false);
@@ -614,6 +622,14 @@ export default class UIManager extends Manager {
 
   protected lag(now = this.documentNow()): number {
     return this._lag + (this._heldAt != null ? now - this._heldAt : 0);
+  }
+
+  protected pausedAfter(from: number, now = this.documentNow()): number {
+    let paused = 0;
+    for (const pause of this._pauses) {
+      paused += Math.max(0, Math.min(pause.to ?? now, now) - Math.max(pause.from, from));
+    }
+    return paused;
   }
 
   override onDispose() {
@@ -1061,6 +1077,8 @@ export default class UIManager extends Manager {
 
   protected _precreated: { el: HTMLElement; value: string; priority: string }[] = [];
 
+  protected _precreatedArrivals = new WeakSet<Element>();
+
   protected revealPrecreated() {
     for (const { el, value, priority } of this._precreated.splice(0)) {
       if (el.style.getPropertyValue("visibility") !== "hidden" || el.style.getPropertyPriority("visibility") !== "important") {
@@ -1140,6 +1158,20 @@ export default class UIManager extends Manager {
       }
     } finally {
       this._applying -= 1;
+    }
+    for (const op of ops) {
+      const msg = op as RequestMessage;
+      if (
+        UpdateElementMessage.type.isRequest(msg) &&
+        needed.has(msg.params.element) &&
+        msg.params.attributes?.[PRESENCE_ATTRIBUTE] === "initial"
+      ) {
+        const el = this.getElement(msg.params.element);
+        if (el) {
+          el.setAttribute(PRESENCE_ATTRIBUTE, "initial");
+          this._precreatedArrivals.add(el);
+        }
+      }
     }
     const made: HTMLElement[] = [];
     for (const id of needed) {
@@ -2110,7 +2142,8 @@ export default class UIManager extends Manager {
       if (
         reused &&
         el.hasAttribute(PRESENCE_ATTRIBUTE) &&
-        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes)
+        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes) &&
+        !this._precreatedArrivals.delete(el)
       ) {
         this._presence.settle(el);
         el.removeAttribute(PRESENCE_ATTRIBUTE);
@@ -2762,10 +2795,17 @@ export default class UIManager extends Manager {
       const txt = (el as any).__sdTxt;
       return txt === undefined || txt === "[]";
     };
+    const leavesOf = (el: HTMLElement) => [
+      ...this.getContentElements(el, "text"),
+      ...this.getContentElements(el, "stroke"),
+    ];
+    const kept = (el: HTMLElement) =>
+      leavesOf(el).every((leaf) => (el as any).__sdLeaves?.includes(leaf));
     const holds = (el: HTMLElement) => {
       const a = el as any;
       return (
         a.__sdTxt === sig &&
+        kept(el) &&
         (!stale.includes(el) ||
           (JSON.stringify(a.__sdAll) === sig && a.__sdAllRev === (a.__sdRev ?? 0)))
       );
@@ -2790,17 +2830,23 @@ export default class UIManager extends Manager {
       }
       return;
     }
+    if (!instant && startTime != null && instructions.length > 0) {
+      startTime += this.pausedAfter(startTime);
+    }
     for (const el of targetEls) {
       if (
         instructions.length > 0 &&
         (decision === "rebuild" ||
           replays ||
           stale.includes(el) ||
-          holdsNoWrite(el))
+          holdsNoWrite(el) ||
+          !kept(el))
       ) {
         this.clearWrittenText(el, true);
       }
       (el as any).__sdTxt = sig;
+      (el as any).__sdLeaves = leavesOf(el);
+
       (el as any).__sdTxtRev = (el as any).__sdRev ?? 0;
       (el as any).__sdTxtAtOnce = instant;
     }

@@ -33,6 +33,7 @@ end
 ${grow("growself", "self", 2)}
 ${grow("growportrait", "portrait", 2)}
 ${grow("growstage", "stage", 2)}
+${grow("growimage", "image", 3)}
 
 define stagegrow as transition with
   stage = animation.growself
@@ -108,6 +109,8 @@ describe("a layered picture is sized through UIManager for the animations of one
     ["[[animate portrait with stagegrow]]", 2],
     ["[[animate portrait with stagegrow with stagegrowstage]]", 4],
     ["[[animate portrait with stagegrow with growself]]", 4],
+    ["[[animate portrait with growself with growimage]]", 6],
+    ["[[animate portrait with growimage]]", 3],
   ])("`%s` sizes the layer for %s×", async (line, expected) => {
     const sized = await sizedFor(line);
     expect(sized.layers).toBe(1);

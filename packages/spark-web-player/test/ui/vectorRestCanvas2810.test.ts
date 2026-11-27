@@ -707,6 +707,36 @@ describe("a vector picture in an element the beat reveals or creates (#2810)", (
     expect(marks(40)["ready"]).toBeGreaterThanOrEqual(Math.max(...t.paints.map((paint) => paint.at)));
     expect(marks(40)["fired"]).toBeGreaterThanOrEqual(marks(40)["ready"]!);
   });
+
+  test("an element the beat creates and marks as arriving is made with its arrival mark, which it keeps until the beat fires (#2746)", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    const marksSeen: (string | null)[] = [];
+    const observer = new t.win.MutationObserver((records) => {
+      for (const record of records) {
+        if ((record.target as HTMLElement).id === "made-plaque") {
+          marksSeen.push((record.target as HTMLElement).getAttribute("data-presence"));
+        }
+      }
+    });
+    observer.observe(t.h.overlay, { subtree: true, attributes: true, attributeFilter: ["data-presence"] });
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 42, [
+      { method: "ui/create", params: { parent: stage.__sdId, element: "made-plaque", type: "div", name: "plaque", breakpoints: {} } },
+      { method: "ui/create", params: { parent: "made-plaque", element: "made-plaque-image", type: "div", name: "image", breakpoints: {} } },
+      { method: "ui/update", params: { element: "made-plaque", attributes: { "data-presence": "initial" }, breakpoints: {} } },
+    ]);
+    await until(() => t.rasters.length === 1, "the raster");
+    const plaque = t.h.overlay.querySelector(".plaque") as HTMLElement;
+    expect(plaque.style.getPropertyValue("visibility")).toBe("hidden");
+    expect(plaque.getAttribute("data-presence")).toBe("initial");
+    const asked = t.rasters[0]!;
+    asked.resolve(raster(asked.src, asked.width, asked.height));
+    await until(() => marks(42)["fired"] !== undefined, "the fired mark");
+    await flushMicrotasks(10);
+    observer.disconnect();
+    expect(plaque.getAttribute("data-presence")).toBe("initial");
+    expect(marksSeen).not.toContain(null);
+  });
 });
 
 const KIT = ["base", "closed", "open"];

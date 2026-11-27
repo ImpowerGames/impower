@@ -66,6 +66,7 @@ const createGame = (
         initialLayoutsOpened: true,
         page: { shown: () => {} },
         streams: { shown: () => {}, record: () => {}, show: () => {} },
+        casts: { shown: () => {}, record: () => {}, show: () => {} },
         openedLayoutsAfter: () => ["main"],
         isScreen: () => false,
         screensClosedAfter: () => [],
