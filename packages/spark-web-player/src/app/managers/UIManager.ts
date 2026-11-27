@@ -191,9 +191,12 @@ function instantAnimation(animation: Animation | undefined): boolean {
 }
 
 function shownPicture(property: string, content: NonNullable<WriteImageInstruction["content"]>): string {
-  const { enterAnimation, exitAnimation: _exit, previousHideAnimation: _hide, morph, ...drawn } = content;
-  const entrance = enterAnimation
-    ? { ...enterAnimation, timing: { ...enterAnimation.timing, delay: undefined, duration: undefined } }
+  const { enterAnimations, exitAnimations: _exit, previousHideAnimations: _hide, morph, ...drawn } = content;
+  const entrance = enterAnimations?.length
+    ? enterAnimations.map((animation) => ({
+        ...animation,
+        timing: { ...animation.timing, delay: undefined, duration: undefined },
+      }))
     : null;
   return JSON.stringify([property, drawn, morph ? { ...morph, epoch: undefined } : null, entrance]);
 }
@@ -904,7 +907,7 @@ export default class UIManager extends Manager {
                 content.pictures ?? [],
                 true,
               );
-              layer.size({ zoom, scale: around * keyframeScale(content.enterAnimation ? [content.enterAnimation] : []) * nested(span) });
+              layer.size({ zoom, scale: around * keyframeScale(content.enterAnimations ?? []) * nested(span) });
               layer.presize();
               this.presizeHidden(span, layer);
               let byContent = this._prepared.get(instruction);
@@ -2921,8 +2924,8 @@ export default class UIManager extends Manager {
       instruction.control !== "show" ||
       !content ||
       content.video ||
-      !instantAnimation(content.enterAnimation) ||
-      !instantAnimation(content.previousHideAnimation)
+      !(content.enterAnimations ?? []).every(instantAnimation) ||
+      !(content.previousHideAnimations ?? []).every(instantAnimation)
     ) {
       return undefined;
     }
@@ -3133,10 +3136,10 @@ export default class UIManager extends Manager {
           instruction.control === "show" && !content.video
             ? { count: contentTargets.reduce((count, { els }) => count + els.length, 0), owner: this }
             : undefined;
-        const previousHideAnimation = content.previousHideAnimation;
+        const previousHideAnimations = content.previousHideAnimations ?? [];
         const retire = (prevSpanEls: HTMLElement[]) => {
           for (const prevSpanEl of prevSpanEls) {
-            if (!previousHideAnimation) {
+            if (previousHideAnimations.length === 0) {
               haltPicture(prevSpanEl);
               continue;
             }
@@ -3146,7 +3149,7 @@ export default class UIManager extends Manager {
             this.addAnimationEffects(
               exitEffects,
               prevSpanEl,
-              [previousHideAnimation],
+              previousHideAnimations,
               after,
             );
             if (!toDestroy.includes(prevSpanEl)) {
@@ -3237,35 +3240,14 @@ export default class UIManager extends Manager {
             }
             if (instruction.control === "show") {
               retire(prevSpanEls);
-              if (content.enterAnimation) {
-                this.addAnimationEffects(
-                  enterEffects,
-                  newSpanEl,
-                  [content.enterAnimation],
-                  after,
-                );
-              }
+              this.addAnimationEffects(enterEffects, newSpanEl, content.enterAnimations, after);
             } else if (instruction.control === "hide") {
-              if (content.exitAnimation) {
-                this.addAnimationEffects(
-                  exitEffects,
-                  newSpanEl,
-                  [content.exitAnimation],
-                  after,
-                );
-              }
+              this.addAnimationEffects(exitEffects, newSpanEl, content.exitAnimations, after);
               if (!toDestroy.includes(newSpanEl)) {
                 toDestroy.push(newSpanEl);
               }
             } else if (instruction.control === "animate") {
-              if (content.enterAnimation) {
-                this.addAnimationEffects(
-                  enterEffects,
-                  newSpanEl,
-                  [content.enterAnimation],
-                  after,
-                );
-              }
+              this.addAnimationEffects(enterEffects, newSpanEl, content.enterAnimations, after);
             }
           }
         }

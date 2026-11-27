@@ -97,13 +97,6 @@ describe("every `with` on an `animate` line plays, each with its own timing (I-2
     const { held } = await played("animate portrait with shake with spin over 0.1s once wait");
     expect(held).toBe(0.3);
   });
-
-  it("a `show` line with two `with` clauses still plays only its last", async () => {
-    const { instruction } = await played("show portrait with shake over 1s with spin over 2s", [["portrait", "bunny"]]);
-    expect(instruction.targetAnimations.map(timing)).toEqual([
-      expect.objectContaining({ name: "spin", duration: "2s" }),
-    ]);
-  });
 });
 
 describe("a line with one `with` plays the same whichever side of the `with` its timing is written on (I-2853)", () => {
@@ -129,7 +122,7 @@ describe("a line with one `with` plays the same whichever side of the `with` its
 describe("every `with` plays wherever an `animate` line's instruction is read (I-2853)", () => {
   it("an `animate` line that names a picture plays every `with` on the layer, together", async () => {
     const { instruction } = await played("animate portrait bunny with shake over 1s with spin over 5s");
-    expect(instruction.content.enterAnimation).toBeUndefined();
+    expect(instruction.content.enterAnimations).toBeUndefined();
     expect(instruction.targetAnimations.map(timing)).toEqual([
       expect.objectContaining({ name: "shake", duration: "1s" }),
       expect.objectContaining({ name: "spin", duration: "5s" }),
@@ -137,7 +130,7 @@ describe("every `with` plays wherever an `animate` line's instruction is read (I
   });
 
   it("a transition among several `with` clauses on an `animate` line that names a picture plays the animation it plays alone", async () => {
-    const alone = (await played("animate portrait bunny with fade over 1s")).instruction.content.enterAnimation;
+    const alone = (await played("animate portrait bunny with fade over 1s")).instruction.content.enterAnimations?.[0];
     expect(alone).toBeTruthy();
     const { instruction } = await played("animate portrait bunny with fade over 1s with shake over 2s");
     expect(instruction.targetAnimations.map(timing)).toEqual([
@@ -148,7 +141,7 @@ describe("every `with` plays wherever an `animate` line's instruction is read (I
 
   it("an `animate` line that names a picture and one `with` still plays it on the picture", async () => {
     const { instruction } = await played("animate portrait bunny with spin over 5s");
-    expect(timing(instruction.content.enterAnimation)).toEqual(expect.objectContaining({ name: "spin", duration: "5s" }));
+    expect(instruction.content.enterAnimations.map(timing)).toEqual([expect.objectContaining({ name: "spin", duration: "5s" })]);
     expect(instruction.targetAnimations ?? []).toEqual([]);
   });
 
