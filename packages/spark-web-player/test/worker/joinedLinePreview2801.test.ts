@@ -1,23 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI } from "./playerHarness";
-
-type Node = { class?: string; text?: string; children?: Node[] };
-
-const lettersIn = (root: Node, cls: string): string => {
-  let out = "";
-  const walk = (n: Node, inside: boolean) => {
-    const classes = (n.class ?? "").split(/\s+/);
-    const now = inside || classes.includes(cls);
-    if (now && classes.includes("text_letter") && n.text) {
-      out += n.text;
-    }
-    for (const c of n.children ?? []) {
-      walk(c, now);
-    }
-  };
-  walk(root, false);
-  return out;
-};
+import {
+  createPlayerHarness,
+  lettersIn,
+  MAIN_URI,
+  type SnapshotNode,
+} from "./playerHarness";
 
 const OWN_LAYOUT = `layout main {
   textbox {
@@ -46,7 +33,7 @@ const previewOf = async (text: string, lineText: string) => {
   try {
     await h.compile();
     await h.select(line);
-    return lettersIn(h.snapshotDOM() as Node, "dialogue");
+    return lettersIn(h.snapshotDOM() as SnapshotNode, "dialogue");
   } finally {
     h.dispose();
   }

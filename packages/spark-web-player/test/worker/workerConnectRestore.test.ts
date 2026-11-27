@@ -1,24 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { StartPlayMessage } from "../../src/main/workers/messages/StartPlayMessage";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
-
-type Node = { class?: string; text?: string; children?: Node[] };
-
-const lettersIn = (root: Node, cls: string): string => {
-  let out = "";
-  const walk = (n: Node, inside: boolean) => {
-    const classes = (n.class ?? "").split(/\s+/);
-    const now = inside || classes.includes(cls);
-    if (now && classes.includes("text_letter")) {
-      out += n.text ?? "";
-    }
-    for (const c of n.children ?? []) {
-      walk(c, now);
-    }
-  };
-  walk(root, false);
-  return out;
-};
+import {
+  createPlayerHarness,
+  lettersIn,
+  MAIN_URI,
+  settle,
+  type SnapshotNode as Node,
+} from "./playerHarness";
 
 const saysIn = (root: Node, cls: string): boolean => {
   let found = false;

@@ -48,6 +48,7 @@ import {
   DONE_HOLD,
   JUMP_DECISION,
   LEAVE_CONTINUE,
+  LINE_START_CONTINUES,
   Op,
   OP_NAMES,
   SET_DECLARE,
@@ -350,6 +351,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
       } else {
         this._layout.push(`${op}:${flags}:${aux}:${JSON.stringify(written)}`);
       }
+    } else if (op === Op.LineStart && flags & LINE_START_CONTINUES) {
+      this._unwritten.push(at);
     } else if (op === Op.CallValue) {
       this._layout.push(`${op}:${flags & ~CALL_METHOD}:${aux}:0`);
     } else if (op === Op.CallStd) {
@@ -368,14 +371,14 @@ export class BinaryProgramWriter implements ProgramEmitter {
     }
   }
 
-  emitObject(obj: EmittedObject, lineStart = false): void {
+  emitObject(obj: EmittedObject, lineStart?: number): void {
     const own = obj.ownDebugMetadata as DebugMetadata | null;
     if (own) {
       this._ranges.push(own);
       this.row(own);
     }
-    if (lineStart) {
-      this.emit(Op.LineStart);
+    if (lineStart !== undefined) {
+      this.emit(Op.LineStart, 0, 0, lineStart);
     }
     obj.EmitProgram(this);
     if (own) {
@@ -647,6 +650,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
         }
         this.emitObjects(this.emitChoicePoint(obj, objects.slice(i + 1, end)));
         i = end - 1;
+        afterClick = false;
         continue;
       }
       const loop = loopOf.get(obj);
@@ -657,6 +661,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
         );
         this.emitLoop(loop);
         i += loop.objects.length - 1;
+        afterClick = false;
         continue;
       }
       const body = bodyOfBlock.get(obj);
@@ -674,17 +679,24 @@ export class BinaryProgramWriter implements ProgramEmitter {
           this.enterBlock(body);
         }
         i += objectsOfBody.length;
+        afterClick = false;
         continue;
       }
-      const display = obj instanceof FunctionCall && obj.name === "display";
+      if (!(obj instanceof FunctionCall && obj.name === "display")) {
+        const at = this._code.length;
+        this.emitObject(obj);
+        afterClick &&= this._code.length === at;
+        continue;
+      }
       this.emitObject(
         obj,
-        display &&
-          (afterClick || !displayTableFlag(obj.args, "continues")),
+        !displayTableFlag(obj.args, "continues")
+          ? 0
+          : afterClick
+            ? LINE_START_CONTINUES
+            : undefined,
       );
-      if (display) {
-        afterClick = displayTableFlag(obj.args, "pause");
-      }
+      afterClick = displayTableFlag(obj.args, "pause");
     }
   }
 
