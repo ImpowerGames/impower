@@ -184,20 +184,34 @@ function takesTime(instructions: Instructions): boolean {
   );
 }
 
-function lineKind(
-  instructions: Instructions,
-): { element: string; layout: string } | undefined {
+interface TextKind {
+  element: string;
+  layout: string;
+}
+
+const MENU_KIND: TextKind = { element: MENU_ELEMENT, layout: MENU_LAYOUT };
+
+function lineKind(instructions: Instructions): TextKind | undefined {
   const line = Object.keys(instructions.text ?? {}).find(
     (target) =>
       !SPEAKER_TARGETS.includes(target) && !target.startsWith("choice "),
   );
-  if (line) {
-    const name = elementName(line);
-    return { element: name, layout: name };
+  if (!line) {
+    return undefined;
   }
-  return (instructions.choices?.length ?? 0) > 0
-    ? { element: MENU_ELEMENT, layout: MENU_LAYOUT }
-    : undefined;
+  const name = elementName(line);
+  return { element: name, layout: name };
+}
+
+function beatKinds(instructions: Instructions): TextKind[] {
+  if (!showsText(instructions)) {
+    return [];
+  }
+  const line = lineKind(instructions);
+  return [
+    ...(line ? [line] : []),
+    ...((instructions.choices?.length ?? 0) > 0 ? [MENU_KIND] : []),
+  ];
 }
 
 function opensByItself(
@@ -215,9 +229,8 @@ function opensByItself(
 }
 
 function isMenu(instructions: Instructions): boolean {
-  return (
-    showsText(instructions) && lineKind(instructions)?.layout === MENU_LAYOUT
-  );
+  const kinds = beatKinds(instructions);
+  return kinds.length === 1 && kinds[0] === MENU_KIND;
 }
 
 export function keptThroughMenu(
@@ -247,11 +260,11 @@ export function routeLine(game: Game, instructions: Instructions): Instructions 
   }
   const events = layoutEvents(instructions);
   const autos = ui.autoLayoutsAfter(events);
-  const kind = showsText(instructions) ? lineKind(instructions) : undefined;
+  const kinds = beatKinds(instructions);
   const routed: LayoutInstruction[] = [];
   const close = (name: string) =>
     routed.push({ control: LayoutVerb.close, name, auto: true });
-  if (!kind) {
+  if (kinds.length === 0) {
     const closesBox = !instructions.extended && takesTime(instructions);
     for (const auto of autos) {
       if (closesBox || auto === MENU_LAYOUT) {
@@ -260,22 +273,27 @@ export function routeLine(game: Game, instructions: Instructions): Instructions 
     }
   } else {
     const open = ui.openedLayoutsAfter(events);
-    const holders = open.filter(
-      (name) =>
-        name === TEXTSTREAM_LAYOUT || ui.layoutHolds(name, [kind.element]),
-    );
-    const menu = kind.layout === MENU_LAYOUT;
+    const closedScreens = ui.screensClosedAfter(events);
+    const holdersOf = (kind: TextKind) =>
+      open.filter(
+        (name) =>
+          name === TEXTSTREAM_LAYOUT || ui.layoutHolds(name, [kind.element]),
+      );
+    const holders = new Set(kinds.flatMap(holdersOf));
+    const menuOnly = isMenu(instructions);
     for (const auto of autos) {
-      if (!holders.includes(auto) && (!menu || auto === MENU_LAYOUT)) {
+      if (!holders.has(auto) && (!menuOnly || auto === MENU_LAYOUT)) {
         close(auto);
       }
     }
-    if (
-      holders.length === 0 &&
-      !open.includes(kind.layout) &&
-      opensByItself(game, kind.layout, ui.screensClosedAfter(events))
-    ) {
-      routed.push({ control: LayoutVerb.open, name: kind.layout, auto: true });
+    for (const kind of kinds) {
+      if (
+        holdersOf(kind).length === 0 &&
+        !open.includes(kind.layout) &&
+        opensByItself(game, kind.layout, closedScreens)
+      ) {
+        routed.push({ control: LayoutVerb.open, name: kind.layout, auto: true });
+      }
     }
   }
   if (routed.length === 0) {

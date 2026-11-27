@@ -62,7 +62,7 @@ A layout that opened by itself is still a layout: `[[open dialogue]]` keeps it o
 
 #### Menus: the `choices` layout
 
-A menu is a kind like any other, and its kind is the option buttons, the elements named `choice`. When a menu comes up and no open layout holds them, the built-in `choices` layout opens by itself. It is not in the `textbox` screen, so the line that asks the question stays in its box while the options show. It closes when an option is picked. Pick by clicking an option, by pressing its number, or with the arrow keys and Enter.
+A menu is a kind like any other, and its kind is the option buttons, the elements named `choice`. When a menu comes up and no open layout holds them, the built-in `choices` layout opens by itself. It is not in the `textbox` screen, so the line that asks the question stays in its box while the options show, whether it is the line before `choose` or the menu's caption, the line written inside `choose` before its first option. It closes when an option is picked. Pick by clicking an option, by pressing its number, or with the arrow keys and Enter.
 
 A layout of your own named `choices` takes the built-in one's place, and since the options arrive and leave with the layout, `@initial` and `@hide` give them a motion of their own:
 

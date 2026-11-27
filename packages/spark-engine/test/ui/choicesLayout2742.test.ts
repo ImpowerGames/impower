@@ -87,6 +87,17 @@ end
 const QUESTION = `scene start
 ${MENU}`;
 
+const CAPTIONED = `scene start
+  choose
+    Which way?
+    + [Left]
+      You went left.
+    + [Right]
+      You went right.
+  end
+end
+`;
+
 describe("a menu shows in its own choices layout (I-2742)", () => {
   test("choices opens beside the question's box, which keeps its line, and closes on a pick", async () => {
     const h = await play(`style textbox {
@@ -115,6 +126,41 @@ ${QUESTION}`);
     expect(shownText(h, "dialogue")).toBe("Stayed.");
     expect(findAll(h, "choice")).toEqual([]);
     expect(ui(h).showingNames()).not.toContain("choices");
+  });
+
+  test("a menu whose question is its caption opens the caption's box and choices together, and a pick closes choices", async () => {
+    const h = await play(CAPTIONED);
+    expect(beat(h).choices).toEqual(["choice 0", "choice 1"]);
+    expect(mounted(h)).toEqual(["action", "choices"]);
+    expect(shownText(h, "action")).toBe("Which way?");
+    expect(findAll(h, "choice")).toHaveLength(6);
+    expect(shownText(h, "choice 1")).toBe("Right");
+
+    await pickFirst(h);
+    expect(mounted(h)).toEqual(["action"]);
+    expect(shownText(h, "action")).toBe("You went left.");
+  });
+
+  test("a captioned menu shows its options in an author's own choices layout", async () => {
+    const h = await play(`layout choices {
+  choices {
+    choice.0 #clear { text }
+    choice.1 #clear { text }
+    choice.2 #clear { text }
+  }
+}
+
+style choices {
+  transition = opacity 0.2s
+  @initial { opacity = 0 }
+  @hide { opacity = 0 }
+}
+
+${CAPTIONED}`);
+    expect(mounted(h)).toEqual(["action", "choices"]);
+    expect(shownText(h, "action")).toBe("Which way?");
+    expect(findAll(h, "choice")).toHaveLength(3);
+    expect(shownText(h, "choice 0")).toBe("Left");
   });
 
   test("an action line after the pick closes choices and the question's box, and opens action", async () => {
