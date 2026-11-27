@@ -100,6 +100,39 @@ end
     expect(speakers(h.entries())).toEqual(["sam"]);
   });
 
+  test("hiding a character whose #clear picture has emptied removes the kept entry", () => {
+    const game = new Game({
+      now: () => 0,
+      setTimeout: (() => 0) as never,
+      resolve: (path: string) => path,
+      fetch: async () => "",
+      log: () => {},
+      program: compile(`${HEADER.replace("portrait { image }", "portrait #clear { image }")}
+scene start
+  [[mia@happy]]
+  MIA: One.
+  Narration.
+  [[hide mia]]
+  More narration.
+end
+`),
+    } as never);
+    const ui: any = game.module.ui;
+    const text = () => (game.story.currentText ?? "").trim();
+    const tapTo = (shown: string) => {
+      for (let i = 0; i < 16 && text() !== shown; i += 1) {
+        game.clickedToContinue();
+      }
+      expect(text()).toBe(shown);
+    };
+    game.start();
+    tapTo("Narration.");
+    expect(speakers(ui.casts.entries("main"))).toEqual(["mia"]);
+    expect(ui.casts.entries("main")[0].image).toEqual({});
+    tapTo("More narration.");
+    expect(ui.casts.entries("main")).toEqual([]);
+  });
+
   test("hiding the layer removes every entry", () => {
     const h = play(STORY);
     h.tapTo("Back.");
