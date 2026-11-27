@@ -118,6 +118,47 @@ describe("every `with` on a `show` or `hide` line plays on its picture (I-2855)"
     expect(arriving[0]!.isConnected).toBe(true);
   });
 
+  test("a replaced picture whose longest exit plays on an element inside it stays until that exit ends", async () => {
+    const h = await setup();
+    const ui = h.ui as any;
+    const write = ui.writeImage.bind(ui);
+    ui.writeImage = (target: string, instructions: any[], ...rest: unknown[]) => {
+      for (const instruction of instructions) {
+        for (const exit of instruction.content?.previousHideAnimations ?? []) {
+          if (exit.$name === "shake") {
+            exit.target = { $type: "layer", $name: "object" };
+          }
+        }
+      }
+      return write(target, instructions, ...rest);
+    };
+    const before = Array.from(h.overlay.querySelectorAll<HTMLElement>(".portrait .image > *"));
+    const inner = before[0]!.querySelector(".object");
+    expect(inner).toBeTruthy();
+    const beat = h.game.module.interpreter.parse("[[show portrait Q with shake over 2s with fade over 0.5s]]", "main", {} as any);
+    void h.game.module.ui.image.write("portrait", beat.image!["portrait"]!, false);
+    await settle(h);
+    const innerExits = animations.filter((a) => a.effect.target === inner).map((a) => Number(a.effect.timing.duration));
+    expect(innerExits).toEqual([2000]);
+    await advanceTo(h, 700);
+    expect(before[0]!.isConnected).toBe(true);
+    await advanceTo(h, 2200);
+    expect(before[0]!.isConnected).toBe(false);
+  });
+
+  test("a replaced picture whose exit is cancelled is still removed once the write settles", async () => {
+    const { h, before, after } = await play("[[show portrait Q with shake over 2s with fade over 0.5s]]");
+    const arriving = after.filter((el) => !before.includes(el));
+    const exits = animations.filter((a) => a.effect.target === before[0] && Number(a.effect.timing.duration) === 2000);
+    expect(exits).toHaveLength(1);
+    exits[0]!.cancel();
+    await advanceTo(h, 700);
+    expect(before[0]!.isConnected).toBe(true);
+    await advanceTo(h, 2200);
+    expect(before[0]!.isConnected).toBe(false);
+    expect(arriving[0]!.isConnected).toBe(true);
+  });
+
   test("`[[hide portrait P with fade over 0.5s with spin over 2s once]]` plays both exits and removes the picture after the longer", async () => {
     const { h, before, after, on } = await play("[[hide portrait P with fade over 0.5s with spin over 2s once]]");
     const leaving = after.filter((el) => !before.includes(el));
