@@ -144,6 +144,7 @@ const createGame = (
         isReady: () => true,
         trigger: () => {},
         onBeatDisplayed: () => {},
+        onBeatSettled: () => {},
       },
     },
     clickedToContinue: () => {
