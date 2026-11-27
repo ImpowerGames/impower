@@ -1,3 +1,5 @@
+import type { WithInstruction } from "../../../core/types/Instruction";
+
 export interface Chunk {
   tag?: string;
   control?: string;
@@ -19,6 +21,7 @@ export interface Chunk {
     unmute?: boolean;
     now?: boolean;
   };
+  with?: WithInstruction[];
 
   voicedSyllable?: boolean;
   punctuatedSyllable?: boolean;

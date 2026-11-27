@@ -1511,7 +1511,7 @@ end
       const layers = () => [...(playback as any).layers] as any[];
       const outgoing = layers()[0];
       playback.speak("mia", [[0, 4]]);
-      void h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"], with: "fade", after }], false, undefined, "mia");
+      void h.game.module.ui.image.write("portrait", [{ control: "show", assets: ["mia@day"], with: [{ name: "fade", after }], after }], false, undefined, "mia");
       await until(() => layers().some((layer) => layer.images[0].plays[0].play.ref.image === "mia@day"), "the incoming look");
       await flushMicrotasks(10);
       return { h, playback, outgoing, layers, timeline, finish: () => finishers.forEach((finish) => finish()) };

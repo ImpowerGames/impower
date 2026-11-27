@@ -35,7 +35,14 @@ import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilt
 import { resolvePictureLook } from "@impower/sparkdown/src/morph/look";
 import { MORPH_PICK_NONE } from "@impower/sparkdown/src/morph/types";
 import { keywordOfValue } from "@impower/sparkdown/src/compiler/utils/assetClauseTree";
-import { DIRECTIVE_CLOSERS, readDirective, type DirectiveReading } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import {
+  DIRECTIVE_CLOSERS,
+  DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
+  DIRECTIVE_WITH_OWNED_WORDS,
+  directiveKind,
+  readDirective,
+  type DirectiveReading,
+} from "@impower/sparkdown/src/compiler/utils/readDirective";
 import { cueVariant, readSpeakerBeingWritten } from "@impower/sparkdown/src/compiler/utils/readCue";
 import { directiveOwnLookPick } from "@impower/sparkdown/src/compiler/utils/directiveOwnLook";
 import { ASSET_VALUE_CLAUSE_WORDS } from "@impower/sparkdown/language/sparkdown.clause-words";
@@ -1645,9 +1652,9 @@ const completionsAt = (
   const getNodeText = (node: SyntaxNode | undefined | null) =>
     node ? read(node.from, node.to) : "";
 
-  const writtenClauses = (commandName: SparkdownNodeName) => {
+  const writtenClauses = (commandName: SparkdownNodeName, severalWiths = false) => {
     const command = leftStack.find((n) => n.type.name === commandName);
-    const written: string[] = [];
+    const written: { text: string; from: number }[] = [];
     if (command) {
       tree.iterate({
         from: command.from,
@@ -1657,12 +1664,23 @@ const completionsAt = (
             node.name === "AssetCommandClauseKeyword" &&
             (documentCursorOffset <= node.from || documentCursorOffset > node.to)
           ) {
-            written.push(read(node.from, node.to));
+            written.push({ text: read(node.from, node.to), from: node.from });
           }
         },
       });
     }
-    return written;
+    if (!severalWiths) {
+      return written.map(({ text }) => text);
+    }
+    const ownerAt = (offset: number) =>
+      written.findLast((keyword) => keyword.text === "with" && keyword.from < offset)?.from ?? -1;
+    const cursorOwner = ownerAt(documentCursorOffset);
+    return written
+      .filter(
+        ({ text, from }) =>
+          text !== "with" && (!DIRECTIVE_WITH_OWNED_WORDS.includes(text) || ownerAt(from) === cursorOwner),
+      )
+      .map(({ text }) => text);
   };
 
   const isNameAfterName = (node: SyntaxNode | undefined) => {
@@ -2080,7 +2098,10 @@ const completionsAt = (
           ...clauses,
           ...(takesMovieClauses(control) ? MOVIE_CLAUSE_KEYWORDS : []),
         ],
-        writtenClauses("ImageCommand"),
+        writtenClauses(
+          "ImageCommand",
+          DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(directiveKind("image", control)),
+        ),
       );
     };
     const beforeImageNode = leftStack.find(

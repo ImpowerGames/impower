@@ -29,7 +29,9 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { isLuauName } from "../../utils/luauName";
 import {
+  DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
   DIRECTIVE_NODE_BRACKETS,
+  directiveOwners,
   directiveValueKind,
   readSourceDirective,
   type DirectiveWord,
@@ -222,8 +224,11 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           ...extra,
         }).range(word.from, word.to),
       );
+    const owned = DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(directive.kind)
+      ? directive.clauses
+      : directiveOwners(directive.kind, directive.clauses).line;
     const valueOf = (keyword: string) =>
-      directive.clauses.filter((clause) => clause.word.text === keyword && clause.value && directiveValueKind(clause.value.text) === "name").map((clause) => clause.value!);
+      owned.filter((clause) => clause.word.text === keyword && clause.value && directiveValueKind(clause.value.text) === "name").map((clause) => clause.value!);
     const { kind, target, names } = directive;
     if (directive.bracket === "audio") {
       if (target) shown(target, ["channel"]);

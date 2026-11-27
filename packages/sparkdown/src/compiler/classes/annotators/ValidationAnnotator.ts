@@ -51,6 +51,7 @@ import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_FLAG_WORDS,
   DIRECTIVE_NODE_BRACKETS,
+  DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
   directiveClauseWords,
   directiveValueKind,
   readSourceDirective,
@@ -688,6 +689,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           word.from,
           word.to,
         );
+      }
+    }
+    if (!DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(kind)) {
+      const example =
+        kind === "load"
+          ? ["A `load` line", "[[load chapter2 with fade]]"]
+          : kind === "cutscene"
+            ? ["A `play` line", "[[play intro with fade]]"]
+            : ["A sound line", "((play music theme with echo))"];
+      for (const { word } of directive.clauses.filter((clause) => clause.word.text === "with").slice(1)) {
+        issue(`${example[0]} takes one \`with\`\n> e.g. \`${example[1]}\``, word.from, word.to, "error");
       }
     }
     directive.clauses.forEach((clause, index) => {

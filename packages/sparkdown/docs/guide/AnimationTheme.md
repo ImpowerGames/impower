@@ -23,6 +23,63 @@ Built-in animations: `fade`, `slide`, `shake`,
 `wavy`, `wave`, `spin`, `bounce`, and `ping`, plus the structural
 `show` / `hide`.
 
+### Several animations at once
+
+An `animate` line takes any number of `with` clauses. They all start with the
+line and run together:
+
+```sparkdown
+scene start
+  [[animate portrait with shake over 1s with spin over 5s ease linear]]
+  [[animate portrait with shake loop with spin over 2s once]]
+end
+```
+
+The first line shakes the portrait for one second while it turns once every five
+seconds at a steady pace. The second shakes it without end while it makes a
+single turn over two seconds.
+
+Which `with` a clause belongs to:
+
+- `over`, `after`, `ease`, `loop` and `once` written after a `with` belong to
+  that `with`, up to the next `with` or the end of the line.
+- The same words written before the first `with` belong to the line itself.
+  `over`, `after` and `ease` time the line's own motion, such as the travel of
+  `to` (see [Framings](./Framings.md#193-travelling-to-a-framing)). `loop` and
+  `once` there belong to a video the line shows.
+- `at`, `to`, `morph`, `wait`, `mute`, `unmute` and `now` belong to the line
+  wherever they are written.
+- A clause word written twice for one owner keeps the later value.
+
+Timing that is not written is borrowed:
+
+- A `with` that has no `over` takes the line's. The same holds for `after` and
+  `ease`.
+- A line that has none of `over`, `after` and `ease` of its own takes all three
+  from the first `with`. A line that has any of them borrows none.
+- A `with` never borrows from another `with`.
+
+So `[[animate portrait over 2s with shake with spin over 5s]]` shakes for two
+seconds and turns over five.
+
+`loop` after a `with` repeats that animation without end, and `once` plays it
+through one time, whatever its definition says. One definition then serves a
+single play and a continuous one: `with shake` and `with shake loop`. `loop` and
+`once` are never borrowed. On a `with` that names a transition, they apply to
+every animation the transition runs.
+
+`wait` holds the story until the last of them has ended: the line's own motion
+and every `with`, each counted as its `after` plus its length. A `with` that
+repeats counts one pass.
+
+When two `with` clauses on a line set the same property, the later one wins while
+both run. `[[animate portrait with shake with pulse]]` shows both, because
+`shake` moves the portrait and `pulse` changes its opacity.
+
+`show`, `hide` and the bare picture shorthand play only the last `with` on their
+line, and so do `open`, `close` and `navigate`. `load`, `play` and sound lines
+take one `with`, and a second is reported.
+
 Pan and zoom are framings, not animations: see [Framings](./Framings.md). An
 animation is for an effect that plays and returns to rest, such as `shake`. A
 framing is a place the view of a layer's picture stays, so you show a picture

@@ -181,6 +181,19 @@ const CLAUSE_ROWS: Row[] = [
   ["none inside longer names", "image", "#none nonexistent x.none"],
   ["none with a filter", "image", "none:mouth.open"],
   ["none as a sound name", "audio", "play music none loop"],
+  ["two `with` clauses", "image", "animate portrait with shake with spin"],
+  ["two `with` clauses on a bare picture line", "image", "mia with fade with shake"],
+  ["two `with` clauses on a screen line", "image", "open menu with fade with shake"],
+  ["timing before a `with`", "image", "animate backdrop to left over 1s after 2s ease linear with shake"],
+  ["timing after a `with`", "image", "animate backdrop to left with shake over 1s after 2s ease linear"],
+  ["timing on each side of a `with`", "image", "animate backdrop to left over 1s with shake over 2s ease ease_out"],
+  ["timing on each side of two `with` clauses", "image", "animate portrait over 2s with shake ease linear with spin over 5s"],
+  ["`loop` and `once` after a `with`", "image", "animate portrait with shake loop with spin over 2s once"],
+  ["`loop` and `once` before a `with`", "image", "show backdrop mia loop once with fade"],
+  ["an empty `with` between two", "image", "animate portrait with shake with with spin"],
+  ["a second `with` on a `load` line", "image", "load mia with fade with shake"],
+  ["a second `with` on a `play` line", "image", "play intro with fade with shake"],
+  ["a second `with` on a sound line", "audio", "play music theme with echo with reverb"],
 ];
 
 const ROWS: Row[] = [
@@ -218,6 +231,7 @@ interface Reading {
   playArity: boolean;
   unrecognizedControl?: string;
   implicitNames: string[];
+  extraWiths: string[];
 }
 
 const empty = (): Reading => ({
@@ -229,6 +243,7 @@ const empty = (): Reading => ({
   clearWarning: false,
   playArity: false,
   implicitNames: [],
+  extraWiths: [],
 });
 
 const isName = (text: string) => directiveValueKind(text) === "name";
@@ -245,6 +260,7 @@ interface Chunk {
   target?: string;
   assets: string[];
   clauses: Record<string, unknown>;
+  with?: { name: string; ease?: string }[];
 }
 
 interface Parsed {
@@ -297,10 +313,11 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
       if (target) link("layer", target);
       imageNames();
     }
-    const transition = value("with");
-    if (transition && isName(transition)) link("transition", transition);
-    const ease = value("ease");
-    if (ease && isName(ease)) link("ease", ease);
+    const transitions = chunk.with ? chunk.with.map((entry) => entry.name) : [value("with")];
+    for (const transition of transitions) if (transition && isName(transition)) link("transition", transition);
+    for (const ease of [value("ease"), ...(chunk.with ?? []).map((entry) => entry.ease)]) {
+      if (ease && isName(ease)) link("ease", ease);
+    }
     if (chunk.tag === "image") {
       for (const key of ["at", "to"]) {
         const framing = value(key);
@@ -348,6 +365,9 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
     if (last && !last.takesValue && isAmount(keyword)) return;
     reading.strays.push(keyword);
   });
+  if (chunk.tag === "load" || chunk.tag === "cutscene" || chunk.tag === "audio") {
+    reading.extraWiths = parsed.filter((clause) => clause.word.text === "with").slice(1).map((clause) => clause.word.text);
+  }
   if (chunk.tag === "layout" && controlWritten && chunk.control === "clear") {
     reading.clearWarning =
       !chunk.target ||
@@ -379,6 +399,7 @@ function normalize(reading: Reading): Reading {
     valueErrors: sorted(reading.valueErrors),
     flagArguments: sorted(reading.flagArguments),
     implicitNames: sorted(reading.implicitNames),
+    extraWiths: sorted(reading.extraWiths),
   };
 }
 
@@ -485,6 +506,7 @@ function compilerReadingsOf(text: string, keep: (line: number, from: number) => 
     else if (message.endsWith("has no stream to clear.") || message.startsWith("Incomplete `clear`")) reading(line).clearWarning = true;
     else if (message.startsWith("`play` takes one video name")) reading(line).playArity = true;
     else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
+    else if (/^A (?:`load`|`play`|sound) line takes one `with`/.test(message)) reading(line).extraWiths.push(at);
   }
   for (const [line, found] of readings) readings.set(line, normalize(found));
   return readings;
@@ -500,10 +522,10 @@ interface Seen {
 function spyOnChunks(harness: ReturnType<typeof createHarness>): Seen[] {
   const interpreter = (harness.game.module as any).interpreter;
   let parsed: Parsed[] = [];
-  const clauseValues = interpreter.assetClauseValues.bind(interpreter);
-  interpreter.assetClauseValues = (clauses: Parsed[]) => {
+  const clauseValues = interpreter.assetClauses.bind(interpreter);
+  interpreter.assetClauses = (kind: string, clauses: Parsed[]) => {
     parsed = [...clauses];
-    return clauseValues(clauses);
+    return clauseValues(kind, clauses);
   };
   const seen: Seen[] = [];
   for (const name of ["createImageChunk", "createAudioChunk", "createLoadChunk", "createLayoutChunk", "createCutsceneChunk"]) {
@@ -564,6 +586,7 @@ function merged(readings: readonly Reading[]): Reading {
     all.valueErrors.push(...reading.valueErrors);
     all.flagArguments.push(...reading.flagArguments);
     all.implicitNames.push(...reading.implicitNames);
+    all.extraWiths.push(...reading.extraWiths);
     all.incompleteNavigate ||= reading.incompleteNavigate;
     all.clearWarning ||= reading.clearWarning;
     all.playArity ||= reading.playArity;
