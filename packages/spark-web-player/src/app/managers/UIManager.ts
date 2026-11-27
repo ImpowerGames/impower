@@ -2597,7 +2597,7 @@ export default class UIManager extends Manager {
       return;
     }
     if (!instant && startTime != null && instructions.length > 0) {
-      startTime += this.pausedAfter(this.getDisplayTime(startTime)!);
+      startTime += this.pausedAfter(startTime);
     }
     for (const el of targetEls) {
       if (

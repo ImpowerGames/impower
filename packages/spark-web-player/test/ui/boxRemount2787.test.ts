@@ -3,6 +3,8 @@ import type { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Coordinator } from "../../../spark-engine/src/game/core/classes/Coordinator";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
+import { BEAT_LEAD_MS } from "../../../spark-engine/src/game/core/utils/sharedClock";
+import { AudioClock } from "../../src/app/AudioClock";
 import { advanceTo, timeline, useTimedAnimations } from "./timedAnimation";
 
 const source = (body: string) => `define RAFFLES as character with
@@ -686,4 +688,147 @@ describe("a typing line keeps its reveal across a pause, however it is rewritten
     await toggle(h);
     expect(shown(h)).toBe(before);
   });
+});
+
+describe("a replayed line resumes where a line never replayed has got to (#2787)", () => {
+  const typed = (text: string) => [...text].map((t, i) => ({ text: t, after: i * 0.05 }));
+
+  const PAIR = source(`dialogue {
+    if expanded then
+      text.first
+    else
+      text.second
+    end
+  }
+  action {
+    text
+  }`);
+
+  const shownIn = (h: DOMHarness, box: string) =>
+    [...h.overlay.querySelectorAll<HTMLElement>(`.main .${box} .text_letter`)].filter((el) => {
+      const reveal = (el as any).__sdReveal;
+      return reveal
+        ? reveal.currentTime != null &&
+            reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+        : el.style.opacity === "1";
+    }).length;
+
+  const same = (h: DOMHarness) => {
+    expect(shownIn(h, "dialogue")).toBe(shownIn(h, "action"));
+    return shownIn(h, "action");
+  };
+
+  async function pair(
+    h: DOMHarness,
+    time: number,
+    sequence: { text: string; after?: number }[] = typed("slight problem"),
+    shown = 0,
+  ) {
+    const ui = h.game.module.ui;
+    void ui.text.change("line write", "dialogue", sequence, false, time, shown);
+    void ui.text.change("line write", "action", sequence, false, time, shown);
+    await flushMicrotasks(40);
+  }
+
+  async function opened(origin = 0) {
+    const h = createDOMHarness(PAIR, 0, { reactive: true });
+    await h.ready;
+    timed(h);
+    if (origin !== 0) {
+      (h.ui as any).app.audioClock = new AudioClock(origin, () => origin);
+    }
+    return h;
+  }
+
+  const pause = async (h: DOMHarness, from: number, to: number) => {
+    await at(from);
+    h.ui.onPause();
+    await at(to);
+    h.ui.onUnpause();
+  };
+
+  test("two pauses after the start", async () => {
+    const h = await opened();
+    await pair(h, 20);
+    await pause(h, 60, 400);
+    await pause(h, 450, 900);
+    await at(950);
+    await toggle(h);
+    const now = same(h);
+    expect(now).toBeGreaterThan(0);
+    expect(now).toBeLessThan("slight problem".length);
+    await at(1100);
+    same(h);
+  });
+
+  test("a start in the future, with no pause, is left where it is", async () => {
+    const h = await opened();
+    await pause(h, 10, 60);
+    await at(100);
+    await pair(h, 100 + BEAT_LEAD_MS);
+    await at(100 + BEAT_LEAD_MS + 100);
+    expect(shownIn(h, "action")).toBe(3);
+    await toggle(h);
+    expect(same(h)).toBe(3);
+  });
+
+  test("on a clock whose origin is not zero", async () => {
+    const origin = 1_700_000_000_000;
+    const h = await opened(origin);
+    await pause(h, 10, 60);
+    await at(100);
+    await pair(h, origin + 100 + BEAT_LEAD_MS);
+    await at(100 + BEAT_LEAD_MS + 100);
+    expect(shownIn(h, "action")).toBe(3);
+    await pause(h, 230, 730);
+    await toggle(h);
+    expect(same(h)).toBe(3);
+  });
+
+  test("a replay delivered while paused", async () => {
+    const h = await opened();
+    await pair(h, 20);
+    await at(100);
+    h.ui.onPause();
+    await at(400);
+    await toggle(h);
+    const held = same(h);
+    expect(held).toBeGreaterThan(0);
+    expect(held).toBeLessThan("slight problem".length);
+    await at(900);
+    expect(same(h)).toBe(held);
+    h.ui.onUnpause();
+    await at(1000);
+    same(h);
+  });
+
+  test("a shown reveal, whose first instructions show at once", async () => {
+    const h = await opened();
+    await pair(h, 20, [{ text: "prefix " }, ...typed("slight problem")], 1);
+    await pause(h, 100, 1100);
+    await toggle(h);
+    expect(h.overlay.querySelector(".main .dialogue .text.second")?.textContent).toBe(
+      "prefix slight problem",
+    );
+    const now = same(h);
+    expect(now).toBeGreaterThan(0);
+    expect(now).toBeLessThan("slight problem".length);
+  });
+
+  test("a reveal whose first letter waits, as a voiced line's does", async () => {
+    const h = await opened();
+    await pair(
+      h,
+      20,
+      [...typed("slight problem")].map((e) => ({ ...e, after: (e.after ?? 0) + 0.2 })),
+    );
+    await pause(h, 100, 600);
+    await at(800);
+    const live = shownIn(h, "action");
+    expect(live).toBeGreaterThan(0);
+    expect(live).toBeLessThan("slight problem".length);
+    await toggle(h);
+    expect(same(h)).toBe(live);
+  });
+
 });
