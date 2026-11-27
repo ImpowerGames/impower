@@ -81,6 +81,31 @@ const layeredShow = (key: string): WriteImageParams => ({
   ],
 });
 
+const TWIN = "/src/twin.svg";
+
+const twinShow = (key: string): WriteImageParams => ({
+  target: "portrait",
+  instant: false,
+  instructions: [
+    {
+      control: "show",
+      content: {
+        background: `url("${TWIN}"), url("${FACE}")`,
+        imageNames: "pair",
+        srcs: [FACE, TWIN],
+        pictures: [{ layer: 0, span: 2, name: "pair", vector: true, files: [{ src: FACE, name: "nova.svg" }, { src: TWIN, name: "twin.svg" }] }],
+        morph: {
+          plays: [
+            ...facePlays(`${key}-front`).map((play): MorphLayerPlay => ({ layer: 0, ...play })),
+            ...facePlays(`${key}-back`).map((play): MorphLayerPlay => ({ layer: 1, ...play })),
+          ],
+          epoch: 0,
+        },
+      },
+    },
+  ],
+});
+
 const pictureShow = (key: string): WriteImageParams => ({
   target: "portrait",
   instant: false,
@@ -302,6 +327,40 @@ describe("a morph on one layer of a multi-layer vector picture is drawn on the p
       artifact,
       FACE,
     );
+    expect(t.reports).not.toHaveBeenCalled();
+  });
+
+  test("two layers that each play their own morph are both drawn on the picture's one canvas from poses drawn before the beat", async () => {
+    const t = await setup();
+    t.beat([twinShow("nova-twin")], 25);
+    await until(() => t.events.includes("applied"), "the beat");
+    const applied = t.events.indexOf("applied");
+    expect(t.events.slice(applied + 1)).toEqual([]);
+    const layer = t.layer();
+    expect(layer.images.map((image: any) => [image.layer, image.poses?.index, image.poses?.still === layer.stills[0]])).toEqual([
+      [0, 0, true],
+      [1, 1, true],
+    ]);
+    expect(layer.images.every((image: any) => image.poses.sets[0].queue.length === 0 && image.poses.sets[0].frames.size > 0)).toBe(true);
+    expect(t.shadow()!.querySelectorAll("canvas")).toHaveLength(1);
+    expect(t.shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
+    const canvas = layer.stills[0].canvases[0].canvas as HTMLCanvasElement;
+    const made = t.rasterized.length;
+    const pixels = new Set(t.rasterized.map((entry) => entry.image));
+    t.playback.speak("nova", [[0, 1.2]]);
+    const seen = [new Set<string>(), new Set<string>()];
+    for (let i = 0; i < 60; i++) {
+      t.playback.advance(0.017);
+      await flushMicrotasks(2);
+      const draws = t.last(canvas)!.draws;
+      expect(draws).toHaveLength(2);
+      draws.forEach((draw, at) => {
+        expect(draw.src === [FACE, TWIN][at] || pixels.has(draw)).toBe(true);
+        seen[at]!.add(draw.src);
+      });
+    }
+    expect(seen.every((sources) => sources.size > 2)).toBe(true);
+    expect(t.rasterized).toHaveLength(made);
     expect(t.reports).not.toHaveBeenCalled();
   });
 
