@@ -120,7 +120,7 @@ describe("the scene table tells the arms of one decision from separate decisions
     const compiler = new SparkdownCompiler();
     compiler.configure({ files: [script(STATEMENTS), asset("image", "hall", "png"), asset("image", "dusk", "svg"), asset("image", "nova", "svg")] });
     const beats = compiler.compile({ textDocument: { uri: URI } }).program.sceneAssets!["start"]!.beats;
-    const [open, shut, later] = beats.map((beat) => beat.scope![0]!);
+    const [open, shut, later] = beats.map((beat) => beat.scope![0]!) as [[number, number], [number, number], [number, number]];
     expect(open[0]).toBe(shut[0]);
     expect(open[1]).not.toBe(shut[1]);
     expect(later[0]).not.toBe(open[0]);

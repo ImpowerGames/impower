@@ -160,7 +160,7 @@ describe("drawing ahead keeps to its budget, its layout and its owner (#2813)", 
     expect(t.outlines).toHaveLength(0);
     expect(t.playback.drawnAheadBytes()).toBe(100 * 100 * 4);
     let mounted = 0;
-    const observer = new t.win.MutationObserver((records) => {
+    const observer = new t.win.MutationObserver((records: MutationRecord[]) => {
       for (const record of records) mounted += Array.from(record.addedNodes).filter((node) => (node as HTMLElement).classList?.contains("instance")).length;
     });
     observer.observe(t.overlay, { childList: true, subtree: true });
