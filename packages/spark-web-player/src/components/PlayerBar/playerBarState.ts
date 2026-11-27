@@ -86,14 +86,13 @@ export const initialPlayerBarState: PlayerBarState = {
   beat: null,
 };
 
-export type RunButtonState = "run" | "stop" | "run-again";
+export type RunButtonState = "run" | "stop";
 
 export const runButtonState = (state: PlayerBarState): RunButtonState =>
-  state.launchState === "ended"
-    ? "run-again"
-    : state.playing
-      ? "stop"
-      : "run";
+  state.launchState === "ended" || state.playing ? "stop" : "run";
+
+export const restartShown = (state: PlayerBarState): boolean =>
+  state.launchState === "ended";
 
 export interface ReplayBeatState {
   shown: boolean;

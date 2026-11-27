@@ -31,7 +31,7 @@ const BAR = `
       <span class="transport-icon" data-icon="stop"></span>
     </button>
     <button type="button" class="toolbar-button transport-button">
-      <span class="transport-icon" data-icon="run-again"></span>
+      <span class="transport-icon" data-icon="restart"></span>
     </button>
     <button type="button" id="replay-beat-button" class="toolbar-button transport-button">
       <span class="transport-icon" data-icon="replay-beat"></span>
@@ -146,7 +146,7 @@ const paint = async (html: string, theme: Theme | null) => {
       htmlClasses: [...document.documentElement.classList],
       run: color('.transport-icon[data-icon="run"]'),
       stop: color('.transport-icon[data-icon="stop"]'),
-      runAgain: color('.transport-icon[data-icon="run-again"]'),
+      restart: color('.transport-icon[data-icon="restart"]'),
       replayBeat: color('.transport-icon[data-icon="replay-beat"]'),
       error: color("#location-items.error"),
       toolbarBorder: getComputedStyle(document.querySelector("#toolbar")!).borderTopColor,
@@ -188,7 +188,7 @@ describe("the Game Preview bar takes its Run, Stop and border colours from the V
     const bar = await paint(template, theme);
     const start = toRgb(theme["--vscode-debugIcon-startForeground"]);
     expect(bar.run).toBe(start);
-    expect(bar.runAgain).toBe(start);
+    expect(bar.restart).toBe(start);
     expect(bar.replayBeat).toBe(start);
     expect(bar.stop).toBe(toRgb(theme["--vscode-debugIcon-stopForeground"]));
     const border = toRgb(theme["--vscode-panel-border"]);
@@ -205,7 +205,7 @@ describe("the Game Preview bar takes its Run, Stop and border colours from the V
     const bar = await paint(standalone, null);
     expect(bar).toMatchObject({
       run: toRgb("#89d185"),
-      runAgain: toRgb("#89d185"),
+      restart: toRgb("#89d185"),
       replayBeat: toRgb("#89d185"),
       stop: toRgb("#f14c4c"),
       error: toRgb("#f14c4c"),

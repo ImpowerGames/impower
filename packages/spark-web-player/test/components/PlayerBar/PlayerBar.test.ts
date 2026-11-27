@@ -554,7 +554,7 @@ describe("PlayerBar Run button", () => {
     expect($("#run-button")).toBeNull();
   });
 
-  it("reads Run with no game, Stop while playing or paused, and Run again after the run ends", () => {
+  it("reads Run with no game and Stop for the whole run, with Restart beside it once the run ends", () => {
     const states: [string, PlayerBarState][] = [
       ["first load", initialPlayerBarState],
       ["preview", runState({ launchState: "preview" })],
@@ -588,31 +588,41 @@ describe("PlayerBar Run button", () => {
       const button = read($);
       expect(button.tag).toBe("BUTTON");
       expect(button.disabled).toBeNull();
-      return [label, button.name];
+      const restart = $("#restart-button");
+      return [label, button.name, restart?.tagName ?? null, restart?.textContent ?? null];
     });
     expect(names).toEqual([
-      ["first load", "Run"],
-      ["preview", "Run"],
-      ["playing", "Stop"],
-      ["paused", "Stop"],
-      ["ended", "Run again"],
-      ["stopped by an error", "Run again"],
+      ["first load", "Run", null, null],
+      ["preview", "Run", null, null],
+      ["playing", "Stop", null, null],
+      ["paused", "Stop", null, null],
+      ["ended", "Stop", "BUTTON", "Restart"],
+      ["stopped by an error", "Stop", "BUTTON", "Restart"],
     ]);
   });
 
   it("starts, stops and restarts through the host's handlers", () => {
     const onRun = vi.fn();
     const onStop = vi.fn();
-    const click = (state: PlayerBarState) => {
-      const $ = mount({ state, controls: { run: true }, onRun, onStop });
-      act(() => $("#run-button")!.click());
+    const onRestart = vi.fn();
+    const calls = () => [
+      onRun.mock.calls.length,
+      onStop.mock.calls.length,
+      onRestart.mock.calls.length,
+    ];
+    const click = (state: PlayerBarState, selector: string) => {
+      const $ = mount({ state, controls: { run: true }, onRun, onStop, onRestart });
+      act(() => $(selector)!.click());
     };
-    click(initialPlayerBarState);
-    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([1, 0]);
-    click(runState({ launchState: "play", run: 1 }));
-    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([1, 1]);
-    click(runState({ launchState: "ended", run: 1 }));
-    expect([onRun.mock.calls.length, onStop.mock.calls.length]).toEqual([2, 1]);
+    const ended = runState({ launchState: "ended", run: 1 });
+    click(initialPlayerBarState, "#run-button");
+    expect(calls()).toEqual([1, 0, 0]);
+    click(runState({ launchState: "play", run: 1 }), "#run-button");
+    expect(calls()).toEqual([1, 1, 0]);
+    click(ended, "#run-button");
+    expect(calls()).toEqual([1, 2, 0]);
+    click(ended, "#restart-button");
+    expect(calls()).toEqual([1, 2, 1]);
   });
 
   it("is disabled with the refusal as its tooltip and description when the program cannot run", () => {
