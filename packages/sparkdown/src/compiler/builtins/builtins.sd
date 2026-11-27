@@ -1722,6 +1722,10 @@ style layout_transitional {
   position = static
 }
 
+style layout_choices {
+  z_index = -1
+}
+
 style layout_textbox {
   z_index = -1
 }
@@ -3927,26 +3931,6 @@ layout main {
 }
 
 screen textbox {
-  choices {
-    choice.0 #clear {
-      text
-    }
-    choice.1 #clear {
-      text
-    }
-    choice.2 #clear {
-      text
-    }
-    choice.3 #clear {
-      text
-    }
-    choice.4 #clear {
-      text
-    }
-    choice.5 #clear {
-      text
-    }
-  }
   textbox {
     textbox_background
     textbox_content {
@@ -4003,7 +3987,27 @@ layout transitional in textbox {
   }
 }
 
-layout choices in textbox {
+layout choices {
+  choices {
+    choice.0 #clear {
+      text
+    }
+    choice.1 #clear {
+      text
+    }
+    choice.2 #clear {
+      text
+    }
+    choice.3 #clear {
+      text
+    }
+    choice.4 #clear {
+      text
+    }
+    choice.5 #clear {
+      text
+    }
+  }
 }
 
 layout textstream {

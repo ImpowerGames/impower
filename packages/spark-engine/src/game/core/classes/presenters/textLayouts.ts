@@ -26,7 +26,7 @@ const DIALOGUE_BOX_ELEMENTS: readonly string[] = ["textbox", "dialogue"];
 
 const MENU_ELEMENT = "choice";
 
-const MENU_LAYOUT = "choices";
+export const MENU_LAYOUT = "choices";
 
 type LayoutReader = Pick<Game["module"]["ui"], "layoutHolds">;
 
@@ -155,12 +155,12 @@ export function opensTextLayout(
     return false;
   }
   const ui = game.module.ui;
-  const targets = beatTargets(instructions);
-  const holds = (names: string[]) =>
-    names.some((name) => ui.layoutHolds(name, targets));
-  return (
-    !holds(ui.openedLayoutsAfter([])) &&
-    holds(ui.openedLayoutsAfter(layoutEvents(instructions)))
+  const before = ui.openedLayoutsAfter([]);
+  const after = ui.openedLayoutsAfter(layoutEvents(instructions));
+  const holds = (names: string[], target: string) =>
+    names.some((name) => ui.layoutHolds(name, [target]));
+  return beatTargets(instructions).some(
+    (target) => !holds(before, target) && holds(after, target),
   );
 }
 
@@ -184,20 +184,34 @@ function takesTime(instructions: Instructions): boolean {
   );
 }
 
-function lineKind(
-  instructions: Instructions,
-): { element: string; layout: string } | undefined {
+interface TextKind {
+  element: string;
+  layout: string;
+}
+
+const MENU_KIND: TextKind = { element: MENU_ELEMENT, layout: MENU_LAYOUT };
+
+function lineKind(instructions: Instructions): TextKind | undefined {
   const line = Object.keys(instructions.text ?? {}).find(
     (target) =>
       !SPEAKER_TARGETS.includes(target) && !target.startsWith("choice "),
   );
-  if (line) {
-    const name = elementName(line);
-    return { element: name, layout: name };
+  if (!line) {
+    return undefined;
   }
-  return (instructions.choices?.length ?? 0) > 0
-    ? { element: MENU_ELEMENT, layout: MENU_LAYOUT }
-    : undefined;
+  const name = elementName(line);
+  return { element: name, layout: name };
+}
+
+function beatKinds(instructions: Instructions): TextKind[] {
+  if (!showsText(instructions)) {
+    return [];
+  }
+  const line = lineKind(instructions);
+  return [
+    ...(line ? [line] : []),
+    ...((instructions.choices?.length ?? 0) > 0 ? [MENU_KIND] : []),
+  ];
 }
 
 function opensByItself(
@@ -214,34 +228,84 @@ function opensByItself(
   );
 }
 
+function isMenu(instructions: Instructions): boolean {
+  const kinds = beatKinds(instructions);
+  return kinds.length === 1 && kinds[0] === MENU_KIND;
+}
+
+export function keptThroughMenu(
+  game: Game,
+  instructions: Instructions,
+  targets: readonly string[],
+): string[] {
+  if (!isMenu(instructions)) {
+    return [];
+  }
+  const ui = game.module.ui;
+  const open = ui.openedLayoutsAfter(layoutEvents(instructions));
+  if (open.includes(TEXTSTREAM_LAYOUT)) {
+    return [];
+  }
+  const menus = open.filter((name) => ui.layoutHolds(name, [MENU_ELEMENT]));
+  return targets.filter(
+    (target) =>
+      !menus.some((name) => ui.layoutHolds(name, [elementName(target)])),
+  );
+}
+
+export function menuLeavesWithItsLayout(game: Game): boolean {
+  return game.module.ui.autoLayoutsAfter([]).includes(MENU_LAYOUT);
+}
+
+export function closeMenuAtEnd(game: Game, instant: boolean): void {
+  if (menuLeavesWithItsLayout(game)) {
+    void game.module.ui.applyLayoutInstructions(
+      [{ control: LayoutVerb.close, name: MENU_LAYOUT, auto: true }],
+      instant,
+    );
+  }
+}
+
 export function routeLine(game: Game, instructions: Instructions): Instructions {
   const ui = game.module.ui;
   if (!game.program?.sparkle?.layouts) {
     return instructions;
   }
   const events = layoutEvents(instructions);
-  const auto = ui.autoLayoutAfter(events);
-  const kind = showsText(instructions) ? lineKind(instructions) : undefined;
+  const autos = ui.autoLayoutsAfter(events);
+  const kinds = beatKinds(instructions);
   const routed: LayoutInstruction[] = [];
-  if (!kind) {
-    if (auto && !instructions.extended && takesTime(instructions)) {
-      routed.push({ control: LayoutVerb.close, name: auto, auto: true });
+  const close = (name: string) =>
+    routed.push({ control: LayoutVerb.close, name, auto: true });
+  if (kinds.length === 0) {
+    const closesBox = !instructions.extended && takesTime(instructions);
+    for (const auto of autos) {
+      if (closesBox || auto === MENU_LAYOUT) {
+        close(auto);
+      }
     }
   } else {
     const open = ui.openedLayoutsAfter(events);
-    const holders = open.filter(
-      (name) =>
-        name === TEXTSTREAM_LAYOUT || ui.layoutHolds(name, [kind.element]),
-    );
-    if (auto && !holders.includes(auto)) {
-      routed.push({ control: LayoutVerb.close, name: auto, auto: true });
+    const closedScreens = ui.screensClosedAfter(events);
+    const holdersOf = (kind: TextKind) =>
+      open.includes(TEXTSTREAM_LAYOUT)
+        ? [TEXTSTREAM_LAYOUT]
+        : open.filter((name) => ui.layoutHolds(name, [kind.element]));
+    const holders = new Set(kinds.flatMap(holdersOf));
+    const menuOnly = isMenu(instructions);
+    for (const auto of autos) {
+      if (!holders.has(auto) && (!menuOnly || auto === MENU_LAYOUT)) {
+        close(auto);
+      }
     }
-    if (
-      holders.length === 0 &&
-      !open.includes(kind.layout) &&
-      opensByItself(game, kind.layout, ui.screensClosedAfter(events))
-    ) {
-      routed.push({ control: LayoutVerb.open, name: kind.layout, auto: true });
+    for (const kind of kinds) {
+      if (
+        holdersOf(kind).length === 0 &&
+        !open.includes(kind.layout) &&
+        opensByItself(game, kind.layout, closedScreens)
+      ) {
+        routed.push({ control: LayoutVerb.open, name: kind.layout, auto: true });
+      }
     }
   }
   if (routed.length === 0) {

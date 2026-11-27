@@ -343,6 +343,7 @@ interface Retirement {
   held: Set<string>;
   element: Element;
   epoch: number;
+  root: Element | undefined;
   pin?: string;
 }
 
@@ -795,6 +796,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = {};
 
   protected _clearOnContinue: Set<string> = new Set();
+
+  protected _keptThroughConnect: string[] = [];
 
   protected _contentSlots: Set<string> = new Set();
 
@@ -1343,7 +1346,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       void this._game.module.assets?.prepareLayout("main");
       this.constructLayouts();
     }
-    const transientTargets = this.getTransientTargets();
+    const kept = this._keptThroughConnect;
+    this._keptThroughConnect = [];
+    const transientTargets = this.getTransientTargets().filter(
+      (target) => !kept.includes(target),
+    );
     const saved = this.savedElements();
     const emptySlots = [...this._contentSlots].filter(
       (target) => !this.holdsSaved(target, saved),
@@ -2794,6 +2801,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       held: this.heldNames(element),
       element,
       epoch: this._game.connection.epoch,
+      root: this._root,
       ...(pin ? { pin } : {}),
     };
     element.remove();
@@ -6102,6 +6110,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         held: this.heldNames(element),
         element,
         epoch: this._game.connection.epoch,
+        root: this._root,
         pin: this._game.module.assets?.retireLayout(name),
       };
       this._mountedLayouts.delete(name);
@@ -6138,7 +6147,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._retiring.has(r)) {
       return;
     }
-    if (this.superseded(r.epoch)) {
+    if (this.superseded(r.epoch) && r.root !== this._root) {
       this._retiring.delete(r);
     } else {
       this.flushUIBatch();
@@ -6544,12 +6553,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return closed ?? [];
   }
 
-  autoLayoutAfter(instructions: LayoutInstruction[]): string | undefined {
+  autoLayoutsAfter(instructions: LayoutInstruction[]): string[] {
     let state = this._state.layout;
     for (const e of instructions) {
       state = this.nextLayoutState(state, e);
     }
-    return state?.find((s) => s.auto)?.name;
+    return (state ?? []).filter((s) => s.auto).map((s) => s.name);
   }
 
   protected reportUnknownLayoutVerb(verb: never): void {
@@ -6882,6 +6891,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Array.from(this._clearOnContinue.values());
   }
 
+  savedTargets(): string[] {
+    return [
+      ...new Set([
+        ...Object.keys(this._state.text ?? {}),
+        ...Object.keys(this._state.image ?? {}),
+      ]),
+    ];
+  }
+
+  keepThroughConnect(targets: string[]): void {
+    this._keptThroughConnect = targets;
+  }
+
   textElements(target: string): Element[] {
     return this.findElements(target, true);
   }
@@ -7099,8 +7121,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
-      this.markHandler(targetEl);
       if (callback) {
+        this.markHandler(targetEl);
         this.enqueueUI(
           ObserveElementMessage.type.notification({
             element: targetEl.id,
@@ -7113,6 +7135,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._events[event]![targetEl.id] = callback as (event: Event) => any;
       } else {
         delete this._events[event]?.[targetEl.id];
+        if (
+          !Object.values(this._events).some(
+            (handlers) => handlers && Object.hasOwn(handlers, targetEl.id),
+          )
+        ) {
+          this.updateElement(targetEl, {
+            attributes: { [HANDLER_ATTRIBUTE]: null },
+          });
+        }
         this.enqueueUI(
           UnobserveElementMessage.type.notification({
             element: targetEl.id,

@@ -151,6 +151,11 @@ const FANCY_TEXTBOX = `style textbox {
 }
 `;
 
+const FANCY_CHOICES = `style choices {
+  font_family = "Fancy"
+}
+`;
+
 const ACTION_FIRST = `define ui as config with
   layouts_initial = { "textbox", "action" }
 end
@@ -233,7 +238,7 @@ end
   test.each([
     ["with a font to load", FONTS],
     ["with no font to load", []],
-  ])("a line shown while the textbox layout mounts leaves its empty choice slots hidden, %s", async (_name, assets) => {
+  ])("a line shown while the textbox layout mounts shows no choice slots, %s", async (_name, assets) => {
     const h = createHarness(`${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`, 0, {
       reactive: true,
       autoOpenAll: false,
@@ -249,12 +254,38 @@ end
     await playLive(h, release);
     expect(mounted(h)).toEqual(["main", "action"]);
     expect(shown(h, "action")).toBe("First line.");
-    const slots = h.game.module.ui.findIds("choice");
-    expect(slots).toHaveLength(6);
-    expect(slots.map((id) => displayOf(h, id))).toEqual(slots.map(() => "none"));
+    expect(h.game.module.ui.findIds("choice")).toEqual([]);
   });
 
-  test("previewing a line while the textbox layout's font loads leaves its empty choice slots hidden", async () => {
+  test.each([
+    ["with a font to load", FONTS],
+    ["with no font to load", []],
+  ])("a menu shown while the choices layout mounts leaves its empty choice slots hidden, %s", async (_name, assets) => {
+    const h = createHarness(
+      `${FANCY_CHOICES}\nscene start\n  choose\n    + [Only.]\n      Done.\n  end\nend\n`,
+      0,
+      { reactive: true, autoOpenAll: false, holdAssets: true, assets },
+    );
+    const release = async () => {
+      h.releaseAssets();
+      await flushMicrotasks(20);
+    };
+    await release();
+    await h.ready;
+    h.jumpToFlow("start");
+    const coordinator = new Coordinator(h.game, h.nextBeat()!);
+    for (let i = 0; i < 5; i += 1) {
+      await release();
+      coordinator.onUpdate({ deltaMS: 0 } as Clock);
+    }
+    expect(mounted(h)).toEqual(["main", "choices"]);
+    const slots = h.game.module.ui.findIds("choice");
+    expect(slots).toHaveLength(6);
+    expect(displayOf(h, slots[0]!)).not.toBe("none");
+    expect(slots.slice(1).map((id) => displayOf(h, id))).toEqual(Array(5).fill("none"));
+  });
+
+  test("previewing a line while the textbox layout's font loads shows no choice slots", async () => {
     const source = `${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`;
     const line = lineOf(source, "First line.");
     const h = createHarness(source, line, {
@@ -280,16 +311,14 @@ end
     await previewing;
     expect(mounted(h)).toEqual(["main", "action"]);
     expect(shown(h, "action")).toBe("First line.");
-    const slots = h.game.module.ui.findIds("choice");
-    expect(slots).toHaveLength(6);
-    expect(slots.map((id) => displayOf(h, id))).toEqual(slots.map(() => "none"));
+    expect(h.game.module.ui.findIds("choice")).toEqual([]);
   });
 
   test.each([
     ["with a font to load", FONTS],
     ["with no font to load", []],
-  ])("restoring a save with the textbox open leaves its empty choice slots hidden, %s", async (_name, assets) => {
-    const source = `${FANCY_TEXTBOX}\nscene start\n  First line.\nend\n`;
+  ])("restoring a save with the choices layout open leaves its empty choice slots hidden, %s", async (_name, assets) => {
+    const source = `${FANCY_CHOICES}\nscene start\n  choose\n    + [Only.]\n      Done.\n  end\nend\n`;
     const h = createHarness(source, 0, {
       reactive: true,
       autoOpenAll: false,
@@ -299,10 +328,10 @@ end
     await h.ready;
     h.jumpToFlow("start");
     await displayLive(h, h.nextBeat()!);
-    expect(mounted(h)).toEqual(["main", "action"]);
-    expect(h.game.module.ui.findIds("choice").map((id) => displayOf(h, id))).toEqual(
-      Array(6).fill("none"),
-    );
+    expect(mounted(h)).toEqual(["main", "choices"]);
+    const shownSlots = h.game.module.ui.findIds("choice");
+    expect(displayOf(h, shownSlots[0]!)).not.toBe("none");
+    expect(shownSlots.slice(1).map((id) => displayOf(h, id))).toEqual(Array(5).fill("none"));
     const restored = createHarness(source, 0, {
       reactive: true,
       autoOpenAll: false,
@@ -312,9 +341,10 @@ end
     });
     await restored.ready;
     await flushMicrotasks(150);
+    expect(mounted(restored)).toEqual(["main", "choices"]);
     const slots = restored.game.module.ui.findIds("choice");
     expect(slots).toHaveLength(6);
-    expect(slots.map((id) => displayOf(restored, id))).toEqual(Array(6).fill("none"));
+    expect(slots.slice(1).map((id) => displayOf(restored, id))).toEqual(Array(5).fill("none"));
   });
 
   const SHARED_TARGETS = `define red as image with
@@ -623,7 +653,7 @@ end
 
   test("an observation cancelled while the layout waits for its font never fires", async () => {
     const h = createHarness(
-      `${FANCY_TEXTBOX}
+      `${FANCY_CHOICES}
 scene start
   Hello.
 end
@@ -894,9 +924,37 @@ end
     expect(unshown()).toBe(1);
   });
 
-  test("a choice with no open text layout waits for a pick and the play log says so", async () => {
+  test("a menu with the textbox screen closed still opens choices, which stands outside the screen", async () => {
     const source = `${NO_INITIAL_LAYOUTS}\nscene start\n  choose\n    * [Stay.]\n      Stayed.\n    * [Leave.]\n      Left.\n  end\nend\n`;
     const { h, unshown } = await previewAt(source, 5);
+    expect(h.game.story.currentChoices.map((c) => c.text)).toEqual([
+      "Stay.",
+      "Leave.",
+    ]);
+    expect(mounted(h)).toEqual(["main", "choices"]);
+    expect(h.game.module.ui.findIds("choice 1")).toHaveLength(1);
+    expect(unshown()).toBe(0);
+  });
+
+  test("a choice with no layout that can show it waits for a pick and the play log says so", async () => {
+    const source = `${NO_INITIAL_LAYOUTS}
+layout choices in textbox {
+  choices {
+    choice.0 #clear { text }
+    choice.1 #clear { text }
+  }
+}
+
+scene start
+  choose
+    * [Stay.]
+      Stayed.
+    * [Leave.]
+      Left.
+  end
+end
+`;
+    const { h, unshown } = await previewAt(source, lineOf(source, "  choose"));
     expect(h.game.story.currentChoices.map((c) => c.text)).toEqual([
       "Stay.",
       "Leave.",

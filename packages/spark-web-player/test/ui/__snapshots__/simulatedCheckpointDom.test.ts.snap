@@ -831,6 +831,9 @@ spark-web-player #game .layout_heading {
 spark-web-player #game .layout_transitional {
   position: static;
 }
+spark-web-player #game .layout_choices {
+  z-index: -1;
+}
 spark-web-player #game .layout_textbox {
   z-index: -1;
 }
@@ -2509,96 +2512,6 @@ spark-web-player #game .textstream_end {
                 {
                   "children": [
                     {
-                      "attrs": {
-                        "data-display-target": "choice",
-                      },
-                      "children": [
-                        {
-                          "class": "text",
-                          "tag": "div",
-                        },
-                      ],
-                      "class": "choice 0",
-                      "style": "display: none;",
-                      "tag": "div",
-                    },
-                    {
-                      "attrs": {
-                        "data-display-target": "choice",
-                      },
-                      "children": [
-                        {
-                          "class": "text",
-                          "tag": "div",
-                        },
-                      ],
-                      "class": "choice 1",
-                      "style": "display: none;",
-                      "tag": "div",
-                    },
-                    {
-                      "attrs": {
-                        "data-display-target": "choice",
-                      },
-                      "children": [
-                        {
-                          "class": "text",
-                          "tag": "div",
-                        },
-                      ],
-                      "class": "choice 2",
-                      "style": "display: none;",
-                      "tag": "div",
-                    },
-                    {
-                      "attrs": {
-                        "data-display-target": "choice",
-                      },
-                      "children": [
-                        {
-                          "class": "text",
-                          "tag": "div",
-                        },
-                      ],
-                      "class": "choice 3",
-                      "style": "display: none;",
-                      "tag": "div",
-                    },
-                    {
-                      "attrs": {
-                        "data-display-target": "choice",
-                      },
-                      "children": [
-                        {
-                          "class": "text",
-                          "tag": "div",
-                        },
-                      ],
-                      "class": "choice 4",
-                      "style": "display: none;",
-                      "tag": "div",
-                    },
-                    {
-                      "attrs": {
-                        "data-display-target": "choice",
-                      },
-                      "children": [
-                        {
-                          "class": "text",
-                          "tag": "div",
-                        },
-                      ],
-                      "class": "choice 5",
-                      "style": "display: none;",
-                      "tag": "div",
-                    },
-                  ],
-                  "class": "choices",
-                  "tag": "div",
-                },
-                {
-                  "children": [
-                    {
                       "class": "textbox_background",
                       "tag": "div",
                     },
@@ -3251,11 +3164,6 @@ spark-web-player #game .textstream_end {
                           "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },
-                        {
-                          "class": "layout_choices",
-                          "style": "display: flex; flex-direction: column;",
-                          "tag": "div",
-                        },
                       ],
                       "class": "textbox_content",
                       "tag": "div",
@@ -3284,6 +3192,103 @@ spark-web-player #game .textstream_end {
                 },
               ],
               "class": "screen_textbox",
+              "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
+              "tag": "div",
+            },
+            {
+              "children": [
+                {
+                  "children": [
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 0",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 1",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 2",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 3",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 4",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                    {
+                      "attrs": {
+                        "data-display-target": "choice",
+                      },
+                      "children": [
+                        {
+                          "class": "text",
+                          "tag": "div",
+                        },
+                      ],
+                      "class": "choice 5",
+                      "style": "display: none;",
+                      "tag": "div",
+                    },
+                  ],
+                  "class": "choices",
+                  "tag": "div",
+                },
+              ],
+              "class": "layout_choices",
               "style": "position: absolute; inset: 0px; display: flex; flex-direction: column;",
               "tag": "div",
             },
