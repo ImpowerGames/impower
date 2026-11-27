@@ -2879,6 +2879,9 @@ export default class UIManager extends Manager {
           instruction.targetAnimations,
         );
         const targetAnimations = targetEffects.flatMap((e) => after.add(e));
+        if (instruction.control === "show") {
+          this._presence.shows(targetAnimations);
+        }
         if (instruction.affected) {
           for (const a of instruction.affected) {
             for (const el of this.findTargetElements(a.target)) {

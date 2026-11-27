@@ -36,23 +36,44 @@ const open = async (): Promise<Page> => {
   return page;
 };
 
-type Effect = { keyframes: Keyframe[]; duration: number };
+interface Held {
+  keyframes: Keyframe[];
+  duration: number;
+  show?: boolean;
+  running?: boolean;
+}
 
-const SHOW_PIN: Effect = { keyframes: [{ opacity: "1" }], duration: 0 };
-const FADE_IN: Effect = { keyframes: [{ opacity: "0" }, { opacity: "1" }], duration: 30 };
-const HALF: Effect = { keyframes: [{ transform: "scale(0.5)" }], duration: 0 };
+const SHOW_PIN: Held = { keyframes: [{ opacity: "1" }], duration: 0, show: true };
+const FADE_IN: Held = {
+  keyframes: [
+    { opacity: "0", offset: 0, easing: "ease-in" },
+    { opacity: "1", offset: 1 },
+  ],
+  duration: 30,
+  show: true,
+};
+const DIM: Held = { keyframes: [{ opacity: "0.5" }], duration: 0 };
+const HALF: Held = { keyframes: [{ transform: "scale(0.5)" }], duration: 0 };
+const PULSE: Held = { keyframes: [{ opacity: "0.2" }, { opacity: "0.2" }], duration: 60_000, running: true };
+const SHRINK_FADE: Held = { keyframes: [{ opacity: "0.5", transform: "scale(0.5)" }], duration: 0 };
 
-const arrive = (page: Page, held: Effect[], presence: "show" | "hide" = "show") =>
+const arrive = (page: Page, held: Held[], presence: "show" | "hide" = "show") =>
   page.evaluate(
     async ({ held, presence }) => {
       const el = document.getElementById("portrait")!;
-      for (const { keyframes, duration } of held) {
-        el.animate(keyframes, { duration, fill: "both" }).finish();
+      const hold = { add: () => new Promise(() => {}) };
+      const player = new (window as any).PresencePlayer(hold, () => false);
+      for (const { keyframes, duration, show, running } of held) {
+        const animation = el.animate(keyframes, { duration, fill: "both" });
+        if (!running) {
+          animation.finish();
+        }
+        if (show) {
+          player.shows?.([animation]);
+        }
       }
       el.setAttribute("data-presence", presence === "show" ? "initial" : "show");
       void getComputedStyle(el).opacity;
-      const hold = { add: () => new Promise(() => {}) };
-      const player = new (window as any).PresencePlayer(hold, () => false);
       void player.play(el, presence);
       const fades = document
         .getAnimations()
@@ -84,7 +105,7 @@ describe("an arriving picture takes its @initial look and fades to its settled l
     await page.close();
   });
 
-  test("a picture whose layer finished a timed fade-in still fades in from @initial when it returns", async () => {
+  test("a picture whose layer finished a timed fade-in, with offsets and an easing, still fades in from @initial when it returns", async () => {
     const page = await open();
     const result = await arrive(page, [FADE_IN, SHOW_PIN]);
     expect(result.fading).toBe(1);
@@ -92,13 +113,54 @@ describe("an arriving picture takes its @initial look and fades to its settled l
     await page.close();
   });
 
-  test("an author's own finished transform on the picture stays through the arrival", async () => {
+  test("an author's finished transform on the picture, a separate animation from its opacity, stays through the arrival", async () => {
     const page = await open();
     const result = await arrive(page, [HALF, SHOW_PIN]);
     expect(result.opacity).toEqual([0, 0.5, 1]);
     expect(result.transform).toBe("matrix(0.5, 0, 0, 0.5, 0, 0)");
     expect(result.width).toBe(100);
     expect(result.held).toBe(1);
+    await page.close();
+  });
+
+  test("an author's dim on a picture before its new show settles at the show's opacity, as the newer show already makes it", async () => {
+    const page = await open();
+    const result = await arrive(page, [DIM, SHOW_PIN]);
+    expect(result.opacity).toEqual([0, 0.5, 1]);
+    expect(result.held).toBe(0);
+    await page.close();
+  });
+
+  test("an author's dim on an element no picture show reached stays through its arrival", async () => {
+    const page = await open();
+    const result = await arrive(page, [DIM]);
+    expect(result.opacity).toEqual([0.5, 0.5, 0.5]);
+    expect(result.held).toBe(1);
+    await page.close();
+  });
+
+  test("an author's dim after the picture's show stays through the arrival", async () => {
+    const page = await open();
+    const result = await arrive(page, [SHOW_PIN, DIM]);
+    expect(result.opacity).toEqual([0.5, 0.5, 0.5]);
+    expect(result.held).toBe(1);
+    await page.close();
+  });
+
+  test("an opacity animation still running under the picture's show leaves every animation as it was", async () => {
+    const page = await open();
+    const result = await arrive(page, [PULSE, SHOW_PIN]);
+    expect(result.opacity).toEqual([1, 1, 1]);
+    expect(result.held).toBe(2);
+    await page.close();
+  });
+
+  test("a finished animation of opacity and another property under the picture's show leaves every animation as it was", async () => {
+    const page = await open();
+    const result = await arrive(page, [SHRINK_FADE, SHOW_PIN]);
+    expect(result.opacity).toEqual([1, 1, 1]);
+    expect(result.transform).toBe("matrix(0.5, 0, 0, 0.5, 0, 0)");
+    expect(result.held).toBe(2);
     await page.close();
   });
 

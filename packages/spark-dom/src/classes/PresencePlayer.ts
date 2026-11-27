@@ -38,14 +38,20 @@ const moves = (animation: Animation): boolean => {
 
 const KEYFRAME_TIMING = new Set(["offset", "computedOffset", "easing", "composite"]);
 
-const setsOnlyOpacity = (effect: KeyframeEffect): boolean => {
-  const properties = new Set(
-    (effect.getKeyframes?.() ?? []).flatMap((keyframe) =>
+const keyframeProperties = (effect: KeyframeEffect | null): Set<string> =>
+  new Set(
+    (effect?.getKeyframes?.() ?? []).flatMap((keyframe) =>
       Object.keys(keyframe).filter((key) => !KEYFRAME_TIMING.has(key)),
     ),
   );
+
+const setsOnlyOpacity = (effect: KeyframeEffect): boolean => {
+  const properties = keyframeProperties(effect);
   return properties.size === 1 && properties.has("opacity");
 };
+
+const setsOpacity = (animation: Animation): boolean =>
+  keyframeProperties(animation.effect as KeyframeEffect | null).has("opacity");
 
 const carry = (
   animation: Animation,
@@ -75,6 +81,8 @@ export default class PresencePlayer {
   protected _carried = new Map<Element, Animation[]>();
 
   protected _plays = new WeakMap<Element, object>();
+
+  protected _shows = new WeakSet<Animation>();
 
   constructor(
     protected hold: AnimationHold,
@@ -164,23 +172,37 @@ export default class PresencePlayer {
     this.release(element, carried);
   }
 
+  shows(animations: readonly Animation[]): void {
+    for (const animation of animations) {
+      this._shows.add(animation);
+    }
+  }
+
   protected unpin(element: Element): void {
     const animated = element as Animated;
     if (typeof animated.getAnimations !== "function") {
       return;
     }
-    for (const animation of animated.getAnimations()) {
+    const held = animated.getAnimations();
+    const shown = held.findLastIndex((animation) => this._shows.has(animation));
+    const outranked = held
+      .slice(0, shown + 1)
+      .filter((animation) => !styleDriven(animation) && setsOpacity(animation));
+    const pinned = (animation: Animation) => {
       const effect = animation.effect as KeyframeEffect | null;
       const fill = effect?.getTiming?.().fill;
-      if (
-        !styleDriven(animation) &&
+      return (
         effect?.target === element &&
         animation.playState === "finished" &&
         (fill === "both" || fill === "forwards") &&
         setsOnlyOpacity(effect)
-      ) {
-        animation.cancel();
-      }
+      );
+    };
+    if (!outranked.every(pinned)) {
+      return;
+    }
+    for (const animation of outranked) {
+      animation.cancel();
     }
   }
 
