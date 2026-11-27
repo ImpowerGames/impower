@@ -117,3 +117,52 @@ describe("a line with one `with` plays the same whichever side of the `with` its
     expect(instruction.targetAnimations.map(timing)).toEqual([expect.objectContaining({ name: "shake", duration: "1s" })]);
   });
 });
+
+describe("every `with` plays wherever an `animate` line's instruction is read (I-2853)", () => {
+  it("an `animate` line that names a picture plays every `with` on the layer, together", async () => {
+    const { instruction } = await played("animate portrait bunny with shake over 1s with spin over 5s");
+    expect(instruction.content.enterAnimation).toBeUndefined();
+    expect(instruction.targetAnimations.map(timing)).toEqual([
+      expect.objectContaining({ name: "shake", duration: "1s" }),
+      expect.objectContaining({ name: "spin", duration: "5s" }),
+    ]);
+  });
+
+  it("an `animate` line that names a picture and one `with` still plays it on the picture", async () => {
+    const { instruction } = await played("animate portrait bunny with spin over 5s");
+    expect(timing(instruction.content.enterAnimation)).toEqual(expect.objectContaining({ name: "spin", duration: "5s" }));
+    expect(instruction.targetAnimations ?? []).toEqual([]);
+  });
+
+  it("a save written when a layer's `with` was one name restores that animation", async () => {
+    const h: Harness = createHarness("scene start\n  [[show portrait bunny]]\n  One.\nend\n", 0, { assets: ASSETS });
+    await h.ready;
+    h.jumpToFlow("start");
+    await h.display(h.nextBeat()!, true);
+    await flushMicrotasks();
+    const saved = JSON.parse(h.game.save());
+    saved.modules.ui.image.portrait = [
+      { control: "show", assets: ["bunny"], over: 0 },
+      { control: "animate", with: "fadeout", over: 0 },
+    ];
+    await h.game.module.ui.load(saved.modules.ui);
+    h.reset();
+    await (h.game.module.ui as any).onRestore();
+    await flushMicrotasks();
+    const restored = h.messages.filter((m: any) => m?.method === "ui/write-image" && m.params?.target === "portrait").at(-1)?.params;
+    const names = restored.instructions.flatMap((i: any) => i.targetAnimations ?? []).map((a: any) => a.$name);
+    expect(names).toContain("fadeout");
+  });
+
+  it("a `with` without its own `over` plays and waits for its definition's length on a layer whose typewriter fades", async () => {
+    const h: Harness = createHarness("define portrait as typewriter with\n  fade_duration = 5\nend\nscene start\n  Hi.\nend\n", 0, {
+      assets: ASSETS,
+    });
+    await h.ready;
+    const beat = h.game.module.interpreter.parse("[[animate portrait with shake with spin over 2s once wait]] Hello", "main", {} as any);
+    const entries = beat.image!["portrait"]![0]!.with!;
+    expect(entries.map((entry) => entry.over)).toEqual([undefined, 2]);
+    const firstLetter = Object.values(beat.text ?? {}).flat()[0] as { after?: number };
+    expect(firstLetter.after).toBe(2);
+  });
+});

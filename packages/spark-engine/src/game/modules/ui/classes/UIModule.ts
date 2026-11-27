@@ -5774,8 +5774,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  withEntries(e: { with?: WithInstruction[] }): WithInstruction[] {
+    const written: unknown = e.with;
+    return Array.isArray(written)
+      ? written
+      : typeof written === "string" && written
+        ? [{ name: written }]
+        : [];
+  }
+
   playedWith(e: { with?: WithInstruction[] }): WithInstruction | undefined {
-    return Array.isArray(e.with) ? e.with.at(-1) : undefined;
+    return this.withEntries(e).at(-1);
   }
 
   withTiming(entry: WithInstruction): {
@@ -7409,7 +7418,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               targetAnimations.push(animation);
             }
           }
-          const entries = Array.isArray(e.with) ? e.with : [];
+          const entries = $.withEntries(e);
           const played = entries.at(-1);
           const timing = played
             ? $.withTiming(played)
@@ -7473,9 +7482,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : over;
           const hideEase = timing.ease;
           const assets = e.assets;
-          const animatesLayer =
-            e.control === "animate" && !(assets && assets.length > 0);
-          for (const entry of animatesLayer ? entries : played ? [played] : []) {
+          for (const entry of e.control === "animate" ? entries : played ? [played] : []) {
             const entryTransition = $.context?.transition?.[entry.name];
             if (!entryTransition) {
               continue;
@@ -7620,6 +7627,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               );
               if (exitAnimation) {
                 content.exitAnimation = exitAnimation;
+              }
+            } else if (e.control === "animate" && entries.length > 1) {
+              for (const entry of entries) {
+                const animation = $.getAnimationDefinition(
+                  { name: entry.name, ...$.withTiming(entry) },
+                  instant,
+                );
+                if (animation) {
+                  targetAnimations.push(animation);
+                }
               }
             } else if (e.control === "animate") {
               const showEvent = {

@@ -992,18 +992,12 @@ export class InterpreterModule extends Module<
   protected timedEntries(
     entries: readonly WithInstruction[],
     time: number,
-    over?: number,
   ): WithInstruction[] {
-    return entries.map((entry) => {
-      const timed: WithInstruction = { ...entry };
-      if (time || entry.after != null) {
-        timed.after = time + (entry.after ?? 0);
-      }
-      if (entry.over == null && over) {
-        timed.over = over;
-      }
-      return timed;
-    });
+    return entries.map((entry) =>
+      time || entry.after != null
+        ? { ...entry, after: time + (entry.after ?? 0) }
+        : { ...entry },
+    );
   }
 
   plainText(content: string): string {
@@ -1755,7 +1749,7 @@ export class InterpreterModule extends Module<
               event.over = fadeDuration;
             }
             if (c.with) {
-              event.with = this.timedEntries(c.with, time, fadeDuration);
+              event.with = this.timedEntries(c.with, time);
             }
             if (c.clauses) {
               const afterValue = c.clauses?.after;
