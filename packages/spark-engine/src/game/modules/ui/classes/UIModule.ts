@@ -130,6 +130,7 @@ import {
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
 import { bodyChildLists } from "../utils/bodyChildren";
 import { getVarName } from "../utils/getVarName";
 import {
@@ -9349,29 +9350,39 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.lines?.[target];
           }
         };
+        const writes = new Map<string, Map<CastEntry, ImageInstruction[]>>();
+        const add = (target: string, entry: CastEntry, event: ImageInstruction) => {
+          const sequences = writes.get(target) ?? new Map<CastEntry, ImageInstruction[]>();
+          writes.set(target, sequences);
+          sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
+        };
         for (const [target, events] of Object.entries(instructions.image ?? {})) {
           if (!holds(target)) {
+            const entry = this.namesCharacter(target)
+              ? cast.entries.find((e) => e.speaker === target)
+              : undefined;
+            if (entry) {
+              this.writeCharacter(entry, events, add, queue, touched, hidden);
+            }
             continue;
           }
-          const sequences = new Map<CastEntry, ImageInstruction[]>();
-          const add = (entry: CastEntry, event: ImageInstruction) => {
-            sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
-          };
           for (const event of events) {
             if (event.assets?.length) {
-              add(entryOf(this.ownerOf(event.assets[0]!)), {
+              add(target, entryOf(this.ownerOf(event.assets[0]!)), {
                 ...event,
                 speaker: speaker ?? "",
               });
               continue;
             }
             for (const entry of cast.entries) {
-              add(entry, event);
+              add(target, entry, event);
               if (event.control === "hide") {
                 hidden.add(entry.id);
               }
             }
           }
+        }
+        for (const [target, sequences] of writes) {
           for (const [entry, sequence] of sequences) {
             const before = entry.image?.[target] ?? [];
             const view = $.image.viewAfter(before);
@@ -9448,6 +9459,54 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.variant;
           }
         }
+      }
+
+      protected writeCharacter(
+        entry: CastEntry,
+        events: ImageInstruction[],
+        add: (target: string, entry: CastEntry, event: ImageInstruction) => void,
+        queue: (write: Omit<CastWrite, "key">) => void,
+        touched: Set<string>,
+        hidden: Set<number>,
+      ): void {
+        const targets = Object.keys(entry.image ?? {}).filter((target) =>
+          this.holdsContent(entry, "image", target),
+        );
+        for (const event of events) {
+          for (const target of targets) {
+            add(target, entry, event);
+          }
+          if (event.control !== "hide") {
+            continue;
+          }
+          hidden.add(entry.id);
+          for (const target of Object.keys(entry.text ?? {})) {
+            delete entry.text![target];
+            delete entry.lines?.[target];
+            touched.add(`${entry.id}|text|${target}`);
+            queue({ id: entry.id, kind: "text", target, text: null });
+          }
+        }
+      }
+
+      protected _layers = new WeakMap<object, Map<string, boolean>>();
+
+      protected namesCharacter(target: string): boolean {
+        const sparkle = $._game.program?.sparkle;
+        if (!sparkle || !getContextEntry($.context, "character", target)) {
+          return false;
+        }
+        const layers = this._layers.get(sparkle) ?? new Map<string, boolean>();
+        this._layers.set(sparkle, layers);
+        let layer = layers.get(target);
+        if (layer === undefined) {
+          const wanted = new Set([target]);
+          layer =
+            Object.values(sparkle.layouts ?? {}).some((l) => $.treeHolds(l.children, wanted)) ||
+            Object.values(sparkle.screens ?? {}).some((s) => $.treeHolds(s.children, wanted));
+          layers.set(target, layer);
+        }
+        return !layer;
       }
 
       protected queue(write: CastWrite): void {

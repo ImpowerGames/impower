@@ -98,7 +98,29 @@ layout main {
 
 Every element written directly inside the cast is part of each entry, so `cast { portrait { image }; character_name { text } }` gives each character a picture and a name. A picture goes to the entry of the character it shows. The name before `@` already says whose picture it is, so `[[mia@happy]]` goes to Mia's entry, making one if she has none, and a later `[[mia@sad]]` changes her picture in place. A picture shown on a line nobody speaks makes an entry too. A name written to a text element inside the cast, such as a `character_name`, goes to the entry of the line's speaker. An element of the same name outside the cast shows the picture or the name as it would without one.
 
-`[[hide portrait]]` hides the picture in every entry and removes the entries.
+### Hiding and animating one character
+
+`hide` and `animate` take a character's name wherever they take a layer's name, and act on that character's entry alone:
+
+```sparkdown
+scene start
+  [[mia@happy at left]]
+  [[sam@calm at right]]
+  MIA: You came.
+  [[animate mia to center over 1s]]
+  SAM: I said I would.
+  [[animate sam with shake]]
+  [[hide mia]]
+  SAM: Fine. Go.
+  [[hide portrait]]
+end
+```
+
+`[[hide mia]]` removes Mia's entry, which plays its `@hide`, and leaves Sam's. `[[animate mia to center over 1s]]` moves only Mia's picture, and `[[animate sam with shake]]` shakes only Sam's. A layer's name reaches every entry in a cast that holds that layer: `[[animate portrait with shake]]` shakes them all, and `[[hide portrait]]` removes them all. A character with no entry on screen is left alone, as hiding an empty layer is.
+
+Each entry is its own layer for [framings](./Framings.md), so `[[mia@happy at left]]` frames only Mia's picture and `[[sam@calm at right]]` frames only Sam's. A framing moves the picture inside its own element, and a style places the element, so the two add up. Showing a new picture of a character puts that entry back at the default framing unless the line writes `at` again, as for a plain layer.
+
+When a character and a layer share a name, the layer wins, and the editor warns "`mia` names a layer and a character. `hide` and `animate` use the layer." After `hide` and `animate`, the editor offers the characters that have pictures beside the layers.
 
 ### What a style can tell about an entry
 
