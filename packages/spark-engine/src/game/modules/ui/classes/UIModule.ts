@@ -8512,7 +8512,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const stream = states[id] ?? { entries: [], current: 0 };
             const repeat = stream.beat === beat || Boolean(instructions.hold);
             const ahead =
-              run?.gathering?.key === id
+              run?.gathering?.layout === layout
                 ? run.ahead.flatMap((next) => {
                     const entry = this.entryFor(node, next);
                     return entry && !entry.shown ? [entry] : [];

@@ -1,6 +1,7 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { Event } from "../types/Event";
+import type { AudioInstruction } from "../types/Instruction";
 import type { Instructions } from "../types/Instructions";
 import { isAdvanceKey } from "../utils/isAdvanceKey";
 import { pageKey } from "../utils/pageKey";
@@ -105,6 +106,10 @@ export class Coordinator<G extends Game> {
 
   protected _reportedFinished = false;
 
+  protected _whole = false;
+
+  protected _carriedAudio?: Record<string, AudioInstruction[]>;
+
   constructor(
     game: G,
     instructions: Instructions,
@@ -113,10 +118,14 @@ export class Coordinator<G extends Game> {
       played?: () => void;
       held?: boolean;
       still?: boolean;
+      whole?: boolean;
+      audio?: Record<string, AudioInstruction[]>;
     },
   ) {
     this._game = game;
     this._still = Boolean(options?.still);
+    this._whole = Boolean(options?.whole);
+    this._carriedAudio = options?.audio;
     this._instructions = instructions;
     this._reportsShown =
       !game.context.system.previewing &&
@@ -332,6 +341,10 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (this._whole && this._startedExecution) {
+      this._whole = false;
+      this.showWhole();
+    }
     if (instructions.auto && this._interacted && !waitingForChoice) {
       this._interacted = false;
       return 3;
@@ -470,10 +483,14 @@ export class Coordinator<G extends Game> {
       game.module.audio.stopChannel("typewriter");
     }
 
+    const audio = { ...instructions.audio };
+    for (const [channel, events] of Object.entries(this._carriedAudio ?? {})) {
+      audio[channel] = [...(audio[channel] ?? []), ...events];
+    }
     const audioTriggerIds =
-      instant || silent || !instructions.audio
+      instant || silent
         ? []
-        : Object.entries(instructions.audio).map(([target, events]) =>
+        : Object.entries(audio).map(([target, events]) =>
             game.module.audio.schedule(target, events),
           );
 

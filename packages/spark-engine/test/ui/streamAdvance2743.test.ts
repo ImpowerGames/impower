@@ -216,6 +216,9 @@ describe("a stream that advances by itself gathers its run before showing it (I-
     expect(coordinator(h)._finishedExecution).toBe(false);
     await press(h);
     expect(shown(h)).toBe("three");
+    for (let i = 0; i < 5; i += 1) {
+      await tick(h, 0);
+    }
     expect(coordinator(h)._finishedExecution).toBe(true);
     expect(entries(h)).toEqual(["one", "two", "three"]);
     expect(reserved(h)).toBe(0);
@@ -451,7 +454,7 @@ describe("the game reads every pause the compiler accepts as written (I-2743)", 
 });
 
 describe("a stream whose lines never reach a wait (I-2743)", () => {
-  test("a layout that opened by itself and is written to in an endless loop reads at most 100 lines ahead", async () => {
+  test("a layout that opened by itself and is written to in an endless loop gathers 100 lines at a time", async () => {
     const h = await play(`${DEFS}
 scene start
   @note: tick
@@ -464,7 +467,88 @@ end
     expect(reserved(h, "note")).toBe(99);
     await click(h);
     expect(shown(h)).toBe("tick");
-    expect(entries(h, "note")).toHaveLength(101);
-    expect(reserved(h, "note")).toBe(99);
+    expect(entries(h, "note")).toHaveLength(100);
+    expect(reserved(h, "note")).toBe(98);
+  });
+
+  test("an automatic run longer than 100 lines keeps its box for 100 lines and waits at the hundredth", async () => {
+    const lines = Array.from(
+      { length: 101 },
+      (_, i) => `  RAFFLES: line${i + 1}${i === 100 ? " >" : ""}`,
+    ).join("\n");
+    const h = await play(`${DEFS}\n${AUTO}\nscene start\n  [[open phone]]\n${lines}\nend\n`);
+    expect(shown(h)).toBe("line1");
+    expect(entries(h)).toHaveLength(100);
+    await tickUntil(h, "line2");
+    expect(entries(h)).toHaveLength(100);
+    await tickUntil(h, "line100", 200000, 200);
+    expect(entries(h)).toHaveLength(100);
+    expect(coordinator(h)._instructions.auto).toBeUndefined();
+    await waits(h);
+    await click(h);
+    expect(shown(h)).toBe("line101");
+    expect(entries(h)).toHaveLength(101);
+  });
+});
+
+describe("streams and sounds across a gathered run (I-2743)", () => {
+  test("every stream in the layout makes room for the gathered lines", async () => {
+    const h = await play(`${DEFS.replace(
+      "layout phone {\n  thread {\n    stream {\n      dialogue.bubble { text }\n    }\n  }\n}",
+      "layout phone {\n  left {\n    stream { dialogue.bubble { text } }\n  }\n  right {\n    stream { dialogue.bubble { text } }\n  }\n}",
+    )}\n${AUTO}\nscene start\n  [[open phone]]\n  RAFFLES: one\n  RAFFLES: two\n  RAFFLES: three >\nend\n`);
+    expect(shown(h)).toBe("one");
+    const lengths = (h.game.module.ui as any)._state.streams;
+    expect(Object.fromEntries(Object.entries(lengths).map(([key, state]: [string, any]) => [key, [state.entries.length, state.reserved]]))).toEqual({
+      "phone/0": [3, 2],
+      "phone/1": [3, 2],
+    });
+  });
+
+  const SOUNDS = `${DEFS}
+${AUTO}
+scene start
+  [[open phone]]
+  RAFFLES: one
+  ((play music beep loop))
+  RAFFLES: two
+  ((play sound beep))
+  RAFFLES: three >
+  RAFFLES: four >
+end
+`;
+
+  const loops = (h: Harness) =>
+    [...h.game.module.audio.loopsPlaying()].map(([channel, sounds]) => [channel, [...sounds.keys()]]);
+
+  const sounds = (h: Harness) =>
+    flattenMessages(h.messages).filter(
+      (m: any) =>
+        m.method === "audio/update" &&
+        JSON.stringify(m.params).includes("audio.beep") &&
+        JSON.stringify(m.params).includes('"channel":"sound"'),
+    ).length;
+
+  test("a music loop and a sound written on skipped lines play when a click finishes the run", async () => {
+    const h = await play(SOUNDS);
+    expect(shown(h)).toBe("one");
+    expect(loops(h)).toEqual([]);
+    await press(h);
+    h.releaseAssets();
+    for (let i = 0; i < 5; i += 1) {
+      await tick(h, 0);
+    }
+    expect(shown(h)).toBe("three");
+    expect(coordinator(h)._finishedExecution).toBe(true);
+    expect(loops(h)).toEqual([["music", ["audio.beep"]]]);
+    expect(sounds(h)).toBeGreaterThan(0);
+  });
+
+  test("the same run reached without a click plays the same music loop", async () => {
+    const h = await play(SOUNDS);
+    await tickUntil(h, "three");
+    h.releaseAssets();
+    await tick(h, 0);
+    expect(loops(h)).toEqual([["music", ["audio.beep"]]]);
   });
 });

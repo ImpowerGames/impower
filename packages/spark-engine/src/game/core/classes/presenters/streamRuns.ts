@@ -1,6 +1,6 @@
 import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { layoutStreams } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
-import { streamKey, streamTemplate } from "../../../modules/ui/utils/streamTemplate";
+import { streamTemplate } from "../../../modules/ui/utils/streamTemplate";
 import type { LayoutInstruction } from "../../types/Instruction";
 import type { Instructions } from "../../types/Instructions";
 import { getTimeValue } from "../../utils/getTimeValue";
@@ -13,7 +13,6 @@ export interface StreamSettings {
 }
 
 export interface StreamGathering {
-  key: string;
   layout: string;
   opened: boolean;
   settings: StreamSettings;
@@ -23,6 +22,7 @@ export interface StreamRun {
   gathering?: StreamGathering;
   ahead: Instructions[];
   open: boolean;
+  capped?: true;
 }
 
 const BUILT_IN_PAUSE = 0.4;
@@ -70,11 +70,8 @@ function gatheringOf(
     if (opened !== layout && settings.advance !== "auto") {
       continue;
     }
-    const index = layoutStreams(sparkle, layout).findIndex(
-      (node) => streamTemplate(node, routed) >= 0,
-    );
-    if (index >= 0) {
-      return { key: streamKey(layout, index), layout, opened: opened === layout, settings };
+    if (layoutStreams(sparkle, layout).some((node) => streamTemplate(node, routed) >= 0)) {
+      return { layout, opened: opened === layout, settings };
     }
   }
   return undefined;
@@ -85,6 +82,7 @@ const pending = (beat: Instructions): boolean =>
 
 const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
   Boolean(beat.hold) ||
+  Boolean(beat.closesRun) ||
   (beat.choices?.length ?? 0) > 0 ||
   (!gathering.opened && Boolean(beat.waits));
 
@@ -112,13 +110,16 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
         event.name === gathering.layout &&
         (event.control === LayoutVerb.clear || event.control === LayoutVerb.close),
     );
-    if (restarts || gatheringOf(game, routed, after)?.key !== gathering.key) {
+    if (restarts || gatheringOf(game, routed, after)?.layout !== gathering.layout) {
       return { gathering, ahead, open: false };
     }
     ahead.push(routed);
     events = after;
-    if (endsRun(beat, gathering) || ahead.length + 1 >= RUN_LINE_LIMIT) {
+    if (endsRun(beat, gathering)) {
       return { gathering, ahead, open: false };
+    }
+    if (ahead.length + 1 >= RUN_LINE_LIMIT) {
+      return { gathering, ahead, open: false, capped: true };
     }
   }
   return { gathering, ahead, open: true };
@@ -135,6 +136,7 @@ export function markRun(
     run.gathering?.settings.advance === "auto" &&
     run.ahead.length > 0 &&
     !plain.waits &&
+    !plain.closesRun &&
     !plain.hold &&
     !(plain.choices?.length ?? 0);
   if (advances) {
