@@ -89,15 +89,16 @@ const setsProperties = (keyframes: Keyframe[]): boolean =>
 export default class AnimationPlayer {
   protected _instances: AnimationInstance[] = [];
 
-  protected _moved = new Map<Element, Set<string>>();
+  protected _moved: Map<Element, Set<string>>;
 
   protected _theme: ThemeVariables;
 
   protected _hold?: AnimationHold;
 
-  constructor(theme: ThemeVariables, hold?: AnimationHold) {
+  constructor(theme: ThemeVariables, hold?: AnimationHold, together?: AnimationPlayer) {
     this._theme = theme;
     this._hold = hold;
+    this._moved = together?._moved ?? new Map();
   }
 
   add(effect: AnimationEffect): Animation[] {

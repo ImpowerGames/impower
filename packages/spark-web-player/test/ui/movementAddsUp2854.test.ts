@@ -7,6 +7,19 @@ import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimat
 const source = `define P as image with
   src = "https://example.com/p.png"
 end
+animation grow {
+  target = layer.self
+  keyframes {
+    { transform = "scale(1)" }
+    { transform = "scale(2)" }
+  }
+  timing {
+    duration = "1s"
+  }
+}
+define portraitgrow as transition with
+  portrait = animation.grow
+end
 layout main {
   stage {
     portrait { image }
@@ -106,6 +119,17 @@ describe("the movement of one line's animations on one element adds up (I-2854)"
     expect(effects.map(({ sets, composite }) => ({ sets, composite }))).toEqual([
       { sets: ["opacity"], composite: "replace" },
       { sets: ["transform"], composite: "replace" },
+    ]);
+  });
+
+  test.each([
+    "[[animate portrait with grow with portraitgrow]]",
+    "[[animate portrait with portraitgrow with grow]]",
+  ])("%s: a transition arm on the layer adds to the layer's own animation", async (line) => {
+    const { effects } = await play(line);
+    expect(effects.map(({ sets, composite, start }) => ({ sets, composite, start }))).toEqual([
+      { sets: ["transform"], composite: "replace", start: 100 },
+      { sets: ["transform"], composite: "add", start: 100 },
     ]);
   });
 

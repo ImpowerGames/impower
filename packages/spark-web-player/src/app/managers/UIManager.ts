@@ -3293,18 +3293,25 @@ export default class UIManager extends Manager {
       effects: ImageEffect[],
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
     ) => {
-      const players = new Map<AnimationPlayer | undefined, { after?: AnimationPlayer; player: AnimationPlayer }>();
+      const sequenced = new Map<AnimationPlayer | undefined, AnimationPlayer>();
+      const together = new Map<AnimationPlayer, AnimationPlayer>();
+      const players: { after?: AnimationPlayer; player: AnimationPlayer }[] = [];
       for (const e of effects) {
-        const line = e.line ?? e.after;
-        let entry = players.get(line);
-        if (!entry) {
-          entry = { after: e.after, player: new AnimationPlayer(this._theme, this._hold) };
-          players.set(line, entry);
+        let player = !e.after && e.line ? together.get(e.line) : sequenced.get(e.after);
+        if (!player) {
+          if (!e.after && e.line) {
+            player = new AnimationPlayer(this._theme, this._hold, e.line);
+            together.set(e.line, player);
+          } else {
+            player = new AnimationPlayer(this._theme, this._hold);
+            sequenced.set(e.after, player);
+          }
+          players.push({ after: e.after, player });
         }
-        const animations = entry.player.add(e);
+        const animations = player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
       }
-      return Array.from(players.values(), ({ after, player }) =>
+      return players.map(({ after, player }) =>
         player.play(
           startTime == null
             ? undefined
