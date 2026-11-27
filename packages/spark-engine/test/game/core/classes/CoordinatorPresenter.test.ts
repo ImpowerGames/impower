@@ -115,6 +115,7 @@ const createGame = (previewing?: boolean) => {
         isReady: () => true,
         trigger: () => {},
         onBeatDisplayed: () => {},
+        onBeatSettled: () => {},
       },
     },
     clickedToContinue: () => {

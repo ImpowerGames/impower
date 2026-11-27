@@ -8,7 +8,9 @@ import {
 import {
   type SceneAssetCapture,
   type SceneBeat,
+  type SceneImageWrite,
 } from "../types/SceneAssets";
+import { directiveOwners, readDirective } from "./readDirective";
 
 const VARIABLES = GRAMMAR_DEFINITION.variables as unknown as Record<
   string,
@@ -48,6 +50,7 @@ const CLAUSE_KEYWORDS = new Set<string>([
   ...(VARIABLES["AUDIO_CLAUSE_KEYWORDS"] ?? []),
 ]);
 const LOAD_CONTROLS = new Set<string>(LOAD_CONTROL_KEYWORDS);
+const IMAGE_CONTROLS = new Set<string>(IMAGE_CONTROL_KEYWORDS);
 const MOVIE_CONTROLS = new Set<string>(MOVIE_CONTROL_KEYWORDS);
 
 const isCutsceneVerb = (verb: string | undefined, kind: "image" | "audio") =>
@@ -66,6 +69,7 @@ interface ScannedNames {
   audio: string[];
   layouts: string[];
   loads: string[];
+  writes: SceneImageWrite[];
 }
 
 const tokenize = (body: string): string[] =>
@@ -99,6 +103,9 @@ const scanBody = (
   }
   if (!CONTROL_KEYWORDS.has(verb)) {
     readNames(tokens, kind === "image" ? names.image : names.audio);
+    if (kind === "image") {
+      names.writes.push(imageWrite(body));
+    }
     return;
   }
   if (isCutsceneVerb(verb, kind)) {
@@ -129,10 +136,51 @@ const scanBody = (
     }
     return;
   }
+  if (kind === "image" && IMAGE_CONTROLS.has(verb)) {
+    names.writes.push(imageWrite(body));
+  }
   if (NON_LOADING_CONTROLS.has(verb)) {
     return;
   }
   readNames(tokens.slice(2), kind === "image" ? names.image : names.audio);
+};
+
+const imageWrite = (body: string): SceneImageWrite => {
+  const reading = readDirective("image", body, "image");
+  const write: SceneImageWrite = {};
+  const target = reading.target?.text;
+  if (target) {
+    write.target = target;
+  }
+  const effects = directiveOwners(reading.kind, reading.clauses).withs.flatMap((entry) =>
+    entry.name?.text ? [entry.name.text] : [],
+  );
+  if (effects.length > 0) {
+    write.with = effects;
+  }
+  if (reading.control?.text === "hide") {
+    write.hide = true;
+    return write;
+  }
+  if (reading.control?.text === "animate") {
+    write.animate = true;
+  }
+  const image = reading.names
+    .map((name) => name.text)
+    .filter((name) => name !== "none");
+  if (image.length > 0) {
+    write.image = image;
+  }
+  const at = reading.values["at"];
+  if (typeof at === "string" && at) {
+    write.at = at;
+  }
+  const to = reading.clauses.findLast((clause) => clause.word.text === "to")
+    ?.value?.text;
+  if (to) {
+    write.to = to;
+  }
+  return write;
 };
 
 const dynamicBaseOf = (
@@ -161,7 +209,13 @@ export function scanAssetDirectives(
   address: ProgramAddress,
   capture: SceneAssetCapture,
 ): SceneBeat | undefined {
-  const names: ScannedNames = { image: [], audio: [], layouts: [], loads: [] };
+  const names: ScannedNames = {
+    image: [],
+    audio: [],
+    layouts: [],
+    loads: [],
+    writes: [],
+  };
   let raw = false;
   let escaped = false;
   for (let i = 0; i < text.length; ) {
@@ -226,13 +280,17 @@ export function scanAssetDirectives(
     names.image.length === 0 &&
     names.audio.length === 0 &&
     names.layouts.length === 0 &&
-    names.loads.length === 0
+    names.loads.length === 0 &&
+    names.writes.length === 0
   ) {
     return undefined;
   }
   const beat: SceneBeat = { address };
   if (names.image.length > 0) {
     beat.image = names.image;
+  }
+  if (names.writes.length > 0) {
+    beat.writes = names.writes;
   }
   if (names.audio.length > 0) {
     beat.audio = names.audio;

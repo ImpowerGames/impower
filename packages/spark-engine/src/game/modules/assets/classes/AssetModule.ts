@@ -2,6 +2,7 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import {
   type SceneAssets,
   type SceneBeat,
+  type SceneImageWrite,
 } from "@impower/sparkdown/src/compiler/types/SceneAssets";
 import { Module } from "../../../core/classes/Module";
 import type { ProgramAddress } from "@impower/sparkdown/src/compiler/types/ProgramAddress";
@@ -11,8 +12,19 @@ import { getTimeValue } from "../../../core/utils/getTimeValue";
 import type { AssetsBuiltins, AssetsConfig } from "../types/AssetsBuiltins";
 import { assetItemKey, type AssetItem } from "../types/AssetItem";
 import { type LoadAssetsResult } from "../types/LoadAssetsResult";
+import { loadingBeats, loads } from "../utils/loadingBeats";
+import {
+  pictureRuns,
+  reachable,
+  type PictureRun,
+  type PredictedBeat,
+} from "../utils/pictureRuns";
 import { beatIndexIn, previewWindow } from "../utils/previewWindow";
 import { AssetsProgressMessage } from "./messages/AssetsProgressMessage";
+import {
+  DrawAheadMessage,
+  type DrawAheadPicture,
+} from "./messages/DrawAheadMessage";
 import { ConfigureAssetsMessage } from "./messages/ConfigureAssetsMessage";
 import {
   LoadAssetsMessage,
@@ -488,7 +500,8 @@ export class AssetModule extends Module<
       this._beatIndex = { program, byFlow: new Map() };
     }
     let byAddress = this._beatIndex.byFlow.get(flow);
-    const beats = program.sceneAssets?.[flow]?.beats ?? [];
+    const scene = program.sceneAssets?.[flow];
+    const beats = scene ? loadingBeats(scene) : [];
     if (!byAddress) {
       byAddress = new Map();
       beats.forEach((beat, index) => byAddress!.set(beat.address, index));
@@ -515,8 +528,9 @@ export class AssetModule extends Module<
     const start = this.beatIndexFor(flow, address) + (inclusive ? 0 : 1);
     let remaining = distance === 0 ? Number.POSITIVE_INFINITY : distance;
     const primary: SceneBeat[] = [];
-    for (let i = Math.max(0, start); i < entry.beats.length && remaining > 0; i++) {
-      primary.push(entry.beats[i]!);
+    const beats = loadingBeats(entry);
+    for (let i = Math.max(0, start); i < beats.length && remaining > 0; i++) {
+      primary.push(beats[i]!);
       remaining--;
     }
     const spill =
@@ -550,8 +564,9 @@ export class AssetModule extends Module<
       if (!nextEntry) {
         continue;
       }
-      for (let i = 0; i < nextEntry.beats.length && remaining > 0; i++) {
-        spill.push(nextEntry.beats[i]!);
+      const beats = loadingBeats(nextEntry);
+      for (let i = 0; i < beats.length && remaining > 0; i++) {
+        spill.push(beats[i]!);
         remaining--;
       }
       queue.push(...nextEntry.loads, ...nextEntry.successors);
@@ -596,7 +611,11 @@ export class AssetModule extends Module<
       return;
     }
     this._previewWindow = { flow, index };
-    const { near, rest } = previewWindow(entry, index, distance);
+    const { near, rest } = previewWindow(
+      { ...entry, beats: loadingBeats(entry) },
+      index,
+      distance,
+    );
     this.prefetchBeats(near, 2);
     if (!wholeScene) {
       return;
@@ -605,6 +624,254 @@ export class AssetModule extends Module<
     if (distance > 0) {
       this.prefetchBeats(this.spillBeats(flow, distance), 3);
     }
+  }
+
+  onBeatSettled(): void {
+    if (this.silent) {
+      return;
+    }
+    const flow = this._game.sceneTracker.current;
+    const entry = flow ? this._game.program.sceneAssets?.[flow] : undefined;
+    const pictures = flow && entry ? this.drawAheadPictures(flow, entry) : [];
+    this.emit(DrawAheadMessage.type.notification({ pictures }));
+  }
+
+  protected drawAheadPictures(
+    flow: string,
+    entry: SceneAssets,
+  ): DrawAheadPicture[] {
+    const beats = entry.beats;
+    const distance = this.config.predict_distance;
+    const reach = distance === 0 ? Number.POSITIVE_INFINITY : distance;
+    const ui = this._game.module.ui;
+    const shown = (target: string) => ui.image.shown(target);
+    const fallback = this.context.config?.["interpreter"]?.["fallbacks"]?.[
+      "layer"
+    ] as string | undefined;
+    const runs: PictureRun[] = [];
+    if (this.previewing) {
+      const at = Math.max(
+        0,
+        beatIndexIn(beats, this._game.locator, this.previewAnchorIn(flow)),
+      );
+      let from = at;
+      for (let counted = 0; from > 0 && counted < reach; ) {
+        from -= 1;
+        if (loads(beats[from]!)) {
+          counted += 1;
+        }
+      }
+      let to = at + 1;
+      for (let counted = 0; to < beats.length && counted < reach; to += 1) {
+        if (loads(beats[to]!)) {
+          counted += 1;
+        }
+      }
+      const around = (start: number, end: number) =>
+        beats
+          .slice(start, end)
+          .map((beat, offset) => ({
+            beat,
+            distance: Math.abs(start + offset - at),
+          }));
+      runs.push(...pictureRuns(around(from, at), () => undefined, fallback));
+      runs.push(...pictureRuns(around(at, to), shown, fallback));
+    } else {
+      const address = this._game.executingAddress;
+      const at = beatIndexIn(beats, this._game.locator, address);
+      const here = beats[at];
+      const locator = this._game.locator;
+      const line = address == null ? undefined : locator.locationOf(address);
+      const beatLine = here ? locator.locationOf(here.address) : undefined;
+      const scope =
+        here &&
+        line &&
+        beatLine &&
+        line.uri === beatLine.uri &&
+        line.startLine === beatLine.startLine
+          ? (here.scope ?? [])
+          : undefined;
+      const ahead: PredictedBeat[] = [];
+      let counted = 0;
+      for (let i = at + 1; i < beats.length && counted < reach; i++) {
+        const beat = beats[i]!;
+        if (scope && !reachable(beat.scope ?? [], scope)) {
+          continue;
+        }
+        ahead.push({ beat, distance: i - at });
+        if (loads(beat)) {
+          counted += 1;
+        }
+      }
+      const routes =
+        distance !== 0 && counted < reach
+          ? this.loadedSuccessorRoutes(
+              flow,
+              reach - counted,
+              beats.length - 1 - at,
+            )
+          : [];
+      if (routes.length === 0) {
+        runs.push(...pictureRuns(ahead, shown, fallback));
+      }
+      for (const route of routes) {
+        runs.push(...pictureRuns([...ahead, ...route], shown, fallback));
+      }
+    }
+    const merged = new Map<string, DrawAheadPicture>();
+    for (const run of runs) {
+      if (run.distance <= 0) {
+        continue;
+      }
+      const content = this.drawContent(run.assets);
+      if (!content) {
+        continue;
+      }
+      const zoom = Math.max(
+        1,
+        ...run.framings.map((name) => ui.getFraming(name)?.zoom ?? 1),
+      );
+      const scale = Math.max(
+        1,
+        ...run.effects.map((write) => this.effectScale(write, run.assets)),
+      );
+      const key = `${run.target}\n${run.assets.join("+")}`;
+      const known = merged.get(key);
+      if (known) {
+        known.distance = Math.min(known.distance, run.distance);
+        known.zoom = Math.max(known.zoom, zoom);
+        known.scale = Math.max(known.scale, scale);
+      } else {
+        merged.set(key, {
+          target: run.target,
+          distance: run.distance,
+          zoom,
+          scale,
+          content,
+        });
+      }
+    }
+    return [...merged.values()].sort((a, b) => a.distance - b.distance);
+  }
+
+  protected loadedSuccessorRoutes(
+    flow: string,
+    remaining: number,
+    from: number,
+  ): PredictedBeat[][] {
+    const sceneAssets = this._game.program.sceneAssets;
+    const entry = sceneAssets?.[flow];
+    const routes: PredictedBeat[][] = [];
+    if (!sceneAssets || !entry) {
+      return routes;
+    }
+    const limit = this.config.load_distance;
+    let flowsVisited = 0;
+    const walk = (
+      scene: SceneAssets,
+      route: PredictedBeat[],
+      passed: ReadonlySet<string>,
+      left: number,
+      distance: number,
+    ) => {
+      let continued = false;
+      for (const next of new Set([...scene.loads, ...scene.successors])) {
+        const nextEntry = sceneAssets[next];
+        if (passed.has(next) || !this._loadPins.has(next) || !nextEntry) {
+          continue;
+        }
+        if (flowsVisited >= MAX_PREDICTED_FLOWS) {
+          break;
+        }
+        flowsVisited++;
+        continued = true;
+        const beats: PredictedBeat[] = [];
+        let rest = left;
+        let covered = 0;
+        let reached = distance;
+        for (const beat of nextEntry.beats) {
+          if (rest <= 0 || (limit > 0 && covered >= limit)) {
+            break;
+          }
+          reached += 1;
+          beats.push({ beat, distance: reached });
+          if (loads(beat)) {
+            covered += 1;
+            rest -= 1;
+          }
+        }
+        const through = [...route, ...beats];
+        if (rest > 0 && (limit === 0 || covered < limit)) {
+          walk(nextEntry, through, new Set([...passed, next]), rest, reached);
+        } else {
+          routes.push(through);
+        }
+      }
+      if (!continued && route.length > 0) {
+        routes.push(route);
+      }
+    };
+    walk(entry, [], new Set([flow]), remaining, from);
+    return routes;
+  }
+
+  protected _effectScales?: { context: object; byWrite: Map<string, number> };
+
+  protected effectScale(write: SceneImageWrite, assets: string[]): number {
+    const context = this.context as object;
+    if (this._effectScales?.context !== context) {
+      this._effectScales = { context, byWrite: new Map() };
+    }
+    const names = write.hide
+      ? []
+      : write.image?.length
+        ? write.image
+        : write.animate
+          ? []
+          : assets;
+    const control = write.hide
+      ? "hide"
+      : write.animate || names.length === 0
+        ? "animate"
+        : "show";
+    const key = [control, (write.with ?? []).join(","), names.join("+")].join("|");
+    let scale = this._effectScales.byWrite.get(key);
+    if (scale === undefined) {
+      scale = this._game.module.ui.image.effectScale({
+        control,
+        ...(names.length ? { assets: names } : {}),
+        ...(write.with?.length
+          ? { with: write.with.map((name) => ({ name })) }
+          : {}),
+      });
+      this._effectScales.byWrite.set(key, scale);
+    }
+    return scale;
+  }
+
+  protected _drawContent?: {
+    context: object;
+    byNames: Map<string, DrawAheadPicture["content"] | null>;
+  };
+
+  protected drawContent(
+    assets: string[],
+  ): DrawAheadPicture["content"] | undefined {
+    const context = this.context as object;
+    if (this._drawContent?.context !== context) {
+      this._drawContent = { context, byNames: new Map() };
+    }
+    const key = assets.join("+");
+    let content = this._drawContent.byNames.get(key);
+    if (content === undefined) {
+      const made = this._game.module.ui.image.predict(assets);
+      content =
+        made && !made.video && (made.pictures?.length || made.morph)
+          ? made
+          : null;
+      this._drawContent.byNames.set(key, content);
+    }
+    return content ?? undefined;
   }
 
   onBeatDisplayed(): void {
@@ -659,8 +926,8 @@ export class AssetModule extends Module<
       if (entry) {
         const beats =
           config.load_distance > 0
-            ? entry.beats.slice(0, config.load_distance)
-            : entry.beats;
+            ? loadingBeats(entry).slice(0, config.load_distance)
+            : loadingBeats(entry);
         const items = this.itemsForBeats(beats);
         if (this.previewing) {
           this.prefetch(items, 2);
