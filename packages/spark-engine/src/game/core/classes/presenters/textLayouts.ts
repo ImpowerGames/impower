@@ -288,10 +288,9 @@ export function routeLine(game: Game, instructions: Instructions): Instructions 
     const open = ui.openedLayoutsAfter(events);
     const closedScreens = ui.screensClosedAfter(events);
     const holdersOf = (kind: TextKind) =>
-      open.filter(
-        (name) =>
-          name === TEXTSTREAM_LAYOUT || ui.layoutHolds(name, [kind.element]),
-      );
+      open.includes(TEXTSTREAM_LAYOUT)
+        ? [TEXTSTREAM_LAYOUT]
+        : open.filter((name) => ui.layoutHolds(name, [kind.element]));
     const holders = new Set(kinds.flatMap(holdersOf));
     const menuOnly = isMenu(instructions);
     for (const auto of autos) {

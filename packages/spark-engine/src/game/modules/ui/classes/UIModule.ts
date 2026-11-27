@@ -334,6 +334,7 @@ interface Retirement {
   held: Set<string>;
   element: Element;
   epoch: number;
+  root: Element | undefined;
   pin?: string;
 }
 
@@ -2791,6 +2792,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       held: this.heldNames(element),
       element,
       epoch: this._game.connection.epoch,
+      root: this._root,
       ...(pin ? { pin } : {}),
     };
     element.remove();
@@ -6032,6 +6034,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         held: this.heldNames(element),
         element,
         epoch: this._game.connection.epoch,
+        root: this._root,
         pin: this._game.module.assets?.retireLayout(name),
       };
       this._mountedLayouts.delete(name);
@@ -6068,7 +6071,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._retiring.has(r)) {
       return;
     }
-    if (this.superseded(r.epoch)) {
+    if (this.superseded(r.epoch) && r.root !== this._root) {
       this._retiring.delete(r);
     } else {
       this.flushUIBatch();
