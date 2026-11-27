@@ -5788,7 +5788,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
+  protected treeHolds(children: unknown, wanted: Set<string>, outsideCasts = false): boolean {
     const components = this._game.program?.sparkle?.components ?? {};
     const expanded = new Set<string>();
     const visit = (value: unknown): boolean => {
@@ -5800,6 +5800,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const node = value as Record<string, any>;
       if (node["kind"] === "element") {
+        if (outsideCasts && isCast(node as ElementNode)) {
+          return false;
+        }
         const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
         if (names.some((n) => typeof n === "string" && wanted.has(n))) {
           return true;
@@ -5820,7 +5823,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return visit(children);
   }
 
-  layoutHolds(layoutName: string, elements: readonly string[]): boolean {
+  layoutHolds(layoutName: string, elements: readonly string[], outsideCasts = false): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
     if (sparkle?.layouts) {
@@ -5832,8 +5835,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ? sparkle.screens?.[layout.screen]
         : undefined;
       return (
-        this.treeHolds(layout.children, wanted) ||
-        this.treeHolds(screen?.children, wanted)
+        this.treeHolds(layout.children, wanted, outsideCasts) ||
+        this.treeHolds(screen?.children, wanted, outsideCasts)
       );
     }
     const layout = this.context.layout?.[layoutName];

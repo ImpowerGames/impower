@@ -29,7 +29,7 @@ export function holdsPresentedText(
   layoutName: string,
   ui: LayoutReader = game.module.ui,
 ): boolean {
-  return ui.layoutHolds(layoutName, PRESENTED_TEXT_ELEMENTS);
+  return ui.layoutHolds(layoutName, PRESENTED_TEXT_ELEMENTS, true);
 }
 
 export const TEXTBOX_LAYOUT = "textbox";
@@ -86,7 +86,7 @@ export function initialLayouts(
       continue;
     }
     if (
-      ui.layoutHolds(name, DIALOGUE_BOX_ELEMENTS) &&
+      ui.layoutHolds(name, DIALOGUE_BOX_ELEMENTS, true) &&
       holdsPresentedText(game, "main", ui)
     ) {
       continue;

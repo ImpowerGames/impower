@@ -605,4 +605,33 @@ end
     expect(names).toContain("MIA");
     expect(cast.children.map((el: any) => attributesOf(shown.messages, el.id)["data-speaker"])).toEqual(["mia", "mia"]);
   });
+
+  test("a name inside a cast leaves the built-in dialogue box to show the line", async () => {
+    const { h, ui } = await playThrough(`${CHARACTERS}
+layout main {
+  stage {
+    cast {
+      portrait { image }
+      character_name { text }
+    }
+  }
+}
+
+scene start
+  [[mia@happy]]
+  MIA: Hello.
+end
+`);
+    const boxes: string[] = ui.findIds("dialogue");
+    expect(boxes.length).toBeGreaterThan(0);
+    const said = (flattenMessages(h.messages) as any[])
+      .filter(
+        (m) =>
+          m?.method === "ui/write-text" &&
+          m.params?.target === "dialogue" &&
+          (m.params.elements ?? boxes).some((id: string) => boxes.includes(id)),
+      )
+      .map((m) => m.params.instructions.map((e: any) => e.text).join(""));
+    expect(said).toContain("Hello.");
+  });
 });
