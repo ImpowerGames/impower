@@ -66,6 +66,36 @@ describe("combined movement on one element is kept once finished (I-2872)", () =
     ]);
   });
 
+  test("a later line's combined movement releases the earlier line's kept layers once it finishes", async () => {
+    Object.defineProperty(document, "timeline", { configurable: true, value: timeline });
+    const element = document.createElement("div");
+    const line = async () => {
+      const player = new AnimationPlayer({} as any);
+      const made = player.add({
+        element: element as HTMLElement,
+        animations: [
+          { keyframes: [{ translate: "0vw 0vh" }, { translate: "30vw 0vh" }], timing },
+          { keyframes: [{ translate: "0px 0px" }, { translate: "10px 20px" }], timing },
+        ] as any,
+      });
+      const played = player.play();
+      timeline.currentTime += 100;
+      for (const animation of animations) {
+        animation.update();
+      }
+      await played;
+      return made;
+    };
+    const first = await line();
+    const second = await line();
+    const third = await line();
+    const live = (made: Animation[]) =>
+      made.map((animation) => (animation as unknown as TimedAnimation).playState);
+    expect(live(first)).toEqual(["idle", "idle"]);
+    expect(live(second)).toEqual(["idle", "idle"]);
+    expect(live(third)).toEqual(["finished", "finished"]);
+  });
+
   test("a lone animation keeps the browser's removal of replaced animations", () => {
     const element = document.createElement("div");
     new AnimationPlayer({} as any).add({

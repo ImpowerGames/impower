@@ -81,10 +81,16 @@ const keyframesWith = (
     ),
   );
 
-const moves = (keyframes: Keyframe[]): boolean =>
-  keyframes.some((keyframe) =>
-    Object.keys(keyframe).some((prop) => MOVEMENT.has(prop)),
+const movement = (keyframes: Keyframe[]): Set<string> =>
+  new Set(
+    keyframes.flatMap((keyframe) =>
+      Object.keys(keyframe).filter((prop) => MOVEMENT.has(prop)),
+    ),
   );
+
+const persisted = new WeakMap<Element, Map<Animation, Set<string>>>();
+
+const moverProps = new WeakMap<Animation, Set<string>>();
 
 const setsProperties = (keyframes: Keyframe[]): boolean =>
   keyframes.some((keyframe) =>
@@ -97,6 +103,8 @@ export default class AnimationPlayer {
   protected _moved: Map<Element, Set<string>>;
 
   protected _movers: Map<Element, Animation[]>;
+
+  protected _supersedes = new Map<Animation, Animation[]>();
 
   protected _theme: ThemeVariables;
 
@@ -182,8 +190,11 @@ export default class AnimationPlayer {
         "add",
       ),
     ];
+    const kept = persisted.get(element) ?? new Map<Animation, Set<string>>();
+    persisted.set(element, kept);
     for (const mover of movers) {
       mover.persist();
+      kept.set(mover, moverProps.get(mover)!);
     }
     return combined;
   }
@@ -196,10 +207,29 @@ export default class AnimationPlayer {
     composite?: CompositeOperation,
   ): Animation {
     const instance = this.addKeyframes(element, keyframes, timing, composite);
-    if (moves(keyframes)) {
+    const props = movement(keyframes);
+    if (props.size > 0) {
       movers.push(instance);
+      moverProps.set(instance, props);
+      if (!composite) {
+        this._supersedes.set(
+          instance,
+          [...(persisted.get(element) ?? [])]
+            .filter(([, earlier]) => [...earlier].every((prop) => props.has(prop)))
+            .map(([animation]) => animation),
+        );
+      }
     }
     return instance;
+  }
+
+  protected release(animation: Animation, element: Element): void {
+    const kept = persisted.get(element);
+    for (const earlier of this._supersedes.get(animation) ?? []) {
+      if (kept?.delete(earlier)) {
+        earlier.cancel();
+      }
+    }
   }
 
   addKeyframes(
@@ -250,6 +280,7 @@ export default class AnimationPlayer {
         await (this._hold
           ? this._hold.add(instance.animation)
           : instance.animation.finished);
+        this.release(instance.animation, instance.element);
         onEnd?.(instance.animation);
       }),
     );
