@@ -2969,6 +2969,18 @@ export default class UIManager extends Manager {
           }
         }
       }
+      for (const el of targetEls) {
+        for (const { els } of this.pictureTargets(el)) {
+          for (const contentEl of els) {
+            for (const child of Array.from(contentEl.children)) {
+              const shown = shownOf(child);
+              if (shown) {
+                shown.write.owner = this;
+              }
+            }
+          }
+        }
+      }
       return;
     }
     for (const el of targetEls) {

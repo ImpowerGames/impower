@@ -283,6 +283,20 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(t.pictureOf("mask")).toBeUndefined();
   });
 
+  test("a new game that writes the shown picture unchanged owns it, so its own later clear takes it away at once", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    await t.fresh();
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "same-1", method: "ui/write-image", params: show("nova-run", 0) } as never);
+    expect(t.pictureOf("image")).toBe(picture);
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-4", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    expect(picture.isConnected).toBe(false);
+    expect(t.pictureOf("image")).toBeUndefined();
+  });
+
   test("a new game's held clear takes the picture away when no beat follows within the drawing timeouts", async () => {
     const t = await setup();
     t.beat([show("nova-run", 0)]);
