@@ -717,14 +717,14 @@ layout menu {
     const ui = h.game.module.ui;
     ui.setMotion(true);
     h.reset();
-    await ui.openLayout("menu", { with: "fadein" });
+    await ui.openLayout("menu", [{ with: "fadein" }]);
     await flushMicrotasks(10);
     const root = (ui as any)._mountedLayouts.get("menu").element.id;
     expect(animations(h)).toHaveLength(1);
     expect(motions(h)).toEqual([]);
     expect(presenceOf(h, root)).toBeUndefined();
     h.reset();
-    await ui.closeLayout("menu", { with: "fadeout" });
+    await ui.closeLayout("menu", [{ with: "fadeout" }]);
     await flushMicrotasks(10);
     expect(animations(h)).toHaveLength(1);
     expect(motions(h)).toEqual([]);
