@@ -16,12 +16,6 @@ interface Motion {
   end: () => void;
 }
 
-interface Unpinned {
-  fills: Map<KeyframeEffect, FillMode>;
-  opacity: number;
-  waiting: Animation[];
-}
-
 const styleDriven = (animation: Animation) =>
   "transitionProperty" in animation || "animationName" in animation;
 
@@ -40,37 +34,6 @@ const moves = (animation: Animation): boolean => {
   return keyframes.some((keyframe) =>
     Object.keys(keyframe).some((key) => MOVES.test(cssName(key))),
   );
-};
-
-const KEYFRAME_TIMING = new Set(["offset", "computedOffset", "easing", "composite"]);
-
-const keyframeProperties = (effect: KeyframeEffect | null): Set<string> =>
-  new Set(
-    (effect?.getKeyframes?.() ?? []).flatMap((keyframe) =>
-      Object.keys(keyframe).filter((key) => !KEYFRAME_TIMING.has(key)),
-    ),
-  );
-
-const setsOnlyOpacity = (effect: KeyframeEffect): boolean => {
-  const properties = keyframeProperties(effect);
-  return properties.size === 1 && properties.has("opacity");
-};
-
-const setsOpacity = (animation: Animation): boolean =>
-  keyframeProperties(animation.effect as KeyframeEffect | null).has("opacity");
-
-const endOpacity = (animation: Animation): number => {
-  const effect = animation.effect as KeyframeEffect | null;
-  const timing = effect?.getTiming?.();
-  const iterations = Number(timing?.iterations ?? 1);
-  if (
-    !effect ||
-    (timing?.direction ?? "normal") !== "normal" ||
-    !Number.isInteger(iterations)
-  ) {
-    return Number.NaN;
-  }
-  return Number(effect.getKeyframes().at(-1)?.["opacity"] ?? Number.NaN);
 };
 
 const carry = (
@@ -102,10 +65,6 @@ export default class PresencePlayer {
 
   protected _plays = new WeakMap<Element, object>();
 
-  protected _shows = new WeakSet<Animation>();
-
-  protected _unpinned = new Map<Element, Unpinned>();
-
   constructor(
     protected hold: AnimationHold,
     protected reducedMotion: () => boolean,
@@ -128,7 +87,6 @@ export default class PresencePlayer {
     ) {
       return;
     }
-    const unpinned = presence === "show" ? this.unpin(element) : undefined;
     void element.ownerDocument.defaultView?.getComputedStyle(element).opacity;
     const current = this.animations(element);
     const before =
@@ -152,9 +110,6 @@ export default class PresencePlayer {
       ...after.filter((animation) => !before.has(animation)),
       ...carried,
     ];
-    if (unpinned) {
-      this.fadeIn(element, unpinned, started);
-    }
     if (this.reducedMotion()) {
       for (const animation of started) {
         if (moves(animation)) {
@@ -183,9 +138,6 @@ export default class PresencePlayer {
         this._motions.delete(element);
       }
     }
-    if (unpinned) {
-      this.repin(element, unpinned);
-    }
     if (this._plays.get(element) === turn) {
       this._plays.delete(element);
       if (
@@ -196,154 +148,6 @@ export default class PresencePlayer {
       }
     }
     this.release(element, carried);
-  }
-
-  shows(animations: readonly Animation[]): void {
-    const arriving = new Map<Element, Animation[]>();
-    for (const animation of animations) {
-      this._shows.add(animation);
-      const target = (animation.effect as KeyframeEffect | null)?.target;
-      if (target?.getAttribute(PRESENCE_ATTRIBUTE) === "initial") {
-        arriving.set(target, [...(arriving.get(target) ?? []), animation]);
-      }
-    }
-    for (const [element, added] of arriving) {
-      this.setAside(element, added);
-    }
-  }
-
-  protected setAside(element: Element, added: Animation[] = []): void {
-    const waiting = [
-      ...(this._unpinned.get(element)?.waiting ?? []).filter(
-        (animation) => animation.playState === "idle",
-      ),
-      ...added,
-    ];
-    this.repin(element);
-    const unpinned = this.unpin(element, waiting);
-    if (!unpinned) {
-      return;
-    }
-    this._unpinned.set(element, unpinned);
-    if (this.settledOpacity(element) !== unpinned.opacity) {
-      this.repin(element, unpinned);
-    }
-  }
-
-  protected settledOpacity(element: Element): number {
-    const view = element.ownerDocument.defaultView;
-    const style = (element as HTMLElement).style;
-    if (!view || !style) {
-      return Number.NaN;
-    }
-    const presence = element.getAttribute(PRESENCE_ATTRIBUTE);
-    const inline = style.cssText;
-    style.setProperty("transition", "none", "important");
-    element.setAttribute(PRESENCE_ATTRIBUTE, "show");
-    const settled = Number(view.getComputedStyle(element).opacity);
-    if (presence == null) {
-      element.removeAttribute(PRESENCE_ATTRIBUTE);
-    } else {
-      element.setAttribute(PRESENCE_ATTRIBUTE, presence);
-    }
-    void view.getComputedStyle(element).opacity;
-    style.cssText = inline;
-    return settled;
-  }
-
-  protected unpin(
-    element: Element,
-    added: Animation[] = [],
-  ): Unpinned | undefined {
-    const animated = element as Animated;
-    const view = element.ownerDocument.defaultView;
-    if (typeof animated.getAnimations !== "function" || !view) {
-      return undefined;
-    }
-    const live = animated
-      .getAnimations()
-      .filter((animation) => !styleDriven(animation) && setsOpacity(animation));
-    const waiting = added.filter(
-      (animation) =>
-        animation.playState === "idle" &&
-        !live.includes(animation) &&
-        setsOpacity(animation),
-    );
-    const pinning = [...live, ...waiting];
-    const show = pinning.at(-1);
-    const pinned = (animation: Animation) => {
-      const effect = animation.effect as KeyframeEffect | null;
-      const fill = effect?.getTiming?.().fill;
-      return (
-        effect?.target === element &&
-        effect.composite === "replace" &&
-        (animation.playState === "finished" || waiting.includes(animation)) &&
-        (fill === "both" || fill === "forwards") &&
-        setsOnlyOpacity(effect)
-      );
-    };
-    if (!show || !this._shows.has(show) || !pinning.every(pinned)) {
-      return undefined;
-    }
-    const opacity = waiting.length
-      ? endOpacity(show)
-      : Number(view.getComputedStyle(element).opacity);
-    if (Number.isNaN(opacity)) {
-      return undefined;
-    }
-    const fills = new Map(
-      pinning.map((animation) => {
-        const effect = animation.effect as KeyframeEffect;
-        return [effect, effect.getTiming().fill!] as const;
-      }),
-    );
-    for (const effect of fills.keys()) {
-      effect.updateTiming({ fill: "none" });
-    }
-    return { fills, opacity, waiting };
-  }
-
-  protected fadeIn(
-    element: Element,
-    unpinned: Unpinned,
-    started: Animation[],
-  ): void {
-    this._unpinned.set(element, unpinned);
-    const fades = started.filter((animation) => {
-      const effect = animation.effect as KeyframeEffect | null;
-      return (
-        (animation as CSSTransition).transitionProperty === "opacity" &&
-        effect?.target === element &&
-        !effect.pseudoElement
-      );
-    });
-    const settled = fades.length
-      ? Number(
-          (fades[0]!.effect as KeyframeEffect).getKeyframes().at(-1)?.["opacity"],
-        )
-      : Number(
-          element.ownerDocument.defaultView?.getComputedStyle(element).opacity,
-        );
-    if (settled === unpinned.opacity) {
-      return;
-    }
-    for (const fade of fades) {
-      fade.finish();
-    }
-    this.repin(element, unpinned);
-  }
-
-  protected repin(
-    element: Element,
-    unpinned = this._unpinned.get(element),
-  ): void {
-    if (!unpinned || this._unpinned.get(element) !== unpinned) {
-      return;
-    }
-    this._unpinned.delete(element);
-    for (const [effect, fill] of unpinned.fills) {
-      effect.updateTiming({ fill });
-    }
   }
 
   protected release(
@@ -364,16 +168,11 @@ export default class PresencePlayer {
       this._motions.delete(element);
       motion.end();
     }
-    this.repin(element);
     this.release(element);
   }
 
   endWithin(root: Element): void {
-    for (const element of [
-      ...this._motions.keys(),
-      ...this._carried.keys(),
-      ...this._unpinned.keys(),
-    ]) {
+    for (const element of [...this._motions.keys(), ...this._carried.keys()]) {
       if (root === element || root.contains(element)) {
         this.end(element);
       }
@@ -381,11 +180,7 @@ export default class PresencePlayer {
   }
 
   endAll(): void {
-    for (const element of [
-      ...this._motions.keys(),
-      ...this._carried.keys(),
-      ...this._unpinned.keys(),
-    ]) {
+    for (const element of [...this._motions.keys(), ...this._carried.keys()]) {
       this.end(element);
     }
   }
@@ -420,13 +215,6 @@ export default class PresencePlayer {
     }
     if (presence != null) {
       this.end(element);
-      if (presence === "initial") {
-        queueMicrotask(() => {
-          if (element.getAttribute(PRESENCE_ATTRIBUTE) === presence) {
-            this.setAside(element);
-          }
-        });
-      }
       return () => {};
     }
     this.settle(element);

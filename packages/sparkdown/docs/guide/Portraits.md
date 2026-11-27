@@ -252,7 +252,7 @@ layout main {
 }
 ```
 
-A single `portrait` slot holds one picture, so two characters on screen at once need a slot each, and a character who moves from one slot to the other fades out of one and into the other. Put the slot in a `cast` to keep one picture for each character and move it (see [A cast keeps one entry per character](./Streams.md#a-cast-keeps-one-entry-per-character)).
+A single `portrait` slot holds one picture, so two characters on screen at once need a slot each, and a character who moves from one slot to the other leaves one and appears in the other. Put the slot in a `cast` to keep one picture for each character and move it (see [A cast keeps one entry per character](./Streams.md#a-cast-keeps-one-entry-per-character)).
 
 ## Choosing an expression
 
