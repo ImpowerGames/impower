@@ -362,3 +362,104 @@ describe("a remounted line replays on the story clock, whatever path writes it (
     },
   );
 });
+
+describe("a line first presented during a pause keeps its time on every path (#2861)", () => {
+  const branch = `if expanded then
+        text.first
+      else
+        text.second
+      end`;
+
+  const fixtures = [
+    {
+      kind: "a box",
+      name: "main",
+      selector: ".main .dialogue",
+      layout: `layout main {\n  dialogue {\n    ${branch}\n  }\n}`,
+    },
+    {
+      kind: "the textstream page",
+      name: "textstream",
+      selector: ".textstream_column",
+      layout: `layout textstream {\n  textstream.paper.ink {\n    textstream_column\n  }\n}`,
+    },
+    {
+      kind: "a stream entry",
+      name: "phone",
+      selector: ".phone .stream",
+      layout: `layout phone {\n  stream.feed {\n    dialogue.bubble {\n      ${branch}\n    }\n  }\n}`,
+    },
+  ];
+
+  const sourceOf = (fixture: (typeof fixtures)[number]) =>
+    `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+store expanded = true
+
+function toggle()
+  expanded = not expanded
+end
+
+${fixture.layout}
+
+scene start
+  [[open ${fixture.name}]] RAFFLES: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+  RAFFLES: done
+end
+`;
+
+  const shownIn = (h: DOMHarness, selector: string) =>
+    [...h.overlay.querySelectorAll<HTMLElement>(`${selector} .text_letter`)].filter((el) => {
+      const reveal = (el as any).__sdReveal;
+      return reveal
+        ? reveal.currentTime != null &&
+            reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+        : el.style.opacity === "1";
+    }).length;
+
+  async function remount(h: DOMHarness, fixture: (typeof fixtures)[number]) {
+    const ui = h.game.module.ui;
+    if (fixture.name === "textstream") {
+      await ui.applyLayoutInstructions([{ control: "close", name: fixture.name }], true);
+      await flushMicrotasks(40);
+      await ui.applyLayoutInstructions([{ control: "open", name: fixture.name }], true);
+    } else {
+      h.game.story.EvaluateFunction("toggle", []);
+      ui.refreshLayouts();
+    }
+    await flushMicrotasks(40);
+  }
+
+  test.each(fixtures)(
+    "$kind, presented in a composed beat during a pause, shows the letters of one never replayed after a remount",
+    async (fixture) => {
+      const h = harness(sourceOf(fixture));
+      await h.ready;
+      h.game.context.system.composeBeats = true;
+      h.game.context.system.transitions = false;
+      h.jumpTo("start");
+      await at(50);
+      hold(h);
+      await at(300);
+      const instructions = h.nextBeat();
+      expect(instructions).toBeDefined();
+      const coordinator = new Coordinator(h.game, instructions!);
+      for (let i = 0; i < 10; i += 1) {
+        coordinator.onUpdate({ deltaMS: 0 } as Clock);
+        await flushMicrotasks(40);
+      }
+      await at(600);
+      release(h);
+      for (let t = 650; t <= 1500; t += 50) {
+        await at(t);
+      }
+      const live = shownIn(h, fixture.selector);
+      expect(live).toBeGreaterThan(0);
+      expect(live).toBeLessThan(52);
+      await remount(h, fixture);
+      expect(shownIn(h, fixture.selector)).toBe(live);
+    },
+  );
+});

@@ -8565,7 +8565,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       show(instant: boolean, time?: number): void {
         this._presented = { instant, time, lag: $._game.settledStoryLag() };
-        this.sync(this._presented);
+        this.sync(this._presented, undefined, true);
       }
 
       mounted(): void {
@@ -8589,12 +8589,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected sync(
         presented?: { instant: boolean; time?: number; lag?: number },
         rewriteFrom?: number,
+        fresh = false,
       ): void {
         if ($.context?.system?.simulating) {
           return;
         }
         const instant = presented?.instant ?? true;
-        const time = presented && $.replayTime(presented);
+        const time = fresh ? presented?.time : presented && $.replayTime(presented);
         const column = $.findElements(PAGE_COLUMN)[0];
         if (!column) {
           this.forget();
@@ -8999,7 +9000,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       show(instant: boolean, time?: number): void {
         this._presented = { instant, time, lag: $._game.settledStoryLag() };
-        this.sync(this._presented, undefined, !instant);
+        this.sync(this._presented, undefined, !instant, true);
       }
 
       restore(): void {
@@ -9011,6 +9012,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         presented: { instant: boolean; time?: number; lag?: number },
         rewriteFrom?: number,
         arriving = false,
+        fresh = false,
       ): void {
         if ($.context?.system?.simulating) {
           return;
@@ -9023,7 +9025,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           this._mounted.set(key, live);
           for (const mount of live) {
-            this.render(mount, presented, rewriteFrom, arriving);
+            this.render(mount, presented, rewriteFrom, arriving, fresh);
           }
         }
       }
@@ -9033,6 +9035,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         presented?: { instant: boolean; time?: number; lag?: number },
         rewriteFrom?: number,
         arriving = false,
+        fresh = false,
       ): void {
         const stream = $._state.streams?.[mount.key];
         const current = stream?.current ?? 0;
@@ -9091,6 +9094,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             atOnce
               ? { complete: true }
               : (reveal ?? { complete: false, time, lag: presented?.lag }),
+            undefined,
+            fresh && !reveal,
           );
           if (
             !atOnce &&
@@ -9177,6 +9182,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         entry: StreamEntry,
         reveal: Presented,
         replaced?: (el: Element) => boolean,
+        fresh = false,
       ): boolean {
         this._reveals.set(this.revealKey(mount, index), reveal);
         const instant = reveal.complete;
@@ -9197,7 +9203,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             elements,
             events,
             instant,
-            $.replayTime(reveal),
+            fresh ? reveal.time : $.replayTime(reveal),
             instant ? 0 : (entry.shown?.[target] ?? 0),
           );
         }
