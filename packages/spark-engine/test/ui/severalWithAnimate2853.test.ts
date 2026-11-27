@@ -9,27 +9,35 @@ const ASSETS: File[] = [
 
 type Harness = ReturnType<typeof createHarness>;
 
-async function played(line: string, setup = "[[show backdrop bg]]\n  [[show portrait bunny]]") {
-  const target = line.split(" ")[1]!;
-  const h: Harness = createHarness(`scene start\n  ${setup}\n  One.\n  [[${line}]]\n  Two.\nend\n`, 0, {
-    assets: ASSETS,
-  });
-  await h.ready;
-  h.jumpToFlow("start");
-  const first = h.nextBeat()!;
-  await h.display(first, false);
+let shared: Promise<Harness> | undefined;
+
+function sharedHarness(): Promise<Harness> {
+  shared ??= (async () => {
+    const h = createHarness("scene start\n  Hi.\nend\n", 0, { assets: ASSETS });
+    await h.ready;
+    h.jumpToFlow("start");
+    return h;
+  })();
+  return shared;
+}
+
+async function played(line: string, shown: readonly (readonly [layer: string, picture: string])[] = [["backdrop", "bg"], ["portrait", "bunny"]]) {
+  const h = await sharedHarness();
+  const ui = h.game.module.ui;
+  for (const [layer, picture] of shown) {
+    await ui.image.write(layer, [{ control: "show", assets: [picture] }], true);
+  }
   await flushMicrotasks();
-  const beat = h.nextBeat()!;
-  const mark = h.messages.length;
-  await h.display(beat, false);
+  const target = line.split(" ")[1]!;
+  const beat = h.game.module.interpreter.parse(`[[${line}]] Hello`, "main", {} as any);
+  h.reset();
+  await ui.image.write(target, beat.image![target]!, false);
   await flushMicrotasks();
   const write = h.messages
-    .slice(mark)
     .filter((m: any) => m?.method === "ui/write-image" && m.params?.target === target)
     .at(-1)?.params;
-  const parsed = h.game.module.interpreter.parse(`[[${line}]] Hello`, "main", {} as any).text ?? {};
-  const firstLetter = Object.values(parsed).flat()[0] as { after?: number } | undefined;
-  return { beat, held: firstLetter?.after ?? 0, instruction: write?.instructions.at(-1) };
+  const firstLetter = Object.values(beat.text ?? {}).flat()[0] as { after?: number } | undefined;
+  return { held: firstLetter?.after ?? 0, instruction: write?.instructions.at(-1) };
 }
 
 const timing = (animation: any) => ({
@@ -91,7 +99,7 @@ describe("every `with` on an `animate` line plays, each with its own timing (I-2
   });
 
   it("a `show` line with two `with` clauses still plays only its last", async () => {
-    const { instruction } = await played("show portrait with shake over 1s with spin over 2s", "[[show portrait bunny]]");
+    const { instruction } = await played("show portrait with shake over 1s with spin over 2s", [["portrait", "bunny"]]);
     expect(instruction.targetAnimations.map(timing)).toEqual([
       expect.objectContaining({ name: "spin", duration: "2s" }),
     ]);
