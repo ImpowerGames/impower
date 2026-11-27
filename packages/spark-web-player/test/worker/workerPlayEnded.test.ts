@@ -283,6 +283,38 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 
+  it("the bar's Restart replays from the line PLAY started on after the selection has moved", async () => {
+    const { h, plays } = await start(RAN_OUT, HELLO);
+    try {
+      await click(h);
+      expect(launchStates(h).at(-1)).toBe("ended");
+      expect(runButton(h)).toEqual(
+        expect.objectContaining({ mode: "stop", restart: true }),
+      );
+      await h.select(1);
+      await settle(20);
+      const before = h.toRouter.length;
+      await h.controller.restart();
+      await settle(40);
+      await h.tick(1000 / 60, 60);
+      expect(plays).toEqual([
+        { file: MAIN_URI, line: HELLO },
+        { file: MAIN_URI, line: HELLO },
+      ]);
+      expect(launchStates(h).at(-1)).toBe("play");
+      expect(runButton(h)).toEqual(
+        expect.objectContaining({ mode: "stop", restart: false }),
+      );
+      const text = writtenText(h.toRouter.slice(before));
+      expect(text).toContain("Hello.");
+      expect(text).not.toContain("First.");
+      expect(sent(h, "game/exited")).toEqual([]);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.dispose();
+    }
+  }, 120_000);
+
   for (const caller of ["handleStopGame", "stop"] as const) {
     it(`STOP through ${caller} from the ended frame sends game/exited and selects the line the run ended on`, async () => {
       const { h } = await start(RAN_OUT, HELLO);
@@ -362,14 +394,16 @@ describe("PLAY in the worker reaching the end of the story", () => {
     }
   }, 120_000);
 
-  it("without an editor host, keeps the frame and offers Run again, which replays the run", async () => {
+  it("without an editor host, keeps the frame and offers Stop and Restart, which replays the run", async () => {
     const { h, plays } = await start(RAN_OUT, HELLO, "standalone");
     try {
       await click(h);
       expect(sent(h, "game/exited")).toEqual([]);
       expect(h.workerState.gameState.running).toBeTruthy();
-      expect(runButton(h).mode).toBe("run-again");
-      await h.controller.run();
+      expect(runButton(h)).toEqual(
+        expect.objectContaining({ mode: "stop", restart: true }),
+      );
+      await h.controller.restart();
       await settle(40);
       await h.tick(1000 / 60, 10);
       expect(plays).toHaveLength(2);
@@ -410,7 +444,7 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
     ["fin", "fin"],
     ["done", "out"],
   ] as const) {
-    it(`without an editor host, offers Run again for a story that ends by ${last} as the first click starts it`, async () => {
+    it(`without an editor host, offers Stop and Restart for a story that ends by ${last} as the first click starts it`, async () => {
       const h = await standalone(`scene start\n  ${last}\nend\n`);
       try {
         await h.controller.run();
@@ -420,7 +454,9 @@ describe("PLAY in the worker ending as it starts, or failing to replay an ending
           expect.objectContaining({ kind }),
         );
         expect(launchStates(h).at(-1)).toBe("ended");
-        expect(runButton(h).mode).toBe("run-again");
+        expect(runButton(h)).toEqual(
+        expect.objectContaining({ mode: "stop", restart: true }),
+      );
       } finally {
         await h.controller.destroyGameAndApp();
         h.dispose();
