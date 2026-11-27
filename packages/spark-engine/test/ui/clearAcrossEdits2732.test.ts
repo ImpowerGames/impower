@@ -262,10 +262,19 @@ describe("where an element's #clear identity comes from (I-2732)", () => {
     ["interpolation", '#clear="{shown}"'],
   ])("a #clear given a bound value (%s) is refused with an error naming the literal spellings", (_kind, prop) => {
     const source = PREFIX + layout("textbox", `    title ${prop} { text }`) + KINDS.text.scene;
-    const { errors } = compileUI(source);
+    const { program, errors } = compileUI(source);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain("`#clear` takes no bound value");
     expect(errors[0]).toContain("`#clear=true` or `#clear=false`");
+    const diagnostic = Object.values((program as any).diagnostics)
+      .flat()
+      .find((d: any) => (d.message?.value ?? d.message) === errors[0]) as any;
+    const lines = source.split("\n");
+    const line = lines.findIndex((l) => l.includes(prop));
+    const { start, end } = diagnostic.range;
+    expect(start.line).toBe(line);
+    expect(end.line).toBe(line);
+    expect(lines[line].slice(start.character, end.character)).toBe(prop);
   });
 
   test.each(["#clear", "#clear=true", "#clear=false"])("a literal %s compiles without a diagnostic", (prop) => {
