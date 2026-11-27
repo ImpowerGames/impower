@@ -2,7 +2,12 @@ import type { Instructions } from "../../types/Instructions";
 import type { Game } from "../Game";
 import type { PresentOptions, Presenter } from "./Presenter";
 import { applyLayoutDirectives, clearStage, writeStage } from "./stage";
-import { opensTextLayout, presentsText } from "./textLayouts";
+import {
+  keptThroughMenu,
+  menuLeavesWithItsLayout,
+  opensTextLayout,
+  presentsText,
+} from "./textLayouts";
 
 export function writeBeatText(
   ui: Game["module"]["ui"],
@@ -67,7 +72,10 @@ export class VisualNovelPresenter implements Presenter {
     const game = this._game;
     const instructions = this._instructions;
     const instant = this._options.instant;
-    const transientLayers = this._transientLayers;
+    const kept = keptThroughMenu(game, instructions, this._transientLayers);
+    const transientLayers = this._transientLayers.filter(
+      (target) => !kept.includes(target),
+    );
     const extended = Boolean(instructions.extended);
 
     const stage = this._options.stage;
@@ -107,9 +115,14 @@ export class VisualNovelPresenter implements Presenter {
     if (!choiceTargets || !target) {
       return;
     }
+    for (const option of choiceTargets) {
+      ui.unobserve("click", option);
+    }
+    if (menuLeavesWithItsLayout(this._game)) {
+      return;
+    }
     ui.text.change("choose", choiceTargets);
     ui.image.clearAll(choiceTargets);
-    ui.unobserve("click", target);
     ui.hideAll(choiceTargets);
   }
 

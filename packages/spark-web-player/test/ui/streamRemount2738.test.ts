@@ -3,7 +3,7 @@ import type { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Coordinator } from "../../../spark-engine/src/game/core/classes/Coordinator";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { createDOMHarness, flushMicrotasks, type DOMHarness } from "./domTestHarness";
-import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
+import { advanceTo, timeline, useTimedAnimations } from "./timedAnimation";
 
 const source = (
   body: string,
@@ -72,40 +72,10 @@ afterEach(() => {
 });
 
 function timed(h: DOMHarness) {
-  const g = globalThis as any;
-  const saved = {
-    Animation: g.Animation,
-    KeyframeEffect: g.KeyframeEffect,
-    getComputedStyle: g.getComputedStyle,
-  };
-  const win = h.overlay.ownerDocument.defaultView!;
-  g.Animation = TimedAnimation;
-  g.KeyframeEffect = TimedEffect;
-  g.getComputedStyle = win.getComputedStyle.bind(win);
-  Object.defineProperty(h.overlay.ownerDocument, "timeline", {
-    configurable: true,
-    value: timeline,
-  });
-  timeline.currentTime = 0;
-  animations.length = 0;
-  restore = () => {
-    Object.assign(g, saved);
-    animations.length = 0;
-  };
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  (h.game.context.system as any).previewing = undefined;
-  h.ui.onUpdate({ elapsedTime: 0 } as never);
+  restore = useTimedAnimations(h);
 }
 
-async function at(time: number) {
-  const delta = time - timeline.currentTime;
-  timeline.currentTime = time;
-  vi.advanceTimersByTime(delta);
-  for (const animation of animations) {
-    animation.update();
-  }
-  await flushMicrotasks(40);
-}
+const at = advanceTo;
 
 const letters = (h: DOMHarness, index: number) => [
   ...entries(h)[index]!.querySelectorAll<HTMLElement>(".text_letter"),
@@ -139,6 +109,31 @@ describe("a stream is named like any element (#2738)", () => {
 });
 
 describe("stream entries across remounts (#2738)", () => {
+  test("a stream rebuilt by its screen's slot writes each entry once", async () => {
+    const messages: any[] = [];
+    const h = createDOMHarness(source("text", undefined, true), 0, {
+      reactive: true,
+      autoOpenAll: false,
+      afterEachMessage: (m) => messages.push(m),
+    });
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    await next(h);
+    const flatten = (ms: any[]): any[] =>
+      ms.flatMap((m) => (m?.params?.messages ? flatten(m.params.messages) : [m]));
+    messages.length = 0;
+    await toggle(h);
+    expect(texts(h)).toEqual(["first message", "second message"]);
+    const writes = flatten(messages).filter(
+      (m) => m?.method === "ui/write-text" && m.params.instructions.length > 0,
+    );
+    expect(writes.map((m) => m.params.instructions.map((e: any) => e.text).join(""))).toEqual([
+      "first message",
+      "second message",
+    ]);
+  });
+
   test("a layout moved by its screen's slot keeps its entries and the latest", async () => {
     const h = createDOMHarness(source("text", undefined, true), 0, {
       reactive: true,
@@ -204,6 +199,53 @@ describe("stream entries across remounts (#2738)", () => {
       expect(entries(h)).toHaveLength(2);
     },
   );
+
+  test("a text slot a for loop adds to an entry receives that entry's line", async () => {
+    const h = createDOMHarness(
+      source(`for row in rows do
+        text
+      end`).replace(
+        "store expanded = true",
+        "store expanded = true\n\nstore rows = { 1 }\n\nfunction grow()\n  rows = { 1, 2 }\nend",
+      ),
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    await next(h);
+    await next(h);
+    h.game.story.EvaluateFunction("grow", []);
+    h.game.module.ui.refreshLayouts();
+    await flushMicrotasks(40);
+    expect(
+      entries(h).map((el) =>
+        [...el.querySelectorAll(".text")].map((text) => text.textContent ?? ""),
+      ),
+    ).toEqual([
+      ["first message", "first message"],
+      ["second message", "second message"],
+    ]);
+  });
+
+  test("an entry still typing when the next line arrives keeps its reveal across a remount", async () => {
+    const h = createDOMHarness(source(BRANCH), 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    timed(h);
+    await next(h);
+    await at(100);
+    const before = visible(h, 0);
+    expect(before).toBeGreaterThan(0);
+    expect(before).toBeLessThan(letters(h, 0).length);
+    await next(h);
+    expect(entries(h)).toHaveLength(2);
+    expect(visible(h, 0)).toBe(before);
+    await toggle(h);
+    expect(texts(h)).toEqual(["first message", "second message"]);
+    expect(h.overlay.querySelectorAll(".phone .second")).toHaveLength(2);
+    expect(visible(h, 0)).toBe(before);
+  });
 
   test("a remount inside a composed beat that writes no stream text keeps the typing entry's reveal", async () => {
     const h = createDOMHarness(source(BRANCH), 0, { reactive: true, autoOpenAll: false });

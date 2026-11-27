@@ -178,7 +178,14 @@ import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import type { StartingDisplayMode } from "./messages/SetStartingDisplayModeMessage";
 import { TEXTSTREAM_LAYOUT } from "./presenters/InteractiveFictionPresenter";
-import { initialLayouts, openInitialLayouts } from "./presenters/textLayouts";
+import {
+  closeMenuAtEnd,
+  initialLayouts,
+  keptThroughMenu,
+  MENU_LAYOUT,
+  menuLeavesWithItsLayout,
+  openInitialLayouts,
+} from "./presenters/textLayouts";
 import { markRun, streamRun } from "./presenters/streamRuns";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
@@ -1419,6 +1426,9 @@ export class Game<T extends M = {}> {
       ui.applyLayoutInstructions(
         [
           ...closing.map((name) => ({ control: "close" as const, name })),
+          ...(opening.includes(TEXTSTREAM_LAYOUT) && menuLeavesWithItsLayout(this)
+            ? [{ control: "close" as const, name: MENU_LAYOUT, auto: true as const }]
+            : []),
           ...opening.map((name) => ({ control: "open" as const, name })),
         ],
         true,
@@ -3102,7 +3112,12 @@ export class Game<T extends M = {}> {
     if (!this.load(saveJSON)) {
       return false;
     }
-    this._resumeShown = (JSON.parse(saveJSON) as SaveData).shown ?? null;
+    const shown = (JSON.parse(saveJSON) as SaveData).shown ?? null;
+    this._resumeShown = shown;
+    const ui = this.module.ui;
+    ui.keepThroughConnect(
+      shown ? keptThroughMenu(this, shown, ui.savedTargets()) : [],
+    );
     return true;
   }
 
@@ -4216,6 +4231,7 @@ export class Game<T extends M = {}> {
     };
     this._announcedStop = true;
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    closeMenuAtEnd(this, this.module.ui.still);
     this.showEndingOnPage(kind);
     if (kind === "fin") {
       this.module.ui.openEnding();
@@ -5457,6 +5473,7 @@ export class Game<T extends M = {}> {
       return;
     }
     this.module.ui.style.update("continue_indicator", { display: "none" });
+    closeMenuAtEnd(this, true);
     if (ending.kind === "fin") {
       this.module.ui.openEnding();
     }

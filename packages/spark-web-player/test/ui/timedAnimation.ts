@@ -1,3 +1,6 @@
+import { vi } from "vitest";
+import { flushMicrotasks, type DOMHarness } from "./domTestHarness";
+
 export const timeline = { currentTime: 0 };
 
 export class TimedEffect {
@@ -151,4 +154,40 @@ export class TimedAnimation {
     }
     this._isFinished = finished;
   }
+}
+
+export function useTimedAnimations(h: DOMHarness): () => void {
+  const g = globalThis as any;
+  const saved = {
+    Animation: g.Animation,
+    KeyframeEffect: g.KeyframeEffect,
+    getComputedStyle: g.getComputedStyle,
+  };
+  const win = h.overlay.ownerDocument.defaultView!;
+  g.Animation = TimedAnimation;
+  g.KeyframeEffect = TimedEffect;
+  g.getComputedStyle = win.getComputedStyle.bind(win);
+  Object.defineProperty(h.overlay.ownerDocument, "timeline", {
+    configurable: true,
+    value: timeline,
+  });
+  timeline.currentTime = 0;
+  animations.length = 0;
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  (h.game.context.system as any).previewing = undefined;
+  h.ui.onUpdate({ elapsedTime: 0 } as never);
+  return () => {
+    Object.assign(g, saved);
+    animations.length = 0;
+  };
+}
+
+export async function advanceTo(time: number): Promise<void> {
+  const delta = time - timeline.currentTime;
+  timeline.currentTime = time;
+  vi.advanceTimersByTime(delta);
+  for (const animation of animations) {
+    animation.update();
+  }
+  await flushMicrotasks(40);
 }

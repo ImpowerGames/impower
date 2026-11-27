@@ -64,14 +64,14 @@ function gatheringOf(
 ): StreamGathering | undefined {
   const ui = game.module.ui;
   const sparkle = game.program?.sparkle;
-  const opened = ui.autoLayoutAfter(events);
+  const opened = ui.autoLayoutsAfter(events);
   for (const layout of ui.openedLayoutsAfter(events)) {
     const settings = streamSettings(game, layout);
-    if (opened !== layout && settings.advance !== "auto") {
+    if (!opened.includes(layout) && settings.advance !== "auto") {
       continue;
     }
     if (layoutStreams(sparkle, layout).some((node) => streamTemplate(node, routed) >= 0)) {
-      return { layout, opened: opened === layout, settings };
+      return { layout, opened: opened.includes(layout), settings };
     }
   }
   return undefined;

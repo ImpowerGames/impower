@@ -2673,6 +2673,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$type": "style",
                   "position": "static",
                 },
+                "layout_choices": {
+                  "$name": "layout_choices",
+                  "$type": "style",
+                  "z_index": "-1",
+                },
                 "layout_dialogue": {
                   "$name": "layout_dialogue",
                   "$type": "style",
@@ -4475,7 +4480,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-36",
-            "name": "layout_textstream",
+            "name": "layout_choices",
             "parent": "e-6",
             "style": {
               "display": "flex",
@@ -4501,7 +4506,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-37",
-            "name": "textstream paper ink",
+            "name": "choices",
             "parent": "e-36",
             "style": undefined,
             "type": "div",
@@ -4522,7 +4527,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "content": undefined,
             "element": "e-38",
-            "name": "textstream_column",
+            "name": "choice 0",
             "parent": "e-37",
             "style": undefined,
             "type": "div",
@@ -4530,6 +4535,305 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
         },
         {
           "id": "req-40",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-39",
+            "name": "text",
+            "parent": "e-38",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-41",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-40",
+            "name": "choice 1",
+            "parent": "e-37",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-42",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-41",
+            "name": "text",
+            "parent": "e-40",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-43",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-42",
+            "name": "choice 2",
+            "parent": "e-37",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-44",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-43",
+            "name": "text",
+            "parent": "e-42",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-45",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-44",
+            "name": "choice 3",
+            "parent": "e-37",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-46",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-45",
+            "name": "text",
+            "parent": "e-44",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-47",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-46",
+            "name": "choice 4",
+            "parent": "e-37",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-48",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-47",
+            "name": "text",
+            "parent": "e-46",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-49",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-48",
+            "name": "choice 5",
+            "parent": "e-37",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-50",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-49",
+            "name": "text",
+            "parent": "e-48",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-51",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-50",
+            "name": "layout_textstream",
+            "parent": "e-6",
+            "style": {
+              "display": "flex",
+              "flex_direction": "column",
+              "inset": "0",
+              "position": "absolute",
+            },
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-52",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-51",
+            "name": "textstream paper ink",
+            "parent": "e-50",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-53",
+          "kind": "request",
+          "method": "ui/create",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-52",
+            "name": "textstream_column",
+            "parent": "e-51",
+            "style": undefined,
+            "type": "div",
+          },
+        },
+        {
+          "id": "req-54",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4544,12 +4848,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xs": 400,
             },
             "content": undefined,
-            "element": "e-37",
+            "element": "e-51",
             "style": undefined,
           },
         },
         {
-          "id": "req-41",
+          "id": "req-55",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4571,7 +4875,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-42",
+          "id": "req-56",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4589,7 +4893,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-43",
+          "id": "req-57",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4607,7 +4911,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-44",
+          "id": "req-58",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4625,7 +4929,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-45",
+          "id": "req-59",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4643,7 +4947,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
         },
         {
-          "id": "req-46",
+          "id": "req-60",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4660,11 +4964,119 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "element": "e-32",
           },
         },
+        {
+          "id": "req-61",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "choice",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "element": "e-38",
+          },
+        },
+        {
+          "id": "req-62",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "choice",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "element": "e-40",
+          },
+        },
+        {
+          "id": "req-63",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "choice",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "element": "e-42",
+          },
+        },
+        {
+          "id": "req-64",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "choice",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "element": "e-44",
+          },
+        },
+        {
+          "id": "req-65",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "choice",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "element": "e-46",
+          },
+        },
+        {
+          "id": "req-66",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "data-display-target": "choice",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "element": "e-48",
+          },
+        },
       ],
     },
   },
   {
-    "id": "req-47",
+    "id": "req-67",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4679,7 +5091,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-48",
+          "id": "req-68",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4704,7 +5116,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-49",
+    "id": "req-69",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4719,7 +5131,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-50",
+          "id": "req-70",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4744,7 +5156,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-51",
+    "id": "req-71",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4759,7 +5171,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-52",
+          "id": "req-72",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4784,7 +5196,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-53",
+    "id": "req-73",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4799,7 +5211,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-54",
+          "id": "req-74",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4824,7 +5236,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-55",
+    "id": "req-75",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -4839,7 +5251,247 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-56",
+          "id": "req-76",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-38",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-77",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 0",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-78",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-40",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-79",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 1",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-80",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-42",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-81",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 2",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-82",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-44",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-83",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 3",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-84",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-46",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-85",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 4",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-86",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-48",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-87",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 5",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-88",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4862,7 +5514,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-57",
+    "id": "req-89",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4877,7 +5529,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-58",
+          "id": "req-90",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4900,7 +5552,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-59",
+    "id": "req-91",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4915,7 +5567,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-60",
+          "id": "req-92",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4938,7 +5590,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-61",
+    "id": "req-93",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4953,7 +5605,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-62",
+          "id": "req-94",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -4976,7 +5628,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-63",
+    "id": "req-95",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -4991,7 +5643,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     "params": {
       "messages": [
         {
-          "id": "req-64",
+          "id": "req-96",
           "kind": "request",
           "method": "ui/update",
           "params": {
@@ -5014,13 +5666,241 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-65",
+    "id": "req-97",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
       "instant": true,
       "instructions": [],
       "target": "dialogue",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-98",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-38",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-99",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 0",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-100",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-40",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-101",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 1",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-102",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-42",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-103",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 2",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-104",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-44",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-105",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 3",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-106",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-46",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-107",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 4",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-108",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-48",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-109",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "choice 5",
     },
   },
 ]
