@@ -72,9 +72,22 @@ every animation the transition runs.
 and every `with`, each counted as its `after` plus its length. A `with` that
 repeats counts one pass.
 
-When two `with` clauses on a line set the same property, the later one wins while
-both run. `[[animate portrait with shake with pulse]]` shows both, because
-`shake` moves the portrait and `pulse` changes its opacity.
+How the `with` clauses of one line combine when they set the same property:
+
+- Movement adds up. When two `with` clauses move, turn or resize the same element
+  (`transform`, `translate`, `rotate` or `scale`), the element shows both, in the
+  order the `with` clauses are written: offsets and turns sum and sizes
+  multiply. `[[animate portrait with shake over 2s with spin over 2s]]` shakes
+  the portrait while it turns, and two animations that each double its size
+  make it four times as large.
+- For every other property, such as `opacity` or a colour, the `with` written
+  later wins while both run. `[[animate portrait with fadein over 2s with pulse
+  over 2s]]` shows the pulse's opacity.
+- The rule covers the `with` clauses of one line. An animation still running
+  from an earlier line does not add up with a new one: the newer one wins.
+
+`[[animate portrait with shake with pulse]]` shows both, because `shake` moves
+the portrait and `pulse` changes its opacity.
 
 `show`, `hide` and the bare picture shorthand play only the last `with` on their
 line, and so do `open`, `close` and `navigate`. `load`, `play` and sound lines

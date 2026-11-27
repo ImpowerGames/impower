@@ -43,24 +43,31 @@ const transformProperty = (value: unknown): number => {
   return product;
 };
 
-export const keyframeScale = (animations: readonly (Animation | undefined)[] | undefined): number => {
+const animationScale = (animation: Animation | undefined): number => {
   let reach = 1;
-  for (const animation of animations ?? []) {
-    for (const frame of animation?.keyframes ?? []) {
-      if (!frame || typeof frame !== "object") {
-        continue;
-      }
-      let scale = 1;
-      for (const [key, value] of Object.entries(frame as Record<string, unknown>)) {
-        const name = key.toLowerCase();
-        if (name === "scale") {
-          scale *= scaleProperty(value);
-        } else if (name === "transform") {
-          scale *= transformProperty(value);
-        }
-      }
-      reach = Math.max(reach, scale);
+  for (const frame of animation?.keyframes ?? []) {
+    if (!frame || typeof frame !== "object") {
+      continue;
     }
+    let scale = 1;
+    for (const [key, value] of Object.entries(frame as Record<string, unknown>)) {
+      const name = key.toLowerCase();
+      if (name === "scale") {
+        scale *= scaleProperty(value);
+      } else if (name === "transform") {
+        scale *= transformProperty(value);
+      }
+    }
+    reach = Math.max(reach, scale);
   }
   return reach;
+};
+
+export const keyframeScale = (animations: readonly (Animation | undefined)[] | undefined): number => {
+  const byTarget = new Map<string, number>();
+  for (const animation of animations ?? []) {
+    const target = animation?.target?.$name ?? "self";
+    byTarget.set(target, (byTarget.get(target) ?? 1) * animationScale(animation));
+  }
+  return Math.max(1, ...byTarget.values());
 };

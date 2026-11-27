@@ -133,6 +133,7 @@ interface ImageEffect {
   element: HTMLElement;
   animations: Animation[];
   after?: AnimationPlayer;
+  line?: AnimationPlayer;
 }
 
 const COMMIT_WAIT_LIMIT_MS = 1_000;
@@ -3065,6 +3066,7 @@ export default class UIManager extends Manager {
                 el,
                 a.animations,
                 instruction.control === "animate" ? undefined : after,
+                after,
               );
             }
           }
@@ -3286,17 +3288,18 @@ export default class UIManager extends Manager {
       effects: ImageEffect[],
       created?: Map<HTMLElement, ReturnType<AnimationPlayer["add"]>>,
     ) => {
-      const players = new Map<AnimationPlayer | undefined, AnimationPlayer>();
+      const players = new Map<AnimationPlayer | undefined, { after?: AnimationPlayer; player: AnimationPlayer }>();
       for (const e of effects) {
-        let player = players.get(e.after);
-        if (!player) {
-          player = new AnimationPlayer(this._theme, this._hold);
-          players.set(e.after, player);
+        const line = e.line ?? e.after;
+        let entry = players.get(line);
+        if (!entry) {
+          entry = { after: e.after, player: new AnimationPlayer(this._theme, this._hold) };
+          players.set(line, entry);
         }
-        const animations = player.add(e);
+        const animations = entry.player.add(e);
         created?.set(e.element, [...(created.get(e.element) ?? []), ...animations]);
       }
-      return Array.from(players, ([after, player]) =>
+      return Array.from(players.values(), ({ after, player }) =>
         player.play(
           startTime == null
             ? undefined
@@ -3771,6 +3774,7 @@ export default class UIManager extends Manager {
     element: HTMLElement,
     animations: Animation[] | undefined,
     after?: AnimationPlayer,
+    line?: AnimationPlayer,
   ) {
     if (!animations?.length) {
       return;
@@ -3780,7 +3784,7 @@ export default class UIManager extends Manager {
         element,
         animation.target?.$name,
       )) {
-        effects.push({ element: el, animations: [animation], after });
+        effects.push({ element: el, animations: [animation], after, line });
       }
     }
   }
