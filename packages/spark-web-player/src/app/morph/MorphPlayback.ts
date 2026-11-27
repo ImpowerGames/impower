@@ -3336,7 +3336,7 @@ export class MorphLayer {
     const { drawn } = this.poseShown(poses);
     const sizes = this.poseSizes(poses);
     const sized = (set: PoseSet, size: { width: number; height: number } | undefined) => !!size && set.width === size.width && set.height === size.height;
-    const kept = (set: PoseSet) => sizes.some((size) => sized(set, size)) || sized(set, drawn);
+    const kept = (set: PoseSet) => sizes.length === 0 || sizes.some((size) => sized(set, size)) || sized(set, drawn);
     for (const set of poses.sets) if (!kept(set)) this.releasePoseSet(set);
     poses.sets = poses.sets.filter((set) => !set.released);
     for (const size of sizes) {

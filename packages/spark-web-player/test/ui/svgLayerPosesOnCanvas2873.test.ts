@@ -399,6 +399,22 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
     expect(t.layer().images[0].inner[0].poses.sets[0].queue).toEqual([]);
   });
 
+  test("rebuilding the picture keeps the SVG layer's drawn poses, so nothing is drawn again", async () => {
+    const t = await setup();
+    t.beat([pictureShow("nova-inner-rebuild")], 45);
+    await until(() => t.events.includes("applied"), "the beat");
+    const layer = t.layer();
+    const sets = layer.images[0].inner[0].poses.sets;
+    const made = t.rasterized.length;
+    layer.build();
+    await flushMicrotasks(10);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(layer.images[0].inner[0].poses.sets).toEqual(sets);
+    expect(sets.every((set: any) => !set.released)).toBe(true);
+    expect(t.rasterized).toHaveLength(made);
+    expect(layer.drawn).toBe(true);
+  });
+
   test("a pose the browser will not draw leaves the SVG layer's rest in its slot and warns once", async () => {
     const t = await setup();
     const rasterize = t.playback.rasterizeSvgLayer;
