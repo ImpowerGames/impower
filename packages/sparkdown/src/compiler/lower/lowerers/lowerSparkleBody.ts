@@ -41,7 +41,7 @@ import {
 } from "../utils/statementShape";
 import { documentTag } from "../utils/documentTag";
 import { unescapeString } from "../utils/unescapeString";
-import { isStream } from "../../utils/layoutStreams";
+import { isTemplated, TEMPLATED_TAGS } from "../../utils/layoutStreams";
 import { structValueNode } from "../utils/structValueNode";
 import {
   sparkleBlockContent,
@@ -715,13 +715,13 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
         };
   }
   const read = readParts(parts, ctx);
-  if (tag === "stream") {
+  if (TEMPLATED_TAGS.has(tag)) {
     const sub = buildBlockEntries();
     if (read.content && name) {
-      warnAt(name.from, name.to, STREAM_TEXT_IGNORED, ctx);
+      warnAt(name.from, name.to, TEXT_IGNORED[tag]!, ctx);
     }
     for (const word of blockContent ? streamIgnoredEntries(blockContent, ctx) : []) {
-      warnAt(word.from, word.to, streamEntryIgnored(word.text), ctx);
+      warnAt(word.from, word.to, entryIgnored(tag, word.text), ctx);
     }
     return {
       kind: "element",
@@ -732,7 +732,7 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
       children: [],
       templates: sub.children.filter(
         (child): child is ElementNode =>
-          child.kind === "element" && !isStream(child),
+          child.kind === "element" && !isTemplated(child),
       ),
     };
   }
@@ -754,11 +754,13 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   return element;
 }
 
-const STREAM_TEXT_IGNORED =
-  "A stream shows the lines that go to it, so text written on the stream itself is ignored.";
+const TEXT_IGNORED: Readonly<Record<string, string>> = {
+  stream: "A stream shows the lines that go to it, so text written on the stream itself is ignored.",
+  cast: "A cast shows the pictures and names that go to it, so text written on the cast itself is ignored.",
+};
 
-const streamEntryIgnored = (word: string) =>
-  `A stream copies only the elements written directly inside it, so this \`${word}\` is ignored.`;
+const entryIgnored = (tag: string, word: string) =>
+  `A ${tag} copies only the elements written directly inside it, so this \`${word}\` is ignored.`;
 
 const STREAM_KEPT_ENTRIES = nodeNameSet([
   "LuauStructBlockProperty",
@@ -777,7 +779,7 @@ function streamIgnoredEntries(
     if (entry.name === "LuauSparkleElement") {
       const name = sparkleElementParts(entry).name;
       const tag = name ? ctx.read(name.from, name.to).trim() : "";
-      if (name && (tag === "slot" || tag === "fill" || tag === "stream")) {
+      if (name && (tag === "slot" || tag === "fill" || TEMPLATED_TAGS.has(tag))) {
         ignored.push({ from: name.from, to: name.to, text: tag });
       }
       continue;

@@ -426,6 +426,7 @@ export class Coordinator<G extends Game> {
       presenter.record?.();
     }
     game.module.ui.streams.record(instructions);
+    game.module.ui.casts.record(instructions);
     const presenter = {
       present: (time?: number) => {
         game.module.ui.line(instructions);
