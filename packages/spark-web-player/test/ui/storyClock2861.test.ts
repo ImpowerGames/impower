@@ -306,6 +306,42 @@ describe("a remounted line replays on the story clock, whatever path writes it (
   });
 
   test.each([
+    { case: "the same transit", pauseTransit: 10, unpauseTransit: 10 },
+    { case: "an unpause 50 ms slower than the pause", pauseTransit: 10, unpauseTransit: 60 },
+    { case: "a pause 50 ms slower than the unpause", pauseTransit: 60, unpauseTransit: 10 },
+  ])(
+    "with $case to the engine, a replay is off from a box never replayed by no more than the letters typed in the difference between the two transits, and exact when they are equal",
+    async ({ pauseTransit, unpauseTransit }) => {
+      const h = await opened(SOURCE.replace("  dialogue {", "  action {\n    text\n  }\n  dialogue {"));
+      const spacingMs = 10;
+      const line = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const sequence = [...line].map((text, i) => ({ text, after: (i * spacingMs) / 1000 }));
+      void h.game.module.ui.text.change("line write", "dialogue", sequence, false, 20);
+      void h.game.module.ui.text.change("line write", "action", sequence, false, 20);
+      await flushMicrotasks(40);
+      await at(100);
+      h.ui.onPause();
+      await at(100 + pauseTransit);
+      h.game.pause();
+      await at(300);
+      h.ui.onUnpause();
+      await at(300 + unpauseTransit);
+      h.game.unpause();
+      await at(400);
+      const never = () => shown(h, ".main .action");
+      const replayed = () => shown(h, ".main .dialogue");
+      expect(never()).toBeGreaterThan(0);
+      expect(never()).toBeLessThan(line.length);
+      await toggle(h);
+      const difference = Math.abs(unpauseTransit - pauseTransit);
+      expect(Math.abs(replayed() - never())).toBeLessThanOrEqual(Math.ceil(difference / spacingMs));
+      if (difference === 0) {
+        expect(replayed()).toBe(never());
+      }
+    },
+  );
+
+  test.each([
     { case: "at once, during the pause", playerUnpause: 600, received: 400, heldInFlight: 0 },
     { case: "50 ms later, during the pause", playerUnpause: 600, received: 450, heldInFlight: 50 },
     { case: "after the player unpaused, before the engine did", playerUnpause: 420, received: 450, heldInFlight: 20 },
