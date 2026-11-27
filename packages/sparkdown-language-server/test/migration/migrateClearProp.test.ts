@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
@@ -59,24 +59,39 @@ function compile(text: string): any {
   return compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } }).program;
 }
 
-function unwrittenRuleTargetsOutsideStreams(layout: Record<string, any>): string[] {
-  const targets = new Set<string>();
+function elementKeysOutsideStreams(layout: Record<string, any>): { keys: Set<string>; emptied: Set<string> } {
+  const keys = new Set<string>();
+  const emptied = new Set<string>();
   const walk = (node: Record<string, any>, path: string[]) => {
     for (const [key, value] of Object.entries(node)) {
       if (key.startsWith("$")) continue;
       const here = [...path, key];
       const words = key.split(" ");
       if (words[0] === "stream") continue;
+      if (value && typeof value === "object") keys.add(key);
       const isContent = ["text", "stroke", "image", "mask"].some((w) => words.includes(w));
       if (isContent && value && typeof value === "object" && Object.keys(value).length === 0) {
         const parent = here.at(-2);
-        if (parent) targets.add(parent);
+        if (parent) emptied.add(parent);
       }
       if (value && typeof value === "object") walk(value, here);
     }
   };
   walk(layout, []);
-  return [...targets].sort();
+  return { keys, emptied };
+}
+
+function unwrittenRuleTargetsOutsideStreams(program: any, kind: string, name: string): string[] {
+  const emptied = new Set<string>();
+  for (const bodyKind of ["layout", "screen"]) {
+    for (const [bodyName, body] of Object.entries<any>(program.context?.[bodyKind] ?? {})) {
+      if (!bodyName.startsWith("$") && body) {
+        for (const key of elementKeysOutsideStreams(body).emptied) emptied.add(key);
+      }
+    }
+  }
+  const { keys } = elementKeysOutsideStreams(program.context?.[kind]?.[name] ?? {});
+  return [...keys].filter((key) => emptied.has(key)).sort();
 }
 
 function clearMarkTargets(layout: Record<string, any>): string[] {
@@ -149,7 +164,7 @@ describe("scripts/migrate-clear-prop.mjs", () => {
       const added = clearMarkTargets(after.context?.[kind]?.[name] ?? {}).filter(
         (t) => !alreadyClear.includes(t),
       );
-      const emptied = unwrittenRuleTargetsOutsideStreams(before.context?.[kind]?.[name] ?? {}).filter(
+      const emptied = unwrittenRuleTargetsOutsideStreams(before, kind, name).filter(
         (t) => !alreadyClear.includes(t),
       );
       expect(added, name).toEqual(emptied);
@@ -178,5 +193,94 @@ describe("scripts/migrate-clear-prop.mjs", () => {
     expect(migrated.text).toContain("dialogue { text }");
     expect(migrated.text).toContain("action.narrated { text }");
     expect(migrated.migrated).toBe(2);
+  });
+
+  test("marks every element that shares a name the unwritten rule emptied, whatever its children", () => {
+    const source = [
+      "layout main {",
+      "  textbox {",
+      "    dialogue {",
+      "      text",
+      "    }",
+      "    action {",
+      "      text",
+      "    }",
+      "  }",
+      "  textbox {",
+      "    dialogue {",
+      "      dialogue_background",
+      "    }",
+      "    action {",
+      "      action_background {",
+      '        image "linear-gradient(black, transparent)"',
+      "      }",
+      "    }",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+    const migrated = migrateClearProp(source);
+    expect(migrated.text).toBe(
+      source
+        .replace(/dialogue \{/g, "dialogue #clear {")
+        .replace(/action \{/g, "action #clear {"),
+    );
+    expect(migrated.migrated).toBe(4);
+  });
+
+  test("marks a leaf of an emptied name, and leaves an element whose name only begins with one", () => {
+    const source = [
+      "layout main {",
+      "  box {",
+      "    caption { text }",
+      "  }",
+      "  shade {",
+      "    caption",
+      "    title.big { title_background }",
+      "  }",
+      "}",
+      "",
+      "layout other {",
+      "  title { text }",
+      "  thread {",
+      "    stream {",
+      "      caption { caption_background }",
+      "    }",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+    const migrated = migrateClearProp(source);
+    expect(migrated.text).toContain("    caption #clear\n");
+    expect(migrated.text).toContain("title.big { title_background }");
+    expect(migrated.text).toContain("      caption { caption_background }");
+    expect(migrated.migrated).toBe(3);
+  });
+
+  test("marks an element in one project file by a name emptied in another", { timeout: 120_000 }, () => {
+    const dir = mkdtempSync(join(tmpdir(), "migrate-clear-prop-test-"));
+    scratch.push(dir);
+    writeFileSync(join(dir, "main.sd"), "layout main {\n  dialogue { text }\n}\n");
+    writeFileSync(join(dir, "frame.sd"), "layout frame {\n  dialogue { dialogue_background }\n}\n");
+    const result = run(dir);
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(dir, "frame.sd"), "utf8")).toBe(
+      "layout frame {\n  dialogue #clear { dialogue_background }\n}\n",
+    );
+    expect(readFileSync(join(dir, "main.sd"), "utf8")).toBe("layout main {\n  dialogue #clear { text }\n}\n");
+  });
+
+  test("marks an element by a name the built-in layouts empty, and keeps each target's names to itself", { timeout: 120_000 }, () => {
+    const first = mkdtempSync(join(tmpdir(), "migrate-clear-prop-test-"));
+    const second = mkdtempSync(join(tmpdir(), "migrate-clear-prop-test-"));
+    scratch.push(first, second);
+    writeFileSync(join(first, "ui.sd"), "layout main {\n  title { title_background }\n  badge { text }\n}\n");
+    writeFileSync(join(second, "ui.sd"), "layout main {\n  badge { badge_background }\n}\n");
+    const result = run(first, second);
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(first, "ui.sd"), "utf8")).toBe(
+      "layout main {\n  title #clear { title_background }\n  badge #clear { text }\n}\n",
+    );
+    expect(readFileSync(join(second, "ui.sd"), "utf8")).toBe("layout main {\n  badge { badge_background }\n}\n");
   });
 });

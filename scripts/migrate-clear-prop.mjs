@@ -8,9 +8,10 @@ import { bundleBench } from "./bench/benchLauncher.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKIP_DIRS = new Set(["node_modules", ".git"]);
 const SCRIPT_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
+const BUILTINS = path.join(HERE, "..", "packages", "sparkdown", "src", "compiler", "builtins", "builtins.sd");
 
 function usage() {
-  return "usage: node scripts/migrate-clear-prop.mjs <directory or file> [...] [--check]";
+  return "usage: node scripts/migrate-clear-prop.mjs <project directory or file> [...] [--check]";
 }
 
 function walk(target, files) {
@@ -43,26 +44,44 @@ async function loadCodemod() {
 export async function migrateClearProps(targets, { check = false, log = console.log } = {}) {
   const codemod = await loadCodemod();
   const typescript = createRequire(import.meta.url)("typescript");
+  const builtins = codemod.emptiedNames(fs.readFileSync(BUILTINS, "utf8"));
   const changed = [];
   const failed = [];
-  const files = [...new Set(targets.flatMap((target) => walk(path.resolve(target), [])))].sort();
-  for (const file of files) {
-    const source = fs.readFileSync(file, "utf8");
-    const relative = path.relative(process.cwd(), file).split(path.sep).join("/");
-    let result;
-    try {
-      result = file.endsWith(".md")
-        ? codemod.migrateMarkdownClearProp(source)
-        : SCRIPT_FILE.test(file)
-          ? codemod.migrateScriptClearProp(source, typescript, file)
-          : codemod.migrateClearProp(source);
-    } catch (error) {
-      failed.push(`${relative}: ${error.message}`);
-      continue;
+  const relativeOf = (file) => path.relative(process.cwd(), file).split(path.sep).join("/");
+  const seen = new Set();
+  for (const target of targets) {
+    const files = walk(path.resolve(target), [])
+      .filter((file) => !seen.has(file))
+      .sort();
+    files.forEach((file) => seen.add(file));
+    const names = new Set(builtins);
+    const unparsed = new Set();
+    for (const file of files.filter((f) => f.endsWith(".sd"))) {
+      try {
+        for (const name of codemod.emptiedNames(fs.readFileSync(file, "utf8"))) names.add(name);
+      } catch (error) {
+        unparsed.add(file);
+        failed.push(`${relativeOf(file)}: ${error.message}`);
+      }
     }
-    if (result.text !== source) {
-      changed.push({ relative, migrated: result.migrated });
-      if (!check) fs.writeFileSync(file, result.text);
+    for (const file of files.filter((f) => !unparsed.has(f))) {
+      const source = fs.readFileSync(file, "utf8");
+      const relative = relativeOf(file);
+      let result;
+      try {
+        result = file.endsWith(".md")
+          ? codemod.migrateMarkdownClearProp(source, builtins)
+          : SCRIPT_FILE.test(file)
+            ? codemod.migrateScriptClearProp(source, typescript, file, builtins)
+            : codemod.migrateClearProp(source, names);
+      } catch (error) {
+        failed.push(`${relative}: ${error.message}`);
+        continue;
+      }
+      if (result.text !== source) {
+        changed.push({ relative, migrated: result.migrated });
+        if (!check) fs.writeFileSync(file, result.text);
+      }
     }
   }
   for (const { relative, migrated } of changed) {
