@@ -2964,9 +2964,17 @@ export default class UIManager extends Manager {
       this._staleImageTargets.delete(el);
     }
     const sig = imageSignature(instructions);
+    const holding =
+      this._clearing.size > 0 &&
+      targetEls.some((el) =>
+        this.pictureTargets(el).some(({ els }) =>
+          els.some((contentEl) => Array.from(contentEl.children).some((child) => this._clearing.has(child as HTMLElement))),
+        ),
+      );
     if (
       decision === "same" ||
       (decision == null &&
+        !holding &&
         targetEls.length > 0 &&
         targetEls.every(
           (el) =>

@@ -428,6 +428,26 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(picture.isConnected).toBe(false);
   });
 
+  test("a clear whose exit the game awaits, sent after a new game's held clear, takes the held picture away at once", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    await t.fresh();
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-8", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    expect(picture.isConnected).toBe(true);
+    await t.ui().onReceiveRequest({
+      jsonrpc: "2.0",
+      id: "clear-9",
+      method: "ui/write-image",
+      params: { target: "portrait", instant: false, instructions: [], reportsExit: true },
+    } as never);
+    expect(picture.isConnected).toBe(false);
+    expect(t.pictureOf("image")).toBeUndefined();
+    expect(t.pictureOf("mask")).toBeUndefined();
+  });
+
   test("a clear outside a beat once the game has applied a beat takes the picture away at once", async () => {
     const t = await setup();
     t.beat([show("nova-run", 0)]);
