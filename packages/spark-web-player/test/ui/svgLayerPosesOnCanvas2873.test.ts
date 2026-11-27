@@ -83,7 +83,7 @@ const layeredShow = (key: string, plays: MorphPlay[] = facePlays(key)): WriteIma
 
 const TWIN = "/src/twin.svg";
 
-const twinShow = (key: string): WriteImageParams => ({
+const twinShow = (key: string, playsOf: (key: string) => MorphPlay[] = facePlays): WriteImageParams => ({
   target: "portrait",
   instant: false,
   instructions: [
@@ -96,8 +96,8 @@ const twinShow = (key: string): WriteImageParams => ({
         pictures: [{ layer: 0, span: 2, name: "pair", vector: true, files: [{ src: FACE, name: "nova.svg" }, { src: TWIN, name: "twin.svg" }] }],
         morph: {
           plays: [
-            ...facePlays(`${key}-front`).map((play): MorphLayerPlay => ({ layer: 0, ...play })),
-            ...facePlays(`${key}-back`).map((play): MorphLayerPlay => ({ layer: 1, ...play })),
+            ...playsOf(`${key}-front`).map((play): MorphLayerPlay => ({ layer: 0, ...play })),
+            ...playsOf(`${key}-back`).map((play): MorphLayerPlay => ({ layer: 1, ...play })),
           ],
           epoch: 0,
         },
@@ -584,6 +584,55 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
       expect(after.grids[0]).toBeGreaterThan(0);
       expect(after.frames.size).toBeGreaterThan(1);
       expect(after.frames.size * frame * 4).toBeLessThanOrEqual(16 * frame);
+      cleanup?.();
+      cleanup = undefined;
+    }
+  });
+
+  test("two layers resized together both keep animating within the pose budget, whether the resize is direct or prepared for a beat", async () => {
+    const tween = (key: string): MorphPlay[] => [
+      {
+        ref: { morphs: ["blink"], key, image: "nova", selection: "{}", groups: ["eyes"] },
+        morph: "blink",
+        owner: "nova",
+        timing: { ...loop(), duration: 1, iteration_delay_min: 0, iteration_delay_max: 0 } as MorphTiming,
+        definition: "glide",
+      },
+    ];
+    const frame = BOX.width * BOX.height * 4;
+    const doubled = `${BOX.width * 2}x${BOX.height * 2}`;
+    for (const prepared of [false, true]) {
+      const t = await setup({ ...RECIPES, blink: blink({ clips: [] }) });
+      t.playback.frameRate = 12;
+      t.playback.frameBudget = () => 32 * frame;
+      t.beat([twinShow(`nova-twin-budget-${prepared}`, tween)], 26);
+      await until(() => t.events.includes("applied"), "the beat");
+      const layer = t.layer();
+      expect(layer.images.map((image: any) => image.poses.sets[0].frames.size > 1)).toEqual([true, true]);
+      const complete = (set: any) => `${set.width}x${set.height}` === doubled && set.queue.length === 0 && !set.running;
+      if (prepared) {
+        layer.widen({ zoom: 2 });
+        layer.prepareLayout();
+        await until(() => layer.images.every((image: any) => image.poses.sets.some(complete)), "both layers' prepared poses");
+        layer.adoptNext();
+      } else {
+        layer.size({ zoom: 2 });
+      }
+      await until(() => layer.images.every((image: any) => image.poses.sets.length === 1 && complete(image.poses.sets[0])), "only the larger poses kept on both layers");
+      const sets = layer.images.map((image: any) => image.poses.sets[0]);
+      for (const set of sets) {
+        expect(set.grids[0]).toBeGreaterThan(1);
+        expect(set.frames.size).toBeGreaterThan(1);
+      }
+      expect(sets.reduce((sum: number, set: any) => sum + set.frames.size * frame * 4, 0)).toBeLessThanOrEqual(32 * frame);
+      const canvas = layer.stills[0].canvases[0].canvas as HTMLCanvasElement;
+      const seen = [new Set<string>(), new Set<string>()];
+      for (let i = 0; i < 80; i++) {
+        t.playback.advance(1 / 40);
+        await flushMicrotasks(2);
+        t.last(canvas)!.draws.forEach((draw, at) => seen[at]!.add(draw.src));
+      }
+      expect(seen.map((sources) => sources.size > 1)).toEqual([true, true]);
       cleanup?.();
       cleanup = undefined;
     }

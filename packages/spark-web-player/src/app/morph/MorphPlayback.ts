@@ -3232,12 +3232,14 @@ export class MorphLayer {
 
   get poseBytes(): number {
     let bytes = 0;
-    for (const owner of this.images.flatMap((image): PoseOwner[] => [image, ...image.inner])) {
-      for (const set of owner.poses?.sets ?? []) {
-        for (const frame of set.frames.values()) if (!frame.refused) bytes += set.width * set.height * FRAME_BYTES_PER_PIXEL;
-      }
-    }
+    for (const owner of this.images.flatMap((image): PoseOwner[] => [image, ...image.inner])) bytes += this.targetPoseBytes(owner);
     return bytes;
+  }
+
+  protected targetPoseBytes(owner: PoseOwner): number {
+    const set = owner.poses?.sets.filter((entry) => !entry.released).at(-1);
+    if (!set) return 0;
+    return [...set.frames.values()].filter((frame) => !frame.refused).length * set.width * set.height * FRAME_BYTES_PER_PIXEL;
   }
 
   protected posed(still: StillPicture, image: ImageState): boolean {
@@ -3371,9 +3373,7 @@ export class MorphLayer {
       return rate > 0 ? Math.min(MAX_POSE_FRAMES, Math.max(1, Math.round(duration * rate))) : 0;
     });
     const bytes = size.width * size.height * FRAME_BYTES_PER_PIXEL;
-    const own = (this.forecast === undefined ? (owner.poses?.sets ?? []) : [])
-      .filter((set) => !set.released)
-      .reduce((sum, set) => sum + [...set.frames.values()].filter((frame) => !frame.refused).length * set.width * set.height * FRAME_BYTES_PER_PIXEL, 0);
+    const own = this.forecast === undefined ? this.targetPoseBytes(owner) : 0;
     const room = (this.playback.frameBudget?.() ?? Infinity) - this.playback.frameBytes() + own;
     const rest = frameText(morphFrameState(artifact, morphPosesAt(artifact, {})));
     const cutOptions = plays.map((play, i) => (cut[i] ? cutOffsets(artifact, play.morph) : []));
