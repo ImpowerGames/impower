@@ -10,7 +10,7 @@ import type { PageEntry } from "../../src/game/modules/ui/types/PageState";
 const MAIN = "file:///local/main.sd";
 
 const HUD = `layout hud {
-  stat {
+  stat #clear {
     text
   }
 }

@@ -2,16 +2,16 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SCREEN = `layout main {
-  dialogue {
+  dialogue #clear {
     text
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  choice.1 {
+  choice.1 #clear {
     text
   }
-  choice.2 {
+  choice.2 #clear {
     text
   }
 }

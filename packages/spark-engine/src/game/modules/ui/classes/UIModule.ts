@@ -81,6 +81,12 @@ import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { SUPERSEDED } from "../../../core/classes/Connection";
 import { Module } from "../../../core/classes/Module";
 import type { Event } from "../../../core/types/Event";
+import {
+  TEXT_REASONS,
+  type TextClearReason,
+  type TextReason,
+  type TextWriteReason,
+} from "../types/TextReason";
 import type { EventMap } from "../../../core/types/EventMap";
 import type {
 CutsceneInstruction,
@@ -120,6 +126,7 @@ import {
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
+import { bodyChildLists } from "../utils/bodyChildren";
 import { getVarName } from "../utils/getVarName";
 import {
   isPlainRun,
@@ -244,6 +251,43 @@ function isPictureFile(layer: ImageLayer): boolean {
 
 function isImageFile(layer: ImageLayer): boolean {
   return layer.struct?.$type === "image" && !isVectorFile(layer);
+}
+
+function marksClear(node: ElementNode): boolean {
+  const clear = node.props["clear"];
+  return clear?.kind === "literal" && clear.value === true;
+}
+
+function nodeShape(
+  node: BodyNode,
+  components: Readonly<Record<string, ComponentNode | undefined>>,
+  calls: readonly string[],
+): unknown {
+  if (node.kind === "element" && isStream(node)) {
+    return [node.kind, node.tag, node.classes];
+  }
+  const head = node.kind === "element" ? [node.tag, node.classes, marksClear(node)] : ["name" in node ? (node.name ?? null) : null];
+  const lists = bodyChildLists(node).map(([suffix, children]) => [
+    suffix,
+    (children ?? []).map((child) => nodeShape(child, components, calls)),
+  ]);
+  const comp = node.kind === "element" ? components[node.tag] : undefined;
+  const body =
+    comp && !calls.includes(comp.name)
+      ? comp.children.map((child) => nodeShape(child, components, [...calls, comp.name]))
+      : null;
+  return [node.kind, ...head, lists, body];
+}
+
+function callBase(base: string, path: string, component: string): string {
+  return `${base}${path}>${component}`;
+}
+
+function bodyShape(
+  nodes: readonly BodyNode[] | undefined,
+  components: Readonly<Record<string, ComponentNode | undefined>>,
+): string {
+  return JSON.stringify((nodes ?? []).map((node) => nodeShape(node, components, [])));
 }
 
 function sameValue(a: unknown, b: unknown): boolean {
@@ -412,6 +456,10 @@ export interface UIState {
   text?: Record<string, TextState[]>;
   lineText?: Record<string, LineText[]>;
   line?: LineLabels;
+  textLine?: number;
+  textWritten?: Record<string, number>;
+  textCleared?: Record<string, number>;
+  pictureCleared?: string[];
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
@@ -494,6 +542,7 @@ interface ForRegion {
   elseScope?: ReactiveScope;
   elseContent?: ReactiveGroup;
   slots?: SlotMap;
+  base?: string;
   owner?: ReactiveRegion;
 }
 
@@ -534,6 +583,16 @@ interface ScreenFrame {
   fallback?: SlotRegion;
 }
 
+const ENGINE_PROPS: ReadonlySet<string> = new Set(["clear"]);
+
+const CONTENT_TAGS: ReadonlySet<string> = new Set(["text", "stroke", "image", "mask"]);
+
+const isStruct = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const renderedProps = (node: ElementNode) =>
+  Object.entries(node.props).filter(([prop]) => !ENGINE_PROPS.has(prop));
+
 interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
@@ -543,6 +602,7 @@ interface ReactiveScope {
   sliderFills: ReactiveSliderFill[];
   streams: MountedStream[];
   slots?: SlotMap;
+  base?: string;
 }
 
 interface StreamEntryView {
@@ -562,7 +622,7 @@ interface MountedStream {
   latest?: StreamEntryView;
 }
 
-const INPUT_WIDGETS: Record<
+export const INPUT_WIDGETS: Record<
   string,
   { inputType: string; attributes?: Record<string, string> }
 > = {
@@ -713,6 +773,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _clearOnContinue: Set<string> = new Set();
 
+  protected _contentSlots: Set<string> = new Set();
+
+  protected _clearPaths: Map<string, string[]> = new Map();
+
+  protected _unmarkedKeys: Set<string> = new Set();
+
+  protected _nodePaths = new WeakMap<object, string>();
+
+  protected _elementPaths = new WeakMap<Element, string>();
+
+  protected _roots: Map<string, string> = new Map();
+
   protected _showingStyles?: unknown;
 
   protected _showingWatched: ReadonlySet<string> = new Set();
@@ -759,6 +831,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructor(game: Game) {
     super(game);
+    this.initLayouts();
+  }
+
+  override onProgramUpdate(): void {
     this.initLayouts();
   }
 
@@ -882,7 +958,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     this._clearedPictures = cleared;
-    return this.image.clearAll(targets);
+    return this.image.clearMarked(targets);
   }
 
   override onRestart() {
@@ -1025,26 +1101,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const transient = this.getTransientTargets();
     const holding = standing?.holding ?? { text: transient, image: transient };
     const c = this._compose;
+    const heldText = this.savedElements({ text: holding.text, image: [] });
     if (c && standing) {
-      const elementsOf = (targets: string[]) =>
-        targets.flatMap((target) => this.findElements(target, true));
-      const held = new Set([
-        ...elementsOf(holding.text),
-        ...elementsOf(holding.image),
-      ]);
-      const emptyOf = (holds: string[]) =>
+      const held = this.savedElements(holding);
+      const emptyOf = (holds: (target: string) => boolean) =>
         new Set(
-          elementsOf(transient.filter((t) => !holds.includes(t))).filter(
-            (el) => !held.has(el),
-          ),
+          transient
+            .filter((t) => !holds(t))
+            .flatMap((t) => this.textElements(t))
+            .filter((el) => !held.has(el)),
         );
-      c.empty = { text: emptyOf(holding.text), image: emptyOf(holding.image) };
+      c.empty = {
+        text: emptyOf((t) => this.holdsSaved(t, heldText)),
+        image: emptyOf((t) => holding.image.includes(t)),
+      };
     }
     this.flushUIBatch();
     this.emit(BeginReconcileMessage.type.notification({ content: true }));
     this._game.story.variablesState.takeReactiveChanges();
     await Promise.all([
-      this.text.clearAll(transient.filter((t) => holding.text.includes(t))),
+      this.text.change(
+        "redisplay",
+        transient.filter((t) => this.holdsSaved(t, heldText)),
+      ),
       this.clearTransientPictures(
         transient.filter((t) => holding.image.includes(t)),
       ),
@@ -1206,9 +1285,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.constructLayouts();
     }
     const transientTargets = this.getTransientTargets();
+    const saved = this.savedElements();
+    const emptySlots = [...this._contentSlots].filter(
+      (target) => !this.holdsSaved(target, saved),
+    );
     await Promise.all([
-      this.text.clearAll(transientTargets),
+      this.text.change("connect reset", transientTargets),
+      this.text.change("unwritten slot", emptySlots),
       this.clearTransientPictures(transientTargets),
+      this.image.clearAll(emptySlots.filter((target) => !this._clearOnContinue.has(target))),
     ]);
   }
 
@@ -1249,12 +1334,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.reveal();
       }
     }
-    const tasks: Promise<void>[] = [];
-    if (this._state.text) {
-      for (const [target] of Object.entries(this._state.text)) {
-        tasks.push(this.text.restore(target));
-      }
-    }
+    const tasks: Promise<void>[] = [...this.restoreTexts()];
     if (this._state.image) {
       for (const [target] of Object.entries(this._state.image)) {
         tasks.push(this.image.restore(target));
@@ -1474,8 +1554,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     };
-    const write = (target: string, leaves: ("text" | "stroke" | "image" | "mask")[]) => {
-      for (const el of this.findElements(target, true)) {
+    const write = (elements: Element[], leaves: ("text" | "stroke" | "image" | "mask")[]) => {
+      for (const el of elements) {
         writeElement(el, leaves);
       }
     };
@@ -1488,14 +1568,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         writeElement(el, ["image", "mask"]);
       }
     }
-    for (const [target, state] of Object.entries(this._state.text ?? {})) {
-      if (state?.length) {
-        write(target, ["text", "stroke"]);
+    for (const [target, elements] of this.textRestorePlan()) {
+      if (ownEntry(this._state.text, target)?.length) {
+        write(elements, ["text", "stroke"]);
       }
     }
+    const emptied = new Set(this._state.pictureCleared ?? []);
     for (const [target, events] of Object.entries(this._state.image ?? {})) {
       if (this.pictureShown(events)) {
-        write(target, ["image", "mask"]);
+        write(
+          this.textElements(target).filter((el) => !emptied.has(this.elementPath(el) ?? "")),
+          ["image", "mask"],
+        );
       }
     }
     const visit = (el: Element): boolean => {
@@ -3634,9 +3718,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    for (const [k, v] of Object.entries(properties)) {
-      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
-      const isValidNode = !path.at(-1)?.startsWith("$");
+    for (const [k, value] of Object.entries(properties)) {
+      const fullPath = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
+      const marksClear = fullPath.at(-1) === "$clear";
+      const path = marksClear ? fullPath.slice(0, -1) : fullPath;
+      const v = marksClear ? {} : value;
+      const isValidNode = path.length > 0 && !path.at(-1)?.startsWith("$");
       if (isValidNode) {
         let stack: Element[] = [uiEl];
         for (let i = 0; i < path.length; i += 1) {
@@ -3755,7 +3842,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    const scope = this.makeScope({});
+    const scope = this.makeScope({}, undefined, this._roots.get(`screen:${screen.name}`));
     const frame: ScreenFrame = { element, scope, hosts: new WeakSet() };
     scope.slots = new Map([
       [
@@ -3944,7 +4031,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       slot ? this.anchorFor(slot) : null,
     );
     slot?.content.push({ el: uiEl });
-    const scope = this.makeScope({});
+    const scope = this.makeScope({}, undefined, this._roots.get(`layout:${layout.name}`));
     this._mountedLayouts.set(layout.name, {
       element: uiEl,
       scope,
@@ -3958,7 +4045,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  protected makeScope(env: ReactiveEnv, slots?: SlotMap): ReactiveScope {
+  protected makeScope(env: ReactiveEnv, slots: SlotMap | undefined, base: string | undefined): ReactiveScope {
     return {
       env,
       texts: [],
@@ -3968,6 +4055,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       sliderFills: [],
       streams: [],
       ...(slots ? { slots } : {}),
+      ...(base !== undefined ? { base } : {}),
     };
   }
 
@@ -4077,6 +4165,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     scope: ReactiveScope,
     before: Element | null,
   ): Element {
+    return this.notePath(this.createNodeElement(parent, node, scope, before), node, scope);
+  }
+
+  protected createNodeElement(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    before: Element | null,
+  ): Element {
     const name = [node.tag, ...node.classes].join(" ");
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
@@ -4096,7 +4193,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactiveAttrs: Omit<ReactiveAttr, "element">[] = [];
     const labels: Record<string, unknown> = {};
-    const propEntries = Object.entries(node.props);
+    const propEntries = renderedProps(node);
     if (propEntries.length > 0) {
       const vs = this._game.story.variablesState;
       for (const [prop, propValue] of propEntries) {
@@ -4183,7 +4280,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const controlProps: ElementNode["props"] = {};
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       if (isAttributeProp(prop)) {
         controlProps[prop] = propValue;
         continue;
@@ -4246,7 +4343,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
@@ -4351,7 +4448,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactive: Omit<ReactiveAttr, "element">[] = [];
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -4405,7 +4502,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     let selected: { propValue?: PropValue; last: string | null; deps: ReactiveDeps } | null = null;
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -4484,7 +4581,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const attributes: Record<string, string | null> = {};
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
-    for (const [prop, propValue] of Object.entries(node.props)) {
+    for (const [prop, propValue] of renderedProps(node)) {
       if (isReservedAttribute(prop)) {
         continue;
       }
@@ -4708,7 +4805,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       parent,
       node,
       active: -2,
-      scope: this.makeScope(scope.env, scope.slots),
+      scope: this.makeScope(scope.env, scope.slots, scope.base),
       deps: { globals: new Set(), tables: new Set() },
       siblings: [],
       content: [],
@@ -4777,6 +4874,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       iterations: [],
       siblings: [],
       slots: scope.slots,
+      ...(scope.base !== undefined ? { base: scope.base } : {}),
     };
     scope.regions.push(region);
     this.populateFor(region, scope.env, before);
@@ -4809,7 +4907,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!elseChildren || elseChildren.length === 0) {
       return;
     }
-    region.elseScope = this.makeScope(parentEnv, region.slots);
+    region.elseScope = this.makeScope(parentEnv, region.slots, region.base);
     region.elseContent = this.mountChildren(
       region.parent,
       elseChildren,
@@ -4828,7 +4926,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): ForIteration {
     const env: ReactiveEnv = { ...parentEnv };
     this.bindLoopVars(region.node.bindings, env, entryKey, value);
-    const scope = this.makeScope(env, region.slots);
+    const scope = this.makeScope(env, region.slots, region.base);
     const content = this.mountChildren(
       region.parent,
       region.node.children,
@@ -4857,7 +4955,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const env: ReactiveEnv = {};
     this.applyComponentParams(comp, node, callerScope.env, env);
-    const scope = this.makeScope(env);
+    const call = this._nodePaths.get(node);
+    const scope = this.makeScope(
+      env,
+      undefined,
+      callerScope.base !== undefined && call !== undefined ? callBase(callerScope.base, call, comp.name) : undefined,
+    );
     scope.slots = this.buildSlotMap(node, callerScope);
     const region: ComponentRegion = {
       kind: "component",
@@ -5259,7 +5362,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       region.deps = vs.endReactiveRead();
       if (next !== region.active) {
         this.removeGroup(region.content);
-        region.scope = this.makeScope(region.scope.env, region.scope.slots);
+        region.scope = this.makeScope(region.scope.env, region.scope.slots, region.scope.base);
         region.active = next;
         region.content = this.mountChildren(
           region.parent,
@@ -5407,6 +5510,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   initLayouts(): void {
     const skipped = skippedInitialLayouts(this._game, this);
+    this._contentSlots = new Set();
     for (const structName of Object.keys(this.context?.layout || {})) {
       if (structName && !structName.startsWith("$") && !skipped.includes(structName)) {
         const layout = this.context.layout?.[structName];
@@ -5421,31 +5525,81 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.initLayout(screen as Record<string, any>);
       }
     }
+    this._clearOnContinue = new Set();
+    this._clearPaths = new Map();
+    this._unmarkedKeys = new Set();
+    this._roots = new Map();
+    const sparkle = this._game.program?.sparkle;
+    const components = sparkle?.components ?? {};
+    const collect = (kind: string, name: string, nodes: readonly BodyNode[] | undefined) => {
+      const root = `${kind}:${name}@${hashText(bodyShape(nodes, components))}`;
+      this._roots.set(`${kind}:${name}`, root);
+      this.collectMarks(nodes, root, "", []);
+    };
+    for (const [name, layout] of Object.entries(sparkle?.layouts ?? {})) {
+      if (layout && !skipped.includes(name)) {
+        collect("layout", name, layout.children);
+      }
+    }
+    for (const [name, screen] of Object.entries(sparkle?.screens ?? {})) {
+      if (screen) {
+        collect("screen", name, screen.children);
+      }
+    }
   }
 
-  initLayout(layout: Record<string, any>) {
-    const properties = getAllProperties(layout);
-    for (const [k, v] of Object.entries(properties)) {
-      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
-      const isValidNode = !path.at(-1)?.startsWith("$");
-      if (isValidNode) {
-        for (let i = 0; i < path.length; i += 1) {
-          const parent = path.at(-1);
-          const parentClasses = parent?.split(" ") || [];
-          const isText = parentClasses.includes("text");
-          const isStroke = parentClasses.includes("stroke");
-          const isImage = parentClasses.includes("image");
-          const isMask = parentClasses.includes("mask");
-          if (isText || isStroke || isImage || isMask) {
-            if (v && typeof v === "object" && Object.keys(v).length === 0) {
-              const grandParent = path.at(-2);
-              if (grandParent) {
-                this._clearOnContinue.add(grandParent);
-              }
-            }
+  protected collectMarks(
+    nodes: readonly BodyNode[] | undefined,
+    base: string,
+    path: string,
+    calls: readonly string[],
+  ): void {
+    const components = this._game.program?.sparkle?.components ?? {};
+    (nodes ?? []).forEach((node, index) => {
+      const here = `${path}/${index}`;
+      if (node.kind === "element") {
+        if (isStream(node)) {
+          return;
+        }
+        this._nodePaths.set(node, here);
+        const comp = components[node.tag];
+        if (comp) {
+          if (!calls.includes(comp.name)) {
+            this.collectMarks(comp.children, callBase(base, here, comp.name), "", [...calls, comp.name]);
+          }
+        } else {
+          const name = [node.tag, ...node.classes].join(" ");
+          if (marksClear(node)) {
+            this._clearOnContinue.add(name);
+            this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
+          } else {
+            this._unmarkedKeys.add(name);
           }
         }
       }
+      for (const [suffix, children] of bodyChildLists(node)) {
+        this.collectMarks(children, base, `${here}${suffix}`, calls);
+      }
+    });
+  }
+
+  initLayout(layout: Record<string, unknown>): void {
+    for (const [key, value] of Object.entries(layout)) {
+      if (key.startsWith("$") || !isStruct(value) || key.split(" ")[0] === "stream") {
+        continue;
+      }
+      if (
+        Object.entries(value).some(
+          ([child, content]) =>
+            !child.startsWith("$") &&
+            child.split(" ").some((word) => CONTENT_TAGS.has(word)) &&
+            isStruct(content) &&
+            Object.keys(content).every((k) => k.startsWith("$")),
+        )
+      ) {
+        this._contentSlots.add(key);
+      }
+      this.initLayout(value);
     }
   }
 
@@ -6495,12 +6649,109 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return (
       Boolean(this._compose) ||
       this.streams.active ||
-      elements.some((el) => el.name !== name)
+      elements.some((el) => el.name !== name) ||
+      elements.length !== this.textElements(target).length
     );
   }
 
   getTransientTargets() {
     return Array.from(this._clearOnContinue.values());
+  }
+
+  textElements(target: string): Element[] {
+    return this.findElements(target, true);
+  }
+
+  elementPath(el: Element): string | undefined {
+    return this._elementPaths.get(el);
+  }
+
+  protected notePath(el: Element, node: ElementNode, scope: ReactiveScope): Element {
+    const path = this._nodePaths.get(node);
+    if (path !== undefined && scope.base !== undefined) {
+      this._elementPaths.set(el, `${scope.base}${path}`);
+    }
+    return el;
+  }
+
+  protected markedPaths(target: string): string[] {
+    const words = target.split(" ");
+    return [...this._clearPaths].flatMap(([key, paths]) =>
+      key === target || words.every((w) => key.split(" ").includes(w)) ? paths : [],
+    );
+  }
+
+  protected fullyMarked(target: string): boolean {
+    const words = target.split(" ");
+    return ![...this._unmarkedKeys].some(
+      (key) => key === target || words.every((w) => key.split(" ").includes(w)),
+    );
+  }
+
+  protected clearReach(target: string, reach: "marked" | "unmarked" | "name"): Element[] {
+    const elements = this.textElements(target);
+    if (reach === "name") {
+      return elements;
+    }
+    const marked = new Set([...this._clearPaths.values()].flat());
+    return elements.filter((el) => marked.has(this.elementPath(el) ?? "") === (reach === "marked"));
+  }
+
+  protected textRestorePlan(): Map<string, Element[]> {
+    const saved = Object.keys(this._state.text ?? {});
+    const written = this._state.textWritten ?? {};
+    const cleared = this._state.textCleared ?? {};
+    const elementsOf = new Map(saved.map((target) => [target, this.textElements(target)]));
+    const newest = new Map<Element, number>();
+    for (const target of saved) {
+      for (const el of elementsOf.get(target)!) {
+        newest.set(el, Math.max(newest.get(el) ?? -Infinity, ownEntry(written, target) ?? 0));
+      }
+    }
+    const emptiedAt = (el: Element) => ownEntry(cleared, this.elementPath(el) ?? "") ?? -Infinity;
+    return new Map(
+      saved.map((target) => {
+        const line = ownEntry(written, target) ?? 0;
+        return [
+          target,
+          elementsOf
+            .get(target)!
+            .filter(
+              (el) =>
+                line === newest.get(el) &&
+                line >= emptiedAt(el) &&
+                (!this.limited(el) || this.textFor(target, el) !== undefined),
+            ),
+        ];
+      }),
+    );
+  }
+
+  heldTextElements(): Set<Element> {
+    return new Set([...this.textRestorePlan().values()].flat());
+  }
+
+  protected savedElements(
+    names: { text: readonly string[]; image: readonly string[] } = {
+      text: Object.keys(this._state.text ?? {}),
+      image: Object.keys(this._state.image ?? {}),
+    },
+  ): Set<Element> {
+    const plan = this.textRestorePlan();
+    return new Set([
+      ...names.text.flatMap((target) => plan.get(target) ?? []),
+      ...names.image.flatMap((target) => this.textElements(target)),
+    ]);
+  }
+
+  protected holdsSaved(target: string, saved: ReadonlySet<Element>): boolean {
+    return this.textElements(target).some((el) => saved.has(el));
+  }
+
+  protected restoreTexts(): Promise<void>[] {
+    return [...this.textRestorePlan()].map(([target, elements]) =>
+      elements.length > 0 ? this.text.restoreOnto(target, elements) : Promise.resolve(),
+    );
   }
 
   protected hideUnwrittenTargets(layout: Element): void {
@@ -6512,12 +6763,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       return false;
     };
-    for (const target of this.getTransientTargets()) {
-      if (ownEntry(this._state.image, target)) {
+    const saved = this.savedElements();
+    for (const target of this._contentSlots) {
+      if (this.holdsSaved(target, saved)) {
         continue;
       }
-      for (const el of this.findElements(target, true)) {
-        if (inLayout(el) && !this.textFor(target, el)) {
+      for (const el of this.textElements(target)) {
+        if (inLayout(el)) {
           this.noteHidden(el, true);
           this.updateElement(el, { style: { display: "none" } });
         }
@@ -6661,7 +6913,64 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   Text = (($) => {
     class Text {
-      protected append(state: TextState[], sequence: TextInstruction[]) {
+      change(
+        reason: TextWriteReason,
+        target: string,
+        sequence: TextInstruction[],
+        instant?: boolean,
+        time?: number,
+        shown?: number,
+      ): Promise<void>;
+      change(reason: TextClearReason, targets: readonly string[]): Promise<void>;
+      async change(
+        reason: TextReason,
+        targets: string | readonly string[],
+        sequence?: TextInstruction[],
+        instant = false,
+        time?: number,
+        shown = 0,
+      ): Promise<void> {
+        const rule = TEXT_REASONS[reason];
+        if (rule.opensLine) {
+          this.#openLine();
+        }
+        const rendering = !$.context?.system?.simulating;
+        if (typeof targets === "string") {
+          if (rule.deletesSavedText) {
+            delete $._state.text?.[targets];
+            delete $._state.lineText?.[targets];
+            delete $._state.textWritten?.[targets];
+          }
+          this.#save(targets, sequence!);
+          if (rule.recordsStamp) {
+            this.#mark("textWritten", targets);
+          }
+          if (rendering) {
+            await this.applyChanges(targets, sequence!, instant, time, shown);
+          }
+          return;
+        }
+        await Promise.all(
+          targets.map(async (target) => {
+            const elements = $.clearReach(target, rule.reach);
+            if (rule.deletesSavedText && (rule.reach === "name" || $.fullyMarked(target))) {
+              delete $._state.text?.[target];
+              delete $._state.lineText?.[target];
+              delete $._state.textWritten?.[target];
+            }
+            if (rule.recordsStamp) {
+              for (const path of $.markedPaths(target)) {
+                this.#mark("textCleared", path);
+              }
+            }
+            if (rendering) {
+              await this.writeElements(target, elements, null, true);
+            }
+          }),
+        );
+      }
+
+      #append(state: TextState[], sequence: TextInstruction[]) {
         for (const e of sequence) {
           const prev = state.at(-1);
           if (
@@ -6679,27 +6988,55 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      protected saveState(target: string, sequence: TextInstruction[] | null) {
-        if (sequence) {
-          $._state.text ??= {};
-          this.append(ownList($._state.text, target), sequence);
-          const line = $._state.line;
-          if (line) {
-            $._state.lineText ??= {};
-            const written = ownList($._state.lineText, target);
-            const last = written.at(-1);
-            if (last && last.variant === line.variant && last.speaker === line.speaker) {
-              this.append(last.text, sequence);
-            } else {
-              const entry: LineText = { ...line, text: [] };
-              this.append(entry.text, sequence);
-              written.push(entry);
-            }
+      #save(target: string, sequence: TextInstruction[]) {
+        $._state.text ??= {};
+        this.#append(ownList($._state.text, target), sequence);
+        const line = $._state.line;
+        if (line) {
+          $._state.lineText ??= {};
+          const written = ownList($._state.lineText, target);
+          const last = written.at(-1);
+          if (last && last.variant === line.variant && last.speaker === line.speaker) {
+            this.#append(last.text, sequence);
+          } else {
+            const entry: LineText = { ...line, text: [] };
+            this.#append(entry.text, sequence);
+            written.push(entry);
           }
-        } else {
-          delete $._state.text?.[target];
-          delete $._state.lineText?.[target];
         }
+      }
+
+      #stamps(): number[] {
+        return [
+          ...Object.values($._state.textWritten ?? {}),
+          ...Object.values($._state.textCleared ?? {}),
+        ];
+      }
+
+      #openLine() {
+        $._state.textLine = Math.max(0, ...this.#stamps()) + 1;
+      }
+
+      #mark(kind: "textWritten" | "textCleared", target: string) {
+        const line = $._state.textLine ?? 0;
+        Object.defineProperty(($._state[kind] ??= {}), target, {
+          value: line,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+        const rank = new Map(
+          [...new Set(this.#stamps())]
+            .filter((v) => v > 0)
+            .sort((a, b) => a - b)
+            .map((v, i) => [v, i + 1]),
+        );
+        for (const stamps of [$._state.textWritten, $._state.textCleared]) {
+          for (const key of Object.keys(stamps ?? {})) {
+            stamps![key] = rank.get(stamps![key]!) ?? stamps![key]!;
+          }
+        }
+        $._state.textLine = rank.get(line) ?? line;
       }
 
       async restore(target: string) {
@@ -6707,7 +7044,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (!state) {
           return;
         }
-        const elements = $.findElements(target, true);
+        await this.restoreOnto(target, $.textElements(target));
+      }
+
+      async restoreOnto(target: string, elements: Element[]) {
+        const state = ownEntry($._state.text, target);
+        if (!state) {
+          return;
+        }
         const open = elements.filter((el) => !$.limited(el));
         const limited = elements.filter((el) => $.limited(el));
         if (limited.length === 0) {
@@ -6729,7 +7073,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         shown = 0,
       ) {
-        const elements = $.findElements(target, true);
+        const elements = $.textElements(target);
         const admitted = sequence
           ? elements.filter((el) => $.admits(el, $._state.line))
           : elements;
@@ -6853,29 +7197,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
       }
 
-      async clear(target: string) {
-        this.saveState(target, null);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, null, true);
-        }
-      }
-
-      async clearAll(targets: string[]) {
-        await Promise.all(targets.map((target) => this.clear(target)));
-      }
-
-      async write(
-        target: string,
-        sequence: TextInstruction[],
-        instant = false,
-        time?: number,
-        shown = 0,
-      ) {
-        this.saveState(target, sequence);
-        if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time, shown);
-        }
-      }
     }
     return Text;
   })(this);
@@ -6958,7 +7279,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async restore(target: string) {
         const state = $._state.image?.[target];
         if (state) {
-          await this.applyChanges(target, state, true);
+          const emptied = new Set($._state.pictureCleared ?? []);
+          await this.applyChanges(
+            target,
+            state,
+            true,
+            undefined,
+            undefined,
+            false,
+            $.textElements(target).filter((el) => !emptied.has($.elementPath(el) ?? "")),
+          );
         }
       }
 
@@ -6980,6 +7310,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return shown?.assets?.length
           ? { assets: shown.assets, ...(shown.at ? { at: shown.at } : {}) }
           : undefined;
+      }
+
+      async clearMarked(targets: readonly string[]) {
+        await Promise.all(
+          targets.map(async (target) => {
+            const elements = $.clearReach(target, "marked");
+            if ($.fullyMarked(target)) {
+              delete $._state.image?.[target];
+            } else {
+              const paths = $.markedPaths(target);
+              if (paths.length > 0) {
+                $._state.pictureCleared = [
+                  ...new Set([...($._state.pictureCleared ?? []), ...paths]),
+                ];
+              }
+            }
+            if (!$.context?.system?.simulating) {
+              await this.applyChanges(target, null, true, undefined, undefined, false, elements);
+            }
+          }),
+        );
       }
 
       async restoreCleared(beat: Pick<Instructions, "image" | "extended">) {
@@ -7340,8 +7691,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         time?: number,
         view?: PictureView,
         exits = false,
+        elements?: Element[],
       ) {
-        const targetEls = $.findElements(target, true);
+        const targetEls = elements ?? $.textElements(target);
         if (instant) {
           $.dropExits((el) => targetEls.includes(el));
         }
@@ -7498,6 +7850,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           $.exiting(target) ||
           sequence.some((e) => e.control === "show" && e.assets?.length);
         this.saveState(target, sequence);
+        if ($._state.pictureCleared) {
+          const refilled = new Set($.markedPaths(target));
+          $._state.pictureCleared = $._state.pictureCleared.filter((path) => !refilled.has(path));
+          if ($._state.pictureCleared.length === 0) {
+            delete $._state.pictureCleared;
+          }
+        }
         if (!$.context?.system?.simulating) {
           await this.applyChanges(
             target,
@@ -8361,7 +8720,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
-        const scope = $.makeScope(mount.scope.env, mount.scope.slots);
+        const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
         const template = mount.node.templates[entry.template];
         const group = template
           ? $.mountChildren(mount.element, [template], scope, null)

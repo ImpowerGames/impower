@@ -7,7 +7,7 @@ export function clearStage(
   transientLayers: string[],
 ): void {
   if (!instructions.extended) {
-    game.module.ui.image.clearAll(
+    game.module.ui.image.clearMarked(
       transientLayers.filter((layer) => !instructions.image?.[layer]),
     );
   }

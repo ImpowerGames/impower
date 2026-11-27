@@ -319,7 +319,7 @@ export function createHarness(
         const choiceTargets = instructions.choices;
         choiceTargets.forEach((target, index) => {
           const handleClick = (): void => {
-            ui.text.clearAll(choiceTargets);
+            ui.text.change("choose", choiceTargets);
             ui.image.clearAll(choiceTargets);
             ui.unobserve("click", target);
             ui.hideAll(choiceTargets);

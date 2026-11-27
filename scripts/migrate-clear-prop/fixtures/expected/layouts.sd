@@ -1,0 +1,95 @@
+component card(title) {
+  heading {
+    text
+  }
+}
+
+screen menu {
+  caption #clear {
+    text
+  }
+  slot
+}
+
+layout board {
+  stage {
+    backdrop #clear { image }
+    portrait #clear {
+      image
+    }
+    poster #clear {
+      image #src="poster.png"
+    }
+  }
+  panel {
+    caption #clear {
+      stroke
+      text
+    }
+    sign {
+      text "Open"
+    }
+    stamp {
+      text = ■
+    }
+    label #clear {
+      note.text
+    }
+    badge #clear {
+      text
+    }
+    frame #gap=4 #clear {
+      mask {}
+    }
+    tile #clear {
+      text
+    }
+    joined #clear
+    { image }
+    continued #clear
+      #gap=4 { text }
+    commented #clear -- picture slot
+    { image }
+    slashed #clear // a note
+    { image }
+    holder {
+      inner #clear {
+        text
+      }
+    }
+  }
+  list {
+    for item in items do
+      row.entry #clear {
+        text
+      }
+    end
+    if shown then
+      note #clear {
+        image
+      }
+    end
+  }
+  text
+}
+
+layout chat {
+  heading #clear { text }
+  thread {
+    stream {
+      dialogue.bubble { text }
+    }
+    stream.log #height=240px {
+      dialogue.said {
+        character_name { text }
+        dialogue { text }
+      }
+      action.narrated { text }
+    }
+    caption #clear { text }
+  }
+}
+
+scene start
+  Hello.
+end

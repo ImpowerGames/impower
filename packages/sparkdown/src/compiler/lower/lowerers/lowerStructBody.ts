@@ -237,9 +237,13 @@ function evaluateElement(
       ),
     );
   if (entry.kind === "header") {
-    obj[keyOf(null)] = entry.children
+    const value = entry.children
       ? evaluate(entry.children, ctx, elementKeys)
       : {};
+    if (!Array.isArray(value) && holdsClearProp(segments, ctx)) {
+      value["$clear"] = true;
+    }
+    obj[keyOf(null)] = value;
     return;
   }
   let valueNode: SyntaxNode | null = null;
@@ -251,7 +255,35 @@ function evaluateElement(
   }
   const key = keyOf(valueNode);
   if (!key) return;
-  obj[key] = valueNode ? readScalar(valueNode, ctx) : {};
+  obj[key] = valueNode
+    ? readScalar(valueNode, ctx)
+    : holdsClearProp(segments, ctx)
+      ? { $clear: true }
+      : {};
+}
+
+const CLEAR_PROP_NAMES: ReadonlySet<string> = nodeNameSet(["LuauSparklePropAttribute"]);
+const PROP_NAME_NAMES: ReadonlySet<string> = nodeNameSet(["StyleAttributeName"]);
+const PROP_ASSIGN_NAMES: ReadonlySet<string> = nodeNameSet(["EqualOperator"]);
+const PROP_BOOLEAN_NAMES: ReadonlySet<string> = nodeNameSet(["InlinePropBooleanValue"]);
+
+function holdsClearProp(segments: ElementSegment[], ctx: LowerContext): boolean {
+  const found = new Map<number, SyntaxNode>();
+  const walk = (n: SyntaxNode) => {
+    if (CLEAR_PROP_NAMES.has(n.name)) {
+      const name = firstDescendant(n, PROP_NAME_NAMES);
+      if (name && ctx.read(name.from, name.to) === "clear") found.set(n.from, n);
+      return;
+    }
+    if (n.name === "LuauSparkleElementBlock") return;
+    for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
+  };
+  for (const segment of segments) walk(segment.node);
+  const last = [...found.values()].sort((a, b) => a.from - b.from).at(-1);
+  if (!last) return false;
+  if (!firstDescendant(last, PROP_ASSIGN_NAMES)) return true;
+  const value = firstDescendant(last, PROP_BOOLEAN_NAMES);
+  return !!value && ctx.read(value.from, value.to) === "true";
 }
 
 function evaluate(

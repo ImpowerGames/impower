@@ -13,7 +13,7 @@ const drive = async (h: any, instant = true) => {
 describe("navigate never closes `main`", () => {
   const SOURCE = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -46,7 +46,7 @@ end
 describe("close and open of the SAME layout in one beat", () => {
   const SOURCE = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
@@ -82,7 +82,7 @@ end
 describe("navigate is a barrier across DIFFERENT layout names", () => {
   const SOURCE = `layout main {
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

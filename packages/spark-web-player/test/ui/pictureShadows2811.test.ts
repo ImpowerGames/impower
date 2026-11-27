@@ -14,13 +14,13 @@ const SHADOWS = 6;
 
 const SOURCE = `layout main {
   stage {
-    portrait {
+    portrait #clear {
 ${Array.from({ length: SHADOWS }, (_, i) => `      mask.shadow_${i + 1}`).join("\n")}
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }

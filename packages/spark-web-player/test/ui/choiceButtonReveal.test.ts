@@ -282,13 +282,13 @@ describe("an instant write", () => {
       { control: "show", text: "U", after: 0.5 },
       { control: "show", text: "p", after: 0.55 },
     ];
-    await text.write("choice 0", label, false, BEAT_LEAD_MS);
+    await text.change("line write", "choice 0", label, false, BEAT_LEAD_MS);
     await flushMicrotasks(20);
     const button = choiceButton(h, 0);
     const now = Number(document.timeline.currentTime);
     expect(shownAt(button, now)).toBe(false);
 
-    await text.write("choice 0", label, true);
+    await text.change("line write", "choice 0", label, true);
     await flushMicrotasks(20);
 
     expect(shownAt(button, now)).toBe(true);

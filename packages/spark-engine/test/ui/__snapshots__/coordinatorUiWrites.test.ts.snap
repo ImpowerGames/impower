@@ -10,13 +10,13 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
       "character_name",
       "character_parenthetical",
       "dialogue",
-      "action",
       "continue_indicator",
       "choice 0",
       "choice 1",
@@ -24,7 +24,14 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "action",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "character_name",
       "character_parenthetical",
@@ -66,7 +73,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "action",
     [
       {
@@ -208,12 +216,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
-      "character_name",
-      "character_parenthetical",
-      "dialogue",
       "action",
       "continue_indicator",
       "choice 0",
@@ -222,7 +228,16 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "dialogue",
+      "character_parenthetical",
+      "character_name",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -256,7 +271,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "dialogue",
     [
       {
@@ -339,7 +355,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_parenthetical",
     [
       {
@@ -355,7 +372,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_name",
     [
       {
@@ -387,12 +405,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
-      "character_name",
-      "character_parenthetical",
-      "dialogue",
       "action",
       "continue_indicator",
       "choice 0",
@@ -401,7 +417,16 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "dialogue",
+      "character_parenthetical",
+      "character_name",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -435,7 +460,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "dialogue",
     [
       {
@@ -518,7 +544,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_parenthetical",
     [
       {
@@ -534,7 +561,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_name",
     [
       {
@@ -579,7 +607,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
       "character_name",
@@ -587,13 +616,19 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "dialogue",
       "action",
       "continue_indicator",
+    ],
+  ],
+  [
+    "ui.text.change",
+    "line replace",
+    [
       "choice 0",
       "choice 1",
       "choice 2",
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -645,7 +680,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "[function]",
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 0",
     [
       {
@@ -666,7 +702,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 1",
     [
       {
@@ -687,7 +724,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 2",
     [
       {
@@ -726,7 +764,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     1,
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "choose",
     [
       "choice 0",
       "choice 1",
@@ -771,13 +810,13 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
       "character_name",
       "character_parenthetical",
       "dialogue",
-      "action",
       "continue_indicator",
       "choice 0",
       "choice 1",
@@ -785,7 +824,14 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "action",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "character_name",
       "character_parenthetical",
@@ -827,7 +873,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "action",
     [
       {
@@ -963,12 +1010,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
-      "character_name",
-      "character_parenthetical",
-      "dialogue",
       "action",
       "continue_indicator",
       "choice 0",
@@ -977,7 +1022,16 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "dialogue",
+      "character_parenthetical",
+      "character_name",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -1011,7 +1065,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "dialogue",
     [
       {
@@ -1094,7 +1149,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_parenthetical",
     [
       {
@@ -1110,7 +1166,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_name",
     [
       {
@@ -1136,12 +1193,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
-      "character_name",
-      "character_parenthetical",
-      "dialogue",
       "action",
       "continue_indicator",
       "choice 0",
@@ -1150,7 +1205,16 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "dialogue",
+      "character_parenthetical",
+      "character_name",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -1184,7 +1248,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "dialogue",
     [
       {
@@ -1267,7 +1332,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_parenthetical",
     [
       {
@@ -1283,7 +1349,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_name",
     [
       {
@@ -1324,7 +1391,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
       "character_name",
@@ -1332,13 +1400,19 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
       "dialogue",
       "action",
       "continue_indicator",
+    ],
+  ],
+  [
+    "ui.text.change",
+    "line replace",
+    [
       "choice 0",
       "choice 1",
       "choice 2",
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -1390,7 +1464,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     "[function]",
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 0",
     [
       {
@@ -1411,7 +1486,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 1",
     [
       {
@@ -1432,7 +1508,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 2",
     [
       {
@@ -1465,7 +1542,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a played story
     1,
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "choose",
     [
       "choice 0",
       "choice 1",
@@ -1510,13 +1588,13 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
       "character_name",
       "character_parenthetical",
       "dialogue",
-      "action",
       "continue_indicator",
       "choice 0",
       "choice 1",
@@ -1524,7 +1602,14 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "action",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "character_name",
       "character_parenthetical",
@@ -1566,7 +1651,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "action",
     [
       {
@@ -1702,12 +1788,10 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
-      "character_name",
-      "character_parenthetical",
-      "dialogue",
       "action",
       "continue_indicator",
       "choice 0",
@@ -1716,7 +1800,16 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.text.change",
+    "line replace",
+    [
+      "dialogue",
+      "character_parenthetical",
+      "character_name",
+    ],
+  ],
+  [
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -1750,7 +1843,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     },
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "dialogue",
     [
       {
@@ -1833,7 +1927,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_parenthetical",
     [
       {
@@ -1849,7 +1944,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "character_name",
     [
       {
@@ -1885,7 +1981,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     "ui.beginCompose",
   ],
   [
-    "ui.text.clearAll",
+    "ui.text.change",
+    "line clear",
     [
       "backdrop",
       "character_name",
@@ -1893,13 +1990,19 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
       "dialogue",
       "action",
       "continue_indicator",
+    ],
+  ],
+  [
+    "ui.text.change",
+    "line replace",
+    [
       "choice 0",
       "choice 1",
       "choice 2",
     ],
   ],
   [
-    "ui.image.clearAll",
+    "ui.image.clearMarked",
     [
       "backdrop",
       "character_name",
@@ -1951,7 +2054,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     "[function]",
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 0",
     [
       {
@@ -1972,7 +2076,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 1",
     [
       {
@@ -1993,7 +2098,8 @@ exports[`the UI writes the Coordinator makes for a beat (#1988) > a previewed st
     0,
   ],
   [
-    "ui.text.write",
+    "ui.text.change",
+    "line write",
     "choice 2",
     [
       {

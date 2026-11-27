@@ -355,7 +355,7 @@ export function createDOMHarness(
         const choiceTargets = instructions.choices;
         choiceTargets.forEach((target, index) => {
           const handleClick = (): void => {
-            uiMod.text.clearAll(choiceTargets);
+            uiMod.text.change("choose", choiceTargets);
             uiMod.image.clearAll(choiceTargets);
             uiMod.unobserve("click", target);
             uiMod.hideAll(choiceTargets);

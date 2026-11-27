@@ -6,21 +6,21 @@ const SCREEN = `define HERO as character with
 end
 
 layout main {
-  action {
+  action #clear {
     text
   }
-  dialogue {
+  dialogue #clear {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
     text
   }
-  choice.0 {
+  choice.0 #clear {
     text
   }
-  choice.1 {
+  choice.1 #clear {
     text
   }
 }

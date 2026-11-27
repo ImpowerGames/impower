@@ -2,15 +2,15 @@ import type { Instructions } from "../../../src/game/core/types/Instructions";
 import { createHarness, flushMicrotasks } from "./uiTestHarness";
 
 const SCREEN = `layout main {
-  action {
+  action #clear {
     text
   }
-  dialogue {
+  dialogue #clear {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
-      character_parenthetical {
+      character_parenthetical #clear {
         text
       }
     }

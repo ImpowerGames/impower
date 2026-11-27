@@ -22,7 +22,7 @@ animation slow_pan {
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }

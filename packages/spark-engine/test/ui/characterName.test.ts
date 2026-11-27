@@ -8,11 +8,11 @@ import {
 const SCREEN = `layout main {
   textbox {
     character_info {
-      character_name {
+      character_name #clear {
         text
       }
     }
-    dialogue {
+    dialogue #clear {
       text
     }
   }

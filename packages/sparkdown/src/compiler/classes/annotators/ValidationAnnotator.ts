@@ -257,6 +257,12 @@ const IF_CONDITION_TRIVIA = nodeNameSet([
   "Newline",
 ]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
+const LAYOUT_NAMES = nodeNameSet(["LuauLayout"]);
+const ELEMENT_NAME_NODES = nodeNameSet([
+  "LuauSparkleElementName",
+  "BuiltinComponentName",
+  "CustomComponentName",
+]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_UNTIL_KEYWORD = nodeNameSet(["LuauUntilKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
@@ -504,6 +510,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     this.unreadReadings.clear();
     this.loweredReadings.clear();
     super.update(tree, text, uri);
+  }
+
+  private elementBeforeOnLine(name: SyntaxNode): SyntaxNode | null {
+    let element: SyntaxNode | null = name.parent;
+    while (element && element.name !== "LuauSparkleElement") element = element.parent;
+    let before = element?.prevSibling ?? null;
+    while (before && before.name === "Whitespace") before = before.prevSibling;
+    if (before?.name !== "LuauSparkleElement") return null;
+    const begin = childNamed(before, "LuauSparkleElement_begin");
+    return begin ? firstDescendant(begin, ELEMENT_NAME_NODES) : null;
   }
 
   private deadSelectorStateConsequence(node: SyntaxNode): string {
@@ -1665,6 +1681,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    if (
+      nodeRef.name === "LuauSparkleElementName" &&
+      this.read(nodeRef.from, nodeRef.to) === "clear"
+    ) {
+      const before = this.elementBeforeOnLine(nodeRef.node);
+      if (before && ancestorMatching(nodeRef.node, LAYOUT_NAMES, Infinity)) {
+        const name = this.read(before.from, before.to);
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message: `\`clear\` here starts a second element named \`clear\`, so \`${name}\` keeps its content after its line\n> Write \`${name} #clear\` to empty \`${name}\` after its line, or put a \`;\` between two elements on one line`,
             severity: "warning",
           }).range(nodeRef.from, nodeRef.to),
         );

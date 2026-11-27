@@ -8,7 +8,7 @@ const SOURCE = `define ui as config with
 end
 
 layout main {
-  action { text }
+  action #clear { text }
 }
 
 layout menu {

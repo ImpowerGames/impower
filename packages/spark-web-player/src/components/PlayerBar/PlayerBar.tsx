@@ -2,11 +2,12 @@ import { Fragment, type Ref } from "preact";
 import {
   playerBarLocation,
   replayBeatState,
+  restartShown,
   runButtonState,
   skipRefusal,
   type PlayerBarState,
 } from "./playerBarState";
-import { REPLAY_BEAT } from "./replayBeat";
+import { GAME_STARTING_REASON, REPLAY_BEAT } from "./replayBeat";
 import { useHoldRepeat } from "./useHoldRepeat";
 
 export interface PlayerBarControls {
@@ -32,6 +33,7 @@ export interface PlayerBarProps {
   replayShortcut?: string;
   onRun?: () => void;
   onStop?: () => void;
+  onRestart?: () => void;
   onReplayBeat?: () => void;
   onSkip?: (direction: -1 | 1) => void;
   onPause?: () => void;
@@ -114,8 +116,46 @@ function TransportButton({
 const RUN_LABELS = {
   run: "Run",
   stop: "Stop",
-  "run-again": "Run again",
 } as const;
+
+const RESTART = "Restart";
+
+function RestartButton({
+  state,
+  refusal,
+  starting,
+  onRestart,
+}: {
+  state: PlayerBarState;
+  refusal?: string;
+  starting?: boolean;
+  onRestart?: () => void;
+}) {
+  if (!restartShown(state)) {
+    return null;
+  }
+  const reason = starting ? GAME_STARTING_REASON : refusal;
+  const disabled = reason != null;
+  return (
+    <button
+      type="button"
+      id="restart-button"
+      class="toolbar-button transport-button"
+      title={reason ?? RESTART}
+      aria-disabled={disabled ? "true" : undefined}
+      aria-description={reason}
+      onPointerDown={stopPointer}
+      onClick={() => {
+        if (!disabled) {
+          onRestart?.();
+        }
+      }}
+    >
+      <span class="transport-icon" data-icon="restart" />
+      <span id="restart-label">{RESTART}</span>
+    </button>
+  );
+}
 
 function RunButton({
   state,
@@ -211,6 +251,7 @@ export default function PlayerBar({
   replayShortcut,
   onRun,
   onStop,
+  onRestart,
   onReplayBeat,
   onSkip,
   onPause,
@@ -243,6 +284,14 @@ export default function PlayerBar({
           starting={starting}
           onRun={onRun}
           onStop={onStop}
+        />
+      ) : null}
+      {controls.run ? (
+        <RestartButton
+          state={state}
+          refusal={runRefusal}
+          starting={starting}
+          onRestart={onRestart}
         />
       ) : null}
       {controls.replay ? (

@@ -7,12 +7,12 @@ end
 
 layout main {
   stage {
-    backdrop {
+    backdrop #clear {
       image
     }
   }
   textbox {
-    dialogue {
+    dialogue #clear {
       text
     }
   }
