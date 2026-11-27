@@ -188,11 +188,14 @@ async function setup(options: { load?: (src: string) => Promise<PictureBitmap> }
   const pictureOf = (name: "image" | "mask") =>
     Array.from(contentOf(name).children).find((el) => (el as { __sdMorph?: unknown }).__sdMorph) as (HTMLElement & { __sdMorph?: any }) | undefined;
   const clear: WriteImageParams = { target: "portrait", instant: false, instructions: [] };
-  const switchGame = async (epoch: number, restored: "cleared" | "shown") => {
+  const fresh = async () => {
     ui.onDispose();
     ui = new UIManager(app as never);
     watch(ui);
     await ui.onInit();
+  };
+  const switchGame = async (epoch: number, restored: "cleared" | "shown") => {
+    await fresh();
     for (const name of ["image", "mask"] as const) {
       const parent = (contentOf(name) as { __sdId?: string }).__sdId!;
       await ui.onReceiveRequest(request("ui/create", { parent, element: `${parent}-instance-0`, type: "span", name: "instance" }) as never);
@@ -211,7 +214,7 @@ async function setup(options: { load?: (src: string) => Promise<PictureBitmap> }
     else delete (proto as unknown as Record<string, unknown>)["offsetHeight"];
     if (rect) Object.defineProperty(proto, "getBoundingClientRect", rect);
   };
-  return { h, ui: () => ui, events, paints, rasterized, reports, beat, playback, pictureOf, switchGame };
+  return { h, ui: () => ui, events, paints, rasterized, reports, beat, playback, pictureOf, switchGame, fresh };
 }
 
 describe("the stopped preview shows a drawn picture from the same drawing as play (#2816)", () => {
@@ -262,12 +265,13 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(t.reports).not.toHaveBeenCalled();
   });
 
-  test("a clear outside a beat keeps the picture on screen until the next beat, which takes it away when it does not show it", async () => {
+  test("a new game's clear before its first beat keeps the picture on screen until that beat, which takes it away when it does not show it", async () => {
     const t = await setup();
     t.beat([show("nova-run", 0)]);
     await until(() => t.events.includes("applied"), "the beat");
     await new Promise((resolve) => setTimeout(resolve, 100));
     const picture = t.pictureOf("image")!;
+    await t.fresh();
     await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-1", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
     expect(t.pictureOf("image")).toBe(picture);
     expect(picture.isConnected).toBe(true);
@@ -277,6 +281,55 @@ describe("the stopped preview shows a drawn picture from the same drawing as pla
     expect(picture.isConnected).toBe(false);
     expect(t.pictureOf("image")).toBeUndefined();
     expect(t.pictureOf("mask")).toBeUndefined();
+  });
+
+  test("a new game's held clear takes the picture away when no beat follows within the drawing timeouts", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    await t.fresh();
+    t.ui().onReceiveNotification({
+      jsonrpc: "2.0",
+      method: "assets/configure",
+      params: { predictBytes: 0, loadBytes: 0, trimLayers: true, beatTimeout: 0.1, restoreTimeout: 0.05 },
+    } as never);
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-3", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    expect(picture.isConnected).toBe(true);
+    await until(() => !picture.isConnected, "the held clear to settle");
+    expect(t.pictureOf("image")).toBeUndefined();
+    expect(t.pictureOf("mask")).toBeUndefined();
+  });
+
+  test("a clear outside a beat once the game has applied a beat takes the picture away at once", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    await t.ui().onReceiveRequest({ jsonrpc: "2.0", id: "clear-2", method: "ui/write-image", params: { target: "portrait", instant: false, instructions: [] } } as never);
+    await flushMicrotasks(10);
+    expect(picture.isConnected).toBe(false);
+    expect(t.pictureOf("image")).toBeUndefined();
+    expect(t.pictureOf("mask")).toBeUndefined();
+  });
+
+  test("a new game's clear before its first beat whose exit the game waits for takes the picture away at once", async () => {
+    const t = await setup();
+    t.beat([show("nova-run", 0)]);
+    await until(() => t.events.includes("applied"), "the beat");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const picture = t.pictureOf("image")!;
+    await t.fresh();
+    await t.ui().onReceiveRequest({
+      jsonrpc: "2.0",
+      id: "clear-exit-1",
+      method: "ui/write-image",
+      params: { target: "portrait", instant: false, instructions: [], reportsExit: true },
+    } as never);
+    expect(picture.isConnected).toBe(false);
+    expect(t.pictureOf("image")).toBeUndefined();
   });
 
   test("a beat that creates an element, clears it and shows a picture in it applies with the picture shown", async () => {

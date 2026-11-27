@@ -197,7 +197,7 @@ function shownPicture(property: string, content: NonNullable<WriteImageInstructi
 
 interface ShownPicture {
   key: string;
-  write: { count: number };
+  write: { count: number; owner: object };
 }
 
 function shownOf(el: Element): ShownPicture | undefined {
@@ -1441,6 +1441,7 @@ export default class UIManager extends Manager {
         this.applyBeatMessage(op, decision);
       }
     }
+    this._beatApplied = true;
     this.settleClears();
     this.discardAllPrepared();
     this.revealPrecreated();
@@ -2843,9 +2844,14 @@ export default class UIManager extends Manager {
 
   protected _clearing = new Set<HTMLElement>();
 
+  protected _beatApplied = false;
+
   protected holdClear(contentEl: HTMLElement): boolean {
+    if (this._beatApplied) {
+      return false;
+    }
     const children = Array.from(contentEl.children) as HTMLElement[];
-    const shown = children.filter((el) => shownOf(el) && !(el as any).__sdPrepared);
+    const shown = children.filter((el) => !(el as any).__sdPrepared && shownOf(el) && shownOf(el)!.write.owner !== this);
     if (shown.length === 0) {
       return false;
     }
@@ -2859,10 +2865,20 @@ export default class UIManager extends Manager {
         el.remove();
       }
     }
+    if (this._clearingTimer === undefined) {
+      this._clearingTimer = setTimeout(
+        () => this.settleClears(),
+        Math.max(this._drawTimeouts.beat, this._drawTimeouts.restore) * 1000,
+      );
+    }
     return true;
   }
 
+  protected _clearingTimer?: ReturnType<typeof setTimeout>;
+
   protected settleClears() {
+    clearTimeout(this._clearingTimer);
+    this._clearingTimer = undefined;
     for (const el of this._clearing) {
       if (el.isConnected) {
         this.releaseMovies(el);
@@ -2976,7 +2992,7 @@ export default class UIManager extends Manager {
       const maskEls = this.getContentElements(targetEl, "mask");
       if (instructions.length === 0) {
         for (const contentEl of [...imageEls, ...maskEls]) {
-          if (decision == null && this.holdClear(contentEl)) {
+          if (decision == null && !reportsExit && this.holdClear(contentEl)) {
             continue;
           }
           this.releaseMovies(contentEl);
@@ -3069,7 +3085,7 @@ export default class UIManager extends Manager {
         const kept = this.keptPictures(instruction, contentTargets);
         const write =
           instruction.control === "show" && !content.video
-            ? { count: contentTargets.reduce((count, { els }) => count + els.length, 0) }
+            ? { count: contentTargets.reduce((count, { els }) => count + els.length, 0), owner: this }
             : undefined;
         const previousHideAnimation = content.previousHideAnimation;
         const retire = (prevSpanEls: HTMLElement[]) => {
