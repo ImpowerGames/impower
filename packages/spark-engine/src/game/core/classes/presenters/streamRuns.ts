@@ -96,7 +96,13 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
   if (!gathering) {
     return { ahead: [], open: false };
   }
-  let position = game.module.ui.streams.runLines(gathering.layout) + 1;
+  const restarts = (own: LayoutInstruction[]) =>
+    own.some(
+      (event) =>
+        event.name === gathering.layout &&
+        (event.control === LayoutVerb.clear || event.control === LayoutVerb.close),
+    );
+  let position = restarts(events) ? 1 : game.module.ui.streams.runLines(gathering.layout) + 1;
   if (endsRun(first, gathering)) {
     return { gathering, ahead: [], open: false, ends: true };
   }
@@ -111,12 +117,7 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
     const routed = routeLine(game, beat, events);
     const own = layoutEvents(routed);
     const after = [...events, ...own];
-    const restarts = own.some(
-      (event) =>
-        event.name === gathering.layout &&
-        (event.control === LayoutVerb.clear || event.control === LayoutVerb.close),
-    );
-    if (restarts || gatheringOf(game, routed, after)?.layout !== gathering.layout) {
+    if (restarts(own) || gatheringOf(game, routed, after)?.layout !== gathering.layout) {
       return { gathering, ahead, open: false };
     }
     ahead.push(routed);

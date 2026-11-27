@@ -183,3 +183,118 @@ describe("the 100th line of a long run (I-2743)", () => {
     expect([entries(h), reserved(h)]).toEqual([total, room]);
   });
 });
+
+const TWO_STREAMS = `define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+layout phone {
+  thread {
+    stream { dialogue.bubble { text } }
+    stream { action.memo { text } }
+  }
+}
+
+stream phone {
+  advance = auto
+  pause = 0
+}
+`;
+
+const alternating = (count: number) =>
+  `${TWO_STREAMS}
+scene start
+  [[open phone]]
+${Array.from(
+  { length: count },
+  (_, i) => `  ${i % 2 ? "" : "RAFFLES: "}l${i + 1}${i === count - 1 ? " >" : ""}`,
+).join("\n")}
+end
+`;
+
+const lineOf = (h: Harness): string =>
+  Object.entries(coordinator(h)?._instructions?.text ?? {})
+    .filter(([target]) => target === "dialogue" || target === "action")
+    .flatMap(([, events]: [string, any]) => events.map((event: any) => event.text))
+    .join("");
+
+const sizes = (h: Harness) =>
+  [0, 1].map((index) => h.game.module.ui.streams.entries("phone", index).length);
+
+describe("a run across the streams of one layout (I-2743)", () => {
+  test("every stream reserves the lines it takes, whichever stream the current line goes to", async () => {
+    const h = await play(alternating(101));
+    for (let i = 0; i < 10 && !lineOf(h); i += 1) {
+      await tick(h, 0);
+    }
+    expect(lineOf(h)).toBe("l1");
+    expect(sizes(h)).toEqual([50, 50]);
+    for (let i = 0; i < 50 && lineOf(h) !== "l2"; i += 1) {
+      await tick(h, 200);
+    }
+    expect(lineOf(h)).toBe("l2");
+    expect(sizes(h)).toEqual([50, 50]);
+  });
+
+  test("the hundredth line of the layout's run waits when its lines alternate between streams", async () => {
+    const h = await play(alternating(101));
+    const waits: string[] = [];
+    let last = "";
+    for (let i = 0; i < 5000; i += 1) {
+      const line = lineOf(h);
+      const current = coordinator(h);
+      if (line !== last) {
+        last = line;
+        if (!current._instructions.auto) {
+          waits.push(line);
+        }
+        expect(sizes(h).reduce((a, b) => a + b, 0)).toBe(line === "l101" ? 101 : 100);
+      }
+      if (line === "l101" && current._finishedExecution) {
+        break;
+      }
+      if (!current._instructions.auto && current._finishedExecution) {
+        await press(h);
+      } else {
+        await tick(h, 200);
+      }
+    }
+    expect(waits).toEqual(["l100", "l101"]);
+  });
+
+  test("a clear starts a fresh run rather than counting on from the run before it", async () => {
+    const h = await play(`define RAFFLES as character with
+  name = "RAFFLES"
+end
+
+layout phone {
+  thread {
+    stream { dialogue.bubble { text } }
+  }
+}
+
+stream phone {
+  advance = auto
+  pause = 0
+}
+
+scene start
+  [[open phone]]
+${Array.from({ length: 99 }, (_, i) => `  RAFFLES: l${i + 1}`).join("\n")}
+  [[clear phone]]
+  RAFFLES: new1
+  RAFFLES: new2
+  RAFFLES: new3 >
+end
+`);
+    await press(h);
+    expect(shown(h)).toBe("l99");
+    for (let i = 0; i < 10 && !coordinator(h)._finishedExecution; i += 1) {
+      await tick(h, 200);
+    }
+    await press(h);
+    expect(shown(h)).toBe("new1");
+    expect(coordinator(h)._instructions.auto).toBe(true);
+    expect([entries(h), reserved(h)]).toEqual([3, 2]);
+  });
+});

@@ -10,11 +10,14 @@ export interface StreamState {
   entries: StreamEntry[];
   current: number;
   reserved?: number;
-  run?: number;
-  runEnds?: true;
   cleared?: number;
   key?: string;
   beat?: number;
   absorbed?: StreamEntry[];
   styles?: Record<number, Record<string, Record<string, string>>>;
+}
+
+export interface StreamRunState {
+  lines: number;
+  ends?: true;
 }
