@@ -7625,15 +7625,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
           const entries = $.withEntries(e);
-          const played = entries.at(-1);
-          const showEvent = played
-            ? $.armEvent(played, "on_show")
-            : { name: "show", after: e.after, over: e.over, ease: e.ease };
-          const hideEvent = played
-            ? $.armEvent(played, "on_hide")
-            : { name: "hide", after: e.after, over: e.over, ease: e.ease };
+          const showEvents = entries.length
+            ? entries.map((entry) => $.armEvent(entry, "on_show"))
+            : [{ name: "show", after: e.after, over: e.over, ease: e.ease }];
+          const hideEvents = entries.length
+            ? entries.map((entry) => $.armEvent(entry, "on_hide"))
+            : [{ name: "hide", after: e.after, over: e.over, ease: e.ease }];
+          const definitions = (events: typeof showEvents) =>
+            events.flatMap((event) => $.getAnimationDefinition(event, instant) ?? []);
           const assets = e.assets;
-          for (const entry of e.control === "animate" ? entries : played ? [played] : []) {
+          for (const entry of entries) {
             const entryTransition = $.context?.transition?.[entry.name];
             if (!entryTransition) {
               continue;
@@ -7736,45 +7737,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               return content;
             });
             if (e.control === "show") {
-              const enterAnimation = $.getAnimationDefinition(
-                showEvent,
-                instant,
-              );
-              if (enterAnimation) {
-                content.enterAnimation = enterAnimation;
+              const enterAnimations = definitions(showEvents);
+              if (enterAnimations.length > 0) {
+                content.enterAnimations = enterAnimations;
               }
-              const previousHideAnimation = $.getAnimationDefinition(
-                hideEvent,
-                instant,
-              );
-              if (previousHideAnimation) {
-                content.previousHideAnimation = previousHideAnimation;
+              const previousHideAnimations = definitions(hideEvents);
+              if (previousHideAnimations.length > 0) {
+                content.previousHideAnimations = previousHideAnimations;
               }
             } else if (e.control === "hide") {
-              const exitAnimation = $.getAnimationDefinition(
-                hideEvent,
-                instant,
-              );
-              if (exitAnimation) {
-                content.exitAnimation = exitAnimation;
+              const exitAnimations = definitions(hideEvents);
+              if (exitAnimations.length > 0) {
+                content.exitAnimations = exitAnimations;
               }
             } else if (e.control === "animate" && entries.length > 1) {
-              for (const entry of entries) {
-                const animation = $.getAnimationDefinition(
-                  $.armEvent(entry, "on_show"),
-                  instant,
-                );
-                if (animation) {
-                  targetAnimations.push(animation);
-                }
-              }
+              targetAnimations.push(...definitions(showEvents));
             } else if (e.control === "animate") {
-              const enterAnimation = $.getAnimationDefinition(
-                showEvent,
-                instant,
-              );
-              if (enterAnimation) {
-                content.enterAnimation = enterAnimation;
+              const enterAnimations = definitions(showEvents);
+              if (enterAnimations.length > 0) {
+                content.enterAnimations = enterAnimations;
               }
             }
             out.content = content;
@@ -7783,18 +7764,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           } else {
             if (e.control === "hide") {
-              const animation = $.getAnimationDefinition(hideEvent, instant);
-              if (animation) {
-                targetAnimations.push(animation);
-              }
+              targetAnimations.push(...definitions(hideEvents));
             } else if (e.control === "show") {
               if (framing) {
                 out.framing = framing;
               }
-              const animation = $.getAnimationDefinition(showEvent, instant);
-              if (animation) {
-                targetAnimations.push(animation);
-              }
+              targetAnimations.push(...definitions(showEvents));
             } else if (e.control === "animate") {
               for (const entry of entries) {
                 const animation = $.getAnimationDefinition(

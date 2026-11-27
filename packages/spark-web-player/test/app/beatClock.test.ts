@@ -182,7 +182,7 @@ describe("a stamped image write handled late", () => {
               imageNames: "a",
               src: "a.png",
               srcs: ["a.png"],
-              enterAnimation: fade(0.1) as any,
+              enterAnimations: [fade(0.1) as any],
             },
           },
         ],

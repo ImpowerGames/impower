@@ -34,9 +34,9 @@ export interface WriteImageInstruction {
       mixerGain: number;
       preview?: boolean;
     };
-    enterAnimation?: Animation;
-    exitAnimation?: Animation;
-    previousHideAnimation?: Animation;
+    enterAnimations?: Animation[];
+    exitAnimations?: Animation[];
+    previousHideAnimations?: Animation[];
     morph?: MorphImageContent;
     pictures?: LayeredPicture[];
   };

@@ -25,8 +25,8 @@ Built-in animations: `fade`, `slide`, `shake`,
 
 ### Several animations at once
 
-An `animate` line takes any number of `with` clauses. They all start with the
-line and run together:
+An `animate`, `show` or `hide` line, and the bare picture shorthand, takes any
+number of `with` clauses. They all start with the line and run together:
 
 ```sparkdown
 scene start
@@ -76,9 +76,31 @@ When two `with` clauses on a line set the same property, the later one wins whil
 both run. `[[animate portrait with shake with pulse]]` shows both, because
 `shake` moves the portrait and `pulse` changes its opacity.
 
-`show`, `hide` and the bare picture shorthand play only the last `with` on their
-line, and so do `open`, `close` and `navigate`. `load`, `play` and sound lines
-take one `with`, and a second is reported.
+A `with` names a transition or an animation, and one line can mix them. Each
+`with` plays as it would if it were the line's only `with`:
+
+```sparkdown
+scene start
+  [[show portrait hero with fade over 0.5s with shake over 2s]]
+  [[hide portrait with fade over 1s with spin over 1s once]]
+  [[show portrait mia with screenfade over 1s with shake]]
+end
+```
+
+- A transition gives the arriving picture its `on_show` animation and the
+  picture leaving its `on_hide` animation, both stretched to that `with`'s
+  `over`. Its other parts, such as the `screen` pulse of `screenfade`, play on
+  their own layers.
+- An animation that is not a transition plays on both pictures: the one arriving
+  and the one it replaces.
+
+So the first line fades the hero in over half a second while it shakes for two,
+and the portrait it replaces fades out while it shakes. The second fades the
+portrait out while it makes one turn. A picture that leaves is removed once the
+longest of its animations has ended.
+
+`open`, `close` and `navigate` play only the last `with` on their line. `load`,
+`play` and sound lines take one `with`, and a second is reported.
 
 Pan and zoom are framings, not animations: see [Framings](./Framings.md). An
 animation is for an effect that plays and returns to rest, such as `shake`. A

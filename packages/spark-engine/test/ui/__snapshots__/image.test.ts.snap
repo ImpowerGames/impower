@@ -40,49 +40,53 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
         {
           "content": {
             "background": "url("https://example.com/bg.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": 0,
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": 0,
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "BG",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": 0,
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": 0,
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/bg.png",
             ],
@@ -164,49 +168,53 @@ exports[`image > hide backdrop 1`] = `
         {
           "content": {
             "background": "url("https://example.com/bg.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "BG",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/bg.png",
             ],
@@ -313,49 +321,53 @@ exports[`image > image animate directive 1`] = `
         {
           "content": {
             "background": "url("https://example.com/hero.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "SPRITE",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/hero.png",
             ],
@@ -492,49 +504,53 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
         {
           "content": {
             "background": "url("https://example.com/shadow.png"), url("https://example.com/hero.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "SPRITE SHADOW",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/hero.png",
               "https://example.com/shadow.png",
@@ -617,49 +633,53 @@ exports[`image > show backdrop 1`] = `
         {
           "content": {
             "background": "url("https://example.com/bg.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "BG",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/bg.png",
             ],
@@ -740,49 +760,53 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
         {
           "content": {
             "background": "url("https://example.com/bg.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "BG",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/bg.png",
             ],
@@ -819,49 +843,53 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
         {
           "content": {
             "background": "url("https://example.com/bg2.png")",
-            "enterAnimation": {
-              "$name": "show",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "1",
+            "enterAnimations": [
+              {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "BG2",
-            "previousHideAnimation": {
-              "$name": "hide",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/bg2.png",
             ],
@@ -942,52 +970,56 @@ exports[`image > show with fade transition 1`] = `
         {
           "content": {
             "background": "url("https://example.com/bg.png")",
-            "enterAnimation": {
-              "$name": "fadein",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "enterAnimations": [
+              {
+                "$name": "fadein",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-                {
-                  "opacity": "1",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "imageNames": "BG",
-            "previousHideAnimation": {
-              "$name": "fadeout",
-              "$type": "animation",
-              "keyframes": [
-                {
-                  "opacity": "0",
+            "previousHideAnimations": [
+              {
+                "$name": "fadeout",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
                 },
-              ],
-              "target": {
-                "$name": "self",
-                "$type": "layer",
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
               },
-              "timing": {
-                "delay": "0s",
-                "direction": "normal",
-                "duration": "0s",
-                "easing": "linear",
-                "fill": "both",
-                "iterations": 1,
-              },
-            },
+            ],
             "sources": [
               "https://example.com/bg.png",
             ],
