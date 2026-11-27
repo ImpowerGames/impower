@@ -389,18 +389,27 @@ describe("a line first presented during a pause keeps its time on every path (#2
       selector: ".phone .stream",
       layout: `layout phone {\n  stream.feed {\n    dialogue.bubble {\n      ${branch}\n    }\n  }\n}`,
     },
+    {
+      kind: "a stream mounted twice by a for loop",
+      name: "phone",
+      selector: ".phone .stream",
+      layout: `layout phone {\n  for row in rows do\n    stream.feed {\n      dialogue.bubble {\n        ${branch}\n      }\n    }\n  end\n}`,
+    },
   ];
 
-  const sourceOf = (fixture: (typeof fixtures)[number]) =>
+  const sourceOf = (fixture: (typeof fixtures)[number] & { style?: string }) =>
     `define RAFFLES as character with
   name = "RAFFLES"
 end
 
 store expanded = true
+store rows = { 1, 2 }
 
 function toggle()
   expanded = not expanded
 end
+
+${fixture.style ?? ""}
 
 ${fixture.layout}
 
@@ -411,13 +420,16 @@ end
 `;
 
   const shownIn = (h: DOMHarness, selector: string) =>
-    [...h.overlay.querySelectorAll<HTMLElement>(`${selector} .text_letter`)].filter((el) => {
-      const reveal = (el as any).__sdReveal;
-      return reveal
-        ? reveal.currentTime != null &&
-            reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
-        : el.style.opacity === "1";
-    }).length;
+    [...h.overlay.querySelectorAll<HTMLElement>(selector)].map(
+      (root) =>
+        [...root.querySelectorAll<HTMLElement>(".text_letter")].filter((el) => {
+          const reveal = (el as any).__sdReveal;
+          return reveal
+            ? reveal.currentTime != null &&
+                reveal.currentTime >= Number(reveal.effect.timing.delay ?? 0)
+            : el.style.opacity === "1";
+        }).length,
+    );
 
   async function remount(h: DOMHarness, fixture: (typeof fixtures)[number]) {
     const ui = h.game.module.ui;
@@ -456,10 +468,41 @@ end
         await at(t);
       }
       const live = shownIn(h, fixture.selector);
-      expect(live).toBeGreaterThan(0);
-      expect(live).toBeLessThan(52);
+      expect(live.length).toBeGreaterThan(0);
+      for (const count of live) {
+        expect(count).toBeGreaterThan(0);
+        expect(count).toBeLessThan(52);
+      }
       await remount(h, fixture);
-      expect(shownIn(h, fixture.selector)).toBe(live);
+      expect(shownIn(h, fixture.selector)).toEqual(live);
     },
   );
+
+  test("the textstream page, whose line the line wait released after a pause during its arrival, shows the letters of one never replayed after it reopens", async () => {
+    const fixture = {
+      ...fixtures[1]!,
+      style: "style textstream_dialogue {\n  opacity = 1\n  @initial { opacity = 0 }\n  @show { transition-duration = 280ms }\n}",
+    };
+    const h = harness(sourceOf(fixture));
+    await h.ready;
+    h.game.context.system.composeBeats = true;
+    h.jumpTo("start");
+    const instructions = h.nextBeat();
+    expect(instructions).toBeDefined();
+    const coordinator = new Coordinator(h.game, instructions!);
+    for (let i = 0; i < 10; i += 1) {
+      coordinator.onUpdate({ deltaMS: 0 } as Clock);
+      await flushMicrotasks(40);
+    }
+    await pause(h, 100, 900);
+    for (let t = 950; t <= 1350; t += 50) {
+      await at(t);
+    }
+    const live = shownIn(h, fixture.selector);
+    expect(live).toHaveLength(1);
+    expect(live[0]).toBeGreaterThan(0);
+    expect(live[0]).toBeLessThan(52);
+    await remount(h, fixture);
+    expect(shownIn(h, fixture.selector)).toEqual(live);
+  });
 });

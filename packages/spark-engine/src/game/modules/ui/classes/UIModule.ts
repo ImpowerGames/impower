@@ -2569,6 +2569,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (shift !== 0) {
       this.text.retime(line.time, time);
       this.streams.retime(line.time, time);
+      this.page.retime(line.time, time);
     }
     this.endLine(line, time);
     if (line.held.length > 0) {
@@ -8572,6 +8573,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.sync(this._presented);
       }
 
+      retime(from: number, to: number): void {
+        if (this._presented?.time === from) {
+          this._presented.time = to;
+          this._presented.lag = $._game.settledStoryLag();
+        }
+      }
+
       restore(): void {
         this._presented = { instant: true };
         this.sync(this._presented, 0);
@@ -9095,7 +9103,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               ? { complete: true }
               : (reveal ?? { complete: false, time, lag: presented?.lag }),
             undefined,
-            fresh && !reveal,
+            fresh && (!reveal || (reveal.time === time && reveal.lag === presented?.lag)),
           );
           if (
             !atOnce &&
@@ -9149,8 +9157,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       retime(from: number, to: number): void {
-        for (const reveal of this._reveals.values()) {
-          if (reveal.time === from) {
+        for (const reveal of [...this._reveals.values(), this._presented]) {
+          if (reveal?.time === from) {
             reveal.time = to;
             reveal.lag = $._game.settledStoryLag();
           }
