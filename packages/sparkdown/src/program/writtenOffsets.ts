@@ -1,14 +1,22 @@
 import { writesNothing } from "../runtime/displayStyle";
 import { codeWords, HEADER_WORDS, type ProgramChunk } from "./ProgramChunk";
-import { Op, opOf } from "./ProgramInstructions";
+import { LINE_START_CONTINUES, Op, flagsOf, opOf } from "./ProgramInstructions";
 
 const writes = (
   chunk: ProgramChunk,
   strings: readonly string[],
   offset: number,
-): boolean =>
-  opOf(chunk[HEADER_WORDS + offset]!) !== Op.Text ||
-  !writesNothing(strings[chunk[HEADER_WORDS + offset + 1]!] ?? "");
+): boolean => {
+  const word0 = chunk[HEADER_WORDS + offset]!;
+  switch (opOf(word0)) {
+    case Op.Text:
+      return !writesNothing(strings[chunk[HEADER_WORDS + offset + 1]!] ?? "");
+    case Op.LineStart:
+      return !(flagsOf(word0) & LINE_START_CONTINUES);
+    default:
+      return true;
+  }
+};
 
 export interface WrittenOffset {
   written: number;
