@@ -723,6 +723,9 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
     for (const word of blockContent ? streamIgnoredEntries(blockContent, ctx) : []) {
       warnAt(word.from, word.to, streamEntryIgnored(word.text), ctx);
     }
+    for (const prop of blockContent ? streamClearProps(blockContent, ctx) : []) {
+      warnAt(prop.from, prop.to, STREAM_CLEAR_IGNORED, ctx);
+    }
     return {
       kind: "element",
       tag,
@@ -759,6 +762,29 @@ const STREAM_TEXT_IGNORED =
 
 const streamEntryIgnored = (word: string) =>
   `A stream copies only the elements written directly inside it, so this \`${word}\` is ignored.`;
+
+const STREAM_CLEAR_IGNORED =
+  "A stream entry keeps its content for as long as the entry stays, so `#clear` has no effect inside a stream.";
+
+const STREAM_CLEAR_PROP = nodeNameSet(["LuauSparklePropAttribute"]);
+
+function streamClearProps(container: SyntaxNode, ctx: LowerContext): SyntaxNode[] {
+  const found: SyntaxNode[] = [];
+  const walk = (n: SyntaxNode) => {
+    if (STREAM_CLEAR_PROP.has(n.name)) {
+      const name = firstDescendant(n, PROP_NAME);
+      if (name && ctx.read(name.from, name.to) === "clear") found.push(n);
+      return;
+    }
+    if (n.name === "LuauSparkleElement") {
+      const name = sparkleElementParts(n).name;
+      if (name && ctx.read(name.from, name.to).trim() === "stream") return;
+    }
+    for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
+  };
+  walk(container);
+  return found;
+}
 
 const STREAM_KEPT_ENTRIES = nodeNameSet([
   "LuauStructBlockProperty",
