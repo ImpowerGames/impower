@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { resolveAnimationTargets } from "../../../spark-dom/src/utils/resolveAnimationTargets";
 import { keyframeScale } from "../../src/app/utils/keyframeScale";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 import { animations, TimedAnimation, TimedEffect, timeline } from "./timedAnimation";
@@ -164,6 +165,18 @@ describe("a layer is sized for the product of the animations that enlarge it (I-
 
   test("an animation with no target counts as one on `self`", () => {
     expect(keyframeScale([grow("scale(2)"), grow("scale(1.5)", "self")])).toBe(3);
+  });
+
+  test("`self` and the layer's own name resolve to one element, so they multiply", () => {
+    const layer = document.createElement("div");
+    layer.className = "portrait";
+    const child = document.createElement("div");
+    child.className = "image";
+    layer.append(child);
+    const resolve = (name: string | undefined) => resolveAnimationTargets(layer, name);
+    expect(keyframeScale([grow("scale(2)", "self"), grow("scale(2)", "portrait")], resolve)).toBe(4);
+    expect(keyframeScale([grow("scale(2)", "self"), grow("scale(1.5)", "image")], resolve)).toBe(2);
+    expect(keyframeScale([grow("scale(2)", "missing")], resolve)).toBe(1);
   });
 
   test("animations on different targets do not", () => {

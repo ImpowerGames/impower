@@ -63,11 +63,16 @@ const animationScale = (animation: Animation | undefined): number => {
   return reach;
 };
 
-export const keyframeScale = (animations: readonly (Animation | undefined)[] | undefined): number => {
-  const byTarget = new Map<string, number>();
+export const keyframeScale = (
+  animations: readonly (Animation | undefined)[] | undefined,
+  resolve: (target: string | undefined) => readonly unknown[] = (target) => [target ?? "self"],
+): number => {
+  const byElement = new Map<unknown, number>();
   for (const animation of animations ?? []) {
-    const target = animation?.target?.$name ?? "self";
-    byTarget.set(target, (byTarget.get(target) ?? 1) * animationScale(animation));
+    const scale = animationScale(animation);
+    for (const element of new Set(resolve(animation?.target?.$name))) {
+      byElement.set(element, (byElement.get(element) ?? 1) * scale);
+    }
   }
-  return Math.max(1, ...byTarget.values());
+  return Math.max(1, ...byElement.values());
 };

@@ -845,10 +845,15 @@ export default class UIManager extends Manager {
         const content = instruction.content;
         for (const targetEl of targetEls) {
           const around =
-            keyframeScale(instruction.targetAnimations) *
+            keyframeScale(instruction.targetAnimations, (name) => resolveAnimationTargets(targetEl, name)) *
             (instruction.affected ?? [])
-              .filter((a) => this.findTargetElements(a.target).some((el) => el === targetEl || el.contains(targetEl)))
-              .reduce((product, a) => product * keyframeScale(a.animations), 1);
+              .map((a) => ({ a, els: this.findTargetElements(a.target).filter((el) => el === targetEl || el.contains(targetEl)) }))
+              .filter(({ els }) => els.length > 0)
+              .reduce(
+                (product, { a, els }) =>
+                  product * keyframeScale(a.animations, (name) => els.flatMap((el) => resolveAnimationTargets(el, name))),
+                1,
+              );
           const imageEls = this.getContentElements(targetEl, "image");
           if (!content) {
             for (const contentEl of imageEls) {
@@ -1203,7 +1208,7 @@ export default class UIManager extends Manager {
       }
       for (const effect of msg.params.effects) {
         const element = this.getElement(effect.element);
-        const scale = keyframeScale(effect.animations);
+        const scale = keyframeScale(effect.animations, () => [effect.element]);
         if (element && scale > 1) {
           found.push({ element, scale });
         }
