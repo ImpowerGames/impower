@@ -480,6 +480,48 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
     }
   });
 
+  test("enlarging a shown picture keeps the SVG layer's current pose on screen until its larger poses are drawn", async () => {
+    for (const [write, key] of [
+      [pictureShow, "nova-inner-grow"],
+      [layeredShow, "nova-layered-grow"],
+    ] as const) {
+      const t = await setup();
+      t.beat([write(key)], 48);
+      await until(() => t.events.includes("applied"), "the beat");
+      const layer = t.layer();
+      const owner = () => (layer.images[0].picture ? layer.images[0].inner[0] : layer.images[0]);
+      const canvas = (): HTMLCanvasElement => layer.images[0].canvas?.canvas ?? layer.stills[0].canvases[0].canvas;
+      const face = () => t.last(canvas())!.draws.find((draw) => draw.src !== BASE && draw.src !== BODY)!;
+      t.playback.speak("nova", [[0, 5]]);
+      for (let i = 0; i < 60 && face().text === undefined; i++) {
+        t.playback.advance(0.017);
+        await flushMicrotasks(2);
+      }
+      const posed = face();
+      expect(posed.text).toBeDefined();
+      const held: (() => void)[] = [];
+      const rasterize = t.playback.rasterizeSvgLayer;
+      t.playback.rasterizeSvgLayer = (source, natural, w, h, doc) => new Promise((resolve) => held.push(() => void rasterize(source, natural, w, h, doc).then(resolve)));
+      layer.size({ zoom: 2 });
+      await flushMicrotasks(10);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(held.length).toBeGreaterThan(0);
+      expect(face()).toBe(posed);
+      const doubled = `${BOX.width * 2}x${BOX.height * 2}`;
+      for (let i = 0; i < 400 && held.length; i++) {
+        held.shift()!();
+        await flushMicrotasks(5);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        expect(face().text).toBeDefined();
+      }
+      await until(() => owner().poses.sets.length === 1 && `${owner().poses.sets[0].width}x${owner().poses.sets[0].height}` === doubled, "only the larger poses kept");
+      await until(() => t.rasterized.some((entry) => entry.image === face() && entry.size === doubled), "the larger pose shown");
+      expect(leafStates(face().text!)).toBe(leafStates(posed.text!));
+      cleanup?.();
+      cleanup = undefined;
+    }
+  });
+
   test("rebuilding the picture keeps the SVG layer's drawn poses, so nothing is drawn again", async () => {
     const t = await setup();
     t.beat([pictureShow("nova-inner-rebuild")], 45);
