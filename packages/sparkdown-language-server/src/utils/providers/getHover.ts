@@ -26,6 +26,7 @@ import { getStyleValueDescription } from "./styleValueDescriptions";
 import { getStreamElementHover } from "./streamElementHelp";
 import { getAlternatorKeywordHover } from "./alternatorKeywordHelp";
 import { getClearPropHover } from "./clearPropHelp";
+import { getKindLayoutHover } from "./kindLayoutHelp";
 import { getPresenceBlockHover } from "./presenceBlockHelp";
 import { getSelectorAttributeHover } from "./selectorAttributeHelp";
 import {
@@ -423,6 +424,10 @@ export const getHover = async (
     const screenKeywordHover = getScreenKeywordHover(document, tree, position);
     if (screenKeywordHover) {
       return screenKeywordHover;
+    }
+    const kindLayoutHover = getKindLayoutHover(document, tree, position, program);
+    if (kindLayoutHover) {
+      return kindLayoutHover;
     }
     const styleValueHover = getStyleValueHover(document, tree, position);
     if (styleValueHover) {

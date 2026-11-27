@@ -64,7 +64,7 @@ function paintsAbove(a: Element, b: Element, root: Element): boolean {
 }
 
 describe("the stacking of the built-in layouts, each layout root a stacking context as its opening animation makes it", () => {
-  test("the main layout's screen paints above the textbox layout, and a later overlay above the screen", async () => {
+  test("the main layout's screen paints above the textbox screen, and a later overlay above the screen", async () => {
     const h = createDOMHarness(
       `layout hud {
   stats {
@@ -94,7 +94,7 @@ end
     const layouts = h.overlay.querySelector(".layouts")!;
     const screen = h.overlay.querySelector(".main > .screen")!;
     const stage = h.overlay.querySelector(".main > .stage")!;
-    const textboxRoot = h.overlay.querySelector(".layouts > .layout_textbox")!;
+    const textboxRoot = h.overlay.querySelector(".layouts > .screen_textbox")!;
     const dialogueBox = textboxRoot.querySelector(":scope > .textbox")!;
     const choices = textboxRoot.querySelector(":scope > .choices")!;
     const hud = h.overlay.querySelector(".layouts > .hud")!;

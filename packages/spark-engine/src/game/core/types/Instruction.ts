@@ -85,6 +85,7 @@ export interface LayoutInstruction extends IInstruction {
   screen?: string;
   /** The enter/exit animation/transition name (`with` clause). */
   with?: string;
+  auto?: true;
 }
 
 export type Instruction =

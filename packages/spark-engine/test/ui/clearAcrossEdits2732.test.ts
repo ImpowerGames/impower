@@ -289,7 +289,7 @@ describe("where an element's #clear identity comes from (I-2732)", () => {
     expect(title.props.clear.kind).toBe("binding");
     const h = await playToSecondLine(source, 1);
     const ui: any = h.game.module.ui;
-    expect(ui.getTransientTargets()).not.toContain("title");
+    expect(ui.markedPaths("title").filter((path: string) => inLayout(path, "textbox"))).toEqual([]);
     const [el] = (ui.textElements("title") as any[]).filter((e) => inLayout(ui.elementPath(e), "textbox"));
     expect(shownOn(h, KINDS.text, el.id)).toBe(true);
   });

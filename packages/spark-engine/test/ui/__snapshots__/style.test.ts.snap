@@ -1042,6 +1042,21 @@ exports[`style > authored style block content payload 1`] = `
       "pointer_events": "auto",
       "text-weight": "400",
     },
+    "layout_action": {
+      "$name": "layout_action",
+      "$type": "style",
+      "position": "static",
+    },
+    "layout_dialogue": {
+      "$name": "layout_dialogue",
+      "$type": "style",
+      "position": "static",
+    },
+    "layout_heading": {
+      "$name": "layout_heading",
+      "$type": "style",
+      "position": "static",
+    },
     "layout_textbox": {
       "$name": "layout_textbox",
       "$type": "style",
@@ -1051,6 +1066,16 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "layout_textstream",
       "$type": "style",
       "z_index": "-1",
+    },
+    "layout_title": {
+      "$name": "layout_title",
+      "$type": "style",
+      "position": "static",
+    },
+    "layout_transitional": {
+      "$name": "layout_transitional",
+      "$type": "style",
+      "position": "static",
     },
     "layouts": {
       "$name": "layouts",
@@ -1622,6 +1647,11 @@ exports[`style > authored style block content payload 1`] = `
       },
       "inset": "0",
       "position": "absolute",
+    },
+    "screen_textbox": {
+      "$name": "screen_textbox",
+      "$type": "style",
+      "z_index": "-1",
     },
     "scroller": {
       "$name": "scroller",
@@ -4371,6 +4401,21 @@ exports[`style > style + variables construction stream 1`] = `
             "pointer_events": "auto",
             "text-weight": "400",
           },
+          "layout_action": {
+            "$name": "layout_action",
+            "$type": "style",
+            "position": "static",
+          },
+          "layout_dialogue": {
+            "$name": "layout_dialogue",
+            "$type": "style",
+            "position": "static",
+          },
+          "layout_heading": {
+            "$name": "layout_heading",
+            "$type": "style",
+            "position": "static",
+          },
           "layout_textbox": {
             "$name": "layout_textbox",
             "$type": "style",
@@ -4380,6 +4425,16 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "layout_textstream",
             "$type": "style",
             "z_index": "-1",
+          },
+          "layout_title": {
+            "$name": "layout_title",
+            "$type": "style",
+            "position": "static",
+          },
+          "layout_transitional": {
+            "$name": "layout_transitional",
+            "$type": "style",
+            "position": "static",
           },
           "layouts": {
             "$name": "layouts",
@@ -4951,6 +5006,11 @@ exports[`style > style + variables construction stream 1`] = `
             },
             "inset": "0",
             "position": "absolute",
+          },
+          "screen_textbox": {
+            "$name": "screen_textbox",
+            "$type": "style",
+            "z_index": "-1",
           },
           "scroller": {
             "$name": "scroller",

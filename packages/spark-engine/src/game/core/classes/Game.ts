@@ -1393,15 +1393,18 @@ export class Game<T extends M = {}> {
       return false;
     }
     ui.displayMode = mode;
-    const before = initialLayouts(this, ui, shownMode);
-    const after = initialLayouts(this, ui, mode);
+    const before = initialLayouts(this, shownMode);
+    const after = initialLayouts(this, mode);
     const open = ui.openedLayoutsAfter([]);
+    const closedScreens = ui.screensClosedAfter([]);
+    const isOpen = (name: string) =>
+      open.includes(name) || (ui.isScreen(name) && !closedScreens.includes(name));
     const closing = before.filter((name) => !after.includes(name));
-    if (closing.some((name) => !open.includes(name))) {
+    if (closing.some((name) => !isOpen(name))) {
       return false;
     }
     const opening = after.filter(
-      (name) => !before.includes(name) && !open.includes(name),
+      (name) => !before.includes(name) && !isOpen(name),
     );
     if (closing.length === 0 && opening.length === 0) {
       return false;

@@ -70,7 +70,8 @@ import {
   alternatorKeywordDocumentation,
   alternatorOptionStartAt,
 } from "./alternatorKeywordHelp";
-import { LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { isLayoutVerb, LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { layoutDirectiveTargetNames } from "@impower/sparkdown/src/compiler/utils/layoutDirectiveTargets";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
 import { STREAM_ELEMENT, streamElementCompletion } from "./streamElementHelp";
@@ -2133,6 +2134,18 @@ const completionsAt = (
       if (isCursorAfterNodeText(leftStack[0])) {
         if (MOVIE_CONTROL_KEYWORDS.includes(control)) {
           addStructReferenceCompletions(completions, program, VIDEO_TYPES);
+          return buildCompletions();
+        }
+        if (isLayoutVerb(control)) {
+          for (const [name, type] of layoutDirectiveTargetNames(program, control)) {
+            if (!completions.has(name)) {
+              completions.set(name, {
+                label: name,
+                labelDetails: { description: type },
+                kind: CompletionItemKind.Constructor,
+              });
+            }
+          }
           return buildCompletions();
         }
         addScreenElementReferenceCompletions(
