@@ -7,7 +7,7 @@ export interface SceneImageWrite {
   animate?: true;
   at?: string;
   to?: string;
-  with?: string;
+  with?: string[];
 }
 
 export interface SceneBeat {

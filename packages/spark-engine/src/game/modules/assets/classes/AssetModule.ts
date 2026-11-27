@@ -826,13 +826,15 @@ export class AssetModule extends Module<
       : write.animate || names.length === 0
         ? "animate"
         : "show";
-    const key = [control, write.with ?? "", names.join("+")].join("|");
+    const key = [control, (write.with ?? []).join(","), names.join("+")].join("|");
     let scale = this._effectScales.byWrite.get(key);
     if (scale === undefined) {
       scale = this._game.module.ui.image.effectScale({
         control,
         ...(names.length ? { assets: names } : {}),
-        ...(write.with ? { with: write.with } : {}),
+        ...(write.with?.length
+          ? { with: write.with.map((name) => ({ name })) }
+          : {}),
       });
       this._effectScales.byWrite.set(key, scale);
     }

@@ -10,7 +10,7 @@ import {
   type SceneBeat,
   type SceneImageWrite,
 } from "../types/SceneAssets";
-import { readDirective } from "./readDirective";
+import { directiveOwners, readDirective } from "./readDirective";
 
 const VARIABLES = GRAMMAR_DEFINITION.variables as unknown as Record<
   string,
@@ -152,9 +152,11 @@ const imageWrite = (body: string): SceneImageWrite => {
   if (target) {
     write.target = target;
   }
-  const effect = reading.values["with"];
-  if (typeof effect === "string" && effect) {
-    write.with = effect;
+  const effects = directiveOwners(reading.kind, reading.clauses).withs.flatMap((entry) =>
+    entry.name?.text ? [entry.name.text] : [],
+  );
+  if (effects.length > 0) {
+    write.with = effects;
   }
   if (reading.control?.text === "hide") {
     write.hide = true;

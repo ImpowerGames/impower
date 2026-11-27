@@ -58,9 +58,9 @@ describe("the scene table carries each image write's framing (#2813)", () => {
 
   it("carries no framing for a write with none, and records a write's target, its pictures, a hide and its effect", () => {
     expect(beats[2]!.writes).toEqual([{ target: "portrait", image: ["nova"] }, { image: ["nova"] }]);
-    expect(beats[3]!.writes).toEqual([{ target: "portrait", with: "fade", hide: true }]);
+    expect(beats[3]!.writes).toEqual([{ target: "portrait", with: ["fade"], hide: true }]);
     expect(beats[3]!.audio).toEqual(["chime"]);
-    expect(beats[4]!.writes).toEqual([{ target: "backdrop", image: ["dusk"], with: "grow" }]);
+    expect(beats[4]!.writes).toEqual([{ target: "backdrop", image: ["dusk"], with: ["grow"] }]);
   });
 
   it("keeps the names each beat loads as they were", () => {
@@ -126,5 +126,23 @@ describe("the scene table tells the arms of one decision from separate decisions
     expect(open[0]).toBe(shut[0]);
     expect(open[1]).not.toBe(shut[1]);
     expect(later[0]).not.toBe(open[0]);
+  });
+});
+
+const SEVERAL = `scene start
+  [[show backdrop dusk with grow over 1s with fade]]
+  Dusk falls.
+  [[hide backdrop with fade with grow]]
+  Gone.
+end
+`;
+
+describe("the scene table carries every effect a write names (#2813)", () => {
+  it("lists each `with` of a write that names several, in the order written", () => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({ files: [script(SEVERAL), asset("image", "dusk", "svg")] });
+    const beats = compiler.compile({ textDocument: { uri: URI } }).program.sceneAssets!["start"]!.beats;
+    expect(beats[0]!.writes).toEqual([{ target: "backdrop", image: ["dusk"], with: ["grow", "fade"] }]);
+    expect(beats[1]!.writes).toEqual([{ target: "backdrop", with: ["fade", "grow"], hide: true }]);
   });
 });
