@@ -47,14 +47,14 @@ function compile(source: string): SparkProgram {
   return compiler.compile({ textDocument: { uri: MAIN } }).program as SparkProgram;
 }
 
-function play(story: string) {
+function play(story: string, header = HEADER) {
   const game = new Game({
     now: () => 0,
     setTimeout: (() => 0) as never,
     resolve: (path: string) => path,
     fetch: async () => "",
     log: () => {},
-    program: compile(`${HEADER}\n${story}`),
+    program: compile(`${header}\n${story}`),
   } as never);
   const ui: any = game.module.ui;
   const text = () => (game.story.currentText ?? "").trim();
@@ -77,6 +77,8 @@ function play(story: string) {
 }
 
 const speakers = (entries: CastEntry[]) => entries.map((entry) => entry.speaker);
+
+const withActor = (actor: string) => HEADER.replace("        portrait { image }", actor);
 
 describe("hide names one character in a cast (#2748)", () => {
   const STORY = `scene start
@@ -206,6 +208,99 @@ end
     h.tapTo("Still here.");
     expect(speakers(h.entries())).toEqual(["mia", "sam"]);
     expect(h.framings()).toEqual({ mia: h.ui.getFraming("left"), sam: h.ui.getFraming("right") });
+  });
+});
+
+describe("a character's name reaches pictures shown on the same line (#2748)", () => {
+  const framingOf = (h: ReturnType<typeof play>, speaker: string, target: string) =>
+    h.ui.image.viewAfter(h.entries().find((e) => e.speaker === speaker)?.image?.[target] ?? []).framing ?? null;
+
+  test("animate on a character moves a picture shown earlier on the same line", () => {
+    const h = play(
+      `scene start
+  [[mia@happy at left]]
+  MIA: One.
+  [[show badge mia@sad at left]]
+  [[animate mia to right over 1s]]
+  MIA: Two.
+end
+`,
+      withActor("        portrait { image }\n        badge { image }"),
+    );
+    h.tapTo("Two.");
+    expect(framingOf(h, "mia", "portrait")).toEqual(h.ui.getFraming("right"));
+    expect(framingOf(h, "mia", "badge")).toEqual(h.ui.getFraming("right"));
+  });
+
+  test("animate on a character moves the picture that first shows them on the same line", () => {
+    const h = play(`scene start
+  [[mia@happy at left]]
+  [[animate mia to right over 1s]]
+  MIA: One.
+end
+`);
+    h.tapTo("One.");
+    expect(framingOf(h, "mia", "portrait")).toEqual(h.ui.getFraming("right"));
+  });
+});
+
+describe("hiding removes entries that also hold a name (#2748)", () => {
+  const ACTOR = "        portrait { image }\n        character_name { text }";
+
+  test("hiding the layer removes every entry, names and all", () => {
+    const h = play(
+      `scene start
+  [[mia@happy]]
+  MIA: One.
+  [[sam@calm]]
+  SAM: Two.
+  [[hide portrait]]
+  Nobody.
+end
+`,
+      withActor(ACTOR),
+    );
+    h.tapTo("Two.");
+    expect(speakers(h.entries())).toEqual(["mia", "sam"]);
+    expect(h.entries().every((e) => (e.text?.["character_name"]?.length ?? 0) > 0)).toBe(true);
+    h.tapTo("Nobody.");
+    expect(h.entries()).toEqual([]);
+  });
+
+  test("hiding a character removes their entry, name and all, and leaves the other", () => {
+    const h = play(
+      `scene start
+  [[mia@happy]]
+  MIA: One.
+  [[sam@calm]]
+  SAM: Two.
+  [[hide mia]]
+  Narration.
+end
+`,
+      withActor(ACTOR),
+    );
+    h.tapTo("Narration.");
+    expect(speakers(h.entries())).toEqual(["sam"]);
+  });
+
+  test("a character hidden on the line they speak keeps an entry for their name, as any speaker without a picture does", () => {
+    const h = play(
+      `scene start
+  [[mia@happy]]
+  MIA: One.
+  [[hide mia]]
+  MIA: Two.
+end
+`,
+      withActor(ACTOR),
+    );
+    h.tapTo("Two.");
+    const [entry, ...rest] = h.entries();
+    expect(rest).toEqual([]);
+    expect(entry!.speaker).toBe("mia");
+    expect(h.ui.pictureShown(entry!.image?.["portrait"])).toBe(false);
+    expect(entry!.text?.["character_name"]?.map((t) => t.text).join("")).toBe("MIA");
   });
 });
 

@@ -9371,13 +9371,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           writes.set(target, sequences);
           sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
         };
+        const characters: [string, ImageInstruction[]][] = [];
         for (const [target, events] of Object.entries(instructions.image ?? {})) {
           if (!holds(target)) {
-            const entry = this.namesCharacter(target)
-              ? cast.entries.find((e) => e.speaker === target)
-              : undefined;
-            if (entry) {
-              this.writeCharacter(entry, events, add, queue, touched, hidden);
+            if (this.namesCharacter(target)) {
+              characters.push([target, events]);
             }
             continue;
           }
@@ -9395,6 +9393,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 hidden.add(entry.id);
               }
             }
+          }
+        }
+        for (const [name, events] of characters) {
+          const entry = cast.entries.find((e) => e.speaker === name);
+          if (entry) {
+            this.writeCharacter(entry, events, writes, add, hidden);
           }
         }
         for (const [target, sequences] of writes) {
@@ -9461,10 +9465,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
+        const spoke = (entry: CastEntry) =>
+          Object.keys(entry.text ?? {}).some((target) => touched.has(`${entry.id}|text|${target}`));
         cast.entries = cast.entries.filter((entry) =>
-          this.empty(entry)
-            ? !hidden.has(entry.id) && (created.size === 0 || created.has(entry.id))
-            : true,
+          hidden.has(entry.id)
+            ? this.showsPicture(entry) || spoke(entry)
+            : !this.empty(entry) || created.size === 0 || created.has(entry.id),
         );
         for (const entry of cast.entries) {
           const variant = cast.variants?.[entry.speaker];
@@ -9479,29 +9485,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected writeCharacter(
         entry: CastEntry,
         events: ImageInstruction[],
+        writes: ReadonlyMap<string, ReadonlyMap<CastEntry, ImageInstruction[]>>,
         add: (target: string, entry: CastEntry, event: ImageInstruction) => void,
-        queue: (write: Omit<CastWrite, "key">) => void,
-        touched: Set<string>,
         hidden: Set<number>,
       ): void {
-        const targets = Object.keys(entry.image ?? {}).filter((target) =>
-          this.holdsContent(entry, "image", target),
+        const targets = new Set(
+          Object.keys(entry.image ?? {}).filter((target) => this.holdsContent(entry, "image", target)),
         );
+        for (const [target, sequences] of writes) {
+          if (sequences.get(entry)?.some((e) => e.control === "show" && e.assets?.length)) {
+            targets.add(target);
+          }
+        }
         for (const event of events) {
           for (const target of targets) {
             add(target, entry, event);
           }
-          if (event.control !== "hide") {
-            continue;
-          }
-          hidden.add(entry.id);
-          for (const target of Object.keys(entry.text ?? {})) {
-            delete entry.text![target];
-            delete entry.lines?.[target];
-            touched.add(`${entry.id}|text|${target}`);
-            queue({ id: entry.id, kind: "text", target, text: null });
+          if (event.control === "hide") {
+            hidden.add(entry.id);
           }
         }
+      }
+
+      protected showsPicture(entry: CastEntry): boolean {
+        return Object.keys(entry.image ?? {}).some((target) => this.holdsContent(entry, "image", target));
       }
 
       protected _layers = new WeakMap<object, Set<string>>();
@@ -9585,7 +9592,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected empty(entry: CastEntry): boolean {
         return (
-          !Object.keys(entry.image ?? {}).some((target) => this.holdsContent(entry, "image", target)) &&
+          !this.showsPicture(entry) &&
           !Object.keys(entry.text ?? {}).some((target) => this.holdsContent(entry, "text", target))
         );
       }
