@@ -1368,14 +1368,24 @@ export default class UIManager extends Manager {
     if (pending.drawing) {
       return;
     }
-    const wait = this.dueAt(pending, this.documentNow()) - this.documentNow();
-    if (wait <= 0) {
+    const now = this.documentNow();
+    const due = this.dueAt(pending, now);
+    if (due - now <= 0) {
       this.flushPendingBeat();
       return;
     }
     if (this._heldAt == null) {
-      pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), wait);
+      pending.timer = setTimeout(() => pending.owner.commitWhenDue(pending), Math.max(0, due - this.preciseNow(now)));
     }
+  }
+
+  protected preciseNow(now: number): number {
+    const view = this.app.overlay?.ownerDocument.defaultView as (Window & typeof globalThis) | null | undefined;
+    const Timeline = view?.DocumentTimeline;
+    if (!view || typeof Timeline !== "function" || !(view.document.timeline instanceof Timeline)) {
+      return now;
+    }
+    return Math.max(now, view.performance.now());
   }
 
   protected commitWhenDue(pending: PendingBeat) {
