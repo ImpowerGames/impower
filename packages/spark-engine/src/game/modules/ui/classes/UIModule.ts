@@ -131,6 +131,8 @@ import {
 } from "../../../../../../sparkle-style-transformer/src/utils/cssSyntax";
 import { escapeCssIdentifier } from "../../../../../../sparkle-style-transformer/src/utils/themeVariableName";
 import { getImageOwner } from "@impower/sparkdown/src/compiler/utils/getImageOwner";
+import { getContextEntry } from "@impower/sparkdown/src/compiler/utils/getContextEntry";
+import { collectLayerNames } from "@impower/sparkdown/src/compiler/utils/collectLayerNames";
 import { bodyChildLists } from "../utils/bodyChildren";
 import { getVarName } from "../utils/getVarName";
 import {
@@ -9365,29 +9367,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.lines?.[target];
           }
         };
-        for (const [target, events] of Object.entries(instructions.image ?? {})) {
+        const writes = new Map<string, Map<CastEntry, ImageInstruction[]>>();
+        const add = (target: string, entry: CastEntry, event: ImageInstruction) => {
+          const sequences = writes.get(target) ?? new Map<CastEntry, ImageInstruction[]>();
+          writes.set(target, sequences);
+          sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
+        };
+        for (const [target, event] of this.imageEvents(instructions)) {
           if (!holds(target)) {
+            const entry = this.namesCharacter(target)
+              ? cast.entries.find((e) => e.speaker === target)
+              : undefined;
+            if (entry) {
+              this.writeCharacter(entry, event, writes, add, hidden);
+            }
             continue;
           }
-          const sequences = new Map<CastEntry, ImageInstruction[]>();
-          const add = (entry: CastEntry, event: ImageInstruction) => {
-            sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
-          };
-          for (const event of events) {
-            if (event.assets?.length) {
-              add(entryOf(this.ownerOf(event.assets[0]!)), {
-                ...event,
-                speaker: speaker ?? "",
-              });
-              continue;
-            }
-            for (const entry of cast.entries) {
-              add(entry, event);
-              if (event.control === "hide") {
-                hidden.add(entry.id);
-              }
+          if (event.assets?.length) {
+            add(target, entryOf(this.ownerOf(event.assets[0]!)), {
+              ...event,
+              speaker: speaker ?? "",
+            });
+            continue;
+          }
+          for (const entry of cast.entries) {
+            add(target, entry, event);
+            if (event.control === "hide") {
+              hidden.add(entry.id);
             }
           }
+        }
+        for (const [target, sequences] of writes) {
           for (const [entry, sequence] of sequences) {
             const before = entry.image?.[target] ?? [];
             const view = $.image.viewAfter(before);
@@ -9451,10 +9461,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
+        const spoke = (entry: CastEntry) =>
+          Object.keys(entry.text ?? {}).some((target) => touched.has(`${entry.id}|text|${target}`));
         cast.entries = cast.entries.filter((entry) =>
-          this.empty(entry)
-            ? !hidden.has(entry.id) && (created.size === 0 || created.has(entry.id))
-            : true,
+          hidden.has(entry.id)
+            ? this.showsPicture(entry) || spoke(entry)
+            : !this.empty(entry) || created.size === 0 || created.has(entry.id),
         );
         for (const entry of cast.entries) {
           const variant = cast.variants?.[entry.speaker];
@@ -9464,6 +9476,68 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.variant;
           }
         }
+      }
+
+      protected imageEvents(instructions: Instructions): [string, ImageInstruction][] {
+        const image = instructions.image ?? {};
+        const next = new Map<string, number>();
+        const ordered: [string, ImageInstruction][] = [];
+        for (const target of instructions.imageOrder ?? []) {
+          const index = next.get(target) ?? 0;
+          const event = image[target]?.[index];
+          if (event) {
+            ordered.push([target, event]);
+            next.set(target, index + 1);
+          }
+        }
+        for (const [target, events] of Object.entries(image)) {
+          for (const event of events.slice(next.get(target) ?? 0)) {
+            ordered.push([target, event]);
+          }
+        }
+        return ordered;
+      }
+
+      protected writeCharacter(
+        entry: CastEntry,
+        event: ImageInstruction,
+        writes: ReadonlyMap<string, ReadonlyMap<CastEntry, ImageInstruction[]>>,
+        add: (target: string, entry: CastEntry, event: ImageInstruction) => void,
+        hidden: Set<number>,
+      ): void {
+        const targets = new Set(
+          Object.keys(entry.image ?? {}).filter((target) => this.holdsContent(entry, "image", target)),
+        );
+        for (const [target, sequences] of writes) {
+          if (sequences.get(entry)?.some((e) => e.control === "show" && e.assets?.length)) {
+            targets.add(target);
+          }
+        }
+        for (const target of targets) {
+          add(target, entry, event);
+        }
+        if (event.control === "hide") {
+          hidden.add(entry.id);
+        }
+      }
+
+      protected showsPicture(entry: CastEntry): boolean {
+        return Object.keys(entry.image ?? {}).some((target) => this.holdsContent(entry, "image", target));
+      }
+
+      protected _layers = new WeakMap<object, Set<string>>();
+
+      protected namesCharacter(target: string): boolean {
+        const sparkle = $._game.program?.sparkle;
+        if (!sparkle || !getContextEntry($.context, "character", target)) {
+          return false;
+        }
+        let layers = this._layers.get(sparkle);
+        if (!layers) {
+          layers = collectLayerNames({ context: $.context, sparkle });
+          this._layers.set(sparkle, layers);
+        }
+        return !layers.has(target);
       }
 
       protected queue(write: CastWrite): void {
@@ -9532,7 +9606,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected empty(entry: CastEntry): boolean {
         return (
-          !Object.keys(entry.image ?? {}).some((target) => this.holdsContent(entry, "image", target)) &&
+          !this.showsPicture(entry) &&
           !Object.keys(entry.text ?? {}).some((target) => this.holdsContent(entry, "text", target))
         );
       }

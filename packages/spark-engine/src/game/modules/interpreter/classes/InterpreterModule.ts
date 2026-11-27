@@ -173,6 +173,12 @@ export class InterpreterModule extends Module<
   }
 
   merge(a: Instructions, b: Instructions, prefix = false): void {
+    if (a.imageOrder || b.imageOrder) {
+      const order = (i: Instructions) =>
+        i.imageOrder ??
+        Object.entries(i.image ?? {}).flatMap(([target, events]) => events.map(() => target));
+      a.imageOrder = prefix ? [...order(b), ...order(a)] : [...order(a), ...order(b)];
+    }
     if (a.text || b.text) {
       a.text ??= {};
       if (b.text) {
@@ -1789,6 +1795,7 @@ export class InterpreterModule extends Module<
             result.image ??= {};
             ownList(result.image, target);
             result.image[target]!.push(event);
+            (result.imageOrder ??= []).push(target);
           }
           if (c.tag === "load") {
             const names = [c.target, ...(c.assets ?? [])].filter(
@@ -1969,6 +1976,10 @@ export class InterpreterModule extends Module<
     }
 
     result.end = time;
+
+    if (!result.imageOrder?.some((target) => getContextEntry(this.context, "character", target))) {
+      delete result.imageOrder;
+    }
 
     return result;
   }
