@@ -15,6 +15,7 @@ export interface StreamSettings {
 export interface StreamGathering {
   layout: string;
   opened: boolean;
+  gathers: boolean;
   settings: StreamSettings;
 }
 
@@ -71,13 +72,12 @@ function gatheringsOf(
   const sparkle = game.program?.sparkle;
   const opened = ui.autoLayoutsAfter(events);
   return ui.openedLayoutsAfter(events).flatMap((layout) => {
-    const settings = streamSettings(game, layout);
-    if (!opened.includes(layout) && settings.advance !== "auto") {
+    if (!layoutStreams(sparkle, layout).some((node) => streamTemplate(node, routed) >= 0)) {
       return [];
     }
-    return layoutStreams(sparkle, layout).some((node) => streamTemplate(node, routed) >= 0)
-      ? [{ layout, opened: opened.includes(layout), settings }]
-      : [];
+    const settings = streamSettings(game, layout);
+    const own = opened.includes(layout);
+    return [{ layout, opened: own, gathers: own || settings.advance === "auto", settings }];
   });
 }
 
@@ -85,6 +85,7 @@ const pending = (beat: Instructions): boolean =>
   !beat.text && !beat.load && !beat.cutscene && !(beat.choices?.length ?? 0);
 
 const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
+  !gathering.gathers ||
   Boolean(beat.hold) ||
   (beat.choices?.length ?? 0) > 0 ||
   (!gathering.opened && Boolean(beat.waits));

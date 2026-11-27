@@ -8824,7 +8824,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const key = pageKey(instructions);
         const states = $._state.streams ?? {};
         const live: Record<string, StreamState> = {};
-        const runs: Record<string, StreamRunState> = {};
+        const runs = new Map<string, StreamRunState>();
         for (const layout of $.openedLayoutsAfter(events)) {
           const restarted = events.some(
             (event) =>
@@ -8842,13 +8842,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           );
           if (repeated || instructions.hold) {
             if (previous) {
-              runs[layout] = previous;
+              runs.set(layout, previous);
             }
           } else if (member) {
-            runs[layout] = {
+            runs.set(layout, {
               lines: (restarted || !previous || previous.ends ? 0 : previous.lines) + 1,
               ...(!gathered || lane.ends ? { ends: true as const } : {}),
-            };
+            });
           }
           nodes.forEach((node, index) => {
             const id = streamKey(layout, index);
@@ -8873,8 +8873,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         } else {
           delete $._state.streams;
         }
-        if (Object.keys(runs).length > 0) {
-          $._state.streamRuns = runs;
+        if (runs.size > 0) {
+          $._state.streamRuns = Object.fromEntries(runs);
         } else {
           delete $._state.streamRuns;
         }

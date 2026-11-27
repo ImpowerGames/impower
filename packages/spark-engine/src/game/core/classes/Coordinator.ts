@@ -4,6 +4,7 @@ import type { Event } from "../types/Event";
 import type { AudioInstruction } from "../types/Instruction";
 import type { Instructions } from "../types/Instructions";
 import { isAdvanceKey } from "../utils/isAdvanceKey";
+import { ownList } from "../utils/ownEntry";
 import { pageKey } from "../utils/pageKey";
 import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
@@ -489,9 +490,12 @@ export class Coordinator<G extends Game> {
       game.module.audio.stopChannel("typewriter");
     }
 
-    const audio = { ...instructions.audio };
+    const audio: Record<string, AudioInstruction[]> = {};
+    for (const [channel, events] of Object.entries(instructions.audio ?? {})) {
+      ownList(audio, channel).push(...events);
+    }
     for (const [channel, events] of Object.entries(this._carriedAudio ?? {})) {
-      audio[channel] = [...events, ...(audio[channel] ?? [])];
+      ownList(audio, channel).unshift(...events);
     }
     const audioTriggerIds =
       instant || silent

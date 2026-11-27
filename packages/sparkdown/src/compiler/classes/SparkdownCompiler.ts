@@ -2735,7 +2735,7 @@ export class SparkdownCompiler {
           if (trees && !sparkleCollides) {
             program.sparkle ??= {};
             program.sparkle[kind] ??= {};
-            Object.assign(program.sparkle[kind]!, trees);
+            Object.defineProperties(program.sparkle[kind]!, Object.getOwnPropertyDescriptors(trees));
           }
         }
       }

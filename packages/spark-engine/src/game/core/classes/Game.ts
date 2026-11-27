@@ -148,6 +148,7 @@ import type {
 } from "../types/RunHistory";
 import { HISTORY_REASONS } from "../constants/HISTORY_REASONS";
 import { imageParts, valueParts } from "../utils/imageParts";
+import { ownList } from "../utils/ownEntry";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
@@ -3728,7 +3729,7 @@ export class Game<T extends M = {}> {
           if (instructions.auto) {
             for (const [channel, events] of Object.entries(instructions.audio ?? {})) {
               if (!SKIPPED_AUDIO_CHANNELS.has(channel)) {
-                (this._finishingRun.audio[channel] ??= []).push(...events);
+                ownList(this._finishingRun.audio, channel).push(...events);
               }
             }
             this.showBeat(instructions, "settled", true);
