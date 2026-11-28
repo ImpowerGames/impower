@@ -147,7 +147,7 @@ end
 
 ### What counts as the mark
 
-The mark is two `>` at the end of a line. A tag or a `//` comment may follow it. Anywhere else on a line, `>>` is two `>` breaks, each waiting for a click (`Wait >> there.`), and so is a run of three or more `>` at the end of a line. On a line with no text, such as one that only plays a sound, `>>` changes nothing: the sound already plays when the next line starts, and that line waits as usual.
+The mark is two `>` at the end of a line. A tag, a `//` comment or block comments that close on the same line may follow it. A block comment that runs on to a later line leaves `>>` two breaks, since the line cannot tell whether text follows where the comment closes. Anywhere else on a line, `>>` is two `>` breaks, each waiting for a click (`Wait >> there.`), and so is a run of three or more `>` at the end of a line. On a line with no text, such as one that only plays a sound, `>>` changes nothing: the sound already plays when the next line starts, and that line waits as usual.
 
 ### In a stream
 

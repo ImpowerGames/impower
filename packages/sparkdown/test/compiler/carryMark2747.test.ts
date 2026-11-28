@@ -127,3 +127,98 @@ describe("the Joining Lines guide's `>>` and tag examples (I-2747)", () => {
     },
   );
 });
+
+const kinds = (source: string): string[] => {
+  const out: string[] = [];
+  parseSource(source).iterate({
+    enter: (node) => {
+      if (node.name === "Break" || node.name === "Carry" || node.name === "Glue") {
+        out.push(node.name);
+      }
+    },
+  });
+  return out;
+};
+
+describe("what may follow `>>` on its line (I-2747)", () => {
+  test.each([
+    ["nothing", "First >>", ["Carry"]],
+    ["spaces", "First >>   ", ["Carry"]],
+    ["a line comment", "First >> // note", ["Carry"]],
+    ["one closed block comment", "First >> /* note */", ["Carry"]],
+    ["several closed block comments", "First >> /* a */ /* b */ /* c */", ["Carry"]],
+    ["a block comment then a line comment", "First >> /* a */ // b", ["Carry"]],
+    ["a block comment then text", "First >> /* a */ more", ["Break", "Break"]],
+    ["two block comments then text", "First >> /* a */ /* b */ more", ["Break", "Break"]],
+    ["a tag", "First >> # pause", ["Carry"]],
+    ["a tag then a line comment", "First >> # pause // note", ["Carry"]],
+    ["a block comment then a tag", "First >> /* a */ # pause", ["Carry"]],
+    ["text", "First >> more", ["Break", "Break"]],
+    ["an interpolation", "First >> {name}", ["Break", "Break"]],
+    ["a quotation mark, as in quoted speech", 'She said "go >>"', ["Break", "Break"]],
+    ["three angle brackets", "First >>>", ["Break", "Break", "Break"]],
+    ["four angle brackets", "First >>>>", ["Break", "Break", "Break", "Break"]],
+    ["two dots before it, touching", "First ..>>", ["Glue", "Carry"]],
+    ["two dots before it, spaced", "First .. >>", ["Glue", "Carry"]],
+  ] as const)("%s: %j", (_, line, expected) => {
+    expect(kinds(scene(line))).toEqual(expected);
+  });
+
+  test("an interpolation before the mark leaves it the mark", () => {
+    expect(kinds(scene("Hello {name} >>"))).toEqual(["Carry"]);
+  });
+
+  test("inside an interpolation's string or a logic line's string it is no mark", () => {
+    expect(kinds(scene('{"First >>"}'))).toEqual([]);
+    expect(kinds(scene('{"First >>"} more'))).toEqual([]);
+    expect(kinds(`store greeting = "First >>"\n${scene("Hello.")}`)).toEqual([]);
+  });
+
+  test("at the start of a line, before text, it is two breaks, and alone it is the mark", () => {
+    expect(kinds(scene(">> Hello"))).toEqual(["Break", "Break"]);
+    expect(kinds(scene(">>"))).toEqual(["Carry"]);
+  });
+
+  test("before a block comment left open to a later line it is two breaks", () => {
+    expect(kinds("scene start\n  First >> /* open\n  still a comment */\n  Second.\nend\n")).toEqual([
+      "Break",
+      "Break",
+    ]);
+  });
+});
+
+describe("diagnostics on a line with `>>` (I-2747)", () => {
+  test.each([
+    "First >>",
+    "First >>   ",
+    "First >> // note",
+    "First >> /* note */",
+    "First >> /* a */ /* b */",
+    "First >> /* a */ more",
+    "First >> # pause",
+    "First >> # pause // note",
+    "First >> more",
+    "First >>>",
+    "First ..>>",
+    "First .. >>",
+    "Hello {1} >>",
+    'She said "go >>"',
+    '{"First >>"}',
+    "ALICE: What's plan b? <wait=0.6> >>",
+    ">>",
+    ">> Hello",
+    "First >> /* open\n  still a comment */",
+  ])("%j compiles with no diagnostic", (line) => {
+    const uri = "file:///main.sd";
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        { uri, type: "script", name: "main", ext: "sd", text: `${CAST}\nscene start\n  ${line}\n  Second.\nend\n`, version: 1, languageId: "sparkdown" },
+      ] as never,
+    });
+    const program = compiler.compile({ textDocument: { uri } }).program;
+    expect(
+      (program.diagnostics?.[uri] ?? []).map((d) => (typeof d.message === "string" ? d.message : d.message.value)),
+    ).toEqual([]);
+  });
+});

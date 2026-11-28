@@ -348,3 +348,58 @@ describe("the preview of a `>>` line (I-2747)", () => {
     expect(await preview(" >>")).toBe("one");
   });
 });
+
+describe("what may follow `>>` on its line, as the story plays it (I-2747)", () => {
+  const firstBeat = async (lines: string) => {
+    const h = createHarness(story(lines));
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    h.jumpToFlow("start");
+    return h.nextBeat();
+  };
+
+  test.each([
+    ["nothing", "First >>", true],
+    ["spaces", "First >>   ", true],
+    ["a line comment", "First >> // note", true],
+    ["one closed block comment", "First >> /* note */", true],
+    ["several closed block comments", "First >> /* a */ /* b */ /* c */", true],
+    ["a block comment then a line comment", "First >> /* a */ // b", true],
+    ["a block comment then text", "First >> /* a */ more", false],
+    ["two block comments then text", "First >> /* a */ /* b */ more", false],
+    ["a tag", "First >> # pause", true],
+    ["a tag then a line comment", "First >> # pause // note", true],
+    ["a block comment then a tag", "First >> /* a */ # pause", true],
+    ["text", "First >> more", false],
+    ["an interpolation", "First >> {1}", false],
+    ["three angle brackets", "First >>>", false],
+    ["four angle brackets", "First >>>>", false],
+    ["two dots before it, touching", "First ..>>", true],
+    ["two dots before it, spaced", "First .. >>", true],
+    ["a block comment left open to a later line", "First >> /* open\n  still a comment */", false],
+  ] as const)("%s: %j carries on: %s", async (_, line, carries) => {
+    const beat = await firstBeat(`  ${line}\n  Second.`);
+    expect(lineText(beat).trim()).toBe("First");
+    expect(Boolean(beat?.onward)).toBe(carries);
+  });
+
+  test("quoted speech that ends in `>>` before its closing quote is two breaks", async () => {
+    const beat = await firstBeat(`  She said "go >>"\n  Second.`);
+    expect(lineText(beat)).toBe('She said "go');
+    expect(beat?.onward).toBeUndefined();
+  });
+
+  test("a string holding `>>` inside an interpolation is text", async () => {
+    const beat = await firstBeat(`  {"First >>"}\n  Second.`);
+    expect(lineText(beat)).toBe("First >>");
+    expect(beat?.onward).toBeUndefined();
+  });
+
+  test("`>>` at the start of a line before text is two breaks, and alone it shows nothing", async () => {
+    const leading = await firstBeat(`  >> Hello\n  Second.`);
+    expect(leading?.onward).toBeUndefined();
+    const alone = await firstBeat(`  >>\n  Second.`);
+    expect(lineText(alone)).toBe("Second.");
+    expect(alone?.onward).toBeUndefined();
+  });
+});
