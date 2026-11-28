@@ -21,6 +21,17 @@ describe("completions offer `using`, not `with`, on `load` and `play` lines (I-2
     expect(offered).not.toContain("with");
   });
 
+  it.each(["[[load Chapter2 u|]]", "[[load Chapter2 usi|]]", "[[load Chapter2 Credits u|]]", "[[play intro u|]]"])(
+    "%s offers `using` for the word being typed",
+    (source) => {
+      expect(labels(source)).toContain("using");
+    },
+  );
+
+  it("offers no `with` for a word being typed on a `load` line", () => {
+    expect(labels("[[load Chapter2 w|]]")).not.toContain("with");
+  });
+
   it.each(["[[load chapter2 using fade |]]", "[[play intro using fade |]]"])("%s offers no second `using`", (source) => {
     expect(labels(source)).not.toContain("using");
   });

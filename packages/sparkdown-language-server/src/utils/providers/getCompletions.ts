@@ -2242,7 +2242,7 @@ const completionsAt = (
           addImageClauseCompletions(control);
           return buildCompletions();
         }
-        if (isNameAfterName(leftStack[0]?.node)) {
+        if (isNameAfterName(leftStack[0]?.node) || LOAD_CONTROL_KEYWORDS.includes(control)) {
           addImageClauseCompletions(control);
         }
         addStructReferenceCompletions(
