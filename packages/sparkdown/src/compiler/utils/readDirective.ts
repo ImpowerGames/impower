@@ -90,7 +90,7 @@ export function directiveClauseValues(clauses: readonly DirectiveClause<{ text: 
 
 export const DIRECTIVE_WITH_OWNED_WORDS: readonly string[] = ["over", "after", "ease", "loop", "once"];
 
-export const DIRECTIVE_BORROWED_WORDS: readonly string[] = ["over", "after", "ease"];
+export const DIRECTIVE_TIMING_WORDS: readonly string[] = ["over", "after", "ease"];
 
 export const DIRECTIVE_KINDS_WITH_SEVERAL_WITHS: readonly DirectiveKind[] = ["image", "layout"];
 
@@ -123,16 +123,6 @@ function ownClauses<W extends { text: string }>(
   return owners;
 }
 
-function borrow<W extends { text: string }>(
-  own: readonly DirectiveClause<W>[],
-  from: readonly DirectiveClause<W>[],
-): DirectiveClause<W>[] {
-  const borrowed = DIRECTIVE_BORROWED_WORDS.flatMap((keyword) =>
-    own.some((clause) => clause.word.text === keyword) ? [] : from.filter((clause) => clause.word.text === keyword),
-  );
-  return [...borrowed, ...own];
-}
-
 export function directiveOwners<W extends { text: string }>(
   kind: DirectiveKind,
   clauses: readonly DirectiveClause<W>[],
@@ -141,13 +131,7 @@ export function directiveOwners<W extends { text: string }>(
     const first = clauses.find((clause) => clause.word.text === "with");
     return { line: clauses.filter((clause) => clause.word.text !== "with" || clause === first), withs: [] };
   }
-  const own = ownClauses(clauses);
-  const first = own.withs[0];
-  const timed = own.line.some((clause) => DIRECTIVE_BORROWED_WORDS.includes(clause.word.text));
-  return {
-    line: first && !timed ? borrow(own.line, first.clauses) : own.line,
-    withs: own.withs.map((entry) => ({ ...entry, clauses: borrow(entry.clauses, own.line) })),
-  };
+  return ownClauses(clauses);
 }
 
 export function directiveKind(bracket: DirectiveBracket, content: string): DirectiveKind {

@@ -51,26 +51,47 @@ Which `with` a clause belongs to:
   wherever they are written.
 - A clause word written twice for one owner keeps the later value.
 
-Timing that is not written is borrowed:
+A timing word times only what it is written on. Nothing passes between the line
+and its `with` clauses, in either direction. What is not written comes from the
+animation's own `timing` block:
 
-- A `with` that has no `over` takes the line's. The same holds for `after` and
-  `ease`.
-- A line that has none of `over`, `after` and `ease` of its own takes all three
-  from the first `with`. A line that has any of them borrows none.
-- A `with` never borrows from another `with`.
+| Not written | Comes from the declaration's |
+| --- | --- |
+| `over` | `duration` |
+| `after` | `delay` |
+| `ease` | `easing` |
+| `loop`, `once` | `iterations` |
 
-So `[[animate portrait over 2s with shake with spin over 5s]]` shakes for two
-seconds and turns over five.
+The line's own motion follows the same rule. The built-in `show` and `hide`
+declare a duration of 0, so a `show` or `hide` with no `over` is instant. A
+travel has no declaration: with no `over` it arrives at once, with no `after` it
+starts with the line, and with no `ease` it takes the easing an animation gets
+when it names none.
+
+| Line | What plays |
+| --- | --- |
+| `[[animate backdrop to left over 4s with shake]]` | The travel takes 4s. The shake takes its declared 300ms. |
+| `[[animate backdrop to left with shake over 1s]]` | The shake takes 1s. The travel has no `over` and arrives at once. |
+| `[[animate backdrop to left over 1s ease linear with shake]]` | The travel is linear. The shake keeps its declared `ease-in-out`. |
+| `[[animate backdrop to left after 1s with shake]]` | The travel starts 1s in. The shake starts with the line. |
+| `[[animate portrait with shake over 1s with spin over 5s]]` | The shake takes 1s and the spin 5s. |
+| `[[animate portrait over 2s with shake]]` | The shake takes its declared 300ms. This line has no show, hide or travel, so its `over 2s` times nothing, and the editor warns. |
+
+An `animate` line that has no `to` and names no picture has no motion of its
+own, so an `over`, `after` or `ease` written for the line there times nothing.
+The editor warns on the word and its value: write it after the `with` it should
+time.
 
 `loop` after a `with` repeats that animation without end, and `once` plays it
 through one time, whatever its definition says. One definition then serves a
-single play and a continuous one: `with shake` and `with shake loop`. `loop` and
-`once` are never borrowed. On a `with` that names a transition, they apply to
-every animation the transition runs.
+single play and a continuous one: `with shake` and `with shake loop`. On a
+`with` that names a transition, they apply to every animation the transition
+runs.
 
 `wait` holds the story until the last of them has ended: the line's own motion
-and every `with`, each counted as its `after` plus its length. A `with` that
-repeats counts one pass.
+and every `with`, each counted as its `after` plus its length, with a declared
+`delay` and `duration` standing in for an `after` and an `over` that are not
+written. A `with` that repeats counts one pass.
 
 How the `with` clauses of one line combine when they set the same property:
 

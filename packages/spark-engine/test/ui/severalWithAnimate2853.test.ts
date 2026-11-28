@@ -99,26 +99,6 @@ describe("every `with` on an `animate` line plays, each with its own timing (I-2
   });
 });
 
-describe("a line with one `with` plays the same whichever side of the `with` its timing is written on (I-2853)", () => {
-  it.each([
-    ["animate backdrop to bottom_right over 1s with shake", "animate backdrop to bottom_right with shake over 1s"],
-    ["animate backdrop to left after 1s ease linear with shake", "animate backdrop to left with shake after 1s ease linear"],
-    ["animate portrait over 2s after 0.5s with shake", "animate portrait with shake over 2s after 0.5s"],
-  ])("`%s` and `%s`", async (before, after) => {
-    const a = await played(before);
-    const b = await played(after);
-    expect(a.instruction.targetAnimations.map(timing)).toEqual(b.instruction.targetAnimations.map(timing));
-    expect(a.instruction.travel?.timing).toEqual(b.instruction.travel?.timing);
-    expect(a.instruction.targetAnimations).toHaveLength(1);
-  });
-
-  it("the travel and the shake both take the one `over`", async () => {
-    const { instruction } = await played("animate backdrop to bottom_right with shake over 1s");
-    expect(instruction.travel.timing).toEqual(expect.objectContaining({ duration: "1s" }));
-    expect(instruction.targetAnimations.map(timing)).toEqual([expect.objectContaining({ name: "shake", duration: "1s" })]);
-  });
-});
-
 describe("every `with` plays wherever an `animate` line's instruction is read (I-2853)", () => {
   it("an `animate` line that names a picture plays every `with` on the layer, together", async () => {
     const { instruction } = await played("animate portrait bunny with shake over 1s with spin over 5s");

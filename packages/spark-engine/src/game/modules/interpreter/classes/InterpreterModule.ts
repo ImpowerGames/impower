@@ -863,21 +863,33 @@ export class InterpreterModule extends Module<
   protected waitDuration(chunk: Chunk, fallback?: string): number {
     const line = chunk.clauses;
     const entries = chunk.with ?? [];
-    const spans = entries.map(
-      (entry) => (entry.after ?? 0) + (entry.over ?? this.effectDuration(entry.name)),
-    );
+    const spans = entries.map((entry) => this.effectSpan(entry.name, entry));
     if (entries.length === 0) {
-      spans.push(
-        (line?.after ?? 0) +
-          (line?.over ?? this.effectDuration(chunk.target ?? "", fallback)),
-      );
+      spans.push(this.effectSpan(chunk.target ?? "", line ?? {}, fallback));
     } else if (chunk.tag === "image" && line?.to) {
       spans.push((line.after ?? 0) + (line.over ?? 0));
     }
     return Math.max(0, ...spans);
   }
 
-  protected effectDuration(name: string, fallback?: string): number {
+  protected effectSpan(
+    name: string,
+    written: { after?: number; over?: number },
+    fallback?: string,
+  ): number {
+    const animations = this.effectAnimationNames(name, fallback);
+    const timingOf = (n: string) => (this.context as any)?.["animation"]?.[n]?.timing;
+    return Math.max(
+      (written.after ?? 0) + (written.over ?? 0),
+      ...animations.map(
+        (n) =>
+          (written.after ?? getTimeValue(timingOf(n)?.delay) ?? 0) +
+          (written.over ?? getTimeValue(timingOf(n)?.duration) ?? 0),
+      ),
+    );
+  }
+
+  protected effectAnimationNames(name: string, fallback?: string): string[] {
     const transition = (this.context as any)?.["transition"]?.[name];
     const animation = (this.context as any)?.["animation"]?.[name];
     const animationNames: string[] = [];
@@ -900,15 +912,7 @@ export class InterpreterModule extends Module<
     } else if (fallback) {
       animationNames.push(fallback);
     }
-    return Math.max(
-      0,
-      ...animationNames.map(
-        (n) =>
-          getTimeValue(
-            (this.context as any)?.["animation"]?.[n]?.timing?.duration,
-          ) ?? 0,
-      ),
-    );
+    return animationNames;
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
@@ -1000,10 +1004,21 @@ export class InterpreterModule extends Module<
     time: number,
   ): WithInstruction[] {
     return entries.map((entry) =>
-      time || entry.after != null
-        ? { ...entry, after: time + (entry.after ?? 0) }
-        : { ...entry },
+      entry.after != null
+        ? { ...entry, after: time + entry.after }
+        : time
+          ? { ...entry, after: time, afterIsBeatOffset: true }
+          : { ...entry },
     );
+  }
+
+  protected placeInBeat(event: ImageInstruction | LayoutInstruction, time: number, written: unknown): void {
+    if (typeof written === "number") {
+      event.after = time + written;
+    } else if (time) {
+      event.after = time;
+      event.afterIsBeatOffset = true;
+    }
   }
 
   plainText(content: string): string {
@@ -1748,9 +1763,7 @@ export class InterpreterModule extends Module<
               control: (c.control || "show") as ImageInstruction["control"],
               assets: c.assets,
             };
-            if (time) {
-              event.after = time;
-            }
+            this.placeInBeat(event, time, c.clauses?.after);
             if (fadeDuration) {
               event.over = fadeDuration;
             }
@@ -1758,10 +1771,6 @@ export class InterpreterModule extends Module<
               event.with = this.timedEntries(c.with, time);
             }
             if (c.clauses) {
-              const afterValue = c.clauses?.after;
-              if (afterValue != null) {
-                event.after = (event.after ?? 0) + afterValue;
-              }
               const overValue = c.clauses?.over;
               if (overValue != null) {
                 event.over = overValue;
@@ -1840,17 +1849,11 @@ export class InterpreterModule extends Module<
               if (screen) {
                 event.screen = screen;
               }
-              if (time) {
-                event.after = time;
-              }
+              this.placeInBeat(event, time, c.clauses?.after);
               if (c.with) {
                 event.with = this.timedEntries(c.with, time);
               }
               if (c.clauses) {
-                const afterValue = c.clauses?.after;
-                if (afterValue != null) {
-                  event.after = (event.after ?? 0) + afterValue;
-                }
                 const overValue = c.clauses?.over;
                 if (overValue != null) {
                   event.over = overValue;

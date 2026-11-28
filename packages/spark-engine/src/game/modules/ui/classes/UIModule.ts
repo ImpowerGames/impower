@@ -341,6 +341,7 @@ interface ShownPicture {
 interface LayoutClauses {
   with?: string;
   after?: number;
+  afterIsBeatOffset?: true;
   over?: number;
   ease?: string;
   loop?: boolean;
@@ -6018,6 +6019,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       {
         name,
         after: clauses.after,
+        ...this.beatOffset(clauses),
         over: clauses.over,
         ease: clauses.ease,
         ...(clauses.loop !== undefined ? { loop: clauses.loop } : {}),
@@ -6052,6 +6054,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): {
     name: string;
     after?: number;
+    afterIsBeatOffset?: true;
     over?: number;
     ease?: string;
     loop?: boolean;
@@ -6078,14 +6081,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return { name, ...timing, over: durationOf(name) / speed };
   }
 
+  beatOffset(timed: { afterIsBeatOffset?: true }): { afterIsBeatOffset?: true } {
+    return timed.afterIsBeatOffset ? { afterIsBeatOffset: true } : {};
+  }
+
   withTiming(entry: WithInstruction): {
     after?: number;
+    afterIsBeatOffset?: true;
     over?: number;
     ease?: string;
     loop?: boolean;
   } {
     return {
       after: entry.after,
+      ...this.beatOffset(entry),
       over: entry.over,
       ease: entry.ease,
       ...(entry.loop ? { loop: true } : entry.once ? { loop: false } : {}),
@@ -6832,7 +6841,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const entries = this.withEntries(e);
       const clauses: LayoutClauses[] = entries.length
         ? entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) }))
-        : [{ after: e.after, over: e.over, ease: e.ease }];
+        : [{ after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease }];
       switch (e.control) {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
@@ -7227,14 +7236,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     event: {
       name: string;
       after?: number;
+      afterIsBeatOffset?: true;
       over?: number;
       ease?: string;
       loop?: boolean;
     },
     instant: boolean,
   ): Animation | undefined {
-    const { name, after, over, ease, loop } = event;
-    const delayOverride = `${after ?? 0}s`;
+    const { name, after, afterIsBeatOffset, over, ease, loop } = event;
     const durationOverride = over != null ? `${over}s` : null;
     const easeDefinition = ease ? this.context?.ease?.[ease] : null;
     const easingOverride =
@@ -7243,7 +7252,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       loop === true ? "infinite" : loop === false ? 1 : undefined;
     const animation = this.context?.animation?.[name] as Animation;
     if (animation) {
-      const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
+      const declaredDelay = getTimeValue(animation?.timing?.delay) ?? 0;
+      const delay = `${after == null ? declaredDelay : afterIsBeatOffset ? after + declaredDelay : after}s`;
       const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
       const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
@@ -7952,6 +7962,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const revealEvent = {
               name: "show",
               after: e.after,
+              ...$.beatOffset(e),
               over: 0,
               ease: e.ease,
             };
@@ -7963,10 +7974,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const entries = $.withEntries(e);
           const showEvents = entries.length
             ? entries.map((entry) => $.armEvent(entry, "on_show"))
-            : [{ name: "show", after: e.after, over: e.over, ease: e.ease }];
+            : [{ name: "show", after: e.after, ...$.beatOffset(e), over: e.over, ease: e.ease }];
           const hideEvents = entries.length
             ? entries.map((entry) => $.armEvent(entry, "on_hide"))
-            : [{ name: "hide", after: e.after, over: e.over, ease: e.ease }];
+            : [{ name: "hide", after: e.after, ...$.beatOffset(e), over: e.over, ease: e.ease }];
           const definitions = (events: typeof showEvents) =>
             events.flatMap((event) => $.getAnimationDefinition(event, instant) ?? []);
           const armsOf = (entry: WithInstruction): LineAnimation[] =>

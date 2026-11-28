@@ -6,10 +6,13 @@ import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_CONTROL_WORDS,
   DIRECTIVE_FLAG_WORDS,
+  DIRECTIVE_TIMING_WORDS,
+  directiveOwners,
   directiveValueKind,
   readSourceDirectives,
   type SourceDirective,
 } from "@impower/sparkdown/src/compiler/utils/readDirective";
+import { getTimeValue } from "../../src/game/core/utils/getTimeValue";
 import { compareEngines } from "@impower/sparkdown/test/compiler/scopeEquality";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { layoutStreams } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
@@ -188,6 +191,11 @@ const CLAUSE_ROWS: Row[] = [
   ["timing after a `with`", "image", "animate backdrop to left with shake over 1s after 2s ease linear"],
   ["timing on each side of a `with`", "image", "animate backdrop to left over 1s with shake over 2s ease ease_out"],
   ["timing on each side of two `with` clauses", "image", "animate portrait over 2s with shake ease linear with spin over 5s"],
+  ["`after` before one `with` and none after it", "image", "animate backdrop to left after 1s with shake"],
+  ["`over` after one `with` and none before it", "image", "animate backdrop to left with shake over 1s"],
+  ["every timing word before one `with`", "image", "animate backdrop to left over 4s after 1s ease linear with shake"],
+  ["timing words on each side of two `with` clauses, none on the second", "image", "show portrait mia over 1s with fade after 2s with shake"],
+  ["timing words after the second of two `with` clauses only", "image", "open menu with fade with shake over 0.5s ease linear"],
   ["`loop` and `once` after a `with`", "image", "animate portrait with shake loop with spin over 2s once"],
   ["`loop` and `once` before a `with`", "image", "show backdrop mia loop once with fade"],
   ["an empty `with` between two", "image", "animate portrait with shake with with spin"],
@@ -232,6 +240,7 @@ interface Reading {
   unrecognizedControl?: string;
   implicitNames: string[];
   extraWiths: string[];
+  timing: string[];
 }
 
 const empty = (): Reading => ({
@@ -244,7 +253,19 @@ const empty = (): Reading => ({
   playArity: false,
   implicitNames: [],
   extraWiths: [],
+  timing: [],
 });
+
+const timingOf = (owner: string, values: Record<string, unknown>) =>
+  DIRECTIVE_TIMING_WORDS.flatMap((keyword) => (values[keyword] === undefined ? [] : [`${owner} ${keyword} ${values[keyword]}`]));
+
+const writtenTiming = (owner: string, clauses: readonly { word: { text: string }; value?: { text: string } }[]) => {
+  const values: Record<string, unknown> = {};
+  for (const { word, value } of clauses) {
+    values[word.text] = word.text === "ease" ? value?.text : getTimeValue(value?.text);
+  }
+  return timingOf(owner, values);
+};
 
 const isName = (text: string) => directiveValueKind(text) === "name";
 const isLookedUpName = (text: string) =>
@@ -260,7 +281,7 @@ interface Chunk {
   target?: string;
   assets: string[];
   clauses: Record<string, unknown>;
-  with?: { name: string; ease?: string }[];
+  with?: { name: string; after?: number; over?: number; ease?: string }[];
 }
 
 interface Parsed {
@@ -386,6 +407,10 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
   if (controlWritten && !(bracket === "image" ? BRACKET_CONTROLS : AUDIO_CONTROLS).includes(chunk.control)) {
     reading.unrecognizedControl = chunk.control;
   }
+  reading.timing.push(
+    ...timingOf("line", chunk.clauses),
+    ...(chunk.with ?? []).flatMap((entry, i) => timingOf(`with ${i + 1}`, entry)),
+  );
   return normalize(reading);
 }
 
@@ -400,6 +425,7 @@ function normalize(reading: Reading): Reading {
     flagArguments: sorted(reading.flagArguments),
     implicitNames: sorted(reading.implicitNames),
     extraWiths: sorted(reading.extraWiths),
+    timing: sorted(reading.timing),
   };
 }
 
@@ -508,6 +534,15 @@ function compilerReadingsOf(text: string, keep: (line: number, from: number) => 
     else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
     else if (/^A (?:`load`|`play`|sound) line takes one `with`/.test(message)) reading(line).extraWiths.push(at);
   }
+  for (const directive of readSourceDirectives(parser.parse(text), (a, b) => text.slice(a, b))) {
+    const line = doc.positionAt(directive.from).line;
+    if (!keep(line, directive.from)) continue;
+    const owners = directiveOwners(directive.kind, directive.clauses);
+    reading(line).timing.push(
+      ...writtenTiming("line", owners.line),
+      ...owners.withs.filter((entry) => entry.name).flatMap((entry, i) => writtenTiming(`with ${i + 1}`, entry.clauses)),
+    );
+  }
   for (const [line, found] of readings) readings.set(line, normalize(found));
   return readings;
 }
@@ -587,6 +622,7 @@ function merged(readings: readonly Reading[]): Reading {
     all.flagArguments.push(...reading.flagArguments);
     all.implicitNames.push(...reading.implicitNames);
     all.extraWiths.push(...reading.extraWiths);
+    all.timing.push(...reading.timing);
     all.incompleteNavigate ||= reading.incompleteNavigate;
     all.clearWarning ||= reading.clearWarning;
     all.playArity ||= reading.playArity;
@@ -612,6 +648,24 @@ describe("every editor reader of a directive agrees with the interpreter's chunk
   test.each(ROWS.map(([label, bracket, text], i) => [label, directive(bracket, text), i] as const))("%s: `%s`", (_label, _text, i) => {
     const line = lineOf(i);
     expect(compilerReadings.get(line) ?? empty()).toStrictEqual(interpreterReadings.get(line) ?? empty());
+  });
+});
+
+describe("each owner on a row reads only the timing words written for it (I-2882)", () => {
+  test.each([
+    ["timing before a `with`", ["line after 2", "line ease linear", "line over 1"]],
+    ["timing after a `with`", ["with 1 after 2", "with 1 ease linear", "with 1 over 1"]],
+    ["timing on each side of a `with`", ["line over 1", "with 1 ease ease_out", "with 1 over 2"]],
+    ["timing on each side of two `with` clauses", ["line over 2", "with 1 ease linear", "with 2 over 5"]],
+    ["`after` before one `with` and none after it", ["line after 1"]],
+    ["`over` after one `with` and none before it", ["with 1 over 1"]],
+    ["every timing word before one `with`", ["line after 1", "line ease linear", "line over 4"]],
+    ["timing words on each side of two `with` clauses, none on the second", ["line over 1", "with 1 after 2"]],
+    ["timing words after the second of two `with` clauses only", ["with 2 ease linear", "with 2 over 0.5"]],
+  ])("%s", (label, timing) => {
+    const line = lineOf(ROWS.findIndex(([rowLabel]) => rowLabel === label));
+    expect(interpreterReadings.get(line)?.timing).toEqual(timing);
+    expect(compilerReadings.get(line)?.timing).toEqual(timing);
   });
 });
 
