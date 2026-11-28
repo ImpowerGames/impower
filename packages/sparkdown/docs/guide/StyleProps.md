@@ -95,7 +95,7 @@ style button {
 - `@showing(name) { … }` applies while a layout or an element named `name` is on screen (see [What is on screen](#what-is-on-screen)).
 - `@variant(name) { … }` and `@speaker(name) { … }` apply while the newest line showing has that variant or is spoken by that character, and `#variant=name { … }` and `#speaker=name { … }` select the elements written with that prop (see [Variants](./Variants.md)).
 - `@initial { … }` / `@show { … }` / `@hide { … }` say how an element appears and leaves (see [Appearing and leaving](#appearing-and-leaving)).
-- `@latest { … }` targets the newest entry of a [stream](./Streams.md), and the entry of whoever is speaking now in a [cast](./Streams.md#a-cast-keeps-one-entry-per-character).
+- `@latest { … }` targets the newest entry of a [stream](./Streams.md), and the entry of whoever is speaking now in a [cast](./Streams.md#a-cast-keeps-one-entry-per-character). `@carried { … }` targets a stream entry that was kept through a clear (see [Clearing at each run](./Streams.md#clearing-at-each-run)).
 - One selector can hold a state and a condition such as `@screen-size(sm)` or `@theme(dark)`: `@hovered @screen-size(sm) { … }` applies while both hold, in either order. In a list separated by commas, every selector needs the same conditions; write the selectors as separate rules when they differ.
 - Write an element's name before a condition (`button @media (min-width: 600px)`), since a word after a condition is read as part of it.
 - A condition that lists several queries with commas, such as `@media (min-width: 600px), print`, cannot share a key with a selector or a state. Write them as nested blocks instead: `@media (min-width: 600px), print { @hovered { … } }`.

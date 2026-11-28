@@ -3,6 +3,7 @@ import type { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-ve
 export interface IInstruction {
   control?: string;
   after?: number;
+  afterIsBeatOffset?: true;
   over?: number;
   ease?: string;
   wait?: boolean;
@@ -52,6 +53,7 @@ export interface TextInstruction extends IInstruction {
 export interface WithInstruction {
   name: string;
   after?: number;
+  afterIsBeatOffset?: true;
   over?: number;
   ease?: string;
   loop?: boolean;
@@ -62,6 +64,7 @@ export interface ImageInstruction extends IInstruction {
   control: "show" | "hide" | "animate";
   assets?: string[];
   with?: WithInstruction[];
+  using?: string;
   morph?: string;
   at?: string;
   to?: string;

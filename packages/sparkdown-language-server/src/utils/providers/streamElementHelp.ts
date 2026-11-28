@@ -26,6 +26,8 @@ export const STREAM_BLOCK_DESCRIPTION = [
   "",
   "- `advance`: `click` (the built-in value), where each line waits for a click, or `auto`, where each line follows the one before it.",
   "- `pause`: with `auto`, how long after a line finishes typing the next one starts. The built-in value is `0.4s`.",
+  "- `clear`: `never` (the built-in value), where entries stay until `[[clear NAME]]`, or `run`, where the entries of earlier runs leave when a new run starts.",
+  "- `carry`: how many of the newest entries stay through a clear. The built-in value is `0`.",
   "",
   "A stream that advances by itself waits for a click at the last line before the story leaves it and at any line that ends with `>`. Its lines are gathered first, so it makes room for all of them before the first one shows.",
   "",
@@ -33,6 +35,8 @@ export const STREAM_BLOCK_DESCRIPTION = [
   "stream phone {",
   "  advance = auto",
   "  pause = 0.6s",
+  "  clear = run",
+  "  carry = 1",
   "}",
   "```",
 ].join("\n");
@@ -42,6 +46,16 @@ export const STREAM_SETTING_DOCS: Readonly<Record<string, string>> = {
     "`click` or `auto`. With `click`, the built-in value, each line waits for a click. With `auto`, each line follows the one before it, and the stream waits for a click at the last line before the story leaves it and at any line that ends with `>`.",
   pause:
     "A time, such as `0.6s` or `600ms`. With `advance = auto`, how long after a line finishes typing the next one starts. The built-in value is `0.4s`.",
+  clear:
+    "`never` or `run`. With `never`, the built-in value, entries stay until `[[clear NAME]]` or `[[close NAME]]`. With `run`, the entries of earlier runs leave when a new run starts, and the stream is gathered to its next clear, so each page is sized on its own. The leaving entries play their `@hide`, the carried ones move to their new place, and then the next line starts.",
+  carry:
+    "A count, such as `1`. How many of the newest entries stay through a clear, with `clear = run` and with `[[clear NAME]]`. A kept entry is `@carried`. The built-in value is `0`.",
+};
+
+export const STREAM_ENTRY_STATE_DOCS: Readonly<Record<string, string>> = {
+  latest: "`@latest` is true on the newest entry of a stream, and on the entry of whoever is speaking now in a cast.",
+  carried:
+    "`@carried` is true on a stream entry that was kept through a clear, by the stream's `carry` setting. It is no longer `@latest` once a newer entry arrives.",
 };
 
 const TEMPLATED_ELEMENTS: ReadonlyMap<string, string> = new Map([
@@ -90,6 +104,33 @@ export const streamBlockCompletion = (): CompletionItem => ({
   labelDetails: { description: "settings" },
   documentation: { kind: MarkupKind.Markdown, value: STREAM_BLOCK_DESCRIPTION },
 });
+
+export const getStreamEntryStateHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  if (!stack.some((node) => node.name === "LuauStyle")) {
+    return null;
+  }
+  const state = stack.find((node) => node.name === "SelectorStateName");
+  if (!state) {
+    return null;
+  }
+  const name = document.getText(document.range(state.from, state.to));
+  if (
+    !Object.hasOwn(STREAM_ENTRY_STATE_DOCS, name) ||
+    document.getText(document.range(state.from - 1, state.from)) !== "@"
+  ) {
+    return null;
+  }
+  return {
+    contents: { kind: MarkupKind.Markdown, value: STREAM_ENTRY_STATE_DOCS[name]! },
+    range: document.range(state.from - 1, state.to),
+  };
+};
 
 export const getStreamBlockHover = (
   document: SparkdownDocument,

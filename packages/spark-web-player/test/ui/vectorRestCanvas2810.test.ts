@@ -5,7 +5,7 @@ import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphImageContent } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { LayeredPicture, WriteImageParams } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { Animation } from "@impower/spark-engine/src/game/modules/ui/types/Animation";
-import { pictureViewOf } from "../../../spark-dom/src/utils/placePicture";
+import { pictureViewOf, scheduleTravel } from "../../../spark-dom/src/utils/placePicture";
 import { MorphPlayback, type PictureBitmap, type PictureCanvasContext } from "../../src/app/morph/MorphPlayback";
 import type { SvgLayerRaster } from "../../src/app/morph/svgLayerFile";
 import { createDOMHarness, flushMicrotasks, untilShown } from "./domTestHarness";
@@ -144,7 +144,7 @@ async function setup(
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .backdrop[style*="position: absolute"] ~ .sigil .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .backdrop[style*="position: absolute"] ~ .sigil .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; } .badge .instance.framed { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -575,6 +575,165 @@ describe("a later beat that redraws a shown picture keeps it shown until the new
     expect(t.rasters).toHaveLength(2);
     expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);
   });
+});
+
+describe("a beat that changes a shown picture's framing draws it at its new place before it fires (#2888)", () => {
+  test("the picture is drawn at the box its new framing gives it before the beat fires, shown at that size as it fires, and not stretched or drawn again after", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], 140);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const span = t.spanOf("badge")!;
+    const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"], { framing: { x: 0, y: 0.5, zoom: 1 } })], 142);
+    await until(() => t.rasters.length === 2, "the raster at the framed size");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    expect(span.classList.contains("framed")).toBe(false);
+    expect(span.style.getPropertyValue("translate")).toBe("");
+    expect([canvas.width, canvas.height]).toEqual([first.width, first.height]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the framing beat");
+    expect(t.spanOf("badge")).toBe(span);
+    expect(span.classList.contains("framed")).toBe(true);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+    expect((canvas.parentElement!.getAttribute("style") ?? "").includes("width:800px;height:450px")).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(t.rasters).toHaveLength(2);
+    expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);
+  });
+
+  test("a later instruction of the beat that resizes the picture while the beat waits leaves the shown canvas at its current box", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], 144);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const span = t.spanOf("badge")!;
+    const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+    const style = canvas.parentElement!.getAttribute("style");
+    const reframe = show("badge", "emblem", ["/src/emblem.svg"], { framing: { x: 0, y: 0.5, zoom: 1 } });
+    reframe.instructions.push({ control: "animate", travel: { framing: { x: 1, y: 0.5, zoom: 2 }, timing: { delay: "0s", duration: "2s", easing: "linear" } } } as never);
+    t.beat([reframe], 146);
+    expect(t.events.filter((event) => event === "applied")).toHaveLength(1);
+    expect(span.classList.contains("framed")).toBe(false);
+    expect(canvas.parentElement!.getAttribute("style")).toBe(style);
+    expect([canvas.width, canvas.height]).toEqual([first.width, first.height]);
+  });
+
+  test("a move that starts as the beat applies, on a picture shown without framing, draws it at the box the move frames it in before the beat fires", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], 148);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const span = t.spanOf("badge")!;
+    const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+    t.beat(
+      [
+        {
+          target: "badge",
+          instant: false,
+          instructions: [{ control: "animate", travel: { framing: { x: 0, y: 0.5, zoom: 1 }, timing: { delay: "0s", duration: "1s", easing: "linear" } } }],
+        } as never,
+      ],
+      150,
+    );
+    await until(() => t.rasters.length === 2, "the raster at the framed size");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    expect(span.classList.contains("framed")).toBe(false);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the moving beat");
+    expect(span.classList.contains("framed")).toBe(true);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  });
+
+  const moveNow = (framing?: { x: number; y: number; zoom: number }) =>
+    ({
+      target: "badge",
+      instant: false,
+      instructions: [{ control: "animate", travel: { framing, timing: { delay: "0s", duration: "1s", easing: "linear" } } }],
+    }) as never;
+
+  const shownUnframed = async (line: number) => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], line);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return { t, first, span: t.spanOf("badge")!, canvas: t.shadowOf("badge")!.querySelector("canvas")! };
+  };
+
+  const drawnBeforeMoving = async ({ t, first, span, canvas }: Awaited<ReturnType<typeof shownUnframed>>) => {
+    await until(() => t.rasters.length === 2 || t.events.filter((event) => event === "applied").length === 2, "the raster at the framed size or the moving beat");
+    await flushMicrotasks(20);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the moving beat");
+    expect(span.classList.contains("framed")).toBe(true);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  };
+
+  test("a move to the centre that starts as the beat applies frames the picture too, and draws it at that box before the beat fires", async () => {
+    const shown = await shownUnframed(156);
+    shown.t.beat([moveNow()], 158);
+    await drawnBeforeMoving(shown);
+  });
+
+  test("a move that starts as the beat applies, replacing a scheduled move to the same place that has not started, draws the picture at its framed box before the beat fires", async () => {
+    const shown = await shownUnframed(160);
+    const framing = { x: 0, y: 0.5, zoom: 1 };
+    const waiting = {
+      startTime: 0,
+      playState: "running",
+      effect: { getTiming: () => ({ delay: 10000 }), getComputedTiming: () => ({ progress: null }) },
+      cancel: vi.fn(),
+    } as unknown as globalThis.Animation;
+    scheduleTravel(shown.span, framing, { animation: waiting, drop: vi.fn() }, {});
+    expect(shown.span.classList.contains("framed")).toBe(false);
+    shown.t.beat([moveNow(framing)], 162);
+    await drawnBeforeMoving(shown);
+  });
+
+  test.each(["0s", "1s"])(
+    "a picture the beat shows and starts moving in the same write is drawn at the box the move frames it in before the beat fires (duration %s)",
+    async (duration) => {
+      const t = await setup({ holdRasters: true });
+      const framed = [Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)];
+      const write = show("badge", "emblem", ["/src/emblem.svg"]);
+      write.instructions.push({ control: "animate", travel: { timing: { delay: "0s", duration, easing: "linear" } } } as never);
+      t.beat([write], 164);
+      await until(() => t.rasters.length > 0, "the first raster");
+      await flushMicrotasks(20);
+      expect(t.rasters.map(({ width, height }) => [width, height])).toContainEqual(framed);
+      for (const held of t.rasters.filter(({ width, height }) => width !== framed[0] || height !== framed[1])) held.resolve(raster(held.src, held.width, held.height));
+      await flushMicrotasks(20);
+      expect(t.events).not.toContain("applied");
+      for (const held of t.rasters.filter(({ width, height }) => width === framed[0] && height === framed[1])) held.resolve(raster(held.src, held.width, held.height));
+      await until(() => t.events.includes("applied"), "the beat");
+      const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+      expect(t.spanOf("badge")!.classList.contains("framed")).toBe(true);
+      expect([canvas.width, canvas.height]).toEqual(framed);
+    },
+  );
 });
 
 describe("a later beat's layout changes are measured on every shown picture before it fires (#2810)", () => {

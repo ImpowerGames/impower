@@ -177,7 +177,7 @@ end
     expect(ev?.control).toBe("open");
     expect(ev?.name).toBe("hud");
     expect(ev?.with).toEqual([{ name: "fade", over: 1 }]);
-    expect(ev?.over).toBe(1);
+    expect(ev?.over).toBeUndefined();
     expect(ev?.wait).toBe(true);
   });
 

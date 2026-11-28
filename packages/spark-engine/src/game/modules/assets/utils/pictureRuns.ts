@@ -80,7 +80,7 @@ export function pictureRuns(
       seed(target);
       const standing = open.get(target) ?? [];
       if (write.hide) {
-        if (write.with?.length) {
+        if (write.with?.length || write.using) {
           for (const run of standing) {
             if (reachable(run.scope, scope)) {
               run.effects.push(write);
@@ -125,7 +125,7 @@ export function pictureRuns(
             run.framings.push(framing);
           }
         }
-        if (write.with?.length) {
+        if (write.with?.length || write.using) {
           run.effects.push(write);
         }
       }

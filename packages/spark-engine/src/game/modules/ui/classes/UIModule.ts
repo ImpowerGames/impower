@@ -13,8 +13,7 @@ import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveIm
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
-import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
-import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
+import { morphOverlaps, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { buildMorphMotion } from "@impower/sparkdown/src/morph/motion";
@@ -32,7 +31,11 @@ import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { pageKey } from "../../../core/utils/pageKey";
-import type { StreamRun } from "../../../core/classes/presenters/streamRuns";
+import {
+  RUN_LINE_LIMIT,
+  streamSettings,
+  type StreamRun,
+} from "../../../core/classes/presenters/streamRuns";
 import { lineLabelled, streamKey, streamTemplate } from "../utils/streamTemplate";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
@@ -109,10 +112,26 @@ WithInstruction,
 import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
-import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { presenceStyleBlocks } from "../../../core/utils/presenceStyleBlocks";
 import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
 import { keyframeScale } from "../utils/keyframeScale";
+import {
+  animationDefinition,
+  armEvent,
+  beatOffset,
+  layoutAnimation,
+  layoutAnimations,
+  layoutArrivesByStyle,
+  pictureLineAnimations,
+  pictureLineEnd,
+  timingFunction,
+  withEntries,
+  withTiming,
+  type AnimationContext,
+  type AnimationEvent,
+  type LayoutClauses,
+} from "../utils/lineAnimations";
 import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
@@ -125,7 +144,12 @@ import {
   type PageRecord,
   type PageState,
 } from "../types/PageState";
-import type { StreamEntry, StreamRunState, StreamState } from "../types/StreamState";
+import type {
+  StreamEntry,
+  StreamRestart,
+  StreamRunState,
+  StreamState,
+} from "../types/StreamState";
 import type { CastEntry, CastLine, CastState } from "../types/CastState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
@@ -226,7 +250,6 @@ import {
 } from "./messages/UpdateElementMessage";
 import {
   type MorphImageContent,
-  type MorphPictureStill,
   type MorphLayerPlay,
   type MorphPicture,
   type LayeredPicture,
@@ -263,7 +286,7 @@ function isVectorFile(layer: ImageLayer): boolean {
 }
 
 function isPictureFile(layer: ImageLayer): boolean {
-  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && isVectorFile(layer));
+  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && !!layer.src);
 }
 
 function isImageFile(layer: ImageLayer): boolean {
@@ -347,13 +370,6 @@ interface ShownPicture {
   pick?: ImagePick;
 }
 
-interface LayoutClauses {
-  with?: string;
-  after?: number;
-  over?: number;
-  ease?: string;
-  loop?: boolean;
-}
 
 interface Retirement {
   name?: string;
@@ -385,23 +401,19 @@ interface PresenceRecord {
   retiring?: Retirement;
 }
 
-const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
-  show: /@(?:initial|show)(?![\p{L}\p{N}_-])/u,
-  hide: /@hide(?![\p{L}\p{N}_-])/u,
-};
-
 const presenceAttributes = (mark: Record<string, string | null>) =>
   Object.keys(mark).length > 0 ? { attributes: mark } : {};
 
 const pictureHide = (
   sequence: ImageInstruction[],
+  timed: (e: ImageInstruction) => boolean,
 ): "plain" | "timed" | undefined => {
   let hide: "plain" | "timed" | undefined;
   for (const e of sequence) {
     if (e.control === "show" && e.assets?.length) {
       hide = undefined;
     } else if (e.control === "hide" && !e.assets?.length) {
-      hide = e.with?.length || e.after || e.over ? "timed" : "plain";
+      hide = timed(e) ? "timed" : "plain";
     }
   }
   return hide;
@@ -847,11 +859,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _lineRemovals = false;
 
   protected _lineTimed = new WeakSet<IMessage>();
-
-  protected _presenceStyles?: {
-    styles: unknown;
-    blocks: Record<PresenceMotion, boolean>;
-  };
 
   protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
 
@@ -2712,38 +2719,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected styled(presence: PresenceMotion): boolean {
-    const styles = this.context?.style;
-    let cached = this._presenceStyles;
-    if (!cached || cached.styles !== styles) {
-      const blocks: Record<PresenceMotion, boolean> = {
-        show: false,
-        hide: false,
-      };
-      const visit = (value: unknown) => {
-        if (value == null || typeof value !== "object") {
-          return;
-        }
-        for (const [key, inner] of Object.entries(value)) {
-          if (inner == null || typeof inner !== "object") {
-            continue;
-          }
-          for (const motion of ["show", "hide"] as const) {
-            if (PRESENCE_BLOCKS[motion].test(key)) {
-              blocks[motion] = true;
-            }
-          }
-          visit(inner);
-        }
-      };
-      for (const [name, style] of Object.entries(styles ?? {})) {
-        if (!name.startsWith("$")) {
-          visit(style);
-        }
-      }
-      cached = { styles, blocks };
-      this._presenceStyles = cached;
-    }
-    return cached.blocks[presence];
+    return presenceStyleBlocks(this.context?.style as Record<string, unknown> | undefined)[presence];
   }
 
   protected attached(element: Element): boolean {
@@ -3074,7 +3050,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getTimingFunction(ease: Ease) {
-    return `${ease.function}(${ease.parameters.join(",")})`;
+    return timingFunction(ease);
   }
 
   getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
@@ -3105,9 +3081,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ? []
       : !poseOf || poseOf === morphRestPose
         ? look.rest
-        : poseOf === this.morphStartPose
-          ? look.start!
-          : shownImageLayers(this.context, this._game.program?.morphs, look.struct, poseOf, pick);
+        : shownImageLayers(this.context, this._game.program?.morphs, look.struct, poseOf, pick);
     return layers.map((layer) => ({ $type: "image", $name: imageName, src: layer.src }));
   }
 
@@ -3173,17 +3147,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const before = from === undefined ? undefined : resolveImageReference(this.context, { $type: "", $name: sortFilteredName(from.asset) });
     const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
       ...(pick === undefined ? {} : { pick }),
-      startPose: this.morphStartPose,
       ...(before ? { from: { struct: before, ...(from!.pick === undefined ? {} : { pick: from!.pick }) } } : {}),
     });
     this._pictureLooks?.set(key, look);
     return look;
   }
-
-  morphStartPose = (recipe: MorphRecipe): Record<string, string> => {
-    const timeline = new MorphTimeline(this.morphTiming(recipe.name), () => 0);
-    return timeline.at(0).phase === "off" ? morphRestPose(recipe) : morphPoseAt(recipe, timeline.start);
-  };
 
   protected morphTiming(morph: string): MorphTiming {
     const written = this.context.morph?.[morph];
@@ -3520,22 +3488,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (plays.length === 0) {
       return undefined;
     }
-    const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still: MorphPictureStill[] = [];
-    let layer = 0;
-    for (const [index, asset] of assets.entries()) {
-      const rest = this.getBackgroundImageFromString(asset, undefined, pickOf(asset));
-      const span = cssList(rest).length;
-      const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
-      if (start !== rest && (froms[index] !== undefined || cssList(start).length === span)) {
-        still.push({ layer, span, image: start });
-      }
-      layer += span;
-    }
-    if (still.length) {
-      content.still = still;
-    }
-    return content;
+    return { plays, epoch: this._morphEpoch };
   }
 
   layeredImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
@@ -3599,7 +3552,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ? "was not drawn before the line's wait for it ran out"
                 : params.reason === "styled"
                   ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
-                  : "could not be read to check that it is a still sRGB image";
+                  : params.reason === "unlisted"
+                    ? "is shown in a picture with a layer that is not an image file, so the player cannot draw the picture on a canvas"
+                    : "could not be read to check that it is a still sRGB image";
     if (params.placeholder) {
       this._game.log(`\`${params.image}\` is not drawn: its file \`${params.file}\` ${why}. The previews show a placeholder in its place, and an exported game shows nothing there.`, "warning");
       return;
@@ -6120,27 +6075,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     clauses: LayoutClauses,
     instant: boolean,
   ): Animation | undefined {
-    const withName = clauses.with || "";
-    const transition = this.context?.transition?.[withName];
-    let name: string;
-    if (transition) {
-      const arm = direction === "enter" ? transition.on_show : transition.on_hide;
-      name =
-        (typeof arm === "string" ? arm : arm?.$name) ||
-        (direction === "enter" ? "show" : "hide");
-    } else {
-      name = withName || (direction === "enter" ? "show" : "hide");
-    }
-    return this.getAnimationDefinition(
-      {
-        name,
-        after: clauses.after,
-        over: clauses.over,
-        ease: clauses.ease,
-        ...(clauses.loop !== undefined ? { loop: clauses.loop } : {}),
-      },
-      instant,
-    );
+    return layoutAnimation(this.context as AnimationContext, direction, clauses, instant);
   }
 
   protected resolveLayoutAnimations(
@@ -6148,65 +6083,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     clauses: LayoutClauses[] | undefined,
     instant: boolean,
   ): Animation[] {
-    return (clauses?.length ? clauses : [{}]).flatMap((c) => {
-      const animation = this.resolveLayoutAnimation(direction, c, instant);
-      return animation ? [animation] : [];
-    });
+    return layoutAnimations(this.context as AnimationContext, direction, clauses, instant);
   }
 
   withEntries(e: { with?: WithInstruction[] }): WithInstruction[] {
-    const written: unknown = e.with;
-    return Array.isArray(written)
-      ? written
-      : typeof written === "string" && written
-        ? [{ name: written }]
-        : [];
+    return withEntries(e);
   }
 
-  armEvent(
-    entry: WithInstruction,
-    arm: "on_show" | "on_hide",
-  ): {
-    name: string;
-    after?: number;
-    over?: number;
-    ease?: string;
-    loop?: boolean;
-  } {
-    const timing = this.withTiming(entry);
-    const transition = this.context?.transition?.[entry.name];
-    if (!transition) {
-      return { name: entry.name, ...timing };
-    }
-    const durationOf = (name: string | undefined) =>
-      getTimeValue(this.context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
-    const longest = Math.max(
-      0,
-      ...Object.entries(transition)
-        .filter(([k, v]) => !k.startsWith("$") && v)
-        .map(([, v]) => durationOf(typeof v === "string" ? v : v?.$name)),
-    );
-    const speed =
-      timing.over != null && timing.over > 0 ? longest / timing.over : 1;
-    const armed = transition[arm];
-    const name =
-      (typeof armed === "string" ? armed : armed?.$name) ||
-      (arm === "on_show" ? "show" : "hide");
-    return { name, ...timing, over: durationOf(name) / speed };
+  armEvent(entry: WithInstruction, arm: "on_show" | "on_hide"): AnimationEvent {
+    return armEvent(this.context as AnimationContext, entry, arm);
   }
 
-  withTiming(entry: WithInstruction): {
-    after?: number;
-    over?: number;
-    ease?: string;
-    loop?: boolean;
-  } {
-    return {
-      after: entry.after,
-      over: entry.over,
-      ease: entry.ease,
-      ...(entry.loop ? { loop: true } : entry.once ? { loop: false } : {}),
-    };
+  timedPicture(e: ImageInstruction): boolean {
+    return Boolean(e.with?.length || e.after || e.over) || pictureLineEnd(this.context as AnimationContext, e) > 0;
+  }
+
+  beatOffset(timed: { afterIsBeatOffset?: true }): { afterIsBeatOffset?: true } {
+    return beatOffset(timed);
+  }
+
+  withTiming(entry: WithInstruction): Omit<AnimationEvent, "name"> {
+    return withTiming(entry);
   }
 
   async openLayout(
@@ -6309,7 +6206,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._screenEdits = edits;
       }
     }
-    if (!clauses?.some((c) => c.with) && !instant && this.moving() && this.styled("show")) {
+    if (layoutArrivesByStyle(this.context as AnimationContext, "enter", clauses) && !instant && this.moving()) {
       const frame = layout.screen
         ? this._mountedScreens.get(layout.screen)
         : undefined;
@@ -6383,10 +6280,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const element = leaving?.element ?? entry.element;
     if (
-      !clauses?.some((c) => c.with) &&
+      layoutArrivesByStyle(this.context as AnimationContext, "exit", clauses) &&
       !instant &&
-      this.moving() &&
-      this.styled("hide")
+      this.moving()
     ) {
       this._mountedLayouts.delete(name);
       this.retireElement(
@@ -6950,7 +6846,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const entries = this.withEntries(e);
       const clauses: LayoutClauses[] = entries.length
         ? entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) }))
-        : [{ after: e.after, over: e.over, ease: e.ease }];
+        : [{ after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease }];
       switch (e.control) {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
@@ -7347,54 +7243,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
   }
 
-  getAnimationDefinition(
-    event: {
-      name: string;
-      after?: number;
-      over?: number;
-      ease?: string;
-      loop?: boolean;
-    },
-    instant: boolean,
-  ): Animation | undefined {
-    const { name, after, over, ease, loop } = event;
-    const delayOverride = `${after ?? 0}s`;
-    const durationOverride = over != null ? `${over}s` : null;
-    const easeDefinition = ease ? this.context?.ease?.[ease] : null;
-    const easingOverride =
-      easeDefinition != null ? this.getTimingFunction(easeDefinition) : null;
-    const loopOverride =
-      loop === true ? "infinite" : loop === false ? 1 : undefined;
-    const animation = this.context?.animation?.[name] as Animation;
-    if (animation) {
-      const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
-      const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
-      const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
-      const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
-      const fill = animation?.timing?.fill ?? "none";
-      const direction = animation?.timing?.direction ?? "normal";
-      const keyframes = animation.keyframes;
-      const timing = {
-        delay,
-        duration,
-        iterations,
-        easing,
-        fill,
-        direction,
-      };
-      if (instant) {
-        timing.delay = "0s";
-        timing.duration = "0s";
-      }
-      return {
-        $type: animation.$type,
-        $name: animation.$name,
-        target: animation.target ?? { $type: "layer", $name: "self" },
-        keyframes,
-        timing,
-      };
-    }
-    return undefined;
+  getAnimationDefinition(event: AnimationEvent, instant: boolean): Animation | undefined {
+    return animationDefinition(this.context as AnimationContext, event, instant);
   }
 
   enqueueAnimation(
@@ -8078,43 +7928,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               timing: $.getTravelTiming(e, instant),
             };
           }
-          const targetAnimations: LineAnimation[] = [];
-          const isFirstContentReveal =
-            e.control === "show" && e.assets && e.assets.length > 0;
-          if (isFirstContentReveal) {
-            const revealEvent = {
-              name: "show",
-              after: e.after,
-              over: 0,
-              ease: e.ease,
-            };
-            const animation = $.getAnimationDefinition(revealEvent, instant);
-            if (animation) {
-              targetAnimations.push(animation);
-            }
-          }
-          const entries = $.withEntries(e);
-          const showEvents = entries.length
-            ? entries.map((entry) => $.armEvent(entry, "on_show"))
-            : [{ name: "show", after: e.after, over: e.over, ease: e.ease }];
-          const hideEvents = entries.length
-            ? entries.map((entry) => $.armEvent(entry, "on_hide"))
-            : [{ name: "hide", after: e.after, over: e.over, ease: e.ease }];
-          const definitions = (events: typeof showEvents) =>
-            events.flatMap((event) => $.getAnimationDefinition(event, instant) ?? []);
-          const armsOf = (entry: WithInstruction): LineAnimation[] =>
-            Object.entries($.context?.transition?.[entry.name] ?? {}).flatMap(([k, v]) => {
-              if (k.startsWith("$") || k.startsWith("on_")) {
-                return [];
-              }
-              const animateWith = typeof v === "string" ? v : v?.$name;
-              const animation = animateWith
-                ? $.getAnimationDefinition({ name: animateWith, ...$.withTiming(entry) }, instant)
-                : undefined;
-              return animation ? [{ ...animation, arm: k }] : [];
-            });
-          const inWrittenOrder = (eventOf: (entry: WithInstruction) => typeof showEvents[number]) =>
-            entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
+          const plays = pictureLineAnimations($.context as AnimationContext, e, instant);
+          const targetAnimations: LineAnimation[] = plays.targetAnimations;
           const assets = e.assets;
           if (assets && assets.length > 0) {
             const content = $.withPictureLooks(() => {
@@ -8193,50 +8008,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
               return content;
             });
-            if (e.control === "show") {
-              const enterAnimations = definitions(showEvents);
-              if (enterAnimations.length > 0) {
-                content.enterAnimations = enterAnimations;
-              }
-              const previousHideAnimations = definitions(hideEvents);
-              if (previousHideAnimations.length > 0) {
-                content.previousHideAnimations = previousHideAnimations;
-              }
-            } else if (e.control === "hide") {
-              const exitAnimations = definitions(hideEvents);
-              if (exitAnimations.length > 0) {
-                content.exitAnimations = exitAnimations;
-              }
-            } else if (e.control === "animate" && entries.length > 1) {
-              targetAnimations.push(...inWrittenOrder((entry) => $.armEvent(entry, "on_show")));
-            } else if (e.control === "animate") {
-              const enterAnimations = definitions(showEvents);
-              if (enterAnimations.length > 0) {
-                content.enterAnimations = enterAnimations;
-              }
+            if (plays.enterAnimations.length > 0) {
+              content.enterAnimations = plays.enterAnimations;
             }
-            if (e.control !== "animate" || entries.length <= 1) {
-              targetAnimations.push(...entries.flatMap(armsOf));
+            if (plays.previousHideAnimations.length > 0) {
+              content.previousHideAnimations = plays.previousHideAnimations;
+            }
+            if (plays.exitAnimations.length > 0) {
+              content.exitAnimations = plays.exitAnimations;
             }
             out.content = content;
             if (framing) {
               out.framing = framing;
             }
-          } else {
-            if (e.control === "hide") {
-              targetAnimations.push(
-                ...(entries.length ? inWrittenOrder((entry) => $.armEvent(entry, "on_hide")) : definitions(hideEvents)),
-              );
-            } else if (e.control === "show") {
-              if (framing) {
-                out.framing = framing;
-              }
-              targetAnimations.push(
-                ...(entries.length ? inWrittenOrder((entry) => $.armEvent(entry, "on_show")) : definitions(showEvents)),
-              );
-            } else if (e.control === "animate") {
-              targetAnimations.push(...inWrittenOrder((entry) => ({ name: entry.name, ...$.withTiming(entry) })));
-            }
+          } else if (e.control === "show" && framing) {
+            out.framing = framing;
           }
           if (targetAnimations.length > 0) {
             out.targetAnimations = targetAnimations;
@@ -8264,7 +8050,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const moving = !instant && $.moving();
         const arriving: Element[] = [];
-        const hides = sequence ? pictureHide(sequence) : undefined;
+        const timed = (e: ImageInstruction) => $.timedPicture(e);
+        const hides = sequence ? pictureHide(sequence, timed) : undefined;
         const leaving = targetEls.filter(
           (targetEl) =>
             (!sequence || hides === "plain") &&
@@ -8310,7 +8097,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         const exit: PictureExit | undefined =
-          exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
+          exits && !instant && sequence?.some(timed)
             ? { elements: writing, epoch: $._game.connection.epoch }
             : undefined;
         if (exit) {
@@ -8334,9 +8121,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           !instant &&
             (writing.some((el) => !arriving.includes(el)) ||
               Boolean(
-                sequence?.some(
-                  (e) => e.control === "animate" || e.with || e.after || e.over,
-                ),
+                sequence?.some((e) => e.control === "animate" || timed(e)),
               )),
         );
         const written = $.emitSettled(request);
@@ -8945,6 +8730,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       loaded(): void {
         this._loaded = true;
         this._reveals.clear();
+        for (const stream of Object.values($._state.streams ?? {})) {
+          if (stream.next !== undefined) {
+            continue;
+          }
+          stream.entries = stream.entries.map((entry, index) => ({ ...entry, id: index }));
+          if (stream.absorbed) {
+            stream.absorbed = stream.absorbed.map((entry, index) => ({
+              ...entry,
+              id: (stream.restart ? 0 : stream.current) + index,
+            }));
+          }
+          stream.next = stream.entries.length - (stream.reserved ?? 0);
+        }
       }
 
       started(): void {
@@ -8976,12 +8774,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const live: Record<string, StreamState> = {};
         const runs = new Map<string, StreamRunState>();
         for (const layout of $.openedLayoutsAfter(events)) {
-          const restarted = events.some(
-            (event) =>
-              event.name === layout &&
-              (event.control === LayoutVerb.clear ||
-                event.control === LayoutVerb.close),
-          );
+          const own = events.filter((event) => event.name === layout);
+          const closed = own.some((event) => event.control === LayoutVerb.close);
+          const restarted =
+            closed || own.some((event) => event.control === LayoutVerb.clear);
           const nodes = layoutStreams(sparkle, layout);
           const lane = run?.lanes.get(layout);
           const gathered = lane !== undefined;
@@ -8990,6 +8786,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const repeated = nodes.some(
             (_, index) => states[streamKey(layout, index)]?.beat === beat,
           );
+          const settings = streamSettings($._game, layout);
+          const clears =
+            restarted ||
+            (settings.clear === "run" &&
+              member &&
+              (!previous || Boolean(previous.ends) || previous.lines % RUN_LINE_LIMIT === 0));
+          const carry = clears ? settings.carry : undefined;
           if (repeated || instructions.hold) {
             if (previous) {
               runs.set(layout, previous);
@@ -9012,7 +8815,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     return entry && !entry.shown ? [entry] : [];
                   })
                 : [];
-            this.recordStream(stream, node, instructions, { repeat, restarted }, ahead);
+            this.recordStream(
+              stream,
+              node,
+              instructions,
+              { repeat, carry, closed },
+              ahead,
+            );
             stream.beat = beat;
             stream.key = key;
             live[id] = stream;
@@ -9034,40 +8843,81 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         stream: StreamState,
         node: StreamNode,
         instructions: Instructions,
-        options: { repeat: boolean; restarted: boolean },
+        options: { repeat: boolean; carry?: number; closed: boolean },
         ahead: StreamEntry[],
       ): void {
         const started = stream.entries.slice(
           0,
           stream.entries.length - (stream.reserved ?? 0),
         );
-        const before = options.repeat
-          ? [...started.slice(0, stream.current), ...(stream.absorbed ?? [])]
-          : started;
-        const entry = this.entryFor(node, instructions);
-        if (options.restarted && !options.repeat) {
+        const line = this.entryFor(node, instructions);
+        const extendsLast = (entries: readonly StreamEntry[]): boolean => {
+          const last = entries[entries.length - 1];
+          return Boolean(
+            line?.shown &&
+              last?.template === line.template &&
+              Object.keys(line.shown).every((target) => last.text[target]),
+          );
+        };
+        const restart: StreamRestart | undefined = options.repeat
+          ? stream.restart
+          : options.closed
+            ? { carried: 0, closed: true }
+            : options.carry !== undefined
+              ? {
+                  carried: Math.min(
+                    extendsLast(started) ? Math.max(options.carry, 1) : options.carry,
+                    started.length,
+                  ),
+                }
+              : undefined;
+        const before = !options.repeat
+          ? started
+          : restart
+            ? (stream.absorbed ?? [])
+            : [...started.slice(0, stream.current), ...(stream.absorbed ?? [])];
+        const extended = !restart?.closed && extendsLast(before) ? before[before.length - 1] : undefined;
+        const head = restart
+          ? before
+              .slice(before.length - restart.carried)
+              .map((kept): StreamEntry => ({ ...kept, carried: true }))
+          : before;
+        let next = stream.next ?? 0;
+        const id =
+          extended?.id ?? (options.repeat ? stream.entries[stream.current]?.id : undefined) ?? next;
+        if (line && !options.repeat && !extended) {
+          next = id + 1;
+        }
+        const entry: StreamEntry | undefined = line && {
+          ...line,
+          id,
+          ...(extended && (restart || extended.carried) ? { carried: true as const } : {}),
+        };
+        const reserved = options.repeat
+          ? ahead
+          : ahead.map((upcoming, index): StreamEntry => ({ ...upcoming, id: next + index }));
+        if (restart && !options.repeat) {
           stream.cleared = (stream.cleared ?? 0) + 1;
         }
-        let keep = options.restarted ? 0 : before.length;
-        const last = before[keep - 1];
-        if (
-          entry?.shown &&
-          last?.template === entry.template &&
-          Object.keys(entry.shown).every((target) => last.text[target])
-        ) {
-          keep -= 1;
-        }
-        const absorbed = before.slice(keep);
-        stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : []), ...ahead];
+        const keep = extended ? head.length - 1 : head.length;
+        const absorbed = restart ? before : before.slice(keep);
+        stream.entries = [...head.slice(0, keep), ...(entry ? [entry] : []), ...reserved];
         stream.current = keep;
+        stream.next = next;
+        if (restart) {
+          stream.restart = restart;
+        } else {
+          delete stream.restart;
+        }
         if (ahead.length > 0) {
           stream.reserved = ahead.length;
         } else {
           delete stream.reserved;
         }
-        for (const index of Object.keys(stream.styles ?? {})) {
-          if (Number(index) >= keep) {
-            delete stream.styles![Number(index)];
+        const keptIds = new Set(head.slice(0, keep).map((kept) => kept.id));
+        for (const key of Object.keys(stream.styles ?? {})) {
+          if (!keptIds.has(Number(key))) {
+            delete stream.styles![Number(key)];
           }
         }
         if (absorbed.length > 0) {
@@ -9162,16 +9012,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         waiting: boolean,
       ): void {
         for (const stream of Object.values($._state.streams ?? {})) {
-          const indices = waiting
-            ? stream.entries.length - (stream.reserved ?? 0) > stream.current
-              ? [stream.current]
+          const waitingId = stream.entries[stream.current]?.id;
+          const ids = waiting
+            ? stream.entries.length - (stream.reserved ?? 0) > stream.current &&
+              waitingId !== undefined
+              ? [waitingId]
               : []
             : Object.keys(stream.styles ?? {})
                 .map(Number)
-                .filter((index) => stream.styles?.[index]?.[target]);
-          for (const index of indices) {
+                .filter((id) => stream.styles?.[id]?.[target]);
+          for (const id of ids) {
             stream.styles ??= {};
-            const styles = (stream.styles[index] ??= {});
+            const styles = (stream.styles[id] ??= {});
             if (!style) {
               delete styles[target];
               continue;
@@ -9189,7 +9041,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         view: StreamEntryView,
         index: number,
       ): void {
-        const styles = $._state.streams?.[mount.key]?.styles?.[index];
+        const stream = $._state.streams?.[mount.key];
+        const id = stream?.entries[index]?.id;
+        const styles = id === undefined ? undefined : stream?.styles?.[id];
         if (!styles) {
           return;
         }
@@ -9255,8 +9109,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
         const instant = presented?.instant ?? true;
         const time = presented?.time;
+        const epoch = `${stream?.cleared ?? 0}:`;
         const signatures = entries.map(
-          (entry) => `${stream?.cleared ?? 0}:${JSON.stringify(entry)}`,
+          ({ carried: _carried, ...entry }) => `${epoch}${entry.id}:${JSON.stringify(entry)}`,
         );
         let kept = 0;
         while (
@@ -9267,15 +9122,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           kept += 1;
         }
         const restarted = mount.rendered.some(
-          (signature) => !signature.startsWith(`${stream?.cleared ?? 0}:`),
+          (signature) => !signature.startsWith(epoch),
         );
-        const shown = restarted ? 0 : mount.entries.length;
-        for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
-          const group = mount.entries[i]!.group;
-          if (restarted) {
-            $.removeGroup(group);
-          } else {
-            for (const root of $.collectNodes(group)) {
+        let shown = restarted ? 0 : mount.entries.length;
+        if (restarted) {
+          ({ kept, shown } = this.carryOver(mount, entries, signatures));
+        } else {
+          for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
+            for (const root of $.collectNodes(mount.entries[i]!.group)) {
               $.destroyElement(root);
             }
           }
@@ -9319,6 +9173,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             this.restate(view, null);
           }
           this.applyStyles(mount, view, i);
+          if (entry.carried) {
+            this.mark(view, "data-carried", "");
+          }
           if (i >= started) {
             view.reserved = true;
             this.restate(view, "hidden");
@@ -9357,13 +9214,50 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const latest = mount.entries[Math.min(mount.entries.length, started) - 1];
         if (latest !== mount.latest) {
           if (mount.latest && mount.entries.includes(mount.latest)) {
-            this.mark(mount.latest, null);
+            this.mark(mount.latest, "data-latest", null);
           }
           if (latest) {
-            this.mark(latest, "");
+            this.mark(latest, "data-latest", "");
           }
           mount.latest = latest;
         }
+      }
+
+      protected carryOver(
+        mount: MountedStream,
+        entries: readonly StreamEntry[],
+        signatures: readonly string[],
+      ): { kept: number; shown: number } {
+        const leading = entries.findIndex((entry) => !entry.carried);
+        const count = leading < 0 ? entries.length : leading;
+        const idOf = (signature: string) => signature.split(":", 2)[1];
+        const content = (signature: string) =>
+          signature.slice(signature.indexOf(":", signature.indexOf(":") + 1) + 1);
+        const viewOf = new Map(mount.rendered.map((signature, index) => [idOf(signature), index]));
+        const found = signatures.slice(0, count).map((signature) => viewOf.get(idOf(signature)));
+        const keeps = new Set(
+          found.every((index): index is number => index !== undefined) ? found : [],
+        );
+        const views = [...keeps].map((index) => mount.entries[index]!);
+        const previous = [...keeps].map((index) => mount.rendered[index]!);
+        for (let i = mount.entries.length - 1; i >= 0; i -= 1) {
+          if (!keeps.has(i)) {
+            $.removeGroup(mount.entries[i]!.group);
+          }
+        }
+        mount.entries.splice(0, mount.entries.length, ...views);
+        mount.rendered.splice(0, mount.rendered.length, ...signatures.slice(0, views.length));
+        for (const view of views) {
+          this.mark(view, "data-carried", "");
+        }
+        const extended = views.length - 1;
+        if (extended >= 0 && content(signatures[extended]!) !== content(previous[extended]!)) {
+          for (const root of $.collectNodes(views[extended]!.group)) {
+            $.destroyElement(root);
+          }
+          return { kept: extended, shown: extended + 1 };
+        }
+        return { kept: views.length, shown: 0 };
       }
 
       remounted(replaced: (el: Element) => boolean): void {
@@ -9381,8 +9275,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               const reveal = this._reveals.get(this.revealKey(mount, index)) ?? {
                 complete: true,
               };
-              if (this.write(mount, index, entry, reveal, replaced) && view === mount.latest) {
-                this.mark(view, "");
+              if (this.write(mount, index, entry, reveal, replaced)) {
+                if (view === mount.latest) {
+                  this.mark(view, "data-latest", "");
+                }
+                if (entry.carried) {
+                  this.mark(view, "data-carried", "");
+                }
               }
             });
           }
@@ -9435,9 +9334,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
       }
 
-      protected mark(view: StreamEntryView, latest: string | null): void {
+      protected mark(
+        view: StreamEntryView,
+        attribute: "data-latest" | "data-carried",
+        value: string | null,
+      ): void {
         for (const root of $.collectNodes(view.group)) {
-          $.updateElement(root, { attributes: { "data-latest": latest } });
+          $.updateElement(root, { attributes: { [attribute]: value } });
         }
       }
 
@@ -9614,7 +9517,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (speaker) {
             cast.latest = speaker;
             if (instructions.variant) {
-              (cast.variants ??= {})[speaker] = instructions.variant;
+              Object.defineProperty((cast.variants ??= {}), speaker, {
+                value: instructions.variant,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+              });
             } else {
               delete cast.variants?.[speaker];
             }
@@ -9651,19 +9559,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.lines?.[target];
           }
         };
+        const framings: Record<string, Record<string, string>> = structuredClone(cast.framings ?? {});
         const writes = new Map<string, Map<CastEntry, ImageInstruction[]>>();
         const add = (target: string, entry: CastEntry, event: ImageInstruction) => {
           const sequences = writes.get(target) ?? new Map<CastEntry, ImageInstruction[]>();
           writes.set(target, sequences);
-          sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
+          const sequence = sequences.get(entry) ?? [];
+          let written = event;
+          if (event.control === "show" && event.assets?.length && !event.at) {
+            const resolved = $.image.recorded(structuredClone(entry.image?.[target] ?? []), sequence);
+            const at = $.pictureShown(resolved)
+              ? resolved.findLast((e) => e.control === "show" && e.assets?.length)?.at
+              : ownEntry(ownEntry(framings, entry.speaker), target);
+            if (at) {
+              written = { ...event, at };
+            }
+          }
+          sequences.set(entry, [...sequence, written]);
         };
         for (const [target, event] of this.imageEvents(instructions)) {
           if (!holds(target)) {
-            const entry = this.namesCharacter(target)
-              ? cast.entries.find((e) => e.speaker === target)
-              : undefined;
+            const named = this.namesCharacter(target);
+            const entry = named ? cast.entries.find((e) => e.speaker === target) : undefined;
             if (entry) {
               this.writeCharacter(entry, event, writes, add, hidden);
+            }
+            if (named && event.control === "hide") {
+              delete framings[target];
             }
             continue;
           }
@@ -9680,6 +9602,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               hidden.add(entry.id);
             }
           }
+          if (event.control === "hide") {
+            for (const kept of Object.values(framings)) {
+              delete kept[target];
+            }
+          }
         }
         for (const [target, sequences] of writes) {
           for (const [entry, sequence] of sequences) {
@@ -9689,6 +9616,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               $.pictureShown(before) ||
               sequence.some((e) => e.control === "show" && e.assets?.length);
             const after = $.image.recorded(before, sequence);
+            if ($.pictureShown(after)) {
+              const at = after.findLast((e) => e.control === "show" && e.assets?.length)?.at;
+              const targets = ownEntry(framings, entry.speaker);
+              if (at) {
+                Object.defineProperty(framings, entry.speaker, {
+                  value: { ...targets, [target]: at },
+                  writable: true,
+                  enumerable: true,
+                  configurable: true,
+                });
+              } else if (targets) {
+                delete targets[target];
+              }
+            }
             (entry.image ??= {})[target] = after;
             wrote(entry, "image", target);
             queue({
@@ -9700,6 +9641,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               exits: onScreen && !$.pictureShown(after),
             });
           }
+        }
+        const kept = Object.entries(framings).filter(([, targets]) => Object.keys(targets).length > 0);
+        if (kept.length > 0) {
+          cast.framings = Object.fromEntries(kept);
+        } else {
+          delete cast.framings;
         }
         if (speaker) {
           for (const [target, events] of texts) {
@@ -9753,7 +9700,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : !this.empty(entry) || created.size === 0 || created.has(entry.id),
         );
         for (const entry of cast.entries) {
-          const variant = cast.variants?.[entry.speaker];
+          const variant = ownEntry(cast.variants, entry.speaker);
           if (variant) {
             entry.variant = variant;
           } else {
@@ -9839,7 +9786,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const lines: CastLine[] = Object.entries($._state.streams ?? {}).flatMap(
           ([key, stream]) =>
             stream.entries.length > stream.current
-              ? [{ key, cleared: stream.cleared ?? 0, index: stream.current }]
+              ? [{ key, index: stream.current, entry: stream.entries[stream.current]!.id }]
               : [],
         );
         const page = $._state.page;
@@ -9873,11 +9820,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             );
           }
           const stream = $._state.streams?.[line.key];
-          return (
-            stream !== undefined &&
-            (stream.cleared ?? 0) === line.cleared &&
-            stream.entries.length > line.index
-          );
+          if (stream === undefined) {
+            return false;
+          }
+          return line.entry !== undefined
+            ? stream.entries.some((entry) => entry.id === line.entry)
+            : (stream.cleared ?? 0) === line.cleared && stream.entries.length > line.index;
         });
       }
 

@@ -16,61 +16,33 @@ const owners = (content: string) => {
   };
 };
 
-describe("which `with` a clause belongs to, and what it borrows (I-2853)", () => {
+describe("which `with` a clause belongs to (I-2853)", () => {
   test.each([
     [
       "animate backdrop to left over 1s with shake",
-      { line: { to: "left", over: "1s" }, withs: [{ name: "shake", over: "1s" }] },
+      { line: { to: "left", over: "1s" }, withs: [{ name: "shake" }] },
     ],
     [
       "animate backdrop to left with shake over 1s",
-      { line: { to: "left", over: "1s" }, withs: [{ name: "shake", over: "1s" }] },
+      { line: { to: "left" }, withs: [{ name: "shake", over: "1s" }] },
     ],
     [
       "animate portrait over 2s with shake with spin over 5s",
-      { line: { over: "2s" }, withs: [{ name: "shake", over: "2s" }, { name: "spin", over: "5s" }] },
+      { line: { over: "2s" }, withs: [{ name: "shake" }, { name: "spin", over: "5s" }] },
     ],
     [
       "animate portrait with shake over 1s with spin over 5s",
-      { line: { over: "1s" }, withs: [{ name: "shake", over: "1s" }, { name: "spin", over: "5s" }] },
+      { line: {}, withs: [{ name: "shake", over: "1s" }, { name: "spin", over: "5s" }] },
     ],
     [
       "animate backdrop to left over 1s with shake over 2s",
       { line: { to: "left", over: "1s" }, withs: [{ name: "shake", over: "2s" }] },
     ],
-  ])("the table in part 2 of #2852: `%s`", (content, expected) => {
+  ])("`%s`", (content, expected) => {
     expect(owners(content)).toEqual(expected);
   });
 
-  test("a `with` borrows each of `over`, `after` and `ease` it lacks from the line", () => {
-    expect(owners("animate portrait after 1s with shake ease linear with spin over 2s")).toEqual({
-      line: { after: "1s" },
-      withs: [
-        { name: "shake", after: "1s", ease: "linear" },
-        { name: "spin", after: "1s", over: "2s" },
-      ],
-    });
-  });
-
-  test("a line borrows the first `with`'s timing only when it has none of `over`, `after` and `ease` of its own (#2857)", () => {
-    expect(owners("animate backdrop to left with shake after 1s over 2s ease linear with spin over 5s")).toEqual({
-      line: { to: "left", after: "1s", over: "2s", ease: "linear" },
-      withs: [
-        { name: "shake", after: "1s", over: "2s", ease: "linear" },
-        { name: "spin", over: "5s" },
-      ],
-    });
-    expect(owners("animate backdrop to left over 4s with shake after 3s over 1s")).toEqual({
-      line: { to: "left", over: "4s" },
-      withs: [{ name: "shake", after: "3s", over: "1s" }],
-    });
-    expect(owners("animate backdrop to left over 1s with shake ease linear")).toEqual({
-      line: { to: "left", over: "1s" },
-      withs: [{ name: "shake", over: "1s", ease: "linear" }],
-    });
-  });
-
-  test("`loop` and `once` belong to the side they are written on and are never borrowed", () => {
+  test("`loop` and `once` belong to the side they are written on", () => {
     expect(owners("show backdrop rain once with fade")).toEqual({
       line: { once: true },
       withs: [{ name: "fade" }],
@@ -119,7 +91,7 @@ describe("which `with` a clause belongs to, and what it borrows (I-2853)", () =>
 
   test("screen lines read the same list", () => {
     expect(owners("open inventory with fade over 0.3s with shake over 0.5s")).toEqual({
-      line: { over: "0.3s" },
+      line: {},
       withs: [
         { name: "fade", over: "0.3s" },
         { name: "shake", over: "0.5s" },

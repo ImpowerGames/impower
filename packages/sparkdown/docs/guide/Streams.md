@@ -60,7 +60,7 @@ Here `RAFFLES [receive]:` makes an incoming bubble, `BUNNY [send]:` an outgoing 
 
 A line of a kind with no template adds nothing to the stream. Each line adds one entry after the last, and types into its entry as it would into a box: the speaker's name goes to a `character_name` inside the entry, the line to the element named after its kind, and a click finishes the typing. Each line waits for a click before the next one, as a line in a box does, unless the stream advances by itself (see [A stream that advances by itself](#a-stream-that-advances-by-itself)).
 
-Whatever a line writes into its entry stays there as long as the entry does. Entries stay until `[[clear phone]]` or `[[close phone]]`. After a clear, the line the clear is on becomes the first entry; after a close, the layout opens empty the next time. `clear` works on any layout that holds a stream, and on `textstream` (see [Screens & Navigation](./Screens.md)). On a layout with no stream, the editor warns "`card` has no stream to clear." and the game ignores it.
+Whatever a line writes into its entry stays there as long as the entry does. Entries stay until `[[clear phone]]` or `[[close phone]]`. After a clear, the line the clear is on becomes the first entry, after any entries the stream's `carry` keeps (see [Clearing at each run](#clearing-at-each-run)); after a close, the layout opens empty the next time. `clear` works on any layout that holds a stream, and on `textstream` (see [Screens & Navigation](./Screens.md)). On a layout with no stream, the editor warns "`card` has no stream to clear." and the game ignores it.
 
 An entry appears and leaves as any element does (see [Appearing and leaving](./StyleProps.md#appearing-and-leaving)): a new entry arrives from its `@initial` look, and a clear plays each entry's `@hide` before removing it. A line that extends the line before it adds to that entry, which stays on screen.
 
@@ -127,10 +127,12 @@ end
 | --- | --- | --- | --- |
 | `advance` | `click`, `auto` | `click` | Whether each line waits for a click or follows the one before it. |
 | `pause` | a time | `0.4s` | With `auto`, how long after a line finishes typing the next one starts. |
+| `clear` | `never`, `run` | `never` | With `run`, the entries of earlier runs leave when a new run starts. |
+| `carry` | a count | `0` | How many of the newest entries stay through a clear. |
 
 The block is the only way to write these settings: `define phone as stream` is refused, as it is for styles, layouts, animations and morphs. A block that names no layout gets the warning "No layout is named `phnoe`."
 
-A stream that advances by itself starts each line `pause` after the one before it finishes typing. It waits for a click at the last line before the story leaves the stream, where the next line goes elsewhere, a menu comes up or the story ends, and at any line that ends with `>`, the mark that already means "wait for a click". A click before a wait shows every line up to that wait at once.
+A stream that advances by itself starts each line `pause` after the one before it finishes typing. It waits for a click at the last line before the story leaves the stream, where the next line goes elsewhere, a menu comes up or the story ends, and at any line that ends with `>`, the mark that already means "wait for a click". A click before a wait shows every line up to that wait at once. A line that ends with `>>` is followed at once by the next one, with no `pause` (see [Carrying on without a click](./JoiningLines.md#133-carrying-on-without-a-click)).
 
 ### Runs are gathered
 
@@ -139,12 +141,67 @@ A run is every line a stream shows from one wait to the next. The game reads a r
 - A stream in a layout that opened by itself (see [Screens & Navigation](./Screens.md)) is gathered to that layout's close, so its box is sized once even when each line waits for a click or a line ends with `>`.
 - A stream in a layout you opened with `[[open NAME]]` is gathered to its next wait.
 - With `advance = click` in a layout you opened, each line is a run of its own, so a page of text still grows line by line.
+- With `clear = run`, a stream is gathered to its next clear, in a layout that opened by itself as well as in one you opened, so each page is sized on its own.
+- A line that ends with `>>` is not a wait, so a run is gathered through it, in a stream that waits for a click as well.
 - Reading stops at a menu.
 - A run holds at most 100 lines. In a longer stretch with no wait, such as lines written in an endless loop, the stream waits for a click at every hundredth line, and each part of up to 100 lines is gathered and sized on its own.
 
 Pictures, sounds and directives written on a line happen when that line starts, not when it is read. Game logic between gathered lines runs before the first of them shows; to make a line wait for that logic, end the line before it with `>`.
 
 Each wait is one step: stepping back from a line after a run returns to the wait before it, and a save taken at a wait loads with the lines shown up to it. The preview on a line inside a run makes room for every gathered line and shows the lines up to the one you picked.
+
+### Clearing at each run
+
+With `clear = run`, a stream turns to a fresh page at each new run: when the first line of a run starts, the entries of the runs before it leave. `carry` keeps that many of the newest entries through the clear, so a thread can start its next page with the last message at the top:
+
+```sparkdown
+layout phone {
+  thread {
+    stream {
+      dialogue.bubble { text }
+    }
+  }
+}
+
+stream phone {
+  advance = auto
+  pause = 0.6s
+  clear = run
+  carry = 1
+}
+
+style bubble {
+  transition-property = opacity, translate, layout
+  transition-duration = 0.38s
+  @initial { opacity = 0; translate = 0 12px }
+  @show { transition-duration = 0.2s }
+  @hide { opacity = 0; transition-duration = 0.22s }
+  @carried { background-color = neutral_95 }
+}
+
+scene start
+  [[open phone]]
+  RAFFLES: slight problem
+  RAFFLES: doors locked
+  BUNNY: Anything you can do about it? >
+  RAFFLES: maybe
+  BUNNY: You know how to pick locks?? >
+end
+```
+
+When `RAFFLES: maybe` starts, the first two messages fade over 220ms, BUNNY's question rises to the top over 380ms with the look of a carried entry, and then the next messages arrive. The fades need `opacity` in the transition's properties: a transition that names only `layout` moves the entries but lets their `@initial` and `@hide` looks change at once.
+
+The order of a clear is fixed. The leaving entries play their `@hide` and are removed, the carried entries then move to their new place by their `layout` transition (see [Appearing and leaving](./StyleProps.md#appearing-and-leaving)), and then the next line starts. No separate clear transition exists: `@hide` on the entries is it.
+
+- `[[clear NAME]]` keeps the newest entries `carry` names too, with either value of `clear`. `[[close NAME]]` always empties the stream.
+- `@carried` is true on an entry that was kept through a clear, and on no other. A carried entry keeps what its line wrote and the template it was made from, and it is no longer `@latest` once a newer entry arrives.
+- With `advance = click`, every line that does not end with `>>` waits for a click, so each such line ends a run, and `clear = run` clears at the line after it.
+- The wait at a run's hundredth line ends that run too, so the line after it starts a fresh page.
+- A line that continues the newest entry (see [Joining Lines](./JoiningLines.md)) keeps that entry through the clear and adds to it, even with `carry = 0`; the entry is then `@carried`.
+- A picture or name a cast shows with a line stays while that line's entry is carried.
+- A carry larger than the number of entries keeps all of them.
+
+The preview on a line, a step back and a loaded save show the entries the game would have at that line: the carried ones and the run's lines up to it.
 
 ## A cast keeps one entry per character
 
@@ -185,7 +242,7 @@ end
 
 `[[hide mia]]` removes Mia's entry, which plays its `@hide`, and leaves Sam's. `[[animate mia to center over 1s]]` moves only Mia's picture, and `[[animate sam with shake]]` shakes only Sam's. A layer's name reaches every entry in a cast that holds that layer: `[[animate portrait with shake]]` shakes them all, and `[[hide portrait]]` removes them all. A character with no entry on screen is left alone, as hiding an empty layer is.
 
-Each entry is its own layer for [framings](./Framings.md), so `[[mia@happy at left]]` frames only Mia's picture and `[[sam@calm at right]]` frames only Sam's. A framing moves the picture inside its own element, and a style places the element, so the two add up. Showing a new picture of a character puts that entry back at the default framing unless the line writes `at` again, as for a plain layer.
+Each entry is its own layer for [framings](./Framings.md), so `[[mia@happy at left]]` frames only Mia's picture and `[[sam@calm at right]]` frames only Sam's. A framing moves the picture inside its own element, and a style places the element, so the two add up. A character keeps their framing in the cast: a later picture of Mia with no `at` stays at `left`, so a side written once lasts through every line after it. The framing changes only when a line writes `at` again for that character or moves them with `[[animate mia to right]]`, and it ends when the script hides the character or the layer, with `[[hide mia]]` or `[[hide portrait]]`. To put a character back at the default, write `at center`: the built-in `center` draws the same view as the default, centred at zoom 1. A plain layer outside a cast works differently, and a picture shown on it without `at` is at the default framing.
 
 When a character and a layer share a name, the layer wins, and the editor warns "`mia` names a layer and a character. `hide` and `animate` use the layer." After `hide` and `animate`, the editor offers the characters that have pictures beside the layers.
 
@@ -226,7 +283,7 @@ An entry is on screen while it has content, and [`#clear`](./Structure.md#clear-
 - With `#clear`, the picture lasts as long as the line that showed it is on screen: one line in a dialogue box, and as long as that line's entry stays in a stream, which keeps both speakers of an exchange up.
 - If the next line shows a picture of the same character, the picture is replaced, not emptied, so the entry stays and only its `#variant` changes.
 
-An emptied entry stays, unseen, until another character's entry arrives or the script hides it. With the two-level template above, a speaker who returns after a line of narration appears in place at once, as any picture does when it is shown, and a different speaker slides in, because the new entry's `@initial` plays. A property named in an `@initial` block moves only when the element's transition names it, as `translate` is named here. A one-level template, `cast { portrait #clear { image } }`, suits a game where every appearance should slide.
+An emptied entry stays, unseen, until another character's entry arrives or the script hides it. The character's framing outlasts both the emptied entry and its removal by another character's arrival, so when Mia returns after Sam's lines with a picture that writes no `at`, her new entry is at the side she last held. Only hiding her or the layer ends it. With the two-level template above, a speaker who returns after a line of narration appears in place at once, as any picture does when it is shown, and a different speaker slides in, because the new entry's `@initial` plays. A property named in an `@initial` block moves only when the element's transition names it, as `translate` is named here. A one-level template, `cast { portrait #clear { image } }`, suits a game where every appearance should slide.
 
 Saves and checkpoints keep the entries. The preview on a line and a step back show the cast the game would have at that line.
 

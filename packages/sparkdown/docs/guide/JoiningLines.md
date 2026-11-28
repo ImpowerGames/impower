@@ -1,6 +1,6 @@
 # 13. Joining Lines
 
-Each line of story text shows as a line of its own. Two dots, `..`, join lines together: a line that ends with `..` offers to join, and a line that begins with `..` takes the offer. The two lines then show as one, in the same text box. The same marks beside a `>` break carry a box on after the player clicks.
+Each line of story text shows as a line of its own. Two dots, `..`, join lines together: a line that ends with `..` offers to join, and a line that begins with `..` takes the offer. The two lines then show as one, in the same text box. The same marks beside a `>` break carry a box on after the player clicks. A line that ends with `>>` carries on to the next line without a click, and the `<speed>` and `<wait>` tags set how a line types.
 
 The examples are written inside a `scene`, as story text is in a script.
 
@@ -23,7 +23,7 @@ end
 
 With the key, this shows "You see a rusty key." as one line. The joined lines do not have to sit next to each other in the script: the line shown after `You see a ..` can be the first line of an `if` branch, the first line of a scene a divert reaches, or a line that comes after some logic.
 
-Both marks are needed. A line that ends with `..` before a line that does not begin with `..` shows as usual, and so does a line that begins with `..` after a line that does not end with one, with a warning (see 13.4).
+Both marks are needed. A line that ends with `..` before a line that does not begin with `..` shows as usual, and so does a line that begins with `..` after a line that does not end with one, with a warning (see 13.6).
 
 ### Spaces
 
@@ -112,11 +112,101 @@ The box stays the kind it was before the click. An action box carried on by `BOB
 
 With a mark on one side of the break only, the part after the click starts a new box. A `..` that ends a line right after a break (`Wait > ..`) has no part after the break to begin, so it does nothing.
 
-## 13.3 Asset lines
+## 13.3 Carrying on without a click
+
+A line that ends with `>>` carries on without a click once it has finished showing. `>` waits for the player's click, and `>>` is its pair: the story goes on to the next line by itself.
+
+```sparkdown
+scene Alley
+  RAFFLES: Wait here. >>
+  A siren wails in the distance.
+end
+```
+
+Raffles's line types, and the siren's line follows the moment it has finished, with no click. A click while the line is typing shows the whole line, as it does for any line, and the story then carries on.
+
+`>>` waits for nothing of its own. For a beat before the next line, write a `<wait=N>` (see 13.4) before the mark:
+
+```sparkdown
+scene Phone
+  BUNNY: What's plan b? <wait=0.6> >>
+  A notification slides over the screen.
+end
+```
+
+The notification's line starts 0.6 seconds after Bunny's line finishes typing.
+
+With a `..` before it, the mark keeps the box open as a `>` break does, and the next line shown carries on in the same box when it begins with `..`, with no click:
+
+```sparkdown
+scene Ledge
+  Hold on .. >>
+  .. tight.
+end
+```
+
+### What counts as the mark
+
+The mark is two `>` at the end of a line. A tag, a `//` comment or block comments that close on the same line may follow it. A block comment that runs on to a later line leaves `>>` two breaks, since the line cannot tell whether text follows where the comment closes. Anywhere else on a line, `>>` is two `>` breaks, each waiting for a click (`Wait >> there.`), and so is a run of three or more `>` at the end of a line. On a line with no text, such as one that only plays a sound, `>>` changes nothing: the sound already plays when the next line starts, and that line waits as usual.
+
+### In a stream
+
+In a stream that advances by itself (see [A stream that advances by itself](./Streams.md#a-stream-that-advances-by-itself)), a line that ends with `>>` is followed at once by the next one, with no `pause`. A `>>` does not end a run: the stream's lines are gathered through it to the next wait, and that holds in a stream that waits for a click too.
+
+A line that takes no time to type, such as a line at `<speed=0>`, finishes the moment it shows, so lines written at `<speed=0>` and ending with `>>` all show at once. Messages that are already in a thread when it opens are written that way:
+
+```sparkdown
+layout phone {
+  thread {
+    stream {
+      dialogue.bubble { text }
+    }
+  }
+}
+
+stream phone {
+  advance = auto
+}
+
+scene Thread
+  [[open phone]]
+  RAFFLES: <speed=0>i have a plan b >>
+  RAFFLES: <speed=0>meet me outside >>
+  BUNNY: What's plan b?
+end
+```
+
+The first two messages are whole and on screen the moment the phone appears, and Bunny's reply types after them.
+
+### In the editor preview
+
+The preview on a line that ends with `>>` shows that line, as the preview on any other line does.
+
+## 13.4 Pacing a line with `<speed>` and `<wait>`
+
+Two tags written in a line set how it types. The value follows an `=`.
+
+| Tag | What it does |
+| --- | --- |
+| `<speed=N>` | Types the text after it N times as fast as the typewriter's own pace, until the line ends or another `<speed>` changes it. `<speed=0.5>` types at half speed, `<speed=2>` at twice the speed, and `<speed=0>` shows the text at once. |
+| `<wait=N>`, or `<w=N>` | Pauses the typing for N seconds before the text after it. |
+
+```sparkdown
+scene Reveal
+  ALICE: It was... <wait=1> <speed=0.5>you.
+  <speed=0>The lights go out.
+end
+```
+
+Alice's line types "It was...", holds for a second, then types "you." at half speed. The next line is there at once.
+
+A wait at the end of a line holds the line before the next one starts, which is how a line that ends with `>>` gets a beat before the story carries on. Neither tag shows in the text.
+
+## 13.5 Asset lines
 
 A `load` line names the assets it loads, so it cannot end with `..`. The text after a `>` break on a `load` line is not part of the loading, so a `..` that ends that text joins as usual.
 
-## 13.4 Errors and warnings
+## 13.6 Errors and warnings
 
 The editor reports one error about the marks, on a `load` line that ends with `..`:
 
@@ -128,6 +218,6 @@ Which line shows before a line that begins with `..` can depend on the choices t
 
 A line that ends with `..` and is followed by a line that does not begin with `..` raises nothing, since another branch may take the offer.
 
-## 13.5 In the editor
+## 13.7 In the editor
 
-Hover over a `..` that ends or begins a line to see what it does. A `..` that is text shows no hover.
+Hover over a `..` that ends or begins a line, or a `>>` that ends a line, to see what it does. A `..` that is text and a `>>` in the middle of a line show no hover.

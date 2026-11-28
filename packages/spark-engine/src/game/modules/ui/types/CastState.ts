@@ -4,6 +4,7 @@ import type { ImageState } from "./ImageState";
 export interface CastLine {
   key: string;
   index: number;
+  entry?: number;
   cleared?: number;
   length?: number;
   hash?: string;
@@ -24,6 +25,7 @@ export interface CastState {
   next: number;
   latest?: string;
   variants?: Record<string, string>;
+  framings?: Record<string, Record<string, string>>;
   beat?: number;
   key?: string;
 }

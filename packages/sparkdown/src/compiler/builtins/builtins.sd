@@ -4887,6 +4887,8 @@ end
 define stream with
   advance = "click"
   pause = "0.4s"
+  clear = "never"
+  carry = 0
 end
 
 define transition with

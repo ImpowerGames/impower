@@ -52,7 +52,9 @@ import {
   DIRECTIVE_FLAG_WORDS,
   DIRECTIVE_NODE_BRACKETS,
   DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
+  DIRECTIVE_TIMING_WORDS,
   directiveClauseWords,
+  directiveOwners,
   directiveValueKind,
   readSourceDirective,
   type SourceDirective,
@@ -693,6 +695,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       this.framingClauseIssues(issue, directive);
+      this.untimedLineClauseIssues(issue, directive);
     } else {
       for (const { word } of directive.clauses) {
         if (word.text !== "at") continue;
@@ -714,6 +717,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         issue(`${example[0]} takes one \`with\`\n> e.g. \`${example[1]}\``, word.from, word.to, "error");
       }
     }
+    this.usingClauseIssues(issue, directive);
     directive.clauses.forEach((clause, index) => {
       const keyword = clause.word.text;
       const value = clause.value;
@@ -750,6 +754,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         expect(`\`${keyword}\` should be followed by a time value\n> e.g. \`${keyword} 2\`, \`${keyword} 2s\`, \`${keyword} 200ms\``);
       } else if (keyword === "with" && bracket === "image" && valueKind !== "name") {
         expect("\`with\` should be followed by the name of a transition or animation\n> e.g. \`with shake\`");
+      } else if (keyword === "using" && valueKind !== "name") {
+        expect("\`using\` should be followed by the name of a transition\n> e.g. \`using fade\`");
       } else if (keyword === "with" && bracket === "audio" && valueKind !== "name") {
         expect("\`with\` should be followed by the name of a modulation\n> e.g. \`with echo\`");
       } else if (keyword === "ease" && bracket === "image" && valueKind !== "name") {
@@ -799,6 +805,56 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         "`to` moves the picture the layer already shows, so an `animate … to` line names no picture\n> e.g. `[[animate backdrop to sofa over 1s]]`",
         first.from,
         last.to,
+      );
+    }
+  }
+
+  protected usingClauseIssues(
+    issue: (message: string, from: number, to: number, severity?: "error" | "warning") => void,
+    directive: SourceDirective,
+  ): void {
+    const usings = directive.clauses.filter((clause) => clause.word.text === "using").map((clause) => clause.word);
+    if (usings.length === 0) return;
+    const control = directive.control?.text;
+    const transitionedLine =
+      directive.kind === "load"
+        ? "load chapter2"
+        : directive.kind === "cutscene"
+          ? "play intro"
+          : control === LayoutVerb.navigate
+            ? "navigate main to inventory"
+            : `${control ?? LayoutVerb.open} inventory`;
+    const misplaced =
+      directive.bracket === "audio"
+        ? "`using` names how a picture arrives or leaves, so it does not belong on a sound line\n> e.g. `[[show portrait hero using fade]]`"
+        : directive.kind !== "image"
+          ? `\`using\` belongs on a picture line: a \`${control ?? directive.kind}\` line names its transition with \`with\`\n> e.g. \`[[${transitionedLine} with fade]]\``
+          : control === "animate" && directive.names.length === 0
+            ? "`using` names how the picture an `animate` adds arrives, and this `animate` names no picture\n> e.g. `[[animate backdrop dusk using fade]]`"
+            : undefined;
+    if (misplaced) {
+      for (const word of usings) issue(misplaced, word.from, word.to, "error");
+      return;
+    }
+    for (const word of usings.slice(1)) {
+      issue("A line takes one `using`\n> e.g. `[[show portrait hero using fade with shake]]`", word.from, word.to, "error");
+    }
+  }
+
+  protected untimedLineClauseIssues(
+    issue: (message: string, from: number, to: number, severity?: "error" | "warning") => void,
+    directive: SourceDirective,
+  ): void {
+    if (directive.control?.text !== "animate" || directive.names.length > 0) return;
+    if (directive.clauses.some((clause) => clause.word.text === "to")) return;
+    for (const clause of directiveOwners(directive.kind, directive.clauses).line) {
+      const keyword = clause.word.text;
+      if (!DIRECTIVE_TIMING_WORDS.includes(keyword)) continue;
+      issue(
+        `\`${keyword}\` times nothing here: this line has no show, hide or travel of its own. Write it after the \`with\` it should time.`,
+        clause.word.from,
+        clause.value?.to ?? clause.word.to,
+        "warning",
       );
     }
   }

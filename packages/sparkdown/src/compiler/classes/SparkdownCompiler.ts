@@ -205,6 +205,7 @@ import type { Reference } from "./annotators/ReferenceAnnotator";
 import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
+import { clauseWordKindMessage } from "../utils/clauseWordKind";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { layoutElementNames, layoutNames, showingNames } from "../utils/layoutElementNames";
 import { GAME_WIDE_STATES, isAtRuleState, SHOWING_STATE } from "../constants/selectorStates";
@@ -5946,6 +5947,10 @@ export class SparkdownCompiler {
           diagnostic: data ? { severity, message, data } : { severity, message },
         });
       };
+      const definedAs = (type: string, name: string) => {
+        readKey(reads, type, name);
+        return getContextEntry(program.context, type, name) !== undefined;
+      };
       const closeMatchAmong = (name: string, types: readonly string[]) => {
         const names = new Set<string>();
         for (const type of types) {
@@ -6146,6 +6151,15 @@ export class SparkdownCompiler {
           reference.declaration === "define_type_name" &&
           selector?.types?.some((type) => declaredParentTypes.has(type))
         ) {
+        } else if (
+          reference.otherKind &&
+          selector?.name &&
+          definedAs(reference.otherKind.kind, selector.name)
+        ) {
+          report(
+            DiagnosticSeverity.Error,
+            clauseWordKindMessage(selector.name, reference.otherKind.kind, reference.otherKind.word),
+          );
         } else {
           const validDescription =
             selector && (selector.displayName || selector.name)

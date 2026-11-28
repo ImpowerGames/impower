@@ -68,6 +68,7 @@ export interface Reference {
   stylingStringIdentifier?: boolean;
   castTarget?: boolean;
   asset?: { types: string[]; name: string; typed?: boolean };
+  otherKind?: { word: string; kind: string };
   root?: number;
 }
 
@@ -272,6 +273,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       }
     }
     for (const value of valueOf("with")) shown(value, ["transition", "animation"], "transition or animation");
+    for (const value of valueOf("using")) {
+      shown(value, ["transition"], "transition", value.text, { otherKind: { word: "with", kind: "animation" } });
+    }
     for (const value of valueOf("ease")) shown(value, ["ease"], "ease");
     if (kind === "image") {
       for (const value of [...valueOf("at"), ...valueOf("to")]) shown(value, ["framing"], "framing");
