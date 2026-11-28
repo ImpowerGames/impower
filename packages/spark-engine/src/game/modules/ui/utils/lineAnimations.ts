@@ -192,7 +192,11 @@ export const pictureLineAnimations = (
         return animation;
       }
       const properties = new Set(animation.keyframes.flatMap((keyframe) => Object.keys(keyframe ?? {})));
-      const overlapping = withs.filter((other) => other.keyframes.some((keyframe) => Object.keys(keyframe ?? {}).some((p) => properties.has(p))));
+      const overlapping = withs.filter(
+        (other) =>
+          other.target?.$name === animation.target?.$name &&
+          other.keyframes.some((keyframe) => Object.keys(keyframe ?? {}).some((p) => properties.has(p))),
+      );
       const end = animationsEnd(overlapping);
       return end > 0 ? { ...animation, timing: { ...animation.timing, delay: `${end}s` } } : animation;
     });

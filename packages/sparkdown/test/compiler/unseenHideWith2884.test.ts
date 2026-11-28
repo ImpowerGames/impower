@@ -76,4 +76,15 @@ describe("a `with` on a `hide` line that cannot be seen is warned about (I-2884)
   test("no warning when the project's `hide` animation declares a duration", () => {
     expect(unseen("[[hide portrait with spin over 1s once]]", TIMED_HIDE)).toEqual([]);
   });
+
+  test("a `with` that fades a part of the picture does not show the hidden picture, so it is still warned about", () => {
+    const childFade = 'animation childfade {\n  target = layer.instance\n  keyframes {\n    {\n      opacity = "0"\n    }\n  }\n  timing {\n    duration = "1s"\n  }\n}\n\n';
+    expect(unseen("[[hide portrait with childfade]]", childFade)).toEqual([`with childfade: ${UNSEEN}`]);
+  });
+
+  test("no warning when the layer's typewriter fades, since its fade length times the hide", () => {
+    const fading = "define backdrop as typewriter with\n  fade_duration = 5\nend\n\n";
+    expect(unseen("[[hide backdrop with spin over 1s once]]", fading)).toEqual([]);
+    expect(unseen("[[hide portrait with spin over 1s once]]", fading)).toEqual([`with spin: ${UNSEEN}`]);
+  });
 });

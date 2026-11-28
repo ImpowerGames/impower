@@ -9,6 +9,18 @@ end
 define Q as image with
   src = "https://example.com/q.png"
 end
+animation childfade {
+  target = layer.instance
+  keyframes {
+    {
+      opacity = "0"
+    }
+  }
+  timing {
+    duration = "1s"
+    easing = "linear"
+  }
+}
 layout main {
   stage {
     portrait { image }
@@ -116,6 +128,16 @@ describe("a fading `with` on a hide starts from the layer's look before the line
     seek(100);
     await settle(h);
     await write(h, "[[hide portrait with fadeout over 1s]]");
+    seek(100);
+    expect(opacity(layer)).toBe(0);
+    seek(600);
+    expect(opacity(layer)).toBe(0);
+  });
+
+  test("a fading `with` on a part of the picture does not hold the layer's instant hide", async () => {
+    const h = await setup();
+    const layer = h.overlay.querySelector<HTMLElement>(".portrait")!;
+    await write(h, "[[hide portrait with childfade over 1s]]");
     seek(100);
     expect(opacity(layer)).toBe(0);
     seek(600);

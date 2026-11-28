@@ -151,13 +151,22 @@ function unseenHideWithIssues(
   const zero = (value: unknown) => parseFloat(String(value ?? 0)) === 0;
   const hide = getContextEntry(context, "animation", "hide");
   if (!hide || !zero(hide.timing?.duration) || !zero(hide.timing?.delay)) return [];
+  const typewriter =
+    getContextEntry(context, "typewriter", directive.target?.text ?? "") ?? getContextEntry(context, "typewriter", "$default");
+  if (!zero(typewriter?.fade_duration)) return [];
   const leavingAnimation = (name: string) => {
     const transition = getContextEntry(context, "transition", name);
     const armed = transition?.on_hide;
     return getContextEntry(context, "animation", transition ? (typeof armed === "string" ? armed : armed?.$name) ?? "hide" : name);
   };
-  const setsOpacity = (name: string | undefined) =>
-    name !== undefined && (leavingAnimation(name)?.keyframes ?? []).some((keyframe: any) => keyframe?.opacity != null);
+  const hideTarget = hide.target?.$name ?? "self";
+  const setsOpacity = (name: string | undefined) => {
+    const animation = name === undefined ? undefined : leavingAnimation(name);
+    return (
+      (animation?.target?.$name ?? "self") === hideTarget &&
+      (animation?.keyframes ?? []).some((keyframe: any) => keyframe?.opacity != null)
+    );
+  };
   if (owners.withs.some((entry) => setsOpacity(entry.name?.text))) return [];
   return owners.withs.map((entry) => ({
     at: { from: entry.word.from, to: entry.name?.to ?? entry.word.to },

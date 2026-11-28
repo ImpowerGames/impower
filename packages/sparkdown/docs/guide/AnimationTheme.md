@@ -158,18 +158,20 @@ to that `with`'s `over`, and its other parts, such as the `screen` pulse of
 it runs, `[[show portrait hero with fade]]` still fades.
 
 An instant hide takes effect at once. When a `with` on the leaving picture
-changes the same property as the hide, such as the opacity of `fadeout` or
-`pulse`, the hide holds until that `with` ends: the `with` plays from the look
-the picture has, and the picture is hidden when it ends. `[[hide portrait with spin over 1s once]]`
-hides the portrait at once, so the spin is not seen, and the editor warns on the
-`with`: "This `with` is not seen: the picture is hidden at once. Give the hide a
-length (`over 1s`), a delay (`after 1s`) or a transition (`using fade`)." The
-warning is given on a `hide` line that has a `with`, no `using`, and no `over`
-or `after` of its own, while the project's `hide` animation declares a duration
-and a delay of 0. It is not given on a line where a `with` sets `opacity`, such
-as `pulse`: the hide holds until that animation ends, so the picture and every
-`with` on it are seen. `[[hide portrait over 1s with spin once]]` fades the
-portrait out while it turns.
+changes the same property of the same element as the hide, such as the opacity
+of `fadeout` or `pulse`, the hide holds until that `with` ends: the `with`
+plays from the look the picture has, and the picture is hidden when it ends.
+`[[hide portrait with spin over 1s once]]` hides the portrait at once, so the
+spin is not seen, and the editor warns on the `with`: "This `with` is not
+seen: the picture is hidden at once. Give the hide a length (`over 1s`), a
+delay (`after 1s`) or a transition (`using fade`)." The warning is given on a
+`hide` line that has a `with`, no `using`, and no `over` or `after` of its
+own, while the project's `hide` animation declares a duration and a delay of 0
+and the layer's typewriter has no `fade_duration`. It is not given on a line
+where a `with` sets the picture's `opacity`, such as `pulse`: the hide holds
+until that animation ends, so the picture and every `with` on it are seen.
+`[[hide portrait over 1s with spin once]]` fades the portrait out while it
+turns.
 
 A picture that leaves is removed once the longest of its animations has ended.
 

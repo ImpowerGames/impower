@@ -10,7 +10,19 @@ const ASSETS: File[] = [
   { uri: "inmemory:///hero.png", type: "image", name: "hero", ext: "png", src: "/file:/proj/hero.png?v=1" },
 ];
 
-const STORY = `scene start
+const STORY = `animation childfade {
+  target = layer.instance
+  keyframes {
+    {
+      opacity = "0"
+    }
+  }
+  timing {
+    duration = "1s"
+  }
+}
+
+scene start
   Hi.
 end
 `;
@@ -134,6 +146,8 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
       { name: "fadeout", delay: "0s", duration: "1s" },
       { name: "spin", delay: "0s", duration: "2s" },
     ]);
+    const child = (await played("hide portrait with childfade")).instruction;
+    expect(names(child.targetAnimations)[0]).toEqual({ name: "hide", delay: "0s", duration: 0 });
     const shaken = (await played("show portrait hero with shake")).instruction;
     expect(names(shaken.content.previousHideAnimations)[0]).toEqual({ name: "hide", delay: "0s", duration: 0 });
     const timed = (await played("hide portrait over 1s with fade over 2s")).instruction;
