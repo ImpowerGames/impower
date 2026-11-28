@@ -5,6 +5,7 @@ const frame = () => new Promise((resolve) => requestAnimationFrame(() => request
 const PAGE = `
 <style>
 @keyframes turn { to { transform: rotate(1turn); } }
+#frame { position: relative; margin-left: 3.3px; margin-top: 5.7px; width: 600px; height: 300px; container-type: size; }
 #stage { position: absolute; left: 13.3px; top: 7.6px; width: 400px; height: 200px; }
 .row { display: flex; width: 400px; height: 60px; }
 .gone { flex: none; width: 100px; height: 50px; overflow: auto; animation: turn 10s linear infinite; transition: opacity 5s linear; opacity: 1; }
@@ -16,14 +17,15 @@ const PAGE = `
 .text { width: 120px; font: 16px/20px sans-serif; }
 .below { height: 10px; }
 </style>
-<div id="stage">
+<div id="frame"><div id="stage">
   <div class="row"><div class="gone"><div class="inner"></div><input class="field"><video class="clip" preload="none" muted></video></div><div class="sibling"></div></div>
   <div class="text">short</div>
   <div class="below"></div>
-</div>`;
+</div></div>`;
 
-async function measure() {
+async function measure(scoped: boolean) {
   document.body.innerHTML = PAGE;
+  const scope = document.getElementById("frame") as HTMLElement;
   const stage = document.getElementById("stage") as HTMLElement;
   const gone = stage.querySelector(".gone") as HTMLElement;
   const sibling = stage.querySelector(".sibling") as HTMLElement;
@@ -45,7 +47,7 @@ async function measure() {
   const records: MutationRecord[] = [];
   const observer = new MutationObserver((list) => records.push(...list));
   observer.observe(stage, { subtree: true, childList: true, attributes: true, characterData: true });
-  const replica = replicate(stage, { carried: [] });
+  const replica = replicate(stage, scoped ? { carried: [], scope: { element: scope, attribute: "data-probe-replica" } } : { carried: [] });
   const originals = [stage, ...Array.from(stage.querySelectorAll<HTMLElement>("*"))];
   const still = (el: Element) => {
     for (let at: Element | null = el; at; at = at.parentElement) if (at.getAnimations().length > 0) return false;
@@ -101,7 +103,7 @@ async function measure() {
     media,
     mutations: records.length,
     unchanged: stage.outerHTML === style,
-    left: stage.nextElementSibling === null,
+    left: stage.nextElementSibling === null && scope.nextElementSibling === null,
   };
 }
 

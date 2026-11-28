@@ -55,7 +55,8 @@ afterAll(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-const measure = (page: Page) => page.evaluate(() => (window as unknown as { replicaProbe: { measure(): Promise<Measured> } }).replicaProbe.measure());
+const measure = (page: Page, scoped: boolean) =>
+  page.evaluate((scoped) => (window as unknown as { replicaProbe: { measure(scoped: boolean): Promise<Measured> } }).replicaProbe.measure(scoped), scoped);
 
 describe.each(ENGINES)("in %s, a beat is measured on a replica of the stage, which leaves the shown stage untouched (#2837)", (name, engine, need) => {
   let browser: Browser | undefined;
@@ -79,10 +80,10 @@ describe.each(ENGINES)("in %s, a beat is measured on a replica of the stage, whi
     await browser?.close();
   });
 
-  test("the replica lays out exactly as the stage, and a removal, a selector that sees it and a text reflow measured there come out as applied", async (context) => {
+  test.for([false, true])("the replica lays out exactly as the stage (beside its scope element: %s), and a removal, a selector that sees it and a text reflow measured there come out as applied", async (scoped, context) => {
     if (!browser) return context.skip();
-    const result = await measure(page);
-    console.log(`${name}: ${JSON.stringify(result)}`);
+    const result = await measure(page, scoped);
+    console.log(`${name} ${scoped ? "scoped" : "beside"}: ${JSON.stringify(result)}`);
     expect(result.mismatch).toBeLessThan(0.01);
     expect(result.width).toBe(400);
     expect(result.height).toBe(30);
@@ -92,9 +93,9 @@ describe.each(ENGINES)("in %s, a beat is measured on a replica of the stage, whi
     expect(result.realWidth).toBe(300);
   });
 
-  test("the stage's animations, transitions, focus, scroll position, media and markup are left as they were", async (context) => {
+  test.for([false, true])("the stage's animations, transitions, focus, scroll position, media and markup are left as they were (beside its scope element: %s)", async (scoped, context) => {
     if (!browser) return context.skip();
-    const result = await measure(page);
+    const result = await measure(page, scoped);
     expect(result.animations).toBeGreaterThanOrEqual(4);
     expect(result.transitions).toBeGreaterThanOrEqual(1);
     expect(result.kept).toBe(result.animations);
