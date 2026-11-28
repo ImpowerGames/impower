@@ -116,24 +116,42 @@ function clearEdit(element: SyntaxNode, text: string): Edit {
   return { from: at, to: at, insert: " #clear" };
 }
 
-export function clearEdits(text: string): Edit[] {
-  const tree = parser.parse(text);
-  const edits = new Map<number, Edit>();
-  const visit = (entries: StructEntry[]) => {
+function eachElement(
+  text: string,
+  bodyTypes: readonly string[],
+  visit: (entry: StructEntry, key: string) => void,
+): void {
+  const walk = (entries: StructEntry[]) => {
     for (const entry of entries) {
-      if (!entry.element || !entry.children || isStream(entry, text)) continue;
-      if (!hasClearProp(entry, text) && entry.children.some((child) => isEmptiedContent(child, text))) {
-        const edit = clearEdit(entry.shape, text);
-        edits.set(edit.from, edit);
-      }
-      visit(entry.children);
+      if (!entry.element || isStream(entry, text)) continue;
+      visit(entry, words(entry, text).join(" "));
+      if (entry.children) walk(entry.children);
     }
   };
-  for (const name of ["LuauLayout", "LuauScreen"]) {
+  const tree = parser.parse(text);
+  for (const name of bodyTypes) {
     for (const body of descendants(tree.topNode, name)) {
-      visit(readStructBodyEntries(body, undefined as never));
+      walk(readStructBodyEntries(body, undefined as never));
     }
   }
+}
+
+export function emptiedNames(text: string): Set<string> {
+  const names = new Set<string>();
+  eachElement(text, ["LuauLayout", "LuauScreen"], (entry, key) => {
+    if (key && entry.children?.some((child) => isEmptiedContent(child, text))) names.add(key);
+  });
+  return names;
+}
+
+export function clearEdits(text: string, names: ReadonlySet<string> = emptiedNames(text)): Edit[] {
+  const edits = new Map<number, Edit>();
+  eachElement(text, ["LuauLayout", "LuauScreen", "LuauComponent"], (entry, key) => {
+    if (names.has(key) && !hasClearProp(entry, text)) {
+      const edit = clearEdit(entry.shape, text);
+      edits.set(edit.from, edit);
+    }
+  });
   return [...edits.values()].sort((a, b) => a.from - b.from);
 }
 
@@ -147,15 +165,19 @@ function applyEdits(text: string, edits: Edit[]): string {
   return result + text.slice(at);
 }
 
-export function migrateClearProp(source: string): ClearPropResult {
-  const edits = clearEdits(source);
+export function migrateClearProp(source: string, names?: ReadonlySet<string>): ClearPropResult {
+  const edits = clearEdits(source, names);
   return { text: applyEdits(source, edits), migrated: edits.length };
 }
 
 const FENCE = /^([ \t]*)(`{3,}|~{3,})[ \t]*([^\s`]*)[^`]*$/;
 const SPARKDOWN_FENCE_LANGUAGES = new Set(["", "sparkdown", "sd"]);
 
-export function migrateMarkdownClearProp(source: string): ClearPropResult {
+function withShared(text: string, shared: ReadonlySet<string>): Set<string> {
+  return new Set([...shared, ...emptiedNames(text)]);
+}
+
+export function migrateMarkdownClearProp(source: string, shared: ReadonlySet<string> = new Set()): ClearPropResult {
   const lines = source.split("\n");
   let migrated = 0;
   for (let i = 0; i < lines.length; i += 1) {
@@ -170,7 +192,8 @@ export function migrateMarkdownClearProp(source: string): ClearPropResult {
       const prefixes = body.map((line) =>
         line.startsWith(indent!) ? indent! : /^[ \t]*/.exec(line)![0],
       );
-      const result = migrateClearProp(body.map((line, k) => line.slice(prefixes[k]!.length)).join("\n"));
+      const block = body.map((line, k) => line.slice(prefixes[k]!.length)).join("\n");
+      const result = migrateClearProp(block, withShared(block, shared));
       if (result.migrated > 0) {
         migrated += result.migrated;
         result.text.split("\n").forEach((line, k) => {
@@ -183,7 +206,7 @@ export function migrateMarkdownClearProp(source: string): ClearPropResult {
   return { text: lines.join("\n"), migrated };
 }
 
-const BODY_HEADER = /(^|\n)[ \t]*(?:layout|screen)[ \t]+[A-Za-z_]/;
+const BODY_HEADER = /(^|\n)[ \t]*(?:layout|screen|component)[ \t]+[A-Za-z_]/;
 
 function maskedTemplate(
   typescript: typeof ts,
@@ -210,6 +233,7 @@ export function migrateScriptClearProp(
   source: string,
   typescript: typeof ts,
   fileName = "file.ts",
+  shared: ReadonlySet<string> = new Set(),
 ): ClearPropResult {
   const file = typescript.createSourceFile(fileName, source, typescript.ScriptTarget.Latest, true);
   const edits: Edit[] = [];
@@ -217,7 +241,7 @@ export function migrateScriptClearProp(
     if (typescript.isNoSubstitutionTemplateLiteral(node) || typescript.isTemplateExpression(node)) {
       const masked = maskedTemplate(typescript, node, source);
       if (BODY_HEADER.test(masked.text)) {
-        for (const edit of clearEdits(masked.text)) {
+        for (const edit of clearEdits(masked.text, withShared(masked.text, shared))) {
           edits.push({ ...edit, from: masked.from + edit.from, to: masked.from + edit.to });
         }
       }
