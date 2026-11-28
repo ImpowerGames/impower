@@ -5935,7 +5935,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (marksClear(node)) {
             this._clearOnContinue.add(name);
             this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
-          } else {
+          } else if (!limitsLine(node)) {
             this._unmarkedKeys.add(name);
           }
         }
@@ -7549,7 +7549,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               (rule.reach === "name" || rule.reach === "line" || $.fullyMarked(target))
             ) {
               delete $._state.text?.[target];
-              if (rule.reach === "line" && !$.fullyMarked(target)) {
+              if (rule.reach === "line") {
                 $.replaceLineText(target);
               } else {
                 delete $._state.lineText?.[target];
