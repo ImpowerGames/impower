@@ -173,6 +173,15 @@ describe("a line that ends with `>>` carries on without a click (I-2747)", () =>
     expect(shown(h)).toBe("Second.");
   });
 
+  test("a `>>` followed only by block comments carries on", async () => {
+    const h = await play(story("  First >> /* one */ /* two */\n  Second."));
+    expect(shown(h)).toBe("First");
+    expect(beat(h)?.auto).toBe(true);
+    await typed(h);
+    await tick(h, 0);
+    expect(shown(h)).toBe("Second.");
+  });
+
   test("a `>>` before a block comment with text after it waits for a click at each break", async () => {
     const h = await play(story("  First >> /* aside */ middle\n  Second."));
     expect(shown(h)).toBe("First");

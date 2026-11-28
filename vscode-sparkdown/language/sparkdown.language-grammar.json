@@ -167,7 +167,7 @@
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
     "CARRY": "(?:{{WS}}*(?<![>])[>][>]{{WS}}*(?={{CARRY_TAIL}}|{{CARRY_BLOCK_COMMENT}}))",
     "CARRY_TAIL": "(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}}))",
-    "CARRY_BLOCK_COMMENT": "(?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/]{{WS}}*{{CARRY_TAIL}})",
+    "CARRY_BLOCK_COMMENT": "(?:(?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/]{{WS}}*)+{{CARRY_TAIL}})",
     "CHAIN": "(?:[\\\\])",
     "GLUE": "(?:(?<![.])[.][.]{{GLUE_END}})",
     "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))",
@@ -1782,7 +1782,7 @@
     "Carry": {
       "tag": "special(content)",
       "name": "meta.carry.sd",
-      "match": "((?:(?:[^\\S\\n\\r])*(?<![>])[>][>](?:[^\\S\\n\\r])*(?=(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r])))|(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/](?:[^\\S\\n\\r])*(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r])))))))",
+      "match": "((?:(?:[^\\S\\n\\r])*(?<![>])[>][>](?:[^\\S\\n\\r])*(?=(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r])))|(?:(?:(?:[/][*])(?:[^*\\r\\n]|[*](?![/]))*[*][/](?:[^\\S\\n\\r])*)+(?:$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r])))))))",
       "captures": {
         "1": {
           "tag": "keyword",
