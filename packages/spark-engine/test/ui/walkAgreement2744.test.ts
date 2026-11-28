@@ -77,6 +77,30 @@ layout phone in inbox {
     shownIn: "dialogue",
   },
   {
+    name: "a component as a stream template",
+    source: `component incoming {
+  dialogue #variant=receive { text }
+}
+
+layout phone {
+  stream {
+    incoming
+  }
+}`,
+    shownIn: "dialogue",
+  },
+  {
+    name: "an element nested inside a stream template",
+    source: `layout phone {
+  stream {
+    bubble {
+      dialogue #variant=receive { text }
+    }
+  }
+}`,
+    shownIn: "dialogue",
+  },
+  {
     name: "a cast template in the layout",
     source: `layout phone {
   cast {
@@ -151,6 +175,7 @@ const NOTE_CASES: [string, string, boolean][] = [
   ["an element in the layout's screen body", "screen paper {\n  note { text }\n  slot\n}\n\nlayout note in paper {\n  margin\n}", true],
   ["an element in a component", "component memo {\n  note { text }\n}\n\nlayout note {\n  memo\n}", true],
   ["a stream template in the layout", "layout note {\n  stream {\n    note { text }\n  }\n}", true],
+  ["an element nested inside a stream template", "layout note {\n  stream {\n    memo {\n      note { text }\n    }\n  }\n}", true],
   ["a stream template in the layout's screen body", "screen paper {\n  stream {\n    note { text }\n  }\n  slot\n}\n\nlayout note in paper {\n  margin\n}", false],
   ["a cast template in the layout", "layout note {\n  cast {\n    actor {\n      note { text }\n    }\n  }\n}", true],
   ["an element matched by its class, not its tag", "layout note {\n  memo.note { text }\n}", true],

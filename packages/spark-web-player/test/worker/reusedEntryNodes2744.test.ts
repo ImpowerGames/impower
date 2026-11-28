@@ -8,7 +8,7 @@ end
 layout phone {
   thread {
     stream {
-      dialogue.bubble {
+      dialogue.bubble #opacity=1 {
         text
         continue_indicator { text = ▼ }
       }
@@ -48,7 +48,7 @@ test("a stream entry's node keeps no class, inline style or custom property an e
     expect(bubbles()).toHaveLength(3);
     const atThird = indicators();
     const game: any = h.workerState.gameState.game!;
-    await game.module.ui.style.update("bubble", { "--glow": "1", outline: "1px solid red" });
+    await game.module.ui.style.update("bubble", { "--glow": "1", outline: "1px solid red", opacity: "0" });
     await game.module.ui.attributes.update("bubble", { class: "dialogue bubble lit" });
     await settle(20);
     expect(bubbles().every((el) => el.classList.contains("lit"))).toBe(true);
@@ -61,13 +61,14 @@ test("a stream entry's node keeps no class, inline style or custom property an e
         lit: el.classList.contains("lit"),
         glow: el.style.getPropertyValue("--glow"),
         outline: el.style.outline,
+        opacity: el.style.opacity,
       }));
-    expect(look().every((entry) => !entry.lit && !entry.glow && !entry.outline)).toBe(true);
+    expect(look().every((entry) => !entry.lit && !entry.glow && !entry.outline && entry.opacity === "1")).toBe(true);
     const atFirst = indicators();
 
     await h.select(third);
     await settle(60);
-    expect(look().every((entry) => !entry.lit && !entry.glow && !entry.outline)).toBe(true);
+    expect(look().every((entry) => !entry.lit && !entry.glow && !entry.outline && entry.opacity === "1")).toBe(true);
     expect(indicators()).toEqual(atThird);
 
     await h.select(first);

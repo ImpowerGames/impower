@@ -1,8 +1,8 @@
 import { type SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { type ElementNode } from "@impower/sparkdown/src/compiler/types/SparkleNode";
-import { isTemplated } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
+import { walkLayoutTree } from "@impower/sparkdown/src/compiler/utils/layoutTree";
+import { elementNames } from "@impower/sparkdown/src/compiler/utils/variantLayouts";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type Tree } from "@lezer/common";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
@@ -21,39 +21,6 @@ const BUILT_IN_KINDS: ReadonlyMap<string, string> = new Map([
 
 const MENU_LAYOUT = "choices";
 
-const holdsElement = (program: SparkProgram, children: unknown, name: string, shared = false): boolean => {
-  const components = program.sparkle?.components ?? {};
-  const expanded = new Set<string>();
-  const visit = (value: unknown): boolean => {
-    if (Array.isArray(value)) {
-      return value.some(visit);
-    }
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-    const node = value as Record<string, unknown>;
-    if (node["kind"] === "element") {
-      if (shared && isTemplated(node as unknown as ElementNode)) {
-        return false;
-      }
-      const classes = Array.isArray(node["classes"]) ? node["classes"] : [];
-      if ([node["tag"], node["name"], ...classes].includes(name)) {
-        return true;
-      }
-      const tag = node["tag"];
-      const component = typeof tag === "string" ? components[tag] : undefined;
-      if (component && !expanded.has(tag as string)) {
-        expanded.add(tag as string);
-        if (visit(component.children)) {
-          return true;
-        }
-      }
-    }
-    return Object.values(node).some((child) => child !== null && typeof child === "object" && visit(child));
-  };
-  return visit(children);
-};
-
 const namedAfterKind = (program: SparkProgram | undefined, name: string): boolean => {
   if (BUILT_IN_KINDS.has(name)) {
     return true;
@@ -62,8 +29,7 @@ const namedAfterKind = (program: SparkProgram | undefined, name: string): boolea
   if (!program || !layout || name === "main") {
     return false;
   }
-  const screen = layout.screen ? program.sparkle?.screens?.[layout.screen] : undefined;
-  return holdsElement(program, layout.children, name) || holdsElement(program, screen?.children, name, true);
+  return walkLayoutTree(program.sparkle, name, ({ node }) => elementNames(node).includes(name));
 };
 
 export const kindLayoutDocumentation = (name: string): string => {

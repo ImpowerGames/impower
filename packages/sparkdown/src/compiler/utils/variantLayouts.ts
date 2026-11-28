@@ -1,7 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { ElementNode } from "../types/SparkleNode";
-import { isCast, isTemplated } from "./layoutStreams";
+import { layoutTreeSource, takesLines, walkLayoutTree } from "./layoutTree";
 
 type Sparkle = SparkProgram["sparkle"];
 
@@ -61,49 +61,18 @@ export function layoutVariantLimits(sparkle: Sparkle | undefined, layoutName: st
   if (known) {
     return known;
   }
-  const components = sparkle.components ?? {};
-  const expanded = new Set<string>();
   const found: VariantLimit[] = [];
-  const visit = (value: unknown, source: string, shared = false): void => {
-    if (Array.isArray(value)) {
-      value.forEach((item) => visit(item, source, shared));
-      return;
+  walkLayoutTree(sparkle, layoutName, (element) => {
+    const variant = takesLines(element) ? elementVariant(element.node) : undefined;
+    if (variant) {
+      found.push({ node: element.node, variant, source: element.source });
     }
-    if (!value || typeof value !== "object") {
-      return;
-    }
-    const node = value as Record<string, unknown>;
-    if (node["kind"] === "element") {
-      const element = node as unknown as ElementNode;
-      if (isCast(element) || (shared && isTemplated(element))) {
-        return;
-      }
-      const variant = elementVariant(element);
-      if (variant) {
-        found.push({ node: element, variant, source });
-      }
-      const body = components[element.tag];
-      if (body && !expanded.has(element.tag)) {
-        expanded.add(element.tag);
-        visit(body.children, variantSource("component", element.tag), shared);
-      }
-    }
-    for (const child of Object.values(node)) {
-      if (child !== null && typeof child === "object") {
-        visit(child, source, shared);
-      }
-    }
-  };
-  visit(layout.children, variantSource("layout", layoutName));
-  if (layout.screen) {
-    visit(sparkle.screens?.[layout.screen]?.children, variantSource("screen", layout.screen), true);
-  }
+  });
   cached.set(layoutName, found);
   return found;
 }
 
-export const variantSource = (kind: "layout" | "screen" | "component", name: string) =>
-  `${kind} ${name}`;
+export const variantSource = layoutTreeSource;
 
 const NOT_LINE_KINDS: ReadonlySet<string> = new Set([
   "character_name",

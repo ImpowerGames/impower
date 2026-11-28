@@ -72,8 +72,10 @@ import {
 import {
   admitsLine,
   admitsVariant,
+  elementNames,
   limitsLine,
 } from "@impower/sparkdown/src/compiler/utils/variantLayouts";
+import { takesLines, walkLayoutTree } from "@impower/sparkdown/src/compiler/utils/layoutTree";
 import {
   AbstractValue,
   BoolValue,
@@ -1663,6 +1665,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         [target],
         true,
         (node) => limitsLine(node) && !(unmarked && marksClear(node)) && admitsLine(node, line),
+        true,
       ),
     );
   }
@@ -2396,20 +2399,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     this._entryUpdates.delete(element.id);
-    const staleStyle = [...updated.style].filter((key) => !(key in style));
-    const staleAttributes = [...updated.attributes].filter((name) => !(name in attributes));
-    if (staleStyle.length === 0 && staleAttributes.length === 0) {
-      return;
-    }
+    const restated = (keys: Set<string>, created: Record<string, string | null>) =>
+      Object.fromEntries([...keys].map((key) => [key, ownEntry(created, key) ?? null]));
     this.updateElement(element, {
-      ...(staleStyle.length > 0
-        ? { style: Object.fromEntries(staleStyle.map((key) => [key, null])) }
-        : {}),
-      ...(staleAttributes.length > 0
-        ? {
-            attributes: Object.fromEntries(staleAttributes.map((name) => [name, null])),
-          }
-        : {}),
+      ...(updated.style.size > 0 ? { style: restated(updated.style, style) } : {}),
+      ...(updated.attributes.size > 0 ? { attributes: restated(updated.attributes, attributes) } : {}),
     });
   }
 
@@ -6056,13 +6050,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected treeHolds(
-    children: unknown,
-    wanted: Set<string>,
-    outsideCasts = false,
-    admits: (node: ElementNode) => boolean = () => true,
-    shared = false,
-  ): boolean {
+  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
     const components = this._game.program?.sparkle?.components ?? {};
     const expanded = new Set<string>();
     const visit = (value: unknown): boolean => {
@@ -6074,17 +6062,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const node = value as Record<string, any>;
       if (node["kind"] === "element") {
-        if (
-          (outsideCasts && isCast(node as ElementNode)) ||
-          (shared && isTemplated(node as ElementNode))
-        ) {
-          return false;
-        }
         const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
-        if (
-          names.some((n) => typeof n === "string" && wanted.has(n)) &&
-          admits(node as ElementNode)
-        ) {
+        if (names.some((n) => typeof n === "string" && wanted.has(n))) {
           return true;
         }
         const tag = node["tag"];
@@ -6104,7 +6083,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   layoutHoldsLine(layoutName: string, element: string, variant: string | undefined): boolean {
-    return this.layoutHolds(layoutName, [element], true, (node) => admitsVariant(node, variant));
+    return this.layoutHolds(layoutName, [element], true, (node) => admitsVariant(node, variant), true);
   }
 
   layoutHolds(
@@ -6112,20 +6091,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     elements: readonly string[],
     outsideCasts = false,
     admits?: (node: ElementNode) => boolean,
+    lines = false,
   ): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
     if (sparkle?.layouts) {
-      const layout = sparkle.layouts[layoutName];
-      if (!layout) {
-        return false;
-      }
-      const screen = layout.screen
-        ? sparkle.screens?.[layout.screen]
-        : undefined;
-      return (
-        this.treeHolds(layout.children, wanted, outsideCasts, admits) ||
-        this.treeHolds(screen?.children, wanted, outsideCasts, admits, true)
+      return walkLayoutTree(
+        sparkle,
+        layoutName,
+        (element) =>
+          (!outsideCasts || !element.cast) &&
+          (!lines || takesLines(element)) &&
+          elementNames(element.node).some((name) => wanted.has(name)) &&
+          (!admits || admits(element.node)),
       );
     }
     const layout = this.context.layout?.[layoutName];
@@ -7551,6 +7529,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               delete $._state.text?.[target];
               if (rule.reach === "line") {
                 $.replaceLineText(target);
+              } else if (reason === "line clear") {
+                $.keepLineText(target, (line) => $.lineHeld(target, line, true));
               } else {
                 delete $._state.lineText?.[target];
               }
@@ -9234,6 +9214,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       restore(): void {
+        const updated = (el: Element): boolean =>
+          $._entryUpdates.has(el.id) || el.children.some(updated);
+        for (const mounts of this._mounted.values()) {
+          for (const mount of mounts) {
+            if (mount.entries.some((view) => $.collectNodes(view.group).some(updated))) {
+              mount.rendered.length = 0;
+            }
+          }
+        }
         this._presented = { instant: true };
         this.sync(this._presented, 0);
       }

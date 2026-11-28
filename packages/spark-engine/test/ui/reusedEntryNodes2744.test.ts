@@ -97,13 +97,12 @@ async function giveEntriesALook(h: Harness) {
 }
 
 function expectNoLook(h: Harness, since: number) {
-  const after = h.messages.slice(since);
+  expect(h.messages.length).toBeGreaterThan(since);
   for (const id of bubbleIds(h)) {
     for (const key of ["--glow", "outline"]) {
-      const value = lastSent(after, id, "style", key);
-      expect(value ?? null, `${id} ${key}`).toBeNull();
+      expect(lastSent(h.messages, id, "style", key) ?? null, `${id} ${key}`).toBeNull();
     }
-    const cls = lastSent(after, id, "attributes", "class");
+    const cls = lastSent(h.messages, id, "attributes", "class");
     expect(cls === undefined || cls === "dialogue bubble", `${id} class ${cls}`).toBe(true);
   }
 }
@@ -131,6 +130,7 @@ describe("a stream entry keeps no look an update gave it at a later line (I-2744
     await giveEntriesALook(h);
     const since = h.messages.length;
     expect(h.game.loadToResume(saved!.data)).toBe(true);
+    await h.reconnect();
     h.game.start();
     await tick(h);
     expect(lineText(h)).toBe("two");

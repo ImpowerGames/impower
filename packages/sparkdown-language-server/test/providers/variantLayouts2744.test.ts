@@ -128,6 +128,19 @@ ${SCENE}`),
     ]);
   });
 
+  it("does not warn for an element nested inside a stream template, which takes no line", () => {
+    expect(
+      warningsIn(`layout duel {
+  stream {
+    bubble {
+      dialogue #variant=left { text }
+    }
+  }
+}
+${SCENE}`),
+    ).toEqual([]);
+  });
+
   it("does not warn for a component only one layout uses", () => {
     expect(
       warningsIn(`component incoming {

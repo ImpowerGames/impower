@@ -323,6 +323,31 @@ end
   });
 });
 
+describe("a limited element without #clear keeps its content through narration (I-2744)", () => {
+  test("an open layout's left name stays, with its saved text, through an action line", async () => {
+    const h = await play(`${DEFS}
+layout talk {
+  character_name.kept #variant=left { text }
+  dialogue { text }
+  action { text }
+}
+
+scene start
+  [[open talk]]
+  RAFFLES [left]: one
+  A bell rings.
+end
+`);
+    expect(shown(h)).toBe("one");
+    const kept = created(h, "character_name kept").at(-1);
+    expect(kept).toBeDefined();
+    await click(h);
+    expect(shown(h)).toBe("A bell rings.");
+    expect(writtenTo(h, "character_name", kept.element)).toEqual(["RAFFLES"]);
+    expect(ui(h)._state.lineText?.character_name?.map((line: any) => line.variant)).toEqual(["left"]);
+  });
+});
+
 describe("a stream entry rebuilt from saved state (I-2744)", () => {
   test("keeps a visibility its saved styles give it", async () => {
     const h = createHarness(
