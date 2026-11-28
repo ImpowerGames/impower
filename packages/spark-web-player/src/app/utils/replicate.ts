@@ -16,7 +16,52 @@ const isPlain = (value: object) => {
   return prototype === Object.prototype || prototype === null;
 };
 
-export function replicate(root: HTMLElement, carried: readonly string[], copy: (from: Element, to: Element) => void = () => {}): Replica {
+export interface ReplicaOptions {
+  carried: readonly string[];
+  copy?: (from: Element, to: Element) => void;
+  scope?: { element: HTMLElement; attribute: string };
+}
+
+function besideScope(twin: HTMLElement, scope: NonNullable<ReplicaOptions["scope"]>): HTMLElement {
+  const { element, attribute } = scope;
+  const computed = element.ownerDocument.defaultView?.getComputedStyle(element);
+  const value = (name: string) => computed?.getPropertyValue(name) ?? "";
+  const container = element.ownerDocument.createElement("div");
+  container.setAttribute(attribute, "");
+  container.setAttribute("aria-hidden", "true");
+  container.setAttribute("inert", "");
+  container.style.setProperty("position", "absolute");
+  container.style.setProperty("left", "0px");
+  container.style.setProperty("top", "0px");
+  container.style.setProperty("margin", "0px");
+  container.style.setProperty("padding", "0px");
+  container.style.setProperty("border", "0px none");
+  container.style.setProperty("box-sizing", "content-box");
+  container.style.setProperty("width", value("width") || `${element.clientWidth}px`);
+  container.style.setProperty("height", value("height") || `${element.clientHeight}px`);
+  for (const name of ["container-type", "container-name"]) {
+    const own = value(name);
+    if (own) {
+      container.style.setProperty(name, own);
+    }
+  }
+  container.style.setProperty("visibility", "hidden", "important");
+  container.style.setProperty("pointer-events", "none", "important");
+  container.appendChild(twin);
+  element.after(container);
+  const target = element.getBoundingClientRect();
+  const placed = container.getBoundingClientRect();
+  const across = Number.parseFloat(container.style.width);
+  const down = Number.parseFloat(container.style.height);
+  const scaleX = across > 0 && placed.width > 0 ? placed.width / across : 1;
+  const scaleY = down > 0 && placed.height > 0 ? placed.height / down : 1;
+  container.style.setProperty("left", `${(target.left - placed.left) / scaleX}px`);
+  container.style.setProperty("top", `${(target.top - placed.top) / scaleY}px`);
+  return container;
+}
+
+export function replicate(root: HTMLElement, options: ReplicaOptions): Replica {
+  const { carried, copy = () => {}, scope } = options;
   const twin = root.cloneNode(true) as HTMLElement;
   const originals = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   const copies = [twin, ...Array.from(twin.querySelectorAll<HTMLElement>("*"))];
@@ -90,7 +135,12 @@ export function replicate(root: HTMLElement, carried: readonly string[], copy: (
   twin.style.setProperty("visibility", "hidden", "important");
   twin.style.setProperty("pointer-events", "none", "important");
   const scrolled = originals.filter((original) => original.scrollTop !== 0 || original.scrollLeft !== 0);
-  root.after(twin);
+  let placed: HTMLElement = twin;
+  if (scope) {
+    placed = besideScope(twin, scope);
+  } else {
+    root.after(twin);
+  }
   for (const original of scrolled) {
     const made = forward.get(original)!;
     made.scrollTop = original.scrollTop;
@@ -100,6 +150,6 @@ export function replicate(root: HTMLElement, carried: readonly string[], copy: (
     root: twin,
     of: (element) => forward.get(element),
     source: (element) => back.get(element),
-    dispose: () => twin.remove(),
+    dispose: () => placed.remove(),
   };
 }

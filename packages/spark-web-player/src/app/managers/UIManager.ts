@@ -200,6 +200,15 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
   return Number(delay) > 0 || Number(duration) > 0;
 }
 
+const STYLE_SCOPE = "spark-web-player #game";
+
+const REPLICA_ATTRIBUTE = "data-sd-replica";
+
+const REPLICA_SCOPE = `spark-web-player [${REPLICA_ATTRIBUTE}]`;
+
+const replicaStyleText = (text: string) =>
+  text.split(`${STYLE_SCOPE} `).join(`${REPLICA_SCOPE} `).replace(/@keyframes(\s+)/g, "@keyframes$1sd-replica-");
+
 const WRITTEN_STATE = [
   "__sdId",
   "__sdRev",
@@ -234,7 +243,7 @@ interface RehearsedMount {
 class RehearsedMorphs {
   mounts: RehearsedMount[] = [];
 
-  released: Element[] = [];
+  released = new Set<Element>();
 
   asked?: { instruction: WriteImageInstruction; base: string };
 
@@ -266,11 +275,14 @@ class RehearsedMorphs {
   }
 
   releaseWithin(root: Element) {
-    this.released.push(root);
+    this.released.add(root);
+    for (const el of Array.from(root.querySelectorAll("*"))) {
+      this.released.add(el);
+    }
   }
 
   releases(el: Element): boolean {
-    return this.released.some((root) => root === el || root.contains(el));
+    return this.released.has(el);
   }
 
   requestRelayout() {}
@@ -1029,7 +1041,17 @@ export default class UIManager extends Manager {
     if (!overlay?.parentNode) {
       return undefined;
     }
-    const replica = replicate(overlay, WRITTEN_STATE, copyPictureRest);
+    const scope = overlay.parentElement?.closest<HTMLElement>(STYLE_SCOPE) ?? undefined;
+    const replica = replicate(overlay, {
+      carried: WRITTEN_STATE,
+      copy: (from, to) => {
+        copyPictureRest(from, to);
+        if (scope && to.localName === "style") {
+          to.textContent = replicaStyleText(to.textContent ?? "");
+        }
+      },
+      ...(scope ? { scope: { element: scope, attribute: REPLICA_ATTRIBUTE } } : {}),
+    });
     const app = Object.create(this.app, {
       overlay: { value: replica.root },
       answer: { value: () => undefined },
@@ -1038,7 +1060,7 @@ export default class UIManager extends Manager {
       assetCache: { value: undefined },
       audio: { value: undefined },
     }) as IApplication;
-    const rehearsal = new BeatRehearsal(app, replica);
+    const rehearsal = new BeatRehearsal(app, replica, !!scope);
     const twin = (el: Element) => replica.of(el);
     const twins = (els: Iterable<HTMLElement>) => new Set([...els].flatMap((el) => twin(el) ?? []));
     rehearsal._breakpoints = this._breakpoints;
@@ -1529,6 +1551,10 @@ export default class UIManager extends Manager {
         doc.documentElement.style.fontSize = rootTextSize;
       }
     }
+  }
+
+  protected elementContent(content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>): string {
+    return getElementContent(content, { breakpoints, scope: STYLE_SCOPE, theme: this._theme });
   }
 
   protected animating(el: Element): boolean {
@@ -2026,11 +2052,7 @@ export default class UIManager extends Manager {
         if (params.content) {
           this.morphs?.releaseWithin(el);
           endTravelsWithin(el);
-          el.textContent = getElementContent(params.content, {
-            breakpoints: params.breakpoints,
-            scope: "spark-web-player #game",
-            theme: this._theme,
-          });
+          el.textContent = this.elementContent(params.content, params.breakpoints);
         }
         if (params.style) {
           el.style.cssText = Object.entries(params.style)
@@ -2074,11 +2096,7 @@ export default class UIManager extends Manager {
       } else if ((el as any).__sdUpdatedContent && params.content) {
         this.morphs?.releaseWithin(el);
         endTravelsWithin(el);
-        el.textContent = getElementContent(params.content, {
-          breakpoints: params.breakpoints,
-          scope: "spark-web-player #game",
-          theme: this._theme,
-        });
+        el.textContent = this.elementContent(params.content, params.breakpoints);
       }
       if (params.content) {
         delete (el as any).__sdUpdatedContent;
@@ -2135,11 +2153,7 @@ export default class UIManager extends Manager {
           this.morphs?.releaseWithin(element);
           endTravelsWithin(element);
           (element as any).__sdUpdatedContent = true;
-          element.textContent = getElementContent(params.content, {
-            breakpoints: params.breakpoints,
-            scope: "spark-web-player #game",
-            theme: this._theme,
-          });
+          element.textContent = this.elementContent(params.content, params.breakpoints);
         }
         if (params.attributes != undefined) {
           if (params.attributes) {
@@ -3874,6 +3888,7 @@ class BeatRehearsal extends UIManager {
   constructor(
     app: IApplication,
     readonly replica: Replica,
+    readonly scoped: boolean,
   ) {
     super(app);
     const hold = new RehearsalHold();
@@ -3958,6 +3973,11 @@ class BeatRehearsal extends UIManager {
   }
 
   protected override applyDocumentTheme() {}
+
+  protected override elementContent(content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>): string {
+    const text = super.elementContent(content, breakpoints);
+    return this.scoped && typeof content === "object" && ("styles" in content || "animations" in content) ? replicaStyleText(text) : text;
+  }
 
   protected override settleRequest(_request: RequestMessage, done: Promise<unknown>) {
     done.catch(() => undefined);

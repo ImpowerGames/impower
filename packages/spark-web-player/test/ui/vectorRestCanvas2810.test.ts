@@ -1545,4 +1545,31 @@ describe("a beat is measured once, as it will be applied, without touching the s
     const canvas = t.shadowOf("fitted")!.querySelector("canvas")!;
     expect(canvas.parentElement!.getAttribute("style")).toContain("width:600px;height:300px");
   });
+
+  test("a beat that clears a target, makes its image element again and writes a picture there waits for that picture", async () => {
+    const t = await setup({ holdRasters: true });
+    const stage = t.h.overlay.querySelector(".stage") as HTMLElement & { __sdId?: string };
+    for (const params of plaque(stage.__sdId!).map(({ params }) => params)) {
+      await t.h.ui.onReceiveRequest({ jsonrpc: "2.0", id: params.element, method: "ui/create", params } as never);
+    }
+    t.beat([show("plaque", "emblem", ["/src/emblem.svg"])], 198);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    t.beat([show("plaque", "crest", ["/src/crest.svg"])], 200, [
+      { method: "ui/update", params: { element: "made-plaque", content: {}, breakpoints: {} } },
+      { method: "ui/create", params: { parent: "made-plaque", element: "remade-plaque-image", type: "div", name: "image", breakpoints: {} } },
+    ]);
+    await until(() => t.rasters.length === 2 || applied(t) === 2, "the new picture's raster or the beat");
+    await flushMicrotasks(20);
+    expect(applied(t)).toBe(1);
+    expect(t.pending()).toBe(true);
+    const second = t.rasters[1]!;
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => applied(t) === 2, "the beat");
+    expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);
+    expect(t.events.at(-1)).toBe("applied");
+  });
 });

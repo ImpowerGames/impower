@@ -45,7 +45,7 @@ async function measure() {
   const records: MutationRecord[] = [];
   const observer = new MutationObserver((list) => records.push(...list));
   observer.observe(stage, { subtree: true, childList: true, attributes: true, characterData: true });
-  const replica = replicate(stage, []);
+  const replica = replicate(stage, { carried: [] });
   const originals = [stage, ...Array.from(stage.querySelectorAll<HTMLElement>("*"))];
   const still = (el: Element) => {
     for (let at: Element | null = el; at; at = at.parentElement) if (at.getAnimations().length > 0) return false;
