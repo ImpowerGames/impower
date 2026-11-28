@@ -297,12 +297,12 @@ const kinds: Kind[] = [
     },
   },
   {
-    name: "a with-clause animation",
+    name: "a using transition",
     holdLayout: false,
     words: "Menu.",
     beat: (words) => ({
       text: { dialogue: typed("Hi."), action: typed(words) },
-      layout: { menu: [{ control: "open", name: "menu", with: [{ name: "fadein" }] }] },
+      layout: { menu: [{ control: "open", name: "menu", using: "fade" }] },
       audio: sound,
       image: shake,
     }),
@@ -357,13 +357,63 @@ const kinds: Kind[] = [
     },
   },
   {
+    name: "a with beside a styled arrival",
+    holdLayout: false,
+    words: "Menu.",
+    beat: (words) => ({
+      text: { dialogue: typed("Hi."), action: typed(words) },
+      layout: { menu: [{ control: "open", name: "menu", with: [{ name: "shake" }] }] },
+      audio: sound,
+      image: shake,
+    }),
+    pending: (s) => {
+      expect(s.h.heldPresence()).not.toEqual([]);
+      expect(animateRequests(s.h)).toHaveLength(1);
+    },
+    release: (s) => {
+      s.h.releasePresence();
+      answerAnimations(s.h);
+    },
+    final: (s) => {
+      expect((s.h.game.module.ui as any)._mountedLayouts.get("menu")?.element?.id).toBeDefined();
+    },
+  },
+  {
+    name: "a with beside a styled departure",
+    holdLayout: false,
+    menuOpen: true,
+    words: "Closing.",
+    beat: (words) => ({
+      text: { dialogue: typed("Hi."), action: typed(words) },
+      layout: { menu: [{ control: "close", name: "menu", with: [{ name: "shake" }] }] },
+      audio: sound,
+      image: shake,
+    }),
+    pending: (s) => {
+      expect(s.h.heldPresence()).not.toEqual([]);
+      expect(animateRequests(s.h)).toHaveLength(1);
+      expect(destroyedIn(s.h, menuOf(s.h))).toEqual([]);
+    },
+    release: (s) => {
+      s.h.releasePresence();
+      answerAnimations(s.h);
+    },
+    final: (s) => {
+      expect(destroyedIn(s.h, menuOf(s.h))).toHaveLength(1);
+      expect((s.h.game.module.ui as any)._retiring.size).toBe(0);
+    },
+    settled: (s) => {
+      expect(destroyedIn(s.h, menuOf(s.h))).toHaveLength(1);
+    },
+  },
+  {
     name: "a retiring layout departure",
     holdLayout: false,
     menuOpen: true,
     words: "Closing.",
     beat: (words) => ({
       text: { dialogue: typed("Hi."), action: typed(words) },
-      layout: { menu: [{ control: "close", name: "menu", with: [{ name: "fadeout" }] }] },
+      layout: { menu: [{ control: "close", name: "menu", using: "fade" }] },
       audio: sound,
       image: shake,
     }),
@@ -454,9 +504,11 @@ const endings: Ending[] = [
       if (kind.name === "a departure") {
         expect(displayOf(s.h, s.ids.dialogue)).toBe("none");
       }
-      if (kind.name === "a with-clause animation") {
+      if (kind.name === "a using transition" || kind.name === "a with beside a styled arrival") {
         const menu = (s.h.game.module.ui as any)._mountedLayouts.get("menu")?.element?.id;
-        expect(visibilityOf(s.h, menu)).toBeNull();
+        if (kind.name === "a using transition") {
+          expect(visibilityOf(s.h, menu)).toBeNull();
+        }
         expect(markOf(s.h, menu)).toBeNull();
       }
       if (kind.name === "a layout move") {

@@ -711,20 +711,41 @@ layout menu {
     expect(destroyed(h, root)).toHaveLength(1);
   });
 
-  test("with a with clause, plays the clause's animation and not the blocks", async () => {
+  test("with a with clause, plays the clause's animation beside the blocks", async () => {
     const h = harness(MENU);
     await h.ready;
     const ui = h.game.module.ui;
     ui.setMotion(true);
     h.reset();
-    await ui.openLayout("menu", [{ with: "fadein" }]);
+    await ui.openLayout("menu", [{ with: "shake" }]);
+    await flushMicrotasks(10);
+    const root = (ui as any)._mountedLayouts.get("menu").element.id;
+    expect(animations(h)).toHaveLength(1);
+    expect(motions(h)).toEqual([{ element: root, presence: "show" }]);
+    await settle(h);
+    h.reset();
+    await ui.closeLayout("menu", [{ with: "shake" }]);
+    await flushMicrotasks(10);
+    expect(animations(h)).toHaveLength(1);
+    expect(motions(h)).toEqual([{ element: root, presence: "hide" }]);
+    await settle(h);
+    expect(destroyed(h, root)).toHaveLength(1);
+  });
+
+  test("with a using clause, plays the transition and not the blocks", async () => {
+    const h = harness(MENU);
+    await h.ready;
+    const ui = h.game.module.ui;
+    ui.setMotion(true);
+    h.reset();
+    await ui.openLayout("menu", [{ using: "fade" }]);
     await flushMicrotasks(10);
     const root = (ui as any)._mountedLayouts.get("menu").element.id;
     expect(animations(h)).toHaveLength(1);
     expect(motions(h)).toEqual([]);
     expect(presenceOf(h, root)).toBeUndefined();
     h.reset();
-    await ui.closeLayout("menu", [{ with: "fadeout" }]);
+    await ui.closeLayout("menu", [{ using: "fade" }]);
     await flushMicrotasks(10);
     expect(animations(h)).toHaveLength(1);
     expect(motions(h)).toEqual([]);

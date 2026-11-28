@@ -203,6 +203,12 @@ const CLAUSE_ROWS: Row[] = [
   ["timing words after `using`", "image", "hide portrait with spin using fade over 1s ease linear"],
   ["a second `using`", "image", "show portrait mia using fade with shake using screenfade"],
   ["`using` on an `animate` that names no picture", "image", "animate portrait using fade using screenfade"],
+  ["`using` on `open`", "image", "open menu using fade over 0.3s with shake over 0.5s"],
+  ["`using` on `close`", "image", "close menu with shake using fade after 1s"],
+  ["`using` on `navigate`", "image", "navigate main to menu using fade ease linear"],
+  ["a second `using` on `open`", "image", "open menu using fade with shake using screenfade"],
+  ["a second `using` on `navigate`", "image", "navigate main to menu using fade using screenfade"],
+  ["`using` on `clear`", "image", "clear textstream using fade using screenfade"],
   ["an empty `with` between two", "image", "animate portrait with shake with with spin"],
   ["a second `with` on a `load` line", "image", "load mia with fade with shake"],
   ["a second `with` on a `play` line", "image", "play intro with fade with shake"],
@@ -401,7 +407,7 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
   if (chunk.tag === "load" || chunk.tag === "cutscene" || chunk.tag === "audio") {
     reading.extraWiths = parsed.filter((clause) => clause.word.text === "with").slice(1).map((clause) => clause.word.text);
   }
-  if (chunk.tag === "image" && !(chunk.control === "animate" && chunk.assets.length === 0)) {
+  if ((chunk.tag === "layout" && chunk.control !== "clear") || (chunk.tag === "image" && !(chunk.control === "animate" && chunk.assets.length === 0))) {
     reading.extraUsings = parsed.filter((clause) => clause.word.text === "using").slice(1).map((clause) => clause.word.text);
   }
   if (chunk.tag === "layout" && controlWritten && chunk.control === "clear") {
@@ -684,6 +690,9 @@ describe("each owner on a row reads only the timing words written for it (I-2882
     ["`using` after a `with`", ["line after 2", "with 1 over 1"]],
     ["`using` between two `with` clauses", ["line over 1", "with 2 ease linear"]],
     ["timing words after `using`", ["line ease linear", "line over 1"]],
+    ["`using` on `open`", ["line over 0.3", "with 1 over 0.5"]],
+    ["`using` on `close`", ["line after 1"]],
+    ["`using` on `navigate`", ["line ease linear"]],
   ])("%s", (label, timing) => {
     const line = lineOf(ROWS.findIndex(([rowLabel]) => rowLabel === label));
     expect(interpreterReadings.get(line)?.timing).toEqual(timing);
@@ -696,6 +705,12 @@ describe("`using` is read as the line's on every row that writes it (I-2883)", (
     ["a second `using`", ["transition:fade", "transition:screenfade"], ["using"]],
     ["`using` on an `animate` that names no picture", ["transition:fade", "transition:screenfade"], []],
     ["`using` before a `with`", ["transition:fade"], []],
+    ["`using` on `open`", ["transition:fade"], []],
+    ["`using` on `close`", ["transition:fade"], []],
+    ["`using` on `navigate`", ["transition:fade"], []],
+    ["a second `using` on `open`", ["transition:fade", "transition:screenfade"], ["using"]],
+    ["a second `using` on `navigate`", ["transition:fade", "transition:screenfade"], ["using"]],
+    ["`using` on `clear`", ["transition:fade", "transition:screenfade"], []],
   ])("%s", (label, transitions, extraUsings) => {
     const line = lineOf(ROWS.findIndex(([rowLabel]) => rowLabel === label));
     for (const reading of [interpreterReadings.get(line), compilerReadings.get(line)]) {

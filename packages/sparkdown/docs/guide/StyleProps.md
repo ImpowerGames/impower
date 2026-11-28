@@ -143,7 +143,7 @@ style frame {
 
 The frame fades in over 280ms, takes 80ms for any later change of look, and goes at once when it leaves.
 
-An element appears when it gains its content, when its layout opens with no `with` clause, and when the `if`, `for` or `match` branch that holds it is added. It leaves when it loses its content, when its layout closes with no `with` clause, and when its branch is removed. A `with` clause on `open` or `close` plays its own animation in place of the blocks for that change. An element whose styles hold no `@hide` is removed at once.
+An element appears when it gains its content, when its layout opens with no `using` clause, and when the `if`, `for` or `match` branch that holds it is added. It leaves when it loses its content, when its layout closes with no `using` clause, and when its branch is removed. A `using` clause on `open`, `close` or `navigate` plays its transition in place of the blocks for that change, and a `with` clause plays its animation beside them. An element whose styles hold no `@hide` is removed at once.
 
 The blocks apply to the element that appears or leaves and to everything inside it, so a child can change only while its parent arrives. An arrival lasts as long as the longest transition or finite animation it starts, on the element or inside it. Here the typing dots show while the bubble fades in, and are gone once it has arrived:
 

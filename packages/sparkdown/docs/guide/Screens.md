@@ -355,35 +355,40 @@ scene menus
 
 ## 6.4 Transitions
 
-`open`, `close`, and `navigate` all take the same optional clauses, so views can
-fade, slide, and time their entrance:
+A layout arrives and leaves by its own motion: the `@initial`, `@show` and `@hide` blocks of its styles, or the built-in `show` and `hide` when it has none. `open`, `close` and `navigate` take the same optional clauses to change or add to that motion:
 
-| Clause             | Meaning                                       |
-| :----------------- | :-------------------------------------------- |
-| `with <animation>` | the transition to play (e.g. `with fade`)     |
-| `over <time>`      | how long it takes (`over 1s`, `over 300ms`)   |
-| `after <time>`     | delay before it starts (`after 0.2s`)         |
-| `ease <ease>`      | the easing curve (`ease ease_out`)            |
-| `wait`             | block the story until the transition finishes |
-
-```sparkdown
-scene start
-  [[open inventory with fade over 0.3s]]
-  [[close inventory with fade over 0.2s wait]]
-  [[navigate menu to settings with slide over 0.25s ease ease_out]]
-end
-```
-
-A line can name several `with` clauses, and they all play at once. Each `with` takes the `over`, `after` and `ease` written after it, and plays as it would if it were the line's only `with`: a transition plays its show half on a layout that opens and its hide half on one that closes, and an animation plays as written. On `navigate`, the layout that opens and every layout that closes each play every clause.
+| Clause                | Meaning                                                              |
+| :-------------------- | :------------------------------------------------------------------- |
+| `using <transition>`  | arrive or leave by this transition instead (e.g. `using fade`)       |
+| `with <animation>`    | an animation that plays beside the arrival or departure              |
+| `over <time>`         | how long the line's own motion takes (`over 1s`, `over 300ms`)       |
+| `after <time>`        | delay before the line's own motion starts (`after 0.2s`)             |
+| `ease <ease>`         | the easing curve of the line's own motion (`ease ease_out`)          |
+| `wait`                | block the story until everything on the line has finished           |
 
 ```sparkdown
 scene start
-  [[open inventory with fade over 0.3s with shake over 0.5s]]
-  [[close inventory with fade over 0.2s with shake over 0.2s wait]]
+  [[open inventory using fade over 0.3s]]
+  [[close inventory using fade over 0.2s wait]]
+  [[navigate menu to settings using fade over 0.25s ease ease_out]]
 end
 ```
 
-`wait` holds the story until the longest clause has finished, counting its `after`, and a layout that closes is removed once its last clause ends. Any `with` on the line replaces the layout's `@show` and `@hide` style blocks for that change.
+`using` takes the place of the layout's own motion for that one change: a layout that opens plays the transition's `on_show` animation and one that closes its `on_hide` animation, and the `@initial`, `@show` and `@hide` blocks are not used. The `over`, `after` and `ease` written before the first `with`, or after `using`, time it: `over` stretches the whole transition to that length. With none of them, the transition plays its declared timing. A line takes one `using`, written anywhere on it; a second is reported.
+
+Each `with` names an animation that starts with the line and plays beside the layout's own arrival or departure, whether that comes from its styles, from the built-in `show` and `hide`, or from `using`. A line can name several, and they all play at once. Each `with` takes the `over`, `after` and `ease` written after it; what it leaves out comes from the animation's own declaration.
+
+```sparkdown
+scene start
+  [[open inventory with shake]]
+  [[open inventory using fade over 0.3s with shake over 0.5s]]
+  [[close inventory using fade over 0.2s with shake over 0.2s wait]]
+end
+```
+
+The first line shakes the inventory while it arrives by its `@show` block, or by the built-in `show` when its styles have none. The second fades it in over 0.3 seconds while it shakes for half a second. On `navigate`, the layout that opens and every layout that closes each get their half of the transition and play every `with`.
+
+`wait` holds the story until the last of them has ended: the `using` transition, counted as its `after` plus its length, and every `with`, each counted the same way. The motion of the `@show` and `@hide` blocks is not counted. A layout that closes is removed once its departure and its last `with` have ended.
 
 ---
 

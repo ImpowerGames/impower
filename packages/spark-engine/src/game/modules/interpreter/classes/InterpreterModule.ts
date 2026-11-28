@@ -873,11 +873,12 @@ export class InterpreterModule extends Module<
   }
 
   protected screenHold(chunk: Chunk): number {
-    const line = chunk.clauses as { after?: number; over?: number; ease?: string } | undefined;
+    const line = chunk.clauses as { after?: number; over?: number; ease?: string; using?: string } | undefined;
     const entries = chunk.with ?? [];
-    const clauses = entries.length
-      ? entries.map((entry) => ({ with: entry.name, ...withTiming(entry) }))
-      : [{ after: line?.after, over: line?.over, ease: line?.ease }];
+    const clauses = [
+      { ...(line?.using ? { using: line.using } : {}), after: line?.after, over: line?.over, ease: line?.ease },
+      ...entries.map((entry) => ({ with: entry.name, ...withTiming(entry) })),
+    ];
     return screenLineEnd(this.context as unknown as AnimationContext, chunk.control ?? "", clauses);
   }
 
@@ -1840,6 +1841,10 @@ export class InterpreterModule extends Module<
               this.placeInBeat(event, time, c.clauses?.after);
               if (c.with) {
                 event.with = this.timedEntries(c.with, time);
+              }
+              const usingValue = c.clauses?.using;
+              if (typeof usingValue === "string" && usingValue) {
+                event.using = usingValue;
               }
               if (c.clauses) {
                 const overValue = c.clauses?.over;

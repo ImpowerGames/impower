@@ -24,6 +24,7 @@ export interface AnimationEvent {
 
 export interface LayoutClauses {
   with?: string;
+  using?: string;
   after?: number;
   afterIsBeatOffset?: true;
   over?: number;
@@ -124,6 +125,23 @@ const stretchedOver = (context: AnimationContext | undefined, entry: WithInstruc
   return longest > 0 ? (animationDuration(context, name) * entry.over) / longest : entry.over;
 };
 
+export const transitionParts = (
+  context: AnimationContext | undefined,
+  entry: WithInstruction,
+  instant: boolean,
+): LineAnimation[] =>
+  Object.entries(context?.transition?.[entry.name] ?? {}).flatMap(([k, v]: [string, any]) => {
+    if (k.startsWith("$") || k.startsWith("on_")) {
+      return [];
+    }
+    const animateWith = typeof v === "string" ? v : v?.$name;
+    const over = animateWith ? stretchedOver(context, entry, animateWith) : undefined;
+    const animation = animateWith
+      ? animationDefinition(context, { name: animateWith, ...withTiming(entry), ...(over != null ? { over } : {}) }, instant)
+      : undefined;
+    return animation ? [{ ...animation, arm: k }] : [];
+  });
+
 export const pictureLineAnimations = (
   context: AnimationContext | undefined,
   e: ImageInstruction,
@@ -161,18 +179,7 @@ export const pictureLineAnimations = (
   const showEvents = [...ownMotion("on_show"), ...entries.map((entry) => armEvent(context, entry, "on_show"))];
   const hideEvents = [...ownMotion("on_hide"), ...entries.map((entry) => armEvent(context, entry, "on_hide"))];
   const definitions = (events: AnimationEvent[]) => events.flatMap((event) => animationDefinition(context, event, instant) ?? []);
-  const armsOf = (entry: WithInstruction): LineAnimation[] =>
-    Object.entries(context?.transition?.[entry.name] ?? {}).flatMap(([k, v]: [string, any]) => {
-      if (k.startsWith("$") || k.startsWith("on_")) {
-        return [];
-      }
-      const animateWith = typeof v === "string" ? v : v?.$name;
-      const over = animateWith ? stretchedOver(context, entry, animateWith) : undefined;
-      const animation = animateWith
-        ? animationDefinition(context, { name: animateWith, ...withTiming(entry), ...(over != null ? { over } : {}) }, instant)
-        : undefined;
-      return animation ? [{ ...animation, arm: k }] : [];
-    });
+  const armsOf = (entry: WithInstruction): LineAnimation[] => transitionParts(context, entry, instant);
   const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent) =>
     entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
   const usingArms = using ? armsOf(using) : [];
@@ -230,22 +237,54 @@ export const layoutAnimation = (
   );
 };
 
+const layoutUsing = (clauses: LayoutClauses[] | undefined): WithInstruction | undefined => {
+  const line = clauses?.find((c) => !c.with);
+  return line?.using
+    ? {
+        name: line.using,
+        after: line.after,
+        ...beatOffset(line),
+        over: line.over,
+        ...(line.ease !== undefined ? { ease: line.ease } : {}),
+      }
+    : undefined;
+};
+
+export const layoutTransitionParts = (
+  context: AnimationContext | undefined,
+  clauses: LayoutClauses[] | undefined,
+  instant: boolean,
+): LineAnimation[] => {
+  const using = layoutUsing(clauses);
+  return using ? transitionParts(context, using, instant) : [];
+};
+
 export const layoutAnimations = (
   context: AnimationContext | undefined,
   direction: "enter" | "exit",
   clauses: LayoutClauses[] | undefined,
   instant: boolean,
-): Animation[] =>
-  (clauses?.length ? clauses : [{}]).flatMap((c) => {
-    const animation = layoutAnimation(context, direction, c, instant);
-    return animation ? [animation] : [];
-  });
+  styled = false,
+): Animation[] => {
+  const written = clauses?.length ? clauses : [{}];
+  const line = written.find((c) => !c.with) ?? {};
+  const using = layoutUsing(clauses);
+  const own = using
+    ? animationDefinition(context, armEvent(context, using, direction === "enter" ? "on_show" : "on_hide"), instant)
+    : styled
+      ? undefined
+      : layoutAnimation(context, direction, line, instant);
+  return [
+    ...(own ? [own] : []),
+    ...written.filter((c) => c.with).flatMap((c) => layoutAnimation(context, direction, c, instant) ?? []),
+  ];
+};
 
 export const layoutArrivesByStyle = (
   context: AnimationContext | undefined,
   direction: "enter" | "exit",
   clauses: LayoutClauses[] | undefined,
-): boolean => !clauses?.some((c) => c.with) && presenceStyleBlocks(context?.style)[direction === "enter" ? "show" : "hide"];
+): boolean => !clauses?.some((c) => c.using) && presenceStyleBlocks(context?.style)[direction === "enter" ? "show" : "hide"];
 
 export const pictureLineEnd = (context: AnimationContext | undefined, e: ImageInstruction): number => {
   const plays = pictureLineAnimations(context, e, false);
@@ -270,11 +309,12 @@ export const screenLineEnd = (
         : control === LayoutVerb.navigate
           ? ["exit", "enter"]
           : [];
-  return animationsEnd(
-    directions.flatMap((direction) =>
-      layoutArrivesByStyle(context, direction, clauses) ? [] : layoutAnimations(context, direction, clauses, false),
+  return animationsEnd([
+    ...directions.flatMap((direction) =>
+      layoutAnimations(context, direction, clauses, false, layoutArrivesByStyle(context, direction, clauses)),
     ),
-  );
+    ...(directions.length ? layoutTransitionParts(context, clauses, false) : []),
+  ]);
 };
 
 export const animationsEnd = (animations: readonly Animation[]): number =>
