@@ -6477,10 +6477,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       muted: Boolean(cutscene.mute),
       ...this.getMovieMixer(),
     };
-    if (cutscene.with) {
-      params.with = cutscene.with;
+    if (cutscene.using) {
+      params.with = cutscene.using;
       if (!still) {
-        const clauses = { with: cutscene.with };
+        const clauses = { with: cutscene.using };
         const enter = this.resolveLayoutAnimation("enter", clauses, false);
         const exit = this.resolveLayoutAnimation("exit", clauses, false);
         if (enter) {

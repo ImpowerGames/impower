@@ -132,10 +132,8 @@ function errorsOn(line: string): string[] {
     });
 }
 
-describe("a second `with` on a `load`, `play` or sound line is an error on that `with` (I-2853)", () => {
+describe("a second `with` on a sound line is an error on that `with` (I-2853)", () => {
   test.each([
-    ["[[load start with fade with fade]]", "A `load` line takes one `with`"],
-    ["[[play intro with fade with fade]]", "A `play` line takes one `with`"],
     ["((play music theme with echo with echo))", "A sound line takes one `with`"],
   ])("`%s`", (line, message) => {
     const secondWith = 2 + line.lastIndexOf("with");

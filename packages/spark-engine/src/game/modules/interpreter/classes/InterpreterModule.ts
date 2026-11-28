@@ -1800,9 +1800,9 @@ export class InterpreterModule extends Module<
             );
             for (const name of names) {
               const event: LoadInstruction = { name };
-              const withValue = c.clauses?.with;
-              if (withValue != null) {
-                event.with = withValue;
+              const usingValue = c.clauses?.using;
+              if (usingValue != null) {
+                event.using = usingValue;
               }
               result.load ??= [];
               result.load.push(event);
@@ -1816,9 +1816,9 @@ export class InterpreterModule extends Module<
             if (c.clauses?.mute) {
               event.mute = true;
             }
-            const withValue = c.clauses?.with;
-            if (withValue != null) {
-              event.with = withValue;
+            const usingValue = c.clauses?.using;
+            if (usingValue != null) {
+              event.using = usingValue;
             }
             result.cutscene ??= [];
             result.cutscene.push(event);

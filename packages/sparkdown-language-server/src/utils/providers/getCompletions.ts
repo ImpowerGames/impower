@@ -109,7 +109,9 @@ const BRACKET_CONTROL_KEYWORDS = [
   ...MOVIE_CONTROL_KEYWORDS,
   ...LAYOUT_VERBS,
 ];
-const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
+const LOAD_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "using"];
 
 const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
@@ -2093,7 +2095,7 @@ const completionsAt = (
         ),
       );
     const takesUsing = (control: string) => {
-      if (control === "" || control === "show" || control === "hide") return true;
+      if (control === "" || control === "show" || control === "hide" || LOAD_CONTROL_KEYWORDS.includes(control)) return true;
       const command = leftStack.find((n) => n.type.name === "ImageCommand");
       return (
         control === "animate" &&
@@ -2110,7 +2112,9 @@ const completionsAt = (
         ? CUTSCENE_CLAUSE_KEYWORDS
         : control === "animate"
           ? ["with", ...imageClauses.filter((k) => k !== "with")]
-          : imageClauses;
+          : LOAD_CONTROL_KEYWORDS.includes(control)
+            ? imageClauses.filter((k) => k !== "with")
+            : imageClauses;
       addKeywordCompletions(
         completions,
         "clause",

@@ -24,23 +24,23 @@ describe("[[play NAME]] completions", () => {
   });
 
   it("offers `loop`, `mute` and `with` after the name", () => {
-    expect(complete("[[play intro @0]]")).toEqual(["loop", "mute", "with"]);
+    expect(complete("[[play intro @0]]")).toEqual(["loop", "mute", "using"]);
   });
 
   it("offers only the cutscene clauses after a clause", () => {
-    expect(complete("[[play intro loop @0]]")).toEqual(["mute", "with"]);
+    expect(complete("[[play intro loop @0]]")).toEqual(["mute", "using"]);
   });
 
   it("offers the cutscene clauses, not image names, for a clause being typed", () => {
     for (const [source, offered] of [
-      ["[[play intro l@0]]", ["loop", "mute", "with"]],
-      ["[[play intro m@0]]", ["loop", "mute", "with"]],
-      ["[[play intro loop m@0]]", ["mute", "with"]],
-      ["[[play intro with fade l@0]]", ["loop", "mute"]],
+      ["[[play intro l@0]]", ["loop", "mute", "using"]],
+      ["[[play intro m@0]]", ["loop", "mute", "using"]],
+      ["[[play intro loop m@0]]", ["mute", "using"]],
+      ["[[play intro using fade l@0]]", ["loop", "mute"]],
     ] as const) {
       const labels = complete(source);
       expect(labels, source).toEqual(expect.arrayContaining([...offered]));
-      for (const clause of ["loop", "mute", "with"]) {
+      for (const clause of ["loop", "mute", "using"]) {
         if (!(offered as readonly string[]).includes(clause)) {
           expect(labels, source).not.toContain(clause);
         }
@@ -50,8 +50,8 @@ describe("[[play NAME]] completions", () => {
     }
   });
 
-  it("offers transitions after `with`", () => {
-    expect(complete("[[play intro with @0]]")).toEqual(["fade"]);
+  it("offers transitions after `using`", () => {
+    expect(complete("[[play intro using @0]]")).toEqual(["fade"]);
   });
 
   it("still offers channels then sounds after `play` inside (( ))", () => {

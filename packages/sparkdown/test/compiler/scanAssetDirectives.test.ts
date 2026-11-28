@@ -50,7 +50,7 @@ describe("scanAssetDirectives", () => {
   });
 
   it("records the video a `[[play]]` cutscene names, with no layer token", () => {
-    const { beat } = scan("[[play intro loop with fade]]");
+    const { beat } = scan("[[play intro loop using fade]]");
     expect(beat?.image).toEqual(["intro"]);
     expect(beat?.audio).toBeUndefined();
   });
@@ -67,7 +67,7 @@ describe("scanAssetDirectives", () => {
   });
 
   it("records every flow a `load` names", () => {
-    const { beat } = scan("[[load Chapter2 Chapter3 with fade]]");
+    const { beat } = scan("[[load Chapter2 Chapter3 using fade]]");
     expect(beat?.loads).toEqual(["Chapter2", "Chapter3"]);
   });
 

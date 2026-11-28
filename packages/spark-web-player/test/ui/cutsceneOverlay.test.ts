@@ -36,12 +36,12 @@ scene looped
 end
 
 scene faded
-  [[play intro with fade]]
+  [[play intro using fade]]
   After the fade.
 end
 
 scene spun
-  [[play intro with spin]]
+  [[play intro using spin]]
   After the spin.
 end
 `;
@@ -360,7 +360,7 @@ describe("a cutscene on the page, in play", () => {
     expect(routed[0].outputs).toEqual([mixerNode]);
   });
 
-  test("`with fade` fades it in before it plays, and out before it goes", async () => {
+  test("`using fade` fades it in before it plays, and out before it goes", async () => {
     const { h, media, answers } = await playing("faded");
     const win = h.overlay.ownerDocument.defaultView as any;
     const effects: { target: HTMLElement; keyframes: any; opacity: string }[] = [];

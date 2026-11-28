@@ -913,7 +913,7 @@ export class AssetModule extends Module<
       if (!name) {
         continue;
       }
-      transition ??= load.with;
+      transition ??= load.using;
       const entry = sceneAssets[name];
       const hasWorld = typeof worlds?.[name]?.src === "string" && worlds[name].src;
       if (!entry && !hasWorld) {

@@ -71,8 +71,8 @@ describe("[[play NAME]] validation", () => {
     "[[play intro]]",
     "[[play intro loop]]",
     "[[play intro mute]]",
-    "[[play intro with fade]]",
-    "[[play intro loop mute with fade]]",
+    "[[play intro using fade]]",
+    "[[play intro loop mute using fade]]",
   ])("%s with a video name produces no diagnostics", (line) => {
     expect(diagnosticsFor(inScene(line))).toEqual([]);
   });
@@ -95,7 +95,7 @@ describe("[[play NAME]] validation", () => {
     "[[play intro+bunny]]",
     "[[play intro loop bunny]]",
     "[[play intro mute loop bunny]]",
-    "[[play intro with fade bunny]]",
+    "[[play intro using fade bunny]]",
   ])(
     "%s names more than one video and is reported",
     (line) => {
@@ -117,7 +117,7 @@ describe("[[play NAME]] validation", () => {
 
 describe("[[play NAME]] references", () => {
   test("the name in the target slot resolves to video.<name>", () => {
-    const refs = referencesFor(`[[play intro with fade]]\n`, "intro");
+    const refs = referencesFor(`[[play intro using fade]]\n`, "intro");
     expect(refs).toHaveLength(1);
     expect(refs[0]?.symbolIds).toEqual(["video.intro"]);
     expect(refs[0]?.kind).toBe("read");

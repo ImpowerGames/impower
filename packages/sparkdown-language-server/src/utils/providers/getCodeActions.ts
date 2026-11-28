@@ -4,7 +4,7 @@ import {
   stillExpected,
   type FixKind,
 } from "@impower/sparkdown/src/compiler/utils/closeMatch";
-import { clauseWordKindFixOf } from "@impower/sparkdown/src/compiler/utils/clauseWordKind";
+import { clauseWordKindFixOf, usingLineFixOf } from "@impower/sparkdown/src/compiler/utils/clauseWordKind";
 import { INCLUDE_LINE_MESSAGE } from "@impower/sparkdown/src/compiler/lower/lowerers/lowerInclude";
 import {
   ADD_ASSET_COMMAND,
@@ -149,6 +149,10 @@ export const getCodeActions = (
     if (clauseWordKind) {
       return clauseWordKindFixes(document, diagnostic, clauseWordKind);
     }
+    const usingLine = usingLineFixOf(messageOf(diagnostic));
+    if (usingLine) {
+      return usingLineFixes(document, diagnostic, usingLine.transition);
+    }
     const close = closeMatchOf(diagnostic.data);
     const missing = missingAssetOf(diagnostic.data);
     if (close || missing) {
@@ -269,6 +273,20 @@ const clauseWordKindFixes = (
   return [
     quickFix(`Write \`${word} ${name}\``, `Changed to \`${word} ${name}\`.`, document, diagnostic, [
       { range, newText: word },
+    ]),
+  ];
+};
+
+const usingLineFixes = (document: TextDocument, diagnostic: ActionableDiagnostic, transition: string): CodeAction[] => {
+  const { end } = diagnostic.range;
+  const rest = document.getText({ start: end, end: { line: end.line + 1, character: 0 } });
+  const named = /^[ \t]+([^ \t\r\n\]]+)/.exec(rest)?.[1];
+  if (document.getText(diagnostic.range) !== "with" || named !== transition) {
+    return [];
+  }
+  return [
+    quickFix(`Write \`using ${transition}\``, `Changed to \`using ${transition}\`.`, document, diagnostic, [
+      { range: diagnostic.range, newText: "using" },
     ]),
   ];
 };

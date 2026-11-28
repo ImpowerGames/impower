@@ -67,8 +67,10 @@ The cutscene plays once. The story goes on to the next line when the video ends,
 | --- | --- |
 | `[[play intro]]` | Plays once, ending on its own or on a click. |
 | `[[play intro loop]]` | Loops until the player clicks. |
-| `[[play intro with fade]]` | Fades the cutscene in, and fades it out when it ends. |
+| `[[play intro using fade]]` | Fades the cutscene in, and fades it out when it ends. |
 | `[[play intro mute]]` | Plays it with no sound. |
+
+`using` names the transition the cutscene arrives by, and leaves by when it ends. A `play` line takes one `using` and no `with`; the editor marks a `with` there as an error and, when its name is a transition, offers to change the word to `using`.
 
 `[[play]]` takes exactly one name, and that name has to be a video. Inside `(( ))`, `play` is still the audio verb: `((play music theme))` plays a sound.
 
