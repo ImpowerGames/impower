@@ -7,7 +7,7 @@ import { createHarness, flattenMessages, flushMicrotasks, MAIN_URI } from "./har
 
 const MAIN = "file:///local/main.sd";
 
-const PICTURES = ["mia@happy", "mia@sad", "sam@calm", "sam@cross"].map((name) => ({
+const PICTURES = ["mia@happy", "mia@sad", "sam@calm", "sam@cross", "constructor@happy", "constructor@sad", "toString@happy", "toString@sad"].map((name) => ({
   uri: `file:///${name}.png`,
   type: "image",
   name,
@@ -252,6 +252,50 @@ end
     );
     h.tapTo("Back.");
     expect(h.framings()).toEqual({ mia: null });
+  });
+});
+
+describe("a character named after an Object member (#2892)", () => {
+  const NATIVES = [
+    ["constructor", Object],
+    ["toString", Object.prototype.toString],
+  ] as const;
+
+  const playAs = (name: string) =>
+    play(
+      `${CHARACTERS}\ndefine ${name} as character with\n  name = "HERO"\nend\n\n${castLayout("portrait")}`,
+      `scene start
+  MIA [left]: Hi.
+  [[${name}@happy at left]]
+  HERO: One.
+  [[${name}@sad]]
+  HERO: Two.
+  [[hide ${name}]]
+  Nobody.
+  [[${name}@happy]]
+  HERO: Back.
+end
+`,
+    );
+
+  test.each(NATIVES)("a character defined as %s keeps a framing until hidden", (name, native) => {
+    try {
+      const h = playAs(name);
+      h.tapTo("Two.");
+      expect(h.framings()[name]).toEqual(h.ui.getFraming("left"));
+      h.tapTo("Back.");
+      expect(h.framings()[name]).toBeNull();
+      expect(Object.hasOwn(native, "portrait")).toBe(false);
+    } finally {
+      delete (native as unknown as Record<string, unknown>)["portrait"];
+    }
+  });
+
+  test.each(NATIVES)("a character defined as %s carries no variant they never spoke", (name) => {
+    const h = playAs(name);
+    h.tapTo("Two.");
+    const entry = (h.ui.casts.entries("main") as CastEntry[]).find((e) => e.speaker === name);
+    expect(entry?.variant).toBeUndefined();
   });
 });
 

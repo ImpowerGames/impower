@@ -9436,7 +9436,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (speaker) {
             cast.latest = speaker;
             if (instructions.variant) {
-              (cast.variants ??= {})[speaker] = instructions.variant;
+              Object.defineProperty((cast.variants ??= {}), speaker, {
+                value: instructions.variant,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+              });
             } else {
               delete cast.variants?.[speaker];
             }
@@ -9484,7 +9489,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const resolved = $.image.recorded(structuredClone(entry.image?.[target] ?? []), sequence);
             const at = $.pictureShown(resolved)
               ? resolved.findLast((e) => e.control === "show" && e.assets?.length)?.at
-              : framings[entry.speaker]?.[target];
+              : ownEntry(ownEntry(framings, entry.speaker), target);
             if (at) {
               written = { ...event, at };
             }
@@ -9532,10 +9537,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const after = $.image.recorded(before, sequence);
             if ($.pictureShown(after)) {
               const at = after.findLast((e) => e.control === "show" && e.assets?.length)?.at;
+              const targets = ownEntry(framings, entry.speaker);
               if (at) {
-                (framings[entry.speaker] ??= {})[target] = at;
-              } else {
-                delete framings[entry.speaker]?.[target];
+                Object.defineProperty(framings, entry.speaker, {
+                  value: { ...targets, [target]: at },
+                  writable: true,
+                  enumerable: true,
+                  configurable: true,
+                });
+              } else if (targets) {
+                delete targets[target];
               }
             }
             (entry.image ??= {})[target] = after;
@@ -9608,7 +9619,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : !this.empty(entry) || created.size === 0 || created.has(entry.id),
         );
         for (const entry of cast.entries) {
-          const variant = cast.variants?.[entry.speaker];
+          const variant = ownEntry(cast.variants, entry.speaker);
           if (variant) {
             entry.variant = variant;
           } else {
