@@ -35,6 +35,21 @@ const played = (h: ReturnType<typeof createHarness>): { name: string; duration: 
       m.params.effects[0].animations.map((a: any) => ({ name: a.$name, duration: a.timing?.duration })),
     );
 
+const effects = (
+  h: ReturnType<typeof createHarness>,
+): { id: number; element: string; name: string; duration: string; arm?: string }[] =>
+  sent(h, "ui/animate").flatMap((m: any) =>
+    (m.params?.effects ?? []).flatMap((e: any) =>
+      e.animations.map((a: any) => ({
+        id: m.id,
+        element: e.element,
+        name: a.$name,
+        duration: a.timing?.duration,
+        ...(a.arm ? { arm: a.arm } : {}),
+      })),
+    ),
+  );
+
 const presences = (h: ReturnType<typeof createHarness>): string[] =>
   sent(h, "ui/presence").flatMap((m: any) => (m.params?.effects ?? []).map((e: any) => e.presence));
 
@@ -290,16 +305,153 @@ end
       if (verb === "close") {
         await drive(h, true);
       }
+      const inventory = verb === "close" ? h.game.module.ui.findIds("inventory") : [];
       h.reset();
       await drive(h);
-      const calls = sent(h, "ui/animate").filter((m: any) => m.params?.effects?.length);
-      const all = calls.flatMap((m: any) =>
-        m.params.effects.flatMap((e: any) => e.animations.map((a: any) => ({ name: a.$name, duration: a.timing?.duration, arm: a.arm }))),
-      );
-      expect(all).toContainEqual({ name: half, duration: "1s", arm: undefined });
-      expect(all).toContainEqual({ name: "blackpulse", duration: "2s", arm: "screen" });
+      const all = effects(h);
+      const [screen] = h.game.module.ui.findIds("screen");
+      expect(screen).toBeDefined();
+      expect(all.filter((a) => a.name === "blackpulse")).toEqual([
+        expect.objectContaining({ element: screen, name: "blackpulse", duration: "2s", arm: "screen" }),
+      ]);
+      const halves = all.filter((a) => a.name === half);
+      expect(halves).toHaveLength(1);
+      expect(halves[0]).toMatchObject({ duration: "1s" });
+      expect(halves[0]!.element).not.toBe(screen);
+      if (verb === "close") {
+        expect(inventory).toContain(halves[0]!.element);
+      }
     },
   );
+
+  test("a part whose layer is inside the arriving layout plays on that layer once it exists", async () => {
+    const { h, ui } = await start(`${MAIN}layout inventory {
+  screen {
+    animation
+  }
+  text "Bag"
+}
+
+scene start
+  [[open inventory using screenfade over 2s]]
+  Done.
+end
+`);
+    expect(ui.findIds("screen")).toEqual([]);
+    h.reset();
+    await drive(h);
+    const [screen] = ui.findIds("screen");
+    expect(screen).toBeDefined();
+    expect(effects(h).filter((a) => a.name === "blackpulse")).toEqual([
+      expect.objectContaining({ element: screen, name: "blackpulse", duration: "2s", arm: "screen" }),
+    ]);
+  });
+
+  test("without a composing line, a closing layout is removed only after a part playing inside it has ended", async () => {
+    const h = createHarness(
+      `${MAIN}layout inventory {
+  screen {
+    animation
+  }
+  text "Bag"
+}
+`,
+      0,
+      { reactive: true, autoOpenAll: false, holdAnimations: true },
+    );
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("inventory", undefined, true);
+    const root = ui._mountedLayouts.get("inventory").element.id;
+    const [screen] = ui.findIds("screen");
+    h.reset();
+    const closing = ui.applyLayoutInstructions(
+      [{ control: "close", name: "inventory", using: "screenfade", over: 2 }],
+      false,
+    );
+    await flushMicrotasks(40);
+    const destroyed = () => sent(h, "ui/destroy").filter((m: any) => m.params?.element === root);
+    expect(effects(h)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ element: root, name: "waitout" }),
+        expect.objectContaining({ element: screen, name: "blackpulse", duration: "2s" }),
+      ]),
+    );
+    expect(destroyed()).toEqual([]);
+    const answered = new Set(effects(h).filter((a) => a.name === "waitout").map((a) => a.id));
+    for (const id of answered) {
+      h.game.connection.receive({ jsonrpc: "2.0", id, result: [0] } as any);
+    }
+    await flushMicrotasks(40);
+    const pulseStillRunning = effects(h).some((a) => a.name === "blackpulse" && !answered.has(a.id));
+    expect({ pulseStillRunning, destroyed: destroyed().length }).not.toEqual({ pulseStillRunning: true, destroyed: 1 });
+    h.releaseAnimations();
+    await closing;
+    await flushMicrotasks(40);
+    expect(destroyed()).toHaveLength(1);
+  });
+
+  test("`navigate … using screenfade` starts its arriving half while the pulse on another layer still runs", async () => {
+    const h = createHarness(
+      `layout main {
+  textbox {
+    dialogue #clear {
+      text
+    }
+  }
+  screen {
+    animation
+  }
+}
+screen menu {
+}
+layout pause in menu {
+  text "Paused"
+}
+layout settings in menu {
+  text "Settings"
+}
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        holdAnimations: true,
+        beforeConnect: (game) => {
+          game.context.system.previewing = undefined;
+          game.context.system.composeBeats = true;
+        },
+      },
+    );
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    await ui.openLayout("pause", undefined, true);
+    ui.setMotion(true);
+    h.reset();
+    ui.beginLine(0);
+    ui.beginCompose();
+    await ui.applyLayoutInstructions(
+      [{ control: "navigate", name: "settings", screen: "menu", using: "screenfade", over: 2 }],
+      false,
+    );
+    await ui.endCompose();
+    ui.closeLine();
+    await flushMicrotasks(40);
+    const answer = (name: string) => {
+      for (const id of new Set(effects(h).filter((a) => a.name === name).map((a) => a.id))) {
+        h.game.connection.receive({ jsonrpc: "2.0", id, result: [0] } as any);
+      }
+    };
+    expect(effects(h).map((a) => a.name)).toEqual(expect.arrayContaining(["blackpulse", "waitout"]));
+    expect(effects(h).map((a) => a.name)).not.toContain("waitin");
+    answer("waitout");
+    await flushMicrotasks(40);
+    expect(effects(h).map((a) => a.name)).toContain("waitin");
+    answer("waitin");
+    answer("blackpulse");
+    await flushMicrotasks(40);
+    ui.setMotion(false);
+  });
 
   test("`wait` holds for the longest part of a `using` transition", async () => {
     const { h } = await start(`${MAIN}layout inventory {

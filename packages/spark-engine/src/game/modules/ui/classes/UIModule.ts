@@ -814,6 +814,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _retiring = new Set<Retirement>();
 
+  protected _claimedParts: Set<Element> | undefined;
+
   protected _exits = new Set<PictureExit>();
 
   protected _exitReports = new WeakMap<IMessage, Promise<unknown>>();
@@ -2842,7 +2844,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     void this.present(elements, "show");
   }
 
-  protected retireElement(element: Element, name?: string, pin?: string, beside: Animation[] = []): void {
+  protected retireElement(
+    element: Element,
+    name?: string,
+    pin?: string,
+    beside: { element: Element; animations: Animation[] }[] = [],
+  ): void {
     const retiring: Retirement = {
       ...(name ? { name } : {}),
       held: this.heldNames(element),
@@ -2873,12 +2880,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.own(line, {
         phase: "leave",
         removes: true,
-        start: () => this.animateElements([{ element, animations: beside }]),
+        start: () => this.animateElements(beside),
         finish: release,
         settle: release,
       });
     } else {
-      void this.animateElements([{ element, animations: beside }]).then(release);
+      void this.animateElements(beside).then(release);
     }
   }
 
@@ -6111,27 +6118,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const enter = routed
       ? []
       : this.resolveLayoutAnimations("enter", clauses, instant, styled);
+    const effects = [
+      ...(enter.length ? [{ element, animations: enter }] : []),
+      ...(routed || instant ? [] : this.claimTransitionParts(clauses, element)),
+    ];
     if (styled) {
       const frame = layout.screen
         ? this._mountedScreens.get(layout.screen)
         : undefined;
       this.arrive([frame && frame !== framed ? frame.element : element]);
-      if (enter.length) {
+      if (effects.length) {
         const line = this.composingLine();
         if (line) {
           this.own(line, {
             phase: "arrive",
-            start: () => this.animateElements([{ element, animations: enter }]),
+            start: () => this.animateElements(effects),
             finish: () => {},
             settle: () => {},
           });
         } else {
-          void this.animateElements([{ element, animations: enter }]);
+          void this.animateElements(effects);
         }
       }
       return;
     }
-    if (enter.length && !instant) {
+    if (effects.length && !instant) {
       const line = this.composingLine();
       if (line) {
         this.updateElement(element, { style: { visibility: "hidden" } });
@@ -6141,7 +6152,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           start: () => {
             started = true;
             this.updateElement(element, { style: { visibility: null } });
-            return this.animateElements([{ element, animations: enter }]);
+            return this.animateElements(effects);
           },
           finish: () => {},
           settle: () => {
@@ -6153,7 +6164,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
         return;
       }
-      const entering = this.animateElements([{ element, animations: enter }]);
+      const entering = this.animateElements(effects);
       if (this._compose) {
         void entering;
         return;
@@ -6199,17 +6210,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const exit = routed
       ? []
       : this.resolveLayoutAnimations("exit", clauses, instant, styled);
+    const effects = [
+      ...(exit.length ? [{ element, animations: exit }] : []),
+      ...(routed || instant ? [] : this.claimTransitionParts(clauses, element)),
+    ];
     if (styled) {
       this._mountedLayouts.delete(name);
       this.retireElement(
         element,
         name,
         this._game.module.assets?.retireLayout(name),
-        exit,
+        effects,
       );
       return;
     }
-    if (exit.length && !instant && this._compose) {
+    if (effects.length && !instant && this._compose) {
       const retiring: Retirement = {
         name,
         held: this.heldNames(element),
@@ -6226,19 +6241,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this.own(line, {
           phase: "leave",
           removes: true,
-          start: () => this.animateElements([{ element, animations: exit }]),
+          start: () => this.animateElements(effects),
           finish: () => this.retire(retiring),
           settle: () => this.retire(retiring),
         });
         return;
       }
-      void this.animateElements([{ element, animations: exit }]).then(() =>
+      void this.animateElements(effects).then(() =>
         this.retire(retiring),
       );
       return;
     }
-    if (exit.length && !instant) {
-      await this.animateElements([{ element, animations: exit }]);
+    if (effects.length && !instant) {
+      await this.animateElements(effects);
     }
     this.destroyElement(element);
     this._mountedLayouts.delete(name);
@@ -6764,9 +6779,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         { ...(e.using ? { using: e.using } : {}), after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease },
         ...entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) })),
       ];
+      const claimed = new Set<Element>();
+      this._claimedParts = claimed;
+      const done = runVerb(e, clauses);
+      this._claimedParts = undefined;
       if (e.control !== LayoutVerb.clear) {
-        this.playLayoutTransitionParts(e.control === LayoutVerb.open ? "arrive" : "leave", clauses, instant);
+        this.playLayoutTransitionParts(e.control, clauses, instant, claimed);
       }
+      return done;
+    };
+    const runVerb = (e: LayoutInstruction, clauses: LayoutClauses[]): Promise<void> => {
       switch (e.control) {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
@@ -6841,28 +6863,53 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected playLayoutTransitionParts(phase: MotionPhase, clauses: LayoutClauses[], instant: boolean): void {
+  protected claimTransitionParts(
+    clauses: LayoutClauses[] | undefined,
+    within: Element,
+  ): { element: Element; animations: Animation[] }[] {
+    const parts = layoutTransitionParts(this.context as AnimationContext, clauses, false);
+    return [...new Set(parts.flatMap((part) => (part.arm ? [part.arm] : [])))].flatMap((arm) =>
+      this.searchForAll(within, arm).map((element) => {
+        this._claimedParts?.add(element);
+        return { element, animations: parts.filter((part) => part.arm === arm) };
+      }),
+    );
+  }
+
+  protected playLayoutTransitionParts(
+    control: LayoutVerb,
+    clauses: LayoutClauses[],
+    instant: boolean,
+    claimed: ReadonlySet<Element>,
+  ): void {
     if (instant || !this._reactive) {
       return;
     }
     const parts = layoutTransitionParts(this.context as AnimationContext, clauses, instant);
-    const effects = [...new Set(parts.map((part) => part.arm ?? ""))].flatMap((arm) =>
-      this.findElements(arm).map((element) => ({ element, animations: parts.filter((part) => part.arm === arm) })),
+    const effects = [...new Set(parts.flatMap((part) => (part.arm ? [part.arm] : [])))].flatMap((arm) =>
+      this.findElements(arm)
+        .filter((element) => !claimed.has(element))
+        .map((element) => ({ element, animations: parts.filter((part) => part.arm === arm) })),
     );
     if (effects.length === 0) {
       return;
     }
     const line = this.composingLine();
-    if (line) {
-      this.own(line, {
-        phase,
-        start: () => this.animateElements(effects),
-        finish: () => {},
-        settle: () => {},
-      });
+    if (!line) {
+      void this.animateElements(effects);
       return;
     }
-    void this.animateElements(effects);
+    if (control === LayoutVerb.navigate) {
+      const playing = this.animateElements(effects);
+      this.own(line, { phase: "arrive", start: () => playing, finish: () => {}, settle: () => {} });
+      return;
+    }
+    this.own(line, {
+      phase: control === LayoutVerb.open ? "arrive" : "leave",
+      start: () => this.animateElements(effects),
+      finish: () => {},
+      settle: () => {},
+    });
   }
 
   protected async holdingScreens<T>(screens: string[], work: () => Promise<T>): Promise<T> {
