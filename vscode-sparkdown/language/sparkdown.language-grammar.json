@@ -165,6 +165,7 @@
     "BLOCK_COMMENT_CHARACTER": "(?:[^*\\r\\n]|[*](?![/]))",
     "BREAK_MARK": "(?:[>])",
     "BREAK": "(?:{{WS}}*{{BREAK_MARK}}{{WS}}*)",
+    "CARRY": "(?:{{WS}}*(?<![>])[>][>]{{WS}}*(?=$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}))",
     "CHAIN": "(?:[\\\\])",
     "GLUE": "(?:(?<![.])[.][.]{{GLUE_END}})",
     "GLUE_END": "(?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))",
@@ -1773,6 +1774,17 @@
         "1": {
           "tag": "keyword",
           "name": "keyword.other.break.sd"
+        }
+      }
+    },
+    "Carry": {
+      "tag": "special(content)",
+      "name": "meta.carry.sd",
+      "match": "((?:(?:[^\\S\\n\\r])*(?<![>])[>][>](?:[^\\S\\n\\r])*(?=$|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|[/]{2}(?:$|(?:[^\\S\\n\\r]))|(?:[/][*]))))",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.carry.sd"
         }
       }
     },
@@ -5756,6 +5768,9 @@
       "patterns": [
         {
           "include": "#SparkdownInlineComment"
+        },
+        {
+          "include": "#Carry"
         },
         {
           "include": "#BreakLeadingGlue"

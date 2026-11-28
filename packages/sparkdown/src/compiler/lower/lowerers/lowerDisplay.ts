@@ -160,7 +160,7 @@ function buildDisplayCalls(
       );
     } else {
       const stamped =
-        body.length > 0 || range.pause || ranges.length > 1
+        body.length > 0 || range.pause || range.onward || ranges.length > 1
           ? range
           : { from: parent.from, to: parent.from };
       calls.push(
@@ -173,8 +173,9 @@ function buildDisplayCalls(
           tags,
           {
             pause: range.pause,
-            extend: trailingGlue != null && range.pause,
-            glue: trailingGlue != null && !range.pause && !divertJoins,
+            onward: range.onward,
+            extend: trailingGlue != null && (range.pause || range.onward),
+            glue: trailingGlue != null && !range.pause && !range.onward && !divertJoins,
             group: isContinuation
               ? `${ctx.filePath ?? ""}#${parent.from}`
               : undefined,
@@ -284,7 +285,8 @@ function splitBodyRangeAtBreaks(
         ? lineEnd - 1
         : lineEnd
       : brk.from;
-    ranges.push({ from: segStart, to, pause: true, leads });
+    const onward = brk.name === "Carry";
+    ranges.push({ from: segStart, to, pause: !onward, onward, leads });
     if (endsLine) {
       segStart = Math.min(lineEnd + 1, bodyEnd);
       leads = false;
@@ -295,7 +297,7 @@ function splitBodyRangeAtBreaks(
     segStart = brk.to;
     leads = mark != null;
   }
-  ranges.push({ from: segStart, to: bodyEnd, pause: false, leads });
+  ranges.push({ from: segStart, to: bodyEnd, pause: false, onward: false, leads });
   const kept = ranges.filter(
     (range, i) =>
       hasBodyContent(parent, range.from, range.to, ctx) ||
@@ -303,13 +305,14 @@ function splitBodyRangeAtBreaks(
   );
   return kept.length > 0
     ? kept
-    : [{ from: bodyStart, to: bodyEnd, pause: false, leads: false }];
+    : [{ from: bodyStart, to: bodyEnd, pause: false, onward: false, leads: false }];
 }
 
 interface BeatRange {
   from: number;
   to: number;
   pause: boolean;
+  onward: boolean;
   leads: boolean;
 }
 
@@ -317,6 +320,7 @@ const BODY_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
   "comment",
   "break",
+  "carry",
   "glue",
   "leadingGlue",
 ]);
@@ -347,7 +351,7 @@ function collectBreaksInRange(
   const out: SyntaxNode[] = [];
   const visit = (node: SyntaxNode): void => {
     if (node.to <= from || node.from >= to) return;
-    if (node !== parent && node.name === "Break") {
+    if (node !== parent && (node.name === "Break" || node.name === "Carry")) {
       out.push(node);
       return;
     }
@@ -545,7 +549,7 @@ function collectBodySegments(
   while (i < bodyEnd) {
     addCodes(i);
     const next = injections[idx];
-    if (next && next.from === i && next.kind === "break") {
+    if (next && next.from === i && (next.kind === "break" || next.kind === "carry")) {
       idx++;
       i = next.to;
       const after = injections[idx];
@@ -617,6 +621,7 @@ const CHAIN_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "glue",
   "leadingGlue",
   "break",
+  "carry",
   "tag",
 ]);
 
@@ -644,6 +649,7 @@ function injectionKind(
   if (node.name === "Glue") return "glue";
   if (node.name === "LeadingGlue") return "leadingGlue";
   if (node.name === "Break") return "break";
+  if (node.name === "Carry") return "carry";
   return null;
 }
 
@@ -673,7 +679,8 @@ interface BodyInjection {
     | "comment"
     | "glue"
     | "leadingGlue"
-    | "break";
+    | "break"
+    | "carry";
   node: SyntaxNode;
   from: number;
   to: number;

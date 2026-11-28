@@ -253,6 +253,9 @@ export class InterpreterModule extends Module<
     if (b.waits) {
       a.waits = true;
     }
+    if (b.onward) {
+      a.onward = true;
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -381,6 +384,7 @@ export class InterpreterModule extends Module<
     pause = false,
     extend?: { spaces: string },
     source?: ScriptLocation,
+    onward = false,
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -453,6 +457,9 @@ export class InterpreterModule extends Module<
       }
       if (pause) {
         contentInstructions.waits = true;
+      }
+      if (onward) {
+        contentInstructions.onward = true;
       }
       if (carries && box) {
         const text = (contentInstructions.text ??= {});
@@ -624,6 +631,7 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
+    const onward = tables.some((table) => read(table, "onward") === true);
     if (read(tables[0], "continues") !== true) {
       delete this._state.box;
     }
@@ -673,6 +681,7 @@ export class InterpreterModule extends Module<
           }
         : undefined,
       source,
+      onward,
     );
   }
 

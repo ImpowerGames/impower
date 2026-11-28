@@ -33,6 +33,7 @@ export function buildDisplayCall(
   tags: ParsedObject[][] = [],
   options: {
     pause?: boolean;
+    onward?: boolean;
     extend?: boolean;
     glue?: boolean;
     inherit?: boolean;
@@ -66,6 +67,7 @@ export function buildDisplayCall(
   );
   for (const flag of [
     "pause",
+    "onward",
     "extend",
     "glue",
     "inherit",

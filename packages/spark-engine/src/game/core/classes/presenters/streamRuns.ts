@@ -85,10 +85,9 @@ const pending = (beat: Instructions): boolean =>
   !beat.text && !beat.load && !beat.cutscene && !(beat.choices?.length ?? 0);
 
 const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
-  !gathering.gathers ||
   Boolean(beat.hold) ||
   (beat.choices?.length ?? 0) > 0 ||
-  (!gathering.opened && Boolean(beat.waits));
+  (!beat.onward && (!gathering.gathers || (!gathering.opened && Boolean(beat.waits))));
 
 const restarts = (own: LayoutInstruction[], layout: string): boolean =>
   own.some(
@@ -158,6 +157,34 @@ export function streamRun(
   return { lanes, open: positions.size > 0 };
 }
 
+function advancingLanes(
+  game: Game,
+  beat: Instructions,
+  queued: readonly Instructions[],
+  firstCounted: boolean,
+): StreamLane[] | null {
+  const lanes = [...streamRun(game, [beat, ...queued], firstCounted).lanes.values()];
+  return lanes.length > 0 &&
+    lanes.every(
+      (lane) =>
+        lane.gathering.settings.advance === "auto" && !lane.waits && lane.ahead.length > 0,
+    ) &&
+    !beat.waits &&
+    !beat.hold &&
+    !(beat.choices?.length ?? 0)
+    ? lanes
+    : null;
+}
+
+export function advancesInStream(
+  game: Game,
+  beat: Instructions,
+  queued: readonly Instructions[],
+): boolean {
+  const { auto: _auto, pause: _pause, ...plain } = beat;
+  return advancingLanes(game, plain, queued, true) !== null;
+}
+
 export function markRun(
   game: Game,
   beat: Instructions,
@@ -165,22 +192,16 @@ export function markRun(
   firstCounted = false,
 ): Instructions {
   const { auto: _auto, pause: _pause, ...plain } = beat;
-  const lanes = [...streamRun(game, [plain, ...queued], firstCounted).lanes.values()];
-  const advances =
-    lanes.length > 0 &&
-    lanes.every(
-      (lane) =>
-        lane.gathering.settings.advance === "auto" && !lane.waits && lane.ahead.length > 0,
-    ) &&
-    !plain.waits &&
-    !plain.hold &&
-    !(plain.choices?.length ?? 0);
-  if (advances) {
+  const lanes = advancingLanes(game, plain, queued, firstCounted);
+  if (lanes) {
     return {
       ...plain,
       auto: true,
-      pause: Math.max(...lanes.map((lane) => lane.gathering.settings.pause)),
+      pause: plain.onward ? 0 : Math.max(...lanes.map((lane) => lane.gathering.settings.pause)),
     };
+  }
+  if (plain.onward && !plain.hold && !(plain.choices?.length ?? 0)) {
+    return { ...plain, auto: true, pause: 0 };
   }
   return beat.auto === undefined && beat.pause === undefined ? beat : plain;
 }

@@ -136,6 +136,8 @@ variables:
   BLOCK_COMMENT_CHARACTER: (?:[^*\r\n]|[*](?![/]))
   BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
+  # lookaround: DisplayLineText tries Carry before Break at every position, and both read a `>`, so no order of its patterns tells a `>>` that ends the line from two breaks. CARRY reads `>>` only where nothing but a tag or a comment follows it on the line, and not after a third `>`, which Break keeps.
+  CARRY: (?:{{WS}}*(?<![>])[>][>]{{WS}}*(?=$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}))
   CHAIN: (?:[\\])
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))
@@ -1658,6 +1660,15 @@ repository:
       1:
         tag: keyword
         name: keyword.other.break.sd
+
+  Carry:
+    tag: special(content)
+    name: meta.carry.sd
+    match: ({{CARRY}})
+    captures:
+      1:
+        tag: keyword
+        name: keyword.other.carry.sd
 
   BreakLeadingGlue:
     match: ({{BREAK}})({{LEADING_GLUE}})(?={{WS}}*\S)
@@ -3822,6 +3833,7 @@ repository:
   DisplayLineText:
     patterns:
       - { include: "#SparkdownInlineComment" }
+      - { include: "#Carry" }
       - { include: "#BreakLeadingGlue" }
       - { include: "#Break" }
       - { include: "#Glue" }
