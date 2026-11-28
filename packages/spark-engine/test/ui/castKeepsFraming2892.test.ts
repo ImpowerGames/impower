@@ -172,6 +172,41 @@ end
     expect(h.framings()).toEqual({ mia: right, sam: right });
   });
 
+  test("a new picture keeps the framing of the travel that starts last, not the one written last", () => {
+    const h = play(
+      PLAIN,
+      `scene start
+  [[mia@happy at center]]
+  MIA: One.
+  [[animate mia to left over 2s after 4s]]
+  [[animate mia to right over 4s after 2s]]
+  [[mia@sad]]
+  MIA: Two.
+end
+`,
+    );
+    h.tapTo("Two.");
+    expect(h.framings()).toEqual({ mia: h.ui.getFraming("left") });
+  });
+
+  test("a hide, a picture at a framing and a travel on one line give the next picture the travel's framing", () => {
+    const h = play(
+      PLAIN,
+      `scene start
+  [[mia@happy]]
+  MIA: One.
+  [[hide mia]]
+  [[mia@happy at left]]
+  [[animate mia to right over 1s]]
+  [[mia@sad]]
+  MIA: Two.
+end
+`,
+    );
+    h.tapTo("Two.");
+    expect(h.framings()).toEqual({ mia: h.ui.getFraming("right") });
+  });
+
   test("hiding the character or the layer ends the kept framing", () => {
     const h = play(
       PLAIN,

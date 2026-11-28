@@ -9479,21 +9479,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const sequences = writes.get(target) ?? new Map<CastEntry, ImageInstruction[]>();
           writes.set(target, sequences);
           const sequence = sequences.get(entry) ?? [];
-          const kept = framings[entry.speaker]?.[target];
           let written = event;
-          if (event.control === "show" && event.assets?.length) {
-            if (event.at) {
-              (framings[entry.speaker] ??= {})[target] = event.at;
-            } else if (kept) {
-              written = { ...event, at: kept };
+          if (event.control === "show" && event.assets?.length && !event.at) {
+            const resolved = $.image.recorded(structuredClone(entry.image?.[target] ?? []), sequence);
+            const at = $.pictureShown(resolved)
+              ? resolved.findLast((e) => e.control === "show" && e.assets?.length)?.at
+              : framings[entry.speaker]?.[target];
+            if (at) {
+              written = { ...event, at };
             }
-          } else if (
-            event.control === "animate" &&
-            event.to &&
-            !event.assets?.length &&
-            $.pictureShown([...(entry.image?.[target] ?? []), ...sequence])
-          ) {
-            (framings[entry.speaker] ??= {})[target] = event.to;
           }
           sequences.set(entry, [...sequence, written]);
         };
