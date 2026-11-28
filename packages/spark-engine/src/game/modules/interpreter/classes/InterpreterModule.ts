@@ -799,11 +799,16 @@ export class InterpreterModule extends Module<
       this._game.module?.assets?.notice("image", imageChunk.assets);
     }
     if (imageChunk.clauses?.wait) {
+      const pictured = Boolean(imageChunk.assets?.length);
       imageChunk.duration += this.waitDuration(
         imageChunk,
-        imageChunk.control === "show" || imageChunk.control === "hide"
-          ? imageChunk.control
-          : undefined,
+        imageChunk.control === "hide"
+          ? ["hide"]
+          : imageChunk.control === "show"
+            ? pictured ? ["show", "hide"] : ["show"]
+            : imageChunk.control === "animate" && pictured
+              ? ["show"]
+              : [],
       );
     }
     return imageChunk;
@@ -856,64 +861,64 @@ export class InterpreterModule extends Module<
 
   protected applyScreenWaitDuration(screenChunk: Chunk): void {
     if (screenChunk.clauses?.wait) {
-      screenChunk.duration += this.waitDuration(screenChunk);
+      screenChunk.duration += this.waitDuration(
+        screenChunk,
+        screenChunk.control === LayoutVerb.open
+          ? ["show"]
+          : screenChunk.control === LayoutVerb.close
+            ? ["hide"]
+            : screenChunk.control === LayoutVerb.navigate
+              ? ["show", "hide"]
+              : [],
+      );
     }
   }
 
-  protected waitDuration(chunk: Chunk, fallback?: string): number {
-    const line = chunk.clauses;
+  protected waitDuration(chunk: Chunk, ownMotions: readonly string[]): number {
+    const line: { after?: number; over?: number; to?: unknown } = chunk.clauses ?? {};
     const entries = chunk.with ?? [];
     const spans = entries.map((entry) => this.effectSpan(entry.name, entry));
-    const ownMotion = !(chunk.tag === "image" && chunk.control === "animate" && !line?.to && !chunk.assets?.length);
-    if (entries.length === 0 && ownMotion) {
-      spans.push(this.effectSpan(chunk.target ?? "", line ?? {}, fallback));
-    } else if (chunk.tag === "image" && line?.to) {
+    if (entries.length === 0) {
+      spans.push(...ownMotions.map((name) => this.animationSpan(name, line)));
+    }
+    if (chunk.tag === "image" && line.to) {
       spans.push((line.after ?? 0) + (line.over ?? 0));
     }
     return Math.max(0, ...spans);
   }
 
-  protected effectSpan(
-    name: string,
-    written: { after?: number; over?: number },
-    fallback?: string,
-  ): number {
-    const animations = this.effectAnimationNames(name, fallback);
-    const timingOf = (n: string) => (this.context as any)?.["animation"]?.[n]?.timing;
-    return Math.max(
-      (written.after ?? 0) + (written.over ?? 0),
-      ...animations.map(
-        (n) =>
-          (written.after ?? getTimeValue(timingOf(n)?.delay) ?? 0) +
-          (written.over ?? getTimeValue(timingOf(n)?.duration) ?? 0),
-      ),
+  protected animationSpan(name: string, written: { after?: number; over?: number }): number {
+    const timing = (this.context as any)?.["animation"]?.[name]?.timing;
+    return (
+      (written.after ?? getTimeValue(timing?.delay) ?? 0) +
+      (written.over ?? getTimeValue(timing?.duration) ?? 0)
     );
   }
 
-  protected effectAnimationNames(name: string, fallback?: string): string[] {
+  protected effectSpan(name: string, written: { after?: number; over?: number }): number {
     const transition = (this.context as any)?.["transition"]?.[name];
-    const animation = (this.context as any)?.["animation"]?.[name];
-    const animationNames: string[] = [];
-    if (transition) {
-      for (const [k, v] of Object.entries(transition)) {
-        if (!k.startsWith("$") && v) {
-          if (typeof v === "string") {
-            animationNames.push(v);
-          } else if (
-            typeof v === "object" &&
-            "$name" in v &&
-            typeof v?.$name === "string"
-          ) {
-            animationNames.push(v?.$name);
-          }
-        }
-      }
-    } else if (animation) {
-      animationNames.push(animation.$name);
-    } else if (fallback) {
-      animationNames.push(fallback);
+    if (!transition) {
+      return (this.context as any)?.["animation"]?.[name]
+        ? this.animationSpan(name, written)
+        : (written.after ?? 0) + (written.over ?? 0);
     }
-    return animationNames;
+    const arms = Object.entries(transition).flatMap(([key, value]) => {
+      const armName = typeof value === "string" ? value : (value as { $name?: unknown } | null)?.$name;
+      return !key.startsWith("$") && typeof armName === "string" ? [{ key, name: armName }] : [];
+    });
+    const durationOf = (armName: string) =>
+      getTimeValue((this.context as any)?.["animation"]?.[armName]?.timing?.duration) ?? 0;
+    const longest = Math.max(0, ...arms.map((arm) => durationOf(arm.name)));
+    const speed = written.over != null && written.over > 0 ? longest / written.over : 1;
+    return Math.max(
+      0,
+      ...arms.map((arm) =>
+        this.animationSpan(arm.name, {
+          ...(written.after != null ? { after: written.after } : {}),
+          over: arm.key.startsWith("on_") ? durationOf(arm.name) / speed || 0 : (written.over ?? durationOf(arm.name)),
+        }),
+      ),
+    );
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {

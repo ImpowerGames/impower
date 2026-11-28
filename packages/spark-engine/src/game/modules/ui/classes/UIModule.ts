@@ -387,13 +387,14 @@ const presenceAttributes = (mark: Record<string, string | null>) =>
 
 const pictureHide = (
   sequence: ImageInstruction[],
+  timed: (e: ImageInstruction) => boolean,
 ): "plain" | "timed" | undefined => {
   let hide: "plain" | "timed" | undefined;
   for (const e of sequence) {
     if (e.control === "show" && e.assets?.length) {
       hide = undefined;
     } else if (e.control === "hide" && !e.assets?.length) {
-      hide = e.with?.length || e.after || e.over ? "timed" : "plain";
+      hide = timed(e) ? "timed" : "plain";
     }
   }
   return hide;
@@ -6081,6 +6082,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return { name, ...timing, over: durationOf(name) / speed };
   }
 
+  declaresTime(name: string): boolean {
+    const timing = this.context?.animation?.[name]?.timing;
+    return Boolean(getTimeValue(timing?.delay) || getTimeValue(timing?.duration));
+  }
+
+  timedPicture(e: ImageInstruction): boolean {
+    if (e.with?.length || e.after || e.over) return true;
+    if (e.control === "hide") return this.declaresTime("hide");
+    if (e.control === "show") return this.declaresTime("show") || this.declaresTime("hide");
+    return false;
+  }
+
   beatOffset(timed: { afterIsBeatOffset?: true }): { afterIsBeatOffset?: true } {
     return timed.afterIsBeatOffset ? { afterIsBeatOffset: true } : {};
   }
@@ -8142,7 +8155,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const moving = !instant && $.moving();
         const arriving: Element[] = [];
-        const hides = sequence ? pictureHide(sequence) : undefined;
+        const timed = (e: ImageInstruction) => $.timedPicture(e);
+        const hides = sequence ? pictureHide(sequence, timed) : undefined;
         const leaving = targetEls.filter(
           (targetEl) =>
             (!sequence || hides === "plain") &&
@@ -8188,7 +8202,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         const exit: PictureExit | undefined =
-          exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
+          exits && !instant && sequence?.some(timed)
             ? { elements: writing, epoch: $._game.connection.epoch }
             : undefined;
         if (exit) {
@@ -8212,9 +8226,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           !instant &&
             (writing.some((el) => !arriving.includes(el)) ||
               Boolean(
-                sequence?.some(
-                  (e) => e.control === "animate" || e.with || e.after || e.over,
-                ),
+                sequence?.some((e) => e.control === "animate" || timed(e)),
               )),
         );
         const written = $.emitSettled(request);
