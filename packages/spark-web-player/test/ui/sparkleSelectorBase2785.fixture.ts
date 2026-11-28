@@ -71,6 +71,7 @@ const SELECTOR_STATE_ALIASES: ReadonlyMap<string, string> = table({
   "swatch-wrapper": "::-webkit-color-swatch-wrapper",
   busy: '[aria-busy="true"]',
   latest: "[data-latest]",
+  carried: "[data-carried]",
   ...Object.fromEntries(PRESENCE_STATES.map((presence) => [presence, presenceSelector(presence)])),
 });
 
