@@ -88,6 +88,19 @@ describe.each(ENGINES)("in %s, the player measures a beat on a copy styled by th
     expect(result).toEqual({ look: { width: 300, color: "rgb(0, 128, 0)" }, applied: 1, waiting: false, veiled: true });
   });
 
+  test("a beat that only enables a disabled stylesheet through its attributes cannot be measured on the copy, so it applies at once with its new picture veiled until drawn", async (context) => {
+    if (!browser) return context.skip();
+    const result = await probe<Fallen & { before: Look; look: Look }>(page, "sheetEnabled");
+    console.log(`${name}: sheet enabled ${JSON.stringify(result)}`);
+    expect(result).toEqual({
+      before: { width: 100, color: "rgb(255, 0, 0)" },
+      look: { width: 300, color: "rgb(0, 128, 0)" },
+      applied: 1,
+      waiting: false,
+      veiled: true,
+    });
+  });
+
   test("a beat that changes the root text size cannot be measured on the copy, so it applies at once with its new picture veiled until drawn", async (context) => {
     if (!browser) return context.skip();
     const result = await probe<Fallen & { before: string; after: string }>(page, "rootTextSized");

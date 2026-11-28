@@ -88,6 +88,27 @@ async function sheetChanged() {
   return result;
 }
 
+async function sheetEnabled() {
+  const t = await stage(true);
+  await t.ui.onReceiveRequest(
+    request("ui/create", {
+      parent: null,
+      element: "sheet",
+      type: "style",
+      name: "sheet",
+      content: { styles: { card: { width: "300px", background_color: "rgb(0, 128, 0)" } } },
+      attributes: { media: "not all" },
+      breakpoints: {},
+    }),
+  );
+  const before = t.look();
+  t.beat([request("ui/update", { element: "sheet", attributes: { media: "all" }, breakpoints: {} }), t.show]);
+  await t.settle(50);
+  const result = { before, look: t.look(), applied: t.applied(), waiting: t.waiting(), veiled: t.veiled() };
+  t.ui.onDispose();
+  return result;
+}
+
 async function rootTextSized() {
   const t = await stage(true);
   const before = document.documentElement.style.fontSize;
@@ -153,6 +174,7 @@ async function styledAnimation(kind: string) {
 
 (window as unknown as { measuredBeatProbe: unknown }).measuredBeatProbe = {
   sheetChanged,
+  sheetEnabled,
   rootTextSized,
   sheetRemoved,
   holdStyleChange,

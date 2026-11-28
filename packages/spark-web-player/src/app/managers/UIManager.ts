@@ -3873,6 +3873,10 @@ export default class UIManager extends Manager {
   }
 }
 
+const SHEETS = "style, link";
+
+const SHEET_TYPES = new Set(["style", "link"]);
+
 class BeatRehearsal extends UIManager {
   readonly rehearsed = new RehearsedMorphs();
 
@@ -3983,12 +3987,28 @@ class BeatRehearsal extends UIManager {
     super.applyDocumentTheme(colorScheme, undefined);
   }
 
-  protected override writeContent(el: HTMLElement, content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>) {
-    if (el.localName === "style") {
+  override async onReceiveRequest(msg: RequestMessage) {
+    if (this.touchesSheet(msg)) {
       this.unmeasurable = "a stylesheet";
-      return;
+      return undefined;
     }
-    super.writeContent(el, content, breakpoints);
+    return super.onReceiveRequest(msg);
+  }
+
+  protected touchesSheet(msg: RequestMessage): boolean {
+    if (CreateElementMessage.type.isRequest(msg) && SHEET_TYPES.has(msg.params.type.toLowerCase())) {
+      return true;
+    }
+    if (
+      !CreateElementMessage.type.isRequest(msg) &&
+      !UpdateElementMessage.type.isRequest(msg) &&
+      !DestroyElementMessage.type.isRequest(msg) &&
+      !MoveElementMessage.type.isRequest(msg)
+    ) {
+      return false;
+    }
+    const el = this.getElement(msg.params.element);
+    return !!el && (el.matches(SHEETS) || !!el.querySelector(SHEETS));
   }
 
   protected override settleRequest(_request: RequestMessage, done: Promise<unknown>) {
