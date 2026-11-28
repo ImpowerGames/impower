@@ -458,7 +458,7 @@ export class InterpreterModule extends Module<
       if (pause) {
         contentInstructions.waits = true;
       }
-      if (onward) {
+      if (onward && contentInstructions.text) {
         contentInstructions.onward = true;
       }
       if (carries && box) {

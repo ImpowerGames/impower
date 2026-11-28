@@ -180,6 +180,21 @@ describe("a line that ends with `>>` carries on without a click (I-2747)", () =>
     await waits(h);
   });
 
+  test.each(["", " >>"])(
+    "a line with only a sound, written with %j, leaves the text line after it waiting for a click",
+    async (mark) => {
+      const h = await play(
+        story(
+          `  ((play sound beep))${mark}\n  Wait here.\n  Next line.`,
+          'define beep as audio with\n  src = "https://example.com/beep.wav"\nend\n',
+        ),
+      );
+      expect(shown(h)).toBe("Wait here.");
+      expect(beat(h)?.onward).toBeUndefined();
+      await waits(h, 3000);
+    },
+  );
+
   test("a `<wait=0.6>` before `>>` delays the next line by that time", async () => {
     const gap = async (line: string) => {
       const h = await play(story(`  RAFFLES: ${line}\n  RAFFLES: two`));
@@ -238,6 +253,24 @@ describe("`>>` in a stream (I-2747)", () => {
     expect(seen[2]!.startedAt - seen[1]!.typedAt!).toBeGreaterThanOrEqual(600);
     await waits(h);
   });
+
+  test.each(["", " >>"])(
+    "the hundredth line of an automatic run, written with %j, still waits for a click",
+    async (mark) => {
+      const lines = Array.from({ length: 101 }, (_, i) => {
+        const n = i + 1;
+        if (n < 100) return `  RAFFLES: <speed=0>line${n} >>`;
+        return n === 100 ? `  RAFFLES: line100${mark}` : "  RAFFLES: line101";
+      }).join("\n");
+      const h = await play(story(`  [[open phone]]\n${lines}`, AUTO));
+      for (let i = 0; i < 200 && shown(h) !== "line100"; i += 1) {
+        await tick(h, 100);
+      }
+      expect(shown(h)).toBe("line100");
+      await waits(h, 3000);
+      expect(entries(h)).toHaveLength(100);
+    },
+  );
 
   test("in a stream that waits for a click, the run is gathered through it to the next line", async () => {
     const h = await play(
