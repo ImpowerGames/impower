@@ -12,7 +12,7 @@ const STAGE = `<style>
 body { margin: 0; }
 #game { position: relative; width: 640px; height: 360px; container-type: size; container-name: screen; overflow: clip; }
 spark-web-player #game-ui { position: absolute; inset: 0; }
-.card { position: absolute; left: 10.5px; top: 7.25px; width: 100px; height: 60px; background-color: red; visibility: visible; animation: pulse 10s linear infinite; }
+.card { position: absolute; left: 10.5px; top: 7.25px; width: 100px; height: 60px; background-color: red; visibility: visible; animation: pulse 10s linear infinite; --reach: 2; }
 .card .image .instance { display: block; width: 100%; height: 50px; background-size: 100% 100%; background-repeat: no-repeat; }
 </style><spark-web-player><div id="game"><div id="game-ui"></div></div></spark-web-player>`;
 
@@ -119,7 +119,9 @@ async function holdSheetChange() {
 
 async function startSheetChange(text: boolean) {
   const t = held!;
-  const content = text ? ".card { width: 3000px; background-color: rgb(0, 128, 0); }" : { styles: { card: { width: "3000px", background_color: "rgb(0, 128, 0)" } } };
+  const content = text
+    ? ".card { width: 3000px !important; background-color: rgb(0, 128, 0) !important; }"
+    : { styles: { card: { width: "3000px", background_color: "rgb(0, 128, 0)" } } };
   t.beat([request("ui/update", { element: "sheet", content, breakpoints: {} }), t.show]);
   await t.settle(50);
   const scroller = document.scrollingElement!;
@@ -131,7 +133,13 @@ function endSheetChange() {
   held = undefined;
 }
 
-async function keyframesChanged() {
+const KEYFRAMES: Record<string, unknown> = {
+  literal: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "2" }] } } },
+  variable: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "var(--reach)" }] } } },
+  media: "@keyframes pulse { from { scale: 1; } to { scale: 2; } } @media (min-width: 9999px) { @keyframes pulse { from { scale: 1; } to { scale: 1; } } }",
+};
+
+async function keyframesChanged(kind: string) {
   const t = await stage(false);
   await t.ui.onReceiveRequest(
     request("ui/create", {
@@ -144,7 +152,7 @@ async function keyframesChanged() {
     }),
   );
   t.beat([
-    request("ui/update", { element: "sheet", content: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "2" }] } } }, breakpoints: {} }),
+    request("ui/update", { element: "sheet", content: KEYFRAMES[kind], breakpoints: {} }),
     t.show,
   ]);
   for (let i = 0; i < 100 && t.rasters.length < 1; i++) await t.settle(10);

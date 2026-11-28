@@ -55,9 +55,9 @@ afterAll(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-const probe = <T>(page: Page, name: string, flag = false) =>
+const probe = <T>(page: Page, name: string, flag: boolean | string = false) =>
   page.evaluate(
-    ([name, flag]) => (window as unknown as { measuredBeatProbe: Record<string, (flag: boolean) => Promise<unknown>> }).measuredBeatProbe[name as string]!(flag as boolean),
+    ([name, flag]) => (window as unknown as { measuredBeatProbe: Record<string, (flag: boolean | string) => Promise<unknown>> }).measuredBeatProbe[name as string]!(flag),
     [name, flag] as const,
   ) as Promise<T>;
 
@@ -104,10 +104,10 @@ describe.each(ENGINES)("in %s, the player measures a beat that changes the stage
     expect(during.equals(before)).toBe(true);
   });
 
-  test("a beat that changes the keyframes of a CSS animation on a picture's element draws the picture at the scale those keyframes reach", async (context) => {
+  test.for(["literal", "variable", "media"])("a beat that changes the keyframes of a CSS animation on a picture's element draws the picture at the scale those keyframes reach (%s)", async (kind, context) => {
     if (!browser) return context.skip();
-    const result = await probe<{ asked: [number, number][]; applied: number; waiting: boolean }>(page, "keyframesChanged");
-    console.log(`${name}: keyframes ${JSON.stringify(result)}`);
+    const result = await probe<{ asked: [number, number][]; applied: number; waiting: boolean }>(page, "keyframesChanged", kind);
+    console.log(`${name}: keyframes ${kind} ${JSON.stringify(result)}`);
     expect(result.asked).toEqual([[200, 100]]);
     expect(result.applied).toBe(0);
     expect(result.waiting).toBe(true);

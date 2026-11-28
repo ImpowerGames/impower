@@ -93,6 +93,19 @@ describe.each(ENGINES)("in %s, a beat is measured on a replica of the stage, whi
     expect(result.realWidth).toBe(300);
   });
 
+  test("the copy's stylesheets are rewritten so that every rule they keep applies only inside the copy", async (context) => {
+    if (!browser) return context.skip();
+    const css = await page.evaluate(() => (window as unknown as { replicaProbe: { rewrite(): string } }).replicaProbe.rewrite());
+    console.log(`${name}: rewrite ${JSON.stringify(css)}`);
+    expect(css).toContain("spark-web-player [data-probe] .card, spark-web-player [data-probe] .badge:is(.a, .b)");
+    expect(css).toContain("spark-web-player [data-probe] {");
+    expect(css).toContain("spark-web-player [data-probe] .plate > .image");
+    expect(css).toContain("@keyframes probe-pulse");
+    expect(css).not.toContain("@property");
+    expect(css).not.toContain("@font-face");
+    expect(css.split("\n").filter((line) => line.trimStart().startsWith(".")).length).toBe(0);
+  });
+
   test.for([false, true])("the stage's animations, transitions, focus, scroll position, media and markup are left as they were (beside its scope element: %s)", async (scoped, context) => {
     if (!browser) return context.skip();
     const result = await measure(page, scoped);

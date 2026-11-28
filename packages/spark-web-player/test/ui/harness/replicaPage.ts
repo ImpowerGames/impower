@@ -1,4 +1,5 @@
 import { replicate } from "../../../src/app/utils/replicate";
+import { replicaCss } from "../../../src/app/utils/replicaStyles";
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
@@ -107,4 +108,16 @@ async function measure(scoped: boolean) {
   };
 }
 
-(window as unknown as { replicaProbe: unknown }).replicaProbe = { measure };
+function rewrite() {
+  const css = [
+    "spark-web-player #game .card, .badge:is(.a, .b) { width: 10px; }",
+    "spark-web-player #game { --reach: 2; }",
+    "@media (min-width: 1px) { .plate > .image { height: 5px; } }",
+    "@keyframes pulse { from { scale: 1; } to { scale: 2; } }",
+    '@property --size { syntax: "<length>"; inherits: false; initial-value: 0px; }',
+    "@font-face { font-family: probe; src: local(Arial); }",
+  ].join("\n");
+  return replicaCss(css, document, { scope: "spark-web-player #game", replica: "spark-web-player [data-probe]", keyframes: "probe-" });
+}
+
+(window as unknown as { replicaProbe: unknown }).replicaProbe = { measure, rewrite };

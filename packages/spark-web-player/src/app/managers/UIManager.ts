@@ -75,6 +75,7 @@ import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback, pictureGauge, type MorphLayer, type PictureGauge } from "../morph/MorphPlayback";
 import { keyframesScale } from "@impower/spark-engine/src/game/modules/ui/utils/keyframeScale";
 import { replicate, type Replica } from "../utils/replicate";
+import { bindAnimationNames, replicaCss, replicaKeyframeNames, type ReplicaStyleScope } from "../utils/replicaStyles";
 import type { IApplication } from "../IApplication";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { DrawAheadMessage, type DrawAheadPicture } from "../../../../spark-engine/src/game/modules/assets/classes/messages/DrawAheadMessage";
@@ -206,10 +207,7 @@ const REPLICA_ATTRIBUTE = "data-sd-replica";
 
 const REPLICA_SCOPE = `spark-web-player [${REPLICA_ATTRIBUTE}]`;
 
-const REPLICA_KEYFRAMES = "sd-replica-";
-
-const replicaStyleText = (text: string) =>
-  text.split(`${STYLE_SCOPE} `).join(`${REPLICA_SCOPE} `).replace(/@keyframes(\s+)/g, `@keyframes$1${REPLICA_KEYFRAMES}`);
+const REPLICA_STYLES: ReplicaStyleScope = { scope: STYLE_SCOPE, replica: REPLICA_SCOPE, keyframes: "sd-replica-" };
 
 const WRITTEN_STATE = [
   "__sdId",
@@ -1049,7 +1047,7 @@ export default class UIManager extends Manager {
       copy: (from, to) => {
         copyPictureRest(from, to);
         if (scope && to.localName === "style") {
-          to.textContent = replicaStyleText(to.textContent ?? "");
+          to.textContent = replicaCss(to.textContent ?? "", overlay.ownerDocument, REPLICA_STYLES);
         }
       },
       ...(scope ? { scope: { element: scope, attribute: REPLICA_ATTRIBUTE } } : {}),
@@ -3913,48 +3911,19 @@ class BeatRehearsal extends UIManager {
     return scale;
   }
 
-  protected keyframes?: Map<string, unknown[]>;
+  protected ownKeyframes?: Set<string>;
 
   protected styledScale(el: Element): number {
-    const names = el.ownerDocument.defaultView?.getComputedStyle(el).getPropertyValue("animation-name") ?? "";
+    if (this.scoped) {
+      bindAnimationNames(el, REPLICA_STYLES, (this.ownKeyframes ??= replicaKeyframeNames(this.replica.root, REPLICA_STYLES)));
+    }
     let scale = 1;
-    for (const name of names.split(",").map((part) => part.trim())) {
-      if (!name || name === "none") {
-        continue;
+    for (const animation of el.getAnimations?.() ?? []) {
+      if (typeof (animation as CSSAnimation).animationName === "string") {
+        scale *= keyframesScale((animation.effect as KeyframeEffect | null)?.getKeyframes?.());
       }
-      const own = (this.keyframes ??= this.readKeyframes()).get(`${REPLICA_KEYFRAMES}${name}`);
-      const running = own
-        ? undefined
-        : el
-            .getAnimations?.()
-            .find((animation) => (animation as CSSAnimation).animationName === name);
-      scale *= keyframesScale(own ?? (running?.effect as KeyframeEffect | null)?.getKeyframes?.());
     }
     return scale;
-  }
-
-  protected readKeyframes(): Map<string, unknown[]> {
-    const keyframes = new Map<string, unknown[]>();
-    const visit = (rules: CSSRuleList | undefined) => {
-      for (const rule of Array.from(rules ?? [])) {
-        const block = rule as CSSKeyframesRule;
-        if (typeof block.findRule === "function" && typeof block.name === "string") {
-          keyframes.set(
-            block.name,
-            Array.from(block.cssRules).map((frame) => {
-              const style = (frame as CSSKeyframeRule).style;
-              return { transform: style.getPropertyValue("transform"), scale: style.getPropertyValue("scale") };
-            }),
-          );
-        } else if ("cssRules" in rule) {
-          visit((rule as CSSGroupingRule).cssRules);
-        }
-      }
-    };
-    for (const style of Array.from(this.replica.root.querySelectorAll("style"))) {
-      visit(style.sheet?.cssRules);
-    }
-    return keyframes;
   }
 
   settle() {
@@ -4023,7 +3992,7 @@ class BeatRehearsal extends UIManager {
   protected override writeContent(el: HTMLElement, content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>) {
     super.writeContent(el, content, breakpoints);
     if (this.scoped && el.localName === "style") {
-      el.textContent = replicaStyleText(el.textContent ?? "");
+      el.textContent = replicaCss(el.textContent ?? "", el.ownerDocument, REPLICA_STYLES);
     }
   }
 
