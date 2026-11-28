@@ -6,7 +6,7 @@ import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/clas
 import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
 import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { endTravelsWithin, haltPicture, placePicture, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
+import { endTravelsWithin, haltPicture, placePicture, previewPlacement, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -860,6 +860,15 @@ export default class UIManager extends Manager {
     const made = this.precreateTargets(ops);
     const animated = this.beatAnimations(ops);
     const { restore, changed } = this.applyBeatLayout(ops);
+    const placed: (() => void)[] = [];
+    const reframed: MorphLayer[] = [];
+    const place = (span: HTMLElement, layer: MorphLayer, framing: WriteImageInstruction["framing"]) => {
+      const undo = previewPlacement(span, framing);
+      if (undo) {
+        placed.push(undo);
+        reframed.push(layer);
+      }
+    };
     try {
     const nested = (el: Element) =>
       animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
@@ -917,6 +926,9 @@ export default class UIManager extends Manager {
                   continue;
                 }
                 layer.size({ zoom, scale: around * nested(pictureEl) });
+                if (instruction.control === "show" && !instruction.travel) {
+                  place(pictureEl, layer, instruction.framing);
+                }
                 layers.push(layer);
               }
             }
@@ -932,6 +944,7 @@ export default class UIManager extends Manager {
               const layer = (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
               if (layer) {
                 layer.size({ zoom, scale: around * nested(span) });
+                place(span, layer, instruction.framing);
                 layers.push(layer);
               }
             }
@@ -1001,10 +1014,16 @@ export default class UIManager extends Manager {
         }
       }
     }
+    for (const layer of reframed) {
+      layer.reframe();
+    }
     if (changed.length > 0 || made.length > 0) {
       layers.push(...morphs.prepareLayouts(new Set(layers)));
     }
     } finally {
+      for (const undo of placed.reverse()) {
+        undo();
+      }
       restore();
     }
     return { layers, unprepared };

@@ -144,7 +144,7 @@ async function setup(
   effect["getComputedTiming"] ??= () => ({ progress: 0, endTime: 0 });
   Object.defineProperty(win, "devicePixelRatio", { configurable: true, value: DPR });
   const sheet = win.document.createElement("style");
-  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .backdrop[style*="position: absolute"] ~ .sigil .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; }`;
+  sheet.textContent = `.instance { width: ${BOX.width}px !important; height: ${BOX.height}px !important; background-size: 100% 100% !important; background-position: 0% 0% !important; background-repeat: no-repeat !important; } [style*="display: none"] .instance { width: auto !important; height: auto !important; } .sigil.wide .instance { width: 800px !important; height: 450px !important; } .sigil.half .instance { background-size: 50% 50% !important; } .plaque.wide .instance { width: 800px !important; height: 450px !important; } .backdrop.expanded ~ .sigil .instance { width: 800px !important; height: 450px !important; } .sigil.big .instance { width: 800px !important; height: 450px !important; } .stage > .backdrop[style*="position: absolute"] ~ .sigil .instance { width: 800px !important; height: 450px !important; } .stage > .sigil:first-child .instance { width: 800px !important; height: 450px !important; } .badge.wide .instance { width: 800px !important; height: 450px !important; } .badge .instance.framed { width: 800px !important; height: 450px !important; }`;
   win.document.head.appendChild(sheet);
   const proto = win.HTMLElement.prototype as HTMLElement;
   const laidOut = (el: HTMLElement) => {
@@ -571,6 +571,39 @@ describe("a later beat that redraws a shown picture keeps it shown until the new
     expect(sigil.className).toBe("sigil wide");
     expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
     expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(t.rasters).toHaveLength(2);
+    expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);
+  });
+});
+
+describe("a beat that changes a shown picture's framing draws it at its new place before it fires (#2888)", () => {
+  test("the picture is drawn at the box its new framing gives it before the beat fires, shown at that size as it fires, and not stretched or drawn again after", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], 140);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const span = t.spanOf("badge")!;
+    const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"], { framing: { x: 0, y: 0.5, zoom: 1 } })], 142);
+    await until(() => t.rasters.length === 2, "the raster at the framed size");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    expect(span.classList.contains("framed")).toBe(false);
+    expect(span.style.getPropertyValue("translate")).toBe("");
+    expect([canvas.width, canvas.height]).toEqual([first.width, first.height]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the framing beat");
+    expect(t.spanOf("badge")).toBe(span);
+    expect(span.classList.contains("framed")).toBe(true);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+    expect((canvas.parentElement!.getAttribute("style") ?? "").includes("width:800px;height:450px")).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(t.rasters).toHaveLength(2);
     expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);

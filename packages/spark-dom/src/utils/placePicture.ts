@@ -210,6 +210,37 @@ export const placePicture = (
   writePlacement(el, getPicturePlacement(framing));
 };
 
+export const previewPlacement = (
+  el: HTMLElement,
+  framing: PictureFramingValues | undefined,
+): (() => void) | undefined => {
+  const heading = headingTo(el);
+  if (heading && sameView(heading, getPictureView(framing))) {
+    return undefined;
+  }
+  const style = el.getAttribute("style");
+  const className = el.getAttribute("class");
+  el.classList.toggle("framed", Boolean(framing));
+  writePlacement(el, getPicturePlacement(framing));
+  const put = (name: string, value: string | null) => {
+    if (el.getAttribute(name) === value) {
+      return;
+    }
+    if (value == null) {
+      el.removeAttribute(name);
+    } else {
+      el.setAttribute(name, value);
+    }
+  };
+  if (el.getAttribute("style") === style && el.getAttribute("class") === className) {
+    return undefined;
+  }
+  return () => {
+    put("style", style);
+    put("class", className);
+  };
+};
+
 export const haltPicture = (el: HTMLElement) => {
   if (!travels.has(el) && !scheduled.has(el)) {
     return;
