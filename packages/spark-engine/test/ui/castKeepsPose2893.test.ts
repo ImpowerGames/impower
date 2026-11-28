@@ -280,6 +280,25 @@ end
     expect(h.poses()).toEqual({ mia: ["crouch"] });
   });
 
+  test("a picture brought in using a transition keeps the pose", () => {
+    const h = play(
+      PLAIN,
+      `scene start
+  [[mia@happy with crouch]]
+  MIA: One.
+  [[mia@sad using fade]]
+  MIA: Two.
+  [[mia@angry]]
+  MIA: Three.
+end
+`,
+    );
+    h.tapTo("Two.");
+    expect(h.poses()).toEqual({ mia: ["crouch"] });
+    h.tapTo("Three.");
+    expect(h.poses()).toEqual({ mia: ["crouch"] });
+  });
+
   test("a looping animation is kept like a pose", () => {
     const h = play(
       PLAIN,
