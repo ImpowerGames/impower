@@ -35,7 +35,7 @@ export interface StreamRun {
 
 const BUILT_IN_PAUSE = 0.4;
 
-const RUN_LINE_LIMIT = 100;
+export const RUN_LINE_LIMIT = 100;
 
 const streamLayouts = new WeakMap<object, boolean>();
 

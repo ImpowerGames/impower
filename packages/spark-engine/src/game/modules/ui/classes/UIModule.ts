@@ -33,6 +33,7 @@ import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { pageKey } from "../../../core/utils/pageKey";
 import {
+  RUN_LINE_LIMIT,
   streamSettings,
   type StreamRun,
 } from "../../../core/classes/presenters/streamRuns";
@@ -8862,7 +8863,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const settings = streamSettings($._game, layout);
           const clears =
             restarted ||
-            (settings.clear === "run" && member && (!previous || Boolean(previous.ends)));
+            (settings.clear === "run" &&
+              member &&
+              (!previous || Boolean(previous.ends) || previous.lines % RUN_LINE_LIMIT === 0));
           const carry = clears ? (closed ? 0 : settings.carry) : undefined;
           if (repeated || instructions.hold) {
             if (previous) {

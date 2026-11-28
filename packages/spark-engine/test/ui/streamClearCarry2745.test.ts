@@ -465,6 +465,38 @@ end
   });
 });
 
+describe("a run that ends at its hundredth line clears like any other (I-2745)", () => {
+  const LONG = (() => {
+    const lines = Array.from({ length: 101 }, (_, i) => `  RAFFLES: line${i + 1}`).join("\n");
+    return `${DEFS}\n${settings("  advance = auto\n  pause = 0s\n  clear = run\n  carry = 1")}\nscene start\n  [[open phone]]\n${lines}\nend\n`;
+  })();
+
+  test("the line after the hundredth starts a fresh page with the hundredth carried", async () => {
+    const h = await play(LONG);
+    expect(entries(h)).toHaveLength(100);
+    await tickUntil(h, "line100", 200000, 200);
+    expect(entries(h)).toHaveLength(100);
+    await click(h);
+    expect(shown(h)).toBe("line101");
+    expect(entries(h)).toEqual(["line100", "line101"]);
+    expect(carried(h)).toEqual(["line100"]);
+  });
+
+  test("the preview on the line after the hundredth shows the carried line and that line", async () => {
+    const line = LONG.split("\n").findIndex((text) => text.includes("RAFFLES: line101"));
+    const h = createHarness(LONG, line, { reactive: true, autoOpenAll: false, connect: false });
+    h.game.setStartFrom({ file: MAIN_URI, line });
+    h.game.simulate();
+    expect(h.game.simulation).toBe("success");
+    await h.reconnect();
+    await flushMicrotasks(10);
+    await h.preview(line);
+    await flushMicrotasks(30);
+    expect(entries(h)).toEqual(["line100", "line101"]);
+    expect(carried(h)).toEqual(["line100"]);
+  });
+});
+
 describe("a checkpoint and the preview inside the second run (I-2745)", () => {
   const SOURCE = thread(settings(`${AUTO}\n  clear = run\n  carry = 1`));
 
