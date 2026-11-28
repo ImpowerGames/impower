@@ -44,10 +44,39 @@ const GLUE_HOVER = {
     "A `..` at the end of a line joins the next line shown onto this one, in the same text box, when that line begins with `..`. The spaces before the mark are kept.",
   beforeBreak:
     "A `..` before a `>` break keeps the box open after the click: the part after the break carries on in this box when it begins with `..`.",
+  beforeCarry:
+    "A `..` before a `>>` keeps the box open with no click: the next line shown carries on in this box when it begins with `..`.",
   lineStart:
     "A `..` at the start of a line joins this line onto the line shown before it, when that line ends with `..`. Otherwise this line shows on its own, and the game warns that it joins nothing.",
   afterBreak:
     "A `..` after a `>` break carries on in the same box after the click, when the part before the break ends with `..`.",
+};
+
+const CARRY_HOVER =
+  "A `>>` at the end of a line carries on without a click once the line has finished showing. In a stream that advances by itself it also skips the stream's `pause`: write a `<wait=N>` before it for a beat before the next line.";
+
+const getCarryHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  const mark = stack.find((node) => node.name === "Carry");
+  if (!mark) {
+    return null;
+  }
+  const from = mark.from + document.read(mark.from, mark.to).indexOf(">>");
+  if (offset < from || offset > from + 2) {
+    return null;
+  }
+  return {
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: `${CARRY_HOVER}\n\n[Joining lines](${JOINING_LINES_GUIDE}#133-carrying-on-without-a-click)`,
+    },
+    range: document.range(from, from + 2),
+  };
 };
 
 const getLayoutControlHover = (
@@ -231,9 +260,16 @@ const getGlueHover = (
       start: document.positionAt(mark.to),
       end: { line: document.positionAt(mark.to).line + 1, character: 0 },
     });
-    text = after.trimStart().startsWith(">")
-      ? GLUE_HOVER.beforeBreak
-      : GLUE_HOVER.lineEnd;
+    const onLine = after.split(/\r?\n/)[0]!;
+    const markAfter = mark.to + onLine.length - onLine.trimStart().length;
+    const carries = getStack<SparkdownNodeName>(tree, markAfter + 1, 1).some(
+      (node) => node.name === "Carry",
+    );
+    text = carries
+      ? GLUE_HOVER.beforeCarry
+      : after.trimStart().startsWith(">")
+        ? GLUE_HOVER.beforeBreak
+        : GLUE_HOVER.lineEnd;
   } else {
     text = stack.some((node) => node.name === "BreakLeadingGlue")
       ? GLUE_HOVER.afterBreak
@@ -396,6 +432,10 @@ export const getHover = async (
     const glueHover = getGlueHover(document, tree, position);
     if (glueHover) {
       return glueHover;
+    }
+    const carryHover = getCarryHover(document, tree, position);
+    if (carryHover) {
+      return carryHover;
     }
     const showingHover = getShowingHover(document, tree, position);
     if (showingHover) {

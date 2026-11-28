@@ -97,9 +97,15 @@ export function lowerChoice(
   };
 
   appendStart(startContent);
+  const carry = text.inner ? getDescendent("Carry", text.inner) : undefined;
   if (text.inner) {
     if (text.only) appendNodeContent(text.only, ctx, choiceOnlyContent, false, text.only.from, text.only.to);
-    appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to);
+    if (carry) {
+      appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, carry.from);
+      appendNodeContent(text.inner, ctx, innerContent, false, carry.to, text.inner.to);
+    } else {
+      appendNodeContent(text.inner, ctx, innerContent, false, text.inner.from + 1, text.inner.to);
+    }
   }
 
   const divertNode = getDescendent("Divert", nodeRef.node);
@@ -143,6 +149,7 @@ export function lowerChoice(
       return fresh;
     },
     endsFlow,
+    Boolean(carry),
     ctx,
   );
   if (echo) {
@@ -256,6 +263,7 @@ function chosenTextAsDisplayCall(
   tail: ParsedObject[],
   relowerStart: () => ContentList,
   endsFlow: boolean,
+  onward: boolean,
   ctx: LowerContext,
 ): {
   inner: ParsedObject[];
@@ -281,12 +289,13 @@ function chosenTextAsDisplayCall(
   let startEcho: ChoiceStartEcho | null = null;
   if (tagged) {
     const startWords = hasStart ? relowerStart().content.slice() : [];
-    call = buildOrderedDisplayCall([...startWords, ...words], ctx, { open });
+    call = buildOrderedDisplayCall([...startWords, ...words], ctx, { open, onward });
   } else {
     startEcho = hasStart ? new ChoiceStartEcho() : null;
     const body = startEcho ? [startEcho, ...words] : words;
     call = buildDisplayCall(undefined, undefined, body, null, ctx, [], {
       open,
+      onward,
     });
   }
   const out: ParsedObject[] = [call];

@@ -216,6 +216,8 @@ import { RuntimeState } from "./RuntimeState";
 
 const CHECKPOINT_BYTE_BUDGET = 64 * 1024 * 1024;
 
+const CARRY_LIMIT = 100;
+
 const SKIPPED_AUDIO_CHANNELS: ReadonlySet<string> = new Set(["typewriter", "voice"]);
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -383,6 +385,8 @@ export class Game<T extends M = {}> {
   protected _held: { instructions: Instructions | null } | null = null;
 
   protected _finishingRun: { audio: Record<string, AudioInstruction[]> } | null = null;
+
+  protected _carrying = false;
 
   protected _previewGeneration = 0;
 
@@ -3590,7 +3594,31 @@ export class Game<T extends M = {}> {
       this.notifyExecuted();
     }
 
+    if (outer) {
+      this.carryOn();
+    }
+
     return done;
+  }
+
+  protected carryOn(): void {
+    if (
+      this._carrying ||
+      this._simulation === "simulating" ||
+      this._replaying ||
+      this.context.system.previewing
+    ) {
+      return;
+    }
+    this._carrying = true;
+    try {
+      let carried = 0;
+      while (carried < CARRY_LIMIT && this._coordinator?.carryOn()) {
+        carried += 1;
+      }
+    } finally {
+      this._carrying = false;
+    }
   }
 
   protected stoppedDepth(): number {
