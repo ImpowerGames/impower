@@ -46,6 +46,9 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
                 "$type": "animation",
                 "keyframes": [
                   {
+                    "opacity": "0",
+                  },
+                  {
                     "opacity": "1",
                   },
                 ],
@@ -173,6 +176,9 @@ exports[`image > hide backdrop 1`] = `
                 "$name": "show",
                 "$type": "animation",
                 "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
                   {
                     "opacity": "1",
                   },
@@ -326,6 +332,9 @@ exports[`image > image animate directive 1`] = `
                 "$name": "show",
                 "$type": "animation",
                 "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
                   {
                     "opacity": "1",
                   },
@@ -510,6 +519,9 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
                 "$type": "animation",
                 "keyframes": [
                   {
+                    "opacity": "0",
+                  },
+                  {
                     "opacity": "1",
                   },
                 ],
@@ -639,6 +651,9 @@ exports[`image > show backdrop 1`] = `
                 "$type": "animation",
                 "keyframes": [
                   {
+                    "opacity": "0",
+                  },
+                  {
                     "opacity": "1",
                   },
                 ],
@@ -766,6 +781,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
                 "$type": "animation",
                 "keyframes": [
                   {
+                    "opacity": "0",
+                  },
+                  {
                     "opacity": "1",
                   },
                 ],
@@ -848,6 +866,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
                 "$name": "show",
                 "$type": "animation",
                 "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
                   {
                     "opacity": "1",
                   },
@@ -972,6 +993,30 @@ exports[`image > show with fade transition 1`] = `
             "background": "url("https://example.com/bg.png")",
             "enterAnimations": [
               {
+                "$name": "show",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                  {
+                    "opacity": "1",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
+                },
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
+              },
+              {
                 "$name": "fadein",
                 "$type": "animation",
                 "keyframes": [
@@ -998,6 +1043,27 @@ exports[`image > show with fade transition 1`] = `
             ],
             "imageNames": "BG",
             "previousHideAnimations": [
+              {
+                "$name": "hide",
+                "$type": "animation",
+                "keyframes": [
+                  {
+                    "opacity": "0",
+                  },
+                ],
+                "target": {
+                  "$name": "self",
+                  "$type": "layer",
+                },
+                "timing": {
+                  "delay": "0s",
+                  "direction": "normal",
+                  "duration": "0s",
+                  "easing": "linear",
+                  "fill": "both",
+                  "iterations": 1,
+                },
+              },
               {
                 "$name": "fadeout",
                 "$type": "animation",

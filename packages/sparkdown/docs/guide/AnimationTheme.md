@@ -112,28 +112,68 @@ How the `with` clauses of one line combine when they set the same property:
 `[[animate portrait with shake with pulse]]` shows both, because `shake` moves
 the portrait and `pulse` changes its opacity.
 
-A `with` names a transition or an animation, and one line can mix them. Each
-`with` plays as it would if it were the line's only `with`:
+### The line's own motion beside every `with`
+
+Every picture line has a motion of its own:
+
+| Line | Its own motion |
+| --- | --- |
+| `show`, and the bare picture line | The built-in `show` on the arriving picture, and the built-in `hide` on the picture it replaces |
+| `hide` | The built-in `hide` |
+| `animate … to` | The travel |
+| `animate` that names a picture | The built-in `show` on the picture it adds |
+| `animate` that names no picture and has no `to` | None |
+
+The line's own motion plays whether or not the line has a `with`, timed by the
+line's own `over`, `after` and `ease`. Each `with` starts with the line and runs
+beside it. The line's own motion counts as written before every `with`, so the
+rules above apply: movement adds up, and for `opacity` or a colour the `with`
+wins while both run.
 
 ```sparkdown
 scene start
-  [[show portrait hero with fade over 0.5s with shake over 2s]]
-  [[hide portrait with fade over 1s with spin over 1s once]]
-  [[show portrait mia with screenfade over 1s with shake]]
+  [[show backdrop bg_room over 2s with shake]]
+  [[show portrait hero with shake]]
+  [[hide portrait after 1s with spin over 1s once]]
+  [[animate backdrop dusk with shake with spin]]
 end
 ```
 
-- A transition gives the arriving picture its `on_show` animation and the
-  picture leaving its `on_hide` animation, both stretched to that `with`'s
-  `over`. Its other parts, such as the `screen` pulse of `screenfade`, play on
-  their own layers.
-- An animation that is not a transition plays on both pictures: the one arriving
-  and the one it replaces.
+- The first line fades the new backdrop in from transparent over two seconds
+  while it shakes for the 300ms `shake` declares. The backdrop it replaces fades
+  out over the same two seconds and shakes too.
+- The second has no `over`, so its show and hide are instant: the hero is on
+  screen and shaking from the first frame, and the portrait it replaces is
+  hidden at once.
+- The third turns the portrait once over a second and then hides it.
+- The fourth shows the dusk picture at once and shakes and turns the whole
+  backdrop layer. On an `animate` that names a picture, every `with` plays on
+  the layer, however many there are; `using` is how the added picture arrives.
 
-So the first line fades the hero in over half a second while it shakes for two,
-and the portrait it replaces fades out while it shakes. The second fades the
-portrait out while it makes one turn. A picture that leaves is removed once the
-longest of its animations has ended.
+A `with` on a `show` plays on both pictures: the one arriving and the one it
+replaces. A `with` that names a transition gives the arriving picture its
+`on_show` animation and the picture leaving its `on_hide` animation, stretched
+to that `with`'s `over`, and its other parts, such as the `screen` pulse of
+`screenfade`, play on their own layers. Because the `with` wins on opacity while
+it runs, `[[show portrait hero with fade]]` still fades.
+
+An instant hide takes effect at once. When a `with` on the leaving picture
+changes the same property of the same element as the hide, such as the opacity
+of `fadeout` or `pulse`, the hide holds until that `with` ends: the `with`
+plays from the look the picture has, and the picture is hidden when it ends.
+`[[hide portrait with spin over 1s once]]` hides the portrait at once, so the
+spin is not seen, and the editor warns on the `with`: "This `with` is not
+seen: the picture is hidden at once. Give the hide a length (`over 1s`), a
+delay (`after 1s`) or a transition (`using fade`)." The warning is given on a
+`hide` line that has a `with`, no `using`, and no `over` or `after` of its
+own, while the project's `hide` animation declares a duration and a delay of 0
+and the layer's typewriter has no `fade_duration`. It is not given on a line
+where a `with` sets the picture's `opacity`, such as `pulse`: the hide holds
+until that animation ends, so the picture and every `with` on it are seen.
+`[[hide portrait over 1s with spin once]]` fades the portrait out while it
+turns.
+
+A picture that leaves is removed once the longest of its animations has ended.
 
 `open`, `close` and `navigate` play only the last `with` on their line. `load`,
 `play` and sound lines take one `with`, and a second is reported.

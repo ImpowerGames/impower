@@ -257,9 +257,8 @@ export const pictureLineAnimations = (
   });
   const using: WithInstruction | undefined = e.using ? lineEvent(e.using) : undefined;
   const ownMotion = (arm: "on_show" | "on_hide"): AnimationEvent[] =>
-    using ? [armEvent(context, using, arm)] : entries.length ? [] : [lineEvent(arm === "on_show" ? "show" : "hide")];
-  const showEvents = [...ownMotion("on_show"), ...entries.map((entry) => armEvent(context, entry, "on_show"))];
-  const hideEvents = [...ownMotion("on_hide"), ...entries.map((entry) => armEvent(context, entry, "on_hide"))];
+    using ? [armEvent(context, using, arm)] : [lineEvent(arm === "on_show" ? "show" : "hide")];
+  const withEvents = (arm: "on_show" | "on_hide"): AnimationEvent[] => entries.map((entry) => armEvent(context, entry, arm));
   const definitions = (events: AnimationEvent[]) => events.flatMap((event) => animationDefinition(context, event, instant) ?? []);
   const armsOf = (entry: WithInstruction): LineAnimation[] =>
     Object.entries(context?.transition?.[entry.name] ?? {}).flatMap(([k, v]: [string, any]) => {
@@ -276,29 +275,54 @@ export const pictureLineAnimations = (
   const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent) =>
     entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
   const usingArms = using ? armsOf(using) : [];
+  const hiddenLook = context?.animation?.["hide"]?.keyframes?.at(-1);
+  const arrival = (): Animation[] =>
+    definitions(ownMotion("on_show")).map((animation) => {
+      const [end] = animation.keyframes;
+      if (using || !hiddenLook || !end || animation.keyframes.length !== 1) {
+        return animation;
+      }
+      const start = Object.fromEntries(Object.entries(hiddenLook).filter(([property]) => property in end));
+      return Object.keys(start).length > 0 ? { ...animation, keyframes: [start, end] } : animation;
+    });
+  const leavingOwnMotion = (): Animation[] => {
+    const withs = definitions(withEvents("on_hide"));
+    return definitions(ownMotion("on_hide")).map((animation) => {
+      if (animationsEnd([animation]) > 0) {
+        return animation;
+      }
+      const properties = new Set(animation.keyframes.flatMap((keyframe) => Object.keys(keyframe ?? {})));
+      const overlapping = withs.filter(
+        (other) =>
+          other.target?.$name === animation.target?.$name &&
+          other.keyframes.some((keyframe) => Object.keys(keyframe ?? {}).some((p) => properties.has(p))),
+      );
+      const end = animationsEnd(overlapping);
+      return end > 0 ? { ...animation, timing: { ...animation.timing, delay: `${end}s` } } : animation;
+    });
+  };
+  const leaving = (): Animation[] => [...leavingOwnMotion(), ...definitions(withEvents("on_hide"))];
   if (pictured) {
     if (e.control === "show") {
-      result.enterAnimations = definitions([
-        ...showEvents,
-        ...kept.map((entry) => armEvent(context, entry, "on_show")),
-      ]);
-      result.previousHideAnimations = definitions(hideEvents);
+      result.enterAnimations = [
+        ...arrival(),
+        ...definitions([...withEvents("on_show"), ...kept.map((entry) => armEvent(context, entry, "on_show"))]),
+      ];
+      result.previousHideAnimations = leaving();
     } else if (e.control === "hide") {
-      result.exitAnimations = definitions(hideEvents);
-    } else if (e.control === "animate" && entries.length > 1) {
-      result.enterAnimations = definitions(ownMotion("on_show"));
-      result.targetAnimations.push(...inWrittenOrder((entry) => armEvent(context, entry, "on_show")));
+      result.exitAnimations = leaving();
     } else if (e.control === "animate") {
-      result.enterAnimations = definitions(showEvents);
+      result.enterAnimations = arrival();
+      result.targetAnimations.push(...inWrittenOrder((entry) => armEvent(context, entry, "on_show")));
     }
     result.targetAnimations.push(...usingArms);
-    if (e.control !== "animate" || entries.length <= 1) {
+    if (e.control !== "animate") {
       result.targetAnimations.push(...entries.flatMap(armsOf));
     }
   } else if (e.control === "hide" || e.control === "show") {
     const arm = e.control === "show" ? "on_show" : "on_hide";
     result.targetAnimations.push(
-      ...definitions(ownMotion(arm)),
+      ...(arm === "on_hide" ? leavingOwnMotion() : definitions(ownMotion(arm))),
       ...usingArms,
       ...inWrittenOrder((entry) => armEvent(context, entry, arm)),
     );

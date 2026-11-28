@@ -51,14 +51,19 @@ const timing = (animation: any) => ({
 
 const names = (animations: any[] | undefined) => (animations ?? []).map(timing);
 
+const OWN_SHOW = expect.objectContaining({ name: "show" });
+const OWN_HIDE = expect.objectContaining({ name: "hide" });
+
 describe("every `with` on a `show`, `hide` or bare picture line plays together (I-2855)", () => {
   it("a fade and a shake on a `show` give the arriving picture `fadein` and `shake` and the replaced one `fadeout` and `shake`", async () => {
     const { instruction } = await played("show portrait hero with fade over 0.5s with shake over 2s");
     expect(names(instruction.content.enterAnimations)).toEqual([
+      OWN_SHOW,
       expect.objectContaining({ name: "fadein", duration: "0.5s" }),
       expect.objectContaining({ name: "shake", duration: "2s" }),
     ]);
     expect(names(instruction.content.previousHideAnimations)).toEqual([
+      OWN_HIDE,
       expect.objectContaining({ name: "fadeout", duration: "0.5s" }),
       expect.objectContaining({ name: "shake", duration: "2s" }),
     ]);
@@ -67,6 +72,7 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
   it("a fade and a single spin on a `hide` send the leaving picture `fadeout` and one pass of `spin`", async () => {
     const { instruction } = await played("hide portrait with fade over 1s with spin over 1s once");
     expect(names(instruction.targetAnimations)).toEqual([
+      OWN_HIDE,
       expect.objectContaining({ name: "fadeout", duration: "1s" }),
       expect.objectContaining({ name: "spin", duration: "1s", iterations: 1 }),
     ]);
@@ -75,6 +81,7 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
   it("a `hide` that names its picture sends every exit on the picture", async () => {
     const { instruction } = await played("hide portrait bunny with fade over 1s with spin over 1s once");
     expect(names(instruction.content.exitAnimations)).toEqual([
+      OWN_HIDE,
       expect.objectContaining({ name: "fadeout", duration: "1s" }),
       expect.objectContaining({ name: "spin", duration: "1s", iterations: 1 }),
     ]);
@@ -87,10 +94,12 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
       expect.objectContaining({ $name: "blackpulse", arm: "screen" }),
     ]);
     expect(names(instruction.content.enterAnimations)).toEqual([
+      OWN_SHOW,
       expect.objectContaining({ name: "waitin" }),
       expect.objectContaining({ name: "shake", duration: "2s" }),
     ]);
     expect(names(instruction.content.previousHideAnimations)).toEqual([
+      OWN_HIDE,
       expect.objectContaining({ name: "waitout" }),
       expect.objectContaining({ name: "shake", duration: "2s" }),
     ]);
@@ -99,6 +108,7 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
   it("a `show` of the layer's current picture plays every `with` on the layer", async () => {
     const { instruction } = await played("show portrait with shake over 1s with spin over 2s", [["portrait", "bunny"]]);
     expect(names(instruction.targetAnimations)).toEqual([
+      OWN_SHOW,
       expect.objectContaining({ name: "shake", duration: "1s" }),
       expect.objectContaining({ name: "spin", duration: "2s" }),
     ]);
@@ -107,10 +117,11 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
   it("`loop` on an entry repeats every animation its transition resolves to", async () => {
     const { instruction } = await played("show portrait hero with fade over 1s loop with shake once");
     expect(names(instruction.content.enterAnimations)).toEqual([
+      OWN_SHOW,
       expect.objectContaining({ name: "fadein", iterations: "infinite" }),
       expect.objectContaining({ name: "shake", iterations: 1 }),
     ]);
-    expect(names(instruction.content.previousHideAnimations)[0]).toEqual(
+    expect(names(instruction.content.previousHideAnimations)[1]).toEqual(
       expect.objectContaining({ name: "fadeout", iterations: "infinite" }),
     );
   });
@@ -118,22 +129,23 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
   it("a bare picture line `[[hero with fade over 0.5s with shake over 2s]]` plays both on the portrait", async () => {
     const { instruction } = await played("hero with fade over 0.5s with shake over 2s");
     expect(names(instruction.content.enterAnimations)).toEqual([
+      OWN_SHOW,
       expect.objectContaining({ name: "fadein", duration: "0.5s" }),
       expect.objectContaining({ name: "shake", duration: "2s" }),
     ]);
-    expect(names(instruction.content.previousHideAnimations).map((a) => a.name)).toEqual(["fadeout", "shake"]);
+    expect(names(instruction.content.previousHideAnimations).map((a) => a.name)).toEqual(["hide", "fadeout", "shake"]);
   });
 
   it("a bare video line `[[rain once with fade with shake]]` plays the video once and both animations", async () => {
     const { instruction } = await played("rain once with fade with shake");
     expect(instruction.content.video).toEqual(expect.objectContaining({ loop: false }));
-    expect(names(instruction.content.enterAnimations).map((a) => a.name)).toEqual(["fadein", "shake"]);
+    expect(names(instruction.content.enterAnimations).map((a) => a.name)).toEqual(["show", "fadein", "shake"]);
   });
 
   it("`[[show backdrop rain once with fade with shake]]` plays the video once and both animations", async () => {
     const { instruction } = await played("show backdrop rain once with fade with shake");
     expect(instruction.content.video).toEqual(expect.objectContaining({ loop: false }));
-    expect(names(instruction.content.enterAnimations).map((a) => a.name)).toEqual(["fadein", "shake"]);
+    expect(names(instruction.content.enterAnimations).map((a) => a.name)).toEqual(["show", "fadein", "shake"]);
   });
 
   it("`wait` on a `show` holds for the longest `with`", async () => {
@@ -142,33 +154,36 @@ describe("every `with` on a `show`, `hide` or bare picture line plays together (
   });
 });
 
-describe("a `show` or `hide` line with one `with` sends what it sent before, as a one-item list (I-2855)", () => {
+describe("a `show` or `hide` line with one `with` sends the line's own show or hide and then the `with` (I-2855, I-2884)", () => {
   it.each([
-    ["show portrait hero with fade over 0.5s", ["fadein"], ["fadeout"], "0.5s"],
-    ["show portrait hero with shake over 2s", ["shake"], ["shake"], "2s"],
-    ["show portrait hero with screenfade over 1s", ["waitin"], ["waitout"], undefined],
+    ["show portrait hero with fade over 0.5s", ["show", "fadein"], ["hide", "fadeout"], "0.5s"],
+    ["show portrait hero with shake over 2s", ["show", "shake"], ["hide", "shake"], "2s"],
+    ["show portrait hero with screenfade over 1s", ["show", "waitin"], ["hide", "waitout"], undefined],
     ["show portrait hero over 0.4s", ["show"], ["hide"], "0.4s"],
   ] as const)("`%s`", async (line, enter, previous, duration) => {
     const { instruction } = await played(line);
     expect(names(instruction.content.enterAnimations).map((a) => a.name)).toEqual(enter);
     expect(names(instruction.content.previousHideAnimations).map((a) => a.name)).toEqual(previous);
     if (duration) {
-      expect(names(instruction.content.enterAnimations)[0]!.duration).toBe(duration);
-      expect(names(instruction.content.previousHideAnimations)[0]!.duration).toBe(duration);
+      expect(names(instruction.content.enterAnimations).at(-1)!.duration).toBe(duration);
+      expect(names(instruction.content.previousHideAnimations).at(-1)!.duration).toBe(duration);
     }
   });
 
   it.each([
-    ["hide portrait with fade over 1s", ["fadeout"]],
-    ["hide portrait with spin over 1s once", ["spin"]],
+    ["hide portrait with fade over 1s", ["hide", "fadeout"]],
+    ["hide portrait with spin over 1s once", ["hide", "spin"]],
     ["hide portrait over 0.3s", ["hide"]],
   ] as const)("`%s`", async (line, exits) => {
     const { instruction } = await played(line);
     expect(names(instruction.targetAnimations).map((a) => a.name)).toEqual(exits);
   });
 
-  it("`hide portrait bunny with fade over 1s` sends one exit on the picture", async () => {
+  it("`hide portrait bunny with fade over 1s` sends the picture's own `hide` and then the fade", async () => {
     const { instruction } = await played("hide portrait bunny with fade over 1s");
-    expect(names(instruction.content.exitAnimations)).toEqual([expect.objectContaining({ name: "fadeout", duration: "1s" })]);
+    expect(names(instruction.content.exitAnimations)).toEqual([
+      OWN_HIDE,
+      expect.objectContaining({ name: "fadeout", duration: "1s" }),
+    ]);
   });
 });

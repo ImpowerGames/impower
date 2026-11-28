@@ -16,6 +16,7 @@ import { resolvePictureLook } from "../../morph/look";
 import { MORPH_PICK_NONE } from "../../morph/types";
 import {
   DIRECTIVE_CLAUSE_WORDS,
+  directiveOwners,
   directiveValueKind,
   readSourceDirectives,
   type DirectiveWord,
@@ -149,6 +150,44 @@ function usingLineIssues(
       severity: DiagnosticSeverity.Error,
       message: usingLineMessage(control, value && isTransition(value.text) ? value.text : undefined),
     }));
+}
+
+const UNSEEN_HIDE_WITH =
+  "This `with` is not seen: the picture is hidden at once. Give the hide a length (`over 1s`), a delay (`after 1s`) or a transition (`using fade`).";
+
+function unseenHideWithIssues(
+  directive: SourceDirective,
+  context: SparkProgram["context"],
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] {
+  if (directive.kind !== "image" || directive.control?.text !== "hide") return [];
+  const owners = directiveOwners(directive.kind, directive.clauses);
+  if (owners.withs.length === 0 || owners.using) return [];
+  if (owners.line.some((clause) => clause.word.text === "over" || clause.word.text === "after")) return [];
+  const zero = (value: unknown) => parseFloat(String(value ?? 0)) === 0;
+  const hide = getContextEntry(context, "animation", "hide");
+  if (!hide || !zero(hide.timing?.duration) || !zero(hide.timing?.delay)) return [];
+  const typewriter =
+    getContextEntry(context, "typewriter", directive.target?.text ?? "") ?? getContextEntry(context, "typewriter", "$default");
+  if (!zero(typewriter?.fade_duration)) return [];
+  const leavingAnimation = (name: string) => {
+    const transition = getContextEntry(context, "transition", name);
+    const armed = transition?.on_hide;
+    return getContextEntry(context, "animation", transition ? (typeof armed === "string" ? armed : armed?.$name) ?? "hide" : name);
+  };
+  const hideTarget = hide.target?.$name ?? "self";
+  const setsOpacity = (name: string | undefined) => {
+    const animation = name === undefined ? undefined : leavingAnimation(name);
+    return (
+      (animation?.target?.$name ?? "self") === hideTarget &&
+      (animation?.keyframes ?? []).some((keyframe: any) => keyframe?.opacity != null)
+    );
+  };
+  if (owners.withs.some((entry) => setsOpacity(entry.name?.text))) return [];
+  return owners.withs.map((entry) => ({
+    at: { from: entry.word.from, to: entry.name?.to ?? entry.word.to },
+    severity: DiagnosticSeverity.Warning,
+    message: UNSEEN_HIDE_WITH,
+  }));
 }
 
 const REPEAT_LOOP_NODES = nodeNameSet([
@@ -5010,6 +5049,10 @@ export class SparkdownCompiler {
           ...usingLineIssues(directive, (name) => getContextEntry(program.context, "transition", name) !== undefined).map(
             (issue) => ({ ...issue, keyword: issue.at }),
           ),
+          ...unseenHideWithIssues(directive, program.context).map((issue) => ({
+            ...issue,
+            keyword: issue.at,
+          })),
         ];
         for (const issue of issues) {
           if (!issue?.message || issue.severity === undefined) continue;
