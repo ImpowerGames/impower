@@ -4102,6 +4102,9 @@ animation show {
   target = layer.self
   keyframes {
     {
+      opacity = "0"
+    }
+    {
       opacity = "1"
     }
   }
@@ -4606,6 +4609,9 @@ animation waitin {
 animation fadeout {
   target = layer.self
   keyframes {
+    {
+      opacity = "1"
+    }
     {
       opacity = "0"
     }

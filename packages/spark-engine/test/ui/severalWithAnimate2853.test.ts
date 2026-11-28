@@ -102,7 +102,7 @@ describe("every `with` on an `animate` line plays, each with its own timing (I-2
 describe("every `with` plays wherever an `animate` line's instruction is read (I-2853)", () => {
   it("an `animate` line that names a picture plays every `with` on the layer, together", async () => {
     const { instruction } = await played("animate portrait bunny with shake over 1s with spin over 5s");
-    expect(instruction.content.enterAnimations).toBeUndefined();
+    expect(instruction.content.enterAnimations.map(timing)).toEqual([expect.objectContaining({ name: "show" })]);
     expect(instruction.targetAnimations.map(timing)).toEqual([
       expect.objectContaining({ name: "shake", duration: "1s" }),
       expect.objectContaining({ name: "spin", duration: "5s" }),
@@ -110,7 +110,7 @@ describe("every `with` plays wherever an `animate` line's instruction is read (I
   });
 
   it("a transition among several `with` clauses on an `animate` line that names a picture plays the animation it plays alone", async () => {
-    const alone = (await played("animate portrait bunny with fade over 1s")).instruction.content.enterAnimations?.[0];
+    const alone = (await played("animate portrait bunny with fade over 1s")).instruction.targetAnimations?.[0];
     expect(alone).toBeTruthy();
     const { instruction } = await played("animate portrait bunny with fade over 1s with shake over 2s");
     expect(instruction.targetAnimations.map(timing)).toEqual([
@@ -119,10 +119,10 @@ describe("every `with` plays wherever an `animate` line's instruction is read (I
     ]);
   });
 
-  it("an `animate` line that names a picture and one `with` still plays it on the picture", async () => {
+  it("an `animate` line that names a picture and one `with` plays it on the layer and `show` on the picture (I-2884)", async () => {
     const { instruction } = await played("animate portrait bunny with spin over 5s");
-    expect(instruction.content.enterAnimations.map(timing)).toEqual([expect.objectContaining({ name: "spin", duration: "5s" })]);
-    expect(instruction.targetAnimations ?? []).toEqual([]);
+    expect(instruction.content.enterAnimations.map(timing)).toEqual([expect.objectContaining({ name: "show" })]);
+    expect(instruction.targetAnimations.map(timing)).toEqual([expect.objectContaining({ name: "spin", duration: "5s" })]);
   });
 
   it("a save written when a layer's `with` was one name restores that animation", async () => {
@@ -175,6 +175,7 @@ describe("a line's animations travel in one list in written `with` order (I-2870
   it("a `hide` with a transition and an animation sends both in written order", async () => {
     const { instruction } = await played("hide portrait with screenfade over 1s with spin over 1s");
     expect(sent(instruction.targetAnimations)).toEqual([
+      { name: "hide", arm: undefined },
       { name: "waitout", arm: undefined },
       { name: "blackpulse", arm: "screen" },
       { name: "spin", arm: undefined },

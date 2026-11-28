@@ -964,6 +964,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$type": "animation",
                   "keyframes": [
                     {
+                      "opacity": "1",
+                    },
+                    {
                       "opacity": "0",
                     },
                   ],
@@ -1350,6 +1353,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "show",
                   "$type": "animation",
                   "keyframes": [
+                    {
+                      "opacity": "0",
+                    },
                     {
                       "opacity": "1",
                     },

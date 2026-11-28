@@ -150,9 +150,11 @@ describe("a declared `delay` plays when no `after` is written (I-2882)", () => {
   it("each animation of a transition plays its declared delay", async () => {
     const { held, instruction } = await line("show portrait hero with popin wait");
     expect(instruction.content.enterAnimations.map(timing)).toEqual([
+      expect.objectContaining({ name: "show" }),
       expect.objectContaining({ name: "pop", delay: "0.5s", duration: "1s" }),
     ]);
     expect(instruction.content.previousHideAnimations.map(timing)).toEqual([
+      expect.objectContaining({ name: "hide" }),
       expect.objectContaining({ name: "pop", delay: "0.5s", duration: "1s" }),
     ]);
     expect(held).toBe(1.5);

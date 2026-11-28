@@ -268,17 +268,17 @@ end
 
 The transition plays in place of the line's own show or hide: the arriving face gets the transition's `on_show` animation and the face it replaces its `on_hide` animation. The `over`, `after` and `ease` written before the first `with`, or after `using`, time the transition; with none of them it plays its declared timing, half a second for `fade`. Every `with` plays beside it. So the first line fades the happy face in over half a second while it shakes for two seconds, and the face it replaces fades out and shakes too. The last line fades the portrait out over a second while it makes one turn. A line takes one `using`, and only a transition follows it: `using shake` is reported, and the editor's quick fix rewrites it to `with shake`. See [arriving and leaving with `using`](./AnimationTheme.md#arriving-and-leaving-with-using).
 
-A portrait line also takes any number of `with` clauses, and they all play together. A `with` names a transition, such as `fade`, or an animation, such as `shake`:
+A portrait line also takes any number of `with` clauses, each naming an animation such as `shake`. The line's own show or hide always plays, timed by the line's own `over`, `after` and `ease`, and every `with` plays beside it:
 
 ```sparkdown
 scene start
-  [[mia:happy with fade over 0.5s with shake over 2s]]
-  [[show portrait mia:sad with fade]]
-  [[hide portrait with fade over 1s with spin over 1s once]]
+  [[mia:happy with shake]]
+  [[show portrait mia:sad over 2s with shake]]
+  [[hide portrait after 1s with spin over 1s once]]
 end
 ```
 
-The first line fades the happy face in over half a second while it shakes for two seconds; the portrait it replaces fades out and shakes too. The last line fades the portrait out while it makes one turn, and the portrait is removed when the longer of the two has ended. Each `with` takes its own `over`, `after`, `ease`, `loop` and `once`, as [several animations at once](./AnimationTheme.md#several-animations-at-once) describes.
+The first line has no `over`, so the happy face is on screen and shaking from the first frame, and the face it replaces is hidden at once. The second fades the sad face in from transparent over two seconds while it shakes for the 300ms `shake` declares, and the face it replaces fades out over the same two seconds and shakes too. The last line turns the portrait once over a second and then hides it. A `hide` with no `over`, `after` or `using` of its own hides the portrait at once, so `[[hide portrait with spin over 1s once]]` shows no spin, and the editor warns on the `with`. Each `with` takes its own `over`, `after`, `ease`, `loop` and `once`, as [the line's own motion beside every `with`](./AnimationTheme.md#the-lines-own-motion-beside-every-with) describes.
 
 ## Choosing an expression
 

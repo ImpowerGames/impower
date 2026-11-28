@@ -16,6 +16,7 @@ import { resolvePictureLook } from "../../morph/look";
 import { MORPH_PICK_NONE } from "../../morph/types";
 import {
   DIRECTIVE_CLAUSE_WORDS,
+  directiveOwners,
   directiveValueKind,
   readSourceDirectives,
   type DirectiveWord,
@@ -134,6 +135,26 @@ function strayClauseIssues(
     issues.push({ at: word, severity: DiagnosticSeverity.Error, message });
   }
   return issues;
+}
+
+const UNSEEN_HIDE_WITH =
+  "This `with` is not seen: the picture is hidden at once. Give the hide a length (`over 1s`), a delay (`after 1s`) or a transition (`using fade`).";
+
+function unseenHideWithIssues(
+  directive: SourceDirective,
+  hide: { timing?: { duration?: unknown; delay?: unknown } } | undefined,
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] {
+  if (directive.kind !== "image" || directive.control?.text !== "hide") return [];
+  const owners = directiveOwners(directive.kind, directive.clauses);
+  if (owners.withs.length === 0 || owners.using) return [];
+  if (owners.line.some((clause) => clause.word.text === "over" || clause.word.text === "after")) return [];
+  const zero = (value: unknown) => parseFloat(String(value ?? 0)) === 0;
+  if (!hide || !zero(hide.timing?.duration) || !zero(hide.timing?.delay)) return [];
+  return owners.withs.map((entry) => ({
+    at: { from: entry.word.from, to: entry.name?.to ?? entry.word.to },
+    severity: DiagnosticSeverity.Warning,
+    message: UNSEEN_HIDE_WITH,
+  }));
 }
 
 const REPEAT_LOOP_NODES = nodeNameSet([
@@ -4992,6 +5013,10 @@ export class SparkdownCompiler {
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
           ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
+          ...unseenHideWithIssues(directive, getContextEntry(program.context, "animation", "hide")).map((issue) => ({
+            ...issue,
+            keyword: issue.at,
+          })),
         ];
         for (const issue of issues) {
           if (!issue?.message || issue.severity === undefined) continue;

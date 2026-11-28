@@ -157,7 +157,7 @@ export const pictureLineAnimations = (
   });
   const using: WithInstruction | undefined = e.using ? lineEvent(e.using) : undefined;
   const ownMotion = (arm: "on_show" | "on_hide"): AnimationEvent[] =>
-    using ? [armEvent(context, using, arm)] : entries.length ? [] : [lineEvent(arm === "on_show" ? "show" : "hide")];
+    using ? [armEvent(context, using, arm)] : [lineEvent(arm === "on_show" ? "show" : "hide")];
   const showEvents = [...ownMotion("on_show"), ...entries.map((entry) => armEvent(context, entry, "on_show"))];
   const hideEvents = [...ownMotion("on_hide"), ...entries.map((entry) => armEvent(context, entry, "on_hide"))];
   const definitions = (events: AnimationEvent[]) => events.flatMap((event) => animationDefinition(context, event, instant) ?? []);
@@ -182,14 +182,12 @@ export const pictureLineAnimations = (
       result.previousHideAnimations = definitions(hideEvents);
     } else if (e.control === "hide") {
       result.exitAnimations = definitions(hideEvents);
-    } else if (e.control === "animate" && entries.length > 1) {
+    } else if (e.control === "animate") {
       result.enterAnimations = definitions(ownMotion("on_show"));
       result.targetAnimations.push(...inWrittenOrder((entry) => armEvent(context, entry, "on_show")));
-    } else if (e.control === "animate") {
-      result.enterAnimations = definitions(showEvents);
     }
     result.targetAnimations.push(...usingArms);
-    if (e.control !== "animate" || entries.length <= 1) {
+    if (e.control !== "animate") {
       result.targetAnimations.push(...entries.flatMap(armsOf));
     }
   } else if (e.control === "hide" || e.control === "show") {
