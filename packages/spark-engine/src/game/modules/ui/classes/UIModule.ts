@@ -111,6 +111,7 @@ import {
   layoutAnimation,
   layoutAnimations,
   layoutArrivesByStyle,
+  layoutTransitionParts,
   pictureLineAnimations,
   pictureLineEnd,
   timingFunction,
@@ -6763,6 +6764,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         { ...(e.using ? { using: e.using } : {}), after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease },
         ...entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) })),
       ];
+      if (e.control !== LayoutVerb.clear) {
+        this.playLayoutTransitionParts(e.control === LayoutVerb.open ? "arrive" : "leave", clauses, instant);
+      }
       switch (e.control) {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
@@ -6835,6 +6839,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ),
       );
     }
+  }
+
+  protected playLayoutTransitionParts(phase: MotionPhase, clauses: LayoutClauses[], instant: boolean): void {
+    if (instant || !this._reactive) {
+      return;
+    }
+    const parts = layoutTransitionParts(this.context as AnimationContext, clauses, instant);
+    const effects = [...new Set(parts.map((part) => part.arm ?? ""))].flatMap((arm) =>
+      this.findElements(arm).map((element) => ({ element, animations: parts.filter((part) => part.arm === arm) })),
+    );
+    if (effects.length === 0) {
+      return;
+    }
+    const line = this.composingLine();
+    if (line) {
+      this.own(line, {
+        phase,
+        start: () => this.animateElements(effects),
+        finish: () => {},
+        settle: () => {},
+      });
+      return;
+    }
+    void this.animateElements(effects);
   }
 
   protected async holdingScreens<T>(screens: string[], work: () => Promise<T>): Promise<T> {

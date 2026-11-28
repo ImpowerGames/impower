@@ -262,6 +262,66 @@ end
     },
   );
 
+  test.each([
+    ["open", "[[open inventory using screenfade over 2s]]", "waitin"],
+    ["close", "[[close inventory using screenfade over 2s]]", "waitout"],
+  ])(
+    "`%s … using screenfade over 2s` plays its half and its `screen` pulse, each stretched as on a picture line",
+    async (verb, line, half) => {
+      const { h } = await start(`layout main {
+  textbox {
+    dialogue #clear {
+      text
+    }
+  }
+  screen {
+    animation
+  }
+}
+layout inventory {
+  text "Bag"
+}
+
+scene start
+${verb === "close" ? "  [[open inventory]] Opened.\n" : ""}  ${line}
+  Done.
+end
+`);
+      if (verb === "close") {
+        await drive(h, true);
+      }
+      h.reset();
+      await drive(h);
+      const calls = sent(h, "ui/animate").filter((m: any) => m.params?.effects?.length);
+      const all = calls.flatMap((m: any) =>
+        m.params.effects.flatMap((e: any) => e.animations.map((a: any) => ({ name: a.$name, duration: a.timing?.duration, arm: a.arm }))),
+      );
+      expect(all).toContainEqual({ name: half, duration: "1s", arm: undefined });
+      expect(all).toContainEqual({ name: "blackpulse", duration: "2s", arm: "screen" });
+    },
+  );
+
+  test("`wait` holds for the longest part of a `using` transition", async () => {
+    const { h } = await start(`${MAIN}layout inventory {
+  text "Bag"
+}
+
+scene start
+  [[open inventory using screenfade over 2s wait]]
+end
+`);
+    expect(h.nextBeat()!.end).toBeCloseTo(2);
+    const declared = await start(`${MAIN}layout inventory {
+  text "Bag"
+}
+
+scene start
+  [[close inventory using screenfade wait]]
+end
+`);
+    expect(declared.h.nextBeat()!.end).toBeCloseTo(1);
+  });
+
   test("`wait` on a styled layout counts each `with`", async () => {
     const { h } = await start(`${MAIN}${STYLED}layout panel {
   bag {
