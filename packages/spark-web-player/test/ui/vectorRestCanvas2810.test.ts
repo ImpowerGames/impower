@@ -608,6 +608,26 @@ describe("a beat that changes a shown picture's framing draws it at its new plac
     expect(t.rasters).toHaveLength(2);
     expect(t.events.filter((event) => event.startsWith("paint"))).toHaveLength(2);
   });
+
+  test("a later instruction of the beat that resizes the picture while the beat waits leaves the shown canvas at its current box", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], 144);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const span = t.spanOf("badge")!;
+    const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+    const style = canvas.parentElement!.getAttribute("style");
+    const reframe = show("badge", "emblem", ["/src/emblem.svg"], { framing: { x: 0, y: 0.5, zoom: 1 } });
+    reframe.instructions.push({ control: "animate", travel: { framing: { x: 1, y: 0.5, zoom: 2 }, timing: { delay: "0s", duration: "2s", easing: "linear" } } } as never);
+    t.beat([reframe], 146);
+    expect(t.events.filter((event) => event === "applied")).toHaveLength(1);
+    expect(span.classList.contains("framed")).toBe(false);
+    expect(canvas.parentElement!.getAttribute("style")).toBe(style);
+    expect([canvas.width, canvas.height]).toEqual([first.width, first.height]);
+  });
 });
 
 describe("a later beat's layout changes are measured on every shown picture before it fires (#2810)", () => {

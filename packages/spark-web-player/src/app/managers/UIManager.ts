@@ -860,15 +860,8 @@ export default class UIManager extends Manager {
     const made = this.precreateTargets(ops);
     const animated = this.beatAnimations(ops);
     const { restore, changed } = this.applyBeatLayout(ops);
+    const placements: { span: HTMLElement; layer: MorphLayer; framing: WriteImageInstruction["framing"] }[] = [];
     const placed: (() => void)[] = [];
-    const reframed: MorphLayer[] = [];
-    const place = (span: HTMLElement, layer: MorphLayer, framing: WriteImageInstruction["framing"]) => {
-      const undo = previewPlacement(span, framing);
-      if (undo) {
-        placed.push(undo);
-        reframed.push(layer);
-      }
-    };
     try {
     const nested = (el: Element) =>
       animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
@@ -927,7 +920,7 @@ export default class UIManager extends Manager {
                 }
                 layer.size({ zoom, scale: around * nested(pictureEl) });
                 if (instruction.control === "show" && !instruction.travel) {
-                  place(pictureEl, layer, instruction.framing);
+                  placements.push({ span: pictureEl, layer, framing: instruction.framing });
                 }
                 layers.push(layer);
               }
@@ -944,7 +937,7 @@ export default class UIManager extends Manager {
               const layer = (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
               if (layer) {
                 layer.size({ zoom, scale: around * nested(span) });
-                place(span, layer, instruction.framing);
+                placements.push({ span, layer, framing: instruction.framing });
                 layers.push(layer);
               }
             }
@@ -1012,6 +1005,14 @@ export default class UIManager extends Manager {
         if (scale > 1 && !layer.drawn) {
           layers.push(layer);
         }
+      }
+    }
+    const reframed: MorphLayer[] = [];
+    for (const { span, layer, framing } of placements) {
+      const undo = previewPlacement(span, framing);
+      if (undo) {
+        placed.push(undo);
+        reframed.push(layer);
       }
     }
     for (const layer of reframed) {
