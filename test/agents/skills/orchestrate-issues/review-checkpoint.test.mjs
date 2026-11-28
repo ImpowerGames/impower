@@ -545,7 +545,7 @@ try {
   assert.equal(rc.restore([writerExtension], { trusted: rc.trustedCoordinators(twoTickets, 42), record: twoTickets }).at(-1).trusted, false);
 
   const takeoverFile = path.join(artifacts, "takeover.json");
-  run.initRecord({ record: takeoverFile, checkout, repository: "acme/widgets", issue: 40, coordinator: "local_next", harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "high", invocation, takeover: true, observations: { sessions: { local_coord: { state: "archived" } } } }, { freeBytes: 100 * 2 ** 30 });
+  run.initRecord({ record: takeoverFile, checkout, repository: "acme/widgets", issue: 40, coordinator: "local_next", harness: "codex", coordinatorModel: "gpt-6.2-sol", coordinatorEffort: "high", invocation, takeover: true, observations: { sessions: { local_coord: { state: "archived" } } } }, { freeBytes: 100 * 2 ** 30 });
   const next = run.readRecord(takeoverFile);
   assert.deepEqual(next.tickets[42].checkpoints.map((d) => [d.kind, d.round, d.state]), record().tickets[42].checkpoints.map((d) => [d.kind, d.round, d.state]));
   assert.deepEqual(rc.trustedCoordinators(next, 42), ["local_next", "local_coord"]);
