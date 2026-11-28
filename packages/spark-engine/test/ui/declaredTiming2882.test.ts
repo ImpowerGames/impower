@@ -111,6 +111,12 @@ describe("a timing word times only what it is written on (I-2882)", () => {
     ]);
   });
 
+  it("`wait` does not hold for a line-owned timing word on an `animate` with no travel and no picture, which times nothing", async () => {
+    expect((await line("animate portrait over 2s after 1s wait")).held).toBe(0);
+    expect((await line("animate portrait over 2s with shake wait")).held).toBe(0.3);
+    expect((await line("animate backdrop to left over 2s after 1s wait")).held).toBe(3);
+  });
+
   it("`[[animate backdrop to left over 4s with shake after 3s over 1s wait]]` holds the story for four seconds", async () => {
     const { held, instruction } = await line("animate backdrop to left over 4s with shake after 3s over 1s wait");
     expect(held).toBe(4);

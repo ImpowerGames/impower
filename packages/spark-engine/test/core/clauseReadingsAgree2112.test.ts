@@ -6,7 +6,6 @@ import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_CONTROL_WORDS,
   DIRECTIVE_FLAG_WORDS,
-  DIRECTIVE_TIMING_WORDS,
   directiveOwners,
   directiveValueKind,
   readSourceDirectives,
@@ -256,8 +255,10 @@ const empty = (): Reading => ({
   timing: [],
 });
 
+const TIMING_WORDS = ["over", "after", "ease"];
+
 const timingOf = (owner: string, values: Record<string, unknown>) =>
-  DIRECTIVE_TIMING_WORDS.flatMap((keyword) => (values[keyword] === undefined ? [] : [`${owner} ${keyword} ${values[keyword]}`]));
+  TIMING_WORDS.flatMap((keyword) => (values[keyword] === undefined ? [] : [`${owner} ${keyword} ${values[keyword]}`]));
 
 const writtenTiming = (owner: string, clauses: readonly { word: { text: string }; value?: { text: string } }[]) => {
   const values: Record<string, unknown> = {};

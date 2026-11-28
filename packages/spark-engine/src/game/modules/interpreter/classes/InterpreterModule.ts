@@ -864,7 +864,8 @@ export class InterpreterModule extends Module<
     const line = chunk.clauses;
     const entries = chunk.with ?? [];
     const spans = entries.map((entry) => this.effectSpan(entry.name, entry));
-    if (entries.length === 0) {
+    const ownMotion = !(chunk.tag === "image" && chunk.control === "animate" && !line?.to && !chunk.assets?.length);
+    if (entries.length === 0 && ownMotion) {
       spans.push(this.effectSpan(chunk.target ?? "", line ?? {}, fallback));
     } else if (chunk.tag === "image" && line?.to) {
       spans.push((line.after ?? 0) + (line.over ?? 0));
