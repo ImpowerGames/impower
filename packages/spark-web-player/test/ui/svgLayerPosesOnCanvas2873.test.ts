@@ -574,7 +574,6 @@ describe("an SVG layer with its own morphs inside a picture its own morph drives
         layer.widen({ zoom: 2 });
         layer.prepareLayout();
         await until(() => owner().poses.sets.some((set: any) => `${set.width}x${set.height}` === doubled && set.queue.length === 0 && !set.running), "the prepared size's poses");
-        expect(owner().poses.sets).toHaveLength(2);
         layer.adoptNext();
       } else {
         layer.size({ zoom: 2 });

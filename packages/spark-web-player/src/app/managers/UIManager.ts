@@ -6,7 +6,7 @@ import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/clas
 import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
 import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { endTravelsWithin, haltPicture, placePicture, previewPlacement, previewTravel, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
+import { copyPictureRest, endTravelsWithin, haltPicture, pictureZoomReach, placePicture, scheduleTravel, travelAnimations, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -49,6 +49,8 @@ import { SweepReconcileMessage } from "../../../../spark-engine/src/game/modules
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
 import {
+  type LayeredPicture,
+  type MorphImageContent,
   type WriteImageInstruction,
   WriteImageMessage,
 } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
@@ -70,9 +72,10 @@ import type { StreamMessage } from "../../../../spark-engine/src/game/core/class
 import { isAdvanceKey } from "../../../../spark-engine/src/game/core/utils/isAdvanceKey";
 import { Manager } from "../Manager";
 import type { LiveClip } from "./AudioManager";
-import { MorphGroup, MorphPlayback, type MorphLayer } from "../morph/MorphPlayback";
-import { keyframeScale } from "@impower/spark-engine/src/game/modules/ui/utils/keyframeScale";
-import { keptScroll, outOfFlow } from "../utils/outOfFlow";
+import { MorphGroup, MorphPlayback, pictureGauge, type MorphLayer, type PictureGauge } from "../morph/MorphPlayback";
+import { keyframesScale } from "@impower/spark-engine/src/game/modules/ui/utils/keyframeScale";
+import { replicate, type Replica } from "../utils/replicate";
+import type { IApplication } from "../IApplication";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { DrawAheadMessage, type DrawAheadPicture } from "../../../../spark-engine/src/game/modules/assets/classes/messages/DrawAheadMessage";
 import { DrawAhead } from "./DrawAhead";
@@ -197,17 +200,101 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
   return Number(delay) > 0 || Number(duration) > 0;
 }
 
-function placedAsApplied(
-  instruction: WriteImageInstruction,
-): { framing: WriteImageInstruction["framing"]; travels: boolean } | undefined {
-  const travel = instruction.travel;
-  if (instruction.control === "show") {
-    return travel ? undefined : { framing: instruction.framing, travels: false };
-  }
-  if (!travel || Number(getEffectTiming(travel.timing).delay ?? 0) > 0) {
+const WRITTEN_STATE = [
+  "__sdId",
+  "__sdRev",
+  "__sdCreate",
+  "__sdAttrs",
+  "__sdUpdatedContent",
+  "__sdImg",
+  "__sdImgRev",
+  "__sdTxt",
+  "__sdTxtRev",
+  "__sdTxtAtOnce",
+  "__sdAll",
+  "__sdAllRev",
+  "__sdLeaves",
+  "__sdShows",
+  "__sdSrcs",
+  "__sdShowing",
+];
+
+interface RehearsedMount {
+  span: HTMLElement;
+  content: MorphImageContent;
+  background: string;
+  kind: "background" | "mask";
+  base: string;
+  group: MorphGroup;
+  pictures: LayeredPicture[];
+  reach?: { zoom?: number; scale?: number };
+  instruction?: WriteImageInstruction;
+}
+
+class RehearsedMorphs {
+  mounts: RehearsedMount[] = [];
+
+  released: Element[] = [];
+
+  asked?: { instruction: WriteImageInstruction; base: string };
+
+  mount(
+    span: HTMLElement,
+    content: MorphImageContent,
+    background: string,
+    kind: "background" | "mask",
+    base: string,
+    group: MorphGroup = new MorphGroup(),
+    pictures: LayeredPicture[] = [],
+    _held = false,
+    ahead: { reach?: { zoom?: number; scale?: number } } = {},
+  ): undefined {
+    const asked = this.asked?.base === base ? this.asked : undefined;
+    this.asked = undefined;
+    this.mounts.push({
+      span,
+      content,
+      background,
+      kind,
+      base,
+      group,
+      pictures,
+      ...(ahead.reach ? { reach: ahead.reach } : {}),
+      ...(asked ? { instruction: asked.instruction } : {}),
+    });
     return undefined;
   }
-  return { framing: travel.framing, travels: true };
+
+  releaseWithin(root: Element) {
+    this.released.push(root);
+  }
+
+  releases(el: Element): boolean {
+    return this.released.some((root) => root === el || root.contains(el));
+  }
+
+  requestRelayout() {}
+
+  beginPass() {}
+
+  endPass() {}
+
+  freezeWithin() {}
+
+  adoptPrepared() {}
+
+  undrawnWithin(): MorphLayer[] {
+    return [];
+  }
+}
+
+class RehearsalHold extends AnimationHold {
+  added: globalThis.Animation[] = [];
+
+  override add(animation: globalThis.Animation): Promise<unknown> {
+    this.added.push(animation);
+    return super.add(animation);
+  }
 }
 
 let travelWrites = 0;
@@ -407,7 +494,9 @@ export default class UIManager extends Manager {
     },
   });
 
-  protected _prepared = new Map<WriteImageInstruction, Map<HTMLElement, HTMLElement>>();
+  protected _prepared = new Map<WriteImageInstruction, Map<string, HTMLElement>>();
+
+  protected _replica?: Replica;
 
   protected _themeKey = getThemeKey([]);
 
@@ -674,7 +763,6 @@ export default class UIManager extends Manager {
       }
     }
     this.liftVeil();
-    this.revealPrecreated();
     for (const waiting of this._waitingBeats.splice(0)) {
       this._beatMarks.dropped(waiting);
     }
@@ -803,7 +891,7 @@ export default class UIManager extends Manager {
     const lag = this._heldAt != null ? this._lag : this.lag(now);
     const storyNow = now - (this.lag(now) - lag);
     const wait = this.waitToCommit(params, ops, plan, storyNow);
-    const prepared = overlay ? this.prepareDrawing(ops, plan) : { layers: [], unprepared: false };
+    const prepared = overlay ? this.prepareDrawing(params, ops, plan) : { layers: [], unprepared: false };
     let drawing = prepared.layers.filter((layer) => !layer.drawn);
     if (force) {
       for (const layer of drawing) {
@@ -863,188 +951,128 @@ export default class UIManager extends Manager {
     return this.app.previewing === true ? this._drawTimeouts.restore : this._drawTimeouts.beat;
   }
 
-  protected prepareDrawing(ops: IMessage[], plan: Map<IMessage, WriteDecision>): { layers: MorphLayer[]; unprepared: boolean } {
+  protected prepareDrawing(
+    params: BeatParams,
+    ops: IMessage[],
+    plan: Map<IMessage, WriteDecision>,
+  ): { layers: MorphLayer[]; unprepared: boolean } {
     const morphs = this.morphs;
-    if (!morphs) {
+    const overlay = this.app.overlay;
+    if (!morphs || !overlay) {
       return { layers: [], unprepared: false };
     }
-    const layers: MorphLayer[] = [];
-    let unprepared = false;
-    const made = this.precreateTargets(ops);
-    const animated = this.beatAnimations(ops);
-    const { restore, changed } = this.applyBeatLayout(ops);
-    const placements: { span: HTMLElement; layer: MorphLayer; framing: WriteImageInstruction["framing"]; travels: boolean }[] = [];
-    const placed: (() => void)[] = [];
-    try {
-    const nested = (el: Element) =>
-      animated.filter(({ element }) => element === el || element.contains(el)).reduce((product, { scale }) => product * scale, 1);
-    for (const op of ops) {
+    const draws = ops.some((op) => {
       const msg = op as RequestMessage;
-      if (!WriteImageMessage.type.isRequest(msg)) {
-        continue;
-      }
-      const decision = plan.get(op);
-      if (decision === "skip" || decision === "same") {
-        continue;
-      }
-      const { target, instructions, elements } = msg.params;
-      const targetEls = this.writeTargets(target, elements);
-      if (targetEls.length === 0) {
-        unprepared ||= instructions.some(drawsPicture);
-        continue;
-      }
-      const sig = JSON.stringify(instructions);
-      if (
-        decision == null &&
-        !instructions.some(movesPicture) &&
-        targetEls.every((el) => (el as any).__sdImg === sig && (el as any).__sdImgRev === ((el as any).__sdRev ?? 0))
-      ) {
-        continue;
-      }
-      for (const instruction of instructions) {
-        const zoom = Math.max(instruction.framing?.zoom ?? 1, instruction.travel?.framing?.zoom ?? 1);
-        const content = instruction.content;
-        const lineAnimations = instruction.targetAnimations ?? [];
-        const arms = [...new Set(lineAnimations.flatMap(({ arm }) => (arm == null ? [] : [arm])))];
-        for (const targetEl of targetEls) {
-          const around =
-            keyframeScale(
-              lineAnimations.filter(({ arm }) => arm == null),
-              (name) => resolveAnimationTargets(targetEl, name),
-            ) *
-            arms
-              .map((arm) => ({
-                animations: lineAnimations.filter((a) => a.arm === arm),
-                els: this.findTargetElements(arm).filter((el) => el === targetEl || el.contains(targetEl)),
-              }))
-              .filter(({ els }) => els.length > 0)
-              .reduce(
-                (product, { animations, els }) =>
-                  product * keyframeScale(animations, (name) => els.flatMap((el) => resolveAnimationTargets(el, name))),
-                1,
-              );
-          const imageEls = this.getContentElements(targetEl, "image");
-          if (!content) {
-            const placed = placedAsApplied(instruction);
-            for (const contentEl of imageEls) {
-              for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
-                const layer = (pictureEl as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
-                if (!layer) {
-                  continue;
-                }
-                layer.size({ zoom, scale: around * nested(pictureEl) });
-                if (placed) {
-                  placements.push({ span: pictureEl, layer, ...placed });
-                }
-                layers.push(layer);
-              }
-            }
-            continue;
-          }
-          if (instruction.control === "hide" || content.video || (!content.morph && !(content.pictures?.length ?? 0))) {
-            continue;
-          }
-          const maskEls = this.getContentElements(targetEl, "mask");
-          const kept = this.keptPictures(instruction, this.pictureTargets(targetEl));
-          if (kept) {
-            for (const span of kept.values()) {
-              const layer = (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
-              if (layer) {
-                layer.size({ zoom, scale: around * nested(span) });
-                placements.push({ span, layer, framing: instruction.framing, travels: false });
-                layers.push(layer);
-              }
-            }
-            continue;
-          }
-          const group = new MorphGroup();
-          for (const [els, property] of [
-            [imageEls, "background_image"],
-            [maskEls, "mask_image"],
-          ] as const) {
-            for (const contentEl of els) {
-              const span = createImageElement(
-                contentEl,
-                property,
-                content.background,
-                content.imageNames,
-                content.sources ?? (content.src ? [content.src] : []),
-                this.applyStyle.bind(this),
-              );
-              span.style.setProperty("visibility", "hidden");
-              (span as any).__sdPrepared = true;
-              placePicture(span, instruction.framing);
-              const measure = (layer: MorphLayer) => {
-                layer.presize();
-                this.presizeHidden(span, layer);
-              };
-              const ahead = this._drawAhead.reachOf(target, content.background);
-              const reach = {
-                zoom: Math.max(zoom, ahead?.zoom ?? 1),
-                scale: Math.max(
-                  around * keyframeScale(content.enterAnimations ?? []) * nested(span),
-                  ahead?.scale ?? 1,
-                ),
-              };
-              const layer = morphs.mount(
-                span,
-                content.morph ?? { plays: [], epoch: 0 },
-                content.background,
-                property === "mask_image" ? "mask" : "background",
-                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
-                group,
-                content.pictures ?? [],
-                true,
-                { reach, measure },
-              );
-              measure(layer);
-              let byContent = this._prepared.get(instruction);
-              if (!byContent) {
-                byContent = new Map();
-                this._prepared.set(instruction, byContent);
-              }
-              byContent.set(contentEl, span);
-              layers.push(layer);
-            }
-          }
-        }
-      }
+      return WriteImageMessage.type.isRequest(msg) && plan.get(op) !== "skip" && msg.params.instructions.some(drawsPicture);
+    });
+    const shown = morphs.layersIn(overlay);
+    if (!draws && shown.length === 0) {
+      return { layers: [], unprepared: false };
     }
-    for (const { element, scale } of animated) {
-      for (const layer of morphs.layersIn(element)) {
-        if (layers.includes(layer)) {
-          continue;
+    const rehearsal = this.rehearse(params, ops, plan);
+    if (!rehearsal) {
+      return { layers: [], unprepared: draws };
+    }
+    const { replica, rehearsed } = rehearsal;
+    try {
+      const reachOf = (span: HTMLElement) => ({ zoom: pictureZoomReach(span), scale: rehearsal.scaleOf(span) });
+      const gauges: [MorphLayer, HTMLElement, PictureGauge["reach"]][] = [];
+      for (const layer of shown) {
+        const span = replica.of(layer.span);
+        if (span?.isConnected && !rehearsed.releases(span)) {
+          gauges.push([layer, span, reachOf(span)]);
         }
-        layer.size({ scale: nested(layer.span) });
-        if (scale > 1 && !layer.drawn) {
+      }
+      const mounts = rehearsed.mounts
+        .filter((mount) => mount.instruction && mount.span.isConnected && !rehearsed.releases(mount.span))
+        .map((mount) => ({ mount, reach: reachOf(mount.span) }));
+      rehearsal.settle();
+      for (const span of [...gauges.map(([, gauged]) => gauged), ...mounts.map(({ mount }) => mount.span)]) {
+        rehearsal.reveal(span);
+      }
+      const layers: MorphLayer[] = [];
+      for (const [layer, span, reach] of gauges) {
+        if (layer.prepareLayout(pictureGauge(span, reach)) && !layer.drawn) {
           layers.push(layer);
         }
       }
-    }
-    const reframed: { span: HTMLElement; layer: MorphLayer }[] = [];
-    for (const { span, layer, framing, travels } of placements) {
-      const undo = travels ? previewTravel(span, framing) : previewPlacement(span, framing);
-      if (undo) {
-        placed.push(undo);
-        reframed.push({ span, layer });
+      for (const { mount, reach } of mounts) {
+        const layer = morphs.mount(mount.span, mount.content, mount.background, mount.kind, mount.base, mount.group, mount.pictures, true, {
+          reach: { zoom: Math.max(reach.zoom, mount.reach?.zoom ?? 1), scale: Math.max(reach.scale, mount.reach?.scale ?? 1) },
+        });
+        let byBase = this._prepared.get(mount.instruction!);
+        if (!byBase) {
+          byBase = new Map();
+          this._prepared.set(mount.instruction!, byBase);
+        }
+        const replaced = byBase.get(mount.base);
+        if (replaced) {
+          this.discardPrepared(replaced);
+        }
+        byBase.set(mount.base, mount.span);
+        layers.push(layer);
       }
-    }
-    for (const { span, layer } of reframed) {
-      layer.reframe(() => {
-        layer.presize();
-        this.presizeHidden(span, layer);
-      });
-    }
-    if (changed.length > 0 || made.length > 0) {
-      layers.push(...morphs.prepareLayouts(new Set(layers)));
-    }
+      if (mounts.length > 0) {
+        this._replica?.dispose();
+        this._replica = replica;
+      }
+      return { layers, unprepared: false };
     } finally {
-      for (const undo of placed.reverse()) {
-        undo();
+      if (this._replica !== replica) {
+        replica.dispose();
       }
-      restore();
     }
-    return { layers, unprepared };
+  }
+
+  protected rehearse(params: BeatParams, ops: IMessage[], plan: Map<IMessage, WriteDecision>): BeatRehearsal | undefined {
+    const overlay = this.app.overlay;
+    if (!overlay?.parentNode) {
+      return undefined;
+    }
+    const replica = replicate(overlay, WRITTEN_STATE, copyPictureRest);
+    const app = Object.create(this.app, {
+      overlay: { value: replica.root },
+      answer: { value: () => undefined },
+      emit: { value: () => undefined },
+      assets: { value: undefined },
+      assetCache: { value: undefined },
+      audio: { value: undefined },
+    }) as IApplication;
+    const rehearsal = new BeatRehearsal(app, replica);
+    const twin = (el: Element) => replica.of(el);
+    const twins = (els: Iterable<HTMLElement>) => new Set([...els].flatMap((el) => twin(el) ?? []));
+    rehearsal._breakpoints = this._breakpoints;
+    rehearsal._theme = this._theme;
+    rehearsal._themeKey = this._themeKey;
+    rehearsal._heldAt = this._heldAt;
+    rehearsal._lag = this._lag;
+    rehearsal._drawTimeouts = this._drawTimeouts;
+    rehearsal._passBegun = this._passBegun;
+    rehearsal._beatApplied = this._beatApplied;
+    rehearsal._beatReceived = this._beatReceived;
+    rehearsal._elements = new Map([...this._elements].flatMap(([id, el]): [string, HTMLElement][] => (twin(el) ? [[id, twin(el)!]] : [])));
+    rehearsal._staleIds = new Set(this._staleIds);
+    rehearsal._staleImageTargets = twins(this._staleImageTargets);
+    rehearsal._staleTextTargets = twins(this._staleTextTargets);
+    rehearsal._clearing = twins(this._clearing);
+    rehearsal._placeCursor = new Map(
+      [...this._placeCursor].flatMap(([parent, last]): [Element, Element][] => (twin(parent) && twin(last) ? [[twin(parent)!, twin(last)!]] : [])),
+    );
+    rehearsal._drawAhead = {
+      halt: () => undefined,
+      interrupt: () => undefined,
+      receive: () => undefined,
+      dispose: () => undefined,
+      reachOf: (target: string, background: string) => this._drawAhead.reachOf(target, background),
+    } as unknown as DrawAhead;
+    try {
+      rehearsal.applyBeat(params, ops, plan);
+    } catch (error) {
+      replica.dispose();
+      console.warn("a beat could not be measured before it fires", error);
+      return undefined;
+    }
+    return rehearsal;
   }
 
   protected mountAhead(picture: DrawAheadPicture): MorphLayer[] {
@@ -1101,184 +1129,6 @@ export default class UIManager extends Manager {
       }
     }
     return layers;
-  }
-
-  protected _precreated: { el: HTMLElement; value: string; priority: string }[] = [];
-
-  protected _precreatedArrivals = new WeakSet<Element>();
-
-  protected revealPrecreated() {
-    for (const { el, value, priority } of this._precreated.splice(0)) {
-      if (el.style.getPropertyValue("visibility") !== "hidden" || el.style.getPropertyPriority("visibility") !== "important") {
-        continue;
-      }
-      if (value) {
-        el.style.setProperty("visibility", value, priority);
-      } else {
-        el.style.removeProperty("visibility");
-      }
-    }
-  }
-
-  protected precreateTargets(ops: IMessage[]): HTMLElement[] {
-    const creates = ops.filter((op) => CreateElementMessage.type.isRequest(op as RequestMessage)) as (RequestMessage & {
-      params: { element: string; parent: string | null; name: string };
-    })[];
-    if (creates.length === 0) {
-      return [];
-    }
-    const missing = (id: string) => !this.getElement(id);
-    const needed = new Set<string>();
-    const within = new Set<string>();
-    for (const op of ops) {
-      const msg = op as RequestMessage;
-      if (!WriteImageMessage.type.isRequest(msg)) {
-        continue;
-      }
-      const { target, elements, instructions } = msg.params;
-      if (!instructions.some(drawsPicture)) {
-        continue;
-      }
-      for (const el of this.writeTargets(target, elements)) {
-        const id = (el as HTMLElement & { __sdId?: string }).__sdId;
-        if (id) {
-          within.add(id);
-        }
-      }
-      const names = (target.split("#")[0] ?? "").split(" ").filter(Boolean);
-      for (const create of creates) {
-        const classes = (create.params.name || "").split(" ");
-        const named = elements ? elements.includes(create.params.element) : names.length > 0 && names.every((name) => classes.includes(name));
-        if (named && missing(create.params.element)) {
-          needed.add(create.params.element);
-        }
-      }
-    }
-    const byId = new Map(creates.map((create) => [create.params.element, create]));
-    for (const id of [...needed]) {
-      for (
-        let parent = byId.get(id)?.params.parent;
-        parent && byId.has(parent) && !needed.has(parent) && missing(parent);
-        parent = byId.get(parent)?.params.parent
-      ) {
-        needed.add(parent);
-      }
-    }
-    for (let grew = true; grew; ) {
-      grew = false;
-      for (const create of creates) {
-        const parent = create.params.parent;
-        if (!needed.has(create.params.element) && parent && (needed.has(parent) || within.has(parent)) && missing(create.params.element)) {
-          needed.add(create.params.element);
-          grew = true;
-        }
-      }
-    }
-    if (needed.size === 0) {
-      return [];
-    }
-    this._applying += 1;
-    try {
-      for (const create of creates) {
-        if (needed.has(create.params.element) && !this.getElement(create.params.element)) {
-          void this.onReceiveRequest(create);
-        }
-      }
-    } finally {
-      this._applying -= 1;
-    }
-    for (const op of ops) {
-      const msg = op as RequestMessage;
-      if (
-        UpdateElementMessage.type.isRequest(msg) &&
-        needed.has(msg.params.element) &&
-        msg.params.attributes?.[PRESENCE_ATTRIBUTE] === "initial"
-      ) {
-        const el = this.getElement(msg.params.element);
-        if (el) {
-          el.setAttribute(PRESENCE_ATTRIBUTE, "initial");
-          this._precreatedArrivals.add(el);
-        }
-      }
-    }
-    const made: HTMLElement[] = [];
-    for (const id of needed) {
-      const parent = byId.get(id)?.params.parent;
-      if (parent && needed.has(parent)) {
-        continue;
-      }
-      const el = this.getElement(id);
-      if (el) {
-        this._precreated.push({ el, value: el.style.getPropertyValue("visibility"), priority: el.style.getPropertyPriority("visibility") });
-        el.style.setProperty("visibility", "hidden", "important");
-        made.push(el);
-      }
-    }
-    return made;
-  }
-
-  protected applyBeatLayout(ops: IMessage[]): { restore: () => void; changed: HTMLElement[] } {
-    const undo: (() => void)[] = [];
-    const changed: HTMLElement[] = [];
-    const overlay = this.app.overlay;
-    const scroll =
-      overlay && ops.some((op) => DestroyElementMessage.type.isRequest(op as RequestMessage) || UpdateElementMessage.type.isRequest(op as RequestMessage))
-        ? keptScroll(overlay)
-        : undefined;
-    const put = (el: HTMLElement, name: string, value: string | null) => {
-      if (el.getAttribute(name) === value) {
-        return;
-      }
-      if (value == null) {
-        el.removeAttribute(name);
-      } else {
-        el.setAttribute(name, value);
-      }
-    };
-    for (const op of ops) {
-      const msg = op as RequestMessage;
-      if (DestroyElementMessage.type.isRequest(msg)) {
-        const el = this.getElement(msg.params.element);
-        const parent = el?.parentElement;
-        if (el && el !== this.app.overlay && el.isConnected && parent) {
-          undo.push(outOfFlow(el));
-          changed.push(parent);
-        }
-        continue;
-      }
-      if (!UpdateElementMessage.type.isRequest(msg)) {
-        continue;
-      }
-      const { element, style, attributes } = msg.params;
-      const el = this.getElement(element);
-      if (!el || !el.isConnected || (!style && !attributes)) {
-        continue;
-      }
-      const names = Object.keys(attributes ?? {}).filter((name) => name !== "value" && name !== "checked" && name !== PRESENCE_ATTRIBUTE);
-      const entry = { el, style: el.getAttribute("style"), attributes: names.map((name): [string, string | null] => [name, el.getAttribute(name)]) };
-      undo.push(() => {
-        put(el, "style", entry.style);
-        for (const [name, value] of entry.attributes) {
-          put(el, name, value);
-        }
-      });
-      if (style) {
-        this.applyStyle(el, style);
-      }
-      for (const name of names) {
-        put(el, name, attributes![name] ?? null);
-      }
-      if (el.getAttribute("style") !== entry.style || entry.attributes.some(([name, value]) => el.getAttribute(name) !== value)) {
-        changed.push(el);
-      }
-    }
-    const restore = () => {
-      for (const step of undo.reverse()) {
-        step();
-      }
-      scroll?.();
-    };
-    return { restore, changed };
   }
 
   protected _veil?: { lift: () => void; overdue: () => void };
@@ -1373,36 +1223,18 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected beatAnimations(ops: IMessage[]): { element: Element; scale: number }[] {
-    const found: { element: Element; scale: number }[] = [];
-    for (const op of ops) {
-      const msg = op as RequestMessage;
-      if (!AnimateElementsMessage.type.isRequest(msg)) {
-        continue;
-      }
-      for (const effect of msg.params.effects) {
-        const element = this.getElement(effect.element);
-        const scale = keyframeScale(effect.animations, () => [effect.element]);
-        if (element && scale > 1) {
-          found.push({ element, scale });
-        }
-      }
-    }
-    return found;
-  }
-
-  protected takePrepared(instruction: WriteImageInstruction, contentEl: HTMLElement): HTMLElement | undefined {
-    const byContent = this._prepared.get(instruction);
-    const span = byContent?.get(contentEl);
-    byContent?.delete(contentEl);
-    if (!span || !span.isConnected || span.parentElement !== contentEl) {
-      if (span) {
-        this.discardPrepared(span);
-      }
+  protected takePrepared(instruction: WriteImageInstruction, base: string, contentEl: HTMLElement): HTMLElement | undefined {
+    const byBase = this._prepared.get(instruction);
+    const span = byBase?.get(base);
+    byBase?.delete(base);
+    if (!span) {
       return undefined;
     }
-    delete (span as any).__sdPrepared;
-    span.style.removeProperty("visibility");
+    if (!span.isConnected) {
+      this.discardPrepared(span);
+      return undefined;
+    }
+    (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph?.holdArea();
     contentEl.appendChild(span);
     return span;
   }
@@ -1414,12 +1246,14 @@ export default class UIManager extends Manager {
   }
 
   protected discardAllPrepared() {
-    for (const byContent of this._prepared.values()) {
-      for (const span of byContent.values()) {
+    for (const byBase of this._prepared.values()) {
+      for (const span of byBase.values()) {
         this.discardPrepared(span);
       }
     }
     this._prepared.clear();
+    this._replica?.dispose();
+    this._replica = undefined;
   }
 
   protected dueAt(pending: PendingBeat, now: number): number {
@@ -1642,7 +1476,6 @@ export default class UIManager extends Manager {
     this._beatApplied = true;
     this.settleClears();
     this.discardAllPrepared();
-    this.revealPrecreated();
     this.morphs?.adoptPrepared();
     if (params.sweep && this._passBegun) {
       this._passBegun = false;
@@ -1664,21 +1497,42 @@ export default class UIManager extends Manager {
       } finally {
         this._decision = undefined;
       }
-      if (
-        AnimateElementsMessage.type.isRequest(request) ||
-        PresenceElementsMessage.type.isRequest(request) ||
-        LayoutMotionMessage.type.isRequest(request) ||
-        (WriteImageMessage.type.isRequest(request) && request.params.reportsExit)
-      ) {
-        this.app.answer(request, done);
-      } else {
-        done.catch((error) => {
-          console.error(`${request.method} failed in a beat`, error);
-        });
-      }
+      this.settleRequest(request, done);
     } else {
       this.onReceiveNotification(message as NotificationMessage);
     }
+  }
+
+  protected settleRequest(request: RequestMessage, done: Promise<unknown>) {
+    if (
+      AnimateElementsMessage.type.isRequest(request) ||
+      PresenceElementsMessage.type.isRequest(request) ||
+      LayoutMotionMessage.type.isRequest(request) ||
+      (WriteImageMessage.type.isRequest(request) && request.params.reportsExit)
+    ) {
+      this.app.answer(request, done);
+    } else {
+      done.catch((error) => {
+        console.error(`${request.method} failed in a beat`, error);
+      });
+    }
+  }
+
+  protected applyDocumentTheme(colorScheme: Parameters<ColorSchemeHost["configure"]>[0], rootTextSize: string | undefined) {
+    const overlay = this.app.overlay;
+    if (overlay) {
+      ColorSchemeHost.for(overlay).configure(colorScheme);
+    }
+    if (rootTextSize) {
+      const doc = overlay?.ownerDocument;
+      if (doc?.documentElement) {
+        doc.documentElement.style.fontSize = rootTextSize;
+      }
+    }
+  }
+
+  protected animating(el: Element): boolean {
+    return el.getAnimations?.().some((animation) => animation.playState === "running" || animation.pending) ?? false;
   }
 
   protected planBeat(ops: IMessage[]): Map<IMessage, WriteDecision> {
@@ -2126,17 +1980,7 @@ export default class UIManager extends Manager {
       this._breakpoints = params.breakpoints;
       this._theme = new Set(params.variables);
       this._themeKey = getThemeKey(params.variables);
-      const overlay = this.app.overlay;
-      if (overlay) {
-        ColorSchemeHost.for(overlay).configure(params.color_scheme ?? "system");
-      }
-      const rootTextSize = params.root_text_size;
-      if (rootTextSize) {
-        const doc = this.app.overlay?.ownerDocument;
-        if (doc?.documentElement) {
-          doc.documentElement.style.fontSize = rootTextSize;
-        }
-      }
+      this.applyDocumentTheme(params.color_scheme ?? "system", params.root_text_size);
       return SetThemeMessage.type.result("");
     }
     if (CreateElementMessage.type.isRequest(msg)) {
@@ -2170,8 +2014,7 @@ export default class UIManager extends Manager {
       if (
         reused &&
         el.hasAttribute(PRESENCE_ATTRIBUTE) &&
-        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes) &&
-        !this._precreatedArrivals.delete(el)
+        !(params.attributes && PRESENCE_ATTRIBUTE in params.attributes)
       ) {
         this._presence.settle(el);
         el.removeAttribute(PRESENCE_ATTRIBUTE);
@@ -3076,7 +2919,7 @@ export default class UIManager extends Manager {
       return false;
     }
     const children = Array.from(contentEl.children) as HTMLElement[];
-    const shown = children.filter((el) => !(el as any).__sdPrepared && shownOf(el) && shownOf(el)!.write.owner !== this);
+    const shown = children.filter((el) => shownOf(el) && shownOf(el)!.write.owner !== this);
     if (shown.length === 0) {
       return false;
     }
@@ -3147,7 +2990,7 @@ export default class UIManager extends Manager {
       const key = shownPicture(property, content);
       for (const contentEl of els) {
         const shown = (Array.from(contentEl.children) as HTMLElement[])
-          .filter((el) => !(el as any).__sdPrepared && shownOf(el))
+          .filter((el) => shownOf(el))
           .at(-1);
         const marker = shown ? shownOf(shown) : undefined;
         if (
@@ -3155,7 +2998,7 @@ export default class UIManager extends Manager {
           !marker ||
           marker.key !== key ||
           (write && marker.write !== write) ||
-          shown.getAnimations?.().some((animation) => animation.playState === "running" || animation.pending)
+          this.animating(shown)
         ) {
           return undefined;
         }
@@ -3292,7 +3135,7 @@ export default class UIManager extends Manager {
         const content = instruction.content;
         if (!content) {
           const pictureEls = [...imageEls, ...maskEls].flatMap((contentEl) =>
-            (Array.from(contentEl.children) as HTMLElement[]).filter((el) => !(el as any).__sdPrepared),
+            Array.from(contentEl.children) as HTMLElement[],
           );
           const travel = instruction.travel;
           if (travel) {
@@ -3376,7 +3219,7 @@ export default class UIManager extends Manager {
           for (const contentEl of els) {
             const keptSpanEl = kept?.get(contentEl);
             const prevSpanEls = (Array.from(contentEl.children) as HTMLElement[]).filter(
-              (el) => !(el as any).__sdPrepared && el !== keptSpanEl,
+              (el) => el !== keptSpanEl,
             );
             for (const prevSpanEl of prevSpanEls) {
               setShown(prevSpanEl, undefined);
@@ -3393,7 +3236,8 @@ export default class UIManager extends Manager {
               content.video && property === "background_image"
                 ? content.video
                 : undefined;
-            const prepared = !video ? this.takePrepared(instruction, contentEl) : undefined;
+            const base = `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`;
+            const prepared = !video ? this.takePrepared(instruction, base, contentEl) : undefined;
             const newSpanEl = prepared ?? (video
               ? createVideoElement(
                   contentEl,
@@ -3449,7 +3293,7 @@ export default class UIManager extends Manager {
                 morph ?? { plays: [], epoch: 0 },
                 content.background,
                 property === "mask_image" ? "mask" : "background",
-                `${(targetEl as any).__sdId ?? target}:${property}:${els.indexOf(contentEl)}`,
+                base,
                 morphGroup,
                 pictures,
                 false,
@@ -3577,9 +3421,7 @@ export default class UIManager extends Manager {
     const shown = targetEls.flatMap((targetEl) =>
       [...this.getContentElements(targetEl, "image"), ...this.getContentElements(targetEl, "mask")].flatMap(
         (contentEl) =>
-          (Array.from(contentEl.children) as HTMLElement[])
-            .filter((el) => !(el as any).__sdPrepared)
-            .map((element) => ({ element, target: targetEl })),
+          (Array.from(contentEl.children) as HTMLElement[]).map((element) => ({ element, target: targetEl })),
       ),
     );
     removed.catch((error) => {
@@ -4021,5 +3863,108 @@ export default class UIManager extends Manager {
         effects.push({ element: el, animations: [animation], after });
       }
     }
+  }
+}
+
+class BeatRehearsal extends UIManager {
+  readonly rehearsed = new RehearsedMorphs();
+
+  protected scales?: Map<Element, number>;
+
+  constructor(
+    app: IApplication,
+    readonly replica: Replica,
+  ) {
+    super(app);
+    const hold = new RehearsalHold();
+    this._hold = hold;
+    this._layoutMotion = new LayoutMotion(hold);
+    this._presence = new PresencePlayer(hold, () => this.reducesMotion());
+    this._beatMarks = { received: () => undefined, ready: () => undefined, fired: () => undefined, dropped: () => undefined, clear: () => undefined } as unknown as BeatMarks;
+  }
+
+  override get morphs(): MorphPlayback | undefined {
+    return this.rehearsed as unknown as MorphPlayback;
+  }
+
+  scaleOf(span: Element): number {
+    const scales = (this.scales ??= this.animationScales());
+    let scale = 1;
+    for (let el: Element | null = span; el; el = el === this.replica.root ? null : el.parentElement) {
+      scale *= scales.get(el) ?? 1;
+    }
+    return scale;
+  }
+
+  settle() {
+    this.scales ??= this.animationScales();
+    const animations = this.animations();
+    endTravelsWithin(this.replica.root);
+    for (const animation of animations) {
+      animation.cancel();
+    }
+  }
+
+  reveal(span: HTMLElement) {
+    if (span.offsetWidth > 0 || span.offsetHeight > 0) {
+      return;
+    }
+    for (let el = span.parentElement; el && el !== this.replica.root; el = el.parentElement) {
+      if (el.style.getPropertyValue("display") === "none") {
+        el.style.removeProperty("display");
+      }
+    }
+  }
+
+  protected animations(): globalThis.Animation[] {
+    const root = this.replica.root;
+    return [...new Set([...(this._hold as RehearsalHold).added, ...(root.getAnimations?.({ subtree: true }) ?? [])])];
+  }
+
+  protected animationScales(): Map<Element, number> {
+    const root = this.replica.root;
+    const travels = new Set([root, ...Array.from(root.querySelectorAll(".instance"))].flatMap((el) => travelAnimations(el)));
+    const scales = new Map<Element, number>();
+    for (const animation of this.animations()) {
+      const effect = animation.effect as KeyframeEffect | null;
+      const target = effect?.target;
+      if (travels.has(animation) || !target || effect.pseudoElement || typeof effect.getKeyframes !== "function") {
+        continue;
+      }
+      scales.set(target, (scales.get(target) ?? 1) * keyframesScale(effect.getKeyframes()));
+    }
+    return scales;
+  }
+
+  protected override flushPendingBeat() {}
+
+  protected override takePrepared(instruction: WriteImageInstruction, base: string): HTMLElement | undefined {
+    this.rehearsed.asked = { instruction, base };
+    return undefined;
+  }
+
+  protected override startMovie() {}
+
+  protected override async playCutscene() {}
+
+  protected override endPreviewCutscene() {}
+
+  protected override speak() {}
+
+  protected override followEnd() {}
+
+  protected override getVideoSrc(): string {
+    return "";
+  }
+
+  protected override applyDocumentTheme() {}
+
+  protected override settleRequest(_request: RequestMessage, done: Promise<unknown>) {
+    done.catch(() => undefined);
+  }
+
+  protected override animating(el: Element): boolean {
+    const source = this.replica.source(el);
+    return source ? super.animating(source) : false;
   }
 }
