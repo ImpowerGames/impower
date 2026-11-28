@@ -112,6 +112,31 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
     ]);
   });
 
+  it("the arriving picture's `show` starts from the `hide` look, while the layer's reveal keeps the `show` look alone", async () => {
+    const { instruction } = await played("show backdrop bg_room after 5s over 1s with shake");
+    expect(instruction.content.enterAnimations[0].keyframes).toEqual([{ opacity: "0" }, { opacity: "1" }]);
+    expect(instruction.content.previousHideAnimations[0].keyframes).toEqual([{ opacity: "0" }]);
+    const reveal = instruction.targetAnimations.find((animation: any) => animation.$name === "show");
+    expect(reveal.keyframes).toEqual([{ opacity: "1" }]);
+    expect(reveal.timing.delay).toBe("5s");
+  });
+
+  it("a `with` on a leaving picture that names only its end look starts from the `show` look, and the line's own motion does not", async () => {
+    const replaced = (await played("show portrait hero with fade")).instruction;
+    expect(replaced.content.previousHideAnimations.map((a: any) => a.keyframes)).toEqual([
+      [{ opacity: "0" }],
+      [{ opacity: "1" }, { opacity: "0" }],
+    ]);
+    const hidden = (await played("hide portrait with fade with spin over 1s once")).instruction;
+    expect(hidden.targetAnimations.map((a: any) => a.keyframes)).toEqual([
+      [{ opacity: "0" }],
+      [{ opacity: "1" }, { opacity: "0" }],
+      [{ transform: "rotate(360deg)" }],
+    ]);
+    const using = (await played("hide portrait using fade")).instruction;
+    expect(using.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }]]);
+  });
+
   it("`[[show backdrop bg_room over 2s with shake wait]]` holds the story for two seconds", async () => {
     const { held } = await played("show backdrop bg_room over 2s with shake wait");
     expect(held).toBe(2);

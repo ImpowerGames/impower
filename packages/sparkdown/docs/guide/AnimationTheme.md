@@ -163,8 +163,10 @@ hides the portrait at once, so the spin is not seen, and the editor warns on the
 length (`over 1s`), a delay (`after 1s`) or a transition (`using fade`)." The
 warning is given on a `hide` line that has a `with`, no `using`, and no `over`
 or `after` of its own, while the project's `hide` animation declares a duration
-and a delay of 0. `[[hide portrait over 1s with spin once]]` fades the portrait
-out while it turns.
+and a delay of 0. It is not given on a `with` whose animation sets `opacity`,
+such as `pulse`: that animation wins over the instant hide while it runs, so it
+is seen. `[[hide portrait over 1s with spin once]]` fades the portrait out while
+it turns.
 
 A picture that leaves is removed once the longest of its animations has ended.
 

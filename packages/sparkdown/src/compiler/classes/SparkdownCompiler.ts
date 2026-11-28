@@ -142,15 +142,23 @@ const UNSEEN_HIDE_WITH =
 
 function unseenHideWithIssues(
   directive: SourceDirective,
-  hide: { timing?: { duration?: unknown; delay?: unknown } } | undefined,
+  context: SparkProgram["context"],
 ): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] {
   if (directive.kind !== "image" || directive.control?.text !== "hide") return [];
   const owners = directiveOwners(directive.kind, directive.clauses);
   if (owners.withs.length === 0 || owners.using) return [];
   if (owners.line.some((clause) => clause.word.text === "over" || clause.word.text === "after")) return [];
   const zero = (value: unknown) => parseFloat(String(value ?? 0)) === 0;
+  const hide = getContextEntry(context, "animation", "hide");
   if (!hide || !zero(hide.timing?.duration) || !zero(hide.timing?.delay)) return [];
-  return owners.withs.map((entry) => ({
+  const leavingAnimation = (name: string) => {
+    const transition = getContextEntry(context, "transition", name);
+    const armed = transition?.on_hide;
+    return getContextEntry(context, "animation", transition ? (typeof armed === "string" ? armed : armed?.$name) ?? "hide" : name);
+  };
+  const setsOpacity = (name: string | undefined) =>
+    name !== undefined && (leavingAnimation(name)?.keyframes ?? []).some((keyframe: any) => keyframe?.opacity != null);
+  return owners.withs.filter((entry) => !setsOpacity(entry.name?.text)).map((entry) => ({
     at: { from: entry.word.from, to: entry.name?.to ?? entry.word.to },
     severity: DiagnosticSeverity.Warning,
     message: UNSEEN_HIDE_WITH,
@@ -5013,7 +5021,7 @@ export class SparkdownCompiler {
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
           ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
-          ...unseenHideWithIssues(directive, getContextEntry(program.context, "animation", "hide")).map((issue) => ({
+          ...unseenHideWithIssues(directive, program.context).map((issue) => ({
             ...issue,
             keyword: issue.at,
           })),

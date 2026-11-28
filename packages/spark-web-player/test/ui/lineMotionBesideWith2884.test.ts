@@ -113,6 +113,18 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
     expect(opacity(arriving[0]!)).toBe(1);
   });
 
+  test("`[[show portrait Q after 1s over 1s with shake]]` keeps the layer and the shown picture visible until the show starts", async () => {
+    const { before, arriving } = await play("[[show portrait Q after 1s over 1s with shake]]");
+    const layer = before[0]!.closest<HTMLElement>(".portrait")!;
+    seek(100 + 500);
+    expect(opacity(layer)).toBe(1);
+    expect(opacity(before[0]!)).toBe(1);
+    expect(opacity(arriving[0]!)).toBe(0);
+    seek(100 + 1500);
+    expect(opacity(layer)).toBe(1);
+    expect(opacity(arriving[0]!)).toBeCloseTo(0.5);
+  });
+
   test("`[[show portrait Q with fade]]` still fades the replaced picture out", async () => {
     const { before } = await play("[[show portrait Q with fade]]");
     seek(100 + 250);

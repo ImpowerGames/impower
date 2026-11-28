@@ -2698,9 +2698,6 @@ exports[`style > style + variables construction stream 1`] = `
             "$type": "animation",
             "keyframes": [
               {
-                "opacity": "1",
-              },
-              {
                 "opacity": "0",
               },
             ],
@@ -3087,9 +3084,6 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "show",
             "$type": "animation",
             "keyframes": [
-              {
-                "opacity": "0",
-              },
               {
                 "opacity": "1",
               },

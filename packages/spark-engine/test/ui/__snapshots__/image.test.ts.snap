@@ -105,9 +105,6 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
               "$type": "animation",
               "keyframes": [
                 {
-                  "opacity": "0",
-                },
-                {
                   "opacity": "1",
                 },
               ],
@@ -238,9 +235,6 @@ exports[`image > hide backdrop 1`] = `
               "$name": "show",
               "$type": "animation",
               "keyframes": [
-                {
-                  "opacity": "0",
-                },
                 {
                   "opacity": "1",
                 },
@@ -397,9 +391,6 @@ exports[`image > image animate directive 1`] = `
               "$name": "show",
               "$type": "animation",
               "keyframes": [
-                {
-                  "opacity": "0",
-                },
                 {
                   "opacity": "1",
                 },
@@ -589,9 +580,6 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
               "$type": "animation",
               "keyframes": [
                 {
-                  "opacity": "0",
-                },
-                {
                   "opacity": "1",
                 },
               ],
@@ -721,9 +709,6 @@ exports[`image > show backdrop 1`] = `
               "$name": "show",
               "$type": "animation",
               "keyframes": [
-                {
-                  "opacity": "0",
-                },
                 {
                   "opacity": "1",
                 },
@@ -855,9 +840,6 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
               "$type": "animation",
               "keyframes": [
                 {
-                  "opacity": "0",
-                },
-                {
                   "opacity": "1",
                 },
               ],
@@ -943,9 +925,6 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
               "$name": "show",
               "$type": "animation",
               "keyframes": [
-                {
-                  "opacity": "0",
-                },
                 {
                   "opacity": "1",
                 },
@@ -1124,9 +1103,6 @@ exports[`image > show with fade transition 1`] = `
               "$name": "show",
               "$type": "animation",
               "keyframes": [
-                {
-                  "opacity": "0",
-                },
                 {
                   "opacity": "1",
                 },
