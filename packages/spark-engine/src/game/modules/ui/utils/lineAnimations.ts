@@ -89,6 +89,58 @@ export const animationDefinition = (
   } as Animation;
 };
 
+const KEYFRAME_TIMING = new Set(["offset", "easing", "composite"]);
+
+const endsAwayFromStart = (animation: Animation, iterations: number): boolean => {
+  const frames = animation.keyframes ?? [];
+  if (frames.length === 0) {
+    return false;
+  }
+  const direction = animation.timing?.direction ?? "normal";
+  const odd = Math.max(1, Math.ceil(iterations)) % 2 === 1;
+  const reversed =
+    direction === "reverse" || (direction === "alternate" && !odd) || (direction === "alternate-reverse" && odd);
+  if (frames.length === 1) {
+    return !reversed;
+  }
+  const start = reversed ? frames.at(-1) : frames[0];
+  const end = reversed ? frames[0] : frames.at(-1);
+  return Object.keys({ ...start, ...end }).some(
+    (property) =>
+      !property.startsWith("$") &&
+      !KEYFRAME_TIMING.has(property) &&
+      JSON.stringify(start?.[property]) !== JSON.stringify(end?.[property]),
+  );
+};
+
+export const namesTransition = (context: AnimationContext | undefined, entry: WithInstruction): boolean =>
+  Boolean(context?.transition?.[entry.name]);
+
+export const heldPose = (context: AnimationContext | undefined, entries: readonly WithInstruction[]): WithInstruction[] =>
+  entries.flatMap((entry): WithInstruction[] => {
+    const animation = namesTransition(context, entry) ? undefined : context?.animation?.[entry.name];
+    if (!animation) {
+      return [];
+    }
+    const declared = animation.timing?.iterations ?? 1;
+    const iterations = entry.loop ? Infinity : entry.once ? 1 : declared === "infinite" ? Infinity : Number(declared);
+    if (iterations === Infinity) {
+      return [
+        {
+          name: entry.name,
+          after: 0,
+          ...(entry.over !== undefined ? { over: entry.over } : {}),
+          ...(entry.ease !== undefined ? { ease: entry.ease } : {}),
+          loop: true,
+        },
+      ];
+    }
+    const fill = animation.timing?.fill;
+    return (fill === "forwards" || fill === "both") && endsAwayFromStart(animation, iterations)
+      ? [{ name: entry.name, after: 0, over: 0, ...(entry.once ? { once: true } : {}) }]
+      : [];
+  });
+
 export const armEvent = (
   context: AnimationContext | undefined,
   entry: WithInstruction,
