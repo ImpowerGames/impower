@@ -16,6 +16,7 @@ const DECLARATIONS = nodeNameSet([
   "LuauTheme",
   "LuauFraming",
   "LuauMorph",
+  "LuauStream",
   "LuauExternalDeclaration",
   "LuauDataTypeDeclaration",
   "LuauFunctionTypeDeclaration",

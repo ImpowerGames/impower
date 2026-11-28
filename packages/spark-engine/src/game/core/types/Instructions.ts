@@ -51,6 +51,8 @@ export interface Instructions {
   choices?: string[];
   uuids?: string[];
   auto?: boolean;
+  pause?: number;
+  waits?: true;
   /** Present on a beat queued again for a run that starts on it (#1606):
    *  it waits for the player whatever it holds, though the beat as it first
    *  ran may have advanced on its own. */

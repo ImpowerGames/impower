@@ -17,7 +17,7 @@ export const EXEMPT: readonly { names: RegExp; reason: string }[] = [
       "Luau read at story scope: a narrative body tiles with story text already, and an `&` statement reads what its rules cannot with `LuauInvalidStatementToken` and ends at its line, where only a bracket, which is the tiled Luau rule, carries it on",
   },
   {
-    names: /^Luau(?:Style|Animation|Theme|Framing|Morph|Layout|Screen|Component)$|^LuauStruct|^LuauSparkle(?!HandlerClosure$)/,
+    names: /^Luau(?:Style|Animation|Theme|Framing|Morph|Stream|Layout|Screen|Component)$|^LuauStruct|^LuauSparkle(?!HandlerClosure$)/,
     reason: "a struct or layout block, whose lines are the entries its lowerer reads, not Luau statements",
   },
   {

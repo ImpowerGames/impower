@@ -18,6 +18,6 @@ export function pageKey(instructions: Instructions): string {
   const routed = Object.values(instructions.layout ?? {}).some((events) =>
     events.some((event) => event.auto),
   );
-  const { hold, speech, ...beat } = routed ? unrouted(instructions) : instructions;
+  const { hold, speech, auto, pause, ...beat } = routed ? unrouted(instructions) : instructions;
   return JSON.stringify(beat);
 }

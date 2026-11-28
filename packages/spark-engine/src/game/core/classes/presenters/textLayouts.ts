@@ -1,6 +1,7 @@
 import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import type { LayoutInstruction } from "../../types/Instruction";
 import type { Instructions } from "../../types/Instructions";
+import { ownEntry } from "../../utils/ownEntry";
 import type { Game } from "../Game";
 import type { StartingDisplayMode } from "../messages/SetStartingDisplayModeMessage";
 import { SPEAKER_TARGETS, TEXTSTREAM_LAYOUT } from "./InteractiveFictionPresenter";
@@ -125,7 +126,7 @@ function beatTargets(instructions: Instructions): string[] {
   ].map(elementName);
 }
 
-function layoutEvents(instructions: Instructions): LayoutInstruction[] {
+export function layoutEvents(instructions: Instructions): LayoutInstruction[] {
   return Object.values(instructions.layout ?? {}).flat();
 }
 
@@ -219,7 +220,7 @@ function opensByItself(
   kind: string,
   closedScreens: readonly string[],
 ): boolean {
-  const layout = game.program?.sparkle?.layouts?.[kind];
+  const layout = ownEntry(game.program?.sparkle?.layouts, kind);
   return Boolean(
     layout &&
       kind !== "main" &&
@@ -266,12 +267,16 @@ export function closeMenuAtEnd(game: Game, instant: boolean): void {
   }
 }
 
-export function routeLine(game: Game, instructions: Instructions): Instructions {
+export function routeLine(
+  game: Game,
+  instructions: Instructions,
+  prior: readonly LayoutInstruction[] = [],
+): Instructions {
   const ui = game.module.ui;
   if (!game.program?.sparkle?.layouts) {
     return instructions;
   }
-  const events = layoutEvents(instructions);
+  const events = [...prior, ...layoutEvents(instructions)];
   const autos = ui.autoLayoutsAfter(events);
   const kinds = beatKinds(instructions);
   const routed: LayoutInstruction[] = [];
@@ -313,6 +318,11 @@ export function routeLine(game: Game, instructions: Instructions): Instructions 
   }
   const key = routed.at(-1)!.name;
   const layout = { ...instructions.layout };
-  layout[key] = [...(layout[key] ?? []), ...routed];
+  Object.defineProperty(layout, key, {
+    value: [...(ownEntry(layout, key) ?? []), ...routed],
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
   return { ...instructions, layout };
 }

@@ -138,6 +138,7 @@ import type { GameContext } from "../types/GameContext";
 import type { GameState } from "../types/GameState";
 import type { InstanceMap } from "../types/InstanceMap";
 import type { Instructions } from "../types/Instructions";
+import type { AudioInstruction } from "../types/Instruction";
 import type { RouteResumption } from "../types/RouteResumption";
 import type {
   GameHistory,
@@ -147,6 +148,7 @@ import type {
 } from "../types/RunHistory";
 import { HISTORY_REASONS } from "../constants/HISTORY_REASONS";
 import { imageParts, valueParts } from "../utils/imageParts";
+import { ownList } from "../utils/ownEntry";
 import { SceneTracker } from "./SceneTracker";
 import type { GameSave, SaveListed, SaveSource } from "../types/GameSave";
 import type { SaveData } from "../types/SaveData";
@@ -185,6 +187,7 @@ import {
   menuLeavesWithItsLayout,
   openInitialLayouts,
 } from "./presenters/textLayouts";
+import { markRun, streamRun } from "./presenters/streamRuns";
 import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
@@ -212,6 +215,8 @@ import { RunRecord } from "./RunRecord";
 import { RuntimeState } from "./RuntimeState";
 
 const CHECKPOINT_BYTE_BUDGET = 64 * 1024 * 1024;
+
+const SKIPPED_AUDIO_CHANNELS: ReadonlySet<string> = new Set(["typewriter", "voice"]);
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -377,6 +382,8 @@ export class Game<T extends M = {}> {
 
   protected _held: { instructions: Instructions | null } | null = null;
 
+  protected _finishingRun: { audio: Record<string, AudioInstruction[]> } | null = null;
+
   protected _previewGeneration = 0;
 
   protected _pendingPreview: {
@@ -455,6 +462,8 @@ export class Game<T extends M = {}> {
   protected _resumeShown?: Instructions | null;
 
   protected _resumeStill = false;
+
+  protected _resumeRequeued = false;
 
   protected _savesSceneEntries = false;
 
@@ -2608,6 +2617,7 @@ export class Game<T extends M = {}> {
       this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
+        this._resumeRequeued = true;
       }
       this.continue(true);
       this._resumeStill = false;
@@ -3543,7 +3553,10 @@ export class Game<T extends M = {}> {
     if (this._run.behindLatest) {
       this.forkRun();
     }
-    if (!preserveExecutionInfo) {
+    if (
+      !preserveExecutionInfo &&
+      !(this.module.interpreter.shouldFlush() && !this.readsAhead("continue"))
+    ) {
       this._runtimeState = new RuntimeState();
     }
     this._awaiting = null;
@@ -3711,7 +3724,10 @@ export class Game<T extends M = {}> {
         }
       }
 
-      if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
+      if (
+        (this.module.interpreter.shouldFlush() && !this.readsAhead(traversal)) ||
+        !this._story.canContinue
+      ) {
         if (traversal !== "continue" && this.presentsAtStop()) {
           const next = this.module.interpreter.nextBeat;
           if (
@@ -3728,9 +3744,22 @@ export class Game<T extends M = {}> {
           this.notifyStepped();
           return true;
         }
-        const instructions = this.module.interpreter.flush();
+        const instructions = this.flushBeat();
         if (this._holdingFlush) {
           this._held = { instructions: instructions ?? null };
+          return true;
+        }
+        if (this._finishingRun && instructions) {
+          if (instructions.auto) {
+            for (const [channel, events] of Object.entries(instructions.audio ?? {})) {
+              if (!SKIPPED_AUDIO_CHANNELS.has(channel)) {
+                ownList(this._finishingRun.audio, channel).push(...events);
+              }
+            }
+            this.showBeat(instructions, "settled", true);
+            continue;
+          }
+          this.showBeat(instructions, "whole");
           return true;
         }
         this.showBeat(instructions ?? null, "playing");
@@ -3877,6 +3906,21 @@ export class Game<T extends M = {}> {
     }
   }
 
+  protected readsAhead(traversal: "in" | "out" | "over" | "continue"): boolean {
+    if (traversal !== "continue" || this._simulation === "simulating") {
+      return false;
+    }
+    return streamRun(this, this.module.interpreter.queuedBeats, this._resumeRequeued).open;
+  }
+
+  protected flushBeat(): Instructions | undefined {
+    const interpreter = this.module.interpreter;
+    const beat = interpreter.flush();
+    const counted = this._resumeRequeued;
+    this._resumeRequeued = false;
+    return beat && markRun(this, beat, interpreter.queuedBeats, counted);
+  }
+
   protected insideSteppedFrame(
     traversal: "in" | "out" | "over",
     initialCallstackDepth: number,
@@ -3893,7 +3937,7 @@ export class Game<T extends M = {}> {
 
   protected showBeat(
     instructions: Instructions | null,
-    drawing: "settled" | "held" | "playing",
+    drawing: "settled" | "held" | "playing" | "whole",
     passing = false,
   ) {
     const ending = this.storyEnding(instructions);
@@ -3902,8 +3946,12 @@ export class Game<T extends M = {}> {
         settled: drawing === "settled" ? "presented" : undefined,
         held: drawing === "held",
         still: this._resumeStill,
+        ...(drawing === "whole"
+          ? { whole: true, audio: this._finishingRun?.audio ?? {} }
+          : {}),
       });
       this._resumeStill = false;
+      this._resumeRequeued = false;
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
         this._shownBeatOnScreen = instructions;
@@ -3913,6 +3961,7 @@ export class Game<T extends M = {}> {
       if (
         !passing &&
         !ending &&
+        !instructions.auto &&
         !this._coordinator.shouldContinue() &&
         this._simulation !== "simulating" &&
         (!(instructions.load || instructions.cutscene) ||
@@ -3970,6 +4019,23 @@ export class Game<T extends M = {}> {
     }
     this.notifyAutoAdvancedToContinue();
     this.continue();
+  }
+
+  clickedToFinishRun() {
+    if (this._ending) {
+      return;
+    }
+    if (this._run.behindLatest) {
+      this.rollForwardOnTap();
+      return;
+    }
+    this.notifyClickedToContinue();
+    this._finishingRun = { audio: {} };
+    try {
+      this.continue();
+    } finally {
+      this._finishingRun = null;
+    }
   }
 
   clickedToContinue() {

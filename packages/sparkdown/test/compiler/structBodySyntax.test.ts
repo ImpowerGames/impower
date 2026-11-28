@@ -48,7 +48,7 @@ test.each(["none", "uniform", "random"])("builtins struct bodies compile identic
   const tree = parseSource(text);
   const lines = text.split("\n");
   const bodyLines = new Set<number>();
-  const types = new Set(["LuauLayout", "LuauComponent", "LuauStyle", "LuauAnimation", "LuauTheme", "LuauFraming", "LuauMorph", "LuauScreen"]);
+  const types = new Set(["LuauLayout", "LuauComponent", "LuauStyle", "LuauAnimation", "LuauTheme", "LuauFraming", "LuauMorph", "LuauStream", "LuauScreen"]);
   const cursor = tree.cursor();
   do {
     if (!types.has(cursor.name)) continue;

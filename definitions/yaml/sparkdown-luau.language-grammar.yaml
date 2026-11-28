@@ -193,7 +193,7 @@ variables:
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["export"]
-  LUAU_FILE_SPARKDOWN_WORDS: ["define", "store", "layout", "style", "screen", "component", "animation", "theme", "framing", "morph"]
+  LUAU_FILE_SPARKDOWN_WORDS: ["define", "store", "layout", "style", "screen", "component", "animation", "theme", "framing", "morph", "stream"]
   LUAU_MATCH_CASE_END_KEYWORDS: ["case", "else", "end"]
   LUAU_TERNARY_PRECEDING_KEYWORDS: (?:return|and|or|not|then|else|if|elseif|while|until|in)
   LUAU_UNTIL_CONDITION_END_KEYWORDS:
@@ -383,7 +383,7 @@ variables:
   LUAU_THEN_BEHIND: (?:{{LUAU_NAME_START_BEHIND}}then|/[dgimsuvy]{1,8}then)
   LUAU_GLUED_THEN_BEHIND: (?:{{LUAU_GLUEABLE_OPERAND_END}}then)
   LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for){{LUAU_NAME_END}}|;|function{{WS}}+{{LUAU_IDENTIFIER}})
-  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then{{LUAU_NAME_END}}|[:][:]|(?:define|style|layout|screen|component|animation|theme|framing|morph){{LUAU_NAME_END}}{{WS}}+{{LUAU_IDENTIFIER}})
+  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then{{LUAU_NAME_END}}|[:][:]|(?:define|style|layout|screen|component|animation|theme|framing|morph|stream){{LUAU_NAME_END}}{{WS}}+{{LUAU_IDENTIFIER}})
   # lookaround: the `(?!…)` leaves the line to the rules that read on to
   # it: `LuauThenExpression` and `LuauTernaryExpression` read a line that
   # begins with `then`, `else` or `elseif`, `LuauLineContinuation` a
@@ -987,6 +987,7 @@ repository:
       - { include: "#LuauTheme" }
       - { include: "#LuauFraming" }
       - { include: "#LuauMorph" }
+      - { include: "#LuauStream" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauVariableDefinition" }
@@ -1527,6 +1528,48 @@ repository:
         patterns:
           - { include: "#LuauComment" }
 
+  LuauStream:
+    tag: meta
+    name: meta.stream.luau
+    contentName: meta.embedded.block.luau
+    begin: ({{WS}}*)(stream)({{WS}}+)(({{_LUAU_HEADER_BLOCK_COMMENTS_LEVEL_IN_GROUP_6_}})?){{LUAU_STRUCTURE_NAME_AHEAD}}
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStreamKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructWithBody" }
+      - { include: "#LuauStructBraceBody" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end{{LUAU_NAME_END}}|{{STRUCT_KEYWORD_BRACE_CLOSED}})({{_LUAU_END_TRAILING_COMMENTS_}})?
+    endCaptures:
+      1:
+        name: meta.embedded.block.luau
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        name: meta.embedded.block.luau
+        patterns:
+          - { include: "#LuauEndKeyword" }
+      3:
+        name: meta.embedded.block.luau
+        patterns:
+          - { include: "#LuauComment" }
+
 
   LuauStructWithBody:
     begin: ({{WS}}*)(with){{LUAU_NAME_END}}|{{STRUCT_WITHOUT_WITH_LINE}}
@@ -1614,6 +1657,11 @@ repository:
     tag: controlKeyword
     name: keyword.control.morph.luau
     match: (morph){{LUAU_NAME_END}}
+
+  LuauStreamKeyword:
+    tag: controlKeyword
+    name: keyword.control.stream.luau
+    match: (stream){{LUAU_NAME_END}}
 
   LuauKeyframeSelector:
     tag: constant(variableName)
@@ -5098,6 +5146,7 @@ repository:
       - { include: "#LuauTheme" }
       - { include: "#LuauFraming" }
       - { include: "#LuauMorph" }
+      - { include: "#LuauStream" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauSparkdownExplicitVariableDefinition" }

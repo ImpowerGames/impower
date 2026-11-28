@@ -263,6 +263,8 @@ function lowerNode(
       return lowerLuauStructDefine(nodeRef, ctx, "framing");
     case "LuauMorph":
       return lowerLuauStructDefine(nodeRef, ctx, "morph");
+    case "LuauStream":
+      return lowerLuauStructDefine(nodeRef, ctx, "stream");
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
     case "LuauUntilCondition":

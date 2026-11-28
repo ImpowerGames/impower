@@ -58,6 +58,7 @@ export const SPARKDOWN_ONLY = new Set([
   "LuauFraming",
   "LuauComponent",
   "LuauMorph",
+  "LuauStream",
   "LuauSparkdownAlternatorBlocks",
   "LuauSparkdownConditionalAlternatorBlock",
   "LuauSparkdownSequentialAlternatorBlock",
@@ -193,6 +194,7 @@ export const STATEMENT_BREAKS = new Set([
   "LuauFraming",
   "LuauComponent",
   "LuauMorph",
+  "LuauStream",
 ]);
 
 export function breaksStatement(text: string): boolean {

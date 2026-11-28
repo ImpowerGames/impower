@@ -274,6 +274,7 @@ const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauTheme",
   "LuauFraming",
   "LuauMorph",
+  "LuauStream",
   "LuauUntilCondition",
   "LuauStrayUntilStatement",
 ]);

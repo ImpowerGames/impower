@@ -158,6 +158,7 @@ const UI_DECLARATION_NODES = nodeNameSet([
   "LuauTheme",
   "LuauFraming",
   "LuauMorph",
+  "LuauStream",
 ]);
 const DEFINE_NODES = nodeNameSet(["LuauDefine"]);
 const UI_DEFINE_TYPES = new Set(["config", "color"]);
@@ -204,7 +205,7 @@ import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
-import { layoutElementNames, showingNames } from "../utils/layoutElementNames";
+import { layoutElementNames, layoutNames, showingNames } from "../utils/layoutElementNames";
 import { GAME_WIDE_STATES, isAtRuleState, SHOWING_STATE } from "../constants/selectorStates";
 import { selectorRefusalAt } from "../utils/selectorRefusal";
 import { cueVariant } from "../utils/readCue";
@@ -1735,6 +1736,7 @@ export class SparkdownCompiler {
       this.validateAtRuleLists(program);
       this.validateCueVariants(program);
       this.validateClearTargets(program);
+      this.validateStreamLayouts(program);
       this.validateLints(program);
       this.validateTypes(program);
       this.validateStores(program);
@@ -2733,7 +2735,7 @@ export class SparkdownCompiler {
           if (trees && !sparkleCollides) {
             program.sparkle ??= {};
             program.sparkle[kind] ??= {};
-            Object.assign(program.sparkle[kind]!, trees);
+            Object.defineProperties(program.sparkle[kind]!, Object.getOwnPropertyDescriptors(trees));
           }
         }
       }
@@ -5435,6 +5437,40 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "validateClearTargets", uri);
+  }
+
+  validateStreamLayouts(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateStreamLayouts", uri);
+    const known = layoutNames(program);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = doc ? this.documents.tree(scriptUri) : undefined;
+      if (!doc || !tree) continue;
+      tree.iterate({
+        enter: (node) => {
+          if (node.name !== "LuauStream") {
+            return undefined;
+          }
+          const nameNode = getDescendent("LuauDefineName", node.node);
+          const name = nameNode ? doc.read(nameNode.from, nameNode.to).trim() : "";
+          if (nameNode && name && !known.has(name)) {
+            ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+              range: doc.range(nameNode.from, nameNode.to),
+              code: "stream-layout",
+              severity: DiagnosticSeverity.Warning,
+              message: {
+                kind: "markdown",
+                value: `No layout is named \`${name}\`.`,
+              },
+              source: LANGUAGE_NAME,
+            });
+          }
+          return false;
+        },
+      });
+    }
+    profile("end", this._profilerId, "validateStreamLayouts", uri);
   }
 
   validateLints(program: SparkProgram) {

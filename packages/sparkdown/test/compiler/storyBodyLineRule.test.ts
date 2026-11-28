@@ -570,6 +570,7 @@ describe("the story statement rules", () => {
     "LuauTheme",
     "LuauFraming",
     "LuauMorph",
+    "LuauStream",
   ]);
   const NEXT_LINE_RULES = [
     "Newline",

@@ -88,6 +88,7 @@ describe("`define … as` a struct type reports the keyword form on its parent",
     ["layout", "define main as layout with\n  value = 1\nend\n"],
     ["component", "define card as component with\n  value = 1\nend\n"],
     ["screen", "define menu as screen with\n  value = 1\nend\n"],
+    ["stream", "define phone as stream with\n  advance = \"auto\"\nend\n"],
   ] as const) {
     test(type, () => {
       const from = source.indexOf(` as ${type}`) + " as ".length;

@@ -205,7 +205,12 @@ export function buildDefinesContext(
       const dedupeKey = `${typeName}\u0000${defName}`;
       if (emitted.has(dedupeKey)) continue;
       emitted.add(dedupeKey);
-      (context[typeName] ??= {})[defName] = convertDefine(member, story, OWN_FIELDS[typeName]);
+      Object.defineProperty((context[typeName] ??= {}), defName, {
+        value: convertDefine(member, story, OWN_FIELDS[typeName]),
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
     }
   }
   applyBuiltinDefaults(context);

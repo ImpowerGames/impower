@@ -1,8 +1,10 @@
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { Event } from "../types/Event";
+import type { AudioInstruction } from "../types/Instruction";
 import type { Instructions } from "../types/Instructions";
 import { isAdvanceKey } from "../utils/isAdvanceKey";
+import { ownList } from "../utils/ownEntry";
 import { pageKey } from "../utils/pageKey";
 import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
@@ -21,6 +23,7 @@ import {
   textLayoutOpenAfter,
   UNSHOWN_TEXT_MESSAGE,
 } from "./presenters/textLayouts";
+import { streamRun } from "./presenters/streamRuns";
 import { VisualNovelPresenter } from "./presenters/VisualNovelPresenter";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
@@ -104,6 +107,10 @@ export class Coordinator<G extends Game> {
 
   protected _reportedFinished = false;
 
+  protected _whole = false;
+
+  protected _carriedAudio?: Record<string, AudioInstruction[]>;
+
   constructor(
     game: G,
     instructions: Instructions,
@@ -112,10 +119,14 @@ export class Coordinator<G extends Game> {
       played?: () => void;
       held?: boolean;
       still?: boolean;
+      whole?: boolean;
+      audio?: Record<string, AudioInstruction[]>;
     },
   ) {
     this._game = game;
     this._still = Boolean(options?.still);
+    this._whole = Boolean(options?.whole);
+    this._carriedAudio = options?.audio;
     this._instructions = instructions;
     this._reportsShown =
       !game.context.system.previewing &&
@@ -203,6 +214,8 @@ export class Coordinator<G extends Game> {
       this._game.autoAdvancedToContinue();
     } else if (advance === 2) {
       this._game.clickedToContinue();
+    } else if (advance === 3) {
+      this._game.clickedToFinishRun();
     }
   }
 
@@ -329,6 +342,14 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (this._whole && this._startedExecution) {
+      this._whole = false;
+      this.showWhole();
+    }
+    if (instructions.auto && this._interacted && !waitingForChoice) {
+      this._interacted = false;
+      return 3;
+    }
     if (this._lineStartedMS == null) {
       if (!this._interacted || waitingForChoice) {
         return 0;
@@ -355,6 +376,7 @@ export class Coordinator<G extends Game> {
     const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
     if (instructions.auto) {
       const autoAdvanceDelay =
+        instructions.pause ??
         game.context.preferences?.["flow"]?.["auto_advance_delay"];
       if (
         !waitingForChoice &&
@@ -438,7 +460,10 @@ export class Coordinator<G extends Game> {
     for (const presenter of presenters) {
       presenter.record?.();
     }
-    game.module.ui.streams.record(instructions);
+    game.module.ui.streams.record(
+      instructions,
+      streamRun(game, [instructions, ...game.module.interpreter.queuedBeats]),
+    );
     game.module.ui.casts.record(instructions);
     const presenter = {
       present: (time?: number) => {
@@ -465,10 +490,17 @@ export class Coordinator<G extends Game> {
       game.module.audio.stopChannel("typewriter");
     }
 
+    const audio: Record<string, AudioInstruction[]> = {};
+    for (const [channel, events] of Object.entries(instructions.audio ?? {})) {
+      ownList(audio, channel).push(...events);
+    }
+    for (const [channel, events] of Object.entries(this._carriedAudio ?? {})) {
+      ownList(audio, channel).unshift(...events);
+    }
     const audioTriggerIds =
-      instant || silent || !instructions.audio
+      instant || silent
         ? []
-        : Object.entries(instructions.audio).map(([target, events]) =>
+        : Object.entries(audio).map(([target, events]) =>
             game.module.audio.schedule(target, events),
           );
 

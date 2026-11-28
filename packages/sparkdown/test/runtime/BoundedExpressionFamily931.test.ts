@@ -45,7 +45,7 @@ describe("closed narrative expression family", () => {
       "LuauString", "LuauDoubleQuotedString", "LuauSingleQuotedString",
       "LuauMultilineString", "LuauInterpolatedString", "LuauRegexLiteral",
       "LuauFunctionBody", "LuauFunctionDefinition", "LuauFunctionTypeDeclaration",
-      "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent", "LuauAnimation", "LuauTheme", "LuauFraming", "LuauMorph", "LuauDefine",
+      "LuauStyle", "LuauLayout", "LuauScreen", "LuauComponent", "LuauAnimation", "LuauTheme", "LuauFraming", "LuauMorph", "LuauStream", "LuauDefine",
       "LuauParenthetical", "LuauTable", "LuauPropertyIndexer", "LuauFunctionCallParameters",
       "LuauTypeTableStruct", "LuauTypeFunctionParameters", "LuauTypeofFunctionParameters", "LuauAttributeList",
     ]);

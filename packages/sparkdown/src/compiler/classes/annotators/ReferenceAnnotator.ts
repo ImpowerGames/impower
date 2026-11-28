@@ -197,6 +197,7 @@ const STRUCTURAL_TYPE_BY_NODE: Partial<Record<SparkdownNodeName, string>> = {
   LuauTheme: "theme",
   LuauFraming: "framing",
   LuauMorph: "morph",
+  LuauStream: "stream",
 };
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
