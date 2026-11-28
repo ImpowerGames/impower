@@ -425,6 +425,56 @@ end
     return value != null;
   };
 
+  const styleOf = (h: Harness, id: string, property: string) => {
+    let value: string | null | undefined;
+    for (const m of flattenMessages(h.messages) as any[]) {
+      if (
+        (m?.method === "ui/create" || m?.method === "ui/update") &&
+        m.params?.element === id &&
+        m.params.style &&
+        property in m.params.style
+      ) {
+        value = m.params.style[property];
+      }
+    }
+    return value;
+  };
+
+  test("does not reuse a discarded entry's view for a new entry with the same text", async () => {
+    const h = createHarness(LAYOUT, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      beforeConnect: (game: Game) => {
+        game.context.system.previewing = undefined;
+      },
+    });
+    await h.ready;
+    expect(h.errors).toEqual([]);
+    const streams = h.game.module.ui.streams;
+    await show(h, { ...line("same"), layout: { phone: [{ control: "open", name: "phone" }] } } as never);
+    streams.saveEntryStyle("dialogue", { opacity: "0.2" }, true);
+    await show(h, line("middle") as never);
+    const [discarded] = ids(h);
+    const mounted = (streams as any)._mounted as Map<string, unknown>;
+    const held = new Map(mounted);
+    mounted.clear();
+    await show(h, line("same", true) as never);
+    streams.saveEntryStyle("dialogue", { opacity: "0.8" }, true);
+    await show(h, line("after", true) as never);
+    for (const [key, value] of held) {
+      mounted.set(key, value);
+    }
+    await show(h, line("last") as never);
+    expect(written(h, "phone")).toEqual(["same*", "after", "last"]);
+    const [carried] = ids(h);
+    expect(carried).not.toBe(discarded);
+    const opacity = (views(h)[0] ? (h.game.module.ui as any).collectNodes(views(h)[0].group) : [])
+      .flatMap((root: any) => [root, ...(h.game.module.ui as any).searchForAll(root, "dialogue")])
+      .map((el: any) => styleOf(h, el.id, "opacity"))
+      .filter((value: unknown) => value != null);
+    expect(opacity).toEqual(["0.8"]);
+  });
+
   test("rebuilds the carried entry once it renders again, with no stale or doubled entry", async () => {
     const h = createHarness(LAYOUT, 0, {
       reactive: true,

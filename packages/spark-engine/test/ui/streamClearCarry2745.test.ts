@@ -687,6 +687,48 @@ describe("a checkpoint and the preview inside the second run (I-2745)", () => {
     expect(carried(loaded)).toEqual(["two"]);
   });
 
+  test("a save written before entries had ids loads, and the next clear carries from it", async () => {
+    const h = await play(SOURCE);
+    await tickUntil(h, "two");
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+    const strip = (value: unknown): unknown => {
+      if (Array.isArray(value)) {
+        return value.map(strip);
+      }
+      if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        const isEntry = typeof record["template"] === "number" && "text" in record;
+        const isStream = Array.isArray(record["entries"]) && typeof record["current"] === "number";
+        return Object.fromEntries(
+          Object.entries(record)
+            .filter(([key]) => !(isEntry && key === "id") && !(isStream && key === "next"))
+            .map(([key, inner]) => [key, strip(inner)]),
+        );
+      }
+      return value;
+    };
+    const data = saved!.data as unknown as string;
+    expect(data).toContain('"next"');
+    const legacy = JSON.stringify(strip(JSON.parse(data)));
+    expect(legacy).not.toContain('"next"');
+    const loaded = createHarness(SOURCE, 0, { autoOpenAll: false });
+    await loaded.ready;
+    loaded.game.context.system.previewing = undefined;
+    expect(loaded.game.loadToResume(legacy as never)).toBe(true);
+    loaded.game.start();
+    await flushMicrotasks(10);
+    expect(shown(loaded)).toBe("two");
+    expect(entries(loaded)).toEqual(["one", "two"]);
+    await click(loaded);
+    expect(shown(loaded)).toBe("three");
+    expect(entries(loaded)).toEqual(["two", "three", "four"]);
+    expect(carried(loaded)).toEqual(["two"]);
+    const ids = entriesOf(loaded).map((entry) => entry.id);
+    expect(ids.every((id) => typeof id === "number")).toBe(true);
+    expect(new Set(ids).size).toBe(3);
+  });
+
   test("a step back into the second run shows the carried entry and that run's lines", async () => {
     const h = await play(SOURCE);
     await tickUntil(h, "two");

@@ -1,6 +1,7 @@
 import type { TextInstruction } from "../../../core/types/Instruction";
 
 export interface StreamEntry {
+  id?: number;
   template: number;
   text: Record<string, TextInstruction[]>;
   shown?: Record<string, number>;
@@ -15,6 +16,7 @@ export interface StreamRestart {
 export interface StreamState {
   entries: StreamEntry[];
   current: number;
+  next?: number;
   reserved?: number;
   cleared?: number;
   restart?: StreamRestart;
