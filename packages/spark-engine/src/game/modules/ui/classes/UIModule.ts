@@ -101,6 +101,7 @@ import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { presenceStyleBlocks } from "../../../core/utils/presenceStyleBlocks";
 import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
 import { keyframeScale } from "../utils/keyframeScale";
@@ -376,11 +377,6 @@ interface PresenceRecord {
   leave?: Leave;
   retiring?: Retirement;
 }
-
-const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
-  show: /@(?:initial|show)(?![\p{L}\p{N}_-])/u,
-  hide: /@hide(?![\p{L}\p{N}_-])/u,
-};
 
 const presenceAttributes = (mark: Record<string, string | null>) =>
   Object.keys(mark).length > 0 ? { attributes: mark } : {};
@@ -2606,32 +2602,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const styles = this.context?.style;
     let cached = this._presenceStyles;
     if (!cached || cached.styles !== styles) {
-      const blocks: Record<PresenceMotion, boolean> = {
-        show: false,
-        hide: false,
-      };
-      const visit = (value: unknown) => {
-        if (value == null || typeof value !== "object") {
-          return;
-        }
-        for (const [key, inner] of Object.entries(value)) {
-          if (inner == null || typeof inner !== "object") {
-            continue;
-          }
-          for (const motion of ["show", "hide"] as const) {
-            if (PRESENCE_BLOCKS[motion].test(key)) {
-              blocks[motion] = true;
-            }
-          }
-          visit(inner);
-        }
-      };
-      for (const [name, style] of Object.entries(styles ?? {})) {
-        if (!name.startsWith("$")) {
-          visit(style);
-        }
-      }
-      cached = { styles, blocks };
+      cached = { styles, blocks: presenceStyleBlocks(styles) };
       this._presenceStyles = cached;
     }
     return cached.blocks[presence];

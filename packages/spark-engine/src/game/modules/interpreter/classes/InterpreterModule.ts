@@ -41,6 +41,7 @@ import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { beatKindOfTarget } from "../../../core/constants/BEAT_KIND_OF_TARGET";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { presenceStyleBlocks } from "../../../core/utils/presenceStyleBlocks";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
 import type { Chunk } from "../types/Chunk";
 import type { InstructionOptions } from "../types/InstructionOptions";
@@ -874,19 +875,24 @@ export class InterpreterModule extends Module<
     }
   }
 
-  protected waitDuration(chunk: Chunk, ownMotions: readonly string[]): number {
+  protected waitDuration(chunk: Chunk, motions: readonly string[]): number {
     const line: { after?: number; over?: number; to?: unknown } = chunk.clauses ?? {};
     const entries = chunk.with ?? [];
     const spans = entries.map((entry) =>
       chunk.tag === "layout"
-        ? Math.max(0, ...ownMotions.map((motion) => this.animationSpan(this.layoutAnimationName(entry.name, motion), entry)))
-        : this.effectSpan(entry.name, entry),
+        ? Math.max(0, ...motions.map((motion) => this.animationSpan(this.layoutAnimationName(entry.name, motion), entry)))
+        : this.effectSpan(entry.name, entry, motions),
     );
     if (entries.length === 0) {
-      spans.push(...ownMotions.map((name) => this.animationSpan(name, line)));
+      const styled = chunk.tag === "layout" ? presenceStyleBlocks((this.context as any)?.["style"]) : undefined;
+      const played = motions.filter((motion) => !styled?.[motion as "show" | "hide"]);
+      spans.push(...played.map((name) => this.animationSpan(name, line)));
     }
     if (chunk.tag === "image" && line.to) {
       spans.push((line.after ?? 0) + (line.over ?? 0));
+    }
+    if (chunk.tag === "image" && chunk.control === "show" && chunk.assets?.length) {
+      spans.push(this.animationSpan("show", { ...(line.after != null ? { after: line.after } : {}), over: 0 }));
     }
     return Math.max(0, ...spans);
   }
@@ -901,37 +907,44 @@ export class InterpreterModule extends Module<
   }
 
   protected animationSpan(name: string, written: { after?: number; over?: number }): number {
-    const timing = (this.context as any)?.["animation"]?.[name]?.timing;
+    const animation = (this.context as any)?.["animation"]?.[name];
+    if (!animation) {
+      return 0;
+    }
     return (
-      (written.after ?? getTimeValue(timing?.delay) ?? 0) +
-      (written.over ?? getTimeValue(timing?.duration) ?? 0)
+      (written.after ?? getTimeValue(animation.timing?.delay) ?? 0) +
+      (written.over ?? getTimeValue(animation.timing?.duration) ?? 0)
     );
   }
 
-  protected effectSpan(name: string, written: { after?: number; over?: number }): number {
+  protected effectSpan(
+    name: string,
+    written: { after?: number; over?: number },
+    motions: readonly string[],
+  ): number {
     const transition = (this.context as any)?.["transition"]?.[name];
     if (!transition) {
-      return (this.context as any)?.["animation"]?.[name]
-        ? this.animationSpan(name, written)
-        : (written.after ?? 0) + (written.over ?? 0);
+      return this.animationSpan(name, written);
     }
-    const arms = Object.entries(transition).flatMap(([key, value]) => {
-      const armName = typeof value === "string" ? value : (value as { $name?: unknown } | null)?.$name;
-      return !key.startsWith("$") && typeof armName === "string" ? [{ key, name: armName }] : [];
+    const nameOf = (value: unknown) => (typeof value === "string" ? value : (value as { $name?: unknown } | null)?.$name);
+    const parts = Object.entries(transition).flatMap(([key, value]) => {
+      const part = nameOf(value);
+      return !key.startsWith("$") && value && typeof part === "string" ? [{ key, name: part }] : [];
     });
-    const durationOf = (armName: string) =>
-      getTimeValue((this.context as any)?.["animation"]?.[armName]?.timing?.duration) ?? 0;
-    const longest = Math.max(0, ...arms.map((arm) => durationOf(arm.name)));
+    const durationOf = (part: string) =>
+      getTimeValue((this.context as any)?.["animation"]?.[part]?.timing?.duration) ?? 0;
+    const longest = Math.max(0, ...parts.map((part) => durationOf(part.name)));
     const speed = written.over != null && written.over > 0 ? longest / written.over : 1;
-    return Math.max(
-      0,
-      ...arms.map((arm) =>
-        this.animationSpan(arm.name, {
-          ...(written.after != null ? { after: written.after } : {}),
-          over: arm.key.startsWith("on_") ? durationOf(arm.name) / speed || 0 : (written.over ?? durationOf(arm.name)),
-        }),
-      ),
-    );
+    const after = written.after != null ? { after: written.after } : {};
+    const arms = motions.map((motion) => {
+      const arm = nameOf(transition[motion === "show" ? "on_show" : "on_hide"]);
+      const armName = typeof arm === "string" && arm ? arm : motion;
+      return this.animationSpan(armName, { ...after, over: durationOf(armName) / speed || 0 });
+    });
+    const others = parts
+      .filter((part) => !part.key.startsWith("on_"))
+      .map((part) => this.animationSpan(part.name, { ...after, ...(written.over != null ? { over: written.over } : {}) }));
+    return Math.max(0, ...arms, ...others);
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
