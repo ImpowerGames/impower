@@ -136,10 +136,8 @@ const placedFrames = (frames: Record<string, unknown>[]): PlacedFrame[] => {
   return placed;
 };
 
-const frameAt = (placed: PlacedFrame[], progress: number, latest: boolean): PlacedFrame | undefined => {
-  const at = placed.filter((p) => Math.abs(p.offset - progress) < 1e-9);
-  return latest ? at.at(-1) : at[0];
-};
+const frameAt = (placed: PlacedFrame[], progress: 0 | 1): PlacedFrame =>
+  progress === 0 ? placed[0]! : placed.at(-1)!;
 
 const playsForward = (direction: string, iteration: number): boolean =>
   direction === "reverse"
@@ -155,20 +153,16 @@ const endsAwayFromStart = (animation: Animation, iterations: number): boolean =>
   if (frames.length === 0 || !(iterations > 0)) {
     return false;
   }
-  const placed = placedFrames(frames);
-  const direction = animation.timing?.direction ?? "normal";
-  const last = Math.ceil(iterations) - 1;
-  const part = iterations - last;
-  const forwardAtEnd = playsForward(direction, last);
-  const forwardAtStart = playsForward(direction, 0);
-  const end = frameAt(placed, forwardAtEnd ? part : 1 - part, forwardAtEnd);
-  if (!end) {
+  if (!Number.isInteger(iterations)) {
     return true;
   }
+  const placed = placedFrames(frames);
+  const direction = animation.timing?.direction ?? "normal";
+  const end = frameAt(placed, playsForward(direction, iterations - 1) ? 1 : 0);
   if (!end.frame) {
     return false;
   }
-  const start = frameAt(placed, forwardAtStart ? 0 : 1, !forwardAtStart)!.frame;
+  const start = frameAt(placed, playsForward(direction, 0) ? 0 : 1).frame;
   if (!start) {
     return true;
   }
@@ -205,7 +199,16 @@ export const heldPose = (context: AnimationContext | undefined, entries: readonl
     }
     const fill = animation.timing?.fill;
     return (fill === "forwards" || fill === "both") && endsAwayFromStart(animation, iterations)
-      ? [{ name: entry.name, after: 0, over: 0, ...(entry.once ? { once: true } : {}), kept: true }]
+      ? [
+          {
+            name: entry.name,
+            after: 0,
+            over: 0,
+            ...(entry.ease !== undefined ? { ease: entry.ease } : {}),
+            ...(entry.once ? { once: true } : {}),
+            kept: true,
+          },
+        ]
       : [];
   });
 

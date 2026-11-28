@@ -63,6 +63,24 @@ animation halfbob {
   }
 }
 
+animation halfway {
+  keyframes {
+    {
+      transform = "translateY(0%)"
+    }
+    {
+      transform = "translateY(0%)"
+    }
+    {
+      transform = "translateY(10%)"
+    }
+  }
+  timing {
+    duration = "1s"
+    iterations = 0.5
+  }
+}
+
 animation bob {
   keyframes {
     {
@@ -477,6 +495,29 @@ end
     expect(
       (content?.previousHideAnimations ?? []).filter((a: any) => a.$name === "bob" || a.timing.iterations === "infinite"),
     ).toEqual([]);
+  });
+
+  test("a pose a part play leaves is carried with the line's easing, count and direction, so it lands where the play stopped", async () => {
+    const { h, ui, to } = await live(`${PLAIN}
+scene start
+  [[mia@happy with halfway ease linear]]
+  MIA: One.
+  [[mia@sad]]
+  MIA: Two.
+end
+`);
+    const timingOf = (content: any) => {
+      const timing = (content?.enterAnimations ?? []).find((a: any) => a.$name === "halfway")?.timing;
+      return timing && { easing: timing.easing, iterations: timing.iterations, direction: timing.direction, fill: timing.fill };
+    };
+    await to("One.");
+    const played = timingOf(sentContent(h.messages, ui, "mia"));
+    expect(played).toBeDefined();
+    expect(played.iterations).toBe(0.5);
+    await to("Two.");
+    const kept = sentContent(h.messages, ui, "mia");
+    expect(timingOf(kept)).toEqual(played);
+    expect(moves(kept)).toBe(false);
   });
 
   test("a save and a checkpoint restore carry the kept pose at its end state", () => {
