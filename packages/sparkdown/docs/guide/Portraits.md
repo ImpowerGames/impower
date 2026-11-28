@@ -280,6 +280,8 @@ end
 
 The first line fades the happy face in over half a second while it shakes for two seconds; the portrait it replaces fades out and shakes too. The last line fades the portrait out while it makes one turn, and the portrait is removed when the longer of the two has ended. Each `with` takes its own `over`, `after`, `ease`, `loop` and `once`, as [several animations at once](./AnimationTheme.md#several-animations-at-once) describes.
 
+On a plain layer, a new picture shown without a `with` arrives at rest. In a [cast](./Streams.md#a-cast-keeps-one-entry-per-character), a character keeps the pose an animation leaves them in: after `[[mia@happy with crouch]]`, each later picture of Mia that writes no `with` arrives already lowered, while a `shake` plays only on the line that writes it. A later `with` naming another animation, or hiding Mia or the layer, ends the pose. [Hiding and animating one character](./Streams.md#hiding-and-animating-one-character) says which animations leave a pose.
+
 ## Choosing an expression
 
 The quickest way to choose between expressions is to look at them in the scene. With the Game Preview open and stopped, type the portrait's name and a colon, then move through the suggestions with the arrow keys: the preview shows the scene with each highlighted option in place, full size, with the character's other options and the order you wrote them in kept as they are. Highlighting `sad` while completing `[[mia:hat:|]]` shows exactly what `[[mia:hat:sad]]` would show.

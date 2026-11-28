@@ -114,7 +114,9 @@ import {
   beatOffset,
   layoutAnimation,
   layoutAnimations,
+  heldPose,
   layoutArrivesByStyle,
+  namesTransition,
   pictureLineAnimations,
   pictureLineEnd,
   timingFunction,
@@ -9404,20 +9406,44 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.lines?.[target];
           }
         };
+        const context = $.context as AnimationContext;
         const framings: Record<string, Record<string, string>> = structuredClone(cast.framings ?? {});
+        const poses: Record<string, Record<string, WithInstruction[]>> = structuredClone(cast.poses ?? {});
+        const keep = <T>(kept: Record<string, Record<string, T>>, owner: string, target: string, value: T | undefined) => {
+          const targets = ownEntry(kept, owner);
+          if (value !== undefined) {
+            Object.defineProperty(kept, owner, {
+              value: { ...targets, [target]: value },
+              writable: true,
+              enumerable: true,
+              configurable: true,
+            });
+          } else if (targets) {
+            delete targets[target];
+          }
+        };
         const writes = new Map<string, Map<CastEntry, ImageInstruction[]>>();
         const add = (target: string, entry: CastEntry, event: ImageInstruction) => {
           const sequences = writes.get(target) ?? new Map<CastEntry, ImageInstruction[]>();
           writes.set(target, sequences);
           const sequence = sequences.get(entry) ?? [];
           let written = event;
-          if (event.control === "show" && event.assets?.length && !event.at) {
+          const entries = $.withEntries(event);
+          const posing = entries.some((w) => !namesTransition(context, w));
+          if (event.control === "show" && event.assets?.length && (!event.at || !posing)) {
             const resolved = $.image.recorded(structuredClone(entry.image?.[target] ?? []), sequence);
-            const at = $.pictureShown(resolved)
-              ? resolved.findLast((e) => e.control === "show" && e.assets?.length)?.at
-              : ownEntry(ownEntry(framings, entry.speaker), target);
-            if (at) {
-              written = { ...event, at };
+            const shown = $.pictureShown(resolved)
+              ? resolved.findLast((e) => e.control === "show" && e.assets?.length)
+              : undefined;
+            const at = shown ? shown.at : ownEntry(ownEntry(framings, entry.speaker), target);
+            if (!event.at && at) {
+              written = { ...written, at };
+            }
+            const pose = shown
+              ? heldPose(context, $.withEntries(shown))
+              : (ownEntry(ownEntry(poses, entry.speaker), target) ?? []);
+            if (!posing && pose.length > 0) {
+              written = { ...written, with: [...entries, ...pose] };
             }
           }
           sequences.set(entry, [...sequence, written]);
@@ -9431,6 +9457,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
             if (named && event.control === "hide") {
               delete framings[target];
+              delete poses[target];
             }
             continue;
           }
@@ -9448,7 +9475,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
           if (event.control === "hide") {
-            for (const kept of Object.values(framings)) {
+            for (const kept of [...Object.values(framings), ...Object.values(poses)]) {
               delete kept[target];
             }
           }
@@ -9462,18 +9489,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               sequence.some((e) => e.control === "show" && e.assets?.length);
             const after = $.image.recorded(before, sequence);
             if ($.pictureShown(after)) {
-              const at = after.findLast((e) => e.control === "show" && e.assets?.length)?.at;
-              const targets = ownEntry(framings, entry.speaker);
-              if (at) {
-                Object.defineProperty(framings, entry.speaker, {
-                  value: { ...targets, [target]: at },
-                  writable: true,
-                  enumerable: true,
-                  configurable: true,
-                });
-              } else if (targets) {
-                delete targets[target];
-              }
+              const shown = after.findLast((e) => e.control === "show" && e.assets?.length);
+              const pose = heldPose(context, $.withEntries(shown ?? {}));
+              keep(framings, entry.speaker, target, shown?.at || undefined);
+              keep(poses, entry.speaker, target, pose.length > 0 ? pose : undefined);
             }
             (entry.image ??= {})[target] = after;
             wrote(entry, "image", target);
@@ -9492,6 +9511,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           cast.framings = Object.fromEntries(kept);
         } else {
           delete cast.framings;
+        }
+        const held = Object.entries(poses).filter(([, targets]) => Object.keys(targets).length > 0);
+        if (held.length > 0) {
+          cast.poses = Object.fromEntries(held);
+        } else {
+          delete cast.poses;
         }
         if (speaker) {
           for (const [target, events] of texts) {

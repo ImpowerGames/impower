@@ -89,6 +89,104 @@ export const animationDefinition = (
   } as Animation;
 };
 
+const KEYFRAME_TIMING = new Set(["offset", "easing", "composite"]);
+
+const offsetOf = (frame: Record<string, unknown> | undefined): number | undefined => {
+  const offset = frame?.["offset"];
+  if (typeof offset === "number") {
+    return offset;
+  }
+  if (typeof offset === "string") {
+    const value = parseFloat(offset);
+    return Number.isFinite(value) ? (offset.trim().endsWith("%") ? value / 100 : value) : undefined;
+  }
+  return undefined;
+};
+
+const endpointFrames = (
+  frames: Record<string, unknown>[],
+): { first: Record<string, unknown> | null; last: Record<string, unknown> | null } => {
+  const firstOffset = offsetOf(frames[0]) ?? (frames.length === 1 ? 1 : 0);
+  const lastOffset = frames.length === 1 ? firstOffset : (offsetOf(frames.at(-1)) ?? 1);
+  return {
+    first: firstOffset > 0 ? null : frames[0]!,
+    last: lastOffset < 1 ? null : frames.at(-1)!,
+  };
+};
+
+const playsForward = (direction: string, iteration: number): boolean =>
+  direction === "reverse"
+    ? false
+    : direction === "alternate"
+      ? iteration % 2 === 0
+      : direction === "alternate-reverse"
+        ? iteration % 2 === 1
+        : true;
+
+const endsAwayFromStart = (animation: Animation, iterations: number): boolean => {
+  const frames: Record<string, unknown>[] = animation.keyframes ?? [];
+  if (frames.length === 0 || !(iterations > 0)) {
+    return false;
+  }
+  if (!Number.isInteger(iterations)) {
+    return true;
+  }
+  const { first, last } = endpointFrames(frames);
+  const direction = animation.timing?.direction ?? "normal";
+  const end = playsForward(direction, iterations - 1) ? last : first;
+  if (!end) {
+    return false;
+  }
+  const start = playsForward(direction, 0) ? first : last;
+  if (!start) {
+    return true;
+  }
+  return Object.keys({ ...start, ...end }).some(
+    (property) =>
+      !property.startsWith("$") &&
+      !KEYFRAME_TIMING.has(property) &&
+      JSON.stringify(start[property]) !== JSON.stringify(end[property]),
+  );
+};
+
+export const namesTransition = (context: AnimationContext | undefined, entry: WithInstruction): boolean =>
+  Boolean(context?.transition?.[entry.name]);
+
+export const heldPose = (context: AnimationContext | undefined, entries: readonly WithInstruction[]): WithInstruction[] =>
+  entries.flatMap((entry): WithInstruction[] => {
+    const animation = namesTransition(context, entry) ? undefined : context?.animation?.[entry.name];
+    if (!animation) {
+      return [];
+    }
+    const declared = animation.timing?.iterations ?? 1;
+    const iterations = entry.loop ? Infinity : entry.once ? 1 : declared === "infinite" ? Infinity : Number(declared);
+    if (iterations === Infinity) {
+      return [
+        {
+          name: entry.name,
+          after: 0,
+          ...(entry.over !== undefined ? { over: entry.over } : {}),
+          ...(entry.ease !== undefined ? { ease: entry.ease } : {}),
+          loop: true,
+          kept: true,
+        },
+      ];
+    }
+    const fill = animation.timing?.fill;
+    return (fill === "forwards" || fill === "both") && endsAwayFromStart(animation, iterations)
+      ? [
+          {
+            name: entry.name,
+            after: 0,
+            over: 0,
+            ...(entry.ease !== undefined ? { ease: entry.ease } : {}),
+            ...(entry.once ? { once: true } : {}),
+            kept: true,
+          },
+        ]
+      : [];
+  });
+
 export const armEvent = (
   context: AnimationContext | undefined,
   entry: WithInstruction,
@@ -147,7 +245,9 @@ export const pictureLineAnimations = (
       result.targetAnimations.push(reveal);
     }
   }
-  const entries = withEntries(e);
+  const written = withEntries(e);
+  const entries = written.filter((entry) => !entry.kept);
+  const kept = written.filter((entry) => entry.kept);
   const lineEvent = (name: string): AnimationEvent => ({
     name,
     after: e.after,
@@ -178,7 +278,10 @@ export const pictureLineAnimations = (
   const usingArms = using ? armsOf(using) : [];
   if (pictured) {
     if (e.control === "show") {
-      result.enterAnimations = definitions(showEvents);
+      result.enterAnimations = definitions([
+        ...showEvents,
+        ...kept.map((entry) => armEvent(context, entry, "on_show")),
+      ]);
       result.previousHideAnimations = definitions(hideEvents);
     } else if (e.control === "hide") {
       result.exitAnimations = definitions(hideEvents);
