@@ -1882,10 +1882,20 @@ export class MorphLayer {
     still.next = undefined;
   }
 
+  protected reframed = false;
+
   adoptNext() {
-    if (!this.active || (!this.stills.some((still) => still.next) && !this.images.some((image) => image.canvas?.next))) return;
+    const reframed = this.reframed;
+    this.reframed = false;
+    if (!this.active || (!reframed && !this.stills.some((still) => still.next) && !this.images.some((image) => image.canvas?.next))) return;
     this.measureStyle();
     this.relayout();
+  }
+
+  reframe(measureHeld: () => void) {
+    if (this.held) measureHeld();
+    else this.prepareLayout();
+    this.reframed = this.active;
   }
 
   prepareLayout() {
