@@ -628,6 +628,39 @@ describe("a beat that changes a shown picture's framing draws it at its new plac
     expect(canvas.parentElement!.getAttribute("style")).toBe(style);
     expect([canvas.width, canvas.height]).toEqual([first.width, first.height]);
   });
+
+  test("a move that starts as the beat applies, on a picture shown without framing, draws it at the box the move frames it in before the beat fires", async () => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], 148);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const span = t.spanOf("badge")!;
+    const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+    t.beat(
+      [
+        {
+          target: "badge",
+          instant: false,
+          instructions: [{ control: "animate", travel: { framing: { x: 0, y: 0.5, zoom: 1 }, timing: { delay: "0s", duration: "1s", easing: "linear" } } }],
+        } as never,
+      ],
+      150,
+    );
+    await until(() => t.rasters.length === 2, "the raster at the framed size");
+    await flushMicrotasks(20);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    expect(span.classList.contains("framed")).toBe(false);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the moving beat");
+    expect(span.classList.contains("framed")).toBe(true);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  });
 });
 
 describe("a later beat's layout changes are measured on every shown picture before it fires (#2810)", () => {

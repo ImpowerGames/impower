@@ -197,6 +197,17 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
   return Number(delay) > 0 || Number(duration) > 0;
 }
 
+function placedAsApplied(instruction: WriteImageInstruction): { framing: WriteImageInstruction["framing"] } | undefined {
+  const travel = instruction.travel;
+  if (instruction.control === "show") {
+    return travel ? undefined : { framing: instruction.framing };
+  }
+  if (!travel || Number(getEffectTiming(travel.timing).delay ?? 0) > 0) {
+    return undefined;
+  }
+  return { framing: travel.framing };
+}
+
 let travelWrites = 0;
 
 function instantAnimation(animation: Animation | undefined): boolean {
@@ -912,6 +923,7 @@ export default class UIManager extends Manager {
               );
           const imageEls = this.getContentElements(targetEl, "image");
           if (!content) {
+            const placed = placedAsApplied(instruction);
             for (const contentEl of imageEls) {
               for (const pictureEl of Array.from(contentEl.children) as HTMLElement[]) {
                 const layer = (pictureEl as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
@@ -919,8 +931,8 @@ export default class UIManager extends Manager {
                   continue;
                 }
                 layer.size({ zoom, scale: around * nested(pictureEl) });
-                if (instruction.control === "show" && !instruction.travel) {
-                  placements.push({ span: pictureEl, layer, framing: instruction.framing });
+                if (placed) {
+                  placements.push({ span: pictureEl, layer, framing: placed.framing });
                 }
                 layers.push(layer);
               }
