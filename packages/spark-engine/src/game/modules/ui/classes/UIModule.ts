@@ -1661,7 +1661,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.layoutHolds(
         name,
         [target],
-        false,
+        true,
         (node) => limitsLine(node) && !(unmarked && marksClear(node)) && admitsLine(node, line),
       ),
     );
@@ -2367,11 +2367,61 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  protected _entryUpdates = new Map<string, { style: Set<string>; attributes: Set<string> }>();
+
+  protected noteEntryUpdate(element: Element, state: ElementState | undefined): void {
+    const style = state?.style ? Object.keys(state.style) : [];
+    const attributes = Object.keys(state?.attributes ?? {}).filter(
+      (name) => name !== PRESENCE_ATTRIBUTE && name !== DISPLAY_TARGET_ATTRIBUTE,
+    );
+    if ((style.length === 0 && attributes.length === 0) || !this.insideStream(element)) {
+      return;
+    }
+    let updated = this._entryUpdates.get(element.id);
+    if (!updated) {
+      updated = { style: new Set(), attributes: new Set() };
+      this._entryUpdates.set(element.id, updated);
+    }
+    style.forEach((key) => updated!.style.add(key));
+    attributes.forEach((name) => updated!.attributes.add(name));
+  }
+
+  protected clearEntryUpdates(
+    element: Element,
+    style: Record<string, string | null>,
+    attributes: Record<string, string | null>,
+  ): void {
+    const updated = this._entryUpdates.get(element.id);
+    if (!updated) {
+      return;
+    }
+    this._entryUpdates.delete(element.id);
+    const staleStyle = [...updated.style].filter((key) => !(key in style));
+    const staleAttributes = [...updated.attributes].filter((name) => !(name in attributes));
+    if (staleStyle.length === 0 && staleAttributes.length === 0) {
+      return;
+    }
+    this.updateElement(element, {
+      ...(staleStyle.length > 0
+        ? { style: Object.fromEntries(staleStyle.map((key) => [key, null])) }
+        : {}),
+      ...(staleAttributes.length > 0
+        ? {
+            attributes: Object.fromEntries(staleAttributes.map((name) => [name, null])),
+          }
+        : {}),
+    });
+  }
+
   protected updateElement(element: Element, state?: ElementState): void {
     const content = state?.content;
     const style = state?.style;
     this.noteLayoutStyle(style);
-    const attributes = state?.attributes;
+    this.noteEntryUpdate(element, state);
+    const attributes =
+      state?.attributes && Object.hasOwn(state.attributes, "class") && state.attributes["class"] == null
+        ? { ...state.attributes, class: element.name }
+        : state?.attributes;
     const breakpoints = this.breakpoints;
     if (this._refreshing) {
       this._screenEdits += 1;
@@ -4500,6 +4550,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       before,
     );
     this.limit(el, labels);
+    this.clearEntryUpdates(el, style, attributes);
     if (marksClear(node)) {
       this._clearMarked.add(el);
     }
@@ -6010,6 +6061,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     wanted: Set<string>,
     outsideCasts = false,
     admits: (node: ElementNode) => boolean = () => true,
+    shared = false,
   ): boolean {
     const components = this._game.program?.sparkle?.components ?? {};
     const expanded = new Set<string>();
@@ -6022,7 +6074,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const node = value as Record<string, any>;
       if (node["kind"] === "element") {
-        if (outsideCasts && isCast(node as ElementNode)) {
+        if (
+          (outsideCasts && isCast(node as ElementNode)) ||
+          (shared && isTemplated(node as ElementNode))
+        ) {
           return false;
         }
         const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
@@ -6049,7 +6104,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   layoutHoldsLine(layoutName: string, element: string, variant: string | undefined): boolean {
-    return this.layoutHolds(layoutName, [element], false, (node) => admitsVariant(node, variant));
+    return this.layoutHolds(layoutName, [element], true, (node) => admitsVariant(node, variant));
   }
 
   layoutHolds(
@@ -6070,7 +6125,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         : undefined;
       return (
         this.treeHolds(layout.children, wanted, outsideCasts, admits) ||
-        this.treeHolds(screen?.children, wanted, outsideCasts, admits)
+        this.treeHolds(screen?.children, wanted, outsideCasts, admits, true)
       );
     }
     const layout = this.context.layout?.[layoutName];

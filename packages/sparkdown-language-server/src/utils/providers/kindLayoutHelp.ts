@@ -1,6 +1,8 @@
 import { type SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { type ElementNode } from "@impower/sparkdown/src/compiler/types/SparkleNode";
+import { isTemplated } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { type Tree } from "@lezer/common";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
@@ -19,7 +21,7 @@ const BUILT_IN_KINDS: ReadonlyMap<string, string> = new Map([
 
 const MENU_LAYOUT = "choices";
 
-const holdsElement = (program: SparkProgram, children: unknown, name: string): boolean => {
+const holdsElement = (program: SparkProgram, children: unknown, name: string, shared = false): boolean => {
   const components = program.sparkle?.components ?? {};
   const expanded = new Set<string>();
   const visit = (value: unknown): boolean => {
@@ -31,6 +33,9 @@ const holdsElement = (program: SparkProgram, children: unknown, name: string): b
     }
     const node = value as Record<string, unknown>;
     if (node["kind"] === "element") {
+      if (shared && isTemplated(node as unknown as ElementNode)) {
+        return false;
+      }
       const classes = Array.isArray(node["classes"]) ? node["classes"] : [];
       if ([node["tag"], node["name"], ...classes].includes(name)) {
         return true;
@@ -58,7 +63,7 @@ const namedAfterKind = (program: SparkProgram | undefined, name: string): boolea
     return false;
   }
   const screen = layout.screen ? program.sparkle?.screens?.[layout.screen] : undefined;
-  return holdsElement(program, layout.children, name) || holdsElement(program, screen?.children, name);
+  return holdsElement(program, layout.children, name) || holdsElement(program, screen?.children, name, true);
 };
 
 export const kindLayoutDocumentation = (name: string): string => {
