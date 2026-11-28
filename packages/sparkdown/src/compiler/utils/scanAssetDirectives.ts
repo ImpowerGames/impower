@@ -152,11 +152,14 @@ const imageWrite = (body: string): SceneImageWrite => {
   if (target) {
     write.target = target;
   }
-  const effects = directiveOwners(reading.kind, reading.clauses).withs.flatMap((entry) =>
-    entry.name?.text ? [entry.name.text] : [],
-  );
+  const owners = directiveOwners(reading.kind, reading.clauses);
+  const effects = owners.withs.flatMap((entry) => (entry.name?.text ? [entry.name.text] : []));
   if (effects.length > 0) {
     write.with = effects;
+  }
+  const using = owners.using?.value?.text;
+  if (using) {
+    write.using = using;
   }
   if (reading.control?.text === "hide") {
     write.hide = true;
