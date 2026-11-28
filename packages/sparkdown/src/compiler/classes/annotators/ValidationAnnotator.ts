@@ -51,7 +51,6 @@ import {
   DIRECTIVE_CLAUSE_WORDS,
   DIRECTIVE_FLAG_WORDS,
   DIRECTIVE_NODE_BRACKETS,
-  DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
   DIRECTIVE_TIMING_WORDS,
   directiveClauseWords,
   directiveOwners,
@@ -80,10 +79,10 @@ const BRACKET_CONTROL_KEYWORDS = [
   ...MOVIE_CONTROL_KEYWORDS,
 ];
 const PLAY_ONE_VIDEO =
-  "`play` takes one video name\n> e.g. `[[play intro]]`, `[[play intro loop with fade]]`";
+  "`play` takes one video name\n> e.g. `[[play intro]]`, `[[play intro loop using fade]]`";
 
 const ASSET_COMMAND = nodeNameSet(["ImageCommand", "AudioCommand"]);
-const NAME_VALUE_CLAUSE_KEYWORDS: ReadonlySet<string> = new Set(["with", "ease"]);
+const NAME_VALUE_CLAUSE_KEYWORDS: ReadonlySet<string> = new Set(["with", "using", "ease"]);
 
 const VALID_SPARKLE_EVENTS = new Set([
   "click", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout",
@@ -706,15 +705,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
       }
     }
-    if (!DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(kind)) {
-      const example =
-        kind === "load"
-          ? ["A `load` line", "[[load chapter2 with fade]]"]
-          : kind === "cutscene"
-            ? ["A `play` line", "[[play intro with fade]]"]
-            : ["A sound line", "((play music theme with echo))"];
+    if (bracket === "audio") {
       for (const { word } of directive.clauses.filter((clause) => clause.word.text === "with").slice(1)) {
-        issue(`${example[0]} takes one \`with\`\n> e.g. \`${example[1]}\``, word.from, word.to, "error");
+        issue("A sound line takes one `with`\n> e.g. `((play music theme with echo))`", word.from, word.to, "error");
       }
     }
     this.usingClauseIssues(issue, directive);
@@ -817,17 +810,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (usings.length === 0) return;
     const control = directive.control?.text;
     const transitionedLine =
-      directive.kind === "load"
-        ? "load chapter2"
-        : directive.kind === "cutscene"
-          ? "play intro"
-          : control === LayoutVerb.navigate
-            ? "navigate main to inventory"
-            : `${control ?? LayoutVerb.open} inventory`;
+      control === LayoutVerb.navigate ? "navigate main to inventory" : `${control ?? LayoutVerb.open} inventory`;
     const misplaced =
       directive.bracket === "audio"
         ? "`using` names how a picture arrives or leaves, so it does not belong on a sound line\n> e.g. `[[show portrait hero using fade]]`"
-        : directive.kind !== "image"
+        : directive.kind === "layout"
           ? `\`using\` belongs on a picture line: a \`${control ?? directive.kind}\` line names its transition with \`with\`\n> e.g. \`[[${transitionedLine} with fade]]\``
           : control === "animate" && directive.names.length === 0
             ? "`using` names how the picture an `animate` adds arrives, and this `animate` names no picture\n> e.g. `[[animate backdrop dusk using fade]]`"

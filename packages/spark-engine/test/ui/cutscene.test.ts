@@ -47,15 +47,15 @@ async function beatsOf(body: string) {
 }
 
 describe("a cutscene: the interpreter", () => {
-  test("`[[play intro loop mute with fade]]` is a cutscene instruction on a beat of its own", async () => {
+  test("`[[play intro loop mute using fade]]` is a cutscene instruction on a beat of its own", async () => {
     const beats = await beatsOf(
-      `  Before. [[play intro loop mute with fade]]\n  After.`,
+      `  Before. [[play intro loop mute using fade]]\n  After.`,
     );
     expect(beats).toHaveLength(3);
     expect(beats[0]?.text).toBeDefined();
     expect(beats[0]?.cutscene).toBeUndefined();
     expect(beats[1]?.cutscene).toEqual([
-      { name: "intro", loop: true, mute: true, with: "fade" },
+      { name: "intro", loop: true, mute: true, using: "fade" },
     ]);
     expect(beats[1]?.text).toBeUndefined();
     expect(beats[1]?.image).toBeUndefined();
@@ -117,7 +117,7 @@ describe("a cutscene: the UI module", () => {
       name: "intro",
       loop: true,
       mute: true,
-      with: "fade",
+      using: "fade",
     });
     const requests = byMethod(h.messages, "ui/play-cutscene");
     expect(requests).toHaveLength(1);

@@ -99,13 +99,20 @@ describe("which `with` a clause belongs to (I-2853)", () => {
     });
   });
 
-  test("`load` and `play` lines keep their present reading of their clauses and play their first `with`", () => {
-    expect(owners("load chapter2 with fade over 1s with slide")).toEqual({
-      line: { with: "fade", over: "1s" },
+  test("`load` and `play` lines read `using` and their timing words as the line's", () => {
+    expect(owners("load chapter2 using fade over 1s")).toEqual({
+      line: { using: "fade", over: "1s" },
       withs: [],
     });
-    expect(owners("play intro with fade loop")).toEqual({
-      line: { with: "fade", loop: true },
+    expect(owners("play intro using fade loop")).toEqual({
+      line: { using: "fade", loop: true },
+      withs: [],
+    });
+  });
+
+  test("an erroneous `with` on a `load` line is read as the line's, the first one kept", () => {
+    expect(owners("load chapter2 with fade over 1s with slide")).toEqual({
+      line: { with: "fade", over: "1s" },
       withs: [],
     });
   });
@@ -132,10 +139,8 @@ function errorsOn(line: string): string[] {
     });
 }
 
-describe("a second `with` on a `load`, `play` or sound line is an error on that `with` (I-2853)", () => {
+describe("a second `with` on a sound line is an error on that `with` (I-2853)", () => {
   test.each([
-    ["[[load start with fade with fade]]", "A `load` line takes one `with`"],
-    ["[[play intro with fade with fade]]", "A `play` line takes one `with`"],
     ["((play music theme with echo with echo))", "A sound line takes one `with`"],
   ])("`%s`", (line, message) => {
     const secondWith = 2 + line.lastIndexOf("with");

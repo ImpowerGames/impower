@@ -128,8 +128,6 @@ describe("`using` is checked on the word or name it concerns (I-2883)", () => {
     ["[[open inventory using fade]]", "open", "open inventory"],
     ["[[close inventory using fade]]", "close", "close inventory"],
     ["[[navigate main to inventory using fade]]", "navigate", "navigate main to inventory"],
-    ["[[load chapter2 using fade]]", "load", "load chapter2"],
-    ["[[play intro using fade]]", "play", "play intro"],
   ])("`using` on `%s` is an error on `using`", (line, control, example) => {
     expect(issuesOn(line).filter((issue) => issue.startsWith("error using:"))).toEqual([
       `error using: \`using\` belongs on a picture line: a \`${control}\` line names its transition with \`with\`\n> e.g. \`[[${example} with fade]]\``,

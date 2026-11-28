@@ -204,8 +204,12 @@ const CLAUSE_ROWS: Row[] = [
   ["a second `using`", "image", "show portrait mia using fade with shake using screenfade"],
   ["`using` on an `animate` that names no picture", "image", "animate portrait using fade using screenfade"],
   ["an empty `with` between two", "image", "animate portrait with shake with with spin"],
-  ["a second `with` on a `load` line", "image", "load mia with fade with shake"],
-  ["a second `with` on a `play` line", "image", "play intro with fade with shake"],
+  ["two `with` clauses on a `load` line", "image", "load mia with fade with shake"],
+  ["two `with` clauses on a `play` line", "image", "play intro with fade with shake"],
+  ["`using` on a `load` line", "image", "load mia using fade"],
+  ["`using` on a `play` line", "image", "play intro loop using fade"],
+  ["a second `using` on a `load` line", "image", "load mia using fade using screenfade"],
+  ["a second `using` on a `play` line", "image", "play intro using fade mute using screenfade"],
   ["a second `with` on a sound line", "audio", "play music theme with echo with reverb"],
 ];
 
@@ -246,6 +250,7 @@ interface Reading {
   implicitNames: string[];
   extraWiths: string[];
   extraUsings: string[];
+  usingLineWiths: string[];
   timing: string[];
 }
 
@@ -260,6 +265,7 @@ const empty = (): Reading => ({
   implicitNames: [],
   extraWiths: [],
   extraUsings: [],
+  usingLineWiths: [],
   timing: [],
 });
 
@@ -398,10 +404,19 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
     if (last && !last.takesValue && isAmount(keyword)) return;
     reading.strays.push(keyword);
   });
-  if (chunk.tag === "load" || chunk.tag === "cutscene" || chunk.tag === "audio") {
+  if (chunk.tag === "audio") {
     reading.extraWiths = parsed.filter((clause) => clause.word.text === "with").slice(1).map((clause) => clause.word.text);
   }
-  if (chunk.tag === "image" && !(chunk.control === "animate" && chunk.assets.length === 0)) {
+  if (chunk.tag === "load" || chunk.tag === "cutscene") {
+    reading.usingLineWiths = parsed
+      .filter((clause) => clause.word.text === "with")
+      .map((clause) => `${clause.word.text} ${clause.value?.text ?? ""}`.trim());
+  }
+  if (
+    (chunk.tag === "image" && !(chunk.control === "animate" && chunk.assets.length === 0)) ||
+    chunk.tag === "load" ||
+    chunk.tag === "cutscene"
+  ) {
     reading.extraUsings = parsed.filter((clause) => clause.word.text === "using").slice(1).map((clause) => clause.word.text);
   }
   if (chunk.tag === "layout" && controlWritten && chunk.control === "clear") {
@@ -414,7 +429,7 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
   if (chunk.tag === "cutscene") {
     const strayName = parsed.some((clause) =>
       clause.takesValue
-        ? !["with", "ease"].includes(clause.word.text) && !!clause.value && isName(clause.value.text)
+        ? !["with", "using", "ease"].includes(clause.word.text) && !!clause.value && isName(clause.value.text)
         : !DIRECTIVE_CLAUSE_WORDS.includes(clause.word.text) && isName(clause.word.text),
     );
     reading.playArity = !target || target.includes("+") || chunk.assets.length > 0 || strayName;
@@ -441,6 +456,7 @@ function normalize(reading: Reading): Reading {
     implicitNames: sorted(reading.implicitNames),
     extraWiths: sorted(reading.extraWiths),
     extraUsings: sorted(reading.extraUsings),
+    usingLineWiths: sorted(reading.usingLineWiths),
     timing: sorted(reading.timing),
   };
 }
@@ -550,6 +566,11 @@ function compilerReadingsOf(text: string, keep: (line: number, from: number) => 
     else if (message.startsWith("Unrecognized")) reading(line).unrecognizedControl = at;
     else if (/^A (?:`load`|`play`|sound) line takes one `with`/.test(message)) reading(line).extraWiths.push(at);
     else if (message.startsWith("A line takes one `using`")) reading(line).extraUsings.push(at);
+    else if (/^A (?:`load`|`play`) line names its transition with `using`/.test(message)) {
+      const end = doc.offsetAt(diagnostic.range.end);
+      const named = /^[ \t]+([^ \t\]]+)/.exec(doc.read(end, end + 64))?.[1];
+      reading(line).usingLineWiths.push(`${at} ${named ?? ""}`.trim());
+    }
   }
   for (const directive of readSourceDirectives(parser.parse(text), (a, b) => text.slice(a, b))) {
     const line = doc.positionAt(directive.from).line;
@@ -640,6 +661,7 @@ function merged(readings: readonly Reading[]): Reading {
     all.implicitNames.push(...reading.implicitNames);
     all.extraWiths.push(...reading.extraWiths);
     all.extraUsings.push(...reading.extraUsings);
+    all.usingLineWiths.push(...reading.usingLineWiths);
     all.timing.push(...reading.timing);
     all.incompleteNavigate ||= reading.incompleteNavigate;
     all.clearWarning ||= reading.clearWarning;
@@ -701,6 +723,25 @@ describe("`using` is read as the line's on every row that writes it (I-2883)", (
     for (const reading of [interpreterReadings.get(line), compilerReadings.get(line)]) {
       expect(reading?.links.filter((link) => link.startsWith("transition:") && link !== "transition:shake")).toEqual(transitions);
       expect(reading?.extraUsings).toEqual(extraUsings);
+    }
+  });
+});
+
+describe("`load` and `play` lines read `using` and report each `with` (I-2886)", () => {
+  test.each([
+    ["`using` on a `load` line", ["transition:fade"], [], []],
+    ["`using` on a `play` line", ["transition:fade"], [], []],
+    ["a second `using` on a `load` line", ["transition:fade", "transition:screenfade"], ["using"], []],
+    ["a second `using` on a `play` line", ["transition:fade", "transition:screenfade"], ["using"], []],
+    ["two `with` clauses on a `load` line", ["transition:fade"], [], ["with fade", "with shake"]],
+    ["two `with` clauses on a `play` line", ["transition:fade"], [], ["with fade", "with shake"]],
+  ])("%s", (label, transitions, extraUsings, usingLineWiths) => {
+    const line = lineOf(ROWS.findIndex(([rowLabel]) => rowLabel === label));
+    for (const reading of [interpreterReadings.get(line), compilerReadings.get(line)]) {
+      expect(reading?.links.filter((link) => link.startsWith("transition:"))).toEqual(transitions);
+      expect(reading?.extraUsings).toEqual(extraUsings);
+      expect(reading?.usingLineWiths).toEqual(usingLineWiths);
+      expect(reading?.playArity ?? false).toBe(false);
     }
   });
 });
