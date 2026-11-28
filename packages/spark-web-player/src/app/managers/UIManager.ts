@@ -3465,7 +3465,7 @@ export default class UIManager extends Manager {
                 toDestroy.push(newSpanEl);
               }
             } else if (instruction.control === "animate") {
-              this.addAnimationEffects(enterEffects, newSpanEl, content.enterAnimations, after);
+              this.addAnimationEffects(enterEffects, newSpanEl, content.enterAnimations);
             }
           }
         }

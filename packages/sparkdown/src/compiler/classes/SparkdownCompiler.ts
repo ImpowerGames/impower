@@ -158,7 +158,8 @@ function unseenHideWithIssues(
   };
   const setsOpacity = (name: string | undefined) =>
     name !== undefined && (leavingAnimation(name)?.keyframes ?? []).some((keyframe: any) => keyframe?.opacity != null);
-  return owners.withs.filter((entry) => !setsOpacity(entry.name?.text)).map((entry) => ({
+  if (owners.withs.some((entry) => setsOpacity(entry.name?.text))) return [];
+  return owners.withs.map((entry) => ({
     at: { from: entry.word.from, to: entry.name?.to ?? entry.word.to },
     severity: DiagnosticSeverity.Warning,
     message: UNSEEN_HIDE_WITH,

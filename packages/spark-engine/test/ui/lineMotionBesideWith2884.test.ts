@@ -137,6 +137,13 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
     expect(using.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }]]);
   });
 
+  it("a `with` on a hide of a layer already hidden keeps starting from the layer's own look", async () => {
+    const { instruction } = await played("hide portrait]] [[hide portrait with fadeout over 1s");
+    expect(instruction.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }], [{ opacity: "0" }]]);
+    const shownAgain = (await played("hide portrait]] [[show portrait]] [[hide portrait with fadeout over 1s")).instruction;
+    expect(shownAgain.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }], [{ opacity: "1" }, { opacity: "0" }]]);
+  });
+
   it("`[[show backdrop bg_room over 2s with shake wait]]` holds the story for two seconds", async () => {
     const { held } = await played("show backdrop bg_room over 2s with shake wait");
     expect(held).toBe(2);

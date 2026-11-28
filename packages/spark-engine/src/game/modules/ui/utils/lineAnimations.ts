@@ -128,6 +128,7 @@ export const pictureLineAnimations = (
   context: AnimationContext | undefined,
   e: ImageInstruction,
   instant: boolean,
+  layerShown = true,
 ): PictureLineAnimations => {
   const result: PictureLineAnimations = {
     targetAnimations: [],
@@ -183,7 +184,7 @@ export const pictureLineAnimations = (
       return Object.keys(start).length > 0 ? { ...animation, keyframes: [start, end] } : animation;
     };
   const fromHidden = startingFrom(context?.animation?.["hide"]?.keyframes?.at(-1));
-  const fromShown = startingFrom(context?.animation?.["show"]?.keyframes?.at(-1));
+  const fromShown = startingFrom(layerShown ? context?.animation?.["show"]?.keyframes?.at(-1) : undefined);
   const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent, start: (animation: Animation) => Animation = (a) => a) =>
     entries.flatMap((entry) => [...definitions([eventOf(entry)]).map(start), ...armsOf(entry)]);
   const usingArms = using ? armsOf(using) : [];

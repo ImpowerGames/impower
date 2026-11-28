@@ -55,10 +55,11 @@ describe("a `with` on a `hide` line that cannot be seen is warned about (I-2884)
     ]);
   });
 
-  test("a `with` whose animation sets opacity is seen over the instant hide, so it gets no warning", () => {
+  test("a `with` whose animation sets opacity shows the picture over the instant hide, so no `with` on the line gets the warning", () => {
     expect(unseen("[[hide portrait with pulse over 1s once]]")).toEqual([]);
     expect(unseen("[[hide portrait with fade over 1s]]")).toEqual([]);
-    expect(unseen("[[hide portrait with pulse over 1s once with shake]]")).toEqual([`with shake: ${UNSEEN}`]);
+    expect(unseen("[[hide portrait with pulse over 1s once with shake]]")).toEqual([]);
+    expect(unseen("[[hide portrait with shake with fade over 1s]]")).toEqual([]);
   });
 
   test.each([

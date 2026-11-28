@@ -125,6 +125,15 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
     expect(opacity(arriving[0]!)).toBeCloseTo(0.5);
   });
 
+  test("`[[animate portrait Q with shake with spin over 1s once]]` shows the added picture with the line while the layer shakes and turns", async () => {
+    const { before, arriving } = await play("[[animate portrait Q with shake with spin over 1s once]]");
+    const layer = before[0]!.closest<HTMLElement>(".portrait")!;
+    const layerEffects = animations.filter((a) => a.effect.target === layer && Number(a.effect.timing.duration) > 0);
+    expect(layerEffects.length).toBeGreaterThan(0);
+    seek(100 + 50);
+    expect(opacity(arriving[0]!)).toBe(1);
+  });
+
   test("`[[show portrait Q with fade]]` still fades the replaced picture out", async () => {
     const { before } = await play("[[show portrait Q with fade]]");
     seek(100 + 250);
