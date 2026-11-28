@@ -1892,8 +1892,9 @@ export class MorphLayer {
     this.relayout();
   }
 
-  reframe() {
-    this.prepareLayout();
+  reframe(measureHeld: () => void) {
+    if (this.held) measureHeld();
+    else this.prepareLayout();
     this.reframed = this.active;
   }
 

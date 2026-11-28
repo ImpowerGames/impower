@@ -1021,16 +1021,19 @@ export default class UIManager extends Manager {
         }
       }
     }
-    const reframed: MorphLayer[] = [];
+    const reframed: { span: HTMLElement; layer: MorphLayer }[] = [];
     for (const { span, layer, framing, travels } of placements) {
       const undo = travels ? previewTravel(span, framing) : previewPlacement(span, framing);
       if (undo) {
         placed.push(undo);
-        reframed.push(layer);
+        reframed.push({ span, layer });
       }
     }
-    for (const layer of reframed) {
-      layer.reframe();
+    for (const { span, layer } of reframed) {
+      layer.reframe(() => {
+        layer.presize();
+        this.presizeHidden(span, layer);
+      });
     }
     if (changed.length > 0 || made.length > 0) {
       layers.push(...morphs.prepareLayouts(new Set(layers)));

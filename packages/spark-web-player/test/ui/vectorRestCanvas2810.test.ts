@@ -712,6 +712,28 @@ describe("a beat that changes a shown picture's framing draws it at its new plac
     shown.t.beat([moveNow(framing)], 162);
     await drawnBeforeMoving(shown);
   });
+
+  test.each(["0s", "1s"])(
+    "a picture the beat shows and starts moving in the same write is drawn at the box the move frames it in before the beat fires (duration %s)",
+    async (duration) => {
+      const t = await setup({ holdRasters: true });
+      const framed = [Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)];
+      const write = show("badge", "emblem", ["/src/emblem.svg"]);
+      write.instructions.push({ control: "animate", travel: { timing: { delay: "0s", duration, easing: "linear" } } } as never);
+      t.beat([write], 164);
+      await until(() => t.rasters.length > 0, "the first raster");
+      await flushMicrotasks(20);
+      expect(t.rasters.map(({ width, height }) => [width, height])).toContainEqual(framed);
+      for (const held of t.rasters.filter(({ width, height }) => width !== framed[0] || height !== framed[1])) held.resolve(raster(held.src, held.width, held.height));
+      await flushMicrotasks(20);
+      expect(t.events).not.toContain("applied");
+      for (const held of t.rasters.filter(({ width, height }) => width === framed[0] && height === framed[1])) held.resolve(raster(held.src, held.width, held.height));
+      await until(() => t.events.includes("applied"), "the beat");
+      const canvas = t.shadowOf("badge")!.querySelector("canvas")!;
+      expect(t.spanOf("badge")!.classList.contains("framed")).toBe(true);
+      expect([canvas.width, canvas.height]).toEqual(framed);
+    },
+  );
 });
 
 describe("a later beat's layout changes are measured on every shown picture before it fires (#2810)", () => {
