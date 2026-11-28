@@ -34,7 +34,7 @@ function writerAccountingChecks() {
   const ids = { coordinator: "local_00000000-0000-4000-8000-000000000001", shared: "00000000-0000-4000-8000-000000000002", other: "00000000-0000-4000-8000-000000000003", assignment: "00000000-0000-4000-8000-000000000004", otherAssignment: "00000000-0000-4000-8000-000000000005", parent: "00000000-0000-4000-8000-000000000006" };
   const record = run.initRecord({ record: path.join(tmp, "accounting-run.json"), checkout, repository: "acme/widgets", issue: 100, coordinator: ids.coordinator, harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-accounting", invocation: "Use orchestrate-issues for #100." }, { defaults, freeBytes: 100 * GB, totalMemory: 7.9 * GB }).record;
   const ticket = (number) => ({ number, title: `ticket ${number}`, state: "open", parent: 100, container: false, effort: "Medium", delivered: false, blockers: [], prs: [], worktrees: [] });
-  const owner = (id, extra = {}) => ({ route: "codex-app", model: "gpt-6.1-sol", effort: "medium", handle: { kind: "session", id, host: os.hostname() }, since: record.coordinator.since, ...extra });
+  const owner = (id, extra = {}) => ({ route: "codex-app", model: "gpt-6.2-sol", effort: "medium", handle: { kind: "session", id, host: os.hostname() }, since: record.coordinator.since, ...extra });
   const held = (writer) => ({ owner: writer, pending: null, history: [], results: [] });
   const observations = { sessions: { [ids.shared]: { state: "running" }, [ids.other]: { state: "running" } } };
   const plan = (tickets, more = {}) => run.planDispatch({ record: { ...record, tickets }, snapshot: { repository: record.repository, issue: { number: 100, state: "open" }, tickets: [ticket(101), ticket(102), ticket(103)] }, preflights: [{ route: "claude-cli", model: record.writer.model, verdicts: [101, 102, 103].map((number) => ({ ticket: number, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, census: () => [], observations, ...more });
@@ -302,7 +302,7 @@ const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(stop)}) || 
   }
   if (["--writer-continuation", "--writer-native"].some((flag) => process.argv.includes(flag))) {
     const file = path.join(tmp, "continuation-run.json");
-    const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
+    const current = run.initRecord({ record: file, checkout, repository: "acme/widgets", issue: 110, coordinator: ids.parent, harness: "codex", coordinatorModel: "gpt-6.2-sol", coordinatorEffort: "medium", coordinatorMode: "bypassPermissions", slug: "writer-continuation", invocation: "Use orchestrate-issues for #110." }, { defaults, freeBytes: 100 * GB, totalMemory: 16 * GB }).record;
     const snapshot = { repository: current.repository, issue: { number: 110, state: "open" }, tickets: [{ ...ticket(111), parent: 110, prs: [{ number: 500, state: "OPEN", isDraft: true, branch: "fix/111-existing", head: "fixture-head", rounds: 1 }] }] };
     const savedPlan = write("continuation-plan.json", run.planDispatch({ record: current, snapshot, preflights: [{ route: "codex-app", model: current.writer.model, verdicts: [{ ticket: 111, effort: "medium", verdict: "available" }] }], defaults, freeBytes: 100 * GB, census: () => [] }));
     const update = run.updateRecord(file, { coordinator: ids.parent, expectRevision: current.revision }, (r) => run.claim(r, { plan: savedPlan, ticket: 111, operation: "continue", worktree: path.join(tmp, "continuation-tree"), branch: "fix/111-existing", artifactParent: tmp, evidence: "the previous writer's session was observed archived" }));
@@ -383,12 +383,12 @@ try {
   fs.mkdirSync(artifacts);
 
   assert.deepEqual(run.resolveWriterModel("claude", undefined, defaults), { model: "claude-opus-5-5", source: "claude orchestrator default" });
-  assert.deepEqual(run.resolveWriterModel("codex", undefined, defaults), { model: "gpt-6.1-sol", source: "codex orchestrator default" });
-  assert.deepEqual(run.resolveWriterModel("claude", "gpt-6-astra", defaults), { model: "gpt-6-astra", source: "invocation" });
+  assert.deepEqual(run.resolveWriterModel("codex", undefined, defaults), { model: "gpt-6.2-sol", source: "codex orchestrator default" });
+  assert.deepEqual(run.resolveWriterModel("claude", "gpt-6.2-astra", defaults), { model: "gpt-6.2-astra", source: "invocation" });
   assert.throws(() => run.resolveWriterModel("claude", "gemini-3", defaults), /no supported writer route/);
   for (const routes of Object.values(defaults.routes)) for (const { route, selfCheck } of routes) { assert.ok(Object.hasOwn(writerRoutes, route), route); assert.ok(selfCheck, route); }
   assert.deepEqual(run.routeOptions("claude-opus-5-5", defaults).map((r) => r.route), ["claude-cli"]);
-  assert.deepEqual(run.routeOptions("gpt-6.1-sol", defaults).map((r) => r.route), ["codex-cli", "codex-app"]);
+  assert.deepEqual(run.routeOptions("gpt-6.2-sol", defaults).map((r) => r.route), ["codex-cli", "codex-app"]);
   assert.throws(() => run.routeOptions("claude-opus-5-5", { ...defaults, retiredRoutes: { "claude-cli": "test" } }), /also listed as retired/);
 
   const GB = 2 ** 30;
@@ -682,9 +682,9 @@ try {
 
   assert.throws(() => mutate(rev, (r) => run.result(r, { ticket: 101, report: write("partial.json", { model: "claude-opus-5-5", effort: "medium", pr: 601 }) })), /lacks permissionMode, reviewedHead, rounds, findings, verification, ci, filed, next/);
   const wrong = structuredClone(run.readRecord(record));
-  run.result(wrong, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "x" }) });
+  run.result(wrong, { ticket: 101, report: write("wrong.json", { model: "claude-opus-5-5", effort: "low", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.2-sol": 1 }, findings: "None", verification: "check", ci: {}, filed: "None", next: "x" }) });
   assert.match(wrong.tickets[101].owner.mismatch, /the writer reported claude-opus-5-5 at low in bypassPermissions, not claude-opus-5-5 at medium in bypassPermissions/);
-  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.1-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" }, filed: "None", next: "await review" }) }));
+  rev = mutate(rev, (r) => run.result(r, { ticket: 101, report: write("report.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: "bypassPermissions", pr: 601, reviewedHead: "f1", rounds: { "gpt-6.2-sol": 1 }, findings: "None", verification: "check", ci: { "hook-tests": "pass" }, filed: "None", next: "await review" }) }));
 
   fs.writeFileSync(stop101, "");
   waitFor(() => !processIdentity(owner101.handle.pid) || processIdentity(owner101.handle.pid).start !== owner101.handle.start, "the stand-in writer to exit");

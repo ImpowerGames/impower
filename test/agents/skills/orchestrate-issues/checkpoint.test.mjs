@@ -125,7 +125,7 @@ try {
     { event: "finished" },
   ].map((r) => JSON.stringify(r)).join("\n") + "\n");
   fs.writeFileSync(worktreePaths(wt503).lock, JSON.stringify({ host: SRC, processIdentity: { pid: 4242, start: "9" }, journal: path.join(jobDir, "journal.jsonl") }));
-  const report = write("report-503.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 603, reviewedHead: "a".repeat(40), rounds: { "gpt-6.1-sol": 1 }, findings: "two blocking, awaiting adjudication", verification: "red/green", ci: "pending", filed: "None", next: "adjudicate round 1" });
+  const report = write("report-503.json", { model: "claude-opus-5-5", effort: "medium", permissionMode: null, pr: 603, reviewedHead: "a".repeat(40), rounds: { "gpt-6.2-sol": 1 }, findings: "two blocking, awaiting adjudication", verification: "red/green", ci: "pending", filed: "None", next: "adjudicate round 1" });
   mutate(rec500, "local_src", (r) => run.result(r, { ticket: 503, report }));
   const blockedDir = path.join(jobRootOf(src), "pr-603", "round-2", "launch-ax-2");
   fs.mkdirSync(blockedDir, { recursive: true });
@@ -188,7 +188,7 @@ try {
   assert.equal(run.ownerStatus(foreignWrapper, { processes: { [process.pid]: { host: SRC, start: "recorded-on-source", state: "exited", launchDirUnused: true } } }, { host: DST }).status, "exited");
 
   const rec500d = path.join(dstPrivate, "run-500.json");
-  const resumeArgs = { record: rec500d, checkout: dst, repository: "acme/widgets", issue: 500, coordinator: "local_dst", harness: "codex", coordinatorModel: "gpt-6.1-sol", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #500; the previous account is out of usage.", concurrency: 4 };
+  const resumeArgs = { record: rec500d, checkout: dst, repository: "acme/widgets", issue: 500, coordinator: "local_dst", harness: "codex", coordinatorModel: "gpt-6.2-sol", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #500; the previous account is out of usage.", concurrency: 4 };
   assert.throws(() => cp.resume(resumeArgs, { github, host: DST, defaults, totalMemory: 64 * GB }), /--evidence/);
   for (const concurrency of [0, 9, 99, 2.5]) assert.throws(() => cp.resume({ ...resumeArgs, concurrency, evidence: "out of usage" }, { github, host: DST, defaults, totalMemory: 64 * GB }), /--concurrency must be 1 to 8/, `concurrency ${concurrency} is refused`);
   assert.equal(fs.existsSync(rec500d), false, "a refused takeover writes no record");
@@ -205,9 +205,9 @@ try {
   assert.ok(kinds["503:handoff-lock"]);
   assert.ok(kinds["504:operation"]);
   const d = run.readRecord(rec500d);
-  assert.equal(d.writer.model, "gpt-6.1-sol", "new writers use the new harness's default");
+  assert.equal(d.writer.model, "gpt-6.2-sol", "new writers use the new harness's default");
   assert.equal(d.tickets[502].owner.model, "claude-opus-5-5", "a running writer keeps its recorded identity");
-  assert.deepEqual(d.tickets[503].results[0].report.rounds, { "gpt-6.1-sol": 1 }, "reports survive the takeover");
+  assert.deepEqual(d.tickets[503].results[0].report.rounds, { "gpt-6.2-sol": 1 }, "reports survive the takeover");
   assert.equal(d.previousCoordinators.at(-1).session, "local_src");
   assert.match(d.previousCoordinators.at(-1).ended, /usage limit/);
   assert.equal(d.previousCoordinators.at(-1).authority.merge, srcRecordCopy.authority.merge, "the previous grant stays as evidence");
@@ -230,7 +230,7 @@ try {
   assert.deepEqual(run.readRecord(rec500d).authority, run.AUTHORITY);
 
   const snapAfter = { ...snap500, tickets: snap500.tickets.map((t) => (t.number === 502 ? { ...t, prs: [{ number: 602, state: "OPEN", isDraft: true, branch: "feat/502-beta", head: "c".repeat(40), rounds: 0 }] } : t)) };
-  const dplan = run.planDispatch({ record: run.readRecord(rec500d), snapshot: snapAfter, preflights: [{ route: "codex-cli", model: "gpt-6.1-sol", verdicts: [501, 502, 503, 504].map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, host: DST });
+  const dplan = run.planDispatch({ record: run.readRecord(rec500d), snapshot: snapAfter, preflights: [{ route: "codex-cli", model: "gpt-6.2-sol", verdicts: [501, 502, 503, 504].map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, host: DST });
   const act = Object.fromEntries(dplan.tickets.map((t) => [t.number, t.action]));
   assert.deepEqual([act[501], act[502], act[503]], ["blocked-owner-unknown", "reconcile-pending", "blocked-owner-unknown"]);
   assert.match(dplan.tickets.find((t) => t.number === 501).reason, /claimed on src-host/);
@@ -247,10 +247,10 @@ try {
   assert.throws(() => mutate(rec500d, "local_dst", (r) => run.release(r, { ticket: 503, observations: { sessions: { local_w503: { state: "absent" } } }, host: DST })), /unknown/);
   mutate(rec500d, "local_dst", (r) => run.release(r, { ticket: 503, observations: { sessions: { local_w503: { state: "archived", host: SRC, source: "maintainer on src-host" } } }, host: DST, evidence: "maintainer archived it" }));
   const snap503 = { ...snapAfter, tickets: snapAfter.tickets.map((t) => (t.number === 503 ? { ...t, worktrees: [] } : t)) };
-  const cplan = run.planDispatch({ record: run.readRecord(rec500d), snapshot: snap503, preflights: [{ route: "codex-cli", model: "gpt-6.1-sol", verdicts: [503, 504].map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, host: DST });
+  const cplan = run.planDispatch({ record: run.readRecord(rec500d), snapshot: snap503, preflights: [{ route: "codex-cli", model: "gpt-6.2-sol", verdicts: [503, 504].map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) }], freeBytes: 100 * GB, defaults, host: DST });
   const entry503 = cplan.tickets.find((t) => t.number === 503);
   assert.equal(entry503.action, "adopt-pr");
-  assert.equal(entry503.continueWith.model, "gpt-6.1-sol");
+  assert.equal(entry503.continueWith.model, "gpt-6.2-sol");
   const cplanFile = write("cplan.json", cplan);
   mutate(rec500d, "local_dst", (r) => run.claim(r, { plan: cplanFile, ticket: 503, worktree: path.join(tmp, "dst-wt-503"), branch: "feat/503-gamma", artifactParent: dstPrivate, operation: "continue", evidence: "released after the maintainer's observation on src-host", host: DST }));
   const brief503 = run.brief(run.readRecord(rec500d), cplanFile, 503, [], defaults);
@@ -304,10 +304,10 @@ try {
   assert.ok(fs.existsSync(marker), "the rival landed between the read and the push");
   assert.equal(git(src, "ls-remote", "origin", "refs/heads/orchestrate-state/issue-910").split("\t")[0], rival910Commit, "a push built on an outdated read never replaces the newer checkpoint");
 
-  const rec700 = init(700, "local_src7", { writerModel: "gpt-6-astra" });
+  const rec700 = init(700, "local_src7", { writerModel: "gpt-6.2-astra" });
   cp.enable(rec700, { coordinator: "local_src7", expectRevision: 1, github, host: SRC });
   const snap700 = { repository: "acme/widgets", issue: { number: 700, state: "open" }, originMain: "x", tickets: [ticket(701, { parent: 700 }), ticket(702, { parent: 700 }), ticket(703, { parent: 700 })] };
-  const astra = (numbers) => ({ route: "codex-cli", model: "gpt-6-astra", verdicts: numbers.map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) });
+  const astra = (numbers) => ({ route: "codex-cli", model: "gpt-6.2-astra", verdicts: numbers.map((n) => ({ ticket: n, effort: "medium", verdict: "available" })) });
   const start700 = (number, slug) => {
     const plan = write(`plan-${number}.json`, run.planDispatch({ record: run.readRecord(rec700), snapshot: snap700, preflights: [astra([701, 702, 703])], freeBytes: 100 * GB, defaults, host: SRC }));
     const worktree = path.join(tmp, `src-wt-${number}`);
@@ -771,7 +771,7 @@ try {
   const rec700d = path.join(tmp, "dst2-private", "run-700.json");
   fs.mkdirSync(path.dirname(rec700d));
   const taken700 = cp.resume({ record: rec700d, checkout: dst2, repository: "acme/widgets", issue: 700, coordinator: "local_dst7", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #700.", evidence: "planned handoff" }, { github, host: DST, defaults, totalMemory: 64 * GB });
-  assert.equal(run.readRecord(rec700d).writer.model, "gpt-6-astra");
+  assert.equal(run.readRecord(rec700d).writer.model, "gpt-6.2-astra");
   assert.match(run.readRecord(rec700d).writer.source, /carried from local_src7/);
   assert.ok(taken700.limitations.some((l) => l.ticket === 702 && l.kind === "snapshot"));
   assert.deepEqual([at(cp.fetchState(dst2, "origin", "acme/widgets", 700).checkpoint, 702).host, at(cp.fetchState(dst2, "origin", "acme/widgets", 700).checkpoint, 702).worktree], [SRC, wt702], "another host's snapshot keeps the entry that describes its host");
@@ -792,7 +792,7 @@ try {
   mutate(rec700d, "local_dst7", (r) => { r.log.pop(); });
   const rec700e = path.join(tmp, "dst2-private", "run-700-second.json");
   cp.resume({ record: rec700e, checkout: dst2, repository: "acme/widgets", issue: 700, coordinator: "local_dst7b", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", invocation: "Use orchestrate-issues for #700.", evidence: "the second account is out of usage" }, { github, host: DST, defaults, totalMemory: 64 * GB });
-  assert.deepEqual([run.readRecord(rec700e).writer.model, run.readRecord(rec700e).invocation.writerModel], ["gpt-6-astra", "gpt-6-astra"], "an explicit writer override survives every takeover");
+  assert.deepEqual([run.readRecord(rec700e).writer.model, run.readRecord(rec700e).invocation.writerModel], ["gpt-6.2-astra", "gpt-6.2-astra"], "an explicit writer override survives every takeover");
   assert.match(run.readRecord(rec700e).writer.source, /carried from local_src7/);
 
   const rec800 = path.join(dstPrivate, "run-800.json");

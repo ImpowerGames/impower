@@ -56,7 +56,7 @@ try {
   record.title = title;
   record.coordinator.harness = "codex";
   owner.route = "codex-app";
-  owner.model = "gpt-6.1-sol";
+  owner.model = "gpt-6.2-sol";
   delete owner.brief;
   const native = brief(record, plan, 301, [], defaults);
   assert.match(native, /native child.*collaboration.send_message.*parent native task address/);

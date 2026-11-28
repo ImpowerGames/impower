@@ -237,7 +237,7 @@ try {
     assert.equal(ig.invokes(record(`Please orchestrate https://github.com/o/tickets/issues/${ISSUE}`)), false, "a link without the skill's name grants nothing");
   }
   for (const text of ["Use orchestrate-issues for #40, but stop at ready PRs.", "Use orchestrate-issues for #40 and do not merge anything.", "Use orchestrate-issues for #40 --stop-at-ready."]) assert.throws(() => run.mergingFor(text, "coordinator"), /asks to stop at ready PRs or not to merge; record --merging maintainer/, text);
-  run.initRecord({ record: recordFile, checkout: src, repository: REPO, issue: ISSUE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.1-sol", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
+  run.initRecord({ record: recordFile, checkout: src, repository: REPO, issue: ISSUE, coordinator: "local_coord", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.2-sol", invocation, merging: "coordinator" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   assert.deepEqual([run.readRecord(recordFile).invocation.merging, run.readRecord(recordFile).authority.merge], ["coordinator", run.MERGE_GRANT], "an explicit invocation, recorded as such, grants the coordinator the scoped merge");
   assert.equal(run.coordinatorMerges(run.readRecord(recordFile)), true);
   assert.equal(cp.enable(recordFile, { coordinator: "local_coord", expectRevision: 1, github: statusGithub, host: SRC }).checkpoint.saved, true);
@@ -252,11 +252,11 @@ try {
   const stopFile = path.join(tmp, "stop-checkout");
   git(tmp, "clone", "-q", remote, stopFile);
   const stopRecordFile = path.join(srcPrivate, "stop.json");
-  run.initRecord({ record: stopRecordFile, checkout: stopFile, repository: REPO, issue: ISSUE, coordinator: "local_stop", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.1-sol", invocation: `${invocation} Stop at ready PRs.`, merging: "maintainer" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
+  run.initRecord({ record: stopRecordFile, checkout: stopFile, repository: REPO, issue: ISSUE, coordinator: "local_stop", harness: "claude", coordinatorModel: "claude-opus-5-5", coordinatorEffort: "high", coordinatorMode: "bypassPermissions", writerModel: "gpt-6.2-sol", invocation: `${invocation} Stop at ready PRs.`, merging: "maintainer" }, { defaults, freeBytes: 100 * GB, totalMemory: 64 * GB, host: SRC });
   const stopRecord = run.readRecord(stopRecordFile);
   assert.deepEqual([stopRecord.invocation.merging, stopRecord.authority.merge, run.coordinatorMerges(stopRecord)], ["maintainer", run.AUTHORITY.merge, false]);
 
-  const preflights = [{ route: "codex-cli", model: "gpt-6.1-sol", verdicts: [41, 42, 43].map((n) => ({ ticket: n, effort: "high", verdict: "available" })) }];
+  const preflights = [{ route: "codex-cli", model: "gpt-6.2-sol", verdicts: [41, 42, 43].map((n) => ({ ticket: n, effort: "high", verdict: "available" })) }];
   const plan = (rec = record(), snapshot = snapshotNow()) => run.planDispatch({ record: rec, snapshot, preflights, freeBytes: 100 * GB, defaults, host: SRC });
   const actions = (p) => Object.fromEntries(p.tickets.map((t) => [t.number, t.action]));
   let p = plan();
@@ -295,7 +295,7 @@ try {
     return { dir, report };
   };
   const reviewed = (pr, round, head) => { const j = journal(pr, round, "undirected", ["undirected"], { head, completed: { undirected: 1 } }); post(pr, `### Adjudication of review ${j.report.id}\n\nEvery finding accepted and fixed, or rejected with evidence.`); return j; };
-  const report = (n, reviewedHead, findings = "None") => change((r) => run.result(r, { ticket: n, report: write(`report-${n}-${clock}.json`, { model: "gpt-6.1-sol", effort: "high", permissionMode: null, pr: 100 + n, reviewedHead, rounds: { "claude-opus-5-5": 1 }, findings, verification: "red/green regression and tooling checks", ci: "all passed", filed: "None", next: "await the coordinator's merge" }) }));
+  const report = (n, reviewedHead, findings = "None") => change((r) => run.result(r, { ticket: n, report: write(`report-${n}-${clock}.json`, { model: "gpt-6.2-sol", effort: "high", permissionMode: null, pr: 100 + n, reviewedHead, rounds: { "claude-opus-5-5": 1 }, findings, verification: "red/green regression and tooling checks", ci: "all passed", filed: "None", next: "await the coordinator's merge" }) }));
   const snapshotFile = (s = snapshotNow()) => write(`snapshot-${clock}.json`, s);
   const gate = (n, rec = record(), facts) => {
     const pr = 100 + n, g = gitOf(src);
