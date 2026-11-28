@@ -13,8 +13,7 @@ import type { ImageLayer } from "@impower/sparkdown/src/compiler/utils/resolveIm
 import { resolveImageReference } from "@impower/sparkdown/src/compiler/utils/resolveImageReference";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { resolvePictureLook, shownImageLayers, type PictureLook } from "@impower/sparkdown/src/morph/look";
-import { morphOverlaps, morphPoseAt, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
-import { MorphTimeline } from "@impower/sparkdown/src/morph/timeline";
+import { morphOverlaps, morphRestPose, parseMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { readMorphReplay } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { cssList } from "@impower/sparkdown/src/morph/cssList";
 import { buildMorphMotion } from "@impower/sparkdown/src/morph/motion";
@@ -218,7 +217,6 @@ import {
 } from "./messages/UpdateElementMessage";
 import {
   type MorphImageContent,
-  type MorphPictureStill,
   type MorphLayerPlay,
   type MorphPicture,
   type LayeredPicture,
@@ -255,7 +253,7 @@ function isVectorFile(layer: ImageLayer): boolean {
 }
 
 function isPictureFile(layer: ImageLayer): boolean {
-  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && isVectorFile(layer));
+  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && !!layer.src);
 }
 
 function isImageFile(layer: ImageLayer): boolean {
@@ -2995,9 +2993,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ? []
       : !poseOf || poseOf === morphRestPose
         ? look.rest
-        : poseOf === this.morphStartPose
-          ? look.start!
-          : shownImageLayers(this.context, this._game.program?.morphs, look.struct, poseOf, pick);
+        : shownImageLayers(this.context, this._game.program?.morphs, look.struct, poseOf, pick);
     return layers.map((layer) => ({ $type: "image", $name: imageName, src: layer.src }));
   }
 
@@ -3063,17 +3059,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const before = from === undefined ? undefined : resolveImageReference(this.context, { $type: "", $name: sortFilteredName(from.asset) });
     const look = resolvePictureLook(this.context, this._game.program?.morphs, image, {
       ...(pick === undefined ? {} : { pick }),
-      startPose: this.morphStartPose,
       ...(before ? { from: { struct: before, ...(from!.pick === undefined ? {} : { pick: from!.pick }) } } : {}),
     });
     this._pictureLooks?.set(key, look);
     return look;
   }
-
-  morphStartPose = (recipe: MorphRecipe): Record<string, string> => {
-    const timeline = new MorphTimeline(this.morphTiming(recipe.name), () => 0);
-    return timeline.at(0).phase === "off" ? morphRestPose(recipe) : morphPoseAt(recipe, timeline.start);
-  };
 
   protected morphTiming(morph: string): MorphTiming {
     const written = this.context.morph?.[morph];
@@ -3410,22 +3400,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (plays.length === 0) {
       return undefined;
     }
-    const content: MorphImageContent = { plays, epoch: this._morphEpoch };
-    const still: MorphPictureStill[] = [];
-    let layer = 0;
-    for (const [index, asset] of assets.entries()) {
-      const rest = this.getBackgroundImageFromString(asset, undefined, pickOf(asset));
-      const span = cssList(rest).length;
-      const start = this.getBackgroundImageFromString(asset, this.morphStartPose, pickOf(asset), froms[index]);
-      if (start !== rest && (froms[index] !== undefined || cssList(start).length === span)) {
-        still.push({ layer, span, image: start });
-      }
-      layer += span;
-    }
-    if (still.length) {
-      content.still = still;
-    }
-    return content;
+    return { plays, epoch: this._morphEpoch };
   }
 
   layeredImageFiles(name: string, pick?: ImagePick): ImageLayer[] | undefined {
@@ -3489,7 +3464,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ? "was not drawn before the line's wait for it ran out"
                 : params.reason === "styled"
                   ? `is an SVG whose root is styled with \`${params.declaration ?? "an unknown declaration"}\`, which the player only draws faithfully for colour and stroke properties and a width and height`
-                  : "could not be read to check that it is a still sRGB image";
+                  : params.reason === "unlisted"
+                    ? "is shown in a picture with a layer that is not an image file, so the player cannot draw the picture on a canvas"
+                    : "could not be read to check that it is a still sRGB image";
     if (params.placeholder) {
       this._game.log(`\`${params.image}\` is not drawn: its file \`${params.file}\` ${why}. The previews show a placeholder in its place, and an exported game shows nothing there.`, "warning");
       return;
