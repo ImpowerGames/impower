@@ -8956,7 +8956,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               .slice(before.length - restart.carried)
               .map((kept): StreamEntry => ({ ...kept, carried: true }))
           : before;
-        const entry = restart && extending && line ? { ...line, carried: true as const } : line;
+        const entry =
+          line && extending && (restart || before[before.length - 1]?.carried)
+            ? { ...line, carried: true as const }
+            : line;
         if (restart && !options.repeat) {
           const moved = before.length - restart.carried;
           const epoch = stream.cleared ?? 0;

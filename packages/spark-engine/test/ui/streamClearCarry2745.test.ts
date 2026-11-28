@@ -488,6 +488,28 @@ describe("a line that continues the newest entry across a clear (I-2745)", () =>
     expect(entries(h)).toEqual(["slight problem doors locked"]);
   });
 
+  test("a later line that continues a carried entry keeps it carried", async () => {
+    const h = await play(`${DEFS}
+${settings("  carry = 1")}
+scene start
+  [[open phone]]
+  RAFFLES: one .. >
+  [[clear phone]] RAFFLES: .. two .. >
+  RAFFLES: .. three >
+end
+`);
+    await click(h);
+    await typed(h);
+    expect(entries(h)).toEqual(["one two"]);
+    expect(carried(h)).toEqual(["one two"]);
+    expect(marked(h, "data-carried")).toEqual([true]);
+    await click(h);
+    await typed(h);
+    expect(entries(h)).toEqual(["one two three"]);
+    expect(carried(h)).toEqual(["one two three"]);
+    expect(marked(h, "data-carried")).toEqual([true]);
+  });
+
   test("a step back and forward again keep one entry", async () => {
     const h = await play(CONTINUED("  clear = run\n  carry = 1"));
     await click(h);
