@@ -799,9 +799,6 @@ export class InterpreterModule extends Module<
     if (imageChunk.control !== "hide" && imageChunk.assets?.length) {
       this._game.module?.assets?.notice("image", imageChunk.assets);
     }
-    if (imageChunk.clauses?.wait) {
-      imageChunk.duration += this.waitDuration(imageChunk);
-    }
     return imageChunk;
   }
 
@@ -852,30 +849,32 @@ export class InterpreterModule extends Module<
 
   protected applyScreenWaitDuration(screenChunk: Chunk): void {
     if (screenChunk.clauses?.wait) {
-      screenChunk.duration += this.waitDuration(screenChunk);
+      screenChunk.duration += this.screenHold(screenChunk);
     }
   }
 
-  protected waitDuration(chunk: Chunk): number {
-    const line = chunk.clauses as { after?: number; over?: number; ease?: string; to?: string } | undefined;
+  protected screenHold(chunk: Chunk): number {
+    const line = chunk.clauses as { after?: number; over?: number; ease?: string } | undefined;
     const entries = chunk.with ?? [];
-    const context = this.context as unknown as AnimationContext;
-    if (chunk.tag === "layout") {
-      const clauses = entries.length
-        ? entries.map((entry) => ({ with: entry.name, ...withTiming(entry) }))
-        : [{ after: line?.after, over: line?.over, ease: line?.ease }];
-      return screenLineEnd(context, chunk.control ?? "", clauses);
-    }
-    const travel = line?.to ? (line.after ?? 0) + (line.over ?? 0) : 0;
+    const clauses = entries.length
+      ? entries.map((entry) => ({ with: entry.name, ...withTiming(entry) }))
+      : [{ after: line?.after, over: line?.over, ease: line?.ease }];
+    return screenLineEnd(this.context as unknown as AnimationContext, chunk.control ?? "", clauses);
+  }
+
+  protected pictureHold(chunk: Chunk, over: number | undefined): number {
+    const line = chunk.clauses as { after?: number; ease?: string; to?: string } | undefined;
+    const entries = chunk.with ?? [];
+    const travel = line?.to ? (line.after ?? 0) + (over ?? 0) : 0;
     const instruction: ImageInstruction = {
-      control: chunk.control as ImageInstruction["control"],
+      control: (chunk.control || "show") as ImageInstruction["control"],
       ...(chunk.assets?.length ? { assets: chunk.assets } : {}),
       ...(entries.length ? { with: entries } : {}),
       ...(line?.after != null ? { after: line.after } : {}),
-      ...(line?.over != null ? { over: line.over } : {}),
+      ...(over != null ? { over } : {}),
       ...(line?.ease != null ? { ease: line.ease } : {}),
     };
-    return Math.max(travel, pictureLineEnd(context, instruction));
+    return Math.max(travel, pictureLineEnd(this.context as unknown as AnimationContext, instruction));
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
@@ -1763,6 +1762,9 @@ export class InterpreterModule extends Module<
               if (c.clauses?.mute) {
                 event.mute = true;
               }
+            }
+            if (c.clauses?.wait) {
+              c.duration += this.pictureHold(c, event.over);
             }
             result.image ??= {};
             ownList(result.image, target);

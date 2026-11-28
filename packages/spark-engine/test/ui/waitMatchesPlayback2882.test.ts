@@ -81,8 +81,13 @@ async function screen(verb: string, effect: string, styled = false) {
   return { beat, played };
 }
 
-async function picture(directive: string) {
-  const h = createHarness(DECLARATIONS, 0, { assets: [ART] });
+const FADING_LAYER = `define backdrop as typewriter with
+  fade_duration = 5
+end
+`;
+
+async function picture(directive: string, prefix = "") {
+  const h = createHarness(`${prefix}${DECLARATIONS}`, 0, { assets: [ART] });
   await h.ready;
   h.jumpToFlow("start");
   expect(h.errors).toEqual([]);
@@ -163,6 +168,18 @@ describe("`wait` holds exactly as long as what a picture line plays (I-2882)", (
     "show backdrop with mixed",
   ])("`[[%s wait]]`", async (directive) => {
     const { beat, played } = await picture(directive);
+    expect(held(beat)).toBe(span(played));
+  });
+
+  it.each([
+    "hide backdrop",
+    "show backdrop bg",
+    "animate backdrop to left",
+    "animate backdrop bg",
+    "hide backdrop with mixed",
+    "hide backdrop over 1s",
+  ])("`[[%s wait]]` on a layer whose typewriter fades holds for what it plays", async (directive) => {
+    const { beat, played } = await picture(directive, FADING_LAYER);
     expect(held(beat)).toBe(span(played));
   });
 
