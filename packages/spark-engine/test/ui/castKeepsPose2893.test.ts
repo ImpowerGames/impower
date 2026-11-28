@@ -265,6 +265,21 @@ end
     expect(h.poses()).toEqual({ mia: [] });
   });
 
+  test("once on an animation that holds a pose plays it a single time and keeps the pose", () => {
+    const h = play(
+      PLAIN,
+      `scene start
+  [[mia@happy with crouch once]]
+  MIA: One.
+  [[mia@sad]]
+  MIA: Two.
+end
+`,
+    );
+    h.tapTo("Two.");
+    expect(h.poses()).toEqual({ mia: ["crouch"] });
+  });
+
   test("a narration line between pictures leaves the kept pose in place, with #clear and without", () => {
     for (const header of [PLAIN, CLEARED]) {
       const h = play(
@@ -413,7 +428,11 @@ end
     expect(animationsOf(after).map((a) => a.name)).not.toContain("crouch");
   });
 
-  test("a save and a checkpoint restore carry the kept pose", () => {
+  test("a save and a checkpoint restore carry the kept pose at its end state", () => {
+    const stillPose = (ui: any) => {
+      const entry = (ui.casts.entries("main") as CastEntry[]).find((e) => e.speaker === "mia");
+      return entry?.image?.["portrait"]?.findLast((e) => e.control === "show" && e.assets?.length)?.with;
+    };
     const h = play(PLAIN, STORY);
     h.tapTo("Two.");
     const checkpointAt = h.game.checkpoints.length - 1;
@@ -422,13 +441,16 @@ end
     h.tapTo("Three.");
     expect(h.game.restoreCheckpoint(checkpointAt)).toBe(true);
     expect(h.poses()).toEqual({ mia: ["crouch"], sam: [] });
+    expect(stillPose(h.ui)).toEqual([{ name: "crouch", after: 0, over: 0 }]);
     const loaded = newGame(h.source);
     expect(loaded.loadToResume(saved!.data)).toBe(true);
     loaded.start();
     expect(posesOf(loaded.module.ui)).toEqual({ mia: ["crouch"], sam: [] });
+    expect(stillPose(loaded.module.ui)).toEqual([{ name: "crouch", after: 0, over: 0 }]);
     const fromSave = newGame(h.source);
     fromSave.load(h.game.save());
     expect(posesOf(fromSave.module.ui)).toEqual({ mia: ["crouch"], sam: [] });
+    expect(stillPose(fromSave.module.ui)).toEqual([{ name: "crouch", after: 0, over: 0 }]);
   });
 
   test("a step back to a line shows the kept pose without its motion", async () => {
