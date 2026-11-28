@@ -1,6 +1,7 @@
 import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import type { LayoutInstruction } from "../../types/Instruction";
 import type { Instructions } from "../../types/Instructions";
+import { ownEntry } from "../../utils/ownEntry";
 import type { Game } from "../Game";
 import type { StartingDisplayMode } from "../messages/SetStartingDisplayModeMessage";
 import { SPEAKER_TARGETS, TEXTSTREAM_LAYOUT } from "./InteractiveFictionPresenter";
@@ -219,7 +220,7 @@ function opensByItself(
   kind: string,
   closedScreens: readonly string[],
 ): boolean {
-  const layout = game.program?.sparkle?.layouts?.[kind];
+  const layout = ownEntry(game.program?.sparkle?.layouts, kind);
   return Boolean(
     layout &&
       kind !== "main" &&
@@ -317,6 +318,11 @@ export function routeLine(
   }
   const key = routed.at(-1)!.name;
   const layout = { ...instructions.layout };
-  layout[key] = [...(layout[key] ?? []), ...routed];
+  Object.defineProperty(layout, key, {
+    value: [...(ownEntry(layout, key) ?? []), ...routed],
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
   return { ...instructions, layout };
 }

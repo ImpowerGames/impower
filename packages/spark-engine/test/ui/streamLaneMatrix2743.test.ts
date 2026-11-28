@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { EventMessage } from "../../src/game/core/classes/messages/EventMessage";
+import { SPEAKER_TARGETS } from "../../src/game/core/classes/presenters/InteractiveFictionPresenter";
 import { createHarness, flushMicrotasks, MAIN_URI } from "./harness/uiTestHarness";
 
 type Harness = ReturnType<typeof createHarness>;
@@ -7,7 +8,7 @@ type Step = { line: string; waits: boolean; pause?: number; layouts: Record<stri
 
 const c = (h: Harness): any => (h.game as any)._coordinator;
 const shown = (h: Harness): string => Object.entries(c(h)?._instructions?.text ?? {})
-  .filter(([target]) => ["dialogue", "action", "note"].includes(target))
+  .filter(([target]) => !target.startsWith("choice ") && !SPEAKER_TARGETS.includes(target))
   .flatMap(([, events]: [string, any]) => events.map((event: any) => event.text)).join("");
 const state = (h: Harness, name: string): [number, number] => [
   h.game.module.ui.streams.entries(name).length,
@@ -292,26 +293,79 @@ end
     expect((await walk(h, ["phone", name], "two")).map((s) => s.waits)).toEqual([true, true]);
   });
 
-  test.each(["constructor", "__proto__"])("a loop on a channel named %s, written on a skipped line, plays when a click finishes the run", async (channel) => {
-    const h = await start(`${actor}define beep as audio with
-  src = "https://example.com/beep.wav"
-end
-${layout("phone")}${settings("phone")}
+  test.each(["constructor", "toString", "__proto__"])("a layout named %s that opens by itself gathers its run", async (name) => {
+    const h = await start(`${layout(name, `note.${name} { text }`)}stream ${name} { advance = auto; pause = 0.8s }
 scene start
-  [[open phone]]
-  RAFFLES: one
-  ((play ${channel} beep loop))
-  RAFFLES: two
-  RAFFLES: three >
+  @${name}: one
+  @${name}: two >
+  The end.
 end
 `);
-    expect(shown(h)).toBe("one");
-    await press(h);
-    h.releaseAssets();
-    for (let i = 0; i < 5; i += 1) await tick(h, 0);
-    expect(shown(h)).toBe("three");
-    expect(c(h)._finishedExecution).toBe(true);
-    expect([...h.game.module.audio.loopsPlaying()].map(([name, sounds]) => [name, [...sounds.keys()]]))
-      .toEqual([[channel, ["audio.beep"]]]);
+    expect(await walk(h, [name], "two")).toEqual([
+      { line: "one", waits: false, pause: 0.8, layouts: { [name]: [2, 1] } },
+      { line: "two", waits: true, layouts: { [name]: [2, 0] } },
+    ]);
+  });
+});
+
+const CAPPED = (second: string) => `${actor}${layout("phone")}${layout(second)}${settings("phone")}${settings(second)}
+scene start
+  [[open phone]]
+${lines(1, 97)}
+  [[open ${second}]]
+${lines(98, 105, " >")}
+end
+`;
+
+describe("a save at a lane's hundredth-line wait (I-2743)", () => {
+  test.each(["log", "__proto__"])("loads still waiting there, beside a layout named %s", async (second) => {
+    const source = CAPPED(second);
+    const h = await start(source);
+    await walk(h, ["phone", second], "l100");
+    await finish(h);
+    expect(c(h)._instructions.auto).toBeUndefined();
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+    const loaded = createHarness(source, 0, { autoOpenAll: false });
+    await loaded.ready;
+    loaded.game.context.system.previewing = undefined;
+    expect(loaded.game.loadToResume(saved!.data)).toBe(true);
+    loaded.game.start();
+    await flushMicrotasks(10);
+    expect(shown(loaded)).toBe("l100");
+    expect(c(loaded)._instructions.auto).toBeUndefined();
+    for (let i = 0; i < 20; i += 1) await tick(loaded);
+    expect(shown(loaded)).toBe("l100");
+    expect(positions(loaded, ["phone", second])).toEqual([100, 3]);
+    await press(loaded);
+    expect(shown(loaded)).toBe("l101");
+    expect(c(loaded)._instructions.auto).toBe(true);
+  });
+
+  test("loads still waiting there with one layout", async () => {
+    const source = `${actor}${layout("phone")}${settings("phone")}
+scene start
+  [[open phone]]
+${lines(1, 105, " >")}
+end
+`;
+    const h = await start(source);
+    await walk(h, ["phone"], "l100");
+    await finish(h);
+    const saved = h.game.saveHere();
+    expect(saved).not.toBeNull();
+    const loaded = createHarness(source, 0, { autoOpenAll: false });
+    await loaded.ready;
+    loaded.game.context.system.previewing = undefined;
+    expect(loaded.game.loadToResume(saved!.data)).toBe(true);
+    loaded.game.start();
+    await flushMicrotasks(10);
+    expect(shown(loaded)).toBe("l100");
+    for (let i = 0; i < 20; i += 1) await tick(loaded);
+    expect(shown(loaded)).toBe("l100");
+    expect(c(loaded)._instructions.auto).toBeUndefined();
+    await press(loaded);
+    expect(shown(loaded)).toBe("l101");
+    expect(state(loaded, "phone")).toEqual([105, 4]);
   });
 });

@@ -463,6 +463,8 @@ export class Game<T extends M = {}> {
 
   protected _resumeStill = false;
 
+  protected _resumeRequeued = false;
+
   protected _savesSceneEntries = false;
 
   protected _runtimeErrorsReported = 0;
@@ -2611,6 +2613,7 @@ export class Game<T extends M = {}> {
       this.noteSceneEntry(null);
       if (resumed && !resumed.choices?.length) {
         this.module.interpreter.requeue(resumed);
+        this._resumeRequeued = true;
       }
       this.continue(true);
       this._resumeStill = false;
@@ -3886,13 +3889,15 @@ export class Game<T extends M = {}> {
     if (traversal !== "continue" || this._simulation === "simulating") {
       return false;
     }
-    return streamRun(this, this.module.interpreter.queuedBeats).open;
+    return streamRun(this, this.module.interpreter.queuedBeats, this._resumeRequeued).open;
   }
 
   protected flushBeat(): Instructions | undefined {
     const interpreter = this.module.interpreter;
     const beat = interpreter.flush();
-    return beat && markRun(this, beat, interpreter.queuedBeats);
+    const counted = this._resumeRequeued;
+    this._resumeRequeued = false;
+    return beat && markRun(this, beat, interpreter.queuedBeats, counted);
   }
 
   protected insideSteppedFrame(
@@ -3925,6 +3930,7 @@ export class Game<T extends M = {}> {
           : {}),
       });
       this._resumeStill = false;
+      this._resumeRequeued = false;
       if (this._simulation !== "simulating") {
         this.noteShownChoices(instructions);
         this._shownBeatOnScreen = instructions;

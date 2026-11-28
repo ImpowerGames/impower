@@ -97,7 +97,11 @@ const restarts = (own: LayoutInstruction[], layout: string): boolean =>
       (event.control === LayoutVerb.clear || event.control === LayoutVerb.close),
   );
 
-export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun {
+export function streamRun(
+  game: Game,
+  beats: readonly Instructions[],
+  firstCounted = false,
+): StreamRun {
   const [first, ...rest] = beats;
   const lanes = new Map<string, StreamLane>();
   if (!first || !holdsStreams(game)) {
@@ -109,7 +113,7 @@ export function streamRun(game: Game, beats: readonly Instructions[]): StreamRun
   for (const gathering of gatheringsOf(game, routedFirst, events)) {
     const position = restarts(events, gathering.layout)
       ? 1
-      : game.module.ui.streams.runLines(gathering.layout) + 1;
+      : Math.max(game.module.ui.streams.runLines(gathering.layout) + (firstCounted ? 0 : 1), 1);
     const ends = endsRun(first, gathering);
     lanes.set(gathering.layout, {
       gathering,
@@ -158,9 +162,10 @@ export function markRun(
   game: Game,
   beat: Instructions,
   queued: readonly Instructions[],
+  firstCounted = false,
 ): Instructions {
   const { auto: _auto, pause: _pause, ...plain } = beat;
-  const lanes = [...streamRun(game, [plain, ...queued]).lanes.values()];
+  const lanes = [...streamRun(game, [plain, ...queued], firstCounted).lanes.values()];
   const advances =
     lanes.length > 0 &&
     lanes.every(
