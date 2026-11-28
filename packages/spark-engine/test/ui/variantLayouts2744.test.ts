@@ -278,6 +278,30 @@ end
 `);
     expect(shown(h)).toBe("hello");
     expect(mounted(h)).toEqual(["phone"]);
+    const receive = created(h, "dialogue").find(
+      (params) => params.attributes?.["data-variant"] === "receive",
+    );
+    expect(receive).toBeDefined();
+    expect(writtenTo(h, "dialogue", receive.element)).toEqual(["hello"]);
+  });
+
+  test("a stream in a screen's body does not pick a layout, so the line shows in the dialogue box", async () => {
+    const h = await play(`${DEFS}
+screen inbox {
+  stream { dialogue.bubble #variant=receive { text } }
+  slot
+}
+
+layout phone in inbox {
+  decoration
+}
+
+scene start
+  BUNNY [receive]: hello
+end
+`);
+    expect(shown(h)).toBe("hello");
+    expect(mounted(h)).toEqual(["dialogue"]);
   });
 
   test("a [receive] line opens the layout that uses a component holding a receive dialogue element", async () => {

@@ -1,7 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import type { SparkProgram } from "../types/SparkProgram";
 import type { ElementNode } from "../types/SparkleNode";
-import { isCast } from "./layoutStreams";
+import { isCast, isTemplated } from "./layoutStreams";
 
 type Sparkle = SparkProgram["sparkle"];
 
@@ -64,9 +64,9 @@ export function layoutVariantLimits(sparkle: Sparkle | undefined, layoutName: st
   const components = sparkle.components ?? {};
   const expanded = new Set<string>();
   const found: VariantLimit[] = [];
-  const visit = (value: unknown, source: string): void => {
+  const visit = (value: unknown, source: string, shared = false): void => {
     if (Array.isArray(value)) {
-      value.forEach((item) => visit(item, source));
+      value.forEach((item) => visit(item, source, shared));
       return;
     }
     if (!value || typeof value !== "object") {
@@ -75,7 +75,7 @@ export function layoutVariantLimits(sparkle: Sparkle | undefined, layoutName: st
     const node = value as Record<string, unknown>;
     if (node["kind"] === "element") {
       const element = node as unknown as ElementNode;
-      if (isCast(element)) {
+      if (isCast(element) || (shared && isTemplated(element))) {
         return;
       }
       const variant = elementVariant(element);
@@ -85,18 +85,18 @@ export function layoutVariantLimits(sparkle: Sparkle | undefined, layoutName: st
       const body = components[element.tag];
       if (body && !expanded.has(element.tag)) {
         expanded.add(element.tag);
-        visit(body.children, variantSource("component", element.tag));
+        visit(body.children, variantSource("component", element.tag), shared);
       }
     }
     for (const child of Object.values(node)) {
       if (child !== null && typeof child === "object") {
-        visit(child, source);
+        visit(child, source, shared);
       }
     }
   };
   visit(layout.children, variantSource("layout", layoutName));
   if (layout.screen) {
-    visit(sparkle.screens?.[layout.screen]?.children, variantSource("screen", layout.screen));
+    visit(sparkle.screens?.[layout.screen]?.children, variantSource("screen", layout.screen), true);
   }
   cached.set(layoutName, found);
   return found;
@@ -153,7 +153,7 @@ export function variantLayoutKinds(
 ): string[] {
   const kinds = layoutVariantLimits(sparkle, layout)
     .filter((limit) => limit.variant === variant)
-    .map((limit) => limit.node.tag)
+    .flatMap((limit) => elementNames(limit.node))
     .filter((kind) => !NOT_LINE_KINDS.has(kind));
   return [...new Set(kinds)].filter((kind) => variantLayouts(sparkle, kind, variant)[0] === layout);
 }

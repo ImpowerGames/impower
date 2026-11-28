@@ -172,7 +172,22 @@ describe("hover on #variant= in a layout (I-2744)", { timeout: 60000 }, () => {
     const hover = await hoverAt(`${PHONE}${SCENE}`, "#variant=receive");
     expect(hover?.marked).toBe("#variant=receive");
     expect(hover?.value).toContain("limits this element to lines labelled `receive`");
-    expect(hover?.value).toContain("`phone` opens by itself for `receive` dialogue lines");
+    expect(hover?.value).toContain(
+      "`phone` opens by itself for a `receive` line written to `dialogue`, `bubble` or `incoming`",
+    );
+  });
+
+  it("names a kind the element takes through a class, as routing does", async () => {
+    const hover = await hoverAt(
+      `layout phone {
+  stream {
+    bubble.dialogue #variant=receive { text }
+  }
+}
+${SCENE}`,
+      "#variant=receive",
+    );
+    expect(hover?.value).toContain("`phone` opens by itself for a `receive` line written to `bubble` or `dialogue`");
   });
 
   it("does not claim a layout opens when only its names are limited", async () => {

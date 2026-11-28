@@ -12,15 +12,17 @@ const VARIANTS_GUIDE =
 
 const VALUE = /^#variant=(["']?)([\p{L}\p{N}_]+)\1$/u;
 
-const listed = (words: readonly string[]) =>
-  words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : (words[0] ?? "");
+const listed = (words: readonly string[]) => {
+  const named = words.map((word) => `\`${word}\``);
+  return named.length > 1 ? `${named.slice(0, -1).join(", ")} or ${named.at(-1)}` : (named[0] ?? "");
+};
 
 export const variantPropDocumentation = (variant: string, layout: string, kinds: readonly string[]) =>
   [
     `\`#variant=${variant}\` limits this element to lines labelled \`${variant}\` in their cue's brackets, as \`BUNNY [${variant}]:\` is labelled \`${variant}\`. In a stream, a \`${variant}\` line makes its entry from this template ahead of a template with no \`#variant\`.`,
     ...(kinds.length > 0 && layout
       ? [
-          `\`${layout}\` opens by itself for \`${variant}\` ${listed(kinds)} lines, unless a layout you opened already holds them, and closes at the first line that belongs in a different layout.`,
+          `\`${layout}\` opens by itself for a \`${variant}\` line written to ${listed(kinds)}, as \`BUNNY [${variant}]:\` writes to \`dialogue\`, unless a layout you opened already holds that line, and closes at the first line that belongs in a different layout.`,
         ]
       : []),
     `[Variants](${VARIANTS_GUIDE})`,
