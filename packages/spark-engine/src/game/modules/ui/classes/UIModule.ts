@@ -361,6 +361,7 @@ interface Retirement {
   epoch: number;
   root: Element | undefined;
   pin?: string;
+  holds?: number;
 }
 
 interface PictureExit {
@@ -2840,7 +2841,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     void this.present(elements, "show");
   }
 
-  protected retireElement(element: Element, name?: string, pin?: string): void {
+  protected retireElement(element: Element, name?: string, pin?: string, beside: Animation[] = []): void {
     const retiring: Retirement = {
       ...(name ? { name } : {}),
       held: this.heldNames(element),
@@ -2848,13 +2849,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       epoch: this._game.connection.epoch,
       root: this._root,
       ...(pin ? { pin } : {}),
+      ...(beside.length ? { holds: 2 } : {}),
     };
     element.remove();
     this._retiring.add(retiring);
-    const owned = this.composingLine() != null;
+    const line = this.composingLine();
     const ended = this.present([element], "hide", () => ({ retiring }));
-    if (!owned) {
+    if (!line) {
       void ended.then(() => this.retire(retiring));
+    }
+    if (!beside.length) {
+      return;
+    }
+    let released = false;
+    const release = () => {
+      if (!released) {
+        released = true;
+        this.retire(retiring);
+      }
+    };
+    if (line) {
+      this.own(line, {
+        phase: "leave",
+        removes: true,
+        start: () => this.animateElements([{ element, animations: beside }]),
+        finish: release,
+        settle: release,
+      });
+    } else {
+      void this.animateElements([{ element, animations: beside }]).then(release);
     }
   }
 
@@ -5957,8 +5980,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     direction: "enter" | "exit",
     clauses: LayoutClauses[] | undefined,
     instant: boolean,
+    styled = false,
   ): Animation[] {
-    return layoutAnimations(this.context as AnimationContext, direction, clauses, instant);
+    return layoutAnimations(this.context as AnimationContext, direction, clauses, instant, styled);
   }
 
   withEntries(e: { with?: WithInstruction[] }): WithInstruction[] {
@@ -6081,16 +6105,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._screenEdits = edits;
       }
     }
-    if (layoutArrivesByStyle(this.context as AnimationContext, "enter", clauses) && !instant && this.moving()) {
+    const styled =
+      layoutArrivesByStyle(this.context as AnimationContext, "enter", clauses) && !instant && this.moving();
+    const enter = routed
+      ? []
+      : this.resolveLayoutAnimations("enter", clauses, instant, styled);
+    if (styled) {
       const frame = layout.screen
         ? this._mountedScreens.get(layout.screen)
         : undefined;
       this.arrive([frame && frame !== framed ? frame.element : element]);
+      if (enter.length) {
+        const line = this.composingLine();
+        if (line) {
+          this.own(line, {
+            phase: "arrive",
+            start: () => this.animateElements([{ element, animations: enter }]),
+            finish: () => {},
+            settle: () => {},
+          });
+        } else {
+          void this.animateElements([{ element, animations: enter }]);
+        }
+      }
       return;
     }
-    const enter = routed
-      ? []
-      : this.resolveLayoutAnimations("enter", clauses, instant);
     if (enter.length && !instant) {
       const line = this.composingLine();
       if (line) {
@@ -6154,22 +6193,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       );
     }
     const element = leaving?.element ?? entry.element;
-    if (
-      layoutArrivesByStyle(this.context as AnimationContext, "exit", clauses) &&
-      !instant &&
-      this.moving()
-    ) {
+    const styled =
+      layoutArrivesByStyle(this.context as AnimationContext, "exit", clauses) && !instant && this.moving();
+    const exit = routed
+      ? []
+      : this.resolveLayoutAnimations("exit", clauses, instant, styled);
+    if (styled) {
       this._mountedLayouts.delete(name);
       this.retireElement(
         element,
         name,
         this._game.module.assets?.retireLayout(name),
+        exit,
       );
       return;
     }
-    const exit = routed
-      ? []
-      : this.resolveLayoutAnimations("exit", clauses, instant);
     if (exit.length && !instant && this._compose) {
       const retiring: Retirement = {
         name,
@@ -6211,6 +6249,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected retire(r: Retirement): void {
     if (!this._retiring.has(r)) {
+      return;
+    }
+    if (r.holds && --r.holds > 0) {
       return;
     }
     if (this.superseded(r.epoch) && r.root !== this._root) {
@@ -6361,7 +6402,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const transition = this.context.config?.ui?.ending_transition;
     this.openLayout(
       "ending",
-      transition ? [{ with: transition }] : undefined,
+      transition ? [{ using: transition }] : undefined,
       Boolean(this.context.system.previewing) || !this.context.system.transitions,
     ).catch((e) => {
       this.reportRuntimeError("Could not open the ending layout", e);
@@ -6391,7 +6432,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._mountedLayouts.has("loading")) {
       this._loading.opening = this.openLayout(
         "loading",
-        resolved ? [{ with: resolved }] : undefined,
+        resolved ? [{ using: resolved }] : undefined,
         !this.context.system.transitions,
       ).catch((e) => {
         this.reportRuntimeError("Could not open the loading layout", e);
@@ -6445,7 +6486,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     await this.closeLayout(
       "loading",
-      loading.transition ? [{ with: loading.transition }] : undefined,
+      loading.transition ? [{ using: loading.transition }] : undefined,
       !this.context.system.transitions,
     );
   }
@@ -6718,9 +6759,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     const runOwn = (e: LayoutInstruction): Promise<void> => {
       const entries = this.withEntries(e);
-      const clauses: LayoutClauses[] = entries.length
-        ? entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) }))
-        : [{ after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease }];
+      const clauses: LayoutClauses[] = [
+        { ...(e.using ? { using: e.using } : {}), after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease },
+        ...entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) })),
+      ];
       switch (e.control) {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant, Boolean(e.auto));

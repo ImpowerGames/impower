@@ -24,6 +24,7 @@ export interface AnimationEvent {
 
 export interface LayoutClauses {
   with?: string;
+  using?: string;
   after?: number;
   afterIsBeatOffset?: true;
   over?: number;
@@ -235,17 +236,40 @@ export const layoutAnimations = (
   direction: "enter" | "exit",
   clauses: LayoutClauses[] | undefined,
   instant: boolean,
-): Animation[] =>
-  (clauses?.length ? clauses : [{}]).flatMap((c) => {
-    const animation = layoutAnimation(context, direction, c, instant);
-    return animation ? [animation] : [];
-  });
+  styled = false,
+): Animation[] => {
+  const written = clauses?.length ? clauses : [{}];
+  const line = written.find((c) => !c.with) ?? {};
+  const own = line.using
+    ? animationDefinition(
+        context,
+        armEvent(
+          context,
+          {
+            name: line.using,
+            after: line.after,
+            ...beatOffset(line),
+            over: line.over,
+            ...(line.ease !== undefined ? { ease: line.ease } : {}),
+          },
+          direction === "enter" ? "on_show" : "on_hide",
+        ),
+        instant,
+      )
+    : styled
+      ? undefined
+      : layoutAnimation(context, direction, line, instant);
+  return [
+    ...(own ? [own] : []),
+    ...written.filter((c) => c.with).flatMap((c) => layoutAnimation(context, direction, c, instant) ?? []),
+  ];
+};
 
 export const layoutArrivesByStyle = (
   context: AnimationContext | undefined,
   direction: "enter" | "exit",
   clauses: LayoutClauses[] | undefined,
-): boolean => !clauses?.some((c) => c.with) && presenceStyleBlocks(context?.style)[direction === "enter" ? "show" : "hide"];
+): boolean => !clauses?.some((c) => c.using) && presenceStyleBlocks(context?.style)[direction === "enter" ? "show" : "hide"];
 
 export const pictureLineEnd = (context: AnimationContext | undefined, e: ImageInstruction): number => {
   const plays = pictureLineAnimations(context, e, false);
@@ -272,7 +296,7 @@ export const screenLineEnd = (
           : [];
   return animationsEnd(
     directions.flatMap((direction) =>
-      layoutArrivesByStyle(context, direction, clauses) ? [] : layoutAnimations(context, direction, clauses, false),
+      layoutAnimations(context, direction, clauses, false, layoutArrivesByStyle(context, direction, clauses)),
     ),
   );
 };

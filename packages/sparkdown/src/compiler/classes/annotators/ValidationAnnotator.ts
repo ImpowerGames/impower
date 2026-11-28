@@ -816,19 +816,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     const usings = directive.clauses.filter((clause) => clause.word.text === "using").map((clause) => clause.word);
     if (usings.length === 0) return;
     const control = directive.control?.text;
-    const transitionedLine =
-      directive.kind === "load"
-        ? "load chapter2"
-        : directive.kind === "cutscene"
-          ? "play intro"
-          : control === LayoutVerb.navigate
-            ? "navigate main to inventory"
-            : `${control ?? LayoutVerb.open} inventory`;
+    const transitionedLine = directive.kind === "load" ? "load chapter2" : "play intro";
     const misplaced =
       directive.bracket === "audio"
         ? "`using` names how a picture arrives or leaves, so it does not belong on a sound line\n> e.g. `[[show portrait hero using fade]]`"
-        : directive.kind !== "image"
-          ? `\`using\` belongs on a picture line: a \`${control ?? directive.kind}\` line names its transition with \`with\`\n> e.g. \`[[${transitionedLine} with fade]]\``
+        : directive.kind === "load" || directive.kind === "cutscene"
+          ? `\`using\` belongs on a picture or screen line: a \`${control ?? directive.kind}\` line names its transition with \`with\`\n> e.g. \`[[${transitionedLine} with fade]]\``
           : control === "animate" && directive.names.length === 0
             ? "`using` names how the picture an `animate` adds arrives, and this `animate` names no picture\n> e.g. `[[animate backdrop dusk using fade]]`"
             : undefined;
@@ -836,8 +829,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       for (const word of usings) issue(misplaced, word.from, word.to, "error");
       return;
     }
+    const oneUsing =
+      directive.kind === "layout"
+        ? control === LayoutVerb.navigate
+          ? "navigate main to inventory using fade with shake"
+          : `${control ?? LayoutVerb.open} inventory using fade with shake`
+        : "show portrait hero using fade with shake";
     for (const word of usings.slice(1)) {
-      issue("A line takes one `using`\n> e.g. `[[show portrait hero using fade with shake]]`", word.from, word.to, "error");
+      issue(`A line takes one \`using\`\n> e.g. \`[[${oneUsing}]]\``, word.from, word.to, "error");
     }
   }
 

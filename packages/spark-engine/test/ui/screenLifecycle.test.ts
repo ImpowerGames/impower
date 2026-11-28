@@ -110,7 +110,7 @@ describe("screen lifecycle ([[open/close SCREEN]])", () => {
     expect(hudUpdate).toBeUndefined();
   });
 
-  test("clauses (with/over/after/ease) reach the enter animation", async () => {
+  test("the line's using, over, after and ease reach the enter animation", async () => {
     const h = createHarness(
       `layout main {
   textbox {
@@ -124,7 +124,7 @@ layout hud {
 }
 
 scene start
-  [[open hud with fade over 0.5s after 0.2s ease ease_out]]
+  [[open hud using fade over 0.5s after 0.2s ease ease_out]]
   Hello.
 end
 `,

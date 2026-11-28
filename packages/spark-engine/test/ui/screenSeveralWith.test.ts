@@ -41,16 +41,16 @@ const drive = async (h: ReturnType<typeof createHarness>, instant = false) => {
 };
 
 describe("several `with` clauses on open, close and navigate lines", () => {
-  test("open plays fadein and shake together; close plays fadeout and shake, then removes", async () => {
+  test("open plays its `using` fadein and the shake together; close plays fadeout and shake, then removes", async () => {
     const h = createHarness(
       `${MAIN}layout inventory {
   text "Bag"
 }
 
 scene start
-  [[open inventory with fade over 0.3s with shake over 0.5s]]
+  [[open inventory using fade over 0.3s with shake over 0.5s]]
   Hello.
-  [[close inventory with fade over 0.2s with shake over 0.4s]]
+  [[close inventory using fade over 0.2s with shake over 0.4s]]
   Bye.
 end
 `,
@@ -97,7 +97,7 @@ layout settings in menu {
 scene start
   [[open pause]]
   Hello.
-  [[navigate menu to settings with fade over 0.3s with shake over 0.5s]]
+  [[navigate menu to settings using fade over 0.3s with shake over 0.5s]]
   Bye.
 end
 `,
@@ -135,7 +135,7 @@ end
     expect(beat!.end).toBeCloseTo(0.9);
   });
 
-  test("one `with` plays the same single animation and timing as before", async () => {
+  test("a `using` transition alone plays its one animation, timed by the line", async () => {
     const h = createHarness(
       `${MAIN}screen menu {
 }
@@ -147,11 +147,11 @@ layout settings in menu {
 }
 
 scene start
-  [[open pause with fade over 0.3s after 0.1s]]
+  [[open pause using fade over 0.3s after 0.1s]]
   Hello.
-  [[navigate menu to settings with fade over 0.4s]]
+  [[navigate menu to settings using fade over 0.4s]]
   Bye.
-  [[close settings with fade over 0.2s]]
+  [[close settings using fade over 0.2s]]
   End.
 end
 `,
@@ -180,7 +180,7 @@ end
     ]);
   });
 
-  test("a style with @show and @hide plays only the line's `with` clauses", async () => {
+  test("`using` takes the place of a style's @show and @hide, and each `with` plays beside it", async () => {
     const h = createHarness(
       `${MAIN}style bag {
   opacity = 1
@@ -195,9 +195,9 @@ layout inventory {
 }
 
 scene start
-  [[open inventory with fade over 0.3s with shake over 0.5s]]
+  [[open inventory using fade over 0.3s with shake over 0.5s]]
   Hello.
-  [[close inventory with fade over 0.2s with shake over 0.4s]]
+  [[close inventory using fade over 0.2s with shake over 0.4s]]
   Bye.
 end
 `,

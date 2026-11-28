@@ -8,14 +8,15 @@ and refer to them by name.
 
 ## 8.1 Using animations
 
-The quickest way to animate is to reference a named animation in a **transition
-clause** when you open, close, or navigate a view (see
-[Screens & Navigation](./Screens.md)):
+The quickest way to animate is to name a transition with `using` when you open,
+close, or navigate a view, and an animation with `with` to play beside its
+arrival or departure (see [Screens & Navigation](./Screens.md)):
 
 ```sparkdown
 scene start
-  [[open inventory with fade over 0.3s]]
-  [[navigate menu to settings with slide over 0.25s ease ease_out]]
+  [[open inventory using fade over 0.3s]]
+  [[open inventory with shake]]
+  [[navigate menu to settings using fade over 0.25s ease ease_out]]
 end
 ```
 
@@ -135,8 +136,9 @@ and the portrait it replaces fades out while it shakes. The second fades the
 portrait out while it makes one turn. A picture that leaves is removed once the
 longest of its animations has ended.
 
-`open`, `close` and `navigate` play only the last `with` on their line. `load`,
-`play` and sound lines take one `with`, and a second is reported.
+`open`, `close` and `navigate` play every `with` on their line together, beside
+the layout's own arrival or departure. `load`, `play` and sound lines take one
+`with`, and a second is reported.
 
 ### Arriving and leaving with `using`
 
@@ -176,8 +178,14 @@ A line takes one `using`, written anywhere on it; a second is reported. Only a
 transition follows `using`: `[[show portrait hero using shake]]` is reported on
 `shake`, and the editor's quick fix rewrites the line to `with shake`. `using`
 is also reported on an `animate` that names no picture, where nothing arrives or
-leaves, and on sound lines. `open`, `close`, `navigate`, `load` and `play` name
-their transition with `with`.
+leaves, and on sound lines. `load` and `play` name their transition with `with`.
+
+`open`, `close` and `navigate` take `using` too. There it takes the place of the
+layout's `@initial`, `@show` and `@hide` blocks, or of the built-in `show` and
+`hide` on a layout with none, for that one change, and every `with` plays beside
+it. `[[open panel with shake]]` plays the panel's styled arrival and the shake
+together; `[[open panel using fade]]` fades it in instead of its styled arrival.
+See [Screens & Navigation](./Screens.md#64-transitions).
 
 Pan and zoom are framings, not animations: see [Framings](./Framings.md). An
 animation is for an effect that plays and returns to rest, such as `shake`. A

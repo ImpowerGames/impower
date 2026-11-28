@@ -78,7 +78,7 @@ import {
   alternatorKeywordDocumentation,
   alternatorOptionStartAt,
 } from "./alternatorKeywordHelp";
-import { isLayoutVerb, LAYOUT_VERBS } from "@impower/sparkdown/language/sparkdown.layout-verbs";
+import { isLayoutVerb, LAYOUT_VERBS, LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import { layoutDirectiveTargetNames } from "@impower/sparkdown/src/compiler/utils/layoutDirectiveTargets";
 import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
@@ -2094,6 +2094,7 @@ const completionsAt = (
       );
     const takesUsing = (control: string) => {
       if (control === "" || control === "show" || control === "hide") return true;
+      if (isLayoutVerb(control)) return control !== LayoutVerb.clear;
       const command = leftStack.find((n) => n.type.name === "ImageCommand");
       return (
         control === "animate" &&
