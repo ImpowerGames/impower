@@ -45,6 +45,24 @@ animation flip {
   }
 }
 
+animation halfbob {
+  keyframes {
+    {
+      transform = "translateY(0%)"
+    }
+    {
+      transform = "translateY(2%)"
+    }
+    {
+      transform = "translateY(0%)"
+    }
+  }
+  timing {
+    duration = "1s"
+    iterations = 0.5
+  }
+}
+
 animation bob {
   keyframes {
     {
@@ -280,6 +298,21 @@ end
     expect(h.poses()).toEqual({ mia: ["crouch"] });
   });
 
+  test("an animation whose play stops partway keeps the frame it stops on", () => {
+    const h = play(
+      PLAIN,
+      `scene start
+  [[mia@happy with halfbob]]
+  MIA: One.
+  [[mia@sad]]
+  MIA: Two.
+end
+`,
+    );
+    h.tapTo("Two.");
+    expect(h.poses()).toEqual({ mia: ["halfbob"] });
+  });
+
   test("a narration line between pictures leaves the kept pose in place, with #clear and without", () => {
     for (const header of [PLAIN, CLEARED]) {
       const h = play(
@@ -428,6 +461,24 @@ end
     expect(animationsOf(after).map((a) => a.name)).not.toContain("crouch");
   });
 
+  test("a kept loop keeps running on the new picture and never plays on the picture it replaces", async () => {
+    const { h, ui, to } = await live(`${PLAIN}
+scene start
+  [[mia@happy with bob loop]]
+  MIA: One.
+  [[mia@sad]]
+  MIA: Two.
+end
+`);
+    await to("Two.");
+    const content = sentContent(h.messages, ui, "mia");
+    const looping = (content?.enterAnimations ?? []).filter((a: any) => a.$name === "bob");
+    expect(looping.map((a: any) => [a.timing.duration, a.timing.iterations])).toEqual([["1s", "infinite"]]);
+    expect(
+      (content?.previousHideAnimations ?? []).filter((a: any) => a.$name === "bob" || a.timing.iterations === "infinite"),
+    ).toEqual([]);
+  });
+
   test("a save and a checkpoint restore carry the kept pose at its end state", () => {
     const stillPose = (ui: any) => {
       const entry = (ui.casts.entries("main") as CastEntry[]).find((e) => e.speaker === "mia");
@@ -441,16 +492,16 @@ end
     h.tapTo("Three.");
     expect(h.game.restoreCheckpoint(checkpointAt)).toBe(true);
     expect(h.poses()).toEqual({ mia: ["crouch"], sam: [] });
-    expect(stillPose(h.ui)).toEqual([{ name: "crouch", after: 0, over: 0 }]);
+    expect(stillPose(h.ui)).toEqual([{ name: "crouch", after: 0, over: 0, kept: true }]);
     const loaded = newGame(h.source);
     expect(loaded.loadToResume(saved!.data)).toBe(true);
     loaded.start();
     expect(posesOf(loaded.module.ui)).toEqual({ mia: ["crouch"], sam: [] });
-    expect(stillPose(loaded.module.ui)).toEqual([{ name: "crouch", after: 0, over: 0 }]);
+    expect(stillPose(loaded.module.ui)).toEqual([{ name: "crouch", after: 0, over: 0, kept: true }]);
     const fromSave = newGame(h.source);
     fromSave.load(h.game.save());
     expect(posesOf(fromSave.module.ui)).toEqual({ mia: ["crouch"], sam: [] });
-    expect(stillPose(fromSave.module.ui)).toEqual([{ name: "crouch", after: 0, over: 0 }]);
+    expect(stillPose(fromSave.module.ui)).toEqual([{ name: "crouch", after: 0, over: 0, kept: true }]);
   });
 
   test("a step back to a line shows the kept pose without its motion", async () => {

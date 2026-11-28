@@ -58,6 +58,7 @@ export interface WithInstruction {
   ease?: string;
   loop?: boolean;
   once?: boolean;
+  kept?: true;
 }
 
 export interface ImageInstruction extends IInstruction {

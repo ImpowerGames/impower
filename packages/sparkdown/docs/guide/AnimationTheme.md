@@ -184,7 +184,7 @@ animation pulse {
   style props (`opacity`, `scale`, `translate`, `background-position`, …).
 - **`timing { … }`** controls `duration`, `delay`, `easing`, `iterations`,
   `direction`, and `fill`.
-- **`fill`** says whether the last keyframe stays after the animation ends: `"both"` and `"forwards"` keep it, and `"none"` lets the element go back to how it was. An animation that names no `fill` takes `"both"`. In a [cast](./Streams.md#hiding-and-animating-one-character), an animation that keeps a last keyframe different from its first is a pose, which the character holds through later pictures that write no `with`.
+- **`fill`** says whether the last keyframe stays after the animation ends: `"both"` and `"forwards"` keep it, and `"none"` lets the element go back to how it was. An animation that names no `fill` takes `"both"`. In a [cast](./Streams.md#hiding-and-animating-one-character), an animation that holds a frame different from the one its play starts on is a pose, which the character holds through later pictures that write no `with`.
 - As in any block, entries are separated by a new line or a `;` (see
   [Blocks](./Structure.md#blocks)).
 - Refer to it by name (`pulse`) in a transition clause or the `animation` prop.

@@ -91,25 +91,92 @@ export const animationDefinition = (
 
 const KEYFRAME_TIMING = new Set(["offset", "easing", "composite"]);
 
+type PlacedFrame = { offset: number; frame: Record<string, unknown> | null };
+
+const offsetOf = (frame: Record<string, unknown> | undefined): number | undefined => {
+  const offset = frame?.["offset"];
+  if (typeof offset === "number") {
+    return offset;
+  }
+  if (typeof offset === "string") {
+    const value = parseFloat(offset);
+    return Number.isFinite(value) ? (offset.trim().endsWith("%") ? value / 100 : value) : undefined;
+  }
+  return undefined;
+};
+
+const placedFrames = (frames: Record<string, unknown>[]): PlacedFrame[] => {
+  const offsets = frames.map(offsetOf);
+  if (frames.length === 1) {
+    offsets[0] ??= 1;
+  } else {
+    offsets[0] ??= 0;
+    offsets[offsets.length - 1] ??= 1;
+  }
+  for (let i = 1; i < offsets.length - 1; i += 1) {
+    if (offsets[i] === undefined) {
+      let next = i;
+      while (offsets[next] === undefined) {
+        next += 1;
+      }
+      const from = offsets[i - 1]!;
+      const to = offsets[next]!;
+      for (let k = i; k < next; k += 1) {
+        offsets[k] = from + ((to - from) * (k - i + 1)) / (next - i + 1);
+      }
+    }
+  }
+  const placed: PlacedFrame[] = frames.map((frame, i) => ({ offset: offsets[i]!, frame }));
+  if (placed[0]!.offset > 0) {
+    placed.unshift({ offset: 0, frame: null });
+  }
+  if (placed.at(-1)!.offset < 1) {
+    placed.push({ offset: 1, frame: null });
+  }
+  return placed;
+};
+
+const frameAt = (placed: PlacedFrame[], progress: number, latest: boolean): PlacedFrame | undefined => {
+  const at = placed.filter((p) => Math.abs(p.offset - progress) < 1e-9);
+  return latest ? at.at(-1) : at[0];
+};
+
+const playsForward = (direction: string, iteration: number): boolean =>
+  direction === "reverse"
+    ? false
+    : direction === "alternate"
+      ? iteration % 2 === 0
+      : direction === "alternate-reverse"
+        ? iteration % 2 === 1
+        : true;
+
 const endsAwayFromStart = (animation: Animation, iterations: number): boolean => {
-  const frames = animation.keyframes ?? [];
-  if (frames.length === 0) {
+  const frames: Record<string, unknown>[] = animation.keyframes ?? [];
+  if (frames.length === 0 || !(iterations > 0)) {
     return false;
   }
+  const placed = placedFrames(frames);
   const direction = animation.timing?.direction ?? "normal";
-  const odd = Math.max(1, Math.ceil(iterations)) % 2 === 1;
-  const reversed =
-    direction === "reverse" || (direction === "alternate" && !odd) || (direction === "alternate-reverse" && odd);
-  if (frames.length === 1) {
-    return !reversed;
+  const last = Math.ceil(iterations) - 1;
+  const part = iterations - last;
+  const forwardAtEnd = playsForward(direction, last);
+  const forwardAtStart = playsForward(direction, 0);
+  const end = frameAt(placed, forwardAtEnd ? part : 1 - part, forwardAtEnd);
+  if (!end) {
+    return true;
   }
-  const start = reversed ? frames.at(-1) : frames[0];
-  const end = reversed ? frames[0] : frames.at(-1);
-  return Object.keys({ ...start, ...end }).some(
+  if (!end.frame) {
+    return false;
+  }
+  const start = frameAt(placed, forwardAtStart ? 0 : 1, !forwardAtStart)!.frame;
+  if (!start) {
+    return true;
+  }
+  return Object.keys({ ...start, ...end.frame }).some(
     (property) =>
       !property.startsWith("$") &&
       !KEYFRAME_TIMING.has(property) &&
-      JSON.stringify(start?.[property]) !== JSON.stringify(end?.[property]),
+      JSON.stringify(start[property]) !== JSON.stringify(end.frame![property]),
   );
 };
 
@@ -132,12 +199,13 @@ export const heldPose = (context: AnimationContext | undefined, entries: readonl
           ...(entry.over !== undefined ? { over: entry.over } : {}),
           ...(entry.ease !== undefined ? { ease: entry.ease } : {}),
           loop: true,
+          kept: true,
         },
       ];
     }
     const fill = animation.timing?.fill;
     return (fill === "forwards" || fill === "both") && endsAwayFromStart(animation, iterations)
-      ? [{ name: entry.name, after: 0, over: 0, ...(entry.once ? { once: true } : {}) }]
+      ? [{ name: entry.name, after: 0, over: 0, ...(entry.once ? { once: true } : {}), kept: true }]
       : [];
   });
 
@@ -187,7 +255,9 @@ export const pictureLineAnimations = (
       result.targetAnimations.push(reveal);
     }
   }
-  const entries = withEntries(e);
+  const written = withEntries(e);
+  const entries = written.filter((entry) => !entry.kept);
+  const kept = written.filter((entry) => entry.kept);
   const lineEvent = (name: string): AnimationEvent => ({
     name,
     after: e.after,
@@ -211,7 +281,10 @@ export const pictureLineAnimations = (
     entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
   if (pictured) {
     if (e.control === "show") {
-      result.enterAnimations = definitions(showEvents);
+      result.enterAnimations = definitions([
+        ...showEvents,
+        ...kept.map((entry) => armEvent(context, entry, "on_show")),
+      ]);
       result.previousHideAnimations = definitions(hideEvents);
     } else if (e.control === "hide") {
       result.exitAnimations = definitions(hideEvents);
