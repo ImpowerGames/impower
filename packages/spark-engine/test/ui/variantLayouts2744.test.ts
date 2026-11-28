@@ -323,6 +323,43 @@ end
   });
 });
 
+describe("an entry made from a component template (I-2744)", () => {
+  test("carries the line's variant and speaker on the component's rendered root", async () => {
+    const h = await play(`${DEFS}
+component incoming {
+  dialogue.bubble { text }
+}
+
+layout phone {
+  stream {
+    incoming.dialogue #variant=receive
+  }
+}
+
+scene start
+  BUNNY [receive]: hello
+end
+`);
+    expect(shown(h)).toBe("hello");
+    expect(mounted(h)).toEqual(["phone"]);
+    const root = created(h, "dialogue bubble").at(-1);
+    expect(root).toBeDefined();
+    const last = (name: string) =>
+      wire(h.messages)
+        .filter(
+          (m: any) =>
+            (m?.method === "ui/create" || m?.method === "ui/update") &&
+            m.params?.element === root.element &&
+            m.params?.attributes &&
+            name in m.params.attributes,
+        )
+        .map((m: any) => m.params.attributes[name])
+        .at(-1);
+    expect(last("data-variant")).toBe("receive");
+    expect(last("data-speaker")).toBe("bunny");
+  });
+});
+
 describe("a limited element without #clear keeps its content through narration (I-2744)", () => {
   test("an open layout's left name stays, with its saved text, through an action line", async () => {
     const h = await play(`${DEFS}

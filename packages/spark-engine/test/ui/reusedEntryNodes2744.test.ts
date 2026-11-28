@@ -121,6 +121,23 @@ describe("a stream entry keeps no look an update gave it at a later line (I-2744
     expectNoLook(h, since);
   });
 
+  test("a restore of the same state keeps the look its saved styles and attributes give", async () => {
+    const h = await start();
+    await clickTo(h, "two");
+    const ui: any = h.game.module.ui;
+    await ui.style.update("bubble", { opacity: "0.25" });
+    await ui.attributes.update("bubble", { title: "saved title" });
+    await flushMicrotasks(10);
+    const before = bubbleIds(h);
+    await ui.onRestore();
+    await tick(h);
+    expect(bubbleIds(h)).toEqual(before);
+    for (const id of bubbleIds(h)) {
+      expect(lastSent(h.messages, id, "style", "opacity"), id).toBe("0.25");
+      expect(lastSent(h.messages, id, "attributes", "title"), id).toBe("saved title");
+    }
+  });
+
   test("after loading a save taken before the update", async () => {
     const h = await start();
     await clickTo(h, "two");

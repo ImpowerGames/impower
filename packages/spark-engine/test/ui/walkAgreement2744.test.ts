@@ -101,6 +101,37 @@ layout phone {
     shownIn: "dialogue",
   },
   {
+    name: "a stream nested inside a stream template",
+    source: `layout phone {
+  stream {
+    bubble {
+      stream {
+        dialogue #variant=receive { text }
+      }
+    }
+  }
+}`,
+    shownIn: "dialogue",
+  },
+  {
+    name: "a stream that carries the kind as a class",
+    source: `layout phone {
+  stream.dialogue #variant=receive {
+    action { text }
+  }
+}`,
+    shownIn: "dialogue",
+  },
+  {
+    name: "a cast that carries the kind as a class",
+    source: `layout phone {
+  cast.dialogue #variant=receive {
+    actor { text }
+  }
+}`,
+    shownIn: "dialogue",
+  },
+  {
     name: "a cast template in the layout",
     source: `layout phone {
   cast {

@@ -16,7 +16,7 @@ export const layoutTreeSource = (kind: "layout" | "screen" | "component", name: 
   `${kind} ${name}`;
 
 export const takesLines = (element: LayoutTreeElement): boolean =>
-  !element.cast && (!element.template || element.template.root);
+  !element.cast && !isTemplated(element.node) && (!element.template || element.template.root);
 
 export function walkLayoutTree(
   sparkle: Sparkle | undefined,
@@ -58,7 +58,7 @@ export function walkLayoutTree(
       }
       const cast = where.cast || isCast(node);
       return node.templates.some((template) =>
-        element(template, { ...where, cast, template: { owner: node, root: true } }),
+        element(template, { ...where, cast, template: { owner: node, root: !where.template } }),
       );
     }
     if (visit({ node, ...where }) === true) {

@@ -9214,15 +9214,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       restore(): void {
-        const updated = (el: Element): boolean =>
-          $._entryUpdates.has(el.id) || el.children.some(updated);
-        for (const mounts of this._mounted.values()) {
-          for (const mount of mounts) {
-            if (mount.entries.some((view) => $.collectNodes(view.group).some(updated))) {
-              mount.rendered.length = 0;
-            }
-          }
-        }
         this._presented = { instant: true };
         this.sync(this._presented, 0);
       }
@@ -9456,6 +9447,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const group = template
           ? $.mountChildren(mount.element, [lineLabelled(template, entry)], scope, null)
           : [];
+        if (template && $._game.program?.sparkle?.components?.[template.tag]) {
+          for (const root of $.collectNodes(group)) {
+            $.updateElement(root, {
+              attributes: {
+                "data-variant": entry.variant ?? null,
+                "data-speaker": entry.speaker ?? null,
+              },
+            });
+          }
+        }
         return { group, scope };
       }
 
