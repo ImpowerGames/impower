@@ -168,7 +168,7 @@ end
     expect(h.framings()).toEqual({ mia: center, sam: right });
   });
 
-  test("a new picture with no at returns only that entry to the default framing", () => {
+  test("a new picture with no at keeps that entry's framing, and the other entry keeps its own", () => {
     const h = play(`scene start
   [[mia@happy at left]]
   [[sam@calm at right]]
@@ -183,8 +183,7 @@ end
     expect(left).not.toBeUndefined();
     expect(h.framings()).toEqual({ mia: left, sam: right });
     h.tapTo("Oh.");
-    expect(h.ui.getFraming(undefined)).toBeUndefined();
-    expect(h.framings()).toEqual({ mia: null, sam: right });
+    expect(h.framings()).toEqual({ mia: left, sam: right });
   });
 });
 
@@ -266,7 +265,7 @@ end
     expect(h.framings()).toEqual({ mia: h.ui.getFraming("left"), sam: null });
   });
 
-  test("a travel written before a new picture with no at gives way to the default framing", () => {
+  test("a travel written before a new picture with no at gives the new picture the travel's framing", () => {
     const h = play(`scene start
   [[mia@happy]]
   MIA: One.
@@ -278,7 +277,7 @@ end
 `);
     h.tapTo("Narration.");
     expect(pictureOf(h, "mia")).toEqual(["mia@sad"]);
-    expect(h.framings()).toEqual({ mia: null, sam: null });
+    expect(h.framings()).toEqual({ mia: h.ui.getFraming("left"), sam: null });
   });
 
   test("a hide written before a character's first picture leaves that picture on screen", () => {

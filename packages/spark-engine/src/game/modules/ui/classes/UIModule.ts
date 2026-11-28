@@ -9436,7 +9436,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (speaker) {
             cast.latest = speaker;
             if (instructions.variant) {
-              (cast.variants ??= {})[speaker] = instructions.variant;
+              Object.defineProperty((cast.variants ??= {}), speaker, {
+                value: instructions.variant,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+              });
             } else {
               delete cast.variants?.[speaker];
             }
@@ -9473,19 +9478,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             delete entry.lines?.[target];
           }
         };
+        const framings: Record<string, Record<string, string>> = structuredClone(cast.framings ?? {});
         const writes = new Map<string, Map<CastEntry, ImageInstruction[]>>();
         const add = (target: string, entry: CastEntry, event: ImageInstruction) => {
           const sequences = writes.get(target) ?? new Map<CastEntry, ImageInstruction[]>();
           writes.set(target, sequences);
-          sequences.set(entry, [...(sequences.get(entry) ?? []), event]);
+          const sequence = sequences.get(entry) ?? [];
+          let written = event;
+          if (event.control === "show" && event.assets?.length && !event.at) {
+            const resolved = $.image.recorded(structuredClone(entry.image?.[target] ?? []), sequence);
+            const at = $.pictureShown(resolved)
+              ? resolved.findLast((e) => e.control === "show" && e.assets?.length)?.at
+              : ownEntry(ownEntry(framings, entry.speaker), target);
+            if (at) {
+              written = { ...event, at };
+            }
+          }
+          sequences.set(entry, [...sequence, written]);
         };
         for (const [target, event] of this.imageEvents(instructions)) {
           if (!holds(target)) {
-            const entry = this.namesCharacter(target)
-              ? cast.entries.find((e) => e.speaker === target)
-              : undefined;
+            const named = this.namesCharacter(target);
+            const entry = named ? cast.entries.find((e) => e.speaker === target) : undefined;
             if (entry) {
               this.writeCharacter(entry, event, writes, add, hidden);
+            }
+            if (named && event.control === "hide") {
+              delete framings[target];
             }
             continue;
           }
@@ -9502,6 +9521,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               hidden.add(entry.id);
             }
           }
+          if (event.control === "hide") {
+            for (const kept of Object.values(framings)) {
+              delete kept[target];
+            }
+          }
         }
         for (const [target, sequences] of writes) {
           for (const [entry, sequence] of sequences) {
@@ -9511,6 +9535,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               $.pictureShown(before) ||
               sequence.some((e) => e.control === "show" && e.assets?.length);
             const after = $.image.recorded(before, sequence);
+            if ($.pictureShown(after)) {
+              const at = after.findLast((e) => e.control === "show" && e.assets?.length)?.at;
+              const targets = ownEntry(framings, entry.speaker);
+              if (at) {
+                Object.defineProperty(framings, entry.speaker, {
+                  value: { ...targets, [target]: at },
+                  writable: true,
+                  enumerable: true,
+                  configurable: true,
+                });
+              } else if (targets) {
+                delete targets[target];
+              }
+            }
             (entry.image ??= {})[target] = after;
             wrote(entry, "image", target);
             queue({
@@ -9522,6 +9560,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               exits: onScreen && !$.pictureShown(after),
             });
           }
+        }
+        const kept = Object.entries(framings).filter(([, targets]) => Object.keys(targets).length > 0);
+        if (kept.length > 0) {
+          cast.framings = Object.fromEntries(kept);
+        } else {
+          delete cast.framings;
         }
         if (speaker) {
           for (const [target, events] of texts) {
@@ -9575,7 +9619,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : !this.empty(entry) || created.size === 0 || created.has(entry.id),
         );
         for (const entry of cast.entries) {
-          const variant = cast.variants?.[entry.speaker];
+          const variant = ownEntry(cast.variants, entry.speaker);
           if (variant) {
             entry.variant = variant;
           } else {

@@ -24,6 +24,7 @@ export interface CastState {
   next: number;
   latest?: string;
   variants?: Record<string, string>;
+  framings?: Record<string, Record<string, string>>;
   beat?: number;
   key?: string;
 }
