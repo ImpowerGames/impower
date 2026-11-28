@@ -525,6 +525,62 @@ end
   });
 });
 
+describe("a line that continues the newest entry across a close (I-2745)", () => {
+  test("starts the reopened stream with an uncarried entry, and the closed entry's picture leaves", async () => {
+    const h = await play(
+      `define raffles as character with
+  name = "RAFFLES"
+end
+
+layout main {
+  cast { actor { portrait #clear { image } } }
+}
+
+layout phone {
+  stream {
+    dialogue.bubble { text }
+  }
+}
+
+${settings("  carry = 2")}
+scene start
+  [[open phone]]
+  RAFFLES: a
+  [[raffles@happy]] RAFFLES: b .. >
+  [[close phone]] [[open phone]] RAFFLES: .. c >
+  RAFFLES: d >
+end
+`,
+      {
+        assets: [
+          {
+            uri: "inmemory:///raffles@happy.png",
+            type: "image",
+            name: "raffles@happy",
+            ext: "png",
+            src: "https://example.com/raffles@happy.png",
+          },
+        ] as never,
+      },
+    );
+    const pictures = () =>
+      h.game.module.ui.casts
+        .entries("main")
+        .flatMap((entry: any) => (entry.image?.portrait ?? []).flatMap((event: any) => event.assets ?? []));
+    await click(h);
+    expect(shown(h)).toBe("b");
+    expect(pictures()).toEqual(["raffles@happy"]);
+    await click(h);
+    expect(shown(h)).toBe("b c");
+    expect(entries(h)).toEqual(["b c"]);
+    expect(carried(h)).toEqual([]);
+    await click(h);
+    expect(shown(h)).toBe("d");
+    expect(entries(h)).toEqual(["b c", "d"]);
+    expect(pictures()).toEqual([]);
+  });
+});
+
 describe("a cast picture shown with a carried line (I-2745)", () => {
   const story = `define raffles as character with
   name = "RAFFLES"

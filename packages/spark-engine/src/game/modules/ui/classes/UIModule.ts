@@ -121,7 +121,12 @@ import {
   type PageRecord,
   type PageState,
 } from "../types/PageState";
-import type { StreamEntry, StreamRunState, StreamState } from "../types/StreamState";
+import type {
+  StreamEntry,
+  StreamRestart,
+  StreamRunState,
+  StreamState,
+} from "../types/StreamState";
 import type { CastEntry, CastLine, CastState } from "../types/CastState";
 import type { TextState } from "../types/TextState";
 import type { UIBuiltins } from "../types/UIBuiltins";
@@ -8866,7 +8871,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             (settings.clear === "run" &&
               member &&
               (!previous || Boolean(previous.ends) || previous.lines % RUN_LINE_LIMIT === 0));
-          const carry = clears ? (closed ? 0 : settings.carry) : undefined;
+          const carry = clears ? settings.carry : undefined;
           if (repeated || instructions.hold) {
             if (previous) {
               runs.set(layout, previous);
@@ -8894,7 +8899,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               stream,
               node,
               instructions,
-              { repeat, carry },
+              { repeat, carry, closed },
               ahead,
             );
             stream.beat = beat;
@@ -8919,7 +8924,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         stream: StreamState,
         node: StreamNode,
         instructions: Instructions,
-        options: { repeat: boolean; carry?: number },
+        options: { repeat: boolean; carry?: number; closed: boolean },
         ahead: StreamEntry[],
       ): void {
         const started = stream.entries.slice(
@@ -8935,22 +8940,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               Object.keys(line.shown).every((target) => last.text[target]),
           );
         };
-        const restart = options.repeat
+        const restart: StreamRestart | undefined = options.repeat
           ? stream.restart
-          : options.carry !== undefined
-            ? {
-                carried: Math.min(
-                  extendsLast(started) ? Math.max(options.carry, 1) : options.carry,
-                  started.length,
-                ),
-              }
-            : undefined;
+          : options.closed
+            ? { carried: 0, closed: true }
+            : options.carry !== undefined
+              ? {
+                  carried: Math.min(
+                    extendsLast(started) ? Math.max(options.carry, 1) : options.carry,
+                    started.length,
+                  ),
+                }
+              : undefined;
         const before = !options.repeat
           ? started
           : restart
             ? (stream.absorbed ?? [])
             : [...started.slice(0, stream.current), ...(stream.absorbed ?? [])];
-        const extending = extendsLast(before);
+        const extending = !restart?.closed && extendsLast(before);
         const head = restart
           ? before
               .slice(before.length - restart.carried)

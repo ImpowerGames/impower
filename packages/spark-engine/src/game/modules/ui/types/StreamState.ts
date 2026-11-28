@@ -9,6 +9,7 @@ export interface StreamEntry {
 
 export interface StreamRestart {
   carried: number;
+  closed?: true;
 }
 
 export interface StreamState {
