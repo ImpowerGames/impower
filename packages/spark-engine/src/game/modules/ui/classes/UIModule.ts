@@ -1638,16 +1638,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected pruneLineText(): void {
+    const layouts = Object.keys(this._game.program?.sparkle?.layouts ?? {});
     for (const target of Object.keys(this._state.lineText ?? {})) {
-      this.keepLineText(target, (line) => this.lineHeld(target, line, false));
+      this.keepLineText(
+        target,
+        (line) =>
+          this.lineHeld(target, line, false) || !this.lineHeld(target, line, false, layouts),
+      );
     }
   }
 
-  protected lineHeld(target: string, line: LineLabels, unmarked: boolean): boolean {
+  protected lineHeld(
+    target: string,
+    line: LineLabels,
+    unmarked: boolean,
+    layouts: readonly string[] = this.openedLayoutsAfter([]),
+  ): boolean {
     if (target.includes(" ") || !this._game.program?.sparkle?.layouts) {
       return true;
     }
-    return this.openedLayoutsAfter([]).some((name) =>
+    return layouts.some((name) =>
       this.layoutHolds(
         name,
         [target],
@@ -9273,10 +9283,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.applyStyles(mount, view, i);
           if (i >= started) {
             view.reserved = true;
-            this.hideReserved(view);
+            this.restate(view, "hidden");
             this.write(mount, i, entry, { complete: true });
             continue;
           }
+          this.restate(view, null);
           const reveal = this._reveals.get(this.revealKey(mount, i));
           const shownBefore = reveal ? reveal.complete : !presented || i < current;
           const atOnce = Boolean(presented?.instant) || shownBefore;
@@ -9354,19 +9365,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return `${mount.key}\n${index}\n${mount.rendered[index]}`;
       }
 
-      protected hideReserved(view: StreamEntryView): void {
+      protected restate(view: StreamEntryView, visibility: "hidden" | null): void {
         for (const root of $.collectNodes(view.group)) {
-          $.updateElement(root, { style: { visibility: "hidden" } });
+          $.updateElement(root, {
+            style: { visibility },
+            attributes: { "data-latest": null },
+          });
+        }
+      }
+
+      protected unhide(view: StreamEntryView): void {
+        for (const root of $.collectNodes(view.group)) {
+          $.updateElement(root, { style: { visibility: null } });
         }
       }
 
       protected showReserved(view: StreamEntryView): void {
-        const roots = $.collectNodes(view.group);
-        const show = () => {
-          for (const root of roots) {
-            $.updateElement(root, { style: { visibility: null } });
-          }
-        };
+        const show = () => this.unhide(view);
         const line = $.composingLine();
         if (!line) {
           show();

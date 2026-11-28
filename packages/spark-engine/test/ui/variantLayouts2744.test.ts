@@ -362,6 +362,113 @@ end
 });
 
 describe("the preview of a line inside an exchange (I-2744)", () => {
+  test.each([
+    ["the body", "    First right line."],
+    ["the cue", "  BUNNY [right]:"],
+  ])("at %s of a cue written over two lines shows that line's entry", async (_, picked) => {
+    const source = `${DEFS}
+scene start
+  RAFFLES [left]:
+    First left line.
+  BUNNY [right]:
+    First right line.
+  A bell rings.
+end
+`;
+    const line = source.split("\n").indexOf(picked);
+    const h = createHarness(source, line, { reactive: true, autoOpenAll: false, connect: false });
+    h.game.setStartFrom({ file: MAIN_URI, line });
+    h.game.simulate();
+    expect(h.game.simulation).toBe("success");
+    await h.reconnect();
+    await flushMicrotasks(10);
+    await h.preview(line);
+    await flushMicrotasks(30);
+    expect(mounted(h)).toEqual(["simultaneous"]);
+    expect(entries(h, "simultaneous")).toEqual(["First left line.", "First right line."]);
+    const views = (h.game.module.ui.streams as any)._mounted.get("simultaneous/0")[0].entries;
+    expect(views.map((view: any) => Boolean(view.reserved))).toEqual([false, false]);
+  });
+
+  test("played once on the second line after a still of the first, shows the second line's entry", async () => {
+    const source = `${DEFS}
+scene start
+  RAFFLES [left]:
+    First left line.
+  BUNNY [right]:
+    First right line.
+  A bell rings.
+end
+`;
+    const lines = source.split("\n");
+    const first = lines.indexOf("    First left line.");
+    const second = lines.indexOf("    First right line.");
+    const h = createHarness(source, first);
+    await h.ready;
+    await h.preview(first);
+    await flushMicrotasks(10);
+    await h.game.preview(MAIN_URI, second, undefined, undefined, { playId: 1 });
+    await flushMicrotasks(10);
+    for (let elapsed = 0; elapsed < 6000 && h.game.playingBeat; elapsed += 50) {
+      h.game.update({ deltaMS: 50 } as never);
+      await flushMicrotasks(5);
+    }
+    expect(h.game.playingBeat).toBe(false);
+    const views = (h.game.module.ui.streams as any)._mounted.get("simultaneous/0")[0].entries;
+    expect(views.map((view: any) => Boolean(view.reserved))).toEqual([false, false]);
+    const roots = views[1].group.map((member: any) => member.el.id);
+    const visibility = wire(h.messages)
+      .filter(
+        (m: any) =>
+          m?.method === "ui/update" &&
+          roots.includes(m.params?.element) &&
+          m.params?.style &&
+          "visibility" in m.params.style,
+      )
+      .map((m: any) => m.params.style.visibility);
+    expect(visibility.at(-1)).toBeNull();
+  });
+
+  test("moved from the first line to the second shows the second line's entry", async () => {
+    const source = `${DEFS}
+scene start
+  RAFFLES [left]:
+    First left line.
+  BUNNY [right]:
+    First right line.
+  A bell rings.
+end
+`;
+    const lines = source.split("\n");
+    const first = lines.indexOf("    First left line.");
+    const second = lines.indexOf("    First right line.");
+    const h = createHarness(source, first, { reactive: true, autoOpenAll: false, connect: false });
+    h.game.setStartFrom({ file: MAIN_URI, line: first });
+    h.game.simulate();
+    expect(h.game.simulation).toBe("success");
+    await h.reconnect();
+    await flushMicrotasks(10);
+    await h.preview(first);
+    await flushMicrotasks(30);
+    const views = () => (h.game.module.ui.streams as any)._mounted.get("simultaneous/0")[0].entries;
+    expect(views().map((view: any) => Boolean(view.reserved))).toEqual([false, true]);
+    await h.preview(second);
+    await flushMicrotasks(30);
+    expect(entries(h, "simultaneous")).toEqual(["First left line.", "First right line."]);
+    expect(views().map((view: any) => Boolean(view.reserved))).toEqual([false, false]);
+    const roots = views()[1].group.map((member: any) => member.el.id);
+    const hidden = wire(h.messages)
+      .filter(
+        (m: any) =>
+          m?.method === "ui/update" &&
+          roots.includes(m.params?.element) &&
+          m.params?.style &&
+          "visibility" in m.params.style,
+      )
+      .map((m: any) => m.params.style.visibility);
+    expect(hidden.at(-1)).toBeNull();
+  });
+
   test("at the first line of a second exchange shows no name left over from the first", async () => {
     const source = `${DEFS}
 scene start
