@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { createMorphHost } from "@impower/sparkdown/src/morph/hosts";
+import { createMorphHost, inlineMorphSource } from "@impower/sparkdown/src/morph/hosts";
 import { serializeMorphRecipe } from "@impower/sparkdown/src/morph/recipe";
 import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphRef, MorphTiming } from "@impower/sparkdown/src/morph/types";
-import { blink, portrait } from "@impower/sparkdown/test/morph/fixtures";
+import { blink, blinkScript, portrait } from "@impower/sparkdown/test/morph/fixtures";
 import type { LayeredPicture } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { MorphGroup, MorphPlayback, type MorphImageContent } from "../../src/app/morph/MorphPlayback";
 import { drawPosesOnCanvases, layOutPictures, untilDrawn } from "./canvasPoses";
-import { installJSDOM } from "./domTestHarness";
+import { createDOMHarness, flushMicrotasks, installJSDOM } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
 
@@ -88,6 +88,58 @@ describe("a vector picture its canvas cannot draw is never drawn as live inline 
     layer.layout();
     expect(reports).toHaveBeenCalledTimes(1);
     expect(reports.mock.calls[0]![0]).toMatchObject({ image: "bunny", reason: "unlisted", placeholder: true });
+  });
+
+  test.each([false, true])("a layered vector picture with an image file drawn through a `filtered_image` is listed and drawn on a canvas or as the placeholder, never as CSS (morph %s)", async (morph) => {
+    const source = `${morph ? blinkScript() : ""}
+define tinted as filtered_image with
+  image = image.paint
+  attributes = {}
+end
+define kit as layered_image with
+  assets = {
+    ["base"] = bunny,
+    ["overlay"] = tinted,
+    ["top"] = plain,
+  }
+end
+scene start
+  HERO:
+    [[show portrait kit]]
+    First line.
+end
+`;
+    const files = [
+      { uri: "inmemory:///paint.png", type: "image", name: "paint", ext: "png", src: "/src/paint.png" },
+      { uri: "inmemory:///bunny.svg", type: "image", name: "bunny", ext: "svg", data: ART },
+      { uri: "inmemory:///plain.svg", type: "image", name: "plain", ext: "svg", data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 140"><rect width="260" height="140" fill="red"/></svg>' },
+    ];
+    const h = createDOMHarness(source, 0, { files });
+    const unlayOut = layOutPictures(h.overlay.ownerDocument);
+    restore = unlayOut;
+    const playback = MorphPlayback.for(h.overlay);
+    playback.configure({
+      host: createMorphHost({ service: new MorphBakeService(), channel: () => h.game.program.morphs, readSource: inlineMorphSource(() => h.game.program.context) }),
+      requestFrame: () => 0,
+      cancelFrame: () => {},
+    });
+    drawPosesOnCanvases(playback, { files, frameRate: 24 });
+    Object.defineProperty(playback, "placeholders", { configurable: true, get: () => true, set: () => {} });
+    await h.ready;
+    const ui = (h.game as unknown as { module: { ui: { getLayeredPictures(assets: string[], pick: () => undefined): LayeredPicture[] } } }).module.ui;
+    expect(ui.getLayeredPictures(["kit"], () => undefined)).toMatchObject([
+      { layer: 0, span: 3, name: "kit", vector: true, files: [{ src: expect.stringContaining("svg") }, { src: "/src/paint.png" }, { src: expect.stringContaining("svg") }] },
+    ]);
+    await h.preview(source.split("\n").findIndex((line) => line.includes("First line.")));
+    await flushMicrotasks(40);
+    const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
+    const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
+    await until(() => !!shadow()?.querySelector("canvas, [data-undrawn]"), "the picture's canvas or placeholder");
+    const css = [span, ...Array.from(shadow()!.querySelectorAll("[style]"))]
+      .map((element) => /background-image:\s*([^;]*)/.exec(element.getAttribute("style") ?? "")?.[1] ?? "")
+      .filter((image) => image.includes("svg") || image.includes("data:image") || image.includes("paint.png"));
+    expect(css).toEqual([]);
+    expect(shadow()!.querySelectorAll("svg, [data-morph]")).toHaveLength(0);
   });
 
   test("the same image with its picture listed is drawn on its canvas from drawn poses", async () => {

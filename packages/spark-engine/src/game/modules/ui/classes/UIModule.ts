@@ -252,7 +252,7 @@ function isVectorFile(layer: ImageLayer): boolean {
 }
 
 function isPictureFile(layer: ImageLayer): boolean {
-  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && isVectorFile(layer));
+  return layer.struct?.$type === "image" || (layer.struct?.$type === "filtered_image" && !!layer.src);
 }
 
 function isImageFile(layer: ImageLayer): boolean {
