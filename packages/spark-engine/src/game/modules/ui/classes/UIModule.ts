@@ -100,10 +100,26 @@ WithInstruction,
 import type { StoryEnding } from "@impower/sparkdown/src/program/ProgramStory";
 import { endingStatusText } from "../../../core/utils/endingStatusText";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
-import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { presenceStyleBlocks } from "../../../core/utils/presenceStyleBlocks";
 import { BEAT_LEAD_MS } from "../../../core/utils/sharedClock";
 import type { Animation } from "../types/Animation";
 import { keyframeScale } from "../utils/keyframeScale";
+import {
+  animationDefinition,
+  armEvent,
+  beatOffset,
+  layoutAnimation,
+  layoutAnimations,
+  layoutArrivesByStyle,
+  pictureLineAnimations,
+  pictureLineEnd,
+  timingFunction,
+  withEntries,
+  withTiming,
+  type AnimationContext,
+  type AnimationEvent,
+  type LayoutClauses,
+} from "../utils/lineAnimations";
 import type { AnimationTiming } from "../types/AnimationTiming";
 import type { Ease } from "../types/Ease";
 import type { ElementContent } from "../types/ElementContent";
@@ -337,13 +353,6 @@ interface ShownPicture {
   pick?: ImagePick;
 }
 
-interface LayoutClauses {
-  with?: string;
-  after?: number;
-  over?: number;
-  ease?: string;
-  loop?: boolean;
-}
 
 interface Retirement {
   name?: string;
@@ -375,23 +384,19 @@ interface PresenceRecord {
   retiring?: Retirement;
 }
 
-const PRESENCE_BLOCKS: Record<PresenceMotion, RegExp> = {
-  show: /@(?:initial|show)(?![\p{L}\p{N}_-])/u,
-  hide: /@hide(?![\p{L}\p{N}_-])/u,
-};
-
 const presenceAttributes = (mark: Record<string, string | null>) =>
   Object.keys(mark).length > 0 ? { attributes: mark } : {};
 
 const pictureHide = (
   sequence: ImageInstruction[],
+  timed: (e: ImageInstruction) => boolean,
 ): "plain" | "timed" | undefined => {
   let hide: "plain" | "timed" | undefined;
   for (const e of sequence) {
     if (e.control === "show" && e.assets?.length) {
       hide = undefined;
     } else if (e.control === "hide" && !e.assets?.length) {
-      hide = e.with?.length || e.after || e.over ? "timed" : "plain";
+      hide = timed(e) ? "timed" : "plain";
     }
   }
   return hide;
@@ -834,11 +839,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _lineRemovals = false;
 
   protected _lineTimed = new WeakSet<IMessage>();
-
-  protected _presenceStyles?: {
-    styles: unknown;
-    blocks: Record<PresenceMotion, boolean>;
-  };
 
   protected _realizationChange?: { promise: Promise<void>; resolve: () => void };
 
@@ -2600,38 +2600,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected styled(presence: PresenceMotion): boolean {
-    const styles = this.context?.style;
-    let cached = this._presenceStyles;
-    if (!cached || cached.styles !== styles) {
-      const blocks: Record<PresenceMotion, boolean> = {
-        show: false,
-        hide: false,
-      };
-      const visit = (value: unknown) => {
-        if (value == null || typeof value !== "object") {
-          return;
-        }
-        for (const [key, inner] of Object.entries(value)) {
-          if (inner == null || typeof inner !== "object") {
-            continue;
-          }
-          for (const motion of ["show", "hide"] as const) {
-            if (PRESENCE_BLOCKS[motion].test(key)) {
-              blocks[motion] = true;
-            }
-          }
-          visit(inner);
-        }
-      };
-      for (const [name, style] of Object.entries(styles ?? {})) {
-        if (!name.startsWith("$")) {
-          visit(style);
-        }
-      }
-      cached = { styles, blocks };
-      this._presenceStyles = cached;
-    }
-    return cached.blocks[presence];
+    return presenceStyleBlocks(this.context?.style as Record<string, unknown> | undefined)[presence];
   }
 
   protected attached(element: Element): boolean {
@@ -2962,7 +2931,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getTimingFunction(ease: Ease) {
-    return `${ease.function}(${ease.parameters.join(",")})`;
+    return timingFunction(ease);
   }
 
   getAnimationShorthand(name: string, timing: AnimationTiming | undefined) {
@@ -5981,27 +5950,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     clauses: LayoutClauses,
     instant: boolean,
   ): Animation | undefined {
-    const withName = clauses.with || "";
-    const transition = this.context?.transition?.[withName];
-    let name: string;
-    if (transition) {
-      const arm = direction === "enter" ? transition.on_show : transition.on_hide;
-      name =
-        (typeof arm === "string" ? arm : arm?.$name) ||
-        (direction === "enter" ? "show" : "hide");
-    } else {
-      name = withName || (direction === "enter" ? "show" : "hide");
-    }
-    return this.getAnimationDefinition(
-      {
-        name,
-        after: clauses.after,
-        over: clauses.over,
-        ease: clauses.ease,
-        ...(clauses.loop !== undefined ? { loop: clauses.loop } : {}),
-      },
-      instant,
-    );
+    return layoutAnimation(this.context as AnimationContext, direction, clauses, instant);
   }
 
   protected resolveLayoutAnimations(
@@ -6009,65 +5958,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     clauses: LayoutClauses[] | undefined,
     instant: boolean,
   ): Animation[] {
-    return (clauses?.length ? clauses : [{}]).flatMap((c) => {
-      const animation = this.resolveLayoutAnimation(direction, c, instant);
-      return animation ? [animation] : [];
-    });
+    return layoutAnimations(this.context as AnimationContext, direction, clauses, instant);
   }
 
   withEntries(e: { with?: WithInstruction[] }): WithInstruction[] {
-    const written: unknown = e.with;
-    return Array.isArray(written)
-      ? written
-      : typeof written === "string" && written
-        ? [{ name: written }]
-        : [];
+    return withEntries(e);
   }
 
-  armEvent(
-    entry: WithInstruction,
-    arm: "on_show" | "on_hide",
-  ): {
-    name: string;
-    after?: number;
-    over?: number;
-    ease?: string;
-    loop?: boolean;
-  } {
-    const timing = this.withTiming(entry);
-    const transition = this.context?.transition?.[entry.name];
-    if (!transition) {
-      return { name: entry.name, ...timing };
-    }
-    const durationOf = (name: string | undefined) =>
-      getTimeValue(this.context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
-    const longest = Math.max(
-      0,
-      ...Object.entries(transition)
-        .filter(([k, v]) => !k.startsWith("$") && v)
-        .map(([, v]) => durationOf(typeof v === "string" ? v : v?.$name)),
-    );
-    const speed =
-      timing.over != null && timing.over > 0 ? longest / timing.over : 1;
-    const armed = transition[arm];
-    const name =
-      (typeof armed === "string" ? armed : armed?.$name) ||
-      (arm === "on_show" ? "show" : "hide");
-    return { name, ...timing, over: durationOf(name) / speed };
+  armEvent(entry: WithInstruction, arm: "on_show" | "on_hide"): AnimationEvent {
+    return armEvent(this.context as AnimationContext, entry, arm);
   }
 
-  withTiming(entry: WithInstruction): {
-    after?: number;
-    over?: number;
-    ease?: string;
-    loop?: boolean;
-  } {
-    return {
-      after: entry.after,
-      over: entry.over,
-      ease: entry.ease,
-      ...(entry.loop ? { loop: true } : entry.once ? { loop: false } : {}),
-    };
+  timedPicture(e: ImageInstruction): boolean {
+    return Boolean(e.with?.length || e.after || e.over) || pictureLineEnd(this.context as AnimationContext, e) > 0;
+  }
+
+  beatOffset(timed: { afterIsBeatOffset?: true }): { afterIsBeatOffset?: true } {
+    return beatOffset(timed);
+  }
+
+  withTiming(entry: WithInstruction): Omit<AnimationEvent, "name"> {
+    return withTiming(entry);
   }
 
   async openLayout(
@@ -6170,7 +6081,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._screenEdits = edits;
       }
     }
-    if (!clauses?.some((c) => c.with) && !instant && this.moving() && this.styled("show")) {
+    if (layoutArrivesByStyle(this.context as AnimationContext, "enter", clauses) && !instant && this.moving()) {
       const frame = layout.screen
         ? this._mountedScreens.get(layout.screen)
         : undefined;
@@ -6244,10 +6155,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const element = leaving?.element ?? entry.element;
     if (
-      !clauses?.some((c) => c.with) &&
+      layoutArrivesByStyle(this.context as AnimationContext, "exit", clauses) &&
       !instant &&
-      this.moving() &&
-      this.styled("hide")
+      this.moving()
     ) {
       this._mountedLayouts.delete(name);
       this.retireElement(
@@ -6810,7 +6720,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const entries = this.withEntries(e);
       const clauses: LayoutClauses[] = entries.length
         ? entries.map((entry) => ({ with: entry.name, ...this.withTiming(entry) }))
-        : [{ after: e.after, over: e.over, ease: e.ease }];
+        : [{ after: e.after, ...this.beatOffset(e), over: e.over, ease: e.ease }];
       switch (e.control) {
         case LayoutVerb.open:
           return this.openLayout(e.name, clauses, instant, Boolean(e.auto));
@@ -7201,54 +7111,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
   }
 
-  getAnimationDefinition(
-    event: {
-      name: string;
-      after?: number;
-      over?: number;
-      ease?: string;
-      loop?: boolean;
-    },
-    instant: boolean,
-  ): Animation | undefined {
-    const { name, after, over, ease, loop } = event;
-    const delayOverride = `${after ?? 0}s`;
-    const durationOverride = over != null ? `${over}s` : null;
-    const easeDefinition = ease ? this.context?.ease?.[ease] : null;
-    const easingOverride =
-      easeDefinition != null ? this.getTimingFunction(easeDefinition) : null;
-    const loopOverride =
-      loop === true ? "infinite" : loop === false ? 1 : undefined;
-    const animation = this.context?.animation?.[name] as Animation;
-    if (animation) {
-      const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
-      const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
-      const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
-      const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
-      const fill = animation?.timing?.fill ?? "none";
-      const direction = animation?.timing?.direction ?? "normal";
-      const keyframes = animation.keyframes;
-      const timing = {
-        delay,
-        duration,
-        iterations,
-        easing,
-        fill,
-        direction,
-      };
-      if (instant) {
-        timing.delay = "0s";
-        timing.duration = "0s";
-      }
-      return {
-        $type: animation.$type,
-        $name: animation.$name,
-        target: animation.target ?? { $type: "layer", $name: "self" },
-        keyframes,
-        timing,
-      };
-    }
-    return undefined;
+  getAnimationDefinition(event: AnimationEvent, instant: boolean): Animation | undefined {
+    return animationDefinition(this.context as AnimationContext, event, instant);
   }
 
   enqueueAnimation(
@@ -7923,43 +7787,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               timing: $.getTravelTiming(e, instant),
             };
           }
-          const targetAnimations: LineAnimation[] = [];
-          const isFirstContentReveal =
-            e.control === "show" && e.assets && e.assets.length > 0;
-          if (isFirstContentReveal) {
-            const revealEvent = {
-              name: "show",
-              after: e.after,
-              over: 0,
-              ease: e.ease,
-            };
-            const animation = $.getAnimationDefinition(revealEvent, instant);
-            if (animation) {
-              targetAnimations.push(animation);
-            }
-          }
-          const entries = $.withEntries(e);
-          const showEvents = entries.length
-            ? entries.map((entry) => $.armEvent(entry, "on_show"))
-            : [{ name: "show", after: e.after, over: e.over, ease: e.ease }];
-          const hideEvents = entries.length
-            ? entries.map((entry) => $.armEvent(entry, "on_hide"))
-            : [{ name: "hide", after: e.after, over: e.over, ease: e.ease }];
-          const definitions = (events: typeof showEvents) =>
-            events.flatMap((event) => $.getAnimationDefinition(event, instant) ?? []);
-          const armsOf = (entry: WithInstruction): LineAnimation[] =>
-            Object.entries($.context?.transition?.[entry.name] ?? {}).flatMap(([k, v]) => {
-              if (k.startsWith("$") || k.startsWith("on_")) {
-                return [];
-              }
-              const animateWith = typeof v === "string" ? v : v?.$name;
-              const animation = animateWith
-                ? $.getAnimationDefinition({ name: animateWith, ...$.withTiming(entry) }, instant)
-                : undefined;
-              return animation ? [{ ...animation, arm: k }] : [];
-            });
-          const inWrittenOrder = (eventOf: (entry: WithInstruction) => typeof showEvents[number]) =>
-            entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
+          const plays = pictureLineAnimations($.context as AnimationContext, e, instant);
+          const targetAnimations: LineAnimation[] = plays.targetAnimations;
           const assets = e.assets;
           if (assets && assets.length > 0) {
             const content = $.withPictureLooks(() => {
@@ -8038,50 +7867,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
               return content;
             });
-            if (e.control === "show") {
-              const enterAnimations = definitions(showEvents);
-              if (enterAnimations.length > 0) {
-                content.enterAnimations = enterAnimations;
-              }
-              const previousHideAnimations = definitions(hideEvents);
-              if (previousHideAnimations.length > 0) {
-                content.previousHideAnimations = previousHideAnimations;
-              }
-            } else if (e.control === "hide") {
-              const exitAnimations = definitions(hideEvents);
-              if (exitAnimations.length > 0) {
-                content.exitAnimations = exitAnimations;
-              }
-            } else if (e.control === "animate" && entries.length > 1) {
-              targetAnimations.push(...inWrittenOrder((entry) => $.armEvent(entry, "on_show")));
-            } else if (e.control === "animate") {
-              const enterAnimations = definitions(showEvents);
-              if (enterAnimations.length > 0) {
-                content.enterAnimations = enterAnimations;
-              }
+            if (plays.enterAnimations.length > 0) {
+              content.enterAnimations = plays.enterAnimations;
             }
-            if (e.control !== "animate" || entries.length <= 1) {
-              targetAnimations.push(...entries.flatMap(armsOf));
+            if (plays.previousHideAnimations.length > 0) {
+              content.previousHideAnimations = plays.previousHideAnimations;
+            }
+            if (plays.exitAnimations.length > 0) {
+              content.exitAnimations = plays.exitAnimations;
             }
             out.content = content;
             if (framing) {
               out.framing = framing;
             }
-          } else {
-            if (e.control === "hide") {
-              targetAnimations.push(
-                ...(entries.length ? inWrittenOrder((entry) => $.armEvent(entry, "on_hide")) : definitions(hideEvents)),
-              );
-            } else if (e.control === "show") {
-              if (framing) {
-                out.framing = framing;
-              }
-              targetAnimations.push(
-                ...(entries.length ? inWrittenOrder((entry) => $.armEvent(entry, "on_show")) : definitions(showEvents)),
-              );
-            } else if (e.control === "animate") {
-              targetAnimations.push(...inWrittenOrder((entry) => ({ name: entry.name, ...$.withTiming(entry) })));
-            }
+          } else if (e.control === "show" && framing) {
+            out.framing = framing;
           }
           if (targetAnimations.length > 0) {
             out.targetAnimations = targetAnimations;
@@ -8109,7 +7909,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         const moving = !instant && $.moving();
         const arriving: Element[] = [];
-        const hides = sequence ? pictureHide(sequence) : undefined;
+        const timed = (e: ImageInstruction) => $.timedPicture(e);
+        const hides = sequence ? pictureHide(sequence, timed) : undefined;
         const leaving = targetEls.filter(
           (targetEl) =>
             (!sequence || hides === "plain") &&
@@ -8155,7 +7956,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return;
         }
         const exit: PictureExit | undefined =
-          exits && !instant && sequence?.some((e) => e.with || e.after || e.over)
+          exits && !instant && sequence?.some(timed)
             ? { elements: writing, epoch: $._game.connection.epoch }
             : undefined;
         if (exit) {
@@ -8179,9 +7980,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           !instant &&
             (writing.some((el) => !arriving.includes(el)) ||
               Boolean(
-                sequence?.some(
-                  (e) => e.control === "animate" || e.with || e.after || e.over,
-                ),
+                sequence?.some((e) => e.control === "animate" || timed(e)),
               )),
         );
         const written = $.emitSettled(request);

@@ -52,7 +52,9 @@ import {
   DIRECTIVE_FLAG_WORDS,
   DIRECTIVE_NODE_BRACKETS,
   DIRECTIVE_KINDS_WITH_SEVERAL_WITHS,
+  DIRECTIVE_TIMING_WORDS,
   directiveClauseWords,
+  directiveOwners,
   directiveValueKind,
   readSourceDirective,
   type SourceDirective,
@@ -693,6 +695,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       this.framingClauseIssues(issue, directive);
+      this.untimedLineClauseIssues(issue, directive);
     } else {
       for (const { word } of directive.clauses) {
         if (word.text !== "at") continue;
@@ -799,6 +802,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         "`to` moves the picture the layer already shows, so an `animate … to` line names no picture\n> e.g. `[[animate backdrop to sofa over 1s]]`",
         first.from,
         last.to,
+      );
+    }
+  }
+
+  protected untimedLineClauseIssues(
+    issue: (message: string, from: number, to: number, severity?: "error" | "warning") => void,
+    directive: SourceDirective,
+  ): void {
+    if (directive.control?.text !== "animate" || directive.names.length > 0) return;
+    if (directive.clauses.some((clause) => clause.word.text === "to")) return;
+    for (const clause of directiveOwners(directive.kind, directive.clauses).line) {
+      const keyword = clause.word.text;
+      if (!DIRECTIVE_TIMING_WORDS.includes(keyword)) continue;
+      issue(
+        `\`${keyword}\` times nothing here: this line has no show, hide or travel of its own. Write it after the \`with\` it should time.`,
+        clause.word.from,
+        clause.value?.to ?? clause.word.to,
+        "warning",
       );
     }
   }

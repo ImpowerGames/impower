@@ -123,12 +123,12 @@ describe("a layer's picture travels to a framing with animate … to (I-2481)", 
     });
   });
 
-  it("to and with on one line both run", async () => {
+  it("to and with on one line both run, each with its own timing", async () => {
     const h = await after(5);
     const [instruction] = lastWrite(h, "backdrop")!.instructions;
     expect(instruction.travel).toEqual({
       framing: SOFA,
-      timing: expect.objectContaining({ duration: "1s" }),
+      timing: expect.objectContaining({ duration: "0s" }),
     });
     expect(instruction.targetAnimations).toEqual([
       expect.objectContaining({ $name: "shake", timing: expect.objectContaining({ duration: "1s" }) }),
