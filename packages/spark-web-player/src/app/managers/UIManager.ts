@@ -75,7 +75,6 @@ import type { LiveClip } from "./AudioManager";
 import { MorphGroup, MorphPlayback, pictureGauge, type MorphLayer, type PictureGauge } from "../morph/MorphPlayback";
 import { keyframesScale } from "@impower/spark-engine/src/game/modules/ui/utils/keyframeScale";
 import { replicate, type Replica } from "../utils/replicate";
-import { bindAnimationNames, replicaCss, replicaKeyframeNames, type ReplicaStyleScope } from "../utils/replicaStyles";
 import type { IApplication } from "../IApplication";
 import { ConfigureAssetsMessage } from "../../../../spark-engine/src/game/modules/assets/classes/messages/ConfigureAssetsMessage";
 import { DrawAheadMessage, type DrawAheadPicture } from "../../../../spark-engine/src/game/modules/assets/classes/messages/DrawAheadMessage";
@@ -203,11 +202,6 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
 
 const STYLE_SCOPE = "spark-web-player #game";
 
-const REPLICA_ATTRIBUTE = "data-sd-replica";
-
-const REPLICA_SCOPE = `spark-web-player [${REPLICA_ATTRIBUTE}]`;
-
-const REPLICA_STYLES: ReplicaStyleScope = { scope: STYLE_SCOPE, replica: REPLICA_SCOPE, keyframes: "sd-replica-" };
 
 const WRITTEN_STATE = [
   "__sdId",
@@ -987,6 +981,9 @@ export default class UIManager extends Manager {
     }
     const { replica, rehearsed } = rehearsal;
     try {
+      if (rehearsal.unmeasurable) {
+        return { layers: [], unprepared: draws };
+      }
       const reachOf = (span: HTMLElement) => ({ zoom: pictureZoomReach(span), scale: rehearsal.scaleOf(span) });
       const gauges: [MorphLayer, HTMLElement, PictureGauge["reach"]][] = [];
       for (const layer of shown) {
@@ -1041,17 +1038,7 @@ export default class UIManager extends Manager {
     if (!overlay?.parentNode) {
       return undefined;
     }
-    const scope = overlay.parentElement?.closest<HTMLElement>(STYLE_SCOPE) ?? undefined;
-    const replica = replicate(overlay, {
-      carried: WRITTEN_STATE,
-      copy: (from, to) => {
-        copyPictureRest(from, to);
-        if (scope && to.localName === "style") {
-          to.textContent = replicaCss(to.textContent ?? "", overlay.ownerDocument, REPLICA_STYLES);
-        }
-      },
-      ...(scope ? { scope: { element: scope, attribute: REPLICA_ATTRIBUTE } } : {}),
-    });
+    const replica = replicate(overlay, { carried: WRITTEN_STATE, copy: copyPictureRest });
     const app = Object.create(this.app, {
       overlay: { value: replica.root },
       answer: { value: () => undefined },
@@ -1060,7 +1047,7 @@ export default class UIManager extends Manager {
       assetCache: { value: undefined },
       audio: { value: undefined },
     }) as IApplication;
-    const rehearsal = new BeatRehearsal(app, replica, !!scope);
+    const rehearsal = new BeatRehearsal(app, replica);
     const twin = (el: Element) => replica.of(el);
     const twins = (els: Iterable<HTMLElement>) => new Set([...els].flatMap((el) => twin(el) ?? []));
     rehearsal._breakpoints = this._breakpoints;
@@ -1087,12 +1074,18 @@ export default class UIManager extends Manager {
       dispose: () => undefined,
       reachOf: (target: string, background: string) => this._drawAhead.reachOf(target, background),
     } as unknown as DrawAhead;
+    const sheets = Array.from(replica.root.querySelectorAll("style"));
     try {
       rehearsal.applyBeat(params, ops, plan);
+      if (sheets.some((sheet) => !replica.root.contains(sheet))) {
+        rehearsal.unmeasurable = "a stylesheet";
+      }
     } catch (error) {
       replica.dispose();
       console.warn("a beat could not be measured before it fires", error);
       return undefined;
+    } finally {
+      ColorSchemeHost.release(replica.root);
     }
     return rehearsal;
   }
@@ -3885,10 +3878,11 @@ class BeatRehearsal extends UIManager {
 
   protected scales?: Map<Element, number>;
 
+  unmeasurable?: string;
+
   constructor(
     app: IApplication,
     readonly replica: Replica,
-    readonly scoped: boolean,
   ) {
     super(app);
     const hold = new RehearsalHold();
@@ -3911,12 +3905,7 @@ class BeatRehearsal extends UIManager {
     return scale;
   }
 
-  protected ownKeyframes?: Set<string>;
-
   protected styledScale(el: Element): number {
-    if (this.scoped) {
-      bindAnimationNames(el, REPLICA_STYLES, (this.ownKeyframes ??= replicaKeyframeNames(this.replica.root, REPLICA_STYLES)));
-    }
     let scale = 1;
     for (const animation of el.getAnimations?.() ?? []) {
       if (typeof (animation as CSSAnimation).animationName === "string") {
@@ -3987,13 +3976,19 @@ class BeatRehearsal extends UIManager {
     return "";
   }
 
-  protected override applyDocumentTheme() {}
+  protected override applyDocumentTheme(colorScheme: Parameters<ColorSchemeHost["configure"]>[0], rootTextSize: string | undefined) {
+    if (rootTextSize && rootTextSize !== this.replica.root.ownerDocument.documentElement.style.fontSize) {
+      this.unmeasurable = "the root text size";
+    }
+    super.applyDocumentTheme(colorScheme, undefined);
+  }
 
   protected override writeContent(el: HTMLElement, content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>) {
-    super.writeContent(el, content, breakpoints);
-    if (this.scoped && el.localName === "style") {
-      el.textContent = replicaCss(el.textContent ?? "", el.ownerDocument, REPLICA_STYLES);
+    if (el.localName === "style") {
+      this.unmeasurable = "a stylesheet";
+      return;
     }
+    super.writeContent(el, content, breakpoints);
   }
 
   protected override settleRequest(_request: RequestMessage, done: Promise<unknown>) {

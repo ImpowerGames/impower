@@ -12,7 +12,11 @@ const STAGE = `<style>
 body { margin: 0; }
 #game { position: relative; width: 640px; height: 360px; container-type: size; container-name: screen; overflow: clip; }
 spark-web-player #game-ui { position: absolute; inset: 0; }
-.card { position: absolute; left: 10.5px; top: 7.25px; width: 100px; height: 60px; background-color: red; visibility: visible; animation: pulse 10s linear infinite; --reach: 2; }
+.card { position: absolute; left: 10.5px; top: 7.25px; width: 100px; height: 60px; background-color: red; visibility: visible; --reach: 2; }
+@keyframes pulse { from { scale: 1; } to { scale: 2; } }
+@keyframes reach { from { scale: 1; } to { scale: var(--reach); } }
+.card.pulsing { animation: pulse 10s linear infinite; }
+.card.reaching { animation: reach 10s linear infinite; }
 .card .image .instance { display: block; width: 100%; height: 50px; background-size: 100% 100%; background-repeat: no-repeat; }
 </style><spark-web-player><div id="game"><div id="game-ui"></div></div></spark-web-player>`;
 
@@ -66,6 +70,7 @@ async function stage(holdLoad: boolean) {
     settle,
     applied: () => applied,
     waiting: () => Boolean(overlay.__sdBeat),
+    veiled: () => Boolean((ui as unknown as { _veil?: unknown })._veil),
     look: () => {
       const card = ui.getElement("card") as HTMLElement;
       return { width: card.offsetWidth, color: getComputedStyle(card).backgroundColor };
@@ -73,15 +78,24 @@ async function stage(holdLoad: boolean) {
   };
 }
 
-async function sheetChangeWhileWaiting() {
+async function sheetChanged() {
   const t = await stage(true);
   await t.sheet({ card: { width: "100px", background_color: "rgb(0, 0, 255)" } });
-  const before = t.look();
   t.beat([request("ui/update", { element: "sheet", content: { styles: { card: { width: "300px", background_color: "rgb(0, 128, 0)" } } }, breakpoints: {} }), t.show]);
   await t.settle(50);
-  const during = t.look();
-  const result = { before, during, applied: t.applied(), waiting: t.waiting() };
+  const result = { look: t.look(), applied: t.applied(), waiting: t.waiting(), veiled: t.veiled() };
   t.ui.onDispose();
+  return result;
+}
+
+async function rootTextSized() {
+  const t = await stage(true);
+  const before = document.documentElement.style.fontSize;
+  t.beat([request("ui/theme", { breakpoints: {}, variables: [], root_text_size: "20px" }), t.show]);
+  await t.settle(50);
+  const result = { before, after: document.documentElement.style.fontSize, applied: t.applied(), waiting: t.waiting(), veiled: t.veiled() };
+  t.ui.onDispose();
+  document.documentElement.style.removeProperty("font-size");
   return result;
 }
 
@@ -96,65 +110,41 @@ async function sheetRemoved() {
   await t.settle(50);
   t.beat([request("ui/destroy", { element: "sheet" })]);
   await t.settle(50);
-  const asked = t.rasters.slice(1).map(({ width, height }) => [width, height]);
   const waiting = t.waiting();
-  const appliedBefore = t.applied();
-  const second = t.rasters[1];
-  second?.resolve({ image: document.createElement("canvas"), release: () => {} });
-  for (let i = 0; i < 100 && t.applied() < 2; i++) await t.settle(10);
-  const result = { first: first && [first.width, first.height], asked, waiting, appliedBefore, appliedAfter: t.applied(), width: t.look().width };
+  const applied = t.applied();
+  for (let i = 0; i < 100 && t.rasters.length < 2; i++) await t.settle(10);
+  const asked = t.rasters.slice(1).map(({ width, height }) => [width, height]);
+  const result = { first: first && [first.width, first.height], asked, waiting, applied, width: t.look().width };
   t.ui.onDispose();
   return result;
 }
 
 let held: Awaited<ReturnType<typeof stage>> | undefined;
 
-async function holdSheetChange() {
+async function holdStyleChange() {
   held = await stage(true);
-  await held.sheet({ card: { width: "100px", background_color: "rgb(0, 0, 255)" } });
   await held.settle(50);
   const scroller = document.scrollingElement!;
   return { width: scroller.scrollWidth, height: scroller.scrollHeight };
 }
 
-async function startSheetChange(text: boolean) {
+async function startStyleChange() {
   const t = held!;
-  const content = text
-    ? ".card { width: 3000px !important; background-color: rgb(0, 128, 0) !important; }"
-    : { styles: { card: { width: "3000px", background_color: "rgb(0, 128, 0)" } } };
-  t.beat([request("ui/update", { element: "sheet", content, breakpoints: {} }), t.show]);
+  t.beat([request("ui/update", { element: "card", style: { width: "3000px", background_color: "rgb(0, 128, 0)" }, breakpoints: {} }), t.show]);
   await t.settle(50);
   const scroller = document.scrollingElement!;
   return { applied: t.applied(), waiting: t.waiting(), scroll: { width: scroller.scrollWidth, height: scroller.scrollHeight } };
 }
 
-function endSheetChange() {
+function endStyleChange() {
   held?.ui.onDispose();
   held = undefined;
 }
 
-const KEYFRAMES: Record<string, unknown> = {
-  literal: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "2" }] } } },
-  variable: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "var(--reach)" }] } } },
-  media: "@keyframes pulse { from { scale: 1; } to { scale: 2; } } @media (min-width: 9999px) { @keyframes pulse { from { scale: 1; } to { scale: 1; } } }",
-};
-
-async function keyframesChanged(kind: string) {
+async function styledAnimation(kind: string) {
   const t = await stage(false);
-  await t.ui.onReceiveRequest(
-    request("ui/create", {
-      parent: null,
-      element: "sheet",
-      type: "style",
-      name: "sheet",
-      content: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "1" }] } } },
-      breakpoints: {},
-    }),
-  );
-  t.beat([
-    request("ui/update", { element: "sheet", content: KEYFRAMES[kind], breakpoints: {} }),
-    t.show,
-  ]);
+  t.card.classList.add(kind === "variable" ? "reaching" : "pulsing");
+  t.beat([t.show]);
   for (let i = 0; i < 100 && t.rasters.length < 1; i++) await t.settle(10);
   const result = { asked: t.rasters.map(({ width, height }) => [width, height]), applied: t.applied(), waiting: t.waiting() };
   t.ui.onDispose();
@@ -162,10 +152,11 @@ async function keyframesChanged(kind: string) {
 }
 
 (window as unknown as { measuredBeatProbe: unknown }).measuredBeatProbe = {
-  sheetChangeWhileWaiting,
+  sheetChanged,
+  rootTextSized,
   sheetRemoved,
-  holdSheetChange,
-  startSheetChange,
-  endSheetChange,
-  keyframesChanged,
+  holdStyleChange,
+  startStyleChange,
+  endStyleChange,
+  styledAnimation,
 };

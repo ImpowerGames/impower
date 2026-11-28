@@ -1,5 +1,4 @@
 import { replicate } from "../../../src/app/utils/replicate";
-import { replicaCss } from "../../../src/app/utils/replicaStyles";
 
 const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
@@ -19,14 +18,14 @@ const PAGE = `
 .below { height: 10px; }
 </style>
 <div id="frame"><div id="stage">
+  <style class="own">#stage .text { color: rgb(1, 2, 3); }</style>
   <div class="row"><div class="gone"><div class="inner"></div><input class="field"><video class="clip" preload="none" muted></video></div><div class="sibling"></div></div>
   <div class="text">short</div>
   <div class="below"></div>
 </div></div>`;
 
-async function measure(scoped: boolean) {
+async function measure() {
   document.body.innerHTML = PAGE;
-  const scope = document.getElementById("frame") as HTMLElement;
   const stage = document.getElementById("stage") as HTMLElement;
   const gone = stage.querySelector(".gone") as HTMLElement;
   const sibling = stage.querySelector(".sibling") as HTMLElement;
@@ -48,7 +47,7 @@ async function measure(scoped: boolean) {
   const records: MutationRecord[] = [];
   const observer = new MutationObserver((list) => records.push(...list));
   observer.observe(stage, { subtree: true, childList: true, attributes: true, characterData: true });
-  const replica = replicate(stage, scoped ? { carried: [], scope: { element: scope, attribute: "data-probe-replica" } } : { carried: [] });
+  const replica = replicate(stage, { carried: [] });
   const originals = [stage, ...Array.from(stage.querySelectorAll<HTMLElement>("*"))];
   const still = (el: Element) => {
     for (let at: Element | null = el; at; at = at.parentElement) if (at.getAnimations().length > 0) return false;
@@ -70,6 +69,8 @@ async function measure(scoped: boolean) {
       return [...boxes, ...placed].map(Math.abs);
     }),
   );
+  const ownSheet = replica.of(stage.querySelector(".own")!) as HTMLStyleElement;
+  const sheets = [ownSheet.sheet?.media.mediaText, getComputedStyle(replica.of(stage.querySelector(".text")!)!).color];
   const twinSibling = replica.of(sibling)!;
   const twinBelow = replica.of(stage.querySelector(".below")!)!;
   const belowBefore = twinBelow.offsetTop;
@@ -83,6 +84,7 @@ async function measure(scoped: boolean) {
     unsettled,
     opacity: Number(getComputedStyle(twinSibling).opacity),
     reflowed: twinBelow.offsetTop - belowBefore,
+    sheets,
     twinMedia: [replica.of(clip)!.getAttribute("src"), (replica.of(clip) as HTMLVideoElement).networkState],
   };
   const realWidth = sibling.offsetWidth;
@@ -104,20 +106,8 @@ async function measure(scoped: boolean) {
     media,
     mutations: records.length,
     unchanged: stage.outerHTML === style,
-    left: stage.nextElementSibling === null && scope.nextElementSibling === null,
+    left: stage.nextElementSibling === null,
   };
 }
 
-function rewrite() {
-  const css = [
-    "spark-web-player #game .card, .badge:is(.a, .b) { width: 10px; }",
-    "spark-web-player #game { --reach: 2; }",
-    "@media (min-width: 1px) { .plate > .image { height: 5px; } }",
-    "@keyframes pulse { from { scale: 1; } to { scale: 2; } }",
-    '@property --size { syntax: "<length>"; inherits: false; initial-value: 0px; }',
-    "@font-face { font-family: probe; src: local(Arial); }",
-  ].join("\n");
-  return replicaCss(css, document, { scope: "spark-web-player #game", replica: "spark-web-player [data-probe]", keyframes: "probe-" });
-}
-
-(window as unknown as { replicaProbe: unknown }).replicaProbe = { measure, rewrite };
+(window as unknown as { replicaProbe: unknown }).replicaProbe = { measure };
