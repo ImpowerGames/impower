@@ -16,7 +16,7 @@ Read in order:
 10. **[Character Portraits](./Portraits.md)** — layered portraits and backgrounds, attributes, named looks, and image-file layers.
 11. **[Previewing Suggestions](./SuggestionPreview.md)** — the Game Preview shows an autocomplete suggestion before you accept it.
 12. **[Type Checking](./TypeChecking.md)** — warnings about the types in your Luau, and how strict they are.
-13. **[Joining Lines](./JoiningLines.md)** — `..` at the end and start of a line, and beside a `>` break.
+13. **[Joining Lines](./JoiningLines.md)** — `..` at the end and start of a line, beside a `>` break, `>>` to carry on without a click, and the `<speed>` and `<wait>` tags.
 14. **[Video](./Video.md)** — movies on a layer, full-screen cutscenes, their sound, and video formats.
 15. **[Previewing a Line](./PreviewingALine.md)** — the route the Game Preview takes to your line: playing its beat, the route button, the route list and the four kinds of decision.
 16. **[Portrait Morphs](./PortraitMorphs.md)** — portraits that move between their drawn states, such as a blink: preparing the layers, keyframes, clips, timing and the "Show idle animations" switch.

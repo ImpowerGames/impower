@@ -256,7 +256,19 @@ A single `portrait` slot holds one picture, so two characters on screen at once 
 
 ## Bringing a portrait in and out
 
-A portrait line takes any number of `with` clauses, and they all play together. A `with` names a transition, such as `fade`, or an animation, such as `shake`:
+`using` names the transition a portrait arrives or leaves by, such as `fade`:
+
+```sparkdown
+scene start
+  [[mia:happy using fade over 0.5s with shake over 2s]]
+  [[show portrait mia:sad using fade]]
+  [[hide portrait using fade over 1s with spin over 1s once]]
+end
+```
+
+The transition plays in place of the line's own show or hide: the arriving face gets the transition's `on_show` animation and the face it replaces its `on_hide` animation. The `over`, `after` and `ease` written before the first `with`, or after `using`, time the transition; with none of them it plays its declared timing, half a second for `fade`. Every `with` plays beside it. So the first line fades the happy face in over half a second while it shakes for two seconds, and the face it replaces fades out and shakes too. The last line fades the portrait out over a second while it makes one turn. A line takes one `using`, and only a transition follows it: `using shake` is reported, and the editor's quick fix rewrites it to `with shake`. See [arriving and leaving with `using`](./AnimationTheme.md#arriving-and-leaving-with-using).
+
+A portrait line also takes any number of `with` clauses, and they all play together. A `with` names a transition, such as `fade`, or an animation, such as `shake`:
 
 ```sparkdown
 scene start
@@ -493,7 +505,7 @@ A drawn portrait a morph plays on is drawn the same way, in every pose the line 
 
 A picture is not drawn again because a framing starts moving. When the preview or the window changes size, the picture is stretched until the resize ends, and then drawn again at its new size. A line that zooms a picture already shown further, or changes the size of its element, waits until the picture is drawn at its new size, and the picture keeps its current drawing until then. A few changes are not seen before the line shows: a picture that grows because an element before it is removed and a style depends on its position among its siblings, because text written on the line pushes it, or because the line both zooms it and resizes its element, keeps its drawing, is stretched as the line shows, and is drawn again once the change settles.
 
-A picture with an SVG file shows a placeholder in the web editor's preview and in VS Code's Game Preview when it cannot be drawn, or when it is not drawn by the time the wait runs out: a dashed box holding the picture's name and one line saying why. An exported game shows nothing in its place. The game warns once for each such picture. A picture drawn after its wait ran out replaces its placeholder. There is no fallback to the CSS drawing. A picture a morph plays on keeps its still drawing when the morph cannot play, and shows the placeholder when neither can draw it, unless one of its SVG layers plays a morph of its own, which keeps playing in the picture's CSS drawing. These SVG files cannot be drawn:
+A picture with an SVG file shows a placeholder in the web editor's preview and in VS Code's Game Preview when it cannot be drawn, or when it is not drawn by the time the wait runs out: a dashed box holding the picture's name and one line saying why. An exported game shows nothing in its place. The game warns once for each such picture. A picture drawn after its wait ran out replaces its placeholder. There is no fallback to the CSS drawing. A picture a morph plays on keeps its still drawing when the morph cannot play, its SVG layers' own morphs holding still with it, and shows the placeholder when neither can draw it. These SVG files cannot be drawn:
 
 - A file that does not parse as an SVG, or that does not load.
 - A file without a `viewBox` whose `width` and `height` are not both absolute lengths, or that the browser sizes differently from them.

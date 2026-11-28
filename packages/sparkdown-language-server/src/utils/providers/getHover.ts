@@ -48,10 +48,39 @@ const GLUE_HOVER = {
     "A `..` at the end of a line joins the next line shown onto this one, in the same text box, when that line begins with `..`. The spaces before the mark are kept.",
   beforeBreak:
     "A `..` before a `>` break keeps the box open after the click: the part after the break carries on in this box when it begins with `..`.",
+  beforeCarry:
+    "A `..` before a `>>` keeps the box open with no click: the next line shown carries on in this box when it begins with `..`.",
   lineStart:
     "A `..` at the start of a line joins this line onto the line shown before it, when that line ends with `..`. Otherwise this line shows on its own, and the game warns that it joins nothing.",
   afterBreak:
     "A `..` after a `>` break carries on in the same box after the click, when the part before the break ends with `..`.",
+};
+
+const CARRY_HOVER =
+  "A `>>` at the end of a line carries on without a click once the line has finished showing. In a stream that advances by itself it also skips the stream's `pause`: write a `<wait=N>` before it for a beat before the next line.";
+
+const getCarryHover = (
+  document: SparkdownDocument,
+  tree: Tree,
+  position: Position,
+): Hover | null => {
+  const offset = document.offsetAt(position);
+  const stack = getStack<SparkdownNodeName>(tree, offset, 1);
+  const mark = stack.find((node) => node.name === "Carry");
+  if (!mark) {
+    return null;
+  }
+  const from = mark.from + document.read(mark.from, mark.to).indexOf(">>");
+  if (offset < from || offset > from + 2) {
+    return null;
+  }
+  return {
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: `${CARRY_HOVER}\n\n[Joining lines](${JOINING_LINES_GUIDE}#133-carrying-on-without-a-click)`,
+    },
+    range: document.range(from, from + 2),
+  };
 };
 
 const getLayoutControlHover = (
@@ -235,9 +264,16 @@ const getGlueHover = (
       start: document.positionAt(mark.to),
       end: { line: document.positionAt(mark.to).line + 1, character: 0 },
     });
-    text = after.trimStart().startsWith(">")
-      ? GLUE_HOVER.beforeBreak
-      : GLUE_HOVER.lineEnd;
+    const onLine = after.split(/\r?\n/)[0]!;
+    const markAfter = mark.to + onLine.length - onLine.trimStart().length;
+    const carries = getStack<SparkdownNodeName>(tree, markAfter + 1, 1).some(
+      (node) => node.name === "Carry",
+    );
+    text = carries
+      ? GLUE_HOVER.beforeCarry
+      : after.trimStart().startsWith(">")
+        ? GLUE_HOVER.beforeBreak
+        : GLUE_HOVER.lineEnd;
   } else {
     text = stack.some((node) => node.name === "BreakLeadingGlue")
       ? GLUE_HOVER.afterBreak
@@ -387,6 +423,29 @@ const framingHover = (framing: Record<string, unknown>): string =>
     "`x` and `y` put that point across and down the picture on the same point of its layer: `0%` sets the left or top edges flush, `100%` the right or bottom edges. `zoom` is how close the view is, where `1` is the picture's size on its layer.",
   ].join("\n\n");
 
+const transitionHover = (transition: Record<string, unknown>, context: SparkProgram["context"]): string => {
+  const animationName = (value: unknown): string | undefined =>
+    typeof value === "string" ? value : typeof (value as { $name?: unknown })?.$name === "string" ? (value as { $name: string }).$name : undefined;
+  const played = (name: string) => {
+    const duration = (context?.["animation"]?.[name] as { timing?: { duration?: unknown } } | undefined)?.timing?.duration;
+    return duration === undefined ? `\`${name}\`` : `\`${name}\` (${String(duration)})`;
+  };
+  const arms = Object.entries(transition).flatMap(([arm, value]) => {
+    const name = arm.startsWith("$") ? undefined : animationName(value);
+    return name ? [[arm, name] as const] : [];
+  });
+  const lines = [
+    ...arms.filter(([arm]) => arm === "on_show").map(([, name]) => `- arrives by ${played(name)}`),
+    ...arms.filter(([arm]) => arm === "on_hide").map(([, name]) => `- leaves by ${played(name)}`),
+    ...arms.filter(([arm]) => !arm.startsWith("on_")).map(([arm, name]) => `- plays ${played(name)} on \`${arm}\``),
+  ];
+  return [
+    `**transition** \`${String(transition["$name"] ?? "")}\``,
+    ...(lines.length ? [lines.join("\n")] : []),
+    "Write it after `using` on a picture line: the line's `over` stretches the whole transition to that length, `after` delays it and `ease` eases it.",
+  ].join("\n\n");
+};
+
 export const getHover = async (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -400,6 +459,10 @@ export const getHover = async (
     const glueHover = getGlueHover(document, tree, position);
     if (glueHover) {
       return glueHover;
+    }
+    const carryHover = getCarryHover(document, tree, position);
+    if (carryHover) {
+      return carryHover;
     }
     const showingHover = getShowingHover(document, tree, position);
     if (showingHover) {
@@ -522,6 +585,12 @@ export const getHover = async (
   if (struct.$type === "framing") {
     return {
       contents: { kind: MarkupKind.Markdown, value: framingHover(struct) },
+      range,
+    };
+  }
+  if (struct.$type === "transition") {
+    return {
+      contents: { kind: MarkupKind.Markdown, value: transitionHover(struct, program.context) },
       range,
     };
   }

@@ -9,6 +9,7 @@ import { AudioClock } from "../../src/app/AudioClock";
 import AudioManager from "../../src/app/managers/AudioManager";
 import UIManager from "../../src/app/managers/UIManager";
 import { MorphPlayback } from "../../src/app/morph/MorphPlayback";
+import { drawPosesOnCanvases, layOutPictures, untilDrawn } from "./canvasPoses";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -65,19 +66,25 @@ scene start
 end
 `;
 
+let unlayOut: (() => void) | undefined;
+
 async function speaking(sync = "beep") {
   const source = `${talkScript(timingOf(sync))}\n${SCENE}`;
   const files = [{ uri: "inmemory:///mia.svg", type: "image", name: "mia", ext: "svg", data: talkingPortrait({ dx: 0, dy: 0 }) }];
   const h = createDOMHarness(source, 0, { files });
+  unlayOut = layOutPictures(h.overlay.ownerDocument);
   const playback = MorphPlayback.for(h.overlay);
   playback.configure({ host: inProcessHost(() => h.game.program), seed: "test", ...manualFrames() });
+  const poses = drawPosesOnCanvases(playback, { files, frameRate: 100 });
   await h.ready;
   await h.preview(lineOf(source, "First line."));
   await flushMicrotasks(10);
   await until(() => playback.stats.live === 1, "the portrait's artifact");
+  await untilDrawn(playback);
   const image = [...(playback as any).layers].flatMap((layer: any) => layer.images)[0];
   const occurrence = image.plays.find((p: any) => p.occurrence).occurrence;
-  const shadow = h.overlay.querySelector(".portrait .image > .instance > span.morph")!.shadowRoot!;
+  const root = h.overlay.querySelector(".portrait .image > .instance > span.morph")!.shadowRoot!;
+  const shown = () => leafStates(poses.shownDoc(root));
   const origin = playback.now;
   const starts: number[] = [];
   let last = -1;
@@ -94,28 +101,30 @@ async function speaking(sync = "beep") {
     for (let t = Math.ceil((playback.now - origin) / 0.005 - 1e-6) * 0.005; t <= until + 1e-9; t += 0.005) at(t);
     return starts;
   };
-  return { playback, at, sweep, starts, shadow, artifact: image.slot.artifact as MorphArtifact, rest: leafStates(shadow) };
+  return { playback, at, sweep, starts, shown, artifact: image.slot.artifact as MorphArtifact, rest: shown() };
 }
 
 const BEEPS = [0.1, 0.175, 0.25, 0.325, 0.4, 0.475];
 const SPANS: [number, number][] = [[0.1, 0.55]];
 
 afterEach(() => {
+  unlayOut?.();
+  unlayOut = undefined;
   document.body.innerHTML = "";
 });
 
 describe("a beep-synced speech morph in the page (#2261)", () => {
   test("a play starts on a beep, beeps during it are skipped, and the next starts on the first beep after it ends", async () => {
-    const { playback, at, sweep, shadow, artifact, rest } = await speaking();
+    const { playback, at, sweep, shown, artifact, rest } = await speaking();
     playback.speak("mia", SPANS, BEEPS);
     expect(at(0.05)).toEqual({ phase: "off" });
-    expect(leafStates(shadow)).toEqual(rest);
+    expect(shown()).toEqual(rest);
     const opening = at(0.1);
     expect(opening).toMatchObject({ phase: "playing", play: 0, offset: expect.closeTo(0, 9) });
     const open = at(0.17);
     expect(open).toMatchObject({ phase: "playing", play: 0, offset: expect.closeTo(0.4375, 9) });
-    expect(leafStates(shadow)).toEqual(referenceStates(artifact, { talk: (open as { offset: number }).offset }));
-    expect(leafStates(shadow)).not.toEqual(rest);
+    expect(shown()).toEqual(referenceStates(artifact, { talk: (open as { offset: number }).offset }));
+    expect(shown()).not.toEqual(rest);
     expect(sweep(1)).toEqual([0.1, 0.325]);
   });
 
@@ -126,12 +135,12 @@ describe("a beep-synced speech morph in the page (#2261)", () => {
   });
 
   test("the play in progress after the last beep finishes, and none starts after it", async () => {
-    const { playback, at, sweep, shadow, rest } = await speaking();
+    const { playback, at, sweep, shown, rest } = await speaking();
     playback.speak("mia", SPANS, BEEPS);
     sweep(0.48);
     expect(at(0.48)).toMatchObject({ phase: "playing", play: 1 });
     expect(at(0.6)).toEqual({ phase: "off" });
-    expect(leafStates(shadow)).toEqual(rest);
+    expect(shown()).toEqual(rest);
     expect(sweep(2)).toEqual([0.1, 0.325]);
   });
 

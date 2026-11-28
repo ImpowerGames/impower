@@ -696,7 +696,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
             ? LINE_START_CONTINUES
             : undefined,
       );
-      afterClick = displayTableFlag(obj.args, "pause");
+      afterClick =
+        displayTableFlag(obj.args, "pause") || displayTableFlag(obj.args, "onward");
     }
   }
 

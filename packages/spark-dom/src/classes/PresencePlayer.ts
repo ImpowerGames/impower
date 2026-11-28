@@ -211,7 +211,16 @@ export default class PresencePlayer {
   change(element: Element, presence: string | null): () => void {
     this._before.delete(element);
     if (presence === "initial") {
-      this._before.set(element, new Set(this.animations(element)));
+      const before = new Set(this.animations(element));
+      this._before.set(element, before);
+      this.end(element);
+      return () => {
+        for (const animation of this.animations(element)) {
+          if (!before.has(animation) && "transitionProperty" in animation) {
+            animation.finish();
+          }
+        }
+      };
     }
     if (presence != null) {
       this.end(element);

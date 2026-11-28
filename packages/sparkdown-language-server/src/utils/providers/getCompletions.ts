@@ -1682,8 +1682,10 @@ const completionsAt = (
     if (!severalWiths) {
       return written.map(({ text }) => text);
     }
-    const ownerAt = (offset: number) =>
-      written.findLast((keyword) => keyword.text === "with" && keyword.from < offset)?.from ?? -1;
+    const ownerAt = (offset: number) => {
+      const owner = written.findLast((keyword) => (keyword.text === "with" || keyword.text === "using") && keyword.from < offset);
+      return owner?.text === "with" ? owner.from : -1;
+    };
     const cursorOwner = ownerAt(documentCursorOffset);
     return written
       .filter(
@@ -2091,9 +2093,18 @@ const completionsAt = (
           leftStack,
         ),
       );
+    const takesUsing = (control: string) => {
+      if (control === "" || control === "show" || control === "hide") return true;
+      const command = leftStack.find((n) => n.type.name === "ImageCommand");
+      return (
+        control === "animate" &&
+        !!command &&
+        readDirective("image", read(command.from + 2, documentCursorOffset)).names.length > 0
+      );
+    };
     const addImageClauseCompletions = (control: string) => {
       const imageClauses = [
-        ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "at"),
+        ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "at" && (k !== "using" || takesUsing(control))),
         ...(control === "animate" ? ["to"] : takesMovieClauses(control) ? ["at"] : []),
       ];
       const clauses = MOVIE_CONTROL_KEYWORDS.includes(control)
@@ -2265,6 +2276,8 @@ const completionsAt = (
               ? ["transition"]
               : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);
+      } else if (keyword === "using") {
+        addStructReferenceCompletions(completions, program, ["transition"]);
       } else if (keyword === "ease") {
         addStructReferenceCompletions(completions, program, ["ease"]);
       } else if ((keyword === "at" || keyword === "to") && reading.kind === "image") {
@@ -2276,6 +2289,7 @@ const completionsAt = (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         (prevText === "with" ||
+          prevText === "using" ||
           prevText === "ease" ||
           prevText === "morph" ||
           prevText === "at" ||

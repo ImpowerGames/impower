@@ -42,35 +42,58 @@ single turn over two seconds.
 Which `with` a clause belongs to:
 
 - `over`, `after`, `ease`, `loop` and `once` written after a `with` belong to
-  that `with`, up to the next `with` or the end of the line.
-- The same words written before the first `with` belong to the line itself.
-  `over`, `after` and `ease` time the line's own motion, such as the travel of
-  `to` (see [Framings](./Framings.md#193-travelling-to-a-framing)). `loop` and
-  `once` there belong to a video the line shows.
-- `at`, `to`, `morph`, `wait`, `mute`, `unmute` and `now` belong to the line
-  wherever they are written.
+  that `with`, up to the next `with`, the next `using` or the end of the line.
+- The same words written before the first `with`, or after `using`, belong to
+  the line itself. `over`, `after` and `ease` time the line's own motion, such
+  as the travel of `to` (see
+  [Framings](./Framings.md#193-travelling-to-a-framing)) or the transition of
+  `using` (see [Arriving and leaving with `using`](#arriving-and-leaving-with-using)).
+  `loop` and `once` there belong to a video the line shows.
+- `using`, `at`, `to`, `morph`, `wait`, `mute`, `unmute` and `now` belong to the
+  line wherever they are written.
 - A clause word written twice for one owner keeps the later value.
 
-Timing that is not written is borrowed:
+A timing word times only what it is written on. Nothing passes between the line
+and its `with` clauses, in either direction. What is not written comes from the
+animation's own `timing` block:
 
-- A `with` that has no `over` takes the line's. The same holds for `after` and
-  `ease`.
-- A line that has none of `over`, `after` and `ease` of its own takes all three
-  from the first `with`. A line that has any of them borrows none.
-- A `with` never borrows from another `with`.
+| Not written | Comes from the declaration's |
+| --- | --- |
+| `over` | `duration` |
+| `after` | `delay` |
+| `ease` | `easing` |
+| `loop`, `once` | `iterations` |
 
-So `[[animate portrait over 2s with shake with spin over 5s]]` shakes for two
-seconds and turns over five.
+The line's own motion follows the same rule. The built-in `show` and `hide`
+declare a duration of 0, so a `show` or `hide` with no `over` is instant. A
+travel has no declaration: with no `over` it arrives at once, with no `after` it
+starts with the line, and with no `ease` it takes the easing an animation gets
+when it names none.
+
+| Line | What plays |
+| --- | --- |
+| `[[animate backdrop to left over 4s with shake]]` | The travel takes 4s. The shake takes its declared 300ms. |
+| `[[animate backdrop to left with shake over 1s]]` | The shake takes 1s. The travel has no `over` and arrives at once. |
+| `[[animate backdrop to left over 1s ease linear with shake]]` | The travel is linear. The shake keeps its declared `ease-in-out`. |
+| `[[animate backdrop to left after 1s with shake]]` | The travel starts 1s in. The shake starts with the line. |
+| `[[animate portrait with shake over 1s with spin over 5s]]` | The shake takes 1s and the spin 5s. |
+| `[[animate portrait over 2s with shake]]` | The shake takes its declared 300ms. This line has no show, hide or travel, so its `over 2s` times nothing, and the editor warns. |
+
+An `animate` line that has no `to` and names no picture has no motion of its
+own, so an `over`, `after` or `ease` written for the line there times nothing.
+The editor warns on the word and its value: write it after the `with` it should
+time.
 
 `loop` after a `with` repeats that animation without end, and `once` plays it
 through one time, whatever its definition says. One definition then serves a
-single play and a continuous one: `with shake` and `with shake loop`. `loop` and
-`once` are never borrowed. On a `with` that names a transition, they apply to
-every animation the transition runs.
+single play and a continuous one: `with shake` and `with shake loop`. On a
+`with` that names a transition, they apply to every animation the transition
+runs.
 
 `wait` holds the story until the last of them has ended: the line's own motion
-and every `with`, each counted as its `after` plus its length. A `with` that
-repeats counts one pass.
+and every `with`, each counted as its `after` plus its length, with a declared
+`delay` and `duration` standing in for an `after` and an `over` that are not
+written. A `with` that repeats counts one pass.
 
 How the `with` clauses of one line combine when they set the same property:
 
@@ -114,6 +137,47 @@ longest of its animations has ended.
 
 `open`, `close` and `navigate` play only the last `with` on their line. `load`,
 `play` and sound lines take one `with`, and a second is reported.
+
+### Arriving and leaving with `using`
+
+`using` names the transition a picture line arrives or leaves by. The picture
+lines are `show`, `hide`, the bare picture line, and an `animate` that names a
+picture:
+
+```sparkdown
+scene start
+  [[show portrait hero using fade over 2s with shake]]
+  [[hide portrait using fade over 1s with spin over 1s once]]
+  [[show portrait mia using screenfade over 1s]]
+  [[animate backdrop dusk using fade]]
+end
+```
+
+- The transition plays in place of the line's own show and hide: the arriving
+  picture gets its `on_show` animation and the picture leaving its `on_hide`
+  animation. Its other parts, such as the `screen` pulse of `screenfade`, play
+  on their own layers.
+- The line's `over` stretches the whole transition to that length, `after`
+  delays it and `ease` eases it. With none of them, each of its animations
+  plays its declared timing.
+- On an `animate` that names a picture, `using` is how the added picture
+  arrives.
+- Every `with` on the line plays beside the transition.
+- `wait` counts the transition as the line's own motion.
+
+So the first line fades the hero in over two seconds while it shakes for its
+declared 300ms, and the portrait it replaces fades out over the same two seconds
+and shakes too. The second fades the portrait out over a second while it makes
+one turn. The third pulses the screen black for a second while the portraits
+change, and the last fades the dusk backdrop in over the half second `fade`
+declares.
+
+A line takes one `using`, written anywhere on it; a second is reported. Only a
+transition follows `using`: `[[show portrait hero using shake]]` is reported on
+`shake`, and the editor's quick fix rewrites the line to `with shake`. `using`
+is also reported on an `animate` that names no picture, where nothing arrives or
+leaves, and on sound lines. `open`, `close`, `navigate`, `load` and `play` name
+their transition with `with`.
 
 Pan and zoom are framings, not animations: see [Framings](./Framings.md). An
 animation is for an effect that plays and returns to rest, such as `shake`. A

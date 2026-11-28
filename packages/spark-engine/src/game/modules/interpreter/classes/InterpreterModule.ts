@@ -41,6 +41,7 @@ import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { beatKindOfTarget } from "../../../core/constants/BEAT_KIND_OF_TARGET";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { pictureLineEnd, screenLineEnd, withTiming, type AnimationContext } from "../../ui/utils/lineAnimations";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
 import type { Chunk } from "../types/Chunk";
 import type { InstructionOptions } from "../types/InstructionOptions";
@@ -253,6 +254,9 @@ export class InterpreterModule extends Module<
     if (b.waits) {
       a.waits = true;
     }
+    if (b.onward) {
+      a.onward = true;
+    }
     if (b.end > a.end) {
       a.end = b.end;
     }
@@ -381,6 +385,7 @@ export class InterpreterModule extends Module<
     pause = false,
     extend?: { spaces: string },
     source?: ScriptLocation,
+    onward = false,
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -453,6 +458,9 @@ export class InterpreterModule extends Module<
       }
       if (pause) {
         contentInstructions.waits = true;
+      }
+      if (onward && contentInstructions.text) {
+        contentInstructions.onward = true;
       }
       if (carries && box) {
         const text = (contentInstructions.text ??= {});
@@ -624,6 +632,7 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
+    const onward = tables.some((table) => read(table, "onward") === true);
     if (read(tables[0], "continues") !== true) {
       delete this._state.box;
     }
@@ -673,6 +682,7 @@ export class InterpreterModule extends Module<
           }
         : undefined,
       source,
+      onward,
     );
   }
 
@@ -808,14 +818,6 @@ export class InterpreterModule extends Module<
     if (imageChunk.control !== "hide" && imageChunk.assets?.length) {
       this._game.module?.assets?.notice("image", imageChunk.assets);
     }
-    if (imageChunk.clauses?.wait) {
-      imageChunk.duration += this.waitDuration(
-        imageChunk,
-        imageChunk.control === "show" || imageChunk.control === "hide"
-          ? imageChunk.control
-          : undefined,
-      );
-    }
     return imageChunk;
   }
 
@@ -866,59 +868,33 @@ export class InterpreterModule extends Module<
 
   protected applyScreenWaitDuration(screenChunk: Chunk): void {
     if (screenChunk.clauses?.wait) {
-      screenChunk.duration += this.waitDuration(screenChunk);
+      screenChunk.duration += this.screenHold(screenChunk);
     }
   }
 
-  protected waitDuration(chunk: Chunk, fallback?: string): number {
-    const line = chunk.clauses;
+  protected screenHold(chunk: Chunk): number {
+    const line = chunk.clauses as { after?: number; over?: number; ease?: string } | undefined;
     const entries = chunk.with ?? [];
-    const spans = entries.map(
-      (entry) => (entry.after ?? 0) + (entry.over ?? this.effectDuration(entry.name)),
-    );
-    if (entries.length === 0) {
-      spans.push(
-        (line?.after ?? 0) +
-          (line?.over ?? this.effectDuration(chunk.target ?? "", fallback)),
-      );
-    } else if (chunk.tag === "image" && line?.to) {
-      spans.push((line.after ?? 0) + (line.over ?? 0));
-    }
-    return Math.max(0, ...spans);
+    const clauses = entries.length
+      ? entries.map((entry) => ({ with: entry.name, ...withTiming(entry) }))
+      : [{ after: line?.after, over: line?.over, ease: line?.ease }];
+    return screenLineEnd(this.context as unknown as AnimationContext, chunk.control ?? "", clauses);
   }
 
-  protected effectDuration(name: string, fallback?: string): number {
-    const transition = (this.context as any)?.["transition"]?.[name];
-    const animation = (this.context as any)?.["animation"]?.[name];
-    const animationNames: string[] = [];
-    if (transition) {
-      for (const [k, v] of Object.entries(transition)) {
-        if (!k.startsWith("$") && v) {
-          if (typeof v === "string") {
-            animationNames.push(v);
-          } else if (
-            typeof v === "object" &&
-            "$name" in v &&
-            typeof v?.$name === "string"
-          ) {
-            animationNames.push(v?.$name);
-          }
-        }
-      }
-    } else if (animation) {
-      animationNames.push(animation.$name);
-    } else if (fallback) {
-      animationNames.push(fallback);
-    }
-    return Math.max(
-      0,
-      ...animationNames.map(
-        (n) =>
-          getTimeValue(
-            (this.context as any)?.["animation"]?.[n]?.timing?.duration,
-          ) ?? 0,
-      ),
-    );
+  protected pictureHold(chunk: Chunk, over: number | undefined): number {
+    const line = chunk.clauses as { after?: number; ease?: string; to?: string; using?: string } | undefined;
+    const entries = chunk.with ?? [];
+    const travel = line?.to ? (line.after ?? 0) + (over ?? 0) : 0;
+    const instruction: ImageInstruction = {
+      control: (chunk.control || "show") as ImageInstruction["control"],
+      ...(chunk.assets?.length ? { assets: chunk.assets } : {}),
+      ...(entries.length ? { with: entries } : {}),
+      ...(line?.using ? { using: line.using } : {}),
+      ...(line?.after != null ? { after: line.after } : {}),
+      ...(over != null ? { over } : {}),
+      ...(line?.ease != null ? { ease: line.ease } : {}),
+    };
+    return Math.max(travel, pictureLineEnd(this.context as unknown as AnimationContext, instruction));
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
@@ -1010,10 +986,21 @@ export class InterpreterModule extends Module<
     time: number,
   ): WithInstruction[] {
     return entries.map((entry) =>
-      time || entry.after != null
-        ? { ...entry, after: time + (entry.after ?? 0) }
-        : { ...entry },
+      entry.after != null
+        ? { ...entry, after: time + entry.after }
+        : time
+          ? { ...entry, after: time, afterIsBeatOffset: true }
+          : { ...entry },
     );
+  }
+
+  protected placeInBeat(event: ImageInstruction | LayoutInstruction, time: number, written: unknown): void {
+    if (typeof written === "number") {
+      event.after = time + written;
+    } else if (time) {
+      event.after = time;
+      event.afterIsBeatOffset = true;
+    }
   }
 
   plainText(content: string): string {
@@ -1758,20 +1745,17 @@ export class InterpreterModule extends Module<
               control: (c.control || "show") as ImageInstruction["control"],
               assets: c.assets,
             };
-            if (time) {
-              event.after = time;
-            }
-            if (fadeDuration) {
+            this.placeInBeat(event, time, c.clauses?.after);
+            const usingValue = c.clauses?.using;
+            if (typeof usingValue === "string" && usingValue) {
+              event.using = usingValue;
+            } else if (fadeDuration) {
               event.over = fadeDuration;
             }
             if (c.with) {
               event.with = this.timedEntries(c.with, time);
             }
             if (c.clauses) {
-              const afterValue = c.clauses?.after;
-              if (afterValue != null) {
-                event.after = (event.after ?? 0) + afterValue;
-              }
               const overValue = c.clauses?.over;
               if (overValue != null) {
                 event.over = overValue;
@@ -1801,6 +1785,9 @@ export class InterpreterModule extends Module<
               if (c.clauses?.mute) {
                 event.mute = true;
               }
+            }
+            if (c.clauses?.wait) {
+              c.duration += this.pictureHold(c, event.over);
             }
             result.image ??= {};
             ownList(result.image, target);
@@ -1850,17 +1837,11 @@ export class InterpreterModule extends Module<
               if (screen) {
                 event.screen = screen;
               }
-              if (time) {
-                event.after = time;
-              }
+              this.placeInBeat(event, time, c.clauses?.after);
               if (c.with) {
                 event.with = this.timedEntries(c.with, time);
               }
               if (c.clauses) {
-                const afterValue = c.clauses?.after;
-                if (afterValue != null) {
-                  event.after = (event.after ?? 0) + afterValue;
-                }
                 const overValue = c.clauses?.over;
                 if (overValue != null) {
                   event.over = overValue;

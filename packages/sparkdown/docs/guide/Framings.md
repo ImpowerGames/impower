@@ -92,7 +92,7 @@ end
 
 `at` works on `show` and on the bare shorthand for a character's portrait, such as `[[bunny@serious at left]]`.
 
-A picture shown without `at` is at the default framing, centred at zoom 1, which looks exactly as the layer draws it without framings. That holds even when the layer was at another framing before: showing a new picture puts the layer back at the default. To swap one backdrop for another and keep the view, write the `at` again:
+A picture shown without `at` is at the default framing, centred at zoom 1, which looks exactly as the layer draws it without framings. On a plain layer that holds even when the layer was at another framing before: showing a new picture puts the layer back at the default. To swap one backdrop for another and keep the view, write the `at` again:
 
 ```sparkdown
 scene start
@@ -105,7 +105,7 @@ end
 
 Hiding the layer, or clearing it, also puts it back at the default.
 
-In a [cast](./Streams.md#a-cast-keeps-one-entry-per-character), each character's entry is its own layer for framings. `[[mia@happy at left]]` frames only Mia's picture, so two characters can hold different framings at once, and a new picture of Mia with no `at` puts only her entry back at the default. A framing moves the picture inside its own element, and the style places the element, so the two add up.
+In a [cast](./Streams.md#a-cast-keeps-one-entry-per-character), each character's entry is its own layer for framings. `[[mia@happy at left]]` frames only Mia's picture, so two characters can hold different framings at once. A character keeps their framing: a new picture of Mia with no `at` stays where she was, including after her entry has emptied or gone and is made again. A later `at` or `animate mia to …` changes it, and hiding Mia or the layer ends it. To put a character back at the default, write `at center`, since the built-in `center` draws the same view as the default. A framing moves the picture inside its own element, and the style places the element, so the two add up.
 
 The editor reports `at` on `animate` or `hide`, and `at` on a `show` that names no picture, such as `[[show backdrop at right]]`. A name after `at` that is not a framing is reported as an unknown name after `with` is.
 
@@ -153,16 +153,17 @@ scene start
 end
 ```
 
-A timing clause belongs to the side of the `with` it is written on. Written before the first `with`, it times the travel. Written after a `with`, it times that `with`'s animation. A `with` takes each timing word it lacks from the line. A line with no timing word of its own takes all of the first `with`'s, and a line with any of its own borrows none. So the line above and `[[animate backdrop to bottom_right with shake over 1s]]` both shake for a second while the picture travels for a second:
+A timing clause times only the side of the `with` it is written on. Written before the first `with`, it times the travel. Written after a `with`, it times that `with`'s animation. Nothing passes between the two sides. A travel with no `over` arrives at once, with no `after` it starts with the line, and with no `ease` it takes the default easing; a `with` with none of them plays its animation's declared `duration`, `delay` and `easing`. So the line above travels for a second while the shake plays its declared 300ms:
 
 | Line | What plays |
 | --- | --- |
-| `[[animate backdrop to left over 1s with shake]]` | The travel takes 1s. The shake has no `over` and takes the line's, 1s. |
-| `[[animate backdrop to left with shake over 1s]]` | The shake takes 1s. The line has no `over` and takes the `with`'s, so the travel takes 1s. |
+| `[[animate backdrop to left over 1s with shake]]` | The travel takes 1s. The shake takes its declared 300ms. |
+| `[[animate backdrop to left with shake over 1s]]` | The shake takes 1s. The travel has no `over` and arrives at once. |
 | `[[animate backdrop to left over 1s with shake over 2s]]` | The travel takes 1s and the shake 2s. |
-| `[[animate backdrop to left over 4s with shake after 3s over 1s]]` | The line has an `over` of its own, so it borrows nothing: the travel starts at once and takes 4s. The shake starts 3s in and takes 1s. |
+| `[[animate backdrop to left after 1s with shake]]` | The travel starts 1s in. The shake starts with the line. |
+| `[[animate backdrop to left over 4s with shake after 3s over 1s]]` | The travel starts at once and takes 4s. The shake starts 3s in and takes 1s. |
 
-A line can name several `with` clauses, and each borrows only from the line, never from another `with` (see [Several animations at once](./AnimationTheme.md#several-animations-at-once)). `wait` holds the story until the travel and every `with` have ended, each counted as its `after` plus its length:
+A line can name several `with` clauses, and each is timed only by its own words (see [Several animations at once](./AnimationTheme.md#several-animations-at-once)). `wait` holds the story until the travel and every `with` have ended, each counted as its `after` plus its length:
 
 ```sparkdown
 scene start
@@ -182,7 +183,7 @@ In a cast, `animate` also takes a character's name: `[[animate mia to center ove
 
 - **A travel keeps going across lines.** Advancing the story does not end it. It goes on until it arrives, or until another `to` on the same layer redirects it.
 - **A travel starts from the view on screen.** A `to` that comes while an earlier one is still in flight starts from wherever the picture is at that moment, not from where the earlier travel was going.
-- **A new picture ends a travel.** Showing a picture on the layer, hiding it or clearing it ends the travel and puts the layer back at the default framing, unless the `show` says `at`.
+- **A new picture ends a travel.** On a plain layer, showing a picture, hiding the layer or clearing it ends the travel and puts the layer back at the default framing, unless the `show` says `at`. In a cast, a new picture of a character with no `at` takes the framing the travel was going to.
 - **Pausing pauses a travel.** Resuming the game continues it, as it continues every animation.
 - **A save holds where the view is going.** A game saved during a travel loads with the picture already arrived.
 - **The preview shows every framing arrived.** When the Game Preview is stopped on a line, every travel before it has reached its framing, including one that play would still have in flight. Replay beat plays the travels of that beat's own lines, each starting from where the earlier beats' travels end. See [Previewing a Line](./PreviewingALine.md).

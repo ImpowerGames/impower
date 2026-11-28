@@ -186,9 +186,6 @@ export function apertureReachPathData(
   return loopsPathData(rings.map((flat) => (signedArea(flat) < 0 ? reverseFlat(flat) : flat)));
 }
 
-export const namespaceMorphMarkup = (svg: string, idPrefix: string, occurrencePrefix: string): string =>
-  svg.split(idPrefix).join(occurrencePrefix);
-
 const elementsOf = (children: Node[]) => children.filter((c): c is Element => !!c && typeof c === "object");
 
 function* walk(element: Element): Generator<Element> {
