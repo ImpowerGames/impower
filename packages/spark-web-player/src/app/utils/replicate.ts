@@ -39,12 +39,13 @@ function besideScope(twin: HTMLElement, scope: NonNullable<ReplicaOptions["scope
   container.style.setProperty("box-sizing", "content-box");
   container.style.setProperty("width", value("width") || `${element.clientWidth}px`);
   container.style.setProperty("height", value("height") || `${element.clientHeight}px`);
-  for (const name of ["container-type", "container-name"]) {
+  for (const name of ["container-type", "container-name", "overflow-x", "overflow-y"]) {
     const own = value(name);
     if (own) {
       container.style.setProperty(name, own);
     }
   }
+  container.style.setProperty("opacity", "0", "important");
   container.style.setProperty("visibility", "hidden", "important");
   container.style.setProperty("pointer-events", "none", "important");
   container.appendChild(twin);
@@ -132,6 +133,7 @@ export function replicate(root: HTMLElement, options: ReplicaOptions): Replica {
   }
   twin.setAttribute("aria-hidden", "true");
   twin.setAttribute("inert", "");
+  twin.style.setProperty("opacity", "0", "important");
   twin.style.setProperty("visibility", "hidden", "important");
   twin.style.setProperty("pointer-events", "none", "important");
   const scrolled = originals.filter((original) => original.scrollTop !== 0 || original.scrollLeft !== 0);

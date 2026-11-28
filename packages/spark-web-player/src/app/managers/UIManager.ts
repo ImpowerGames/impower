@@ -206,8 +206,10 @@ const REPLICA_ATTRIBUTE = "data-sd-replica";
 
 const REPLICA_SCOPE = `spark-web-player [${REPLICA_ATTRIBUTE}]`;
 
+const REPLICA_KEYFRAMES = "sd-replica-";
+
 const replicaStyleText = (text: string) =>
-  text.split(`${STYLE_SCOPE} `).join(`${REPLICA_SCOPE} `).replace(/@keyframes(\s+)/g, "@keyframes$1sd-replica-");
+  text.split(`${STYLE_SCOPE} `).join(`${REPLICA_SCOPE} `).replace(/@keyframes(\s+)/g, `@keyframes$1${REPLICA_KEYFRAMES}`);
 
 const WRITTEN_STATE = [
   "__sdId",
@@ -1553,8 +1555,8 @@ export default class UIManager extends Manager {
     }
   }
 
-  protected elementContent(content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>): string {
-    return getElementContent(content, { breakpoints, scope: STYLE_SCOPE, theme: this._theme });
+  protected writeContent(el: HTMLElement, content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>) {
+    el.textContent = getElementContent(content, { breakpoints, scope: STYLE_SCOPE, theme: this._theme });
   }
 
   protected animating(el: Element): boolean {
@@ -2052,7 +2054,7 @@ export default class UIManager extends Manager {
         if (params.content) {
           this.morphs?.releaseWithin(el);
           endTravelsWithin(el);
-          el.textContent = this.elementContent(params.content, params.breakpoints);
+          this.writeContent(el, params.content, params.breakpoints);
         }
         if (params.style) {
           el.style.cssText = Object.entries(params.style)
@@ -2096,7 +2098,7 @@ export default class UIManager extends Manager {
       } else if ((el as any).__sdUpdatedContent && params.content) {
         this.morphs?.releaseWithin(el);
         endTravelsWithin(el);
-        el.textContent = this.elementContent(params.content, params.breakpoints);
+        this.writeContent(el, params.content, params.breakpoints);
       }
       if (params.content) {
         delete (el as any).__sdUpdatedContent;
@@ -2153,7 +2155,7 @@ export default class UIManager extends Manager {
           this.morphs?.releaseWithin(element);
           endTravelsWithin(element);
           (element as any).__sdUpdatedContent = true;
-          element.textContent = this.elementContent(params.content, params.breakpoints);
+          this.writeContent(element, params.content, params.breakpoints);
         }
         if (params.attributes != undefined) {
           if (params.attributes) {
@@ -3906,9 +3908,53 @@ class BeatRehearsal extends UIManager {
     const scales = (this.scales ??= this.animationScales());
     let scale = 1;
     for (let el: Element | null = span; el; el = el === this.replica.root ? null : el.parentElement) {
-      scale *= scales.get(el) ?? 1;
+      scale *= (scales.get(el) ?? 1) * this.styledScale(el);
     }
     return scale;
+  }
+
+  protected keyframes?: Map<string, unknown[]>;
+
+  protected styledScale(el: Element): number {
+    const names = el.ownerDocument.defaultView?.getComputedStyle(el).getPropertyValue("animation-name") ?? "";
+    let scale = 1;
+    for (const name of names.split(",").map((part) => part.trim())) {
+      if (!name || name === "none") {
+        continue;
+      }
+      const own = (this.keyframes ??= this.readKeyframes()).get(`${REPLICA_KEYFRAMES}${name}`);
+      const running = own
+        ? undefined
+        : el
+            .getAnimations?.()
+            .find((animation) => (animation as CSSAnimation).animationName === name);
+      scale *= keyframesScale(own ?? (running?.effect as KeyframeEffect | null)?.getKeyframes?.());
+    }
+    return scale;
+  }
+
+  protected readKeyframes(): Map<string, unknown[]> {
+    const keyframes = new Map<string, unknown[]>();
+    const visit = (rules: CSSRuleList | undefined) => {
+      for (const rule of Array.from(rules ?? [])) {
+        const block = rule as CSSKeyframesRule;
+        if (typeof block.findRule === "function" && typeof block.name === "string") {
+          keyframes.set(
+            block.name,
+            Array.from(block.cssRules).map((frame) => {
+              const style = (frame as CSSKeyframeRule).style;
+              return { transform: style.getPropertyValue("transform"), scale: style.getPropertyValue("scale") };
+            }),
+          );
+        } else if ("cssRules" in rule) {
+          visit((rule as CSSGroupingRule).cssRules);
+        }
+      }
+    };
+    for (const style of Array.from(this.replica.root.querySelectorAll("style"))) {
+      visit(style.sheet?.cssRules);
+    }
+    return keyframes;
   }
 
   settle() {
@@ -3940,7 +3986,7 @@ class BeatRehearsal extends UIManager {
     const root = this.replica.root;
     const travels = new Set([root, ...Array.from(root.querySelectorAll(".instance"))].flatMap((el) => travelAnimations(el)));
     const scales = new Map<Element, number>();
-    for (const animation of this.animations()) {
+    for (const animation of (this._hold as RehearsalHold).added) {
       const effect = animation.effect as KeyframeEffect | null;
       const target = effect?.target;
       if (travels.has(animation) || !target || effect.pseudoElement || typeof effect.getKeyframes !== "function") {
@@ -3974,9 +4020,11 @@ class BeatRehearsal extends UIManager {
 
   protected override applyDocumentTheme() {}
 
-  protected override elementContent(content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>): string {
-    const text = super.elementContent(content, breakpoints);
-    return this.scoped && typeof content === "object" && ("styles" in content || "animations" in content) ? replicaStyleText(text) : text;
+  protected override writeContent(el: HTMLElement, content: Parameters<typeof getElementContent>[0], breakpoints: Record<string, number>) {
+    super.writeContent(el, content, breakpoints);
+    if (this.scoped && el.localName === "style") {
+      el.textContent = replicaStyleText(el.textContent ?? "");
+    }
   }
 
   protected override settleRequest(_request: RequestMessage, done: Promise<unknown>) {

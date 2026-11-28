@@ -55,8 +55,11 @@ afterAll(() => {
   rmSync(outDir, { recursive: true, force: true });
 });
 
-const probe = <T>(page: Page, name: string) =>
-  page.evaluate((name) => (window as unknown as { measuredBeatProbe: Record<string, () => Promise<unknown>> }).measuredBeatProbe[name]!(), name) as Promise<T>;
+const probe = <T>(page: Page, name: string, flag = false) =>
+  page.evaluate(
+    ([name, flag]) => (window as unknown as { measuredBeatProbe: Record<string, (flag: boolean) => Promise<unknown>> }).measuredBeatProbe[name as string]!(flag as boolean),
+    [name, flag] as const,
+  ) as Promise<T>;
 
 describe.each(ENGINES)("in %s, the player measures a beat that changes the stage's stylesheets on a copy whose styles are its own (#2837)", (name, engine, need) => {
   let browser: Browser | undefined;
@@ -88,6 +91,26 @@ describe.each(ENGINES)("in %s, the player measures a beat that changes the stage
     expect(result.applied).toBe(0);
     expect(result.before).toEqual({ width: 100, color: "rgb(0, 0, 255)" });
     expect(result.during).toEqual(result.before);
+  });
+
+  test.for([false, true])("while a beat that rewrites a stylesheet (as CSS text: %s) waits for its picture, the page looks exactly as it did before the beat, though an element of the stage is styled visible", async (text, context) => {
+    if (!browser) return context.skip();
+    const scroll = await probe<{ width: number; height: number }>(page, "holdSheetChange");
+    const before = await page.screenshot();
+    const state = await probe<{ applied: number; waiting: boolean; scroll: { width: number; height: number } }>(page, "startSheetChange", text);
+    const during = await page.screenshot();
+    await probe(page, "endSheetChange");
+    expect(state).toEqual({ applied: 0, waiting: true, scroll });
+    expect(during.equals(before)).toBe(true);
+  });
+
+  test("a beat that changes the keyframes of a CSS animation on a picture's element draws the picture at the scale those keyframes reach", async (context) => {
+    if (!browser) return context.skip();
+    const result = await probe<{ asked: [number, number][]; applied: number; waiting: boolean }>(page, "keyframesChanged");
+    console.log(`${name}: keyframes ${JSON.stringify(result)}`);
+    expect(result.asked).toEqual([[200, 100]]);
+    expect(result.applied).toBe(0);
+    expect(result.waiting).toBe(true);
   });
 
   test("a beat that removes the stylesheet sizing a shown picture draws it at the size the removal leaves before the beat fires", async (context) => {

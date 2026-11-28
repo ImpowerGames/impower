@@ -10,9 +10,9 @@ const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80"/>';
 
 const STAGE = `<style>
 body { margin: 0; }
-#game { position: relative; width: 640px; height: 360px; container-type: size; container-name: screen; }
+#game { position: relative; width: 640px; height: 360px; container-type: size; container-name: screen; overflow: clip; }
 spark-web-player #game-ui { position: absolute; inset: 0; }
-.card { position: absolute; left: 10.5px; top: 7.25px; width: 100px; background-color: red; }
+.card { position: absolute; left: 10.5px; top: 7.25px; width: 100px; height: 60px; background-color: red; visibility: visible; animation: pulse 10s linear infinite; }
 .card .image .instance { display: block; width: 100%; height: 50px; background-size: 100% 100%; background-repeat: no-repeat; }
 </style><spark-web-player><div id="game"><div id="game-ui"></div></div></spark-web-player>`;
 
@@ -107,4 +107,57 @@ async function sheetRemoved() {
   return result;
 }
 
-(window as unknown as { measuredBeatProbe: unknown }).measuredBeatProbe = { sheetChangeWhileWaiting, sheetRemoved };
+let held: Awaited<ReturnType<typeof stage>> | undefined;
+
+async function holdSheetChange() {
+  held = await stage(true);
+  await held.sheet({ card: { width: "100px", background_color: "rgb(0, 0, 255)" } });
+  await held.settle(50);
+  const scroller = document.scrollingElement!;
+  return { width: scroller.scrollWidth, height: scroller.scrollHeight };
+}
+
+async function startSheetChange(text: boolean) {
+  const t = held!;
+  const content = text ? ".card { width: 3000px; background-color: rgb(0, 128, 0); }" : { styles: { card: { width: "3000px", background_color: "rgb(0, 128, 0)" } } };
+  t.beat([request("ui/update", { element: "sheet", content, breakpoints: {} }), t.show]);
+  await t.settle(50);
+  const scroller = document.scrollingElement!;
+  return { applied: t.applied(), waiting: t.waiting(), scroll: { width: scroller.scrollWidth, height: scroller.scrollHeight } };
+}
+
+function endSheetChange() {
+  held?.ui.onDispose();
+  held = undefined;
+}
+
+async function keyframesChanged() {
+  const t = await stage(false);
+  await t.ui.onReceiveRequest(
+    request("ui/create", {
+      parent: null,
+      element: "sheet",
+      type: "style",
+      name: "sheet",
+      content: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "1" }] } } },
+      breakpoints: {},
+    }),
+  );
+  t.beat([
+    request("ui/update", { element: "sheet", content: { animations: { pulse: { keyframes: [{ scale: "1" }, { scale: "2" }] } } }, breakpoints: {} }),
+    t.show,
+  ]);
+  for (let i = 0; i < 100 && t.rasters.length < 1; i++) await t.settle(10);
+  const result = { asked: t.rasters.map(({ width, height }) => [width, height]), applied: t.applied(), waiting: t.waiting() };
+  t.ui.onDispose();
+  return result;
+}
+
+(window as unknown as { measuredBeatProbe: unknown }).measuredBeatProbe = {
+  sheetChangeWhileWaiting,
+  sheetRemoved,
+  holdSheetChange,
+  startSheetChange,
+  endSheetChange,
+  keyframesChanged,
+};
