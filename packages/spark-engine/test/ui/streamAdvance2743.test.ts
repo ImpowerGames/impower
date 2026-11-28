@@ -448,7 +448,7 @@ describe("the game reads every pause the compiler accepts as written (I-2743)", 
     await h.ready;
     expect(h.errors).toEqual([]);
     expect(pauses.map((_, i) => streamSettings(h.game, `log${i}`))).toEqual(
-      pauses.map(([, seconds]) => ({ advance: "auto", pause: seconds })),
+      pauses.map(([, seconds]) => ({ advance: "auto", pause: seconds, clear: "never", carry: 0 })),
     );
   });
 });

@@ -4,6 +4,7 @@ import type { ImageState } from "./ImageState";
 export interface CastLine {
   key: string;
   index: number;
+  entry?: number;
   cleared?: number;
   length?: number;
   hash?: string;
