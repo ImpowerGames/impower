@@ -62,11 +62,11 @@ layout main {
     backdrop {
       image = transparent
     }
-    sigil {
+    sigil #clear {
       image
     }
     cast {
-      portrait {
+      portrait #clear {
         mask.shadow_1
         mask.shadow_2
         mask.shadow_3
