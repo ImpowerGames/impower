@@ -518,6 +518,55 @@ end
     expect(moves(content)).toBe(false);
   });
 
+  test("moving the preview from a lowered line to a later line a shake cleared shows the later line at rest", async () => {
+    const source = `${PLAIN}
+scene start
+  [[mia@happy with crouch]]
+  [[sam@calm]]
+  MIA: Lowered.
+  [[mia@sad]]
+  MIA: Sad and lowered.
+  [[mia@sad with fade]]
+  MIA: Faded and lowered.
+  [[mia@angry with shake]]
+  MIA: Shaken.
+  [[mia@sad]]
+  MIA: At rest.
+end
+`;
+    const lineOf = (text: string) => source.split("\n").findIndex((line) => line.includes(text));
+    const faded = lineOf("MIA: Faded and lowered.");
+    const rest = lineOf("MIA: At rest.");
+    const h = createHarness(source, faded, { reactive: true, connect: false, assets: PICTURES as never });
+    const scrub = async (line: number) => {
+      h.game.setStartFrom({ file: MAIN_URI, line });
+      h.game.simulate();
+      expect(h.game.simulation).toBe("success");
+      await h.preview(line);
+      await flushMicrotasks(30);
+    };
+    h.game.setStartFrom({ file: MAIN_URI, line: faded });
+    h.game.simulate();
+    await h.reconnect();
+    await flushMicrotasks(10);
+    const ui: any = h.game.module.ui;
+    await scrub(faded);
+    expect(h.game.story.currentText?.trim()).toBe("Faded and lowered.");
+    expect(posesOf(ui)["mia"]).toContain("crouch");
+    const portrait = portraitOf(h.messages, ui, "mia");
+    expect(portrait).toBeDefined();
+    h.reset();
+    await scrub(rest);
+    expect(h.game.story.currentText?.trim()).toBe("At rest.");
+    expect(posesOf(ui)).toEqual({ mia: [], sam: [] });
+    const content = (flattenMessages(h.messages) as any[])
+      .filter((m) => m?.method === "ui/write-image" && m.params?.elements?.includes(portrait.id))
+      .at(-1)
+      ?.params.instructions.findLast((i: any) => i.content)?.content;
+    expect(content).toBeDefined();
+    expect(animationsOf(content).map((a) => a.name)).not.toContain("crouch");
+  });
+
   test("the preview on a line shows the kept pose without its motion", async () => {
     const source = `${PLAIN}\n${STORY}`;
     const lineOf = (text: string) => source.split("\n").findIndex((line) => line.includes(text));
