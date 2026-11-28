@@ -208,6 +208,7 @@ const CLAUSE_ROWS: Row[] = [
   ["`using` on `navigate`", "image", "navigate main to menu using fade ease linear"],
   ["a second `using` on `open`", "image", "open menu using fade with shake using screenfade"],
   ["a second `using` on `navigate`", "image", "navigate main to menu using fade using screenfade"],
+  ["`using` on `clear`", "image", "clear textstream using fade using screenfade"],
   ["an empty `with` between two", "image", "animate portrait with shake with with spin"],
   ["a second `with` on a `load` line", "image", "load mia with fade with shake"],
   ["a second `with` on a `play` line", "image", "play intro with fade with shake"],
@@ -406,7 +407,7 @@ function expected(bracket: Bracket, content: string, chunk: Chunk, parsed: reado
   if (chunk.tag === "load" || chunk.tag === "cutscene" || chunk.tag === "audio") {
     reading.extraWiths = parsed.filter((clause) => clause.word.text === "with").slice(1).map((clause) => clause.word.text);
   }
-  if (chunk.tag === "layout" || (chunk.tag === "image" && !(chunk.control === "animate" && chunk.assets.length === 0))) {
+  if ((chunk.tag === "layout" && chunk.control !== "clear") || (chunk.tag === "image" && !(chunk.control === "animate" && chunk.assets.length === 0))) {
     reading.extraUsings = parsed.filter((clause) => clause.word.text === "using").slice(1).map((clause) => clause.word.text);
   }
   if (chunk.tag === "layout" && controlWritten && chunk.control === "clear") {
@@ -709,6 +710,7 @@ describe("`using` is read as the line's on every row that writes it (I-2883)", (
     ["`using` on `navigate`", ["transition:fade"], []],
     ["a second `using` on `open`", ["transition:fade", "transition:screenfade"], ["using"]],
     ["a second `using` on `navigate`", ["transition:fade", "transition:screenfade"], ["using"]],
+    ["`using` on `clear`", ["transition:fade", "transition:screenfade"], []],
   ])("%s", (label, transitions, extraUsings) => {
     const line = lineOf(ROWS.findIndex(([rowLabel]) => rowLabel === label));
     for (const reading of [interpreterReadings.get(line), compilerReadings.get(line)]) {

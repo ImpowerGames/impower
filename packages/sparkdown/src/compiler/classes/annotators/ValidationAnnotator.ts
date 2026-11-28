@@ -822,9 +822,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         ? "`using` names how a picture arrives or leaves, so it does not belong on a sound line\n> e.g. `[[show portrait hero using fade]]`"
         : directive.kind === "load" || directive.kind === "cutscene"
           ? `\`using\` belongs on a picture or screen line: a \`${control ?? directive.kind}\` line names its transition with \`with\`\n> e.g. \`[[${transitionedLine} with fade]]\``
-          : control === "animate" && directive.names.length === 0
-            ? "`using` names how the picture an `animate` adds arrives, and this `animate` names no picture\n> e.g. `[[animate backdrop dusk using fade]]`"
-            : undefined;
+          : directive.kind === "layout" && control === LayoutVerb.clear
+            ? "`using` names how a layout arrives or leaves, and `clear` opens and closes none\n> e.g. `[[close inventory using fade]]`"
+            : control === "animate" && directive.names.length === 0
+              ? "`using` names how the picture an `animate` adds arrives, and this `animate` names no picture\n> e.g. `[[animate backdrop dusk using fade]]`"
+              : undefined;
     if (misplaced) {
       for (const word of usings) issue(misplaced, word.from, word.to, "error");
       return;

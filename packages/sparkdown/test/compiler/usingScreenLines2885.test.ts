@@ -50,6 +50,15 @@ describe("`using` on `open`, `close` and `navigate` (I-2885)", () => {
     expect(issuesOn(line)).toEqual([`error using: A line takes one \`using\`\n> e.g. \`[[${example}]]\``]);
   });
 
+  test.each(["[[clear textstream using fade]]", "[[clear textstream using fade over 2s wait]]"])(
+    "`using` on `%s` is an error on `using`, since `clear` opens and closes no layout",
+    (line) => {
+      expect(issuesOn(line).filter((issue) => issue.startsWith("error using:"))).toEqual([
+        "error using: `using` names how a layout arrives or leaves, and `clear` opens and closes none\n> e.g. `[[close inventory using fade]]`",
+      ]);
+    },
+  );
+
   test("an animation after `using` on a screen line is an error on its name", () => {
     expect(issuesOn("[[open inventory using shake]]")).toEqual(["error shake: `shake` is an animation: write `with shake`"]);
   });

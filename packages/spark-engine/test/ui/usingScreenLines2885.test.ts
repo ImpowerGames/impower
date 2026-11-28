@@ -214,6 +214,54 @@ end
     expect(later.h.nextBeat()!.end).toBeCloseTo(2);
   });
 
+  test.each(["presence first", "animations first"])(
+    "a styled layout that leaves with a `with` is removed only once its departure and its `with` have both ended (%s)",
+    async (order) => {
+      const h = createHarness(
+        `${MAIN}${STYLED}layout panel {
+  bag {
+    text "Bag"
+  }
+}
+`,
+        0,
+        { reactive: true, autoOpenAll: false, holdPresence: true, holdAnimations: true },
+      );
+      await h.ready;
+      const ui: any = h.game.module.ui;
+      ui.setMotion(true);
+      await ui.openLayout("panel");
+      await flushMicrotasks(10);
+      h.releasePresence();
+      h.releaseAnimations();
+      await flushMicrotasks(30);
+      const root = ui._mountedLayouts.get("panel").element.id;
+      h.reset();
+      await ui.closeLayout("panel", [{}, { with: "shake" }]);
+      await flushMicrotasks(10);
+      const destroyed = () => sent(h, "ui/destroy").filter((m: any) => m.params?.element === root);
+      expect(presences(h)).toEqual(["hide"]);
+      expect(played(h).map((list) => list.map((a) => a.name))).toEqual([["shake"]]);
+      expect(destroyed()).toEqual([]);
+      if (order === "presence first") {
+        expect(h.releasePresence()).toBe(1);
+      } else {
+        expect(h.releaseAnimations()).toBe(1);
+      }
+      await flushMicrotasks(30);
+      expect(destroyed()).toEqual([]);
+      expect(ui._retiring.size).toBe(1);
+      if (order === "presence first") {
+        expect(h.releaseAnimations()).toBe(1);
+      } else {
+        expect(h.releasePresence()).toBe(1);
+      }
+      await flushMicrotasks(30);
+      expect(destroyed()).toHaveLength(1);
+      expect(ui._retiring.size).toBe(0);
+    },
+  );
+
   test("`wait` on a styled layout counts each `with`", async () => {
     const { h } = await start(`${MAIN}${STYLED}layout panel {
   bag {
