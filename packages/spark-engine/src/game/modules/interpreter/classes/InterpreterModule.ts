@@ -41,7 +41,7 @@ import type { ScriptLocation } from "../../../core/types/ScriptLocation";
 import { beatKindOfTarget } from "../../../core/constants/BEAT_KIND_OF_TARGET";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
-import { presenceStyleBlocks } from "../../../core/utils/presenceStyleBlocks";
+import { pictureLineEnd, screenLineEnd, withTiming, type AnimationContext } from "../../ui/utils/lineAnimations";
 import type { InterpreterBuiltins } from "../types/InterpreterBuiltins";
 import type { Chunk } from "../types/Chunk";
 import type { InstructionOptions } from "../types/InstructionOptions";
@@ -800,17 +800,7 @@ export class InterpreterModule extends Module<
       this._game.module?.assets?.notice("image", imageChunk.assets);
     }
     if (imageChunk.clauses?.wait) {
-      const pictured = Boolean(imageChunk.assets?.length);
-      imageChunk.duration += this.waitDuration(
-        imageChunk,
-        imageChunk.control === "hide"
-          ? ["hide"]
-          : imageChunk.control === "show"
-            ? pictured ? ["show", "hide"] : ["show"]
-            : imageChunk.control === "animate" && pictured
-              ? ["show"]
-              : [],
-      );
+      imageChunk.duration += this.waitDuration(imageChunk);
     }
     return imageChunk;
   }
@@ -862,89 +852,30 @@ export class InterpreterModule extends Module<
 
   protected applyScreenWaitDuration(screenChunk: Chunk): void {
     if (screenChunk.clauses?.wait) {
-      screenChunk.duration += this.waitDuration(
-        screenChunk,
-        screenChunk.control === LayoutVerb.open
-          ? ["show"]
-          : screenChunk.control === LayoutVerb.close
-            ? ["hide"]
-            : screenChunk.control === LayoutVerb.navigate
-              ? ["show", "hide"]
-              : [],
-      );
+      screenChunk.duration += this.waitDuration(screenChunk);
     }
   }
 
-  protected waitDuration(chunk: Chunk, motions: readonly string[]): number {
-    const line: { after?: number; over?: number; to?: unknown } = chunk.clauses ?? {};
+  protected waitDuration(chunk: Chunk): number {
+    const line = chunk.clauses as { after?: number; over?: number; ease?: string; to?: string } | undefined;
     const entries = chunk.with ?? [];
-    const spans = entries.map((entry) =>
-      chunk.tag === "layout"
-        ? Math.max(0, ...motions.map((motion) => this.animationSpan(this.layoutAnimationName(entry.name, motion), entry)))
-        : this.effectSpan(entry.name, entry, motions),
-    );
-    if (entries.length === 0) {
-      const styled = chunk.tag === "layout" ? presenceStyleBlocks((this.context as any)?.["style"]) : undefined;
-      const played = motions.filter((motion) => !styled?.[motion as "show" | "hide"]);
-      spans.push(...played.map((name) => this.animationSpan(name, line)));
+    const context = this.context as unknown as AnimationContext;
+    if (chunk.tag === "layout") {
+      const clauses = entries.length
+        ? entries.map((entry) => ({ with: entry.name, ...withTiming(entry) }))
+        : [{ after: line?.after, over: line?.over, ease: line?.ease }];
+      return screenLineEnd(context, chunk.control ?? "", clauses);
     }
-    if (chunk.tag === "image" && line.to) {
-      spans.push((line.after ?? 0) + (line.over ?? 0));
-    }
-    if (chunk.tag === "image" && chunk.control === "show" && chunk.assets?.length) {
-      spans.push(this.animationSpan("show", { ...(line.after != null ? { after: line.after } : {}), over: 0 }));
-    }
-    return Math.max(0, ...spans);
-  }
-
-  protected layoutAnimationName(name: string, motion: string): string {
-    const transition = (this.context as any)?.["transition"]?.[name];
-    if (!transition) {
-      return name;
-    }
-    const arm = transition[motion === "show" ? "on_show" : "on_hide"];
-    return (typeof arm === "string" ? arm : arm?.$name) || motion;
-  }
-
-  protected animationSpan(name: string, written: { after?: number; over?: number }): number {
-    const animation = (this.context as any)?.["animation"]?.[name];
-    if (!animation) {
-      return 0;
-    }
-    return (
-      (written.after ?? getTimeValue(animation.timing?.delay) ?? 0) +
-      (written.over ?? getTimeValue(animation.timing?.duration) ?? 0)
-    );
-  }
-
-  protected effectSpan(
-    name: string,
-    written: { after?: number; over?: number },
-    motions: readonly string[],
-  ): number {
-    const transition = (this.context as any)?.["transition"]?.[name];
-    if (!transition) {
-      return this.animationSpan(name, written);
-    }
-    const nameOf = (value: unknown) => (typeof value === "string" ? value : (value as { $name?: unknown } | null)?.$name);
-    const parts = Object.entries(transition).flatMap(([key, value]) => {
-      const part = nameOf(value);
-      return !key.startsWith("$") && value && typeof part === "string" ? [{ key, name: part }] : [];
-    });
-    const durationOf = (part: string) =>
-      getTimeValue((this.context as any)?.["animation"]?.[part]?.timing?.duration) ?? 0;
-    const longest = Math.max(0, ...parts.map((part) => durationOf(part.name)));
-    const speed = written.over != null && written.over > 0 ? longest / written.over : 1;
-    const after = written.after != null ? { after: written.after } : {};
-    const arms = motions.map((motion) => {
-      const arm = nameOf(transition[motion === "show" ? "on_show" : "on_hide"]);
-      const armName = typeof arm === "string" && arm ? arm : motion;
-      return this.animationSpan(armName, { ...after, over: durationOf(armName) / speed || 0 });
-    });
-    const others = parts
-      .filter((part) => !part.key.startsWith("on_"))
-      .map((part) => this.animationSpan(part.name, { ...after, ...(written.over != null ? { over: written.over } : {}) }));
-    return Math.max(0, ...arms, ...others);
+    const travel = line?.to ? (line.after ?? 0) + (line.over ?? 0) : 0;
+    const instruction: ImageInstruction = {
+      control: chunk.control as ImageInstruction["control"],
+      ...(chunk.assets?.length ? { assets: chunk.assets } : {}),
+      ...(entries.length ? { with: entries } : {}),
+      ...(line?.after != null ? { after: line.after } : {}),
+      ...(line?.over != null ? { over: line.over } : {}),
+      ...(line?.ease != null ? { ease: line.ease } : {}),
+    };
+    return Math.max(travel, pictureLineEnd(context, instruction));
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {

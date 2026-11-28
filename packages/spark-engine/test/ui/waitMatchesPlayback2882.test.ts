@@ -96,6 +96,7 @@ async function picture(directive: string) {
     .filter((m) => m.method === "ui/write-image")
     .flatMap((m) => m.params?.instructions ?? [])
     .flatMap((e: any) => [
+      ...(e.travel ? [{ $name: "travel", timing: e.travel.timing }] : []),
       ...(e.targetAnimations ?? []),
       ...(e.content?.enterAnimations ?? []),
       ...(e.content?.previousHideAnimations ?? []),
@@ -123,11 +124,22 @@ describe("`wait` holds exactly as long as what a screen line plays (I-2882)", ()
     expect(held(beat)).toBe(span(played));
   });
 
-  it.each(["open", "close"])(
-    "`[[%s inventory wait]]` on a layout with presence styles plays no default animation and holds for none",
+  it.each(["open", "close", "navigate"])(
+    "`[[%s inventory wait]]` with presence styles plays no default animation and holds for none",
     async (verb) => {
       const { beat, played } = await screen(verb, "", true);
-      expect(played.map((a) => a.$name)).not.toContain(verb === "open" ? "show" : "hide");
+      expect(played.map((a) => a.$name)).not.toContain("show");
+      expect(played.map((a) => a.$name)).not.toContain("hide");
+      expect(held(beat)).toBe(0);
+      expect(held(beat)).toBe(span(played));
+    },
+  );
+
+  it.each(["with mixed over 2s", "with only_in", "with late_out"])(
+    "`[[navigate to inventory %s wait]]` with presence styles holds for what it plays",
+    async (effect) => {
+      const { beat, played } = await screen("navigate", effect, true);
+      expect(played.length).toBeGreaterThan(0);
       expect(held(beat)).toBe(span(played));
     },
   );
@@ -142,6 +154,13 @@ describe("`wait` holds exactly as long as what a picture line plays (I-2882)", (
     "show backdrop bg with nonexistent over 2s",
     "show backdrop bg",
     "hide backdrop",
+    "animate backdrop bg with mixed over 2s",
+    "animate backdrop bg with only_in",
+    "animate backdrop bg with only_out",
+    "animate backdrop bg with mixed over 2s with shake",
+    "animate backdrop bg after 1s with mixed",
+    "animate backdrop to left over 2s with mixed",
+    "show backdrop with mixed",
   ])("`[[%s wait]]`", async (directive) => {
     const { beat, played } = await picture(directive);
     expect(held(beat)).toBe(span(played));

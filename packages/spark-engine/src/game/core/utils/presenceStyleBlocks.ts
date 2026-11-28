@@ -5,7 +5,21 @@ const PRESENCE_BLOCKS: Record<PresenceStyleMotion, RegExp> = {
   hide: /@hide(?![\p{L}\p{N}_-])/u,
 };
 
+const found = new WeakMap<object, Record<PresenceStyleMotion, boolean>>();
+
 export const presenceStyleBlocks = (styles: Record<string, unknown> | undefined): Record<PresenceStyleMotion, boolean> => {
+  const known = styles ? found.get(styles) : undefined;
+  if (known) {
+    return known;
+  }
+  const blocks = scanPresenceStyleBlocks(styles);
+  if (styles) {
+    found.set(styles, blocks);
+  }
+  return blocks;
+};
+
+const scanPresenceStyleBlocks = (styles: Record<string, unknown> | undefined): Record<PresenceStyleMotion, boolean> => {
   const blocks: Record<PresenceStyleMotion, boolean> = { show: false, hide: false };
   const visit = (value: unknown) => {
     if (value == null || typeof value !== "object") {
