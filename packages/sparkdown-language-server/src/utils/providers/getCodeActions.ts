@@ -254,12 +254,12 @@ const quickFix = (
 const clauseWordKindFixes = (
   document: TextDocument,
   diagnostic: ActionableDiagnostic,
-  { name, word }: { name: string; word: string },
+  { name, word, written: writtenWord }: { name: string; word: string; written: string },
 ): CodeAction[] => {
   const { start } = diagnostic.range;
   const before = document.getText({ start: { line: start.line, character: 0 }, end: start });
-  const written = /([a-z]+)[ \t]+$/.exec(before);
-  if (!written || document.getText(diagnostic.range) !== name) {
+  const written = /(?<![^ \t])([a-z]+)[ \t]+$/.exec(before);
+  if (!written || written[1] !== writtenWord || document.getText(diagnostic.range) !== name) {
     return [];
   }
   const range = {

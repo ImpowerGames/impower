@@ -1737,7 +1737,10 @@ export class InterpreterModule extends Module<
               assets: c.assets,
             };
             this.placeInBeat(event, time, c.clauses?.after);
-            if (fadeDuration) {
+            const usingValue = c.clauses?.using;
+            if (typeof usingValue === "string" && usingValue) {
+              event.using = usingValue;
+            } else if (fadeDuration) {
               event.over = fadeDuration;
             }
             if (c.with) {
@@ -1751,10 +1754,6 @@ export class InterpreterModule extends Module<
               const easeValue = c.clauses?.ease;
               if (easeValue != null) {
                 event.ease = easeValue;
-              }
-              const usingValue = c.clauses?.using;
-              if (typeof usingValue === "string" && usingValue) {
-                event.using = usingValue;
               }
               const morphValue = c.clauses?.morph;
               if (typeof morphValue === "string" && morphValue) {

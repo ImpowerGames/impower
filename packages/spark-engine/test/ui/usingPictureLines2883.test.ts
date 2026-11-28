@@ -132,6 +132,31 @@ describe("`using` plays its transition in place of a picture line's own show or 
     expect(held).toBe(0);
   });
 
+  it("a typewriter's `fade_duration` does not stretch the transition, and the line's own `over` still does", async () => {
+    const h = createHarness(`define portrait as typewriter with\n  fade_duration = 5\nend\n${STORY}`, 0, { assets: ASSETS });
+    await h.ready;
+    h.jumpToFlow("start");
+    const write = async (line: string) => {
+      const beat = h.game.module.interpreter.parse(`[[${line}]] Hello`, "main", {} as any);
+      h.reset();
+      await h.game.module.ui.image.write("portrait", beat.image!["portrait"]!, false);
+      await flushMicrotasks();
+      const instruction = h.messages
+        .filter((m: any) => m?.method === "ui/write-image" && m.params?.target === "portrait")
+        .at(-1)?.params.instructions.at(-1);
+      const firstLetter = Object.values(beat.text ?? {}).flat()[0] as { after?: number } | undefined;
+      return { held: firstLetter?.after ?? 0, enter: names(instruction.content.enterAnimations) };
+    };
+    expect(await write("show portrait hero using fade wait")).toEqual({
+      held: 0.5,
+      enter: [{ name: "fadein", delay: "0s", duration: "0.5s" }],
+    });
+    expect(await write("show portrait mia using fade over 1s wait")).toEqual({
+      held: 1,
+      enter: [{ name: "fadein", delay: "0s", duration: "1s" }],
+    });
+  });
+
   it("a `hide` that names its picture sends the transition's `on_hide` on the leaving picture", async () => {
     const { instruction } = await played("hide portrait bunny using fade over 1s with spin over 1s once");
     expect(names(instruction.content.exitAnimations)).toEqual([

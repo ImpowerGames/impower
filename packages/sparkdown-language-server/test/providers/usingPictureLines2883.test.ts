@@ -115,6 +115,14 @@ describe("the quick fix on an animation after `using` rewrites the word to `with
     expect(kindErrors(fixed)).toEqual([]);
   });
 
+  it("offers nothing once `using` before the name has been edited to another clause word", () => {
+    const text = scene("[[show portrait hero using shake]]");
+    const diagnostics = kindErrors(text);
+    expect(diagnostics).toHaveLength(1);
+    const edited = TextDocument.create(MAIN, "sparkdown", 2, scene("[[show portrait hero after shake]]"));
+    expect(getCodeActions(edited, diagnostics)).toEqual([]);
+  });
+
   it("offers nothing once the name under the error has been edited", () => {
     const text = scene("[[show portrait using shake]]");
     const diagnostics = kindErrors(text);
