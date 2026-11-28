@@ -383,6 +383,29 @@ const framingHover = (framing: Record<string, unknown>): string =>
     "`x` and `y` put that point across and down the picture on the same point of its layer: `0%` sets the left or top edges flush, `100%` the right or bottom edges. `zoom` is how close the view is, where `1` is the picture's size on its layer.",
   ].join("\n\n");
 
+const transitionHover = (transition: Record<string, unknown>, context: SparkProgram["context"]): string => {
+  const animationName = (value: unknown): string | undefined =>
+    typeof value === "string" ? value : typeof (value as { $name?: unknown })?.$name === "string" ? (value as { $name: string }).$name : undefined;
+  const played = (name: string) => {
+    const duration = (context?.["animation"]?.[name] as { timing?: { duration?: unknown } } | undefined)?.timing?.duration;
+    return duration === undefined ? `\`${name}\`` : `\`${name}\` (${String(duration)})`;
+  };
+  const arms = Object.entries(transition).flatMap(([arm, value]) => {
+    const name = arm.startsWith("$") ? undefined : animationName(value);
+    return name ? [[arm, name] as const] : [];
+  });
+  const lines = [
+    ...arms.filter(([arm]) => arm === "on_show").map(([, name]) => `- arrives by ${played(name)}`),
+    ...arms.filter(([arm]) => arm === "on_hide").map(([, name]) => `- leaves by ${played(name)}`),
+    ...arms.filter(([arm]) => !arm.startsWith("on_")).map(([arm, name]) => `- plays ${played(name)} on \`${arm}\``),
+  ];
+  return [
+    `**transition** \`${String(transition["$name"] ?? "")}\``,
+    ...(lines.length ? [lines.join("\n")] : []),
+    "Write it after `using` on a picture line: the line's `over` stretches the whole transition to that length, `after` delays it and `ease` eases it.",
+  ].join("\n\n");
+};
+
 export const getHover = async (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -514,6 +537,12 @@ export const getHover = async (
   if (struct.$type === "framing") {
     return {
       contents: { kind: MarkupKind.Markdown, value: framingHover(struct) },
+      range,
+    };
+  }
+  if (struct.$type === "transition") {
+    return {
+      contents: { kind: MarkupKind.Markdown, value: transitionHover(struct, program.context) },
       range,
     };
   }

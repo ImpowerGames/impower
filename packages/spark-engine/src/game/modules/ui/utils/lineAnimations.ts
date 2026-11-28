@@ -99,17 +99,29 @@ export const armEvent = (
   if (!transition) {
     return { name: entry.name, ...timing };
   }
-  const durationOf = (name: string | undefined) => getTimeValue(context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
+  const armed = transition[arm];
+  const name = (typeof armed === "string" ? armed : armed?.$name) || (arm === "on_show" ? "show" : "hide");
+  return { name, ...timing, over: stretchedOver(context, entry, name) ?? animationDuration(context, name) };
+};
+
+const animationDuration = (context: AnimationContext | undefined, name: string | undefined): number =>
+  getTimeValue(context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
+
+const stretchedOver = (context: AnimationContext | undefined, entry: WithInstruction, name: string): number | undefined => {
+  const transition = context?.transition?.[entry.name];
+  if (!transition || entry.over == null) {
+    return undefined;
+  }
+  if (entry.over <= 0) {
+    return 0;
+  }
   const longest = Math.max(
     0,
     ...Object.entries(transition)
       .filter(([k, v]) => !k.startsWith("$") && v)
-      .map(([, v]: [string, any]) => durationOf(typeof v === "string" ? v : v?.$name)),
+      .map(([, v]: [string, any]) => animationDuration(context, typeof v === "string" ? v : v?.$name)),
   );
-  const speed = timing.over != null && timing.over > 0 ? longest / timing.over : 1;
-  const armed = transition[arm];
-  const name = (typeof armed === "string" ? armed : armed?.$name) || (arm === "on_show" ? "show" : "hide");
-  return { name, ...timing, over: durationOf(name) / speed };
+  return longest > 0 ? (animationDuration(context, name) * entry.over) / longest : entry.over;
 };
 
 export const pictureLineAnimations = (
@@ -155,7 +167,10 @@ export const pictureLineAnimations = (
         return [];
       }
       const animateWith = typeof v === "string" ? v : v?.$name;
-      const animation = animateWith ? animationDefinition(context, { name: animateWith, ...withTiming(entry) }, instant) : undefined;
+      const over = animateWith ? stretchedOver(context, entry, animateWith) : undefined;
+      const animation = animateWith
+        ? animationDefinition(context, { name: animateWith, ...withTiming(entry), ...(over != null ? { over } : {}) }, instant)
+        : undefined;
       return animation ? [{ ...animation, arm: k }] : [];
     });
   const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent) =>

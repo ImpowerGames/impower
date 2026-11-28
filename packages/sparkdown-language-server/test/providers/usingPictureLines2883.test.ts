@@ -2,7 +2,9 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { describe, expect, it } from "vitest";
 import { TextDocument } from "vscode-languageserver-textdocument";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { getCodeActions } from "../../src/utils/providers/getCodeActions";
+import { getHover } from "../../src/utils/providers/getHover";
 import { complete } from "./completionHarness";
 
 const program = {
@@ -72,6 +74,33 @@ const kindErrors = (text: string) =>
   );
 
 const scene = (line: string) => `scene start\n  ${line}\n  Hello.\nend\n`;
+
+const hoverAt = async (text: string, line: number, character: number) => {
+  const documents = new SparkdownDocumentRegistry(["references"]);
+  documents.set({ textDocument: { uri: MAIN, text, version: 1, languageId: "sparkdown" } });
+  const hover = await getHover(documents.get(MAIN), documents.tree(MAIN), documents.annotations(MAIN), compile(text), undefined, {
+    line,
+    character,
+  });
+  return (hover?.contents as { value: string } | undefined)?.value ?? "";
+};
+
+describe("hover on the transition after `using` describes it (I-2883)", () => {
+  it("names the transition and the animations it arrives and leaves by", async () => {
+    const text = scene("[[show portrait hero using fade over 1s]]");
+    const at = text.split("\n")[1]!.indexOf("fade") + 2;
+    const value = await hoverAt(text, 1, at);
+    expect(value).toContain("**transition** `fade`");
+    expect(value).toContain("- arrives by `fadein` (0.5s)");
+    expect(value).toContain("- leaves by `fadeout` (0.5s)");
+  });
+
+  it("lists a transition's other parts with the layer each plays on", async () => {
+    const text = scene("[[show portrait hero using screenfade]]");
+    const value = await hoverAt(text, 1, text.split("\n")[1]!.indexOf("screenfade") + 3);
+    expect(value).toContain("- plays `blackpulse` (1s) on `screen`");
+  });
+});
 
 describe("the quick fix on an animation after `using` rewrites the word to `with` (I-2883)", () => {
   it("rewrites `using shake` to `with shake` and the error is gone", () => {

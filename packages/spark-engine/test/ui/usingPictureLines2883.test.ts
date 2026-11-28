@@ -10,13 +10,39 @@ const ASSETS: File[] = [
   { uri: "inmemory:///mia.png", type: "image", name: "mia", ext: "png", src: "/file:/proj/mia.png?v=1" },
 ];
 
+const STORY = `animation quickflash {
+  target = layer.screen
+  keyframes {
+    {
+      opacity = "1"
+    }
+    {
+      opacity = "0"
+    }
+  }
+  timing {
+    duration = "0.25s"
+  }
+}
+
+define slowfade as transition with
+  on_hide = animation.fadeout
+  on_show = animation.fadein
+  screen = animation.quickflash
+end
+
+scene start
+  Hi.
+end
+`;
+
 type Harness = ReturnType<typeof createHarness>;
 
 let shared: Promise<Harness> | undefined;
 
 function sharedHarness(): Promise<Harness> {
   shared ??= (async () => {
-    const h = createHarness("scene start\n  Hi.\nend\n", 0, { assets: ASSETS });
+    const h = createHarness(STORY, 0, { assets: ASSETS });
     await h.ready;
     h.jumpToFlow("start");
     return h;
@@ -91,6 +117,19 @@ describe("`using` plays its transition in place of a picture line's own show or 
       { name: "fadein", delay: "1s", duration: "0.5s" },
       { name: "shake", delay: "0s", duration: "300ms" },
     ]);
+  });
+
+  it("`over` stretches every part of the transition by the same factor", async () => {
+    const { instruction } = await played("show portrait hero using slowfade over 2s");
+    expect(names(instruction.content.enterAnimations)).toEqual([{ name: "fadein", delay: "0s", duration: "2s" }]);
+    expect(names(instruction.content.previousHideAnimations)).toEqual([{ name: "fadeout", delay: "0s", duration: "2s" }]);
+    expect(names(instruction.targetAnimations)).toContainEqual({ name: "quickflash", delay: "0s", duration: "1s", arm: "screen" });
+  });
+
+  it("`over 0` plays the transition at once", async () => {
+    const { held, instruction } = await played("hide portrait using fade over 0 wait");
+    expect(names(instruction.targetAnimations)).toEqual([{ name: "fadeout", delay: "0s", duration: "0s" }]);
+    expect(held).toBe(0);
   });
 
   it("a `hide` that names its picture sends the transition's `on_hide` on the leaving picture", async () => {
