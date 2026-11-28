@@ -91,8 +91,6 @@ export const animationDefinition = (
 
 const KEYFRAME_TIMING = new Set(["offset", "easing", "composite"]);
 
-type PlacedFrame = { offset: number; frame: Record<string, unknown> | null };
-
 const offsetOf = (frame: Record<string, unknown> | undefined): number | undefined => {
   const offset = frame?.["offset"];
   if (typeof offset === "number") {
@@ -105,39 +103,16 @@ const offsetOf = (frame: Record<string, unknown> | undefined): number | undefine
   return undefined;
 };
 
-const placedFrames = (frames: Record<string, unknown>[]): PlacedFrame[] => {
-  const offsets = frames.map(offsetOf);
-  if (frames.length === 1) {
-    offsets[0] ??= 1;
-  } else {
-    offsets[0] ??= 0;
-    offsets[offsets.length - 1] ??= 1;
-  }
-  for (let i = 1; i < offsets.length - 1; i += 1) {
-    if (offsets[i] === undefined) {
-      let next = i;
-      while (offsets[next] === undefined) {
-        next += 1;
-      }
-      const from = offsets[i - 1]!;
-      const to = offsets[next]!;
-      for (let k = i; k < next; k += 1) {
-        offsets[k] = from + ((to - from) * (k - i + 1)) / (next - i + 1);
-      }
-    }
-  }
-  const placed: PlacedFrame[] = frames.map((frame, i) => ({ offset: offsets[i]!, frame }));
-  if (placed[0]!.offset > 0) {
-    placed.unshift({ offset: 0, frame: null });
-  }
-  if (placed.at(-1)!.offset < 1) {
-    placed.push({ offset: 1, frame: null });
-  }
-  return placed;
+const endpointFrames = (
+  frames: Record<string, unknown>[],
+): { first: Record<string, unknown> | null; last: Record<string, unknown> | null } => {
+  const firstOffset = offsetOf(frames[0]) ?? (frames.length === 1 ? 1 : 0);
+  const lastOffset = frames.length === 1 ? firstOffset : (offsetOf(frames.at(-1)) ?? 1);
+  return {
+    first: firstOffset > 0 ? null : frames[0]!,
+    last: lastOffset < 1 ? null : frames.at(-1)!,
+  };
 };
-
-const frameAt = (placed: PlacedFrame[], progress: 0 | 1): PlacedFrame =>
-  progress === 0 ? placed[0]! : placed.at(-1)!;
 
 const playsForward = (direction: string, iteration: number): boolean =>
   direction === "reverse"
@@ -156,21 +131,21 @@ const endsAwayFromStart = (animation: Animation, iterations: number): boolean =>
   if (!Number.isInteger(iterations)) {
     return true;
   }
-  const placed = placedFrames(frames);
+  const { first, last } = endpointFrames(frames);
   const direction = animation.timing?.direction ?? "normal";
-  const end = frameAt(placed, playsForward(direction, iterations - 1) ? 1 : 0);
-  if (!end.frame) {
+  const end = playsForward(direction, iterations - 1) ? last : first;
+  if (!end) {
     return false;
   }
-  const start = frameAt(placed, playsForward(direction, 0) ? 0 : 1).frame;
+  const start = playsForward(direction, 0) ? first : last;
   if (!start) {
     return true;
   }
-  return Object.keys({ ...start, ...end.frame }).some(
+  return Object.keys({ ...start, ...end }).some(
     (property) =>
       !property.startsWith("$") &&
       !KEYFRAME_TIMING.has(property) &&
-      JSON.stringify(start[property]) !== JSON.stringify(end.frame![property]),
+      JSON.stringify(start[property]) !== JSON.stringify(end[property]),
   );
 };
 
