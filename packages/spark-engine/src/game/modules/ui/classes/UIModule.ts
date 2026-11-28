@@ -8890,6 +8890,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   })
                 : [];
             this.recordStream(
+              id,
               stream,
               node,
               instructions,
@@ -8914,6 +8915,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected recordStream(
+        id: string,
         stream: StreamState,
         node: StreamNode,
         instructions: Instructions,
@@ -8924,43 +8926,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           0,
           stream.entries.length - (stream.reserved ?? 0),
         );
+        const line = this.entryFor(node, instructions);
+        const extendsLast = (entries: readonly StreamEntry[]): boolean => {
+          const last = entries[entries.length - 1];
+          return Boolean(
+            line?.shown &&
+              last?.template === line.template &&
+              Object.keys(line.shown).every((target) => last.text[target]),
+          );
+        };
         const restart = options.repeat
           ? stream.restart
           : options.carry !== undefined
-            ? { carried: Math.min(options.carry, started.length) }
+            ? {
+                carried: Math.min(
+                  extendsLast(started) ? Math.max(options.carry, 1) : options.carry,
+                  started.length,
+                ),
+              }
             : undefined;
         const before = !options.repeat
           ? started
           : restart
             ? (stream.absorbed ?? [])
             : [...started.slice(0, stream.current), ...(stream.absorbed ?? [])];
-        const entry = this.entryFor(node, instructions);
+        const extending = extendsLast(before);
         const head = restart
           ? before
               .slice(before.length - restart.carried)
               .map((kept): StreamEntry => ({ ...kept, carried: true }))
           : before;
+        const entry = restart && extending && line ? { ...line, carried: true as const } : line;
         if (restart && !options.repeat) {
-          stream.cleared = (stream.cleared ?? 0) + 1;
+          const moved = before.length - restart.carried;
+          const epoch = stream.cleared ?? 0;
+          stream.cleared = epoch + 1;
           if (stream.styles) {
-            const moved = before.length - restart.carried;
             stream.styles = Object.fromEntries(
               Object.entries(stream.styles).flatMap(([index, style]) =>
                 Number(index) >= moved ? [[Number(index) - moved, style]] : [],
               ),
             );
           }
+          this.carryCastLines(id, epoch, moved);
         }
-        let keep = head.length;
-        const last = head[keep - 1];
-        if (
-          !restart &&
-          entry?.shown &&
-          last?.template === entry.template &&
-          Object.keys(entry.shown).every((target) => last.text[target])
-        ) {
-          keep -= 1;
-        }
+        const keep = extending ? head.length - 1 : head.length;
         const absorbed = restart ? before : before.slice(keep);
         stream.entries = [...head.slice(0, keep), ...(entry ? [entry] : []), ...ahead];
         stream.current = keep;
@@ -8983,6 +8993,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           stream.absorbed = absorbed;
         } else {
           delete stream.absorbed;
+        }
+      }
+
+      protected carryCastLines(key: string, epoch: number, moved: number): void {
+        for (const cast of Object.values($._state.casts ?? {})) {
+          for (const entry of cast.entries) {
+            for (const [target, lines] of Object.entries(entry.lines ?? {})) {
+              entry.lines![target] = lines.map((line) =>
+                line.key === key && (line.cleared ?? 0) === epoch && line.index >= moved
+                  ? { ...line, cleared: epoch + 1, index: line.index - moved }
+                  : line,
+              );
+            }
+          }
         }
       }
 
@@ -9173,9 +9197,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const restarted = mount.rendered.some(
           (signature) => !signature.startsWith(epoch),
         );
-        const shown = restarted ? 0 : mount.entries.length;
+        let shown = restarted ? 0 : mount.entries.length;
         if (restarted) {
-          kept = this.carryOver(mount, entries, signatures);
+          ({ kept, shown } = this.carryOver(mount, stream, entries, signatures));
         } else {
           for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
             for (const root of $.collectNodes(mount.entries[i]!.group)) {
@@ -9271,16 +9295,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected carryOver(
         mount: MountedStream,
+        stream: StreamState | undefined,
         entries: readonly StreamEntry[],
         signatures: readonly string[],
-      ): number {
+      ): { kept: number; shown: number } {
         const leading = entries.findIndex((entry) => !entry.carried);
         const count = leading < 0 ? entries.length : leading;
         const content = (signature: string) => signature.slice(signature.indexOf(":") + 1);
+        const absorbed = stream?.restart ? (stream.absorbed ?? []) : [];
+        const originals =
+          absorbed.length >= count
+            ? absorbed
+                .slice(absorbed.length - count)
+                .map(({ carried: _carried, ...entry }) => JSON.stringify(entry))
+            : signatures.slice(0, count).map(content);
         const found: number[] = [];
         let at = mount.rendered.length - 1;
         for (let j = count - 1; j >= 0 && at >= 0; j -= 1) {
-          while (at >= 0 && content(mount.rendered[at]!) !== content(signatures[j]!)) {
+          while (at >= 0 && content(mount.rendered[at]!) !== originals[j]) {
             at -= 1;
           }
           if (at >= 0) {
@@ -9300,7 +9332,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const view of views) {
           this.mark(view, "data-carried", "");
         }
-        return views.length;
+        const extended = views.length - 1;
+        if (extended >= 0 && content(signatures[extended]!) !== originals[extended]) {
+          for (const root of $.collectNodes(views[extended]!.group)) {
+            $.destroyElement(root);
+          }
+          return { kept: extended, shown: extended + 1 };
+        }
+        return { kept: views.length, shown: 0 };
       }
 
       remounted(replaced: (el: Element) => boolean): void {

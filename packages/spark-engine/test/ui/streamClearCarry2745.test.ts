@@ -87,8 +87,8 @@ const carried = (h: Harness, layout = "phone"): string[] =>
 
 const reserved = (h: Harness, layout = "phone"): number => streamOf(h, layout)?.reserved ?? 0;
 
-async function play(source: string) {
-  const h = createHarness(source, 0, { autoOpenAll: false });
+async function play(source: string, opts?: Parameters<typeof createHarness>[2]) {
+  const h = createHarness(source, 0, { autoOpenAll: false, ...opts });
   await h.ready;
   expect(h.errors).toEqual([]);
   h.game.context.system.previewing = undefined;
@@ -462,6 +462,96 @@ end
     await click(h);
     expect(shown(h)).toBe("third");
     expect(entries(h, "note")).toEqual(["third"]);
+  });
+});
+
+describe("a line that continues the newest entry across a clear (I-2745)", () => {
+  const CONTINUED = (lines: string) =>
+    `${DEFS}\n${settings(lines)}\nscene start\n  [[open phone]]\n  RAFFLES: slight problem .. > .. doors locked >\nend\n`;
+
+  test("adds to the carried entry instead of copying it, with `carry = 1`", async () => {
+    const h = await play(CONTINUED("  clear = run\n  carry = 1"));
+    expect(entries(h)).toEqual(["slight problem"]);
+    await click(h);
+    expect(shown(h)).toBe("slight problem doors locked");
+    expect(entries(h)).toEqual(["slight problem doors locked"]);
+    expect(carried(h)).toEqual(["slight problem doors locked"]);
+    await typed(h);
+    expect(views(h)).toHaveLength(1);
+    expect(marked(h, "data-carried")).toEqual([true]);
+  });
+
+  test("keeps the entry it continues even with `carry = 0`", async () => {
+    const h = await play(CONTINUED("  clear = run"));
+    await click(h);
+    expect(shown(h)).toBe("slight problem doors locked");
+    expect(entries(h)).toEqual(["slight problem doors locked"]);
+  });
+
+  test("a step back and forward again keep one entry", async () => {
+    const h = await play(CONTINUED("  clear = run\n  carry = 1"));
+    await click(h);
+    expect(entries(h)).toEqual(["slight problem doors locked"]);
+    expect((await h.game.rollBack("beat")).moved).toBe(true);
+    await flushMicrotasks(20);
+    expect(shown(h)).toBe("slight problem");
+    expect(entries(h)).toEqual(["slight problem"]);
+    await click(h);
+    expect(shown(h)).toBe("slight problem doors locked");
+    expect(entries(h)).toEqual(["slight problem doors locked"]);
+    expect(carried(h)).toEqual(["slight problem doors locked"]);
+  });
+});
+
+describe("a cast picture shown with a carried line (I-2745)", () => {
+  const story = `define raffles as character with
+  name = "RAFFLES"
+end
+
+layout main {
+  cast { actor { portrait #clear { image } } }
+}
+
+layout phone {
+  stream {
+    dialogue.bubble { text }
+  }
+}
+
+${settings("  clear = run\n  carry = 1")}
+scene start
+  [[open phone]]
+  [[raffles@happy]]
+  RAFFLES: one
+  RAFFLES: two
+  RAFFLES: three
+end
+`;
+
+  test("stays while its line is carried and leaves when that line does", async () => {
+    const h = await play(story, {
+      assets: [
+        {
+          uri: "inmemory:///raffles@happy.png",
+          type: "image",
+          name: "raffles@happy",
+          ext: "png",
+          src: "https://example.com/raffles@happy.png",
+        },
+      ] as never,
+    });
+    const pictures = () =>
+      h.game.module.ui.casts
+        .entries("main")
+        .flatMap((entry: any) => (entry.image?.portrait ?? []).flatMap((event: any) => event.assets ?? []));
+    expect(pictures()).toEqual(["raffles@happy"]);
+    await click(h);
+    expect(shown(h)).toBe("two");
+    expect(entries(h)).toEqual(["one", "two"]);
+    expect(pictures()).toEqual(["raffles@happy"]);
+    await click(h);
+    expect(entries(h)).toEqual(["two", "three"]);
+    expect(pictures()).toEqual([]);
   });
 });
 

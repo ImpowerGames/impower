@@ -180,6 +180,8 @@ The order of a clear is fixed. The leaving entries play their `@hide` and are re
 - `@carried` is true on an entry that was kept through a clear, and on no other. A carried entry keeps what its line wrote and the template it was made from, and it is no longer `@latest` once a newer entry arrives.
 - With `advance = click`, every line waits for a click, so each line is a run, and `clear = run` clears at every line.
 - The wait at a run's hundredth line ends that run too, so the line after it starts a fresh page.
+- A line that continues the newest entry (see [Joining Lines](./JoiningLines.md)) keeps that entry through the clear and adds to it, even with `carry = 0`; the entry is then `@carried`.
+- A picture or name a cast shows with a line stays while that line's entry is carried.
 - A carry larger than the number of entries keeps all of them.
 
 The preview on a line, a step back and a loaded save show the entries the game would have at that line: the carried ones and the run's lines up to it.
