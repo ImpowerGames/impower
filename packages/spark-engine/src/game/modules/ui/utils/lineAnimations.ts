@@ -99,17 +99,29 @@ export const armEvent = (
   if (!transition) {
     return { name: entry.name, ...timing };
   }
-  const durationOf = (name: string | undefined) => getTimeValue(context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
+  const armed = transition[arm];
+  const name = (typeof armed === "string" ? armed : armed?.$name) || (arm === "on_show" ? "show" : "hide");
+  return { name, ...timing, over: stretchedOver(context, entry, name) ?? animationDuration(context, name) };
+};
+
+const animationDuration = (context: AnimationContext | undefined, name: string | undefined): number =>
+  getTimeValue(context?.animation?.[name ?? ""]?.timing?.duration) ?? 0;
+
+const stretchedOver = (context: AnimationContext | undefined, entry: WithInstruction, name: string): number | undefined => {
+  const transition = context?.transition?.[entry.name];
+  if (!transition || entry.over == null) {
+    return undefined;
+  }
+  if (entry.over <= 0) {
+    return 0;
+  }
   const longest = Math.max(
     0,
     ...Object.entries(transition)
       .filter(([k, v]) => !k.startsWith("$") && v)
-      .map(([, v]: [string, any]) => durationOf(typeof v === "string" ? v : v?.$name)),
+      .map(([, v]: [string, any]) => animationDuration(context, typeof v === "string" ? v : v?.$name)),
   );
-  const speed = timing.over != null && timing.over > 0 ? longest / timing.over : 1;
-  const armed = transition[arm];
-  const name = (typeof armed === "string" ? armed : armed?.$name) || (arm === "on_show" ? "show" : "hide");
-  return { name, ...timing, over: durationOf(name) / speed };
+  return longest > 0 ? (animationDuration(context, name) * entry.over) / longest : entry.over;
 };
 
 export const pictureLineAnimations = (
@@ -143,8 +155,11 @@ export const pictureLineAnimations = (
     over: e.over,
     ...(e.ease !== undefined ? { ease: e.ease } : {}),
   });
-  const showEvents = entries.length ? entries.map((entry) => armEvent(context, entry, "on_show")) : [lineEvent("show")];
-  const hideEvents = entries.length ? entries.map((entry) => armEvent(context, entry, "on_hide")) : [lineEvent("hide")];
+  const using: WithInstruction | undefined = e.using ? lineEvent(e.using) : undefined;
+  const ownMotion = (arm: "on_show" | "on_hide"): AnimationEvent[] =>
+    using ? [armEvent(context, using, arm)] : entries.length ? [] : [lineEvent(arm === "on_show" ? "show" : "hide")];
+  const showEvents = [...ownMotion("on_show"), ...entries.map((entry) => armEvent(context, entry, "on_show"))];
+  const hideEvents = [...ownMotion("on_hide"), ...entries.map((entry) => armEvent(context, entry, "on_hide"))];
   const definitions = (events: AnimationEvent[]) => events.flatMap((event) => animationDefinition(context, event, instant) ?? []);
   const armsOf = (entry: WithInstruction): LineAnimation[] =>
     Object.entries(context?.transition?.[entry.name] ?? {}).flatMap(([k, v]: [string, any]) => {
@@ -152,11 +167,15 @@ export const pictureLineAnimations = (
         return [];
       }
       const animateWith = typeof v === "string" ? v : v?.$name;
-      const animation = animateWith ? animationDefinition(context, { name: animateWith, ...withTiming(entry) }, instant) : undefined;
+      const over = animateWith ? stretchedOver(context, entry, animateWith) : undefined;
+      const animation = animateWith
+        ? animationDefinition(context, { name: animateWith, ...withTiming(entry), ...(over != null ? { over } : {}) }, instant)
+        : undefined;
       return animation ? [{ ...animation, arm: k }] : [];
     });
   const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent) =>
     entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
+  const usingArms = using ? armsOf(using) : [];
   if (pictured) {
     if (e.control === "show") {
       result.enterAnimations = definitions(showEvents);
@@ -164,20 +183,21 @@ export const pictureLineAnimations = (
     } else if (e.control === "hide") {
       result.exitAnimations = definitions(hideEvents);
     } else if (e.control === "animate" && entries.length > 1) {
+      result.enterAnimations = definitions(ownMotion("on_show"));
       result.targetAnimations.push(...inWrittenOrder((entry) => armEvent(context, entry, "on_show")));
     } else if (e.control === "animate") {
       result.enterAnimations = definitions(showEvents);
     }
+    result.targetAnimations.push(...usingArms);
     if (e.control !== "animate" || entries.length <= 1) {
       result.targetAnimations.push(...entries.flatMap(armsOf));
     }
-  } else if (e.control === "hide") {
+  } else if (e.control === "hide" || e.control === "show") {
+    const arm = e.control === "show" ? "on_show" : "on_hide";
     result.targetAnimations.push(
-      ...(entries.length ? inWrittenOrder((entry) => armEvent(context, entry, "on_hide")) : definitions(hideEvents)),
-    );
-  } else if (e.control === "show") {
-    result.targetAnimations.push(
-      ...(entries.length ? inWrittenOrder((entry) => armEvent(context, entry, "on_show")) : definitions(showEvents)),
+      ...definitions(ownMotion(arm)),
+      ...usingArms,
+      ...inWrittenOrder((entry) => armEvent(context, entry, arm)),
     );
   } else if (e.control === "animate") {
     result.targetAnimations.push(...inWrittenOrder((entry) => ({ name: entry.name, ...withTiming(entry) })));

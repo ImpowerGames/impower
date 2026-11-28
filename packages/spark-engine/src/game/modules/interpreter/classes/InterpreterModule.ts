@@ -882,13 +882,14 @@ export class InterpreterModule extends Module<
   }
 
   protected pictureHold(chunk: Chunk, over: number | undefined): number {
-    const line = chunk.clauses as { after?: number; ease?: string; to?: string } | undefined;
+    const line = chunk.clauses as { after?: number; ease?: string; to?: string; using?: string } | undefined;
     const entries = chunk.with ?? [];
     const travel = line?.to ? (line.after ?? 0) + (over ?? 0) : 0;
     const instruction: ImageInstruction = {
       control: (chunk.control || "show") as ImageInstruction["control"],
       ...(chunk.assets?.length ? { assets: chunk.assets } : {}),
       ...(entries.length ? { with: entries } : {}),
+      ...(line?.using ? { using: line.using } : {}),
       ...(line?.after != null ? { after: line.after } : {}),
       ...(over != null ? { over } : {}),
       ...(line?.ease != null ? { ease: line.ease } : {}),
@@ -1745,7 +1746,10 @@ export class InterpreterModule extends Module<
               assets: c.assets,
             };
             this.placeInBeat(event, time, c.clauses?.after);
-            if (fadeDuration) {
+            const usingValue = c.clauses?.using;
+            if (typeof usingValue === "string" && usingValue) {
+              event.using = usingValue;
+            } else if (fadeDuration) {
               event.over = fadeDuration;
             }
             if (c.with) {

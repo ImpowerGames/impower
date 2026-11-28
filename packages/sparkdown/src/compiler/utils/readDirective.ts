@@ -103,20 +103,23 @@ export interface DirectiveWith<W extends { text: string } = DirectiveWord> {
 export interface DirectiveOwners<W extends { text: string } = DirectiveWord> {
   line: DirectiveClause<W>[];
   withs: DirectiveWith<W>[];
+  using?: DirectiveClause<W>;
 }
 
 function ownClauses<W extends { text: string }>(
   clauses: readonly DirectiveClause<W>[],
 ): DirectiveOwners<W> {
   const owners: DirectiveOwners<W> = { line: [], withs: [] };
+  let current: DirectiveWith<W> | undefined;
   for (const clause of clauses) {
     const keyword = clause.word.text;
-    const current = owners.withs.at(-1);
     if (keyword === "with") {
-      owners.withs.push({ word: clause.word, ...(clause.value ? { name: clause.value } : {}), clauses: [] });
+      current = { word: clause.word, ...(clause.value ? { name: clause.value } : {}), clauses: [] };
+      owners.withs.push(current);
     } else if (current && DIRECTIVE_WITH_OWNED_WORDS.includes(keyword)) {
       current.clauses.push(clause);
     } else {
+      if (keyword === "using") current = undefined;
       owners.line.push(clause);
     }
   }
@@ -127,11 +130,12 @@ export function directiveOwners<W extends { text: string }>(
   kind: DirectiveKind,
   clauses: readonly DirectiveClause<W>[],
 ): DirectiveOwners<W> {
-  if (!DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(kind)) {
-    const first = clauses.find((clause) => clause.word.text === "with");
-    return { line: clauses.filter((clause) => clause.word.text !== "with" || clause === first), withs: [] };
-  }
-  return ownClauses(clauses);
+  const using = clauses.findLast((clause) => clause.word.text === "using");
+  const first = clauses.find((clause) => clause.word.text === "with");
+  const owners: DirectiveOwners<W> = DIRECTIVE_KINDS_WITH_SEVERAL_WITHS.includes(kind)
+    ? ownClauses(clauses)
+    : { line: clauses.filter((clause) => clause.word.text !== "with" || clause === first), withs: [] };
+  return using ? { ...owners, using } : owners;
 }
 
 export function directiveKind(bracket: DirectiveBracket, content: string): DirectiveKind {
