@@ -210,18 +210,15 @@ export const placePicture = (
   writePlacement(el, getPicturePlacement(framing));
 };
 
-export const previewPlacement = (
+const preview = (
   el: HTMLElement,
-  framing: PictureFramingValues | undefined,
+  framed: boolean,
+  placement: { translate: string | null; scale: string | null },
 ): (() => void) | undefined => {
-  const heading = headingTo(el);
-  if (heading && sameView(heading, getPictureView(framing))) {
-    return undefined;
-  }
   const style = el.getAttribute("style");
   const className = el.getAttribute("class");
-  el.classList.toggle("framed", Boolean(framing));
-  writePlacement(el, getPicturePlacement(framing));
+  el.classList.toggle("framed", framed);
+  writePlacement(el, placement);
   const put = (name: string, value: string | null) => {
     if (el.getAttribute(name) === value) {
       return;
@@ -240,6 +237,22 @@ export const previewPlacement = (
     put("class", className);
   };
 };
+
+export const previewPlacement = (
+  el: HTMLElement,
+  framing: PictureFramingValues | undefined,
+): (() => void) | undefined => {
+  const heading = headingTo(el);
+  if (heading && sameView(heading, getPictureView(framing))) {
+    return undefined;
+  }
+  return preview(el, Boolean(framing), getPicturePlacement(framing));
+};
+
+export const previewTravel = (
+  el: HTMLElement,
+  framing: PictureFramingValues | undefined,
+): (() => void) | undefined => preview(el, true, getViewPlacement(getPictureView(framing)));
 
 export const haltPicture = (el: HTMLElement) => {
   if (!travels.has(el) && !scheduled.has(el)) {

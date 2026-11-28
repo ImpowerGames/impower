@@ -6,7 +6,7 @@ import AnimationPlayer, { getEffectTiming } from "../../../../spark-dom/src/clas
 import LayoutMotion, { namesLayoutTransition } from "../../../../spark-dom/src/classes/LayoutMotion";
 import PresencePlayer from "../../../../spark-dom/src/classes/PresencePlayer";
 import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
-import { endTravelsWithin, haltPicture, placePicture, previewPlacement, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
+import { endTravelsWithin, haltPicture, placePicture, previewPlacement, previewTravel, scheduleTravel, travelPicture } from "../../../../spark-dom/src/utils/placePicture";
 import {
   createCutsceneElement,
   createVideoElement,
@@ -197,15 +197,17 @@ function movesPicture(instruction: WriteImageInstruction): boolean {
   return Number(delay) > 0 || Number(duration) > 0;
 }
 
-function placedAsApplied(instruction: WriteImageInstruction): { framing: WriteImageInstruction["framing"] } | undefined {
+function placedAsApplied(
+  instruction: WriteImageInstruction,
+): { framing: WriteImageInstruction["framing"]; travels: boolean } | undefined {
   const travel = instruction.travel;
   if (instruction.control === "show") {
-    return travel ? undefined : { framing: instruction.framing };
+    return travel ? undefined : { framing: instruction.framing, travels: false };
   }
   if (!travel || Number(getEffectTiming(travel.timing).delay ?? 0) > 0) {
     return undefined;
   }
-  return { framing: travel.framing };
+  return { framing: travel.framing, travels: true };
 }
 
 let travelWrites = 0;
@@ -871,7 +873,7 @@ export default class UIManager extends Manager {
     const made = this.precreateTargets(ops);
     const animated = this.beatAnimations(ops);
     const { restore, changed } = this.applyBeatLayout(ops);
-    const placements: { span: HTMLElement; layer: MorphLayer; framing: WriteImageInstruction["framing"] }[] = [];
+    const placements: { span: HTMLElement; layer: MorphLayer; framing: WriteImageInstruction["framing"]; travels: boolean }[] = [];
     const placed: (() => void)[] = [];
     try {
     const nested = (el: Element) =>
@@ -932,7 +934,7 @@ export default class UIManager extends Manager {
                 }
                 layer.size({ zoom, scale: around * nested(pictureEl) });
                 if (placed) {
-                  placements.push({ span: pictureEl, layer, framing: placed.framing });
+                  placements.push({ span: pictureEl, layer, ...placed });
                 }
                 layers.push(layer);
               }
@@ -949,7 +951,7 @@ export default class UIManager extends Manager {
               const layer = (span as HTMLElement & { __sdMorph?: MorphLayer }).__sdMorph;
               if (layer) {
                 layer.size({ zoom, scale: around * nested(span) });
-                placements.push({ span, layer, framing: instruction.framing });
+                placements.push({ span, layer, framing: instruction.framing, travels: false });
                 layers.push(layer);
               }
             }
@@ -1020,8 +1022,8 @@ export default class UIManager extends Manager {
       }
     }
     const reframed: MorphLayer[] = [];
-    for (const { span, layer, framing } of placements) {
-      const undo = previewPlacement(span, framing);
+    for (const { span, layer, framing, travels } of placements) {
+      const undo = travels ? previewTravel(span, framing) : previewPlacement(span, framing);
       if (undo) {
         placed.push(undo);
         reframed.push(layer);

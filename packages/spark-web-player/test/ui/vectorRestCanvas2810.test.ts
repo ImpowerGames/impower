@@ -5,7 +5,7 @@ import { MorphBakeService } from "@impower/sparkdown/src/morph/service";
 import type { MorphImageContent } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { LayeredPicture, WriteImageParams } from "@impower/spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import type { Animation } from "@impower/spark-engine/src/game/modules/ui/types/Animation";
-import { pictureViewOf } from "../../../spark-dom/src/utils/placePicture";
+import { pictureViewOf, scheduleTravel } from "../../../spark-dom/src/utils/placePicture";
 import { MorphPlayback, type PictureBitmap, type PictureCanvasContext } from "../../src/app/morph/MorphPlayback";
 import type { SvgLayerRaster } from "../../src/app/morph/svgLayerFile";
 import { createDOMHarness, flushMicrotasks, untilShown } from "./domTestHarness";
@@ -660,6 +660,57 @@ describe("a beat that changes a shown picture's framing draws it at its new plac
     expect(span.classList.contains("framed")).toBe(true);
     expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied", "applied", `paint ${second.width}x${second.height}`]);
     expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  });
+
+  const moveNow = (framing?: { x: number; y: number; zoom: number }) =>
+    ({
+      target: "badge",
+      instant: false,
+      instructions: [{ control: "animate", travel: { framing, timing: { delay: "0s", duration: "1s", easing: "linear" } } }],
+    }) as never;
+
+  const shownUnframed = async (line: number) => {
+    const t = await setup({ holdRasters: true });
+    t.beat([show("badge", "emblem", ["/src/emblem.svg"])], line);
+    await until(() => t.rasters.length === 1, "the first raster");
+    const first = t.rasters[0]!;
+    first.resolve(raster(first.src, first.width, first.height));
+    await until(() => t.events.includes("applied"), "the first beat");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return { t, first, span: t.spanOf("badge")!, canvas: t.shadowOf("badge")!.querySelector("canvas")! };
+  };
+
+  const drawnBeforeMoving = async ({ t, first, span, canvas }: Awaited<ReturnType<typeof shownUnframed>>) => {
+    await until(() => t.rasters.length === 2 || t.events.filter((event) => event === "applied").length === 2, "the raster at the framed size or the moving beat");
+    await flushMicrotasks(20);
+    expect(t.events).toEqual([`paint ${first.width}x${first.height}`, "applied"]);
+    const second = t.rasters[1]!;
+    expect([second.width, second.height]).toEqual([Math.round(800 * DPR * STYLE_SCALE), Math.round(450 * DPR * STYLE_SCALE)]);
+    second.resolve(raster(second.src, second.width, second.height));
+    await until(() => t.events.filter((event) => event === "applied").length === 2, "the moving beat");
+    expect(span.classList.contains("framed")).toBe(true);
+    expect([canvas.width, canvas.height]).toEqual([second.width, second.height]);
+  };
+
+  test("a move to the centre that starts as the beat applies frames the picture too, and draws it at that box before the beat fires", async () => {
+    const shown = await shownUnframed(156);
+    shown.t.beat([moveNow()], 158);
+    await drawnBeforeMoving(shown);
+  });
+
+  test("a move that starts as the beat applies, replacing a scheduled move to the same place that has not started, draws the picture at its framed box before the beat fires", async () => {
+    const shown = await shownUnframed(160);
+    const framing = { x: 0, y: 0.5, zoom: 1 };
+    const waiting = {
+      startTime: 0,
+      playState: "running",
+      effect: { getTiming: () => ({ delay: 10000 }), getComputedTiming: () => ({ progress: null }) },
+      cancel: vi.fn(),
+    } as unknown as globalThis.Animation;
+    scheduleTravel(shown.span, framing, { animation: waiting, drop: vi.fn() }, {});
+    expect(shown.span.classList.contains("framed")).toBe(false);
+    shown.t.beat([moveNow(framing)], 162);
+    await drawnBeforeMoving(shown);
   });
 });
 
