@@ -59,7 +59,6 @@ describe("the look an image write shows", () => {
     expect(content.morph.plays.map((play: any) => play.morph)).toEqual(["blink"]);
     expect(drawn(content.background)).toContain("eyes.open default");
     expect(drawn(content.background)).not.toContain("data-name='eyes.closed'");
-    expect(content.morph.still).toBeUndefined();
   });
 
   test("a blink kept off the look by `unless` writes no play, and the directive's closed eyes show", async () => {
@@ -69,19 +68,10 @@ describe("the look an image write shows", () => {
     expect(drawn(content.background)).not.toContain("eyes.open default");
   });
 
-  test("the still a morph with a `delay` writes is its first keyframe, and the background is its rest", async () => {
+  test("a morph with a `delay` writes its rest as the background", async () => {
     const content = await written(scene(SHUT));
     expect(content.morph.plays.map((play: any) => play.morph)).toEqual(["shut"]);
     expect(drawn(content.background)).toContain("mouth.open default");
     expect(drawn(content.background)).not.toContain("data-name='mouth.closed'");
-    expect(content.morph.still).toBeDefined();
-    expect(drawn(content.morph.still[0].image)).toContain("data-name='mouth.closed'");
-    expect(drawn(content.morph.still[0].image)).not.toContain("mouth.open default");
-  });
-
-  test("a morph that never plays writes no still: it shows its rest", async () => {
-    const content = await written(scene(SHUT.replace("    delay = 1\n", "    delay = 1\n    iterations = 0\n")));
-    expect(content.morph.still).toBeUndefined();
-    expect(drawn(content.background)).toContain("mouth.open default");
   });
 });

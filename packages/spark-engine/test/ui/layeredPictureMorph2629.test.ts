@@ -200,7 +200,6 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(ui.getImageSrcsByName("kit")).toBeNull();
     expect(ui.getBackgroundImageFromString("kit")).toBe("none");
     expect(ui.getBackgroundImageFromValue({ $name: "kit" })).toBe("none");
-    expect(ui.getBackgroundImageFromString("kit", ui.morphStartPose)).toBe("none");
     expect(ui.getVideoSrcByName("kit")).toBeUndefined();
     expect(["kit", "base_file"].map((asset) => ui.getBackgroundImageFromString(asset)).reverse().join(", ")).toBe('url("/src/base_file.png"), none');
     expect(ui.getImageUrlsFromBackground(ui.getBackgroundImageFromString("kit"))).toEqual([]);
@@ -220,7 +219,6 @@ describe("an image write of a picture made of image files (#2629)", () => {
     expect(ui.getImageSrcsByName("kit")).toEqual(["/src/overlay.png"]);
     expect(ui.getBackgroundImageFromString("kit")).toBe(overlay);
     expect(ui.getBackgroundImageFromString("kit", undefined, "none")).toBe(overlay);
-    expect(ui.getBackgroundImageFromString("kit", ui.morphStartPose)).toBe("none");
     const created: any[] = [];
     const createElement = ui.createElement;
     ui.createElement = (_parent: unknown, state: any) => (created.push(state), {});

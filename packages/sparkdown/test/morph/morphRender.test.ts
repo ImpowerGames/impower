@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { bakeMorphArtifact } from "../../src/morph/bake";
 import { buildMorphRecipe } from "../../src/morph/recipe";
 import type { MorphArtifact, MorphRecipe } from "../../src/morph/types";
-import { aperturePathData, morphFrameState, morphPosesAt, namespaceMorphMarkup, renderMorphAt, renderMorphFrame } from "../../src/morph/render";
+import { aperturePathData, morphFrameState, morphPosesAt, renderMorphAt, renderMorphFrame } from "../../src/morph/render";
 import { parse } from "../../src/txml/txml";
 import {
   blink,
@@ -337,17 +337,6 @@ ${TORSO}
     const order = frame.filter((e) => e.attributes["data-name"] && e.tagName === "path").map((e) => e.attributes["data-name"]);
     expect(order[0]).toBe("face");
     expect(order[order.length - 1]).toBe("nose");
-  });
-
-  test("a per-copy prefix replaces every id and reference of a part", () => {
-    const live = artifact.parts.find((p) => p.kind === "live")!.svg;
-    const copy = namespaceMorphMarkup(live, artifact.idPrefix, "_copy7_");
-    expect(copy).not.toContain(artifact.idPrefix);
-    const ids = elements(copy).flatMap((e) => (e.attributes["id"] ? [e.attributes["id"]] : []));
-    expect(ids.length).toBeGreaterThan(0);
-    expect(ids.every((id) => id.startsWith("_copy7_"))).toBe(true);
-    const refs = elements(copy).flatMap((e) => (e.attributes["clip-path"] ? [e.attributes["clip-path"]] : []));
-    expect(refs.every((r) => r.startsWith("url(#_copy7_"))).toBe(true);
   });
 
   test("a later segment hides the drawings of states it does not touch", () => {

@@ -168,13 +168,14 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
       loadPicture: async (src) => ({ image: { src } as never, width: widthOf(src), height: 140 }),
       rasterizeSvgLayer: (source) => textRasterizer(source as never),
     });
+    Object.defineProperty(playback, "placeholders", { configurable: true, get: () => true, set: () => {} });
     await h.ready;
     await h.preview(source.split("\n").findIndex((line) => line.includes("First line.")));
     await flushMicrotasks(10);
     const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
     const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
     const layer = () => (span as unknown as { __sdMorph?: MorphLayer }).__sdMorph as unknown as { drawn: boolean; images: any[] } | undefined;
-    await until(() => (withCanvas ? !!shadow()?.querySelector("canvas") : !!shadow()?.querySelector("[data-morph]")), "the SVG layer's drawing");
+    await until(() => !!shadow()?.querySelector("canvas"), "the SVG layer's drawing");
     if (withCanvas) {
       for (const [name, value] of [["width", "520px"], ["height", "280px"], ["background-size", "100% 100%"], ["background-repeat", "no-repeat"]]) span.style.setProperty(name!, value!);
       playback.requestRelayout();
@@ -243,75 +244,20 @@ describe("an SVG layer keeps its own morphs inside a picture its own morph drive
     expect(referenceStates(artifact, chompAt(5.3))).not.toEqual(referenceStates(artifact, chompAt(5.3 - 5)));
   });
 
-  test("when the picture cannot be drawn on a canvas, its SVG layer still plays its own morph at its own CSS layer", async () => {
-    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["base"] = bunny,\n    ["lids.on"] = base_file,');
-    const { playback, shadow, artifact, play } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
-    expect(play.picture.files.map((file: any) => [file.plays?.map((own: any) => own.morph), file.layer])).toEqual([
-      [["chomp"], 0],
-      [undefined, undefined],
-    ]);
-    expect(shadow()!.querySelectorAll("canvas")).toHaveLength(0);
-    let time = 0;
-    for (const seconds of [0.2, 0.5, 1.6]) {
-      playback.advance(seconds - time);
-      time = seconds;
-      expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(seconds)));
-    }
-    expect(referenceStates(artifact, chompAt(0.2))).not.toEqual(referenceStates(artifact, chompAt(0.5)));
-  });
-
-  test("when the picture cannot be drawn on a canvas, its SVG layer's view follows a change of background-repeat both ways", async () => {
-    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["base"] = bunny,\n    ["lids.on"] = base_file,');
-    const { playback, span, shadow, artifact } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
-    const relayout = async (repeat: string) => {
-      span.style.setProperty("background-repeat", repeat);
-      playback.requestRelayout();
-      await flushMicrotasks(5);
-    };
-    expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
-    await relayout("repeat");
-    expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
-    expect(Array.from(shadow()!.children).map((child) => child.getAttribute("style") ?? "").join("|")).toContain("background-repeat:repeat");
-    await relayout("no-repeat");
-    expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
+  test.each([
+    ["an SVG layer in one slot", '["base"] = bunny,\n    ["lids.on"] = base_file,'],
+    ["an SVG used in two slots", '["left"] = bunny,\n    ["right"] = bunny,\n    ["lids.on"] = base_file,'],
+  ])("a picture whose morph's files cannot be drawn together shows its rest on its still canvas, with no layer drawn as inline SVG or CSS (%s, #2817)", async (_, slots) => {
+    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', slots);
+    const { playback, span, shadow } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
+    const layer = (span as unknown as { __sdMorph: { images: { broken?: boolean; canvas?: unknown }[]; stills: { canvases?: { box: Element }[] }[] } }).__sdMorph;
+    expect(layer.images[0]!.broken).toBe(true);
+    expect(layer.images[0]!.canvas).toBeUndefined();
     playback.advance(0.5);
-    expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(0.5)));
-  });
-
-  test("repeated layout of a fallback picture does not rebuild: stable placement, an inner view that cannot be built, a file layer build never walked", async () => {
-    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["base"] = bunny,\n    ["lids.on"] = base_file,');
-    const { span, shadow } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
-    const layer = (span as any).__sdMorph as MorphLayer;
-    const relaidWithoutBuild = () => {
-      const build = vi.spyOn(layer as any, "build");
-      for (let i = 0; i < 5; i++) layer.layout();
-      const calls = build.mock.calls.length;
-      build.mockRestore();
-      return calls;
-    };
-    expect(shadow()!.querySelectorAll("[data-morph]").length).toBeGreaterThan(0);
-    expect(relaidWithoutBuild()).toBe(0);
-
-    const liveView = vi.spyOn(layer as any, "liveView").mockReturnValue(undefined);
-    (layer as any).build();
-    liveView.mockRestore();
-    expect(shadow()!.querySelectorAll("[data-morph]")).toHaveLength(0);
-    expect(relaidWithoutBuild()).toBe(0);
-
-    const image = (layer as any).images.find((entry: any) => entry.picture);
-    for (const inner of image.inner) inner.broken = false;
-    image.picture.files.find((file: any) => file.plays).layer = 7;
-    (layer as any).build();
-    expect(relaidWithoutBuild()).toBe(0);
-  });
-
-  test("when the picture cannot be drawn on a canvas, an SVG used in two slots plays in both", async () => {
-    const source = SOURCE.replace('["base"] = base_file,\n    ["lids.on"] = bunny,', '["left"] = bunny,\n    ["right"] = bunny,\n    ["lids.on"] = base_file,');
-    const { playback, shadow, artifact } = await shown(source, (src) => (src.endsWith(".png") ? 130 : 260), false);
-    await until(() => shadow()!.querySelectorAll("svg svg").length >= 2, "both SVG slots' views");
-    playback.advance(0.5);
-    const views = Array.from(shadow()!.children).filter((child) => child.querySelector("svg"));
-    expect(views).toHaveLength(2);
-    for (const view of views) expect(leafStates(view)).toEqual(referenceStates(artifact, chompAt(0.5)));
+    expect(Array.from(shadow()!.children)).toEqual(layer.stills[0]!.canvases!.map((view) => view.box));
+    expect(shadow()!.querySelectorAll("canvas")).toHaveLength(1);
+    expect(shadow()!.querySelectorAll("svg, [data-morph], [data-undrawn]")).toHaveLength(0);
+    expect(Array.from(shadow()!.children).map((child) => /background-image:\s*([^;]*)/.exec(child.getAttribute("style") ?? "")?.[1]).filter((image) => image && image !== "none")).toEqual([]);
+    expect(span.style.backgroundImage.split(",").every((image) => image.trim() === "none")).toBe(true);
   });
 });

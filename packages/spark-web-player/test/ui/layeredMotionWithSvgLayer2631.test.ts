@@ -195,7 +195,7 @@ async function shown(text: string, widthOf: (src: string) => number, withCanvas:
   const span = h.overlay.querySelector(".portrait .image > .instance") as HTMLElement;
   const shadow = () => span.querySelector(":scope > span.morph")?.shadowRoot ?? null;
   const layer = () => (span as unknown as { __sdMorph?: { drawn: boolean; images: any[] } }).__sdMorph;
-  await until(() => (withCanvas ? !!shadow()?.querySelector("canvas") : !!shadow()?.querySelector("[data-morph]")), "the SVG layer's drawing");
+  await until(() => (withCanvas ? !!shadow()?.querySelector("canvas") : !!(layer() as { stills?: { undrawn?: unknown }[] } | undefined)?.stills?.[0]?.undrawn), "the SVG layer's drawing");
   const resize = async (width: number, height: number) => {
     span.style.setProperty("width", `${width}px`);
     span.style.setProperty("height", `${height}px`);
@@ -247,14 +247,12 @@ describe("a picture's morph moves its image-file layers while an SVG layer plays
     expect(referenceStates(artifact, chompAt(1))).not.toEqual(referenceStates(artifact, chompAt(1.3)));
   });
 
-  test("fallback: the picture keeps its CSS drawing and moves nothing, and its SVG layer still plays its own morph at its CSS layer", async () => {
-    const { playback, shadow, artifact, effects } = await shown(FALLBACK, (src) => (src.endsWith(".png") ? 130 : 260), false);
-    expect(shadow()!.querySelectorAll("canvas")).toHaveLength(0);
-    let time = 0;
-    for (const seconds of [0.2, 0.5, 1.0]) {
-      playback.advance(seconds - time);
-      time = seconds;
-      expect(leafStates(shadow()!)).toEqual(referenceStates(artifact, chompAt(seconds)));
+  test("fallback: a picture whose files differ in size is not drawn, moves nothing, and draws no layer as inline SVG or CSS (#2817)", async () => {
+    const { playback, shadow, effects } = await shown(FALLBACK, (src) => (src.endsWith(".png") ? 130 : 260), false);
+    for (const seconds of [0.2, 0.3, 0.5]) {
+      playback.advance(seconds);
+      expect(shadow()!.querySelectorAll("canvas, svg, [data-morph]")).toHaveLength(0);
+      expect(Array.from(shadow()!.children).map((child) => /background-image:\s*([^;]*)/.exec(child.getAttribute("style") ?? "")?.[1]).filter((image) => image && image !== "none")).toEqual([]);
     }
     expect(effects).toEqual([]);
     expect(Array.from(shadow()!.querySelectorAll("[style*='matrix']"))).toEqual([]);
