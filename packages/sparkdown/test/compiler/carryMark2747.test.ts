@@ -222,3 +222,18 @@ describe("diagnostics on a line with `>>` (I-2747)", () => {
     ).toEqual([]);
   });
 });
+
+describe("`>>` on a choice's own line (I-2747)", () => {
+  const choice = (line: string) => `scene start\n  choose\n    ${line}\n      Second.\n  end\nend\n`;
+
+  test.each([
+    ["ending the chosen output", "+ [Go] First >>", ["Carry"]],
+    ["before a tag", "+ [Go] First >> # pause", ["Carry"]],
+    ["before a closed block comment", "+ [Go] First >> /* a */", ["Carry"]],
+    ["before text in the chosen output", "+ [Go] First >> more", []],
+    ["inside the bracketed label", "+ [Go >>] First", []],
+    ["before a divert", "+ [Go] First >> -> start", []],
+  ] as const)("%s: %j", (_, line, expected) => {
+    expect(kinds(choice(line))).toEqual(expected);
+  });
+});

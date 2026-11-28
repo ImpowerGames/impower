@@ -139,7 +139,7 @@ variables:
   # lookaround: DisplayLineText tries Carry before Break at every position, and both begin on the same `>`. Reordering its patterns cannot tell a `>>` that ends the line from two breaks, splitting the Switch cannot since both rules start on that character, DisplayLineText has no end of its own for the line's end to carry, and tightening BREAK_MARK would change a mid-line `>>`, which stays two breaks. So CARRY reads `>>` only where nothing but a tag, a `//` comment or block comments closed on the line follow it, and not after a third `>`, which Break keeps.
   CARRY: (?:{{WS}}*(?<![>])[>][>]{{WS}}*(?={{CARRY_TAIL}}|{{CARRY_BLOCK_COMMENT}}))
   CARRY_TAIL: (?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}}))
-  CARRY_BLOCK_COMMENT: (?:(?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/]{{WS}}*)+{{CARRY_TAIL}})
+  CARRY_BLOCK_COMMENT: (?:(?:{{BLOCK_COMMENT_CLOSED}}{{WS}}*)+{{CARRY_TAIL}})
   CHAIN: (?:[\\])
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))
@@ -1246,7 +1246,9 @@ variables:
   # at a span mark outside a construct DisplayText reads whole, and at the
   # `..` before one, which Glue would read at the capture's end. A span then
   # reads past an interpolation or comment that ChoiceTextUnit reads as a unit.
-  CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_TEXT_END}}){{CHOICE_INNER_TEXT_PIECE}})
+  # Carry begins where the segment stops at a `>>` that ends the chosen output,
+  # which the segment's single match would otherwise take as text.
+  CHOICE_INNER_TEXT_CHARACTER: (?:{{CHOICE_PLAIN_INTERPOLATION}}|{{CHOICE_TEXT_ESCAPED_BRACE}}|{{CHOICE_INNER_TEXT_TAG}}|(?!{{CHOICE_SPAN_MARK}}|{{CHOICE_TEXT_DOTS}}|{{CHOICE_INNER_TEXT_END}}|{{CARRY}}){{CHOICE_INNER_TEXT_PIECE}})
   # lookaround: ChoiceInnerSpans, ChoiceTextDots and the end of each span copy
   # (CHOICE_INNER_SPAN_END), which ChoiceInnerSpanText must leave to them, as Italic's
   # end and Glue see them in DisplayText.
@@ -1946,6 +1948,7 @@ repository:
         tag: keyword
         name: punctuation.definition.template-expression.end.choice.suppression.sd
     patterns:
+      - { include: "#Carry" }
       - { include: "#ChoiceInnerTextContent" }
       - { include: "#ChoiceTextUnit" }
       - { include: "#ChoiceTextDots" }

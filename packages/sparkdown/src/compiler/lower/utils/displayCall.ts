@@ -101,7 +101,7 @@ export function displayText(body: ParsedObject[]): ParsedObject[] {
 export function buildOrderedDisplayCall(
   words: ParsedObject[],
   ctx: LowerContext,
-  options: { open?: boolean } = {},
+  options: { open?: boolean; onward?: boolean } = {},
 ): FunctionCall {
   const parts: Expression[] = [];
   let run: ParsedObject[] = [];
@@ -136,6 +136,7 @@ export function buildOrderedDisplayCall(
     ),
   ];
   if (options.open) entries.push(flagEntry("open"));
+  if (options.onward) entries.push(flagEntry("onward"));
   return finishCall(entries, [], null, ctx);
 }
 

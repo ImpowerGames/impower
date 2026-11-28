@@ -34,3 +34,13 @@ describe("formatting a line with `>>` (I-2747)", () => {
     expect(formatSource(source)).toBe(source);
   });
 });
+
+describe("formatting `>>` on a choice's own line (I-2747)", () => {
+  test.each(["+ [Go] First >>", "+ [Go] First >> # pause", "+ [Go] First >> more", "+ [Go >>] First"])(
+    "leaves %j as written",
+    (line) => {
+      const source = `scene start\n  choose\n    ${line}\n      Second.\n  end\nend\n`;
+      expect(formatSource(source)).toBe(source);
+    },
+  );
+});

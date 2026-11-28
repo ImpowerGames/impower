@@ -403,3 +403,38 @@ describe("what may follow `>>` on its line, as the story plays it (I-2747)", () 
     expect(alone?.onward).toBeUndefined();
   });
 });
+
+describe("`>>` on a choice's own line (I-2747)", () => {
+  const pick = async (line: string) => {
+    const h = await play(story(`  choose\n    ${line}\n      Second.\n  end\n  Last.`));
+    expect(beat(h)?.choices).toHaveLength(1);
+    expect(beat(h)?.auto).toBeUndefined();
+    await waits(h, 2000);
+    coordinator(h).choose(0);
+    await flushMicrotasks(10);
+    return h;
+  };
+
+  test("the chosen output that ends with `>>` carries on to the next line once picked", async () => {
+    const h = await pick("+ [Go] First >>");
+    expect(shown(h)).toBe("First");
+    expect(beat(h)?.onward).toBe(true);
+    for (let i = 0; i < 20 && shown(h) !== "Second."; i += 1) {
+      await tick(h, 100);
+    }
+    expect(shown(h)).toBe("Second.");
+  });
+
+  test("a tag after the mark stays the chosen output's tag", async () => {
+    const h = await pick("+ [Go] First >> # pause");
+    expect(shown(h)).toBe("First");
+    expect(beat(h)?.onward).toBe(true);
+  });
+
+  test("the chosen output without the mark waits for a click", async () => {
+    const h = await pick("+ [Go] First");
+    expect(shown(h)).toBe("First");
+    expect(beat(h)?.onward).toBeUndefined();
+    await waits(h, 2000);
+  });
+});
