@@ -659,6 +659,36 @@ const MAX_CANVAS_PIXELS = 4096 * 4096;
 
 const HOST_STYLE = "position:absolute;inset:0;overflow:hidden;pointer-events:none;mix-blend-mode:normal";
 
+export interface PictureGauge {
+  span: HTMLElement;
+  host?: HTMLElement;
+  reach?: { zoom?: number; scale?: number };
+}
+
+interface HostBox {
+  left: number;
+  top: number;
+  width: number;
+  offsetWidth: number;
+}
+
+function hostBoxOf(host: HTMLElement | undefined): HostBox | undefined {
+  if (!host || typeof host.getBoundingClientRect !== "function") return undefined;
+  const bounds = host.getBoundingClientRect();
+  return { left: bounds.left, top: bounds.top, width: bounds.width, offsetWidth: host.offsetWidth };
+}
+
+export function pictureGauge(span: HTMLElement, reach?: PictureGauge["reach"]): PictureGauge {
+  let host = Array.from(span.children).find((child): child is HTMLElement => child.localName === "span" && child.classList.contains("morph"));
+  if (!host) {
+    host = span.ownerDocument.createElement("span");
+    host.className = "morph";
+    host.setAttribute("style", HOST_STYLE);
+    span.insertBefore(host, span.firstChild);
+  }
+  return { span, host, ...(reach ? { reach } : {}) };
+}
+
 interface Drawing {
   key: string;
   bytes: number;
@@ -1400,16 +1430,6 @@ export class MorphPlayback {
     for (const layer of this.layers) layer.adoptNext();
   }
 
-  prepareLayouts(skip: Set<MorphLayer>): MorphLayer[] {
-    const waiting: MorphLayer[] = [];
-    for (const layer of this.layers) {
-      if (skip.has(layer) || !layer.span.isConnected) continue;
-      layer.prepareLayout();
-      if (!layer.drawn) waiting.push(layer);
-    }
-    return waiting;
-  }
-
   layersIn(root: Element): MorphLayer[] {
     return this.layersWithin(root).filter((layer) => layer.span.isConnected);
   }
@@ -1892,14 +1912,20 @@ export class MorphLayer {
     this.relayout();
   }
 
-  reframe(measureHeld: () => void) {
-    if (this.held) measureHeld();
-    else this.prepareLayout();
-    this.reframed = this.active;
+  prepareLayout(gauge?: PictureGauge): boolean {
+    if (!this.active || this.kind !== "background" || this.held) return false;
+    if (gauge?.reach) this.widen(gauge.reach);
+    this.gauge = gauge;
+    try {
+      this.prepareNext();
+    } finally {
+      this.gauge = undefined;
+    }
+    return true;
   }
 
-  prepareLayout() {
-    if (!this.active || this.kind !== "background" || this.held) return;
+  protected prepareNext() {
+    this.reframed = false;
     const shown = this.stills.filter(
       (still) =>
         !!still.canvases?.length &&
@@ -1921,6 +1947,7 @@ export class MorphLayer {
         const area = this.layerBoxes(computed).padding;
         if (!plans || !(area.width > 0 && area.height > 0) || JSON.stringify(this.stillSegments(plans)) !== still.segments) continue;
         const boxSize = `${area.width}x${area.height}`;
+        if (views.some((view) => view.boxSize !== boxSize)) this.reframed = true;
         const place = this.stillPlacement(still, plans, area, dpr);
         const wants = new Map<number, { width: number; height: number }>();
         for (const view of views) {
@@ -1938,6 +1965,14 @@ export class MorphLayer {
         if (matches(still.rasters)) {
           this.dropNext(still);
           this.wantStillPoses(still);
+          continue;
+        }
+        if (views.every((view) => view.boxSize === boxSize)) {
+          this.dropNext(still);
+          for (const view of views) {
+            view.still = this.stillPaint(view, plans, place);
+            this.wantRasters(still, view, view.still);
+          }
           continue;
         }
         if (still.next?.boxSize === boxSize && matches(still.next.rasters)) continue;
@@ -1959,6 +1994,7 @@ export class MorphLayer {
         const rect = this.pictureRect(image.files, image.layer, computed, area);
         if (!rect) continue;
         const rectKey = `${rect.x},${rect.y},${rect.width},${rect.height}`;
+        if (view.snap?.rect !== rectKey) this.reframed = true;
         const place = this.canvasPlacement(rect, dpr);
         const { w, h } = this.canvasBacking(view, place.width, place.height, dpr);
         const sized = !posed || (view.backing?.width === w && view.backing.height === h);
@@ -2006,9 +2042,8 @@ export class MorphLayer {
 
   protected canvasPlacement(rect: Rect, dpr: number) {
     let { x, y, width, height } = rect;
-    const host = this.shadowHost;
-    const bounds = host?.getBoundingClientRect();
-    if (host && bounds && host.offsetWidth > 0 && Math.abs(bounds.width - host.offsetWidth) < 0.5) {
+    const bounds = this.hostBox();
+    if (bounds && bounds.offsetWidth > 0 && Math.abs(bounds.width - bounds.offsetWidth) < 0.5) {
       const snap = (value: number) => Math.round(value * dpr) / dpr;
       const left = snap(bounds.left + x) - bounds.left;
       const top = snap(bounds.top + y) - bounds.top;
@@ -2048,7 +2083,7 @@ export class MorphLayer {
   }
 
   protected measureStyle() {
-    const span = this.span;
+    const span = this.gauge?.span ?? this.span;
     const rect = typeof span.getBoundingClientRect === "function" ? span.getBoundingClientRect() : undefined;
     const zoom = pictureViewOf(span).zoom;
     if (!rect || !(zoom > 0)) return;
@@ -2061,9 +2096,16 @@ export class MorphLayer {
 
   protected snapshot?: CSSStyleDeclaration;
 
+  protected gauge?: PictureGauge;
+
+  protected styleOf(span: HTMLElement): CSSStyleDeclaration | undefined {
+    return span.ownerDocument.defaultView?.getComputedStyle(span);
+  }
+
   protected computed(): CSSStyleDeclaration | undefined {
+    if (this.gauge) return this.styleOf(this.gauge.span);
     if (this.held && this.snapshot) return this.snapshot;
-    return this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    return this.styleOf(this.span);
   }
 
   protected presized?: { width: number; height: number };
@@ -2073,7 +2115,7 @@ export class MorphLayer {
   }
 
   presize() {
-    const computed = this.span.ownerDocument.defaultView?.getComputedStyle(this.span);
+    const computed = this.styleOf(this.span);
     const area = positioningArea(this.span, computed);
     if (!(area.width > 0 && area.height > 0)) return;
     this.presized = area;
@@ -2085,10 +2127,19 @@ export class MorphLayer {
     this.relayout();
   }
 
+  holdArea() {
+    const area = positioningArea(this.span, this.styleOf(this.span));
+    if (area.width > 0 && area.height > 0) this.presized = area;
+  }
+
   protected areaOf(computed: CSSStyleDeclaration | undefined) {
     if (this.held && this.presized) return this.presized;
-    const area = positioningArea(this.span, computed);
+    const area = positioningArea(this.gauge?.span ?? this.span, computed);
     return area.width > 0 && area.height > 0 ? area : (this.presized ?? area);
+  }
+
+  protected hostBox(): HostBox | undefined {
+    return hostBoxOf(this.gauge ? this.gauge.host : this.shadowHost);
   }
 
   protected reach(): number {
@@ -2826,9 +2877,8 @@ export class MorphLayer {
     let left = 0;
     let top = 0;
     let { width, height } = area;
-    const host = this.shadowHost;
-    const bounds = host?.getBoundingClientRect();
-    if (host && bounds && host.offsetWidth > 0 && Math.abs(bounds.width - host.offsetWidth) < 0.5) {
+    const bounds = this.hostBox();
+    if (bounds && bounds.offsetWidth > 0 && Math.abs(bounds.width - bounds.offsetWidth) < 0.5) {
       const snap = (value: number) => Math.round(value * dpr) / dpr;
       left = snap(bounds.left) - bounds.left;
       top = snap(bounds.top) - bounds.top;

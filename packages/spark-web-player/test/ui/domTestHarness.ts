@@ -81,6 +81,9 @@ function installWAAPIStub(win: any) {
         public keyframes?: unknown,
         public options?: unknown,
       ) {}
+      getKeyframes() {
+        return Array.isArray(this.keyframes) ? this.keyframes : [];
+      }
     };
   }
   if (!win.document.timeline) {

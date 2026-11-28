@@ -210,49 +210,17 @@ export const placePicture = (
   writePlacement(el, getPicturePlacement(framing));
 };
 
-const preview = (
-  el: HTMLElement,
-  framed: boolean,
-  placement: { translate: string | null; scale: string | null },
-): (() => void) | undefined => {
-  const style = el.getAttribute("style");
-  const className = el.getAttribute("class");
-  el.classList.toggle("framed", framed);
-  writePlacement(el, placement);
-  const put = (name: string, value: string | null) => {
-    if (el.getAttribute(name) === value) {
-      return;
-    }
-    if (value == null) {
-      el.removeAttribute(name);
-    } else {
-      el.setAttribute(name, value);
-    }
-  };
-  if (el.getAttribute("style") === style && el.getAttribute("class") === className) {
-    return undefined;
+export const copyPictureRest = (from: Element, to: Element) => {
+  const view = resting.get(from);
+  if (view) {
+    resting.set(to, view);
   }
-  return () => {
-    put("style", style);
-    put("class", className);
-  };
 };
 
-export const previewPlacement = (
-  el: HTMLElement,
-  framing: PictureFramingValues | undefined,
-): (() => void) | undefined => {
-  const heading = headingTo(el);
-  if (heading && sameView(heading, getPictureView(framing))) {
-    return undefined;
-  }
-  return preview(el, Boolean(framing), getPicturePlacement(framing));
-};
-
-export const previewTravel = (
-  el: HTMLElement,
-  framing: PictureFramingValues | undefined,
-): (() => void) | undefined => preview(el, true, getViewPlacement(getPictureView(framing)));
+export const travelAnimations = (el: Element): Animation[] => [
+  ...(travels.has(el) ? [travels.get(el)!.animation] : []),
+  ...(scheduled.get(el) ?? []).map((travel) => travel.animation),
+];
 
 export const haltPicture = (el: HTMLElement) => {
   if (!travels.has(el) && !scheduled.has(el)) {

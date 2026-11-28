@@ -43,9 +43,9 @@ const transformProperty = (value: unknown): number => {
   return product;
 };
 
-const animationScale = (animation: Animation | undefined): number => {
+export const keyframesScale = (keyframes: readonly unknown[] | undefined): number => {
   let reach = 1;
-  for (const frame of animation?.keyframes ?? []) {
+  for (const frame of keyframes ?? []) {
     if (!frame || typeof frame !== "object") {
       continue;
     }
@@ -69,7 +69,7 @@ export const keyframeScale = (
 ): number => {
   const byElement = new Map<unknown, number>();
   for (const animation of animations ?? []) {
-    const scale = animationScale(animation);
+    const scale = keyframesScale(animation?.keyframes);
     for (const element of new Set(resolve(animation?.target?.$name))) {
       byElement.set(element, (byElement.get(element) ?? 1) * scale);
     }
