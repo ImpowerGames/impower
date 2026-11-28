@@ -28,7 +28,7 @@ The built-in `main` layout holds the stage. The text boxes are built from a scre
 Three rules decide where a line shows:
 
 1. A line goes to every open layout that holds its kind, which means an element named after it: `dialogue`, `action`, `title`, `heading`, `transitional`, or a name of your own written to with `@name:`.
-2. If no open layout holds it, the layout named after the kind opens by itself. It closes when the next line belongs in a different layout.
+2. If no open layout holds it, the layout named after the kind opens by itself. It closes when the next line belongs in a different layout. A line labelled with a variant, such as `BUNNY [left]:`, opens the layout that holds an element of its kind limited to that variant instead, unless a layout you opened holds its kind ([Variants](./Variants.md#a-layout-that-opens-for-a-variant)).
 3. A beat with no text (only a picture, a sound or a pause) closes a layout that opened by itself, because it has nothing to show. It opens again with the next line.
 
 A beat that only runs directives and moves on at once, such as a line holding only `[[open hud]]`, leaves the box where it is.

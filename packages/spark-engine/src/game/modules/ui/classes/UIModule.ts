@@ -33,7 +33,7 @@ import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { pageKey } from "../../../core/utils/pageKey";
 import type { StreamRun } from "../../../core/classes/presenters/streamRuns";
-import { streamKey, streamTemplate } from "../utils/streamTemplate";
+import { lineLabelled, streamKey, streamTemplate } from "../utils/streamTemplate";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
   BOOLEAN_ATTRIBUTES,
@@ -70,6 +70,11 @@ import {
   layoutStreams,
 } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import {
+  admitsLine,
+  admitsVariant,
+  limitsLine,
+} from "@impower/sparkdown/src/compiler/utils/variantLayouts";
+import {
   AbstractValue,
   BoolValue,
   FloatValue,
@@ -88,6 +93,7 @@ import {
   TEXT_REASONS,
   type TextClearReason,
   type TextReason,
+  type TextReasonRule,
   type TextWriteReason,
 } from "../types/TextReason";
 import type { EventMap } from "../../../core/types/EventMap";
@@ -465,6 +471,9 @@ export interface LineLabels {
   variant?: string;
   speaker?: string;
 }
+
+const sameLabels = (a: LineLabels | undefined, b: LineLabels | undefined): boolean =>
+  a?.variant === b?.variant && a?.speaker === b?.speaker;
 
 export interface LineText extends LineLabels {
   text: TextState[];
@@ -1612,10 +1621,57 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this.limited(element)) {
       return ownEntry(this._state.text, target);
     }
-    const admitted = (ownEntry(this._state.lineText, target) ?? []).filter((written) =>
-      this.admits(element, written),
+    const current = this._state.line;
+    return (ownEntry(this._state.lineText, target) ?? []).findLast(
+      (written) =>
+        this.admits(element, written) &&
+        (!this._clearMarked.has(element) || sameLabels(written, current)),
+    )?.text;
+  }
+
+  protected replaceLineText(target: string): void {
+    const current = this._state.line;
+    this.keepLineText(
+      target,
+      (line) => !sameLabels(line, current) && this.lineHeld(target, line, true),
     );
-    return admitted.length > 0 ? admitted.flatMap((written) => written.text) : undefined;
+  }
+
+  protected pruneLineText(): void {
+    for (const target of Object.keys(this._state.lineText ?? {})) {
+      this.keepLineText(target, (line) => this.lineHeld(target, line, false));
+    }
+  }
+
+  protected lineHeld(target: string, line: LineLabels, unmarked: boolean): boolean {
+    if (target.includes(" ") || !this._game.program?.sparkle?.layouts) {
+      return true;
+    }
+    return this.openedLayoutsAfter([]).some((name) =>
+      this.layoutHolds(
+        name,
+        [target],
+        false,
+        (node) => limitsLine(node) && !(unmarked && marksClear(node)) && admitsLine(node, line),
+      ),
+    );
+  }
+
+  protected keepLineText(target: string, keep: (line: LineText) => boolean): void {
+    const saved = this._state.lineText;
+    const written = ownEntry(saved, target);
+    if (!saved || !written) {
+      return;
+    }
+    const kept = written.filter(keep);
+    if (kept.length > 0) {
+      saved[target] = kept;
+    } else {
+      delete saved[target];
+    }
+    if (Object.keys(saved).length === 0) {
+      delete this._state.lineText;
+    }
   }
 
   protected noteLine(): void {
@@ -5939,7 +5995,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected treeHolds(children: unknown, wanted: Set<string>, outsideCasts = false): boolean {
+  protected treeHolds(
+    children: unknown,
+    wanted: Set<string>,
+    outsideCasts = false,
+    admits: (node: ElementNode) => boolean = () => true,
+  ): boolean {
     const components = this._game.program?.sparkle?.components ?? {};
     const expanded = new Set<string>();
     const visit = (value: unknown): boolean => {
@@ -5955,7 +6016,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return false;
         }
         const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
-        if (names.some((n) => typeof n === "string" && wanted.has(n))) {
+        if (
+          names.some((n) => typeof n === "string" && wanted.has(n)) &&
+          admits(node as ElementNode)
+        ) {
           return true;
         }
         const tag = node["tag"];
@@ -5974,7 +6038,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return visit(children);
   }
 
-  layoutHolds(layoutName: string, elements: readonly string[], outsideCasts = false): boolean {
+  layoutHoldsLine(layoutName: string, element: string, variant: string | undefined): boolean {
+    return this.layoutHolds(layoutName, [element], false, (node) => admitsVariant(node, variant));
+  }
+
+  layoutHolds(
+    layoutName: string,
+    elements: readonly string[],
+    outsideCasts = false,
+    admits?: (node: ElementNode) => boolean,
+  ): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
     if (sparkle?.layouts) {
@@ -5986,8 +6059,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         ? sparkle.screens?.[layout.screen]
         : undefined;
       return (
-        this.treeHolds(layout.children, wanted, outsideCasts) ||
-        this.treeHolds(screen?.children, wanted, outsideCasts)
+        this.treeHolds(layout.children, wanted, outsideCasts, admits) ||
+        this.treeHolds(screen?.children, wanted, outsideCasts, admits)
       );
     }
     const layout = this.context.layout?.[layoutName];
@@ -6817,6 +6890,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
+    this.pruneLineText();
     if (instructions.some((e) => !e.auto)) {
       this._screenEdits += 1;
     }
@@ -7119,10 +7193,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected clearReach(target: string, reach: "marked" | "unmarked" | "name"): Element[] {
+  protected clearReach(target: string, reach: TextReasonRule["reach"]): Element[] {
     const elements = this.textElements(target);
     if (reach === "name") {
       return elements;
+    }
+    if (reach === "line") {
+      return elements.filter(
+        (el) =>
+          !this.limited(el) || this._clearMarked.has(el) || this.admits(el, this._state.line),
+      );
     }
     const marked = new Set([...this._clearPaths.values()].flat());
     return elements.filter(
@@ -7399,9 +7479,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await Promise.all(
           targets.map(async (target) => {
             const elements = $.clearReach(target, rule.reach);
-            if (rule.deletesSavedText && (rule.reach === "name" || $.fullyMarked(target))) {
+            if (
+              rule.deletesSavedText &&
+              (rule.reach === "name" || rule.reach === "line" || $.fullyMarked(target))
+            ) {
               delete $._state.text?.[target];
-              delete $._state.lineText?.[target];
+              if (rule.reach === "line" && !$.fullyMarked(target)) {
+                $.replaceLineText(target);
+              } else {
+                delete $._state.lineText?.[target];
+              }
               delete $._state.textWritten?.[target];
               this.#presented.delete(target);
             }
@@ -8959,6 +9046,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return undefined;
         }
         const entry: StreamEntry = { template, text };
+        if (instructions.variant) {
+          entry.variant = instructions.variant;
+        }
+        if (instructions.speaker?.character) {
+          entry.speaker = instructions.speaker.character;
+        }
         const shown = Object.fromEntries(
           Object.entries(instructions.extended ?? {}).filter(
             ([target, count]) => count > 0 && text[target],
@@ -9300,7 +9393,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
         const template = mount.node.templates[entry.template];
         const group = template
-          ? $.mountChildren(mount.element, [template], scope, null)
+          ? $.mountChildren(mount.element, [lineLabelled(template, entry)], scope, null)
           : [];
         return { group, scope };
       }

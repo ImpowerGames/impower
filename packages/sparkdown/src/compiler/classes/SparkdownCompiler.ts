@@ -187,6 +187,7 @@ import type { SparkSelector } from "../types/SparkSelector";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { layoutStreams } from "../utils/layoutStreams";
+import { variantClaimKey, variantLayoutClaims, writtenVariantLimits } from "../utils/variantLayouts";
 import { LayoutVerb } from "../../../language/sparkdown.layout-verbs";
 import { layoutDirectiveTargetNames } from "../utils/layoutDirectiveTargets";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
@@ -1737,6 +1738,7 @@ export class SparkdownCompiler {
       this.validateCueVariants(program);
       this.validateClearTargets(program);
       this.validateStreamLayouts(program);
+      this.validateVariantLayouts(program);
       this.validateLints(program);
       this.validateTypes(program);
       this.validateStores(program);
@@ -5471,6 +5473,48 @@ export class SparkdownCompiler {
       });
     }
     profile("end", this._profilerId, "validateStreamLayouts", uri);
+  }
+
+  validateVariantLayouts(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateVariantLayouts", uri);
+    const claims = variantLayoutClaims(program.sparkle);
+    if (claims.size > 0) {
+      for (const scriptUri of Object.keys(program.scripts)) {
+        if (scriptUri === BUILTINS_PRELUDE_URI) continue;
+        const doc = this.documents.get(scriptUri);
+        const tree = doc ? this.documents.tree(scriptUri) : undefined;
+        if (!doc || !tree) continue;
+        const read = (node: { from: number; to: number }) => doc.read(node.from, node.to);
+        tree.iterate({
+          enter: (node) => {
+            if (node.name !== "LuauLayout") {
+              return undefined;
+            }
+            const nameNode = getDescendent("LuauDefineName", node.node);
+            const layout = nameNode ? read(nameNode).trim() : "";
+            for (const limit of writtenVariantLimits(node.node, read)) {
+              const kind = limit.names.find((name) => claims.get(variantClaimKey(name, limit.variant))?.includes(layout));
+              if (!kind) continue;
+              const layouts = claims.get(variantClaimKey(kind, limit.variant))!;
+              const listed = layouts.map((name) => `\`${name}\``);
+              ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+                range: doc.range(limit.from, limit.to),
+                code: "variant-layouts",
+                severity: DiagnosticSeverity.Warning,
+                message: {
+                  kind: "markdown",
+                  value: `\`${limit.variant}\` ${kind} lines could open ${listed.slice(0, -1).join(", ")} or ${listed.at(-1)}. Limit only one layout's elements to a variant.`,
+                },
+                source: LANGUAGE_NAME,
+              });
+            }
+            return false;
+          },
+        });
+      }
+    }
+    profile("end", this._profilerId, "validateVariantLayouts", uri);
   }
 
   validateLints(program: SparkProgram) {

@@ -699,7 +699,8 @@ describe("the page marks its scroller (#1990)", () => {
       .filter(
         (m: any) =>
           (m.method === "ui/create" || m.method === "ui/update") &&
-          m.params.attributes?.["data-follow"] === "end",
+          m.params.attributes?.["data-follow"] === "end" &&
+          !String(m.params.element).includes("-simultaneous-"),
       )
       .map((m: any) => names.get(m.params.element));
   };

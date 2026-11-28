@@ -42,6 +42,22 @@ layout log {
 }
 ```
 
+A template can be limited to a variant ([Variants](./Variants.md)). A line makes its entry from the template limited to its variant, and a template with no `#variant` takes every line that no limited template takes:
+
+```sparkdown
+layout phone {
+  thread {
+    stream {
+      dialogue.bubble.incoming #variant=receive { text }
+      dialogue.bubble.outgoing #variant=send { text }
+      dialogue.bubble { text }
+    }
+  }
+}
+```
+
+Here `RAFFLES [receive]:` makes an incoming bubble, `BUNNY [send]:` an outgoing one, and a line with any other variant, or none, a plain bubble. Without the last template those lines would add nothing. Every entry carries `#variant` and `#speaker` for its own line, whichever template made it, so `#variant=send { … }` and `#speaker=bunny { … }` in a style select it.
+
 A line of a kind with no template adds nothing to the stream. Each line adds one entry after the last, and types into its entry as it would into a box: the speaker's name goes to a `character_name` inside the entry, the line to the element named after its kind, and a click finishes the typing. Each line waits for a click before the next one, as a line in a box does, unless the stream advances by itself (see [A stream that advances by itself](#a-stream-that-advances-by-itself)).
 
 Whatever a line writes into its entry stays there as long as the entry does. Entries stay until `[[clear phone]]` or `[[close phone]]`. After a clear, the line the clear is on becomes the first entry; after a close, the layout opens empty the next time. `clear` works on any layout that holds a stream, and on `textstream` (see [Screens & Navigation](./Screens.md)). On a layout with no stream, the editor warns "`card` has no stream to clear." and the game ignores it.

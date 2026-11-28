@@ -2269,6 +2269,42 @@ spark-web-player #game .action {
     text-align: center;
   }
 }
+spark-web-player #game .simultaneous_names {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 640px;
+  margin: 0px auto;
+}
+spark-web-player #game .simultaneous_name {
+  &[data-variant=right] {
+    margin-left: auto;
+  }
+}
+spark-web-player #game .simultaneous_lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0px auto;
+  padding-bottom: 24px;
+}
+spark-web-player #game .simultaneous_line {
+  max-width: 60%;
+  opacity: 0.5;
+  &[data-latest] {
+    opacity: 1;
+  }
+  &[data-variant=left] {
+    align-self: flex-start;
+    text-align: left;
+  }
+  &[data-variant=right] {
+    align-self: flex-end;
+    text-align: right;
+  }
+}
 spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
@@ -3173,6 +3209,65 @@ spark-web-player #game .textstream_end {
                             },
                           ],
                           "class": "layout_transitional",
+                          "style": "display: flex; flex-direction: column;",
+                          "tag": "div",
+                        },
+                        {
+                          "attrs": {
+                            "data-follow": "end",
+                          },
+                          "children": [
+                            {
+                              "children": [
+                                {
+                                  "attrs": {
+                                    "data-variant": "left",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name simultaneous_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                                {
+                                  "attrs": {
+                                    "data-variant": "right",
+                                  },
+                                  "children": [
+                                    {
+                                      "class": "stroke",
+                                      "tag": "div",
+                                    },
+                                    {
+                                      "class": "text",
+                                      "tag": "div",
+                                    },
+                                  ],
+                                  "class": "character_name simultaneous_name",
+                                  "style": "display: none;",
+                                  "tag": "div",
+                                },
+                              ],
+                              "class": "simultaneous_names",
+                              "tag": "div",
+                            },
+                            {
+                              "attrs": {
+                                "data-follow": "end",
+                              },
+                              "class": "stream simultaneous_lines",
+                              "tag": "div",
+                            },
+                          ],
+                          "class": "simultaneous",
                           "style": "display: flex; flex-direction: column;",
                           "tag": "div",
                         },

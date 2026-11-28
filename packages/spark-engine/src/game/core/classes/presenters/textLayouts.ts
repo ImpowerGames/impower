@@ -1,6 +1,7 @@
 import { LayoutVerb } from "@impower/sparkdown/language/sparkdown.layout-verbs";
 import type { LayoutInstruction } from "../../types/Instruction";
 import type { Instructions } from "../../types/Instructions";
+import { variantLayouts } from "@impower/sparkdown/src/compiler/utils/variantLayouts";
 import { ownEntry } from "../../utils/ownEntry";
 import type { Game } from "../Game";
 import type { StartingDisplayMode } from "../messages/SetStartingDisplayModeMessage";
@@ -188,11 +189,13 @@ function takesTime(instructions: Instructions): boolean {
 interface TextKind {
   element: string;
   layout: string;
+  variant?: string;
+  byVariant?: true;
 }
 
 const MENU_KIND: TextKind = { element: MENU_ELEMENT, layout: MENU_LAYOUT };
 
-function lineKind(instructions: Instructions): TextKind | undefined {
+function lineKind(game: Game, instructions: Instructions): TextKind | undefined {
   const line = Object.keys(instructions.text ?? {}).find(
     (target) =>
       !SPEAKER_TARGETS.includes(target) && !target.startsWith("choice "),
@@ -201,14 +204,23 @@ function lineKind(instructions: Instructions): TextKind | undefined {
     return undefined;
   }
   const name = elementName(line);
-  return { element: name, layout: name };
+  const variant = instructions.variant;
+  const labelled = variant
+    ? variantLayouts(game.program?.sparkle, name, variant)[0]
+    : undefined;
+  return {
+    element: name,
+    layout: labelled ?? name,
+    ...(variant ? { variant } : {}),
+    ...(labelled ? { byVariant: true as const } : {}),
+  };
 }
 
-function beatKinds(instructions: Instructions): TextKind[] {
+function beatKinds(game: Game, instructions: Instructions): TextKind[] {
   if (!showsText(instructions)) {
     return [];
   }
-  const line = lineKind(instructions);
+  const line = lineKind(game, instructions);
   return [
     ...(line ? [line] : []),
     ...((instructions.choices?.length ?? 0) > 0 ? [MENU_KIND] : []),
@@ -229,8 +241,8 @@ function opensByItself(
   );
 }
 
-function isMenu(instructions: Instructions): boolean {
-  const kinds = beatKinds(instructions);
+function isMenu(game: Game, instructions: Instructions): boolean {
+  const kinds = beatKinds(game, instructions);
   return kinds.length === 1 && kinds[0] === MENU_KIND;
 }
 
@@ -239,7 +251,7 @@ export function keptThroughMenu(
   instructions: Instructions,
   targets: readonly string[],
 ): string[] {
-  if (!isMenu(instructions)) {
+  if (!isMenu(game, instructions)) {
     return [];
   }
   const ui = game.module.ui;
@@ -278,7 +290,7 @@ export function routeLine(
   }
   const events = [...prior, ...layoutEvents(instructions)];
   const autos = ui.autoLayoutsAfter(events);
-  const kinds = beatKinds(instructions);
+  const kinds = beatKinds(game, instructions);
   const routed: LayoutInstruction[] = [];
   const close = (name: string) =>
     routed.push({ control: LayoutVerb.close, name, auto: true });
@@ -295,9 +307,13 @@ export function routeLine(
     const holdersOf = (kind: TextKind) =>
       open.includes(TEXTSTREAM_LAYOUT)
         ? [TEXTSTREAM_LAYOUT]
-        : open.filter((name) => ui.layoutHolds(name, [kind.element]));
+        : open.filter(
+            (name) =>
+              ui.layoutHoldsLine(name, kind.element, kind.variant) &&
+              (!kind.byVariant || !autos.includes(name) || name === kind.layout),
+          );
     const holders = new Set(kinds.flatMap(holdersOf));
-    const menuOnly = isMenu(instructions);
+    const menuOnly = isMenu(game, instructions);
     for (const auto of autos) {
       if (!holders.has(auto) && (!menuOnly || auto === MENU_LAYOUT)) {
         close(auto);

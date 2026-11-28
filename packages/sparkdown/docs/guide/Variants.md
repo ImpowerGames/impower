@@ -36,6 +36,79 @@ layout main {
 
 An element with both props takes only the lines that match both. An element with neither takes every line written to its name.
 
+A limited element without `#clear` keeps what it shows until a line it takes replaces it, so a left name stays while the right side speaks. With `#clear`, as in the box above, it empties at the next line that does not write to it.
+
+## A layout that opens for a variant
+
+A labelled line opens the layout that holds an element of its kind limited to its variant. The built-in `simultaneous` layout holds `#variant=left` and `#variant=right` dialogue, so `[left]` and `[right]` lines open it by themselves, with no `[[open simultaneous]]`:
+
+```sparkdown
+define raffles as character with
+  name = "RAFFLES"
+end
+
+define bunny as character with
+  name = "BUNNY"
+end
+
+scene start
+  RAFFLES [<]: Well-- I mean--
+  BUNNY [>]: Seriously???
+  RAFFLES [<]: Don't.
+  BUNNY [>]: I wasn't going to.
+  Raffles looks away.
+  BUNNY: Fine.
+end
+```
+
+The four labelled lines are one exchange. It closes at the first line that belongs in a different layout, here the action line, and the plain dialogue line after it opens the ordinary dialogue box. A pair after the action line would start a fresh exchange. If no layout holds the variant, the line opens the layout named after its kind, and `@variant(name)` is true there, so `BUNNY [shout]:` stays in the ordinary box and only changes its style. Only variants pick a layout; speakers do not.
+
+If a layout you opened already holds the line's kind, the labelled line goes there and nothing opens. A layout holds a labelled line when it has an element of the line's kind with no `#variant` or with the line's own.
+
+The built-in exchange looks plain: the lines sit on two sides, older lines are dimmed, each name is on its own side, and nothing moves. It is written like any layout, so writing your own `layout simultaneous` replaces it:
+
+```sparkdown
+layout simultaneous in textbox {
+  simultaneous_names {
+    character_name.simultaneous_name #variant=left { stroke; text }
+    character_name.simultaneous_name #variant=right { stroke; text }
+  }
+  stream.simultaneous_lines {
+    dialogue.simultaneous_line #variant=left { stroke; text }
+    dialogue.simultaneous_line #variant=right { stroke; text }
+  }
+}
+
+stream simultaneous {
+  advance = auto
+}
+```
+
+Its lines are a stream that advances by itself ([Streams](./Streams.md#a-stream-that-advances-by-itself)), so the whole exchange is gathered and its box is sized once. Each name appears when its side's first line starts, because an element is on screen only while it has content, and both stay until the exchange closes.
+
+A message thread uses the same rules with other names:
+
+```sparkdown
+layout phone {
+  thread {
+    stream {
+      dialogue.bubble.incoming #variant=receive { text }
+      dialogue.bubble.outgoing #variant=send { text }
+    }
+  }
+}
+
+scene start
+  RAFFLES [receive]: slight problem
+  BUNNY [send]: Anything you can do about it? >
+  Bunny looks up from the screen.
+end
+```
+
+The first line opens `phone`, and the action line closes it. To keep the phone up through narration, write `[[open phone]]` first; it then stays until `[[close phone]]`, and the labelled lines go to it.
+
+When two layouts limit elements of one kind to one variant, the editor warns "`left` dialogue lines could open `simultaneous` or `duel`. Limit only one layout's elements to a variant." and the line opens the one written first, which for a built-in layout is the built-in.
+
 ## Styling by variant and speaker
 
 A style selects the elements written with a prop the same way it selects any prop, with `#name=value`:

@@ -3,6 +3,8 @@ import type { TextInstruction } from "../../../core/types/Instruction";
 export interface StreamEntry {
   template: number;
   text: Record<string, TextInstruction[]>;
+  variant?: string;
+  speaker?: string;
   shown?: Record<string, number>;
 }
 
