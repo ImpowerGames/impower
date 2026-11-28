@@ -164,6 +164,22 @@ describe("a line that ends with `>>` carries on without a click (I-2747)", () =>
     await waits(h);
   });
 
+  test("a line that is only a conditional interpolation carries on too", async () => {
+    const h = await play(story('  {if true then "First" else "Other"} >>\n  Second.'));
+    expect(shown(h)).toBe("First");
+    expect(beat(h)?.auto).toBe(true);
+    await typed(h);
+    await tick(h, 0);
+    expect(shown(h)).toBe("Second.");
+  });
+
+  test("a `>>` before a block comment with text after it waits for a click at each break", async () => {
+    const h = await play(story("  First >> /* aside */ middle\n  Second."));
+    expect(shown(h)).toBe("First");
+    expect(beat(h)?.auto).toBeUndefined();
+    await waits(h);
+  });
+
   test("a `<wait=0.6>` before `>>` delays the next line by that time", async () => {
     const gap = async (line: string) => {
       const h = await play(story(`  RAFFLES: ${line}\n  RAFFLES: two`));

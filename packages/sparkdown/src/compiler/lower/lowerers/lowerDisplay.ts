@@ -94,7 +94,13 @@ function buildDisplayCalls(
     return joined;
   };
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
-  if (ranges.length === 1 && !ranges[0]!.pause && !ranges[0]!.leads && !leads) {
+  if (
+    ranges.length === 1 &&
+    !ranges[0]!.pause &&
+    !ranges[0]!.onward &&
+    !ranges[0]!.leads &&
+    !leads
+  ) {
     const only = soleExpressionSegment(parent, ranges[0]!, ctx);
     const conditional =
       only &&

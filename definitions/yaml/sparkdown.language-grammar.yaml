@@ -136,8 +136,10 @@ variables:
   BLOCK_COMMENT_CHARACTER: (?:[^*\r\n]|[*](?![/]))
   BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
-  # lookaround: DisplayLineText tries Carry before Break at every position, and both read a `>`, so no order of its patterns tells a `>>` that ends the line from two breaks. CARRY reads `>>` only where nothing but a tag or a comment follows it on the line, and not after a third `>`, which Break keeps.
-  CARRY: (?:{{WS}}*(?<![>])[>][>]{{WS}}*(?=$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}))
+  # lookaround: DisplayLineText tries Carry before Break at every position, and both begin on the same `>`. Reordering its patterns cannot tell a `>>` that ends the line from two breaks, splitting the Switch cannot since both rules start on that character, DisplayLineText has no end of its own for the line's end to carry, and tightening BREAK_MARK would change a mid-line `>>`, which stays two breaks. So CARRY reads `>>` only where nothing but a tag, a `//` comment or a block comment closed on the line follows it, and not after a third `>`, which Break keeps.
+  CARRY: (?:{{WS}}*(?<![>])[>][>]{{WS}}*(?={{CARRY_TAIL}}|{{CARRY_BLOCK_COMMENT}}))
+  CARRY_TAIL: (?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}}))
+  CARRY_BLOCK_COMMENT: (?:{{SPARKDOWN_BLOCK_COMMENT_START}}{{BLOCK_COMMENT_CHARACTER}}*[*][/]{{WS}}*{{CARRY_TAIL}})
   CHAIN: (?:[\\])
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{SPARKDOWN_BLOCK_COMMENT_START}}|{{BREAK_MARK}}))

@@ -42,6 +42,14 @@ describe("`>>` at the end of a line", () => {
     expect(marks(scene("She waits >> # pause"))).toEqual(['Carry " >> "']);
     expect(marks(scene("She waits >> // aside"))).toEqual(['Carry " >> "']);
     expect(marks(scene("BUNNY: What's plan b? <wait=0.6> >>"))).toEqual(['Carry " >>"']);
+    expect(marks(scene("She waits >> /* aside */"))).toEqual(['Carry " >> "']);
+  });
+
+  test("before a block comment with text after it stays two breaks", () => {
+    expect(marks(scene("<speed=0>First >> /* aside */ middle"))).toEqual([
+      'Break " >"',
+      'Break "> "',
+    ]);
   });
 
   test("reads as the mark after a `..`", () => {
