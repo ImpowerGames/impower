@@ -877,7 +877,11 @@ export class InterpreterModule extends Module<
   protected waitDuration(chunk: Chunk, ownMotions: readonly string[]): number {
     const line: { after?: number; over?: number; to?: unknown } = chunk.clauses ?? {};
     const entries = chunk.with ?? [];
-    const spans = entries.map((entry) => this.effectSpan(entry.name, entry));
+    const spans = entries.map((entry) =>
+      chunk.tag === "layout"
+        ? Math.max(0, ...ownMotions.map((motion) => this.animationSpan(this.layoutAnimationName(entry.name, motion), entry)))
+        : this.effectSpan(entry.name, entry),
+    );
     if (entries.length === 0) {
       spans.push(...ownMotions.map((name) => this.animationSpan(name, line)));
     }
@@ -885,6 +889,15 @@ export class InterpreterModule extends Module<
       spans.push((line.after ?? 0) + (line.over ?? 0));
     }
     return Math.max(0, ...spans);
+  }
+
+  protected layoutAnimationName(name: string, motion: string): string {
+    const transition = (this.context as any)?.["transition"]?.[name];
+    if (!transition) {
+      return name;
+    }
+    const arm = transition[motion === "show" ? "on_show" : "on_hide"];
+    return (typeof arm === "string" ? arm : arm?.$name) || motion;
   }
 
   protected animationSpan(name: string, written: { after?: number; over?: number }): number {

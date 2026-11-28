@@ -8,7 +8,21 @@ const DEFAULTS = `define animation with
 end
 `;
 
-const ART: File = { uri: "inmemory:///bg.png", type: "image", name: "bg", ext: "png", src: "/file:/proj/bg.png?v=1" };
+const MIXED = `animation slow_in {
+  keyframes { { opacity = "0" } { opacity = "1" } }
+  timing { duration = "4s" }
+}
+animation late_out {
+  keyframes { { opacity = "1" } { opacity = "0" } }
+  timing { duration = "1s"; delay = "5s" }
+}
+define mixed as transition with
+  on_show = animation.slow_in
+  on_hide = animation.late_out
+end
+`;
+
+const ART: File ={ uri: "inmemory:///bg.png", type: "image", name: "bg", ext: "png", src: "/file:/proj/bg.png?v=1" };
 
 const held = (beat: any): number => (Object.values(beat.text ?? {}).flat()[0] as { after?: number } | undefined)?.after ?? 0;
 
@@ -118,20 +132,41 @@ end
     expect(held(beat)).toBe(1.25);
   });
 
-  it("`wait` on a transition stretched by `over` counts each animation at the length it plays, with its own declared delay", async () => {
+  it("`wait` on a screen's transition counts the animation the screen plays, at the written `over`, with its declared delay", async () => {
     const h = createHarness(
-      `animation slow_in {
-  keyframes { { opacity = "0" } { opacity = "1" } }
-  timing { duration = "4s" }
-}
-animation late_out {
-  keyframes { { opacity = "1" } { opacity = "0" } }
-  timing { duration = "1s"; delay = "5s" }
-}
-define mixed as transition with
-  on_show = animation.slow_in
-  on_hide = animation.late_out
+      `${MIXED}
+layout main { textbox { dialogue #clear { text } } }
+layout inventory { text "Bag" }
+scene start
+  Hi.
 end
+`,
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpToFlow("start");
+    expect(h.errors).toEqual([]);
+    const ui = h.game.module.ui;
+    await ui.applyLayoutInstructions([{ control: "open", name: "inventory" }], true);
+    const beat = h.game.module.interpreter.parse("[[close inventory with mixed over 2s wait]] Hello", "main", {} as any);
+    h.reset();
+    await ui.applyLayoutInstructions(beat.layout!["inventory"]!, false);
+    await flushMicrotasks();
+    const animations = wire(h.messages)
+      .filter((m) => m.method === "ui/animate")
+      .flatMap((m) => m.params?.effects ?? [])
+      .flatMap((e: any) => e.animations ?? []);
+    expect(animations).toEqual(
+      expect.arrayContaining([expect.objectContaining({ $name: "late_out", timing: expect.objectContaining({ delay: "5s", duration: "2s" }) })]),
+    );
+    expect(held(beat)).toBe(7);
+    expect(held(h.game.module.interpreter.parse("[[open inventory with mixed over 2s wait]] Hello", "main", {} as any))).toBe(2);
+  });
+
+  it("`wait` on a picture's transition stretched by `over` counts each animation at the length it plays, with its own declared delay", async () => {
+    const h = createHarness(
+      `${MIXED}
 scene start
   Hi.
 end
