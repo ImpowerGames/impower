@@ -81,6 +81,66 @@ describe("two layouts that limit one kind to one variant (I-2744)", { timeout: 6
     ]);
   });
 
+  it("warns in a component that two layouts use, where the element is written", () => {
+    expect(
+      warningsIn(`component incoming {
+  dialogue #variant=receive { text }
+}
+
+layout phone {
+  incoming
+}
+
+layout radio {
+  incoming
+}
+${SCENE}`),
+    ).toEqual([
+      {
+        marked: "#variant=receive",
+        message:
+          "`receive` dialogue lines could open `phone` or `radio`. Limit only one layout's elements to a variant.",
+      },
+    ]);
+  });
+
+  it("warns in a screen's body when two of its layouts would share the element", () => {
+    expect(
+      warningsIn(`screen inbox {
+  dialogue #variant=receive { text }
+  slot
+}
+
+layout phone in inbox {
+  decoration
+}
+
+layout radio in inbox {
+  dial
+}
+${SCENE}`),
+    ).toEqual([
+      {
+        marked: "#variant=receive",
+        message:
+          "`receive` dialogue lines could open `phone` or `radio`. Limit only one layout's elements to a variant.",
+      },
+    ]);
+  });
+
+  it("does not warn for a component only one layout uses", () => {
+    expect(
+      warningsIn(`component incoming {
+  dialogue #variant=receive { text }
+}
+
+layout phone {
+  incoming
+}
+${SCENE}`),
+    ).toEqual([]);
+  });
+
   it("does not warn for variants no other layout limits", () => {
     expect(warningsIn(`${PHONE}${SCENE}`)).toEqual([]);
   });

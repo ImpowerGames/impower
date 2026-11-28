@@ -42,6 +42,7 @@ export const elementNames = (node: ElementNode): string[] =>
 export interface VariantLimit {
   node: ElementNode;
   variant: string;
+  source: string;
 }
 
 const limitsBySparkle = new WeakMap<object, Map<string, VariantLimit[]>>();
@@ -63,9 +64,9 @@ export function layoutVariantLimits(sparkle: Sparkle | undefined, layoutName: st
   const components = sparkle.components ?? {};
   const expanded = new Set<string>();
   const found: VariantLimit[] = [];
-  const visit = (value: unknown): void => {
+  const visit = (value: unknown, source: string): void => {
     if (Array.isArray(value)) {
-      value.forEach(visit);
+      value.forEach((item) => visit(item, source));
       return;
     }
     if (!value || typeof value !== "object") {
@@ -79,24 +80,30 @@ export function layoutVariantLimits(sparkle: Sparkle | undefined, layoutName: st
       }
       const variant = elementVariant(element);
       if (variant) {
-        found.push({ node: element, variant });
+        found.push({ node: element, variant, source });
       }
       const body = components[element.tag];
       if (body && !expanded.has(element.tag)) {
         expanded.add(element.tag);
-        visit(body.children);
+        visit(body.children, variantSource("component", element.tag));
       }
     }
     for (const child of Object.values(node)) {
       if (child !== null && typeof child === "object") {
-        visit(child);
+        visit(child, source);
       }
     }
   };
-  visit(layout.children);
+  visit(layout.children, variantSource("layout", layoutName));
+  if (layout.screen) {
+    visit(sparkle.screens?.[layout.screen]?.children, variantSource("screen", layout.screen));
+  }
   cached.set(layoutName, found);
   return found;
 }
+
+export const variantSource = (kind: "layout" | "screen" | "component", name: string) =>
+  `${kind} ${name}`;
 
 const NOT_LINE_KINDS: ReadonlySet<string> = new Set([
   "character_name",
@@ -113,8 +120,13 @@ const NOT_LINE_KINDS: ReadonlySet<string> = new Set([
 
 export const variantClaimKey = (kind: string, variant: string) => `${kind}\n${variant}`;
 
-export function variantLayoutClaims(sparkle: Sparkle | undefined): Map<string, string[]> {
-  const claims = new Map<string, string[]>();
+export interface VariantClaim {
+  layouts: string[];
+  sources: Set<string>;
+}
+
+export function variantLayoutClaims(sparkle: Sparkle | undefined): Map<string, VariantClaim> {
+  const claims = new Map<string, VariantClaim>();
   for (const layout of Object.keys(sparkle?.layouts ?? {})) {
     for (const limit of layoutVariantLimits(sparkle, layout)) {
       for (const kind of elementNames(limit.node)) {
@@ -122,15 +134,16 @@ export function variantLayoutClaims(sparkle: Sparkle | undefined): Map<string, s
           continue;
         }
         const key = variantClaimKey(kind, limit.variant);
-        const layouts = claims.get(key) ?? [];
-        if (!layouts.includes(layout)) {
-          layouts.push(layout);
+        const claim = claims.get(key) ?? { layouts: [], sources: new Set<string>() };
+        if (!claim.layouts.includes(layout)) {
+          claim.layouts.push(layout);
         }
-        claims.set(key, layouts);
+        claim.sources.add(limit.source);
+        claims.set(key, claim);
       }
     }
   }
-  return new Map([...claims].filter(([, layouts]) => layouts.length > 1));
+  return new Map([...claims].filter(([, claim]) => claim.layouts.length > 1));
 }
 
 export function variantLayoutKinds(

@@ -187,7 +187,7 @@ import type { SparkSelector } from "../types/SparkSelector";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { collectLayerNames } from "../utils/collectLayerNames";
 import { layoutStreams } from "../utils/layoutStreams";
-import { variantClaimKey, variantLayoutClaims, writtenVariantLimits } from "../utils/variantLayouts";
+import { variantClaimKey, variantLayoutClaims, variantSource, writtenVariantLimits } from "../utils/variantLayouts";
 import { LayoutVerb } from "../../../language/sparkdown.layout-verbs";
 import { layoutDirectiveTargetNames } from "../utils/layoutDirectiveTargets";
 import { scopeDefineInstances } from "../utils/scopeDefineInstances";
@@ -343,6 +343,12 @@ const BINARY_TABLE_RESEED_MIN_SLACK = 512;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
+
+const VARIANT_SOURCE_BODIES: ReadonlyMap<string, "layout" | "screen" | "component"> = new Map([
+  ["LuauLayout", "layout"],
+  ["LuauScreen", "screen"],
+  ["LuauComponent", "component"],
+]);
 
 let _cachedPrelude: {
   context: Record<string, any>;
@@ -5488,15 +5494,16 @@ export class SparkdownCompiler {
         const read = (node: { from: number; to: number }) => doc.read(node.from, node.to);
         tree.iterate({
           enter: (node) => {
-            if (node.name !== "LuauLayout") {
+            const body = VARIANT_SOURCE_BODIES.get(node.name);
+            if (!body) {
               return undefined;
             }
             const nameNode = getDescendent("LuauDefineName", node.node);
-            const layout = nameNode ? read(nameNode).trim() : "";
+            const source = variantSource(body, nameNode ? read(nameNode).trim() : "");
             for (const limit of writtenVariantLimits(node.node, read)) {
-              const kind = limit.names.find((name) => claims.get(variantClaimKey(name, limit.variant))?.includes(layout));
+              const kind = limit.names.find((name) => claims.get(variantClaimKey(name, limit.variant))?.sources.has(source));
               if (!kind) continue;
-              const layouts = claims.get(variantClaimKey(kind, limit.variant))!;
+              const { layouts } = claims.get(variantClaimKey(kind, limit.variant))!;
               const listed = layouts.map((name) => `\`${name}\``);
               ((program.diagnostics ??= {})[scriptUri] ??= []).push({
                 range: doc.range(limit.from, limit.to),

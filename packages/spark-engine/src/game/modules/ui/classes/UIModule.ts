@@ -9280,6 +9280,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
+          if (i < started) {
+            this.restate(view, null);
+          }
           this.applyStyles(mount, view, i);
           if (i >= started) {
             view.reserved = true;
@@ -9287,7 +9290,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             this.write(mount, i, entry, { complete: true });
             continue;
           }
-          this.restate(view, null);
           const reveal = this._reveals.get(this.revealKey(mount, i));
           const shownBefore = reveal ? reveal.complete : !presented || i < current;
           const atOnce = Boolean(presented?.instant) || shownBefore;

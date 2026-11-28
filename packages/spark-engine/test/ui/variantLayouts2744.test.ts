@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { Coordinator } from "../../src/game/core/classes/Coordinator";
 import { EventMessage } from "../../src/game/core/classes/messages/EventMessage";
 import type { Instructions } from "../../src/game/core/types/Instructions";
 import type { StreamEntry } from "../../src/game/modules/ui/types/StreamState";
@@ -256,6 +257,100 @@ end
       "Anything you can do about it?",
       "maybe",
     ]);
+  });
+});
+
+describe("a variant element in a screen's body or a component picks its layout (I-2744)", () => {
+  test("a [receive] line opens the layout whose screen holds a receive dialogue element", async () => {
+    const h = await play(`${DEFS}
+screen inbox {
+  dialogue #variant=receive { text }
+  slot
+}
+
+layout phone in inbox {
+  decoration
+}
+
+scene start
+  BUNNY [receive]: hello
+end
+`);
+    expect(shown(h)).toBe("hello");
+    expect(mounted(h)).toEqual(["phone"]);
+  });
+
+  test("a [receive] line opens the layout that uses a component holding a receive dialogue element", async () => {
+    const h = await play(`${DEFS}
+component incoming {
+  dialogue #variant=receive { text }
+}
+
+layout phone {
+  incoming
+}
+
+scene start
+  BUNNY [receive]: hello
+end
+`);
+    expect(shown(h)).toBe("hello");
+    expect(mounted(h)).toEqual(["phone"]);
+  });
+});
+
+describe("a stream entry rebuilt from saved state (I-2744)", () => {
+  test("keeps a visibility its saved styles give it", async () => {
+    const h = createHarness(
+      `layout phone {
+  stream { dialogue.bubble { text } }
+}
+
+scene start
+  A bell rings.
+end
+`,
+      0,
+      {
+        reactive: true,
+        autoOpenAll: false,
+        beforeConnect(game) {
+          game.context.system.previewing = undefined;
+        },
+      },
+    );
+    await h.ready;
+    const ui: any = h.game.module.ui;
+    new Coordinator(
+      h.game,
+      {
+        end: 0,
+        text: { dialogue: [{ text: "hello" }] },
+        layout: { phone: [{ control: "open", name: "phone" }] },
+      } as never,
+      { settled: "presented" } as never,
+    );
+    await flushMicrotasks(40);
+    expect(ui.streams.entries("phone")).toHaveLength(1);
+    await ui.style.updateWaiting("dialogue", { visibility: "hidden" });
+    expect(ui._state.streams["phone/0"].styles[0].dialogue.visibility).toBe("hidden");
+    const mount = ui.streams._mounted.get("phone/0")[0];
+    ui._state = JSON.parse(JSON.stringify(ui._state));
+    mount.rendered[0] = "rebuilt";
+    h.messages.length = 0;
+    ui.streams.show(true);
+    await flushMicrotasks(40);
+    const roots = ui.collectNodes(mount.entries[0].group).map((el: any) => el.id);
+    const visibility = wire(h.messages)
+      .filter(
+        (m: any) =>
+          m?.method === "ui/update" &&
+          roots.includes(m.params?.element) &&
+          m.params?.style &&
+          "visibility" in m.params.style,
+      )
+      .map((m: any) => m.params.style.visibility);
+    expect(visibility.at(-1)).toBe("hidden");
   });
 });
 
