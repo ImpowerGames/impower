@@ -13,8 +13,8 @@ export interface IInstruction {
  *  named NAME behind the loading layout before the story goes on. */
 export interface LoadInstruction extends IInstruction {
   name: string;
-  /** Transition for opening and closing the loading layout (`with` clause). */
-  with?: string;
+  /** Transition for opening and closing the loading layout (`using` clause). */
+  using?: string;
 }
 
 /** `[[play NAME]]`: play the video NAME full screen, above every layout, until
@@ -25,8 +25,8 @@ export interface CutsceneInstruction extends IInstruction {
   loop?: boolean;
   /** Silences the video's sound (`mute` clause). */
   mute?: boolean;
-  /** Transition for showing and hiding the cutscene (`with` clause). */
-  with?: string;
+  /** Transition for showing and hiding the cutscene (`using` clause). */
+  using?: string;
 }
 
 export interface TextInstruction extends IInstruction {
@@ -58,6 +58,7 @@ export interface WithInstruction {
   ease?: string;
   loop?: boolean;
   once?: boolean;
+  kept?: true;
 }
 
 export interface ImageInstruction extends IInstruction {

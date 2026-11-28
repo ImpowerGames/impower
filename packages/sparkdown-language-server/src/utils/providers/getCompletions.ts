@@ -84,6 +84,7 @@ import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
 import {
   STREAM_ELEMENT,
+  STREAM_ENTRY_STATE_DOCS,
   streamBlockCompletion,
   templatedElementCompletions,
 } from "./streamElementHelp";
@@ -109,7 +110,9 @@ const BRACKET_CONTROL_KEYWORDS = [
   ...MOVIE_CONTROL_KEYWORDS,
   ...LAYOUT_VERBS,
 ];
-const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "with"];
+const LOAD_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.LOAD_CONTROL_KEYWORDS || [];
+const CUTSCENE_CLAUSE_KEYWORDS = ["loop", "mute", "using"];
 
 const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
@@ -2093,7 +2096,7 @@ const completionsAt = (
         ),
       );
     const takesUsing = (control: string) => {
-      if (control === "" || control === "show" || control === "hide") return true;
+      if (control === "" || control === "show" || control === "hide" || LOAD_CONTROL_KEYWORDS.includes(control)) return true;
       const command = leftStack.find((n) => n.type.name === "ImageCommand");
       return (
         control === "animate" &&
@@ -2110,7 +2113,9 @@ const completionsAt = (
         ? CUTSCENE_CLAUSE_KEYWORDS
         : control === "animate"
           ? ["with", ...imageClauses.filter((k) => k !== "with")]
-          : imageClauses;
+          : LOAD_CONTROL_KEYWORDS.includes(control)
+            ? imageClauses.filter((k) => k !== "with")
+            : imageClauses;
       addKeywordCompletions(
         completions,
         "clause",
@@ -2238,7 +2243,7 @@ const completionsAt = (
           addImageClauseCompletions(control);
           return buildCompletions();
         }
-        if (isNameAfterName(leftStack[0]?.node)) {
+        if (isNameAfterName(leftStack[0]?.node) || LOAD_CONTROL_KEYWORDS.includes(control)) {
           addImageClauseCompletions(control);
         }
         addStructReferenceCompletions(
@@ -2543,6 +2548,17 @@ const completionsAt = (
             kind: MarkupKind.Markdown,
             value: presenceBlockDocumentation(presence),
           },
+        });
+      }
+      for (const [state, value] of Object.entries(STREAM_ENTRY_STATE_DOCS)) {
+        completions.set(`@${state}`, {
+          label: `@${state}`,
+          filterText: `@${state}`,
+          textEdit: { range, newText: `@${state} { $0 }` },
+          insertTextFormat: InsertTextFormat.Snippet,
+          labelDetails: { description: "stream entry" },
+          kind: CompletionItemKind.Keyword,
+          documentation: { kind: MarkupKind.Markdown, value },
         });
       }
       return buildCompletions();

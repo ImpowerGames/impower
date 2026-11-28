@@ -137,6 +137,21 @@ function strayClauseIssues(
   return issues;
 }
 
+function usingLineIssues(
+  directive: SourceDirective,
+  isTransition: (name: string) => boolean,
+): { at: { from: number; to: number }; severity: DiagnosticSeverity; message: string }[] {
+  if (directive.bracket !== "image" || (directive.kind !== "load" && directive.kind !== "cutscene")) return [];
+  const control = directive.kind === "load" ? "load" : "play";
+  return directive.clauses
+    .filter((clause) => clause.word.text === "with")
+    .map(({ word, value }) => ({
+      at: word,
+      severity: DiagnosticSeverity.Error,
+      message: usingLineMessage(control, value && isTransition(value.text) ? value.text : undefined),
+    }));
+}
+
 const UNSEEN_HIDE_WITH =
   "This `with` is not seen: the picture is hidden at once. Give the hide a length (`over 1s`), a delay (`after 1s`) or a transition (`using fade`).";
 
@@ -243,7 +258,7 @@ import type { Reference } from "./annotators/ReferenceAnnotator";
 import { getImageThing } from "../utils/getImageThing";
 import { isLuauName } from "../utils/luauName";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
-import { clauseWordKindMessage } from "../utils/clauseWordKind";
+import { clauseWordKindMessage, usingLineMessage } from "../utils/clauseWordKind";
 import { closeMatch, closeMatchData, type CloseMatchData } from "../utils/closeMatch";
 import { layoutElementNames, layoutNames, showingNames } from "../utils/layoutElementNames";
 import { GAME_WIDE_STATES, isAtRuleState, SHOWING_STATE } from "../constants/selectorStates";
@@ -5031,6 +5046,9 @@ export class SparkdownCompiler {
         const issues = [
           morph ? { ...this.morphClauseIssue(program, morph, directiveImages.map((image) => image.struct)), keyword: morph.keyword } : undefined,
           ...strayClauseIssues(directive).map((issue) => ({ ...issue, keyword: issue.at })),
+          ...usingLineIssues(directive, (name) => getContextEntry(program.context, "transition", name) !== undefined).map(
+            (issue) => ({ ...issue, keyword: issue.at }),
+          ),
           ...unseenHideWithIssues(directive, program.context).map((issue) => ({
             ...issue,
             keyword: issue.at,

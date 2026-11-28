@@ -1,9 +1,10 @@
-import type { TextInstruction } from "../../../core/types/Instruction";
+import type { TextInstruction, WithInstruction } from "../../../core/types/Instruction";
 import type { ImageState } from "./ImageState";
 
 export interface CastLine {
   key: string;
   index: number;
+  entry?: number;
   cleared?: number;
   length?: number;
   hash?: string;
@@ -25,6 +26,7 @@ export interface CastState {
   latest?: string;
   variants?: Record<string, string>;
   framings?: Record<string, Record<string, string>>;
+  poses?: Record<string, Record<string, WithInstruction[]>>;
   beat?: number;
   key?: string;
 }

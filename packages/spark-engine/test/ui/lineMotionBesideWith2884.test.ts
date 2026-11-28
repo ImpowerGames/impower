@@ -156,6 +156,13 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
     expect(using.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }]]);
   });
 
+  it("a pictured show `using` a transition with extra parts and a `with` plays the transition's parts and the `with` together", async () => {
+    const { instruction } = await played("show portrait hero using screenfade over 1s with shake");
+    expect(instruction.targetAnimations).toContainEqual(expect.objectContaining({ $name: "blackpulse", arm: "screen" }));
+    expect(names(instruction.content.enterAnimations).map((a) => a.name)).toEqual(["waitin", "shake"]);
+    expect(names(instruction.content.previousHideAnimations).map((a) => a.name)).toEqual(["waitout", "shake"]);
+  });
+
   it("`[[show backdrop bg_room over 2s with shake wait]]` holds the story for two seconds", async () => {
     const { held } = await played("show backdrop bg_room over 2s with shake wait");
     expect(held).toBe(2);

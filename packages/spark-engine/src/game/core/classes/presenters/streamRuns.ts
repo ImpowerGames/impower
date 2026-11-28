@@ -10,6 +10,8 @@ import { layoutEvents, routeLine } from "./textLayouts";
 export interface StreamSettings {
   advance: "click" | "auto";
   pause: number;
+  clear: "never" | "run";
+  carry: number;
 }
 
 export interface StreamGathering {
@@ -33,7 +35,7 @@ export interface StreamRun {
 
 const BUILT_IN_PAUSE = 0.4;
 
-const RUN_LINE_LIMIT = 100;
+export const RUN_LINE_LIMIT = 100;
 
 const streamLayouts = new WeakMap<object, boolean>();
 
@@ -57,9 +59,12 @@ export function streamSettings(game: Game, layout: string): StreamSettings {
   const own =
     streams && Object.hasOwn(streams, layout) ? streams[layout] : streams?.["$default"];
   const pause = getTimeValue(own?.pause);
+  const carry = own?.carry;
   return {
     advance: own?.advance === "auto" ? "auto" : "click",
     pause: pause !== undefined && pause >= 0 ? pause : BUILT_IN_PAUSE,
+    clear: own?.clear === "run" ? "run" : "never",
+    carry: typeof carry === "number" && Number.isInteger(carry) && carry > 0 ? carry : 0,
   };
 }
 
@@ -87,7 +92,11 @@ const pending = (beat: Instructions): boolean =>
 const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
   Boolean(beat.hold) ||
   (beat.choices?.length ?? 0) > 0 ||
-  (!beat.onward && (!gathering.gathers || (!gathering.opened && Boolean(beat.waits))));
+  (!beat.onward &&
+    (!gathering.gathers ||
+      (gathering.settings.clear === "run"
+        ? gathering.settings.advance === "click" || Boolean(beat.waits)
+        : !gathering.opened && Boolean(beat.waits))));
 
 const restarts = (own: LayoutInstruction[], layout: string): boolean =>
   own.some(

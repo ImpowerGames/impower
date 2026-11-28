@@ -48,8 +48,8 @@ describe("a picture or screen line offers `with` again, and each `with` its own 
     expect(labels("[[animate portrait wait with shake |]]")).not.toContain("wait");
   });
 
-  it("`load` and `play` lines still offer `with` once", () => {
-    expect(labels("[[play rain with fade |]]")).not.toContain("with");
+  it("`play` and sound lines offer no second clause word they take once", () => {
+    expect(labels("[[play rain using fade |]]")).not.toContain("using");
     expect(labels("((play music theme with echo |))")).not.toContain("with");
   });
 });

@@ -35,7 +35,7 @@ end
 describe("the load verb in every arrow and directive shape", () => {
   test("[[load …]] passes validation and records its targets", () => {
     const { program, messages } = compile(
-      `scene A\n  [[load B C with fade]]\n  Hi.\nend\n${SCENES}`,
+      `scene A\n  [[load B C using fade]]\n  Hi.\nend\n${SCENES}`,
     );
     expect(messages.filter((m) => m.includes("Unrecognized command"))).toEqual([]);
     expect(program.sceneAssets?.["A"]?.loads).toEqual(["B", "C"]);

@@ -39,7 +39,7 @@ end
 | `restore_timeout` | Seconds a checkpoint restore or a layout mount may wait for its assets. In the stopped preview, the seconds a line may wait for its pictures to be drawn. `0` means never time out. |
 | `load_timeout` | Seconds a `load` may wait before giving up and continuing. `0` means never give up. |
 | `loading_min` | Seconds the `loading` layout stays up once a `load` opened it. |
-| `loading_transition` | Transition used to open and close `loading` when `load` has no `with` clause. |
+| `loading_transition` | Transition used to open and close `loading` when `load` names no transition with `using`. |
 | `morph_frame_rate` | Frames a second a drawn portrait's smooth morph is [drawn at before its line shows](./Portraits.md#how-pictures-are-drawn-before-a-line-shows). A morph whose easing is `steps(...)` keeps its own count. `0` means a smooth morph holds the rest pose. |
 
 Override any key with `define assets as config with … end`; the keys you leave out keep their defaults.
@@ -74,12 +74,12 @@ A tunnel and a thread come back to the scene that called them, so that scene kee
 
 ```sparkdown
 scene start
-  [[load Chapter2 with fade]]
+  [[load Chapter2 using fade]]
   [[load Gallery Credits]]
 end
 ```
 
-The directive loads each named scene or world in turn behind the loading screen. A `load` on an arrow is the same as writing `[[load Name]]` on the line before the arrow.
+The directive loads each named scene or world in turn behind the loading screen. `using` names the transition that opens and closes the loading screen for that load, in place of `loading_transition`. A `load` line takes one `using` and no `with`; the editor marks a `with` there as an error and, when its name is a transition, offers to change the word to `using`. A `load` on an arrow is the same as writing `[[load Name]]` on the line before the arrow.
 
 ## 9.4 Restyling or replacing the loading screen
 

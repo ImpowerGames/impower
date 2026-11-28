@@ -36,8 +36,6 @@ describe("completions offer `using` once on a picture line that takes it (I-2883
     "[[show portrait hero using fade with shake |]]",
     "[[animate portrait |]]",
     "[[open menu |]]",
-    "[[load chapter2 |]]",
-    "[[play intro |]]",
     "((play music theme |))",
   ])("%s offers no `using`", (source) => {
     expect(labels(source)).not.toContain("using");
