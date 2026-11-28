@@ -7,13 +7,13 @@ type Rule = {
   deletesSavedText: boolean;
   recordsStamp: boolean;
   opensLine: boolean;
-  reach: "marked" | "unmarked" | "name";
+  reach: "marked" | "unmarked" | "name" | "line";
 };
 
 const EXPECTED_RULES: Record<TextReason, Rule> = {
   "line write": { deletesSavedText: false, recordsStamp: true, opensLine: false, reach: "name" },
   "line clear": { deletesSavedText: true, recordsStamp: true, opensLine: true, reach: "marked" },
-  "line replace": { deletesSavedText: true, recordsStamp: false, opensLine: false, reach: "name" },
+  "line replace": { deletesSavedText: true, recordsStamp: false, opensLine: false, reach: "line" },
   choose: { deletesSavedText: true, recordsStamp: false, opensLine: false, reach: "name" },
   "leave choices": { deletesSavedText: true, recordsStamp: false, opensLine: false, reach: "name" },
   "rollback cleanup": { deletesSavedText: false, recordsStamp: false, opensLine: false, reach: "name" },
@@ -90,6 +90,7 @@ describe("every text write and clear names its reason (I-2732)", () => {
         marked: [markedTag],
         unmarked: [unmarkedTag],
         name: [markedTag, unmarkedTag],
+        line: [markedTag, unmarkedTag],
       }[rule.reach];
       if (reason === "line write") {
         delete ui.state.textWritten.note;

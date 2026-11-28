@@ -35,6 +35,9 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": false,
       "instructions": [
         {
@@ -163,6 +166,9 @@ exports[`image > hide backdrop 1`] = `
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": true,
       "instructions": [
         {
@@ -316,6 +322,9 @@ exports[`image > image animate directive 1`] = `
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": true,
       "instructions": [
         {
@@ -499,6 +508,9 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": true,
       "instructions": [
         {
@@ -628,6 +640,9 @@ exports[`image > show backdrop 1`] = `
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": true,
       "instructions": [
         {
@@ -755,6 +770,9 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": true,
       "instructions": [
         {
@@ -965,6 +983,9 @@ exports[`image > show with fade transition 1`] = `
     "kind": "request",
     "method": "ui/write-image",
     "params": {
+      "elements": [
+        "e-1",
+      ],
       "instant": true,
       "instructions": [
         {

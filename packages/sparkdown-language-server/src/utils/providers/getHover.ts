@@ -33,6 +33,7 @@ import { getClearPropHover } from "./clearPropHelp";
 import { getKindLayoutHover } from "./kindLayoutHelp";
 import { getPresenceBlockHover } from "./presenceBlockHelp";
 import { getSelectorAttributeHover } from "./selectorAttributeHelp";
+import { getVariantPropHover } from "./variantPropHelp";
 import {
   MarkupKind,
   type Hover,
@@ -483,6 +484,10 @@ export const getHover = async (
     const clearPropHover = getClearPropHover(document, tree, position);
     if (clearPropHover) {
       return clearPropHover;
+    }
+    const variantPropHover = getVariantPropHover(document, tree, position, program);
+    if (variantPropHover) {
+      return variantPropHover;
     }
     const streamHover = getTemplatedElementHover(document, tree, position);
     if (streamHover) {

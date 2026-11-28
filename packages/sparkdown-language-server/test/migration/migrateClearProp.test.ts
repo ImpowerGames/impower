@@ -12,6 +12,10 @@ import {
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import BUILTINS from "@impower/sparkdown/src/compiler/builtins/builtins.sd?raw";
 
+const EXCHANGE_LAYOUT = /^layout simultaneous [\s\S]*?\n}\n/m;
+
+const BUILTINS_CLEARED_EACH_LINE = BUILTINS.replace(EXCHANGE_LAYOUT, "");
+
 const ROOT = resolve(__dirname, "../../../..");
 const SCRIPT = join(ROOT, "scripts/migrate-clear-prop.mjs");
 const FIXTURES = join(ROOT, "scripts/migrate-clear-prop/fixtures");
@@ -145,9 +149,10 @@ describe("scripts/migrate-clear-prop.mjs", () => {
   });
 
   test("the built-in layouts are the migration of themselves without #clear", { timeout: 120_000 }, () => {
-    const unmigrated = BUILTINS.replace(/ #clear\b/g, "");
-    expect(unmigrated).not.toBe(BUILTINS);
-    expect(migrateClearProp(unmigrated).text).toBe(BUILTINS);
+    expect(BUILTINS_CLEARED_EACH_LINE).not.toBe(BUILTINS);
+    const unmigrated = BUILTINS_CLEARED_EACH_LINE.replace(/ #clear\b/g, "");
+    expect(unmigrated).not.toBe(BUILTINS_CLEARED_EACH_LINE);
+    expect(migrateClearProp(unmigrated).text).toBe(BUILTINS_CLEARED_EACH_LINE);
   });
 
   test.each([
@@ -155,7 +160,7 @@ describe("scripts/migrate-clear-prop.mjs", () => {
       "the fixture layouts and screens",
       readFileSync(join(FIXTURES, "input/layouts.sd"), "utf8").replace(/^component card[\s\S]*?\n}\n/, ""),
     ],
-    ["the built-in layouts", BUILTINS.replace(/ #clear\b/g, "")],
+    ["the built-in layouts", BUILTINS_CLEARED_EACH_LINE.replace(/ #clear\b/g, "")],
   ])("adds #clear exactly where the unwritten rule empties outside streams, in %s", { timeout: 300_000 }, (_, source) => {
     const before = compile(source);
     const migrated = migrateClearProp(source);

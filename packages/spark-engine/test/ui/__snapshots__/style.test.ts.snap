@@ -1695,6 +1695,50 @@ exports[`style > authored style block content payload 1`] = `
       "display": "block",
       "margin-bottom": "1rem",
     },
+    "simultaneous_line": {
+      "#variant=left": {
+        "align_self": "flex-start",
+        "text_align": "left",
+      },
+      "#variant=right": {
+        "align_self": "flex-end",
+        "text_align": "right",
+      },
+      "$name": "simultaneous_line",
+      "$type": "style",
+      "@latest": {
+        "opacity": "1",
+      },
+      "max_width": "60%",
+      "opacity": "0.5",
+    },
+    "simultaneous_lines": {
+      "$name": "simultaneous_lines",
+      "$type": "style",
+      "display": "flex",
+      "flex_direction": "column",
+      "gap": "8px",
+      "margin": "0 auto",
+      "max_width": "640px",
+      "padding_bottom": "24px",
+      "width": "100%",
+    },
+    "simultaneous_name": {
+      "#variant=right": {
+        "margin_left": "auto",
+      },
+      "$name": "simultaneous_name",
+      "$type": "style",
+    },
+    "simultaneous_names": {
+      "$name": "simultaneous_names",
+      "$type": "style",
+      "display": "flex",
+      "flex_direction": "row",
+      "margin": "0 auto",
+      "max_width": "640px",
+      "width": "100%",
+    },
     "slider": {
       "$name": "slider",
       "$type": "style",
@@ -5072,6 +5116,50 @@ exports[`style > style + variables construction stream 1`] = `
             "$type": "style",
             "display": "block",
             "margin-bottom": "1rem",
+          },
+          "simultaneous_line": {
+            "#variant=left": {
+              "align_self": "flex-start",
+              "text_align": "left",
+            },
+            "#variant=right": {
+              "align_self": "flex-end",
+              "text_align": "right",
+            },
+            "$name": "simultaneous_line",
+            "$type": "style",
+            "@latest": {
+              "opacity": "1",
+            },
+            "max_width": "60%",
+            "opacity": "0.5",
+          },
+          "simultaneous_lines": {
+            "$name": "simultaneous_lines",
+            "$type": "style",
+            "display": "flex",
+            "flex_direction": "column",
+            "gap": "8px",
+            "margin": "0 auto",
+            "max_width": "640px",
+            "padding_bottom": "24px",
+            "width": "100%",
+          },
+          "simultaneous_name": {
+            "#variant=right": {
+              "margin_left": "auto",
+            },
+            "$name": "simultaneous_name",
+            "$type": "style",
+          },
+          "simultaneous_names": {
+            "$name": "simultaneous_names",
+            "$type": "style",
+            "display": "flex",
+            "flex_direction": "row",
+            "margin": "0 auto",
+            "max_width": "640px",
+            "width": "100%",
           },
           "slider": {
             "$name": "slider",

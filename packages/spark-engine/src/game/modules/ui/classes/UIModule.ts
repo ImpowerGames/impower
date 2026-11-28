@@ -36,7 +36,7 @@ import {
   streamSettings,
   type StreamRun,
 } from "../../../core/classes/presenters/streamRuns";
-import { streamKey, streamTemplate } from "../utils/streamTemplate";
+import { lineLabelled, streamKey, streamTemplate } from "../utils/streamTemplate";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
   BOOLEAN_ATTRIBUTES,
@@ -73,6 +73,13 @@ import {
   layoutStreams,
 } from "@impower/sparkdown/src/compiler/utils/layoutStreams";
 import {
+  admitsLine,
+  admitsVariant,
+  elementNames,
+  limitsLine,
+} from "@impower/sparkdown/src/compiler/utils/variantLayouts";
+import { takesLines, walkLayoutTree } from "@impower/sparkdown/src/compiler/utils/layoutTree";
+import {
   AbstractValue,
   BoolValue,
   FloatValue,
@@ -91,6 +98,7 @@ import {
   TEXT_REASONS,
   type TextClearReason,
   type TextReason,
+  type TextReasonRule,
   type TextWriteReason,
 } from "../types/TextReason";
 import type { EventMap } from "../../../core/types/EventMap";
@@ -477,6 +485,9 @@ export interface LineLabels {
   variant?: string;
   speaker?: string;
 }
+
+const sameLabels = (a: LineLabels | undefined, b: LineLabels | undefined): boolean =>
+  a?.variant === b?.variant && a?.speaker === b?.speaker;
 
 export interface LineText extends LineLabels {
   text: TextState[];
@@ -1619,10 +1630,68 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this.limited(element)) {
       return ownEntry(this._state.text, target);
     }
-    const admitted = (ownEntry(this._state.lineText, target) ?? []).filter((written) =>
-      this.admits(element, written),
+    const current = this._state.line;
+    return (ownEntry(this._state.lineText, target) ?? []).findLast(
+      (written) =>
+        this.admits(element, written) &&
+        (!this._clearMarked.has(element) || sameLabels(written, current)),
+    )?.text;
+  }
+
+  protected replaceLineText(target: string): void {
+    const current = this._state.line;
+    this.keepLineText(
+      target,
+      (line) => !sameLabels(line, current) && this.lineHeld(target, line, true),
     );
-    return admitted.length > 0 ? admitted.flatMap((written) => written.text) : undefined;
+  }
+
+  protected pruneLineText(): void {
+    const layouts = Object.keys(this._game.program?.sparkle?.layouts ?? {});
+    for (const target of Object.keys(this._state.lineText ?? {})) {
+      this.keepLineText(
+        target,
+        (line) =>
+          this.lineHeld(target, line, false) || !this.lineHeld(target, line, false, layouts),
+      );
+    }
+  }
+
+  protected lineHeld(
+    target: string,
+    line: LineLabels,
+    unmarked: boolean,
+    layouts: readonly string[] = this.openedLayoutsAfter([]),
+  ): boolean {
+    if (target.includes(" ") || !this._game.program?.sparkle?.layouts) {
+      return true;
+    }
+    return layouts.some((name) =>
+      this.layoutHolds(
+        name,
+        [target],
+        true,
+        (node) => limitsLine(node) && !(unmarked && marksClear(node)) && admitsLine(node, line),
+        true,
+      ),
+    );
+  }
+
+  protected keepLineText(target: string, keep: (line: LineText) => boolean): void {
+    const saved = this._state.lineText;
+    const written = ownEntry(saved, target);
+    if (!saved || !written) {
+      return;
+    }
+    const kept = written.filter(keep);
+    if (kept.length > 0) {
+      saved[target] = kept;
+    } else {
+      delete saved[target];
+    }
+    if (Object.keys(saved).length === 0) {
+      delete this._state.lineText;
+    }
   }
 
   protected noteLine(): void {
@@ -2308,11 +2377,54 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
+  protected _entryUpdates = new Map<string, { style: Set<string>; attributes: Set<string> }>();
+
+  protected _entryLabels?: { parent: Element; entry: StreamEntry };
+
+  protected noteEntryUpdate(element: Element, state: ElementState | undefined): void {
+    const style = state?.style ? Object.keys(state.style) : [];
+    const attributes = Object.keys(state?.attributes ?? {}).filter(
+      (name) => name !== PRESENCE_ATTRIBUTE && name !== DISPLAY_TARGET_ATTRIBUTE,
+    );
+    if ((style.length === 0 && attributes.length === 0) || !this.insideStream(element)) {
+      return;
+    }
+    let updated = this._entryUpdates.get(element.id);
+    if (!updated) {
+      updated = { style: new Set(), attributes: new Set() };
+      this._entryUpdates.set(element.id, updated);
+    }
+    style.forEach((key) => updated!.style.add(key));
+    attributes.forEach((name) => updated!.attributes.add(name));
+  }
+
+  protected clearEntryUpdates(
+    element: Element,
+    style: Record<string, string | null>,
+    attributes: Record<string, string | null>,
+  ): void {
+    const updated = this._entryUpdates.get(element.id);
+    if (!updated) {
+      return;
+    }
+    this._entryUpdates.delete(element.id);
+    const restated = (keys: Set<string>, created: Record<string, string | null>) =>
+      Object.fromEntries([...keys].map((key) => [key, ownEntry(created, key) ?? null]));
+    this.updateElement(element, {
+      ...(updated.style.size > 0 ? { style: restated(updated.style, style) } : {}),
+      ...(updated.attributes.size > 0 ? { attributes: restated(updated.attributes, attributes) } : {}),
+    });
+  }
+
   protected updateElement(element: Element, state?: ElementState): void {
     const content = state?.content;
     const style = state?.style;
     this.noteLayoutStyle(style);
-    const attributes = state?.attributes;
+    this.noteEntryUpdate(element, state);
+    const attributes =
+      state?.attributes && Object.hasOwn(state.attributes, "class") && state.attributes["class"] == null
+        ? { ...state.attributes, class: element.name }
+        : state?.attributes;
     const breakpoints = this.breakpoints;
     if (this._refreshing) {
       this._screenEdits += 1;
@@ -4377,6 +4489,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    const entry = this._entryLabels?.parent === parent ? this._entryLabels.entry : undefined;
+    if (entry) {
+      for (const [prop, value] of [["variant", entry.variant], ["speaker", entry.speaker]] as const) {
+        if (value) {
+          attributes[toDataAttributeName(prop)] = value;
+          labels[prop] = value;
+        } else {
+          delete attributes[toDataAttributeName(prop)];
+          delete labels[prop];
+        }
+      }
+    }
     const type = ELEMENT_TAGS[node.tag] ?? "div";
     const el = this.createElement(
       parent,
@@ -4389,6 +4513,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       before,
     );
     this.limit(el, labels);
+    this.clearEntryUpdates(el, style, attributes);
     if (marksClear(node)) {
       this._clearMarked.add(el);
     }
@@ -5773,7 +5898,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (marksClear(node)) {
             this._clearOnContinue.add(name);
             this._clearPaths.set(name, [...(this._clearPaths.get(name) ?? []), `${base}${here}`]);
-          } else {
+          } else if (!limitsLine(node)) {
             this._unmarkedKeys.add(name);
           }
         }
@@ -5894,7 +6019,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected treeHolds(children: unknown, wanted: Set<string>, outsideCasts = false): boolean {
+  protected treeHolds(children: unknown, wanted: Set<string>): boolean {
     const components = this._game.program?.sparkle?.components ?? {};
     const expanded = new Set<string>();
     const visit = (value: unknown): boolean => {
@@ -5906,9 +6031,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       const node = value as Record<string, any>;
       if (node["kind"] === "element") {
-        if (outsideCasts && isCast(node as ElementNode)) {
-          return false;
-        }
         const names = [node["tag"], node["name"], ...(node["classes"] ?? [])];
         if (names.some((n) => typeof n === "string" && wanted.has(n))) {
           return true;
@@ -5929,20 +6051,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return visit(children);
   }
 
-  layoutHolds(layoutName: string, elements: readonly string[], outsideCasts = false): boolean {
+  layoutHoldsLine(layoutName: string, element: string, variant: string | undefined): boolean {
+    return this.layoutHolds(layoutName, [element], true, (node) => admitsVariant(node, variant), true);
+  }
+
+  layoutHolds(
+    layoutName: string,
+    elements: readonly string[],
+    outsideCasts = false,
+    admits?: (node: ElementNode) => boolean,
+    lines = false,
+  ): boolean {
     const wanted = new Set(elements);
     const sparkle = this._game.program?.sparkle;
     if (sparkle?.layouts) {
-      const layout = sparkle.layouts[layoutName];
-      if (!layout) {
-        return false;
-      }
-      const screen = layout.screen
-        ? sparkle.screens?.[layout.screen]
-        : undefined;
-      return (
-        this.treeHolds(layout.children, wanted, outsideCasts) ||
-        this.treeHolds(screen?.children, wanted, outsideCasts)
+      return walkLayoutTree(
+        sparkle,
+        layoutName,
+        (element) =>
+          (!outsideCasts || !element.cast) &&
+          (!lines || takesLines(element)) &&
+          elementNames(element.node).some((name) => wanted.has(name)) &&
+          (!admits || admits(element.node)),
       );
     }
     const layout = this.context.layout?.[layoutName];
@@ -6713,6 +6843,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const e of instructions) {
       this.saveLayoutState(e);
     }
+    this.pruneLineText();
     if (instructions.some((e) => !e.auto)) {
       this._screenEdits += 1;
     }
@@ -7015,10 +7146,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected clearReach(target: string, reach: "marked" | "unmarked" | "name"): Element[] {
+  protected clearReach(target: string, reach: TextReasonRule["reach"]): Element[] {
     const elements = this.textElements(target);
     if (reach === "name") {
       return elements;
+    }
+    if (reach === "line") {
+      return elements.filter(
+        (el) =>
+          !this.limited(el) || this._clearMarked.has(el) || this.admits(el, this._state.line),
+      );
     }
     const marked = new Set([...this._clearPaths.values()].flat());
     return elements.filter(
@@ -7249,9 +7386,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         await Promise.all(
           targets.map(async (target) => {
             const elements = $.clearReach(target, rule.reach);
-            if (rule.deletesSavedText && (rule.reach === "name" || $.fullyMarked(target))) {
+            if (
+              rule.deletesSavedText &&
+              (rule.reach === "name" || rule.reach === "line" || $.fullyMarked(target))
+            ) {
               delete $._state.text?.[target];
-              delete $._state.lineText?.[target];
+              if (rule.reach === "line") {
+                $.replaceLineText(target);
+              } else if (reason === "line clear") {
+                $.keepLineText(target, (line) => $.lineHeld(target, line, true));
+              } else {
+                delete $._state.lineText?.[target];
+              }
               delete $._state.textWritten?.[target];
               this.#presented.delete(target);
             }
@@ -8809,6 +8955,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return undefined;
         }
         const entry: StreamEntry = { template, text };
+        if (instructions.variant) {
+          entry.variant = instructions.variant;
+        }
+        if (instructions.speaker?.character) {
+          entry.speaker = instructions.speaker.character;
+        }
         const shown = Object.fromEntries(
           Object.entries(instructions.extended ?? {}).filter(
             ([target, count]) => count > 0 && text[target],
@@ -9031,13 +9183,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const view = this.build(mount, entry);
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
+          if (i < started) {
+            this.restate(view, null);
+          }
           this.applyStyles(mount, view, i);
           if (entry.carried) {
             this.mark(view, "data-carried", "");
           }
           if (i >= started) {
             view.reserved = true;
-            this.hideReserved(view);
+            this.restate(view, "hidden");
             this.write(mount, i, entry, { complete: true });
             continue;
           }
@@ -9160,19 +9315,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return `${mount.key}\n${index}\n${mount.rendered[index]}`;
       }
 
-      protected hideReserved(view: StreamEntryView): void {
+      protected restate(view: StreamEntryView, visibility: "hidden" | null): void {
         for (const root of $.collectNodes(view.group)) {
-          $.updateElement(root, { style: { visibility: "hidden" } });
+          $.updateElement(root, {
+            style: { visibility },
+            attributes: { "data-latest": null },
+          });
+        }
+      }
+
+      protected unhide(view: StreamEntryView): void {
+        for (const root of $.collectNodes(view.group)) {
+          $.updateElement(root, { style: { visibility: null } });
         }
       }
 
       protected showReserved(view: StreamEntryView): void {
-        const roots = $.collectNodes(view.group);
-        const show = () => {
-          for (const root of roots) {
-            $.updateElement(root, { style: { visibility: null } });
-          }
-        };
+        const show = () => this.unhide(view);
         const line = $.composingLine();
         if (!line) {
           show();
@@ -9202,10 +9361,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
         const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
         const template = mount.node.templates[entry.template];
-        const group = template
-          ? $.mountChildren(mount.element, [template], scope, null)
-          : [];
-        return { group, scope };
+        $._entryLabels = { parent: mount.element, entry };
+        try {
+          const group = template
+            ? $.mountChildren(mount.element, [lineLabelled(template, entry)], scope, null)
+            : [];
+          return { group, scope };
+        } finally {
+          $._entryLabels = undefined;
+        }
       }
 
       protected write(

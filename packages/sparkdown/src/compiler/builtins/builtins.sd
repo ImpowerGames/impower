@@ -3778,6 +3778,46 @@ style action {
   }
 }
 
+style simultaneous_names {
+  display = flex
+  flex_direction = row
+  width = 100%
+  max_width = 640px
+  margin = 0 auto
+}
+
+style simultaneous_name {
+  #variant=right {
+    margin_left = auto
+  }
+}
+
+style simultaneous_lines {
+  display = flex
+  flex_direction = column
+  gap = 8px
+  width = 100%
+  max_width = 640px
+  margin = 0 auto
+  padding_bottom = 24px
+}
+
+style simultaneous_line {
+  max_width = 60%
+  opacity = 0.5
+  @latest {
+    opacity = 1
+  }
+  #variant=left {
+    align_self = flex-start
+    text_align = left
+  }
+  #variant=right {
+    align_self = flex-end
+    text_align = right
+  }
+}
+
 style continue_indicator {
   opacity = 0
   line_height = 1
@@ -3998,6 +4038,33 @@ layout transitional in textbox {
     stroke
     text
   }
+}
+
+layout simultaneous in textbox {
+  simultaneous_names {
+    character_name.simultaneous_name #variant=left {
+      stroke
+      text
+    }
+    character_name.simultaneous_name #variant=right {
+      stroke
+      text
+    }
+  }
+  stream.simultaneous_lines {
+    dialogue.simultaneous_line #variant=left {
+      stroke
+      text
+    }
+    dialogue.simultaneous_line #variant=right {
+      stroke
+      text
+    }
+  }
+}
+
+stream simultaneous {
+  advance = auto
 }
 
 layout choices {

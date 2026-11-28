@@ -4,6 +4,8 @@ export interface StreamEntry {
   id?: number;
   template: number;
   text: Record<string, TextInstruction[]>;
+  variant?: string;
+  speaker?: string;
   shown?: Record<string, number>;
   carried?: true;
 }
