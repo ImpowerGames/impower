@@ -121,27 +121,25 @@ describe("a picture line's own show or hide plays beside every `with` (I-2884)",
     expect(reveal.timing.delay).toBe("5s");
   });
 
-  it("a `with` on a leaving picture that names only its end look starts from the `show` look, and the line's own motion does not", async () => {
+  it("an instant own hide waits for every leaving `with` that sets the same property, and for no other", async () => {
     const replaced = (await played("show portrait hero with fade")).instruction;
-    expect(replaced.content.previousHideAnimations.map((a: any) => a.keyframes)).toEqual([
-      [{ opacity: "0" }],
-      [{ opacity: "1" }, { opacity: "0" }],
+    expect(names(replaced.content.previousHideAnimations)).toEqual([
+      { name: "hide", delay: "0.5s", duration: 0 },
+      { name: "fadeout", delay: "0s", duration: "0.5s" },
     ]);
-    const hidden = (await played("hide portrait with fade with spin over 1s once")).instruction;
-    expect(hidden.targetAnimations.map((a: any) => a.keyframes)).toEqual([
-      [{ opacity: "0" }],
-      [{ opacity: "1" }, { opacity: "0" }],
-      [{ transform: "rotate(360deg)" }],
+    expect(replaced.content.previousHideAnimations[1].keyframes).toEqual([{ opacity: "0" }]);
+    const hidden = (await played("hide portrait with fade over 1s with spin over 2s once")).instruction;
+    expect(names(hidden.targetAnimations)).toEqual([
+      { name: "hide", delay: "1s", duration: 0 },
+      { name: "fadeout", delay: "0s", duration: "1s" },
+      { name: "spin", delay: "0s", duration: "2s" },
     ]);
+    const shaken = (await played("show portrait hero with shake")).instruction;
+    expect(names(shaken.content.previousHideAnimations)[0]).toEqual({ name: "hide", delay: "0s", duration: 0 });
+    const timed = (await played("hide portrait over 1s with fade over 2s")).instruction;
+    expect(names(timed.targetAnimations)[0]).toEqual({ name: "hide", delay: "0s", duration: "1s" });
     const using = (await played("hide portrait using fade")).instruction;
     expect(using.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }]]);
-  });
-
-  it("a `with` on a hide of a layer already hidden keeps starting from the layer's own look", async () => {
-    const { instruction } = await played("hide portrait]] [[hide portrait with fadeout over 1s");
-    expect(instruction.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }], [{ opacity: "0" }]]);
-    const shownAgain = (await played("hide portrait]] [[show portrait]] [[hide portrait with fadeout over 1s")).instruction;
-    expect(shownAgain.targetAnimations.map((a: any) => a.keyframes)).toEqual([[{ opacity: "0" }], [{ opacity: "1" }, { opacity: "0" }]]);
   });
 
   it("`[[show backdrop bg_room over 2s with shake wait]]` holds the story for two seconds", async () => {

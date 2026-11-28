@@ -76,6 +76,63 @@ function opacity(el: HTMLElement): number {
   return value;
 }
 
+async function write(h: Awaited<ReturnType<typeof setup>>, line: string) {
+  const beat = h.game.module.interpreter.parse(line, "main", {} as any);
+  void h.game.module.ui.image.write("portrait", beat.image!["portrait"]!, false);
+  await settle(h);
+}
+
+describe("a fading `with` on a hide starts from the layer's look before the line (I-2884)", () => {
+  test("a layer already faded out by an `animate` stays hidden through `[[hide portrait with fadeout over 1s]]`", async () => {
+    const h = await setup();
+    const layer = h.overlay.querySelector<HTMLElement>(".portrait")!;
+    await write(h, "[[animate portrait with fadeout over 1s]]");
+    seek(1100);
+    await settle(h);
+    expect(opacity(layer)).toBe(0);
+    await write(h, "[[hide portrait with fadeout over 1s]]");
+    seek(1100);
+    expect(opacity(layer)).toBe(0);
+  });
+
+  test("a layer half faded out by an `animate` fades on from where it is", async () => {
+    const h = await setup();
+    const layer = h.overlay.querySelector<HTMLElement>(".portrait")!;
+    await write(h, "[[animate portrait with fadeout over 1s]]");
+    seek(600);
+    await settle(h);
+    expect(opacity(layer)).toBeCloseTo(0.5);
+    await write(h, "[[hide portrait with fadeout over 1s]]");
+    seek(600);
+    expect(opacity(layer)).toBeCloseTo(0.5);
+    seek(1700);
+    expect(opacity(layer)).toBe(0);
+  });
+
+  test("a hide of a layer already hidden keeps it hidden", async () => {
+    const h = await setup();
+    const layer = h.overlay.querySelector<HTMLElement>(".portrait")!;
+    await write(h, "[[hide portrait]]");
+    seek(100);
+    await settle(h);
+    await write(h, "[[hide portrait with fadeout over 1s]]");
+    seek(100);
+    expect(opacity(layer)).toBe(0);
+    seek(600);
+    expect(opacity(layer)).toBe(0);
+  });
+
+  test("a shown layer fades out over the `with` and stays hidden after it", async () => {
+    const h = await setup();
+    const layer = h.overlay.querySelector<HTMLElement>(".portrait")!;
+    await write(h, "[[hide portrait with fadeout over 1s]]");
+    seek(600);
+    expect(opacity(layer)).toBeCloseTo(0.5);
+    seek(1200);
+    expect(opacity(layer)).toBe(0);
+  });
+});
+
 describe("a picture line's own show or hide plays beside every `with` (I-2884)", () => {
   test("after `[[show portrait Q with shake]]` the replaced picture is not visible from the first frame, and the new one is", async () => {
     const { h, before, arriving } = await play("[[show portrait Q with shake]]");

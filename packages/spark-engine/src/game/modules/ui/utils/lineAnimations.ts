@@ -128,7 +128,6 @@ export const pictureLineAnimations = (
   context: AnimationContext | undefined,
   e: ImageInstruction,
   instant: boolean,
-  layerShown = true,
 ): PictureLineAnimations => {
   const result: PictureLineAnimations = {
     targetAnimations: [],
@@ -173,23 +172,32 @@ export const pictureLineAnimations = (
         : undefined;
       return animation ? [{ ...animation, arm: k }] : [];
     });
-  const startingFrom =
-    (look: Record<string, unknown> | undefined) =>
-    (animation: Animation): Animation => {
+  const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent) =>
+    entries.flatMap((entry) => [...definitions([eventOf(entry)]), ...armsOf(entry)]);
+  const usingArms = using ? armsOf(using) : [];
+  const hiddenLook = context?.animation?.["hide"]?.keyframes?.at(-1);
+  const arrival = (): Animation[] =>
+    definitions(ownMotion("on_show")).map((animation) => {
       const [end] = animation.keyframes;
-      if (!look || !end || animation.keyframes.length !== 1) {
+      if (using || !hiddenLook || !end || animation.keyframes.length !== 1) {
         return animation;
       }
-      const start = Object.fromEntries(Object.entries(look).filter(([property]) => property in end));
+      const start = Object.fromEntries(Object.entries(hiddenLook).filter(([property]) => property in end));
       return Object.keys(start).length > 0 ? { ...animation, keyframes: [start, end] } : animation;
-    };
-  const fromHidden = startingFrom(context?.animation?.["hide"]?.keyframes?.at(-1));
-  const fromShown = startingFrom(layerShown ? context?.animation?.["show"]?.keyframes?.at(-1) : undefined);
-  const inWrittenOrder = (eventOf: (entry: WithInstruction) => AnimationEvent, start: (animation: Animation) => Animation = (a) => a) =>
-    entries.flatMap((entry) => [...definitions([eventOf(entry)]).map(start), ...armsOf(entry)]);
-  const usingArms = using ? armsOf(using) : [];
-  const arrival = (): Animation[] => definitions(ownMotion("on_show")).map(using ? (a) => a : fromHidden);
-  const leaving = (): Animation[] => [...definitions(ownMotion("on_hide")), ...definitions(withEvents("on_hide")).map(fromShown)];
+    });
+  const leavingOwnMotion = (): Animation[] => {
+    const withs = definitions(withEvents("on_hide"));
+    return definitions(ownMotion("on_hide")).map((animation) => {
+      if (animationsEnd([animation]) > 0) {
+        return animation;
+      }
+      const properties = new Set(animation.keyframes.flatMap((keyframe) => Object.keys(keyframe ?? {})));
+      const overlapping = withs.filter((other) => other.keyframes.some((keyframe) => Object.keys(keyframe ?? {}).some((p) => properties.has(p))));
+      const end = animationsEnd(overlapping);
+      return end > 0 ? { ...animation, timing: { ...animation.timing, delay: `${end}s` } } : animation;
+    });
+  };
+  const leaving = (): Animation[] => [...leavingOwnMotion(), ...definitions(withEvents("on_hide"))];
   if (pictured) {
     if (e.control === "show") {
       result.enterAnimations = [...arrival(), ...definitions(withEvents("on_show"))];
@@ -207,9 +215,9 @@ export const pictureLineAnimations = (
   } else if (e.control === "hide" || e.control === "show") {
     const arm = e.control === "show" ? "on_show" : "on_hide";
     result.targetAnimations.push(
-      ...definitions(ownMotion(arm)),
+      ...(arm === "on_hide" ? leavingOwnMotion() : definitions(ownMotion(arm))),
       ...usingArms,
-      ...inWrittenOrder((entry) => armEvent(context, entry, arm), arm === "on_hide" ? fromShown : undefined),
+      ...inWrittenOrder((entry) => armEvent(context, entry, arm)),
     );
   } else if (e.control === "animate") {
     result.targetAnimations.push(...inWrittenOrder((entry) => ({ name: entry.name, ...withTiming(entry) })));

@@ -346,7 +346,6 @@ interface PictureView {
   picture: boolean;
   travelStart?: number;
   show?: ImageInstruction;
-  hidden?: true;
 }
 
 interface ShownPicture {
@@ -7750,22 +7749,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return e.control === "show" ? { framing: $.getFraming(e.at), picture: true, show: e } : view;
         }
         if (e.control === "hide") {
-          return { picture: view.picture, hidden: true };
-        }
-        if (e.control === "show" && view.hidden) {
-          const { hidden: _hidden, ...shown } = view;
-          return shown;
+          return { picture: view.picture };
         }
         if (e.control === "animate" && e.to && view.picture) {
           const start = e.after ?? 0;
           return start >= (view.travelStart ?? -Infinity)
-            ? {
-                picture: true,
-                framing: $.getFraming(e.to),
-                travelStart: start,
-                ...(view.show ? { show: view.show } : {}),
-                ...(view.hidden ? { hidden: view.hidden } : {}),
-              }
+            ? { picture: true, framing: $.getFraming(e.to), travelStart: start, ...(view.show ? { show: view.show } : {}) }
             : view;
         }
         return view;
@@ -7788,7 +7777,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const e of sequence) {
           const before = instant || e.control !== "show" ? undefined : view.show;
           const shown = before?.assets?.map((asset) => ({ asset, pick: $.imagePick(before, asset) }));
-          const layerShown = !view.hidden;
           view = this.nextView(e, view);
           const framing = view.framing;
           const out: WriteImageInstruction = { control: e.control };
@@ -7799,7 +7787,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               timing: $.getTravelTiming(e, instant),
             };
           }
-          const plays = pictureLineAnimations($.context as AnimationContext, e, instant, layerShown);
+          const plays = pictureLineAnimations($.context as AnimationContext, e, instant);
           const targetAnimations: LineAnimation[] = plays.targetAnimations;
           const assets = e.assets;
           if (assets && assets.length > 0) {
