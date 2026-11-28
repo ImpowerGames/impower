@@ -32,7 +32,10 @@ import { linePick } from "@impower/sparkdown/src/compiler/utils/linePick";
 import { default_morph } from "../constructors/default_morph";
 import { ambientReads } from "@impower/sparkdown/src/runtime/AmbientReads";
 import { pageKey } from "../../../core/utils/pageKey";
-import type { StreamRun } from "../../../core/classes/presenters/streamRuns";
+import {
+  streamSettings,
+  type StreamRun,
+} from "../../../core/classes/presenters/streamRuns";
 import { streamKey, streamTemplate } from "../utils/streamTemplate";
 import { ownEntry, ownList } from "../../../core/utils/ownEntry";
 import {
@@ -8844,12 +8847,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const live: Record<string, StreamState> = {};
         const runs = new Map<string, StreamRunState>();
         for (const layout of $.openedLayoutsAfter(events)) {
-          const restarted = events.some(
-            (event) =>
-              event.name === layout &&
-              (event.control === LayoutVerb.clear ||
-                event.control === LayoutVerb.close),
-          );
+          const own = events.filter((event) => event.name === layout);
+          const closed = own.some((event) => event.control === LayoutVerb.close);
+          const restarted =
+            closed || own.some((event) => event.control === LayoutVerb.clear);
           const nodes = layoutStreams(sparkle, layout);
           const lane = run?.lanes.get(layout);
           const gathered = lane !== undefined;
@@ -8858,6 +8859,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const repeated = nodes.some(
             (_, index) => states[streamKey(layout, index)]?.beat === beat,
           );
+          const settings = streamSettings($._game, layout);
+          const clears =
+            restarted ||
+            (settings.clear === "run" && member && (!previous || Boolean(previous.ends)));
+          const carry = clears ? (closed ? 0 : settings.carry) : undefined;
           if (repeated || instructions.hold) {
             if (previous) {
               runs.set(layout, previous);
@@ -8880,7 +8886,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     return entry && !entry.shown ? [entry] : [];
                   })
                 : [];
-            this.recordStream(stream, node, instructions, { repeat, restarted }, ahead);
+            this.recordStream(
+              stream,
+              node,
+              instructions,
+              { repeat, carry },
+              ahead,
+            );
             stream.beat = beat;
             stream.key = key;
             live[id] = stream;
@@ -8902,32 +8914,58 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         stream: StreamState,
         node: StreamNode,
         instructions: Instructions,
-        options: { repeat: boolean; restarted: boolean },
+        options: { repeat: boolean; carry?: number },
         ahead: StreamEntry[],
       ): void {
         const started = stream.entries.slice(
           0,
           stream.entries.length - (stream.reserved ?? 0),
         );
-        const before = options.repeat
-          ? [...started.slice(0, stream.current), ...(stream.absorbed ?? [])]
-          : started;
+        const restart = options.repeat
+          ? stream.restart
+          : options.carry !== undefined
+            ? { carried: Math.min(options.carry, started.length) }
+            : undefined;
+        const before = !options.repeat
+          ? started
+          : restart
+            ? (stream.absorbed ?? [])
+            : [...started.slice(0, stream.current), ...(stream.absorbed ?? [])];
         const entry = this.entryFor(node, instructions);
-        if (options.restarted && !options.repeat) {
+        const head = restart
+          ? before
+              .slice(before.length - restart.carried)
+              .map((kept): StreamEntry => ({ ...kept, carried: true }))
+          : before;
+        if (restart && !options.repeat) {
           stream.cleared = (stream.cleared ?? 0) + 1;
+          if (stream.styles) {
+            const moved = before.length - restart.carried;
+            stream.styles = Object.fromEntries(
+              Object.entries(stream.styles).flatMap(([index, style]) =>
+                Number(index) >= moved ? [[Number(index) - moved, style]] : [],
+              ),
+            );
+          }
         }
-        let keep = options.restarted ? 0 : before.length;
-        const last = before[keep - 1];
+        let keep = head.length;
+        const last = head[keep - 1];
         if (
+          !restart &&
           entry?.shown &&
           last?.template === entry.template &&
           Object.keys(entry.shown).every((target) => last.text[target])
         ) {
           keep -= 1;
         }
-        const absorbed = before.slice(keep);
-        stream.entries = [...before.slice(0, keep), ...(entry ? [entry] : []), ...ahead];
+        const absorbed = restart ? before : before.slice(keep);
+        stream.entries = [...head.slice(0, keep), ...(entry ? [entry] : []), ...ahead];
         stream.current = keep;
+        if (restart) {
+          stream.restart = restart;
+        } else {
+          delete stream.restart;
+        }
         if (ahead.length > 0) {
           stream.reserved = ahead.length;
         } else {
@@ -9117,8 +9155,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         );
         const instant = presented?.instant ?? true;
         const time = presented?.time;
+        const epoch = `${stream?.cleared ?? 0}:`;
         const signatures = entries.map(
-          (entry) => `${stream?.cleared ?? 0}:${JSON.stringify(entry)}`,
+          ({ carried: _carried, ...entry }) => `${epoch}${JSON.stringify(entry)}`,
         );
         let kept = 0;
         while (
@@ -9129,15 +9168,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           kept += 1;
         }
         const restarted = mount.rendered.some(
-          (signature) => !signature.startsWith(`${stream?.cleared ?? 0}:`),
+          (signature) => !signature.startsWith(epoch),
         );
         const shown = restarted ? 0 : mount.entries.length;
-        for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
-          const group = mount.entries[i]!.group;
-          if (restarted) {
-            $.removeGroup(group);
-          } else {
-            for (const root of $.collectNodes(group)) {
+        if (restarted) {
+          kept = this.carryOver(mount, entries, signatures);
+        } else {
+          for (let i = mount.entries.length - 1; i >= kept; i -= 1) {
+            for (const root of $.collectNodes(mount.entries[i]!.group)) {
               $.destroyElement(root);
             }
           }
@@ -9178,6 +9216,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           mount.entries.push(view);
           mount.rendered.push(signatures[i]!);
           this.applyStyles(mount, view, i);
+          if (entry.carried) {
+            this.mark(view, "data-carried", "");
+          }
           if (i >= started) {
             view.reserved = true;
             this.hideReserved(view);
@@ -9216,13 +9257,47 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const latest = mount.entries[Math.min(mount.entries.length, started) - 1];
         if (latest !== mount.latest) {
           if (mount.latest && mount.entries.includes(mount.latest)) {
-            this.mark(mount.latest, null);
+            this.mark(mount.latest, "data-latest", null);
           }
           if (latest) {
-            this.mark(latest, "");
+            this.mark(latest, "data-latest", "");
           }
           mount.latest = latest;
         }
+      }
+
+      protected carryOver(
+        mount: MountedStream,
+        entries: readonly StreamEntry[],
+        signatures: readonly string[],
+      ): number {
+        const leading = entries.findIndex((entry) => !entry.carried);
+        const count = leading < 0 ? entries.length : leading;
+        const content = (signature: string) => signature.slice(signature.indexOf(":") + 1);
+        const found: number[] = [];
+        let at = mount.rendered.length - 1;
+        for (let j = count - 1; j >= 0 && at >= 0; j -= 1) {
+          while (at >= 0 && content(mount.rendered[at]!) !== content(signatures[j]!)) {
+            at -= 1;
+          }
+          if (at >= 0) {
+            found.unshift(at);
+            at -= 1;
+          }
+        }
+        const keeps = new Set(found.length === count ? found : []);
+        const views = [...keeps].map((index) => mount.entries[index]!);
+        for (let i = mount.entries.length - 1; i >= 0; i -= 1) {
+          if (!keeps.has(i)) {
+            $.removeGroup(mount.entries[i]!.group);
+          }
+        }
+        mount.entries.splice(0, mount.entries.length, ...views);
+        mount.rendered.splice(0, mount.rendered.length, ...signatures.slice(0, views.length));
+        for (const view of views) {
+          this.mark(view, "data-carried", "");
+        }
+        return views.length;
       }
 
       remounted(replaced: (el: Element) => boolean): void {
@@ -9240,8 +9315,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               const reveal = this._reveals.get(this.revealKey(mount, index)) ?? {
                 complete: true,
               };
-              if (this.write(mount, index, entry, reveal, replaced) && view === mount.latest) {
-                this.mark(view, "");
+              if (this.write(mount, index, entry, reveal, replaced)) {
+                if (view === mount.latest) {
+                  this.mark(view, "data-latest", "");
+                }
+                if (entry.carried) {
+                  this.mark(view, "data-carried", "");
+                }
               }
             });
           }
@@ -9290,9 +9370,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
       }
 
-      protected mark(view: StreamEntryView, latest: string | null): void {
+      protected mark(
+        view: StreamEntryView,
+        attribute: "data-latest" | "data-carried",
+        value: string | null,
+      ): void {
         for (const root of $.collectNodes(view.group)) {
-          $.updateElement(root, { attributes: { "data-latest": latest } });
+          $.updateElement(root, { attributes: { [attribute]: value } });
         }
       }
 

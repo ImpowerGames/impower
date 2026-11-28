@@ -84,6 +84,7 @@ import { LAYOUT_CONTROL_DESCRIPTIONS } from "./layoutControlDescriptions";
 import { getStyleValueDescription } from "./styleValueDescriptions";
 import {
   STREAM_ELEMENT,
+  STREAM_ENTRY_STATE_DOCS,
   streamBlockCompletion,
   templatedElementCompletions,
 } from "./streamElementHelp";
@@ -2529,6 +2530,17 @@ const completionsAt = (
             kind: MarkupKind.Markdown,
             value: presenceBlockDocumentation(presence),
           },
+        });
+      }
+      for (const [state, value] of Object.entries(STREAM_ENTRY_STATE_DOCS)) {
+        completions.set(`@${state}`, {
+          label: `@${state}`,
+          filterText: `@${state}`,
+          textEdit: { range, newText: `@${state} { $0 }` },
+          insertTextFormat: InsertTextFormat.Snippet,
+          labelDetails: { description: "stream entry" },
+          kind: CompletionItemKind.Keyword,
+          documentation: { kind: MarkupKind.Markdown, value },
         });
       }
       return buildCompletions();

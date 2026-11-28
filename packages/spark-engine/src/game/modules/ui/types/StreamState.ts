@@ -4,6 +4,11 @@ export interface StreamEntry {
   template: number;
   text: Record<string, TextInstruction[]>;
   shown?: Record<string, number>;
+  carried?: true;
+}
+
+export interface StreamRestart {
+  carried: number;
 }
 
 export interface StreamState {
@@ -11,6 +16,7 @@ export interface StreamState {
   current: number;
   reserved?: number;
   cleared?: number;
+  restart?: StreamRestart;
   key?: string;
   beat?: number;
   absorbed?: StreamEntry[];

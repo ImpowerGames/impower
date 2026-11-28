@@ -10,6 +10,8 @@ import { layoutEvents, routeLine } from "./textLayouts";
 export interface StreamSettings {
   advance: "click" | "auto";
   pause: number;
+  clear: "never" | "run";
+  carry: number;
 }
 
 export interface StreamGathering {
@@ -57,9 +59,12 @@ export function streamSettings(game: Game, layout: string): StreamSettings {
   const own =
     streams && Object.hasOwn(streams, layout) ? streams[layout] : streams?.["$default"];
   const pause = getTimeValue(own?.pause);
+  const carry = own?.carry;
   return {
     advance: own?.advance === "auto" ? "auto" : "click",
     pause: pause !== undefined && pause >= 0 ? pause : BUILT_IN_PAUSE,
+    clear: own?.clear === "run" ? "run" : "never",
+    carry: typeof carry === "number" && Number.isInteger(carry) && carry > 0 ? carry : 0,
   };
 }
 
@@ -88,7 +93,9 @@ const endsRun = (beat: Instructions, gathering: StreamGathering): boolean =>
   !gathering.gathers ||
   Boolean(beat.hold) ||
   (beat.choices?.length ?? 0) > 0 ||
-  (!gathering.opened && Boolean(beat.waits));
+  (gathering.settings.clear === "run"
+    ? gathering.settings.advance === "click" || Boolean(beat.waits)
+    : !gathering.opened && Boolean(beat.waits));
 
 const restarts = (own: LayoutInstruction[], layout: string): boolean =>
   own.some(
