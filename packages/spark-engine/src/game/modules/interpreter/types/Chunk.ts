@@ -12,6 +12,7 @@ export interface Chunk {
     to?: number | string;
     at?: string;
     with?: string;
+    using?: string;
     ease?: string;
     morph?: string;
     wait?: boolean;

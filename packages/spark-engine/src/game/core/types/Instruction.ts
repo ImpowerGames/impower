@@ -65,6 +65,7 @@ export interface ImageInstruction extends IInstruction {
   control: "show" | "hide" | "animate";
   assets?: string[];
   with?: WithInstruction[];
+  using?: string;
   morph?: string;
   at?: string;
   to?: string;

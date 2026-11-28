@@ -23,7 +23,7 @@ import {
   textLayoutOpenAfter,
   UNSHOWN_TEXT_MESSAGE,
 } from "./presenters/textLayouts";
-import { streamRun } from "./presenters/streamRuns";
+import { advancesInStream, streamRun } from "./presenters/streamRuns";
 import { VisualNovelPresenter } from "./presenters/VisualNovelPresenter";
 
 export { writeBeatText } from "./presenters/VisualNovelPresenter";
@@ -111,6 +111,8 @@ export class Coordinator<G extends Game> {
 
   protected _carriedAudio?: Record<string, AudioInstruction[]>;
 
+  protected _executes = false;
+
   constructor(
     game: G,
     instructions: Instructions,
@@ -188,6 +190,7 @@ export class Coordinator<G extends Game> {
   }
 
   onExecute() {
+    this._executes = true;
     this._onTick = this.display();
     this._onTick?.(0);
   }
@@ -346,7 +349,13 @@ export class Coordinator<G extends Game> {
       this._whole = false;
       this.showWhole();
     }
-    if (instructions.auto && this._interacted && !waitingForChoice) {
+    if (
+      instructions.auto &&
+      this._interacted &&
+      !waitingForChoice &&
+      (!instructions.onward ||
+        advancesInStream(game, instructions, game.module.interpreter.queuedBeats))
+    ) {
       this._interacted = false;
       return 3;
     }
@@ -387,6 +396,19 @@ export class Coordinator<G extends Game> {
       }
     }
     return this.continueOnInteraction(waitingForChoice);
+  }
+
+  carryOn(): boolean {
+    if (
+      !this._executes ||
+      !this._instructions.onward ||
+      !this._finishedExecution ||
+      this.shouldContinue() !== 1
+    ) {
+      return false;
+    }
+    this._game.autoAdvancedToContinue();
+    return true;
   }
 
   protected continueOnInteraction(waitingForChoice: boolean | undefined): number {
@@ -541,6 +563,7 @@ export class Coordinator<G extends Game> {
     let finished = false;
     let beatTime: number | undefined;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
+    const atOnce = Boolean(instructions.onward) && totalDurationMS === 0;
     const start = (time?: number, sound = true) => {
       if (started) {
         return;
@@ -628,7 +651,7 @@ export class Coordinator<G extends Game> {
         }
         if (
           started &&
-          elapsedMS >= totalDurationMS &&
+          (atOnce || elapsedMS >= totalDurationMS) &&
           cutsceneTriggerId == null
         ) {
           finished = true;

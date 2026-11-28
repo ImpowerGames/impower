@@ -8,6 +8,7 @@ export interface SceneImageWrite {
   at?: string;
   to?: string;
   with?: string[];
+  using?: string;
 }
 
 export interface SceneBeat {
