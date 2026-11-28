@@ -75,10 +75,10 @@ async function sizedFor(line: string) {
     .filter(Boolean);
   const scales: number[] = [];
   for (const layer of layers) {
-    const size = layer.size.bind(layer);
-    layer.size = (reach: { zoom?: number; scale?: number }) => {
-      scales.push(reach.scale ?? 1);
-      return size(reach);
+    const prepareLayout = layer.prepareLayout.bind(layer);
+    layer.prepareLayout = (gauge?: { reach: { zoom: number; scale: number } }) => {
+      scales.push(gauge?.reach.scale ?? 1);
+      return prepareLayout(gauge);
     };
   }
   const ui = h.ui as any;
@@ -86,10 +86,7 @@ async function sizedFor(line: string) {
   const writeImage = ui.writeImage.bind(ui);
   ui.writeImage = (target: string, instructions: unknown[], ...rest: unknown[]) => {
     writes.push({ target, instructions });
-    ui.prepareDrawing(
-      [WriteImageMessage.type.request({ target, instructions: instructions as never, instant: false })],
-      new Map(),
-    );
+    ui.prepareDrawing({}, [WriteImageMessage.type.request({ target, instructions: instructions as never, instant: false })], new Map());
     return writeImage(target, instructions, ...rest);
   };
   const beat = h.game.module.interpreter.parse(line, "main", {} as any);
