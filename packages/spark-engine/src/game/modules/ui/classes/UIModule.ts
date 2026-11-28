@@ -2379,6 +2379,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _entryUpdates = new Map<string, { style: Set<string>; attributes: Set<string> }>();
 
+  protected _entryLabels?: { parent: Element; entry: StreamEntry };
+
   protected noteEntryUpdate(element: Element, state: ElementState | undefined): void {
     const style = state?.style ? Object.keys(state.style) : [];
     const attributes = Object.keys(state?.attributes ?? {}).filter(
@@ -4484,6 +4486,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style[prop] = val;
         if (this.isReactiveProp(propValue)) {
           reactiveStyles.push({ prop, propValue, last: val, deps });
+        }
+      }
+    }
+    const entry = this._entryLabels?.parent === parent ? this._entryLabels.entry : undefined;
+    if (entry) {
+      for (const [prop, value] of [["variant", entry.variant], ["speaker", entry.speaker]] as const) {
+        if (value) {
+          attributes[toDataAttributeName(prop)] = value;
+          labels[prop] = value;
+        } else {
+          delete attributes[toDataAttributeName(prop)];
+          delete labels[prop];
         }
       }
     }
@@ -9347,20 +9361,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected build(mount: MountedStream, entry: StreamEntry): StreamEntryView {
         const scope = $.makeScope(mount.scope.env, mount.scope.slots, mount.scope.base);
         const template = mount.node.templates[entry.template];
-        const group = template
-          ? $.mountChildren(mount.element, [lineLabelled(template, entry)], scope, null)
-          : [];
-        if (template && $._game.program?.sparkle?.components?.[template.tag]) {
-          for (const root of $.collectNodes(group)) {
-            $.updateElement(root, {
-              attributes: {
-                "data-variant": entry.variant ?? null,
-                "data-speaker": entry.speaker ?? null,
-              },
-            });
-          }
+        $._entryLabels = { parent: mount.element, entry };
+        try {
+          const group = template
+            ? $.mountChildren(mount.element, [lineLabelled(template, entry)], scope, null)
+            : [];
+          return { group, scope };
+        } finally {
+          $._entryLabels = undefined;
         }
-        return { group, scope };
       }
 
       protected write(

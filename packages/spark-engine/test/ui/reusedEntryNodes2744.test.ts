@@ -138,6 +138,20 @@ describe("a stream entry keeps no look an update gave it at a later line (I-2744
     }
   });
 
+  test("after restoring a checkpoint taken before the update", async () => {
+    const h = await start();
+    await clickTo(h, "two");
+    const checkpointAt = h.game.checkpoints.length - 1;
+    await clickTo(h, "three");
+    await giveEntriesALook(h);
+    const since = h.messages.length;
+    expect(h.game.restoreCheckpoint(checkpointAt)).toBe(true);
+    await h.reconnect();
+    await tick(h);
+    expect(bubbleIds(h).length).toBeGreaterThan(0);
+    expectNoLook(h, since);
+  });
+
   test("after loading a save taken before the update", async () => {
     const h = await start();
     await clickTo(h, "two");

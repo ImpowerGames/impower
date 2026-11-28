@@ -355,6 +355,8 @@ end
         )
         .map((m: any) => m.params.attributes[name])
         .at(-1);
+    expect(root.attributes?.["data-variant"]).toBe("receive");
+    expect(root.attributes?.["data-speaker"]).toBe("bunny");
     expect(last("data-variant")).toBe("receive");
     expect(last("data-speaker")).toBe("bunny");
   });
